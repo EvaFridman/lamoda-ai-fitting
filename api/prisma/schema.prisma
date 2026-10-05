@@ -1,0 +1,17 @@
+// Database schema. Every change goes through a migration (`prisma migrate dev`), never `db push`.
+// Migrations stay compatible with the previous release: add first, remove in a later release.
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  runtime             = "nodejs"
+  moduleFormat        = "esm"
+  // The api is ESM with "nodenext" resolution: relative imports need the .js extension.
+  importFileExtension = "js"
+}
+
+// The connection URL lives in prisma.config.ts; at runtime PrismaService connects through
+// @prisma/adapter-pg.
+datasource db {
+  provider = "postgresql"
+}
