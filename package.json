@@ -10,7 +10,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint --max-warnings=0 .",
-    "check:push": "npm run lint"
+    "typecheck": "npm --prefix api run typecheck",
+    "check:push": "npm run lint && npm run typecheck"
   },
   "allowScripts": {},
   "devDependencies": {
