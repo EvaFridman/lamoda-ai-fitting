@@ -4,6 +4,9 @@ import { LoggerModule } from 'nestjs-pino';
 
 import { type Env, validateEnv } from './config/env.js';
 import { HelloModule } from './hello/hello.module.js';
+import { PrismaModule } from './prisma/prisma.module.js';
+import { RedisModule } from './redis/redis.module.js';
+import { TemporalClientModule } from './temporal/temporal-client.module.js';
 
 @Module({
   imports: [
@@ -23,6 +26,9 @@ import { HelloModule } from './hello/hello.module.js';
         },
       }),
     }),
+    PrismaModule,
+    RedisModule,
+    TemporalClientModule,
     HelloModule,
   ],
 })

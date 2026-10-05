@@ -25,6 +25,10 @@ Decisions made by the owner. Each line is final unless the owner changes it here
 - A10. `.claude/`: Bash guard and format hooks, permissions.
 - A11. `.claude/`: read-only code-reviewer agent, `/pr-summary`, `/review-changes` now; skills for
   repeated tasks (e.g. adding an endpoint) once there is code to model them on.
+- A11a. Third-party agent skills only after review, copied byte-identical into `.claude/skills/`
+  with source and hash (decided in T10). Added: `prisma-cli`, `prisma-client-api` from
+  `prisma/skills`. Not added: `prisma-orm-setup` (defaults to Prisma 8, against V3) and the skills
+  for products not used here. `prisma init` is not run in the repository: it installs all of them.
 
 ## api (NestJS)
 

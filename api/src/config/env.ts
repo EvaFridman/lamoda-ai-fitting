@@ -10,6 +10,16 @@ export const envSchema = z.object({
   WEB_ORIGIN: z.url(),
   // The deployed image tag (commit hash); `dev` locally.
   APP_VERSION: z.string().min(1).default('dev'),
+
+  // postgresql://user:password@host:5432/db
+  DATABASE_URL: z.string().regex(/^postgres(ql)?:\/\//, 'must be a postgresql:// URL'),
+  // redis://host:6379 (a password, if any, goes into the URL)
+  REDIS_URL: z.string().regex(/^rediss?:\/\//, 'must be a redis:// URL'),
+  // host:port of the Temporal frontend, e.g. temporal:7233
+  TEMPORAL_ADDRESS: z.string().regex(/^[\w.-]+:\d+$/, 'must be host:port'),
+  TEMPORAL_NAMESPACE: z.string().min(1).default('default'),
+  // Queue shared by the api (starts workflows) and the temporal-worker (runs them).
+  TEMPORAL_TASK_QUEUE: z.string().min(1).default('main'),
 });
 
 export type Env = z.infer<typeof envSchema>;

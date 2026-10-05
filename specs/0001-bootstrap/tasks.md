@@ -68,10 +68,14 @@ Ready on the Mac: Node 26, npm 12, Docker 29, gitleaks 8.30, Ansible 2.21, jq, g
       Check: `npm test` passes; the unit test builds the controller through Nest's DI.
       Revised during the task: the planned `unplugin-swc` turned out unnecessary (plan 4.6).
       Commit: `feat(api): add hello endpoint, swagger and vitest`
-- [ ] **T10. Data layer clients.** Prisma 7 (`prisma@7`, schema without models, `prisma.config.ts`,
-      `PrismaService`), Redis provider, Temporal client provider. CI step `prisma generate`.
+- [x] **T10. Data layer clients.** Prisma 7 (`prisma@7`, schema without models, `prisma.config.ts`,
+      `PrismaService`), Redis provider, Temporal client provider. `prisma generate` runs as the
+      api's `postinstall`, so `npm ci` (CI, Docker, a fresh clone) produces the client.
       Check: `npx prisma generate` succeeds (if it refuses with zero models: placeholder model, per plan
       risks); build and typecheck pass.
+      Done: zero models generate fine; the api starts and serves `/hello` with Postgres, Redis and
+      Temporal all down. Install scripts: `prisma`, `@prisma/engines` approved; `fsevents`,
+      `protobufjs` denied. Prisma skills added (A11a).
       Commit: `feat(api): add prisma, redis and temporal clients`
 - [ ] **T11. Health checks.** `/health/live` with `version`, `/health/ready` with three indicators;
       e2e test for `/health/live`.
