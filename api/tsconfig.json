@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ES2024",
+    "lib": ["ES2024"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "types": ["node"],
+    // This config is for the editor and `typecheck` (sources, tests, configs); the build uses
+    // tsconfig.build.json, which narrows rootDir to src/ and sets outDir.
+    "rootDir": ".",
+    "sourceMap": true,
+    "incremental": true,
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "strictPropertyInitialization": false
+  },
+  "include": ["src", "test", "*.ts"]
+}

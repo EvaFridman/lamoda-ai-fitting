@@ -57,7 +57,7 @@ Ready on the Mac: Node 26, npm 12, Docker 29, gitleaks 8.30, Ansible 2.21, jq, g
 
 ## PR 2 · `feat/0001-api` · api
 
-- [ ] **T8. Nest skeleton.** `api/` with Nest 12, TS 6, ESM, strict tsconfig; `config` module with a
+- [x] **T8. Nest skeleton.** `api/` with Nest 12, TS 6, ESM, strict tsconfig; `config` module with a
       zod env schema; `nestjs-pino`; `trust proxy`, CORS, global `ValidationPipe`, shutdown hooks.
       Root `typecheck` script and CI step.
       Check: `npm run lint && npm run typecheck`, `npm --prefix api run build`; starting without a
