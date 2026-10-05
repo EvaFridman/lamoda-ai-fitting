@@ -42,7 +42,7 @@ Ready on the Mac: Node 26, npm 12, Docker 29, gitleaks 8.30, Ansible 2.21, jq, g
       Written now so every later session starts from them; updated as tasks change things.
       Check: owner reads them.
       Commit: `docs(docs): add claude.md, contributing and spec principles`
-- [ ] **T6. Base CI.** `.github/workflows/ci.yml` with `secrets` (gitleaks, full history) and
+- [x] **T6. Base CI.** `.github/workflows/ci.yml` with `secrets` (gitleaks, full history) and
       `checks` (what exists so far: format, lint). Push, open PR 1 with `gh`.
       Check: both jobs green on the PR.
       Commit: `ci(ci): add secret scan and checks`
