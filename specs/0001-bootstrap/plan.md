@@ -14,7 +14,7 @@ exact versions.
 | Node                        | 26.x (`node:26.10.0-trixie-slim`) (V4)                           | same in CI (`setup-node` 26) and `.nvmrc`                                                                                                  |
 | npm                         | 12.x (V5)                                                        | images and CI run `npm install -g npm@12` first (Node images ship 11); install scripts only from the `allowScripts` list in `package.json` |
 | TypeScript                  | 6.0.x (V1)                                                       | **not 7.0**: no JS API; typescript-eslint refuses to install with it, the Nest Swagger plugin and Next need the API                        |
-| ESLint                      | 9.39.x (V2)                                                      | **not 10**: `eslint-plugin-react` crashes on it (`react/display-name`), `eslint-plugin-jsx-a11y` refuses to install                        |
+| ESLint                      | 10.x (V2)                                                        | React and a11y rules from `@eslint-react/eslint-plugin` and `eslint-plugin-jsx-a11y-x`: the classic plugins do not run on 10               |
 | NestJS                      | 12.x                                                             |                                                                                                                                            |
 | Prisma                      | 7.10.x                                                           | **install as `prisma@7`**: the npm `latest` tag points at `8.0.0-rc`                                                                       |
 | Next / React                | 16.3.x / 19.x                                                    |                                                                                                                                            |
@@ -51,8 +51,10 @@ Goal: every package installs with plain `npm ci`, no `--legacy-peer-deps` anywhe
 ## 3. Root tooling (A1–A11)
 
 - **One ESLint config at root** (`eslint.config.mjs`, flat config) with blocks per folder: base TS
-  rules for `api/**`, plus the full `eslint-config-next` set (Next, React, hooks, jsx-a11y) for
-  `web/**`. ESLint
+  rules for `api/**`; for `web/**` the Next plugin, `@eslint-react`, `react-hooks` and
+  `jsx-a11y-x` (V2), assembled by hand instead of `eslint-config-next`, which loads its parser from
+  the `next` package (not resolvable from the root) and brings plugins that do not run on ESLint 10.
+  Rules both React plugins carry are reported once (from `react-hooks`). ESLint
   and plugins are installed in root only; `api` and `web` have no ESLint config or dependency of
   their own (A3). Lint runs from root: `npm run lint`.
 - **One Prettier config at root**, `singleQuote: true`, `printWidth: 100`, `trailingComma: all`.

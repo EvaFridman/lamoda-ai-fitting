@@ -99,8 +99,11 @@ Decisions made by the owner. Each line is final unless the owner changes it here
 
 - V1. TypeScript 6.0 everywhere. 7.0 has no JS API, so typescript-eslint, the Nest Swagger plugin
   and Next cannot use it; move to 7 once they support it.
-- V2. ESLint 9 with the full `eslint-config-next` rule set. ESLint 10 crashes on
-  `eslint-plugin-react` and cannot install `eslint-plugin-jsx-a11y`; move to 10 once they support it.
+- V2. ESLint 10 (revised 2026-10-06: ESLint 9 is no longer supported). `eslint-plugin-react` and
+  `eslint-plugin-jsx-a11y` do not run on 10, so their maintained replacements are used:
+  `@eslint-react/eslint-plugin` and `eslint-plugin-jsx-a11y-x`. Hook rules come from the React
+  team's `eslint-plugin-react-hooks`. If `eslint-plugin-jsx-a11y-x` (young fork, 0.x) breaks, its
+  rules are switched off rather than holding ESLint back.
 - V3. Prisma 7.10 (stable), not the 8.0 release candidate that npm's `latest` tag points at.
 - V4. Node 26 on the Mac, in images and in CI. It becomes LTS on 2026-10-28 (supported until
   2029-04); Node 24 enters maintenance on 2026-10-20. Checked: every key package allows it, the

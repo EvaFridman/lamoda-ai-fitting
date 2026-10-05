@@ -1,0 +1,3 @@
+#!/bin/sh
+# Lint and format the staged files (.lintstagedrc.json).
+npx --no-install lint-staged

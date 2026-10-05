@@ -26,7 +26,7 @@ Ready on the Mac: Node 26, npm 12, Docker 29, gitleaks 8.30, Ansible 2.21, jq, g
       `README.md` stub.
       Check: `npm ci && npm run format:check` exits 0.
       Commit: `chore(tooling): add root package and prettier`
-- [ ] **T2. Lint and commit rules.** Root `eslint.config.mjs` (api and web blocks), commitlint,
+- [x] **T2. Lint and commit rules.** Root `eslint.config.mjs` (api and web blocks), commitlint,
       lint-staged, `.githooks/` (pre-commit without gitleaks yet, commit-msg, pre-push), `prepare`.
       Check: AC10 (a commit `update stuff` is rejected; a valid one passes).
       Commit: `chore(tooling): add eslint, commitlint and git hooks`
