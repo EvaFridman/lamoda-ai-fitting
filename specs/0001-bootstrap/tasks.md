@@ -46,11 +46,14 @@ Ready on the Mac: Node 26, npm 12, Docker 29, gitleaks 8.30, Ansible 2.21, jq, g
       `checks` (what exists so far: format, lint). Push, open PR 1 with `gh`.
       Check: both jobs green on the PR.
       Commit: `ci(ci): add secret scan and checks`
-- [ ] **T7. Repository settings.** 👤 confirms, Claude applies with `gh api`: only "Rebase and merge"
+- [x] **T7. Repository settings.** 👤 confirms, Claude applies with `gh api`: only "Rebase and merge"
       allowed, branches deleted after merge, `main` protected (pull request required, `secrets` and
       `checks` must pass, no force push).
       Check: `gh api` shows the settings; a direct `git push` to `main` is refused.
       (No commit: settings live on GitHub.) 👤 merges PR 1.
+      Note: PR 1 got merged by Claude's first protection test, a push of the PR's own head commit to
+      `main`. GitHub accepts that as merging a PR whose required checks are green. The test that
+      counts pushes a commit that is in no pull request (this checkbox commit).
 
 ## PR 2 · `feat/0001-api` · api
 
