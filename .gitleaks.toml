@@ -1,0 +1,21 @@
+# gitleaks: the default rules plus the ones below.
+# An allowlist entry is added only for a value confirmed not to be a secret, never to silence a
+# real one, and always with a description.
+
+[extend]
+useDefault = true
+
+# The default rules miss passwords inside connection URLs (DATABASE_URL, REDIS_URL, ...).
+# Entropy and the allowlist skip placeholders such as `password` or `${POSTGRES_PASSWORD}`.
+[[rules]]
+id = "connection-url-password"
+description = "Password inside a database, cache or broker connection URL"
+regex = '''(?i)\b(?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|rediss?|amqps?)://[^:/\s@]*:([^@\s/]+)@'''
+secretGroup = 1
+entropy = 3.0
+keywords = ["://"]
+
+[[rules.allowlists]]
+description = "Environment variable references, e.g. ${POSTGRES_PASSWORD}"
+regexTarget = "secret"
+regexes = ['''^\$\{?[A-Za-z_][A-Za-z0-9_]*\}?$''']

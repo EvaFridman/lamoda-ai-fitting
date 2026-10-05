@@ -1,3 +1,8 @@
 #!/bin/sh
-# Lint and format the staged files (.lintstagedrc.json).
-npx --no-install lint-staged
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "pre-commit: gitleaks is not installed (brew install gitleaks); commit aborted." >&2
+  exit 1
+fi
+
+# lint-staged first (it may rewrite files), so gitleaks scans exactly what gets committed.
+npx --no-install lint-staged && gitleaks git --pre-commit --staged --redact --no-banner --verbose

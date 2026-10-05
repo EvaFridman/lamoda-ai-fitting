@@ -30,7 +30,7 @@ Ready on the Mac: Node 26, npm 12, Docker 29, gitleaks 8.30, Ansible 2.21, jq, g
       lint-staged, `.githooks/` (pre-commit without gitleaks yet, commit-msg, pre-push), `prepare`.
       Check: AC10 (a commit `update stuff` is rejected; a valid one passes).
       Commit: `chore(tooling): add eslint, commitlint and git hooks`
-- [ ] **T3. Secret scanning.** `.gitleaks.toml` with the connection-URL rule; gitleaks in pre-commit.
+- [x] **T3. Secret scanning.** `.gitleaks.toml` with the connection-URL rule; gitleaks in pre-commit.
       Check: AC11 (staging a fake `postgresql://u:<random>@host/db` is rejected; file then discarded).
       Commit: `chore(tooling): scan staged changes for secrets`
 - [ ] **T4. Claude Code setup.** `.claude/settings.json`, `hooks/guard-bash.sh`, `hooks/format.sh`,
