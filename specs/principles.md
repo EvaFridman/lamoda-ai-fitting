@@ -31,7 +31,8 @@ carries a `Status:` line.
 - A task that shows the plan is wrong stops the work. The plan (or the spec) is fixed with the owner
   first, then the task continues.
 - An accepted spec may be amended; the change is noted on its `Status:` line.
-- Every difference between the result and the spec is listed in the pull request description.
+- Every difference between the result and the spec or plan is recorded in `clarifications.md` or
+  `plan.md` in the same commit that introduces it. Pull request descriptions only say what was done.
 
 ## Closing a spec
 
