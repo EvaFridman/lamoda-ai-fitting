@@ -9,19 +9,19 @@ Implements [spec.md](spec.md) (criteria AC1–AC26) under the decisions in
 Checked against npm and Docker Hub on 2026-10-05 and by test installs. Lockfiles and image tags pin
 exact versions.
 
-| What | Version | Note |
-|---|---|---|
-| Node | 26.x (`node:26.10.0-trixie-slim`) (V4) | same in CI (`setup-node` 26) and `.nvmrc` |
-| npm | 12.x (V5) | images and CI run `npm install -g npm@12` first (Node images ship 11); install scripts only from the `allowScripts` list in `package.json` |
-| TypeScript | 6.0.x (V1) | **not 7.0**: no JS API; typescript-eslint refuses to install with it, the Nest Swagger plugin and Next need the API |
-| ESLint | 9.39.x (V2) | **not 10**: `eslint-plugin-react` crashes on it (`react/display-name`), `eslint-plugin-jsx-a11y` refuses to install |
-| NestJS | 12.x | |
-| Prisma | 7.10.x | **install as `prisma@7`**: the npm `latest` tag points at `8.0.0-rc` |
-| Next / React | 16.3.x / 19.x | |
-| Temporal SDK / server image | 1.24.x / `temporalio/temporal:1.9.1` | |
-| Vitest | 5.x + `unplugin-swc` | see 4.6 |
-| PostgreSQL / Redis | `postgres:18.6-trixie` / `redis:8.10.2-trixie` | |
-| nginx / certbot | `nginx:1.30.5-alpine` (stable branch) / `certbot/certbot:v5.8.0` | |
+| What                        | Version                                                          | Note                                                                                                                                       |
+| --------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Node                        | 26.x (`node:26.10.0-trixie-slim`) (V4)                           | same in CI (`setup-node` 26) and `.nvmrc`                                                                                                  |
+| npm                         | 12.x (V5)                                                        | images and CI run `npm install -g npm@12` first (Node images ship 11); install scripts only from the `allowScripts` list in `package.json` |
+| TypeScript                  | 6.0.x (V1)                                                       | **not 7.0**: no JS API; typescript-eslint refuses to install with it, the Nest Swagger plugin and Next need the API                        |
+| ESLint                      | 9.39.x (V2)                                                      | **not 10**: `eslint-plugin-react` crashes on it (`react/display-name`), `eslint-plugin-jsx-a11y` refuses to install                        |
+| NestJS                      | 12.x                                                             |                                                                                                                                            |
+| Prisma                      | 7.10.x                                                           | **install as `prisma@7`**: the npm `latest` tag points at `8.0.0-rc`                                                                       |
+| Next / React                | 16.3.x / 19.x                                                    |                                                                                                                                            |
+| Temporal SDK / server image | 1.24.x / `temporalio/temporal:1.9.1`                             |                                                                                                                                            |
+| Vitest                      | 5.x + `unplugin-swc`                                             | see 4.6                                                                                                                                    |
+| PostgreSQL / Redis          | `postgres:18.6-trixie` / `redis:8.10.2-trixie`                   |                                                                                                                                            |
+| nginx / certbot             | `nginx:1.30.5-alpine` (stable branch) / `certbot/certbot:v5.8.0` |                                                                                                                                            |
 
 Goal: every package installs with plain `npm ci`, no `--legacy-peer-deps` anywhere.
 
@@ -80,17 +80,17 @@ One image, two entry points:
 
 ### 4.2 Modules
 
-| Module | Does |
-|---|---|
-| `config` | `@nestjs/config`, env validated at startup with a zod schema; a missing variable stops the process with its name |
-| `logger` | `nestjs-pino`; JSON in prod, `pino-pretty` in dev; level from `LOG_LEVEL` |
-| `prisma` | `PrismaService` over `@prisma/adapter-pg`; client generated into `src/generated/prisma` (git-ignored) |
-| `redis` | one shared `ioredis` client as a provider |
-| `temporal` | Temporal `Client` provider (address `TEMPORAL_ADDRESS`, queue `TEMPORAL_TASK_QUEUE`) |
-| `health` | `GET /health/live` → `{ status, version }`, no dependency checks; `GET /health/ready` → terminus checks of Postgres (`SELECT 1`), Redis (`PING`), Temporal (`getSystemInfo`), 503 naming the failed one (AC3) |
-| `hello` | `GET /hello` → `{ message: 'Hello, world!' }` (AC2, AC4) |
-| `realtime` | socket.io gateway: `ping` → `pong` (AC6); the place later domain events (`@nestjs/event-emitter`) reach clients |
-| throttling | global `ThrottlerGuard`, storage in Redis, limits from env (AC8); `/health/*` skipped |
+| Module     | Does                                                                                                                                                                                                          |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `config`   | `@nestjs/config`, env validated at startup with a zod schema; a missing variable stops the process with its name                                                                                              |
+| `logger`   | `nestjs-pino`; JSON in prod, `pino-pretty` in dev; level from `LOG_LEVEL`                                                                                                                                     |
+| `prisma`   | `PrismaService` over `@prisma/adapter-pg`; client generated into `src/generated/prisma` (git-ignored)                                                                                                         |
+| `redis`    | one shared `ioredis` client as a provider                                                                                                                                                                     |
+| `temporal` | Temporal `Client` provider (address `TEMPORAL_ADDRESS`, queue `TEMPORAL_TASK_QUEUE`)                                                                                                                          |
+| `health`   | `GET /health/live` → `{ status, version }`, no dependency checks; `GET /health/ready` → terminus checks of Postgres (`SELECT 1`), Redis (`PING`), Temporal (`getSystemInfo`), 503 naming the failed one (AC3) |
+| `hello`    | `GET /hello` → `{ message: 'Hello, world!' }` (AC2, AC4)                                                                                                                                                      |
+| `realtime` | socket.io gateway: `ping` → `pong` (AC6); the place later domain events (`@nestjs/event-emitter`) reach clients                                                                                               |
+| throttling | global `ThrottlerGuard`, storage in Redis, limits from env (AC8); `/health/*` skipped                                                                                                                         |
 
 `version` comes from `APP_VERSION`: the image tag (commit hash) in prod, `dev` locally (AC16).
 
@@ -191,11 +191,11 @@ name `ai-fitting`.
 **Production** (server and the CI smoke test) is split by lifetime, because blue-green needs two
 copies of the app but one copy of everything else:
 
-| File | Compose project | Contents | Lifetime |
-|---|---|---|---|
-| `deploy/compose/infra.yml` | `ai-fitting` | `postgres`, `redis`, `temporal` (`--headless`), `nginx`, `certbot` (server only, compose profile `server`); creates the network `ai-fitting` | long-lived, changes rarely |
-| `deploy/compose/app.yml` | `ai-fitting-blue` / `ai-fitting-green` | `api`, `web` with `IMAGE_TAG` and `COLOR`; joins `ai-fitting` with aliases `api-<color>`, `web-<color>`; no published ports | one per deploy |
-| `deploy/compose/worker.yml` | `ai-fitting-worker` | `temporal-worker` with `IMAGE_TAG` | replaced in place each deploy |
+| File                        | Compose project                        | Contents                                                                                                                                     | Lifetime                      |
+| --------------------------- | -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| `deploy/compose/infra.yml`  | `ai-fitting`                           | `postgres`, `redis`, `temporal` (`--headless`), `nginx`, `certbot` (server only, compose profile `server`); creates the network `ai-fitting` | long-lived, changes rarely    |
+| `deploy/compose/app.yml`    | `ai-fitting-blue` / `ai-fitting-green` | `api`, `web` with `IMAGE_TAG` and `COLOR`; joins `ai-fitting` with aliases `api-<color>`, `web-<color>`; no published ports                  | one per deploy                |
+| `deploy/compose/worker.yml` | `ai-fitting-worker`                    | `temporal-worker` with `IMAGE_TAG`                                                                                                           | replaced in place each deploy |
 
 Only nginx publishes ports (80, 443). Startup order via `healthcheck` + `depends_on: service_healthy`
 inside a project; across projects, `deploy.sh` waits for health explicitly. Named volumes: `pgdata`,
@@ -208,11 +208,11 @@ Estimated memory on the server: ~1.2 GB with both colors running; the VPS has 3.
 Configuration: `deploy/nginx/templates/default.conf.template`. The official nginx image substitutes
 `${SITE_DOMAIN}` from the environment at start.
 
-| Server | Behavior |
-|---|---|
-| `:80`, both names | `/.well-known/acme-challenge/` from the `certbot-www` volume; everything else 301 → `https://lamoda-ai-fitting.ru` |
-| `:443 www.` | 301 → apex (AC20) |
-| `:443` apex | TLS (Mozilla "intermediate" settings), HTTP/2, gzip, `client_max_body_size 20m` (AC22); `/` → upstream `web`; `/api/` → upstream `api` (prefix stripped); `/socket.io/` → upstream `api` with `Upgrade`/`Connection` headers and `proxy_read_timeout 1h` (AC22); `X-Forwarded-*` headers |
+| Server            | Behavior                                                                                                                                                                                                                                                                                 |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `:80`, both names | `/.well-known/acme-challenge/` from the `certbot-www` volume; everything else 301 → `https://lamoda-ai-fitting.ru`                                                                                                                                                                       |
+| `:443 www.`       | 301 → apex (AC20)                                                                                                                                                                                                                                                                        |
+| `:443` apex       | TLS (Mozilla "intermediate" settings), HTTP/2, gzip, `client_max_body_size 20m` (AC22); `/` → upstream `web`; `/api/` → upstream `api` (prefix stripped); `/socket.io/` → upstream `api` with `Upgrade`/`Connection` headers and `proxy_read_timeout 1h` (AC22); `X-Forwarded-*` headers |
 
 **Blue-green switch.** The upstreams live in a separate file, `upstream/active.conf`, on its own
 volume:
@@ -265,12 +265,12 @@ Triggers: pull request to `main`, push to `main`. `permissions: contents: read` 
 The workflow grows with the pull requests (W1): `secrets` and `checks` arrive with the tooling PR, so
 every later PR is checked; `images` with the production setup; `deploy` last.
 
-| Job | Needs | Steps |
-|---|---|---|
-| `secrets` | | gitleaks (pinned image) over the full history |
-| `checks` | | Node 26, npm 12, `npm ci` in root, api, web; `prisma generate`; `format:check`, `lint`, `lint:css`, `typecheck`, `test` (AC9, AC14) |
-| `images` | both | `scripts/ci-build-images.sh`: build both runtime images (BuildKit, cache in GitHub Actions; Sentry upload only on push to `main`). Then the smoke test on the runner, with the same files and script as the server: `infra.yml` without certbot, `SITE_DOMAIN=localhost`, nginx on its self-signed certificate; `deploy.sh` deploys blue, `smoke-test.sh` checks the page through nginx contains "Hello, world!"; `deploy.sh` deploys green while a request loop runs, and the loop must see zero failures (AC12, AC13, AC26). On push to `main` only: push to GHCR with tag = 7-char commit hash (AC15; `packages: write` only in this job) |
-| `deploy` | `images` | push to `main` only: calls `deploy.yml` with that tag |
+| Job       | Needs    | Steps                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| --------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `secrets` |          | gitleaks (pinned image) over the full history                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `checks`  |          | Node 26, npm 12, `npm ci` in root, api, web; `prisma generate`; `format:check`, `lint`, `lint:css`, `typecheck`, `test` (AC9, AC14)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `images`  | both     | `scripts/ci-build-images.sh`: build both runtime images (BuildKit, cache in GitHub Actions; Sentry upload only on push to `main`). Then the smoke test on the runner, with the same files and script as the server: `infra.yml` without certbot, `SITE_DOMAIN=localhost`, nginx on its self-signed certificate; `deploy.sh` deploys blue, `smoke-test.sh` checks the page through nginx contains "Hello, world!"; `deploy.sh` deploys green while a request loop runs, and the loop must see zero failures (AC12, AC13, AC26). On push to `main` only: push to GHCR with tag = 7-char commit hash (AC15; `packages: write` only in this job) |
+| `deploy`  | `images` | push to `main` only: calls `deploy.yml` with that tag                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 
 Running `deploy.sh` in CI on every pull request means the switch logic is tested before it ever
 touches the server, and a broken nginx config fails the PR, not the deploy.
@@ -310,6 +310,7 @@ State file `/opt/ai-fitting/state`: the active color and its tag.
 9. Write the state file. The previous color keeps running, idle, until the next deploy replaces it.
 
 Known limits, accepted for this scope:
+
 - A rollback does not undo migrations (D6c). Rule for `principles.md`: migrations stay compatible
   with the previous release (add first, remove in a later release); a bad migration is fixed by
   rolling forward.
@@ -318,11 +319,13 @@ Known limits, accepted for this scope:
 ### GitHub settings the owner creates
 
 Environment `production`:
+
 - Secrets: `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS`, `POSTGRES_PASSWORD`, `SENTRY_DSN`.
 - Variables: `DEPLOY_HOST`, `DEPLOY_USER`, `SITE_DOMAIN`, `POSTGRES_USER`, `POSTGRES_DB`,
   `LETSENCRYPT_EMAIL`.
 
 Repository level (the `images` job builds web before any environment is involved):
+
 - Secret: `SENTRY_AUTH_TOKEN`.
 - Variables: `SENTRY_ORG`, `SENTRY_PROJECT`, `NEXT_PUBLIC_SENTRY_DSN` (public in the bundle anyway).
 
@@ -345,27 +348,27 @@ and random secrets. Server-to-server addresses (`postgres`, `redis`, `temporal:7
 
 ## 13. Verification map
 
-| AC | How it is checked |
-|---|---|
-| 1–8 | by hand on the local stack, commands from the spec |
-| 9 | the commands, locally and in the `checks` job |
-| 10, 11 | a test commit with a bad message / a fake secret, then discarded |
-| 12 | `docker build` of `web` with nothing else running; the `images` job proves it on every PR |
-| 13–15 | a test PR (green), a test PR with a broken test (red, then closed); GHCR after merge |
-| 16–19 | the first merge; AC18 by running `deploy.sh` on the server with a nonexistent tag (the site must stay up); AC19 via `workflow_dispatch` with the previous tag, timed |
-| 20–23 | `curl -I`, `certbot renew --dry-run`, a socket.io client against the domain, a 10 MB upload request (413 from nginx would fail; any api answer passes), `nc -z` from the Mac to 5432/6379/7233/3000 |
-| 24 | `docker ps -a`, `docker images` on the server |
-| 25 | gitleaks in CI, review of `.env.example` |
-| 26 | in CI on every PR; on the server, a request loop from the Mac during the first real deploy |
+| AC     | How it is checked                                                                                                                                                                                   |
+| ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1–8    | by hand on the local stack, commands from the spec                                                                                                                                                  |
+| 9      | the commands, locally and in the `checks` job                                                                                                                                                       |
+| 10, 11 | a test commit with a bad message / a fake secret, then discarded                                                                                                                                    |
+| 12     | `docker build` of `web` with nothing else running; the `images` job proves it on every PR                                                                                                           |
+| 13–15  | a test PR (green), a test PR with a broken test (red, then closed); GHCR after merge                                                                                                                |
+| 16–19  | the first merge; AC18 by running `deploy.sh` on the server with a nonexistent tag (the site must stay up); AC19 via `workflow_dispatch` with the previous tag, timed                                |
+| 20–23  | `curl -I`, `certbot renew --dry-run`, a socket.io client against the domain, a 10 MB upload request (413 from nginx would fail; any api answer passes), `nc -z` from the Mac to 5432/6379/7233/3000 |
+| 24     | `docker ps -a`, `docker images` on the server                                                                                                                                                       |
+| 25     | gitleaks in CI, review of `.env.example`                                                                                                                                                            |
+| 26     | in CI on every PR; on the server, a request loop from the Mac during the first real deploy                                                                                                          |
 
 ## 14. Risks
 
-| Risk | Plan |
-|---|---|
-| Prisma 7 refuses to generate a client with zero models | add a placeholder model, no migration; noted in the PR |
-| `start-dev` Temporal loses history if the volume is lost | acceptable for now (D2); history is not business data |
-| The first real certificate fails and burns rate limit | always `--staging` first (D3) |
-| Next 16 + `cacheComponents` + standalone edge cases | the `images` job builds the real production image on every PR |
-| Monorepo with three lockfiles drifts | CI uses `npm ci` in each folder: a stale lockfile fails |
+| Risk                                                          | Plan                                                                                                                          |
+| ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Prisma 7 refuses to generate a client with zero models        | add a placeholder model, no migration; noted in the PR                                                                        |
+| `start-dev` Temporal loses history if the volume is lost      | acceptable for now (D2); history is not business data                                                                         |
+| The first real certificate fails and burns rate limit         | always `--staging` first (D3)                                                                                                 |
+| Next 16 + `cacheComponents` + standalone edge cases           | the `images` job builds the real production image on every PR                                                                 |
+| Monorepo with three lockfiles drifts                          | CI uses `npm ci` in each folder: a stale lockfile fails                                                                       |
 | A bug in `deploy.sh` leaves nginx pointing at a stopped color | the switch happens only after the target is healthy; the post-switch check switches back; CI runs the same script on every PR |
-| Both colors plus a deploy's pull exceed memory | ~1.2 GB estimated of 3.8 GB, 2 GB swap; checked with `free -h` after the first deploy |
+| Both colors plus a deploy's pull exceed memory                | ~1.2 GB estimated of 3.8 GB, 2 GB swap; checked with `free -h` after the first deploy                                         |
