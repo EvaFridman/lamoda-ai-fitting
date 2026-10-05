@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
 
 import { type Env, validateEnv } from './config/env.js';
+import { HealthModule } from './health/health.module.js';
 import { HelloModule } from './hello/hello.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { RedisModule } from './redis/redis.module.js';
@@ -23,12 +24,15 @@ import { TemporalClientModule } from './temporal/temporal-client.module.js';
               ? { target: 'pino-pretty', options: { singleLine: true } }
               : undefined,
           redact: ['req.headers.authorization', 'req.headers.cookie', 'res.headers["set-cookie"]'],
+          // Health checks are polled every few seconds; logging them would bury real requests.
+          autoLogging: { ignore: (req) => req.url?.startsWith('/health') ?? false },
         },
       }),
     }),
     PrismaModule,
     RedisModule,
     TemporalClientModule,
+    HealthModule,
     HelloModule,
   ],
 })

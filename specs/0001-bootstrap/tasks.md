@@ -77,7 +77,7 @@ Ready on the Mac: Node 26, npm 12, Docker 29, gitleaks 8.30, Ansible 2.21, jq, g
       Temporal all down. Install scripts: `prisma`, `@prisma/engines` approved; `fsevents`,
       `protobufjs` denied. Prisma skills added (A11a).
       Commit: `feat(api): add prisma, redis and temporal clients`
-- [ ] **T11. Health checks.** `/health/live` with `version`, `/health/ready` with three indicators;
+- [x] **T11. Health checks.** `/health/live` with `version`, `/health/ready` with three indicators;
       e2e test for `/health/live`.
       Check: tests pass. (Live behavior of `ready` is checked in T18.)
       Commit: `feat(api): add liveness and readiness checks`

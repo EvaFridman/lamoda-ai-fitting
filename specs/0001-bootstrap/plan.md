@@ -217,6 +217,10 @@ Configuration: `deploy/nginx/templates/default.conf.template`. The official ngin
 | `:443 www.`       | 301 → apex (AC20)                                                                                                                                                                                                                                                                        |
 | `:443` apex       | TLS (Mozilla "intermediate" settings), HTTP/2, gzip, `client_max_body_size 20m` (AC22); `/` → upstream `web`; `/api/` → upstream `api` (prefix stripped); `/socket.io/` → upstream `api` with `Upgrade`/`Connection` headers and `proxy_read_timeout 1h` (AC22); `X-Forwarded-*` headers |
 
+`/api/health/ready` is closed to the outside (`deny all`): its 503 body names internal hosts and
+failure reasons. `deploy.sh` checks readiness over the internal network; `/api/health/live` (only
+status and version) stays public for AC16. Added in T11.
+
 **Blue-green switch.** The upstreams live in a separate file, `upstream/active.conf`, on its own
 volume:
 

@@ -7,5 +7,16 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['src/**/*.spec.ts', 'test/**/*.e2e-spec.ts'],
+    // Environment for tests that boot the whole app: valid values, but every dependency points at
+    // a closed local port, so nothing real is touched.
+    env: {
+      NODE_ENV: 'test',
+      LOG_LEVEL: 'silent',
+      WEB_ORIGIN: 'http://localhost:3001',
+      APP_VERSION: 'test',
+      DATABASE_URL: 'postgresql://test:test@127.0.0.1:1/test',
+      REDIS_URL: 'redis://127.0.0.1:1',
+      TEMPORAL_ADDRESS: '127.0.0.1:1',
+    },
   },
 });
