@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
 
 import { type Env, validateEnv } from './config/env.js';
+import { HelloModule } from './hello/hello.module.js';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { type Env, validateEnv } from './config/env.js';
         },
       }),
     }),
+    HelloModule,
   ],
 })
 export class AppModule {}

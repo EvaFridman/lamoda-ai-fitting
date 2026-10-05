@@ -19,7 +19,7 @@ exact versions.
 | Prisma                      | 7.10.x                                                           | **install as `prisma@7`**: the npm `latest` tag points at `8.0.0-rc`                                                                       |
 | Next / React                | 16.3.x / 19.x                                                    |                                                                                                                                            |
 | Temporal SDK / server image | 1.24.x / `temporalio/temporal:1.9.1`                             |                                                                                                                                            |
-| Vitest                      | 5.x + `unplugin-swc`                                             | see 4.6                                                                                                                                    |
+| Vitest                      | 5.x                                                              | no SWC plugin needed, see 4.6                                                                                                              |
 | PostgreSQL / Redis          | `postgres:18.6-trixie` / `redis:8.10.2-trixie`                   |                                                                                                                                            |
 | nginx / certbot             | `nginx:1.30.5-alpine` (stable branch) / `certbot/certbot:v5.8.0` |                                                                                                                                            |
 
@@ -126,9 +126,10 @@ while it restarts, Temporal keeps the tasks queued.
 
 ### 4.6 Tests (B7)
 
-Vitest with `unplugin-swc`. Vitest transpiles with esbuild, which does not emit decorator metadata,
-and without it Nest's dependency injection silently gets `undefined`. `unplugin-swc` adds it.
-First tests: `HelloController` (unit), `/health/live` (e2e with `supertest` against the Nest app).
+Vitest, no SWC plugin (revised in T9). Nest's dependency injection needs decorator metadata;
+Vitest 5 runs on Vite 8, whose Oxc transformer emits it from `emitDecoratorMetadata` (checked:
+`design:paramtypes` is present in tests without `unplugin-swc`). Tests that build classes through
+Nest's DI fail loudly if that ever changes. First tests: `HelloController` (unit), `/health/live` (e2e with `supertest` against the Nest app).
 
 ### 4.7 Packages installed now without code yet (owner decision, 4-week timeline)
 
