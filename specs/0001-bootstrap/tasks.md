@@ -37,7 +37,7 @@ Ready on the Mac: Node 26, npm 12, Docker 29, gitleaks 8.30, Ansible 2.21, jq, g
       `agents/code-reviewer.md`, `commands/pr-summary.md`, `commands/review-changes.md`.
       Check: feeding `docker volume prune` to the guard hook exits 2; an edited file gets formatted.
       Commit: `chore(tooling): add claude code settings, hooks and review agent`
-- [ ] **T5. Working rules.** First version of `CLAUDE.md` (stack, versions with the reasons from
+- [x] **T5. Working rules.** First version of `CLAUDE.md` (stack, versions with the reasons from
       V1–V5, layers, commands, spec lifecycle A9a), `CONTRIBUTING.md`, `specs/principles.md`.
       Written now so every later session starts from them; updated as tasks change things.
       Check: owner reads them.
