@@ -63,10 +63,10 @@ Ready on the Mac: Node 26, npm 12, Docker 29, gitleaks 8.30, Ansible 2.21, jq, g
       Check: `npm run lint && npm run typecheck`, `npm --prefix api run build`; starting without a
       required variable fails with its name.
       Commit: `feat(api): add nest skeleton with config and logging`
-- [ ] **T9. Tests and first endpoint.** Vitest + `unplugin-swc`; `GET /hello`; Swagger at `/docs`
-      outside production; unit test. Root `test` script and CI step.
-      Check: `npm test` passes; without `unplugin-swc` the test fails (proves decorator metadata
-      matters), then restored.
+- [x] **T9. Tests and first endpoint.** Vitest; `GET /hello`; Swagger at `/docs` outside
+      production; unit test. Root `test` script and CI step.
+      Check: `npm test` passes; the unit test builds the controller through Nest's DI.
+      Revised during the task: the planned `unplugin-swc` turned out unnecessary (plan 4.6).
       Commit: `feat(api): add hello endpoint, swagger and vitest`
 - [ ] **T10. Data layer clients.** Prisma 7 (`prisma@7`, schema without models, `prisma.config.ts`,
       `PrismaService`), Redis provider, Temporal client provider. CI step `prisma generate`.

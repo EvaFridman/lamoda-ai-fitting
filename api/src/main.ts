@@ -8,6 +8,7 @@ import { Logger } from 'nestjs-pino';
 
 import { AppModule } from './app.module.js';
 import type { Env } from './config/env.js';
+import { setupSwagger } from './swagger.js';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });
@@ -23,6 +24,10 @@ async function bootstrap(): Promise<void> {
   );
   // On SIGTERM (container stop, blue-green switch) finish requests in flight before exiting.
   app.enableShutdownHooks();
+
+  if (config.get('NODE_ENV', { infer: true }) !== 'production') {
+    setupSwagger(app, config.get('APP_VERSION', { infer: true }));
+  }
 
   await app.listen(config.get('PORT', { infer: true }), '0.0.0.0');
 }

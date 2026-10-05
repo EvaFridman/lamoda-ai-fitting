@@ -11,7 +11,8 @@
     "format:check": "prettier --check .",
     "lint": "eslint --max-warnings=0 .",
     "typecheck": "npm --prefix api run typecheck",
-    "check:push": "npm run lint && npm run typecheck"
+    "test": "npm --prefix api run test",
+    "check:push": "npm run lint && npm run typecheck && npm test"
   },
   "allowScripts": {},
   "devDependencies": {
