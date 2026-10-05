@@ -33,7 +33,7 @@ Ready on the Mac: Node 26, npm 12, Docker 29, gitleaks 8.30, Ansible 2.21, jq, g
 - [x] **T3. Secret scanning.** `.gitleaks.toml` with the connection-URL rule; gitleaks in pre-commit.
       Check: AC11 (staging a fake `postgresql://u:<random>@host/db` is rejected; file then discarded).
       Commit: `chore(tooling): scan staged changes for secrets`
-- [ ] **T4. Claude Code setup.** `.claude/settings.json`, `hooks/guard-bash.sh`, `hooks/format.sh`,
+- [x] **T4. Claude Code setup.** `.claude/settings.json`, `hooks/guard-bash.sh`, `hooks/format.sh`,
       `agents/code-reviewer.md`, `commands/pr-summary.md`, `commands/review-changes.md`.
       Check: feeding `docker volume prune` to the guard hook exits 2; an edited file gets formatted.
       Commit: `chore(tooling): add claude code settings, hooks and review agent`
