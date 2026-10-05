@@ -81,9 +81,12 @@ Ready on the Mac: Node 26, npm 12, Docker 29, gitleaks 8.30, Ansible 2.21, jq, g
       e2e test for `/health/live`.
       Check: tests pass. (Live behavior of `ready` is checked in T18.)
       Commit: `feat(api): add liveness and readiness checks`
-- [ ] **T12. Throttling, events, WebSockets.** Throttler with Redis storage (limits from env,
+- [x] **T12. Throttling, events, WebSockets.** Throttler with Redis storage (limits from env,
       `/health` skipped), `EventEmitterModule`, socket.io gateway `ping` → `pong`.
       Check: build, lint, tests. (Live behavior in T18.)
+      Done: decisions B12a–B12c. e2e tests: 429 over the limit with Redis down (memory fallback),
+      health never limited, socket `ping` → `pong`. Live: separate limits per `X-Forwarded-For`
+      client, a spoofed leading address is ignored (`trust proxy` 1).
       Commit: `feat(api): add throttling, event emitter and websocket gateway`
 - [ ] **T13. Temporal worker.** `src/temporal/worker.ts`, `hello` workflow and activity, npm scripts.
       Check: build; `dist/temporal/worker.js` exists. (Live run in T18.)

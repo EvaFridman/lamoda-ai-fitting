@@ -2,10 +2,13 @@ import { Controller, Get } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ApiTags } from '@nestjs/swagger';
 import { HealthCheck, type HealthCheckResult, HealthCheckService } from '@nestjs/terminus';
+import { SkipThrottle } from '@nestjs/throttler';
 
 import type { Env } from '../config/env.js';
 import { DependencyChecks } from './dependency-checks.js';
 
+// Polled by compose, deploy.sh and nginx checks from a single address: never rate limited.
+@SkipThrottle()
 @ApiTags('health')
 @Controller('health')
 export class HealthController {

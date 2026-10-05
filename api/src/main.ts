@@ -8,6 +8,7 @@ import { Logger } from 'nestjs-pino';
 
 import { AppModule } from './app.module.js';
 import type { Env } from './config/env.js';
+import { SocketIoAdapter } from './realtime/socket-io.adapter.js';
 import { setupSwagger } from './swagger.js';
 
 async function bootstrap(): Promise<void> {
@@ -18,7 +19,9 @@ async function bootstrap(): Promise<void> {
   // Behind nginx every request comes from nginx's address; trust its X-Forwarded-For so the
   // throttler and the logs see the real client.
   app.set('trust proxy', 1);
-  app.enableCors({ origin: config.get('WEB_ORIGIN', { infer: true }), credentials: true });
+  const webOrigin = config.get('WEB_ORIGIN', { infer: true });
+  app.enableCors({ origin: webOrigin, credentials: true });
+  app.useWebSocketAdapter(new SocketIoAdapter(app, webOrigin));
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
   );

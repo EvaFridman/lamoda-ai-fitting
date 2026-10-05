@@ -44,6 +44,13 @@ Decisions made by the owner. Each line is final unless the owner changes it here
 - B10. No RabbitMQ: background jobs go through Temporal, pub/sub through Redis.
 - B11. WebSockets (socket.io).
 - B12. Throttler with Redis storage.
+  - B12a (T12). `@nest-lab/throttler-storage-redis` declares Nest ≤ 11 as its peer range; it is
+    installed through a narrow `overrides` entry (only that package's `@nestjs/common` and
+    `@nestjs/core`). Remove the override once a release supports Nest 12.
+  - B12b (T12). While Redis is unreachable, request counters fall back to process memory: the limit
+    keeps working instead of switching off (fail-open) or failing every request (fail-closed).
+  - B12c (T12). socket.io messages are not rate limited yet: the HTTP guard cannot read them. A
+    socket limit (by handshake address) comes with the first real socket feature.
 - B13. File uploads: yes. Mail and PDF: no.
 - B14. `@nestjs/event-emitter`: yes (domain events to the WebSocket gateway).
   Not used: `@nestjs/observe`, `@nestjs/mau`, logdy, oxlint.
