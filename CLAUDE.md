@@ -73,7 +73,9 @@ Run `format:check`, `lint` and `check:push` before calling a task done.
 ## Dependencies
 
 - Check a package before adding it (rules in `CONTRIBUTING.md`). Plain `npm ci` must work: never
-  `--legacy-peer-deps`.
+  `--legacy-peer-deps`. The only peer-range exception is an `overrides` entry in
+  `api/package.json` for `@nest-lab/throttler-storage-redis` (declares Nest ≤ 11, runs on 12);
+  remove it once a release supports Nest 12. A new exception needs the owner's decision.
 - npm 12 blocks install scripts that are not approved. Approve only what needs one
   (`npm install-scripts approve <pkg>`), and say why in the commit.
 - ESLint and its plugins live only in the root `package.json`.

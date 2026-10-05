@@ -17,6 +17,7 @@ export default defineConfig({
       DATABASE_URL: 'postgresql://test:test@127.0.0.1:1/test',
       REDIS_URL: 'redis://127.0.0.1:1',
       TEMPORAL_ADDRESS: '127.0.0.1:1',
+      THROTTLE_LIMIT: '5',
     },
   },
 });

@@ -1,13 +1,16 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { LoggerModule } from 'nestjs-pino';
 
 import { type Env, validateEnv } from './config/env.js';
 import { HealthModule } from './health/health.module.js';
 import { HelloModule } from './hello/hello.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
+import { RealtimeModule } from './realtime/realtime.module.js';
 import { RedisModule } from './redis/redis.module.js';
 import { TemporalClientModule } from './temporal/temporal-client.module.js';
+import { ThrottlingModule } from './throttling/throttling.module.js';
 
 @Module({
   imports: [
@@ -29,9 +32,14 @@ import { TemporalClientModule } from './temporal/temporal-client.module.js';
         },
       }),
     }),
+    // In-process domain events, e.g. a service announcing a change that the gateway pushes to
+    // browsers.
+    EventEmitterModule.forRoot(),
     PrismaModule,
     RedisModule,
     TemporalClientModule,
+    ThrottlingModule,
+    RealtimeModule,
     HealthModule,
     HelloModule,
   ],

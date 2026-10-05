@@ -20,6 +20,10 @@ export const envSchema = z.object({
   TEMPORAL_NAMESPACE: z.string().min(1).default('default'),
   // Queue shared by the api (starts workflows) and the temporal-worker (runs them).
   TEMPORAL_TASK_QUEUE: z.string().min(1).default('main'),
+
+  // At most THROTTLE_LIMIT requests per client IP within THROTTLE_TTL_MS; then 429.
+  THROTTLE_LIMIT: z.coerce.number().int().positive().default(100),
+  THROTTLE_TTL_MS: z.coerce.number().int().positive().default(60_000),
 });
 
 export type Env = z.infer<typeof envSchema>;
