@@ -16,7 +16,7 @@ source. Do not edit them; to update, copy the new upstream version and review th
 
 Review notes (2026-10-06): Markdown only, no scripts or `allowed-tools`, links only to prisma.io and
 GitHub. `prisma-cli` documents `db push` and `migrate reset`; this project forbids both and
-`.claude/hooks/guard-bash.sh` blocks them, which takes precedence.
+the Bash guard (`.claude/hooks/main-rules.mjs`) blocks them, which takes precedence.
 
 Not added: `prisma-orm-setup` defaults new applications to Prisma 8 (a release candidate; this project
 pins Prisma 7, see `CLAUDE.md`); `prisma-upgrade-v7` is a v6-to-v7 migration guide; the MongoDB,

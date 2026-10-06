@@ -6,11 +6,12 @@
 // guard that cannot start (no node, a syntax error) blocks too.
 
 import { Blocked } from './guard-lib.mjs';
+import { check as main } from './main-rules.mjs';
 import { check as qaTester } from './qa-tester-rules.mjs';
 import { check as readOnly } from './read-only-rules.mjs';
 import { check as testWriter } from './test-writer-rules.mjs';
 
-const RULES = { 'read-only': readOnly, 'qa-tester': qaTester, 'test-writer': testWriter };
+const RULES = { main, 'read-only': readOnly, 'qa-tester': qaTester, 'test-writer': testWriter };
 
 const name = process.argv[2];
 try {

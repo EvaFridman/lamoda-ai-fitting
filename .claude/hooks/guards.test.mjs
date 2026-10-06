@@ -8,6 +8,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { Blocked } from './guard-lib.mjs';
+import { check as main } from './main-rules.mjs';
 import { BROWSER_TOOLS, check as qaTester } from './qa-tester-rules.mjs';
 import { check as readOnly } from './read-only-rules.mjs';
 import { check as testWriter } from './test-writer-rules.mjs';
@@ -239,6 +240,105 @@ describe('test-writer rules', () => {
       bash('npx eslint --fix api/src/main.ts'),
       bash('npx eslint --max-warnings=0 --fix api/src/main.ts'),
       ['Read', { file_path: '/x' }],
+    ],
+  );
+});
+
+describe('main rules', () => {
+  cases(
+    main,
+    [
+      // Everyday commands of a session must pass.
+      bash(
+        'npm run verify > /tmp/verify.log 2>&1; rc=$?; echo "exit=$rc"; tail -5 /tmp/verify.log',
+      ),
+      bash('git status -s && git log --oneline -3'),
+      bash(
+        'git commit -q -m "chore(tooling): x" -m "Blocks docker volume rm, git push --force and .env reads."',
+      ),
+      bash(
+        "git commit -q -F - <<'EOF'\nfix(deploy): y\n\nNo prisma db push, no docker volume rm here.\nEOF",
+      ),
+      bash('git push -u origin chore/claude-agents'),
+      bash('git config core.hooksPath'),
+      bash('git config --get core.hooksPath'),
+      bash('git config core.hooksPath .githooks'),
+      bash("git log -S'apiFetch' --oneline"),
+      bash('docker compose up -d --wait'),
+      bash('docker compose ps --format json'),
+      bash('docker compose down'),
+      bash('docker compose config --no-interpolate'),
+      bash('docker compose config --services'),
+      bash("docker inspect --format '{{.State.Health.Status}}' api"),
+      bash('docker compose run --rm api npx prisma generate'),
+      bash('npx prisma migrate dev --name add_looks'),
+      bash('cp .env.example /tmp/x && grep -n THROTTLE .env.example'),
+      bash("rg -n 'process.env' api/src"),
+      bash('env NODE_ENV=test npm --prefix api test'),
+      bash('ls -la'),
+      bash("echo 'printenv is blocked'"),
+      // Found live: `[` is the test command, not a glob.
+      bash('[ $rc -ne 0 ] && tail -20 /tmp/verify.log'),
+      bash('[[ -f package.json ]] && echo yes'),
+    ],
+    [
+      // The old guard-bash.sh rules.
+      bash('docker compose down -v'),
+      bash('docker compose down --volumes'),
+      bash('docker compose down -vt 5'),
+      bash('docker volume rm ai-fitting_pgdata'),
+      bash('docker volume prune -f'),
+      bash('docker system prune -a --volumes'),
+      bash('npx prisma migrate reset --force'),
+      bash('docker compose run --rm api npx prisma db push'),
+      bash('git commit --no-verify -m x'),
+      bash('git commit -nm x'),
+      bash('git push --no-verify'),
+      bash('git push --force'),
+      bash('git push --force-with-lease'),
+      bash('git push -fu origin x'),
+      bash('git push origin +main'),
+      bash('git config --unset core.hooksPath'),
+      bash('git config core.hooksPath /dev/null'),
+      // Security audit bypasses.
+      bash('git config unset core.hooksPath'),
+      bash('git -c core.hooksPath=/dev/null commit -m x'),
+      bash('git -ccore.hooksPath=/dev/null commit -m x'),
+      bash(
+        'GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.hooksPath GIT_CONFIG_VALUE_0=x git commit -m x',
+      ),
+      bash('export GIT_CONFIG_PARAMETERS=x'),
+      bash('git commit --no-verif -m x'),
+      bash('git commit --no-ver -m x'),
+      bash('git push --forc'),
+      bash('git config --remove-section core'),
+      bash('docker volume remove ai-fitting_pgdata'),
+      bash('docker --context default volume rm x'),
+      // Chained, nested or wrapped.
+      bash('ls && docker volume rm x'),
+      bash('echo $(git push --force)'),
+      bash('echo `docker volume rm x`'),
+      bash("sh -c 'git push --force'"),
+      bash('bash -lc "docker compose down -v"'),
+      bash("eval 'git commit --no-verify'"),
+      bash("bash <<'EOF'\ngit push --force\nEOF"),
+      bash('xargs -n1 docker volume rm < list'),
+      bash('env git commit --no-verify -m x'),
+      // Secrets.
+      bash('cat .env'),
+      bash('cat .ENV'),
+      bash('source .env && echo $DATABASE_URL'),
+      bash('grep KEY < .env'),
+      bash('cat .en?'),
+      bash('cat .e*'),
+      bash('cat deploy/ansible/vault.yml'),
+      bash('docker compose config'),
+      bash('docker compose exec api printenv'),
+      bash('docker compose exec api env'),
+      bash('docker inspect api'),
+      bash('printenv'),
+      bash('env'),
+      bash('env -i'),
     ],
   );
 });

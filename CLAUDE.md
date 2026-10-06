@@ -70,8 +70,9 @@ rg, find, read-only git; never secret files). A guard splits a command into the 
 program gets (`guard-lib.mjs`) and checks them against allowlists; anything else, including a guard
 error, blocks. qa-tester's browser tools are allowlisted in its rules; `tools:` lists the same set
 (a test keeps them equal) but does not limit an MCP server declared in the agent file (checked
-live), so the guard is what enforces it. The cases are in `.claude/hooks/guards.test.mjs` (`node:test`, part of
-`npm test`); add a case for every bypass found. Agent files are loaded when a session starts:
+live), so the guard is what enforces it. The main session's guard uses the same entry point with
+the `main` rules (a blocklist; see "Git"). The cases are in `.claude/hooks/guards.test.mjs`
+(`node:test`, part of `npm test`); add a case for every bypass found. Agent files are loaded when a session starts:
 restart Claude Code after changing one.
 
 ## Stack and versions
@@ -128,7 +129,7 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   web build takes the Sentry token as a BuildKit secret.
 - Containers reach each other by service name, never `localhost`; addresses come from compose.
   Startup order uses health checks with `depends_on: service_healthy`, never sleeps.
-- `docker compose down -v` and `docker volume rm/prune` delete data; the guard hook blocks them.
+- `docker compose down -v` and `docker volume rm/prune` delete data; the Bash guard blocks them.
   The owner runs them by hand.
 
 ## Conventions
@@ -184,9 +185,12 @@ Details and commands: `deploy/README.md`.
   specs, tooling.
 - No `Co-Authored-By` lines in commit messages.
 - Hooks: pre-commit (lint-staged, then gitleaks on staged changes), commit-msg (commitlint),
-  pre-push (`npm run verify`). Never skip them; `.claude/hooks/guard-bash.sh` blocks `--no-verify`.
-- The guard reads a Bash command's text, so a `grep` for a blocked phrase is blocked too: search
-  files with the Grep/Read tools, and write such text with the editor, not with `cat <<EOF`.
+  pre-push (`npm run verify`). Never skip them; the main session's guard blocks `--no-verify`.
+- The main session's Bash guard (`.claude/hooks/main-rules.mjs`, hook in `.claude/settings.json`)
+  splits a command line into simple commands and blocks data deletion, skipped hooks, force pushes
+  and printing secrets (`.env`, `docker compose config`, `printenv`). Quoted text and heredoc
+  bodies are data, so a commit message may mention a blocked command. It guards against mistakes,
+  not a determined bypass.
 - A gitleaks hit is a real secret until proven otherwise: unstage it. Only a value confirmed to be a
   placeholder goes into the `.gitleaks.toml` allowlist, with a description.
 - One branch and pull request per phase of `tasks.md`; merged with "Rebase and merge".
