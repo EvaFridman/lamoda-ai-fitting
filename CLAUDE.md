@@ -88,6 +88,9 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
 - Configuration comes from validated environment variables (zod schemas), never hard-coded
   addresses; containers reach each other by service name.
 - Logging: `api` through the injected pino logger, never `console` (ESLint enforces it).
+- `web` calls the api from the server only through `apiFetch` (`web/src/shared/api`): it forwards
+  the visitor's address, so the api's per-client rate limit applies to the visitor and not to the
+  web container. A direct `fetch` to the api would put all visitors into one limit.
 - `web` data from the api renders at request time inside `<Suspense>`: the web image must build with
   no api, Redis or database running.
 - Every new environment variable goes into `.env.example` with a comment.
