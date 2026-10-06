@@ -161,9 +161,13 @@ Ready on the Mac: Node 26, npm 12, Docker 29, gitleaks 8.30, Ansible 2.21, jq, g
       and fixed in its own commit: page views shared one rate limit (B12d). The deploy script needs
       bash 4+ (`brew install bash` on the Mac), checked at its start.
       Commit: `feat(deploy): add blue-green deploy script`
-- [ ] **T21. Image job in CI.** `scripts/ci-build-images.sh`; job `images` (build, smoke test through
+- [x] **T21. Image job in CI.** `scripts/ci-build-images.sh`; job `images` (build, smoke test through
       nginx with a blue-green switch; GHCR push only on `main`).
       Check: AC13 on the PR; AC14 (a temporary failing test turns the PR red, then reverted).
+      Done: the deploy check is `scripts/ci-deploy-check.sh` (two deploys through `deploy.sh`, the
+      second under the request loop); it passed locally from empty volumes (37 s, 0 of 1264
+      requests failed). AC14 is checked on a throwaway branch whose PR is closed unmerged, so no
+      test-and-revert commits reach `main`. No build cache in CI yet: plain builds, a few minutes.
       Commit: `ci(ci): build images and smoke-test a blue-green deploy`
 - 👤 merges PR 5. Check AC15: images appear in GHCR with the merge commit's hash.
 
