@@ -31,5 +31,9 @@ npm-debug.log*
 !.vscode/extensions.json
 !.vscode/settings.json
 
+# State and lock of deploy/scripts/deploy.sh on the machine that deploys
+.deploy-state
+.deploy-lock/
+
 # Claude Code personal overrides (shared settings live in .claude/settings.json)
 .claude/settings.local.json
