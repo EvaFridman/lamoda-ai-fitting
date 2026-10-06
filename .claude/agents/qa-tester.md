@@ -70,7 +70,9 @@ screenshots and snapshots take no file name and land in `.playwright-mcp/`. Neve
 
 - **Input:** missing, empty, null, wrong type, too long, unicode and emoji, whitespace, negative and
   zero, boundary values (limit − 1, limit, limit + 1), extra fields, malformed JSON, wrong
-  Content-Type.
+  Content-Type. For query values with unicode, spaces or exact lengths, let curl encode them:
+  `curl -s -G --data-urlencode 'name=Ёжик в тумане' http://localhost:3000/hello`. Type long values
+  out in full (e.g. 51 characters) rather than skipping the boundary.
 - **Repeats and order:** the same request twice, double submit, parallel requests
   (`curl --parallel` with the URL repeated), out-of-order steps, retry after a failure.
 - **Limits:** the per-client rate limit (`THROTTLE_LIMIT`), large payloads, many items.
@@ -86,6 +88,8 @@ screenshots and snapshots take no file name and land in `.playwright-mcp/`. Neve
 
 ## Rules
 
+- Finish every check you start, boundaries on both sides included. One you could not finish goes
+  under "Not checked" with the reason; never leave it implied.
 - A bug counts only if you reproduced it on the running app. Write exact steps a person can
   repeat. Suspicions from reading code that you could not reproduce go to a separate short list,
   marked unconfirmed.

@@ -130,6 +130,7 @@ describe('qa-tester rules', () => {
       bash('curl -s --parallel --parallel-max 50 http://localhost:3000/a http://127.0.0.1:3001/'),
       bash("curl -s -w '%{http_code}' http://localhost:8233/"),
       bash('curl -s --max-time=5 http://localhost:3000/'),
+      bash("curl -s -G --data-urlencode 'name=Ёжик в тумане' http://localhost:3000/hello"),
       bash("curl -s -b 'sid=1' http://localhost:3001/"),
       bash('docker compose ps'),
       bash('docker compose logs --tail 100 api'),
