@@ -311,7 +311,8 @@ deploy.
 
 1. Load the SSH key of the `deploy` user; known hosts come from a secret (the server's key pinned,
    no trust-on-first-use).
-2. Copy `deploy/compose/`, `deploy/nginx/` and `deploy/scripts/` to `/opt/ai-fitting`.
+2. Sync `deploy/` to `/opt/ai-fitting/deploy` in place (`rsync --delete`). Revised after the third
+   deploy: replacing the folder as a whole left nginx mounting the deleted old one.
 3. Write `.env` on the server from Environment variables and secrets (overwritten every deploy, so
    editing it by hand on the server is pointless and documented as such).
 4. Pass a short-lived `GITHUB_TOKEN` to `docker login ghcr.io` on the server, pull, `docker logout`.

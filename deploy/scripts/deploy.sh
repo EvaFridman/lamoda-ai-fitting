@@ -80,6 +80,12 @@ EOF
 # scripts render it again here; a config nginx -t rejects is rolled back and nginx keeps the old one.
 apply_nginx_config() {
   infra exec -T nginx sh -eu -c '
+    # The image skips a missing template silently; a missing one means a stale mount (the folder
+    # was replaced on the host), and "applied" would be a lie.
+    if [ ! -s /etc/nginx/templates/default.conf.template ]; then
+      echo "nginx sees no template: its mount of deploy/nginx/templates is stale; recreate nginx" >&2
+      exit 1
+    fi
     cp /etc/nginx/conf.d/default.conf /tmp/default.conf.prev
     . /docker-entrypoint.d/15-local-resolvers.envsh
     /docker-entrypoint.d/20-envsubst-on-templates.sh >/dev/null
@@ -113,7 +119,7 @@ fi
 profile_args=()
 [ "${DEPLOY_PROFILE:-}" = server ] && profile_args=(--profile server)
 infra "${profile_args[@]}" up -d --wait || fail "infrastructure did not become healthy"
-apply_nginx_config || fail "nginx rejected the deployed template; it keeps its previous config"
+apply_nginx_config || fail "the deployed nginx config was not applied (see above); nginx keeps its previous one"
 
 if [ "$(image_tag_of "$target")" = "$tag" ] && is_healthy "$target" api && is_healthy "$target" web; then
   # 3a. Rollback to the version that ran before: it is still running, only the switch is left.

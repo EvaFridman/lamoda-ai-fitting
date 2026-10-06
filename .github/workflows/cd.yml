@@ -70,15 +70,10 @@ jobs:
           ssh server 'echo "connected to $(hostname) as $(whoami)"'
 
       - name: Copy the deployment files
-        # Replaced as a whole, so a file removed from the repository disappears from the server too.
-        run: |
-          tar -czf - deploy | ssh server '
-            set -e
-            cd /opt/ai-fitting
-            rm -rf deploy.new && mkdir deploy.new
-            tar -xzf - -C deploy.new --strip-components=1
-            rm -rf deploy && mv deploy.new deploy
-          '
+        # Synced in place: running containers bind-mount folders of deploy/ (nginx templates), and a
+        # folder replaced as a whole stays mounted as the deleted old one. --delete removes files
+        # that left the repository.
+        run: rsync -a --delete deploy/ server:/opt/ai-fitting/deploy/
 
       - name: Write the server's .env
         # Rewritten on every deploy from GitHub: editing it on the server by hand is undone next time.
