@@ -347,8 +347,11 @@ Known limits, accepted for this scope:
 Environment `production`:
 
 - Secrets: `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS`, `POSTGRES_PASSWORD`, `SENTRY_DSN`.
-- Variables: `DEPLOY_HOST`, `DEPLOY_USER`, `SITE_DOMAIN`, `POSTGRES_USER`, `POSTGRES_DB`,
-  `LETSENCRYPT_EMAIL`.
+- Variables: `DEPLOY_HOST`, `DEPLOY_USER`, `SITE_DOMAIN`, `POSTGRES_USER`, `POSTGRES_DB`.
+- Deployments allowed only from protected branches (`main`): a pull request's workflow never gets
+  these secrets.
+- Changed in T24: no `LETSENCRYPT_EMAIL` here; the email is needed once, by `init-cert.sh` (T27),
+  and is passed to it directly.
 
 Repository level (the `images` job builds web before any environment is involved):
 

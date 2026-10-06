@@ -65,6 +65,78 @@ Host ai-fitting
 отдельного пользователя — отдельный ключ: его можно отозвать (`exclusive` в плейбуке заменяет
 ключи), не трогая доступ владельца, и в логах сервера видно, что делал CI.
 
+## Настройки GitHub и Sentry
+
+Значения секретов не проходят ни через чат, ни через терминал на экране: команды ниже читают их из
+файлов или генерируют на лету и сразу передают в GitHub (`gh secret set`). Проверка — только по
+именам: `gh secret list`, `gh variable list`.
+
+### Sentry (веб-интерфейс)
+
+1. **Проект:** Projects → Create Project → платформа **Next.js**, имя `lamoda-ai-fitting`. Из
+   настроек проекта (Client Keys) понадобится **DSN**.
+2. **Токен для загрузки source maps:** Settings → Developer Settings → **Organization Tokens** →
+   Create New Token (`lamoda-ai-fitting CI`). Отдельный токен для этого репозитория, чтобы его можно
+   было отозвать, не задевая другие проекты. Показывается один раз — сразу в GitHub (шаг ниже).
+3. **Slug организации** — в адресе `https://<slug>.sentry.io` или в Settings → General.
+
+### Environment `production` (GitHub)
+
+Окружение, в котором работает джоб деплоя. Деплоить из него можно только из ветки `main`: workflow
+из pull request не получит эти секреты.
+
+**Переменные** (не секретные):
+
+| Имя             | Значение               |
+| --------------- | ---------------------- |
+| `DEPLOY_HOST`   | IP сервера             |
+| `DEPLOY_USER`   | `deploy`               |
+| `SITE_DOMAIN`   | `lamoda-ai-fitting.ru` |
+| `POSTGRES_USER` | `ai_fitting`           |
+| `POSTGRES_DB`   | `ai_fitting`           |
+
+**Секреты** — из корня репозитория:
+
+```bash
+# Закрытый ключ CI (открытая часть уже на сервере, ansible/base.yml)
+gh secret set DEPLOY_SSH_KEY --env production < ~/.ssh/ai-fitting-ci
+
+# Ключ сервера для known_hosts CI: сверить отпечаток с тем, что знает ваш Mac
+ssh-keyscan -t ed25519 <IP сервера> 2>/dev/null | ssh-keygen -lf -
+ssh-keygen -F <IP сервера> -l | grep ED25519
+# Если отпечатки совпали:
+ssh-keyscan -t ed25519 <IP сервера> 2>/dev/null | gh secret set DEPLOY_KNOWN_HOSTS --env production
+
+# Пароль базы: случайный, его не видит никто — CI сам запишет его в .env на сервере
+openssl rand -hex 32 | gh secret set POSTGRES_PASSWORD --env production
+
+# DSN проекта Sentry (gh спросит значение, ввод не отображается)
+gh secret set SENTRY_DSN --env production
+```
+
+### Уровень репозитория (GitHub)
+
+Нужны джобу сборки образов, который работает до любого окружения.
+
+```bash
+gh secret set SENTRY_AUTH_TOKEN                   # токен из Sentry, шаг 2
+gh variable set SENTRY_ORG --body "<slug организации>"
+gh variable set SENTRY_PROJECT --body "lamoda-ai-fitting"
+gh variable set NEXT_PUBLIC_SENTRY_DSN --body "<DSN>"   # тот же DSN: он публичный, уходит в браузер
+```
+
+### Проверка
+
+```bash
+gh secret list --env production     # DEPLOY_SSH_KEY, DEPLOY_KNOWN_HOSTS, POSTGRES_PASSWORD, SENTRY_DSN
+gh variable list --env production   # DEPLOY_HOST, DEPLOY_USER, SITE_DOMAIN, POSTGRES_USER, POSTGRES_DB
+gh secret list                      # SENTRY_AUTH_TOKEN
+gh variable list                    # SENTRY_ORG, SENTRY_PROJECT, NEXT_PUBLIC_SENTRY_DSN
+```
+
+`POSTGRES_PASSWORD` задаётся один раз, до первого деплоя: база инициализируется с ним, и смена
+секрета потом сломает подключение api к уже созданной базе.
+
 ## Предыдущий стек на сервере
 
 До этого проекта сервер обслуживал другой сайт (compose-проект `realty`). Его контейнеры и образы

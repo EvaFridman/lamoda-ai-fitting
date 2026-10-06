@@ -192,10 +192,15 @@ Ready on the Mac: Node 26, npm 12, Docker 29, gitleaks 8.30, Ansible 2.21, jq, g
       2 of 211 users registered after the last database copy, so `deploy/README.md` gives a fresh
       copy first, then the removal command. `*-backup-*.sql` added to `.gitignore`.
       Commit: `docs(deploy): document removal of the previous server stack`
-- [ ] **T24. GitHub and Sentry settings.** Step-by-step list in `deploy/README.md`; 👤 creates the
+- [x] **T24. GitHub and Sentry settings.** Step-by-step list in `deploy/README.md`; 👤 creates the
       Environment `production`, the repository secrets and variables (plan §10), the Sentry project and
       token. Secret values never go through the chat.
       Check: `gh secret list`, `gh variable list` (names only) show every name from plan §10.
+      Done: Claude created the Environment (deployments from protected branches only) and its five
+      non-secret variables with `gh`; the owner created the Sentry project (Next.js, no repository
+      link, no Session Replay) and an organization token, and set the secrets with commands that read
+      or generate the values without printing them. The server key fingerprint was compared with the
+      one the owner's Mac already trusted. All 12 names present.
       Commit: `docs(deploy): add github and sentry setup steps`
 - 👤 merges PR 6.
 
