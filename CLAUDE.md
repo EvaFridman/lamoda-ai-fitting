@@ -127,6 +127,8 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
 
 ## Conventions
 
+- Files are changed with the Edit and Write tools, never with `sed -i`, `perl`, `python` or other
+  scripts: the formatting hook runs and the owner sees each change as a diff.
 - `api` is an ESM package: relative imports end in `.js`.
 - Configuration comes from validated environment variables (zod schemas), never hard-coded
   addresses; containers reach each other by service name.
