@@ -1,6 +1,6 @@
 # 0001 Bootstrap: tasks
 
-Status: accepted (2026-10-06), in progress.
+Status: done (2026-10-06).
 Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## How the work flows
@@ -243,7 +243,7 @@ HSTS) and 8b (T29, HSTS for a year). The 8b merge is the third deploy and the la
       to the server by hand for this one run; the next deploy brings the same file. Staging and then
       the real certificate succeeded on the first try. Documented in `deploy/README.md`.
       Commit (only if the script needed fixes): `fix(deploy): ...`
-- [ ] **T28. HSTS.** Enable HSTS in the nginx template. The merge of this PR is the second real deploy
+- [x] **T28. HSTS.** Enable HSTS in the nginx template. The merge of this PR is the second real deploy
       (green), run with a request loop from the Mac.
       Check: AC26 on the server; AC19 via `workflow_dispatch` with the previous tag, timed; AC18 by
       running `deploy.sh` with a nonexistent tag on the server; AC22, AC23 against the domain.
@@ -262,37 +262,73 @@ HSTS) and 8b (T29, HSTS for a year). The 8b merge is the third deploy and the la
       was recreated once on the server (owner's OK) to drop the stale mount: about 1 s down
       (5 requests refused, curl 7), HSTS `max-age=300` live since. The year-long value in T29 is the
       check that the fix works: it must arrive without an nginx restart.
+      Fourth deploy (PR #13, the first through `rsync`): 696 requests, 0 failed; the templates
+      folder has the same inode on the host and inside nginx; nginx not restarted.
       Commit: `feat(deploy): enable hsts`
 - 👤 merges PR 8a; the checks above run on the deploy it triggers.
-- [ ] **T29. Acceptance.** Go through AC1–AC26, record the result and evidence of each below.
+- [x] **T29. Acceptance.** Go through AC1–AC26, record the result and evidence of each below.
       Finish `README.md` and `deploy/README.md`; bring `CLAUDE.md` in line with what was built; list any
       difference from the spec. Set `Status: done` in spec, clarifications, plan and tasks (A9a).
       HSTS raised to a year (`max-age=31536000`) once the 5-minute one has been seen working.
       Commit: `docs(specs): close 0001-bootstrap`
-- 👤 merges PR 8b (the third deploy).
+      Done: all 26 criteria pass (record below); differences from the spec in "Outcome". The
+      year-long HSTS reaches production with the merge of this PR (the fifth deploy), which is also
+      the last check of the in-place sync fix; its result is in the pull request, since the files
+      here are closed.
+- 👤 merges PR 8b (the fifth deploy).
+
+## Outcome
+
+What was built differs from the spec and the first plan in these points; each was decided with the
+owner when it came up and is recorded in `clarifications.md` or `plan.md`.
+
+- **More pull requests than planned.** PR 8 was split into 8a and 8b (T28 is checked by the deploy
+  its merge triggers). Three fixes found on the way got their own: the visitor address for the rate
+  limit (B12d, in PR 5), the CI deploy check's diagnostics (#10), applying nginx config on deploys
+  (#12) and syncing deploy files in place (#13).
+- **Versions** (V1–V5): Node 26 and npm 12 instead of Node 24; ESLint 10 with `@eslint-react` and
+  `jsx-a11y-x` instead of ESLint 9 with the classic plugins; TypeScript 6, not 7; Prisma 7, not 8.
+- **Not needed after all:** `unplugin-swc` (Vite 8 emits decorator metadata), the `LETSENCRYPT_EMAIL`
+  variable (the email is passed to `init-cert.sh` once).
+- **Added beyond the spec:** rate-limit counters fall back to memory while Redis is down (B12b); a
+  narrow `overrides` entry for the Redis throttler storage (B12a); upstream `resolve` in nginx, so
+  no start order is needed; server hostname and SSH alias `ai-fitting`; Prisma agent skills (A11a).
+- **Open observation (AC26):** one request of 1006 went unanswered during a blue-green switch in the
+  CI check of the PR 7 merge. Never reproduced since (thousands of requests over 9 more CI and
+  server deploys, 0 failed); the request loop now records curl's exit code and the time, so a recurrence
+  will say why. The owner's choice is in T26.
+- **Left on the server by decision:** the previous stack's volumes and `/opt/realty` (F1); the
+  commands for a fresh database copy and the removal are in `deploy/README.md`.
 
 ## Acceptance record
 
-Filled in as criteria are checked; completed at T29.
+All 26 criteria checked; T-numbers say where. Server checks ran against https://lamoda-ai-fitting.ru.
 
-| AC   | Result                            | Evidence                                                                                                                                                                                     |
-| ---- | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| AC1  | pass (T18, 2026-10-06)            | fresh copy of the tracked files: `npm ci`, `init-env.sh`, `docker compose up -d --wait` → all services healthy (worker running) in 22 s, page shows the greeting                             |
-| AC2  | pass (T18)                        | page shows "Hello, world!"; `docker compose stop api` → the Russian error state; api back → greeting again                                                                                   |
-| AC3  | pass (T18)                        | `/health/live` 200 `{"status":"ok","version":"dev"}`; `/health/ready` 200, postgres/redis/temporal up; Redis stopped → 503, error names `redis`                                              |
-| AC4  | pass (T18)                        | `/docs` 200; `/docs-json` paths include `/hello`                                                                                                                                             |
-| AC5  | pass (T18)                        | Temporal UI 200 on :8233; `temporal workflow execute --type hello --task-queue main` → COMPLETED, "Hello, world!"                                                                            |
-| AC6  | pass (T18)                        | socket.io client to :3000, `emitWithAck('ping')` → `pong`                                                                                                                                    |
-| AC7  | pass (T18)                        | edit in `api/src` served after 7 s, edit in `web/src` at once; no image rebuild                                                                                                              |
-| AC8  | pass (T18)                        | 101 requests to `/hello` within a minute → 100 × 200, 1 × 429 (counters in Redis)                                                                                                            |
-| AC13 | pass (T21)                        | PR #6: Secret scan, Checks and Images green; Images built both images and ran `ci-deploy-check.sh` on the runner (blue-green switch, 0 of 1056 looped requests failed)                       |
-| AC14 | pass (T21)                        | throwaway PR #7 with a broken test: Checks red (`expected 'Hello, world!' to deeply equal 'Hello, wrong!'`), merge blocked; closed unmerged. Locally the pre-push hook refuses such a push   |
-| AC15 | pass (T21)                        | first `main` run after the merge pushed `ghcr.io/evafridman/ai-fitting-{api,web}:5029a6f` (the merge commit); pull requests publish nothing                                                  |
-| AC16 | pass (T26)                        | merge commit `b6bf0a3` went live with no manual step; the page footer and `https://lamoda-ai-fitting.ru/api/health/live` report `b6bf0a3`                                                    |
-| AC17 | pass (T26)                        | CD log: `deploy: migrating the database with b6bf0a3` → `No pending migrations to apply.` before `starting blue`                                                                             |
-| AC20 | pass (T27)                        | with strict TLS (no `-k`): https 200, verify result 0; http → https and www → apex 301; Let's Encrypt certificate for both names, valid until 2027-01-04                                     |
-| AC21 | pass (T27)                        | `certbot renew --dry-run` in the running certbot container: all simulated renewals succeeded; nginx's 6-hour reload loop running                                                             |
-| AC24 | pass (T23)                        | on the server `docker ps -a` lists no containers, `docker images` only postgres, redis and temporal (kept for this stack); volume removal documented in `deploy/README.md`                   |
-| AC18 | pass locally (T20); server at T28 | nonexistent tag → exit 1 before any change; an image that never gets healthy → exit 1 after 51 s, copy stopped; the site kept serving the previous version, 0 of 3894 looped requests failed |
-| AC19 | pass locally (T20); server at T28 | rollback to the version on the idle copy: switch only, 2 s                                                                                                                                   |
-| AC26 | pass locally (T20); server at T28 | full deploy under a request loop (page with the greeting + `/api/health/live`): 0 of 1229 failed across a deploy, a rollback and two failed deploys                                          |
+| AC   | Result                  | Evidence                                                                                                                                                                                                                                                     |
+| ---- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| AC1  | pass (T18)              | fresh copy of the tracked files: `npm ci`, `init-env.sh`, `docker compose up -d --wait` → all services healthy (worker running) in 22 s, page shows the greeting                                                                                             |
+| AC2  | pass (T18)              | page shows "Hello, world!"; `docker compose stop api` → the Russian error state; api back → greeting again                                                                                                                                                   |
+| AC3  | pass (T18)              | `/health/live` 200 `{"status":"ok","version":"dev"}`; `/health/ready` 200, postgres/redis/temporal up; Redis stopped → 503, error names `redis`                                                                                                              |
+| AC4  | pass (T18)              | `/docs` 200; `/docs-json` paths include `/hello`                                                                                                                                                                                                             |
+| AC5  | pass (T18)              | Temporal UI 200 on :8233; `temporal workflow execute --type hello --task-queue main` → COMPLETED, "Hello, world!"                                                                                                                                            |
+| AC6  | pass (T18)              | socket.io client to :3000, `emitWithAck('ping')` → `pong`                                                                                                                                                                                                    |
+| AC7  | pass (T18)              | edit in `api/src` served after 7 s, edit in `web/src` at once; no image rebuild                                                                                                                                                                              |
+| AC8  | pass (T18)              | 101 requests to `/hello` within a minute → 100 × 200, 1 × 429 (counters in Redis)                                                                                                                                                                            |
+| AC9  | pass (T29)              | `npm run verify` (format check, ESLint, Stylelint, typecheck of api and web, Vitest, builds of api and web) exit 0, 8 tests; CI runs the same command                                                                                                        |
+| AC10 | pass (T2)               | the commit-msg hook rejects `update stuff`, a missing scope and an unknown scope; accepts `chore(tooling): …`                                                                                                                                                |
+| AC11 | pass (T3)               | a staged `postgresql://app:<random>@…` is refused by gitleaks (`connection-url-password`); `${POSTGRES_PASSWORD}` passes                                                                                                                                     |
+| AC12 | pass (T15, T17)         | `next build` with `API_URL`/`REDIS_URL` unset; the web image builds in Docker with no api, Redis or database (Partial Prerender), on every CI run                                                                                                            |
+| AC13 | pass (T21)              | PR #6: Secret scan, Checks and Images green; Images built both images and ran `ci-deploy-check.sh` on the runner (blue-green switch, 0 of 1056 looped requests failed)                                                                                       |
+| AC14 | pass (T21)              | throwaway PR #7 with a broken test: Checks red (`expected 'Hello, world!' to deeply equal 'Hello, wrong!'`), merge blocked; closed unmerged. Locally the pre-push hook refuses such a push                                                                   |
+| AC15 | pass (T21)              | first `main` run after the merge pushed `ghcr.io/evafridman/ai-fitting-{api,web}:5029a6f` (the merge commit); pull requests publish nothing                                                                                                                  |
+| AC16 | pass (T26)              | merge commit `b6bf0a3` went live with no manual step; the page footer and `/api/health/live` report it; same for every later merge                                                                                                                           |
+| AC17 | pass (T26)              | CD log: `deploy: migrating the database with b6bf0a3` → `No pending migrations to apply.` before `starting blue`                                                                                                                                             |
+| AC18 | pass (T20, T28)         | server: `deploy.sh 0000000` → `FAILED: cannot pull images`, state unchanged, site kept `c3734b0`, 0 looped requests failed. Locally also an image that never gets healthy: exit 1 after 51 s, 0 of 3894 failed                                               |
+| AC19 | pass (T20, T28)         | server: CD run by hand with the previous tag `b6bf0a3`: `deploy.sh` switch only, 5 s (the whole CD run 30 s); forward again the same way; 0 of 182 looped requests failed                                                                                    |
+| AC20 | pass (T27)              | with strict TLS (no `-k`): https 200, verify result 0; http → https and www → apex 301; Let's Encrypt certificate for both names, valid until 2027-01-04                                                                                                     |
+| AC21 | pass (T27)              | `certbot renew --dry-run` in the running certbot container: all simulated renewals succeeded; nginx's 6-hour reload loop running                                                                                                                             |
+| AC22 | pass (T28)              | socket.io over `wss://lamoda-ai-fitting.ru` (transport websocket) → `pong`; a 10 MB POST reached the api (404, not nginx's 413)                                                                                                                              |
+| AC23 | pass (T28)              | from outside: 22, 80, 443 open; 3000, 3001, 5432, 6379, 7233, 8233 closed                                                                                                                                                                                    |
+| AC24 | pass (T23)              | on the server `docker ps -a` listed no containers, `docker images` only postgres, redis and temporal (kept for this stack); volume removal documented in `deploy/README.md`                                                                                  |
+| AC25 | pass (T29)              | secrets only in the GitHub Environment `production` / repository secrets and the server's `.env` (owner `deploy`, mode 600, rewritten by CD); `.env.example` values all empty; gitleaks over the full history (39 commits) and in CI on every run: no leaks  |
+| AC26 | pass (T28), see Outcome | server, under a request loop from the Mac (page with the greeting + `/api/health/live`): second deploy 829, third 704, fourth 696 requests, 0 failed; locally and in CI thousands more, 0 failed. One unexplained unanswered request in a CI check (Outcome) |

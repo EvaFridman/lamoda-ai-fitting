@@ -1,7 +1,7 @@
 # 0001 Bootstrap: repository, CI, CD
 
-Status: accepted (2026-10-05), amended the same day for blue-green deploys (D6a): AC13, AC18,
-AC19, AC26.
+Status: done (2026-10-06): all 26 criteria pass (`tasks.md`, "Acceptance record"). History, not instructions.
+Accepted 2026-10-05, amended the same day for blue-green deploys (D6a): AC13, AC18, AC19, AC26.
 Decisions this spec relies on: [clarifications.md](clarifications.md) (referred to by their ids, e.g. B7).
 
 ## Goal
