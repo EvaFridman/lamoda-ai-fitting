@@ -13,17 +13,24 @@ ENV NEXT_TELEMETRY_DISABLED=1
 WORKDIR /app
 RUN chown node:node /app
 
-# Dependencies. Also the development target (docker-compose.yml): sources are bind-mounted and
-# `next dev` runs on top, with no build step.
+# Dependencies.
 FROM base AS deps
 USER node
 COPY --chown=node:node package.json package-lock.json .npmrc ./
 RUN npm ci
+
+# Dependencies plus the whole project: configs (tsconfig.json with the @/ alias, next.config.ts,
+# instrumentation) and sources.
+FROM deps AS source
+COPY --chown=node:node . .
+
+# Development (docker-compose.yml): app/ and src/ are bind-mounted over the copy and `next dev`
+# reloads on change. A config change needs `docker compose up -d --build web`.
+FROM source AS dev
 CMD ["npm", "run", "dev"]
 
 # Production build. Needs no api, Redis or database: data from the api renders per request.
-FROM deps AS build
-COPY --chown=node:node . .
+FROM source AS build
 # NEXT_PUBLIC_* are inlined into the browser bundle at build time, so one image per environment.
 ARG NEXT_PUBLIC_SENTRY_DSN
 ARG NEXT_PUBLIC_SENTRY_ENVIRONMENT

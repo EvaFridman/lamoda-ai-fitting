@@ -134,8 +134,12 @@ Ready on the Mac: Node 26, npm 12, Docker 29, gitleaks 8.30, Ansible 2.21, jq, g
       web container showed the greeting from the api container; both run as `node`; the app code
       is read-only for it.
       Commit: `feat(infra): add api and web docker images`
-- [ ] **T18. Dev stack.** `docker-compose.yml`, `.env.example`, `scripts/init-env.sh`.
-      Check: AC1–AC8 by hand, each with its command from the spec; results in the PR description.
+- [x] **T18. Dev stack.** `docker-compose.yml`, `.env.example`, `scripts/init-env.sh`.
+      Check: AC1–AC8 by hand, each with its command from the spec; results in the acceptance record
+      below (pull request descriptions only say what was done).
+      Done: `web` got a `dev` image stage with the project's configs (the `deps` stage lacked
+      `tsconfig.json`, so the `@/` alias failed). AC1 also passed on a fresh copy of the tracked
+      files as a separate compose project. Hot reload works over macOS bind mounts without polling.
       Commit: `feat(infra): add dev compose setup`
 - 👤 merges PR 4.
 
@@ -203,8 +207,15 @@ Ready on the Mac: Node 26, npm 12, Docker 29, gitleaks 8.30, Ansible 2.21, jq, g
 
 ## Acceptance record
 
-Filled in at T29.
+Filled in as criteria are checked; completed at T29.
 
-| AC  | Result | Evidence |
-| --- | ------ | -------- |
-|     |        |          |
+| AC  | Result                 | Evidence                                                                                                                                                         |
+| --- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AC1 | pass (T18, 2026-10-06) | fresh copy of the tracked files: `npm ci`, `init-env.sh`, `docker compose up -d --wait` → all services healthy (worker running) in 22 s, page shows the greeting |
+| AC2 | pass (T18)             | page shows "Hello, world!"; `docker compose stop api` → the Russian error state; api back → greeting again                                                       |
+| AC3 | pass (T18)             | `/health/live` 200 `{"status":"ok","version":"dev"}`; `/health/ready` 200, postgres/redis/temporal up; Redis stopped → 503, error names `redis`                  |
+| AC4 | pass (T18)             | `/docs` 200; `/docs-json` paths include `/hello`                                                                                                                 |
+| AC5 | pass (T18)             | Temporal UI 200 on :8233; `temporal workflow execute --type hello --task-queue main` → COMPLETED, "Hello, world!"                                                |
+| AC6 | pass (T18)             | socket.io client to :3000, `emitWithAck('ping')` → `pong`                                                                                                        |
+| AC7 | pass (T18)             | edit in `api/src` served after 7 s, edit in `web/src` at once; no image rebuild                                                                                  |
+| AC8 | pass (T18)             | 101 requests to `/hello` within a minute → 100 × 200, 1 × 429 (counters in Redis)                                                                                |

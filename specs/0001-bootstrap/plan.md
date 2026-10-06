@@ -181,8 +181,10 @@ installed and registered. Their first real use comes with features.
 client, prisma files; user `node`, exec-form `CMD`). `prod-deps` keeps only the image's own Linux
 binary of Temporal's native module, which ships five platforms (added in T17: 1.31 → 1.16 GB).
 
-`web/Dockerfile` stages: `deps` (also the dev target, `next dev`) → `build` (`next build`, no api, no
-network services) → `runtime` (standalone server, `.next/static`, `public`; user `node`).
+`web/Dockerfile` stages: `deps` → `source` (the whole project, configs included) → `dev` (`next
+dev`, sources bind-mounted over) and `build` (`next build`, no api, no network services) →
+`runtime` (standalone server, `.next/static`; user `node`). Changed in T18: `dev` used to be `deps`,
+which lacked `tsconfig.json` and so the `@/` alias.
 
 `APP_VERSION` is not baked in: compose passes it at run time, so the same image runs anywhere.
 
