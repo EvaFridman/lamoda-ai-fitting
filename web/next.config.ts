@@ -30,5 +30,7 @@ export default withSentryConfig(nextConfig, {
   release: { name: process.env.SENTRY_RELEASE },
   sourcemaps: { disable: !uploadSourceMaps, deleteSourcemapsAfterUpload: true },
   telemetry: false,
-  silent: !process.env.CI,
+  // Report the upload whenever there is one (inside the Docker build `CI` is not set, so keying on it
+  // hid both success and failure); stay quiet when there is nothing to upload.
+  silent: !uploadSourceMaps,
 });

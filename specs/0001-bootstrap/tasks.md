@@ -206,13 +206,19 @@ Ready on the Mac: Node 26, npm 12, Docker 29, gitleaks 8.30, Ansible 2.21, jq, g
 
 ## PR 7 · `feat/0001-deploy` · continuous delivery
 
-- [ ] **T25. Deploy workflow.** `.github/workflows/deploy.yml`; job `deploy` in `ci.yml`.
+- [x] **T25. Deploy workflow.** `.github/workflows/deploy.yml`; job `deploy` in `ci.yml`.
       Check: CI on the PR green (the deploy job is skipped outside `main`).
       Commit: `ci(ci): deploy to production on push to main`
+      Done: named `cd.yml` / workflow `CD` (owner's choice, alongside `ci.yml` / `CI`); CI calls it
+      as a reusable workflow after Images on pushes to `main` (owner chose this over a `workflow_run`
+      trigger: order guaranteed, one run shows the whole path). `actionlint` clean. The Sentry
+      build plugin now reports the source map upload (it was silent inside the Docker build). CD
+      itself first runs at the merge of this PR: the environment accepts `main` only.
 - [ ] **T26. First deploy.** 👤 merges PR 7: CI publishes images and deploys blue; nginx runs on its
       self-signed certificate.
       Check: AC16, AC17 (job log); `https://lamoda-ai-fitting.ru` answers (certificate warning expected
-      until T27).
+      until T27). Added in T25: a test error on the live site reaches Sentry with a readable stack
+      trace (source maps), which also marks the project as set up in Sentry.
 
 ## PR 8 · `feat/0001-hsts` · certificate, HSTS, acceptance
 

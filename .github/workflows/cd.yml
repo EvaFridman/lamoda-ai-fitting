@@ -1,0 +1,127 @@
+name: CD
+
+# Deploys one image tag to the production server with deploy/scripts/deploy.sh (blue-green).
+# - Called by CI after the images of a push to main are built, checked and published.
+# - Run by hand (Actions → CD → Run workflow) with an earlier tag to roll back (AC19).
+on:
+  workflow_call:
+    inputs:
+      image_tag:
+        description: Image tag (7-character commit hash)
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Image tag (7-character commit hash) to deploy
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to production
+    runs-on: ubuntu-latest
+    # Secrets and variables of the environment; it accepts deployments from protected branches only.
+    environment:
+      name: production
+      url: https://${{ vars.SITE_DOMAIN }}
+    # One deploy at a time; a deploy in progress is never cancelled.
+    concurrency:
+      group: production
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      # A short-lived token for the server to pull the private images from GHCR.
+      packages: read
+    env:
+      IMAGE_TAG: ${{ inputs.image_tag }}
+    steps:
+      - name: Check the image tag
+        run: |
+          [[ "$IMAGE_TAG" =~ ^[0-9a-f]{7}$ ]] || { echo "not a 7-character commit hash: '$IMAGE_TAG'" >&2; exit 1; }
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: SSH to the server as the deploy user
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          # The server's key comes from a secret (checked by the owner), never from the network.
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          cat > ~/.ssh/config <<EOF
+          Host server
+            HostName $DEPLOY_HOST
+            User $DEPLOY_USER
+            IdentityFile ~/.ssh/deploy_key
+            IdentitiesOnly yes
+            StrictHostKeyChecking yes
+            ServerAliveInterval 30
+          EOF
+          ssh server 'echo "connected to $(hostname) as $(whoami)"'
+
+      - name: Copy the deployment files
+        # Replaced as a whole, so a file removed from the repository disappears from the server too.
+        run: |
+          tar -czf - deploy | ssh server '
+            set -e
+            cd /opt/ai-fitting
+            rm -rf deploy.new && mkdir deploy.new
+            tar -xzf - -C deploy.new --strip-components=1
+            rm -rf deploy && mv deploy.new deploy
+          '
+
+      - name: Write the server's .env
+        # Rewritten on every deploy from GitHub: editing it on the server by hand is undone next time.
+        env:
+          POSTGRES_USER: ${{ vars.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ vars.POSTGRES_DB }}
+          SITE_DOMAIN: ${{ vars.SITE_DOMAIN }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}/
+        run: |
+          {
+            echo "POSTGRES_USER=$POSTGRES_USER"
+            echo "POSTGRES_PASSWORD=$POSTGRES_PASSWORD"
+            echo "POSTGRES_DB=$POSTGRES_DB"
+            echo "SITE_DOMAIN=$SITE_DOMAIN"
+            echo "SENTRY_DSN=$SENTRY_DSN"
+            echo "SENTRY_ENVIRONMENT=production"
+            echo "IMAGE_REGISTRY=${IMAGE_REGISTRY,,}"
+            echo "LOG_LEVEL=info"
+          } | ssh server 'umask 077 && cat > /opt/ai-fitting/.env'
+
+      - name: Log the server in to GHCR
+        env:
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # $GITHUB_ACTOR expands here, on the runner, on purpose (SC2029).
+        run: |
+          # shellcheck disable=SC2029
+          echo "$REGISTRY_TOKEN" | ssh server "docker login ghcr.io -u '$GITHUB_ACTOR' --password-stdin"
+
+      - name: Deploy ${{ inputs.image_tag }}
+        # $IMAGE_TAG expands on the runner on purpose (SC2029); the first step allows only a hash.
+        run: |
+          # shellcheck disable=SC2029
+          ssh server "DEPLOY_PROFILE=server /opt/ai-fitting/deploy/scripts/deploy.sh '$IMAGE_TAG'"
+
+      - name: Check from outside
+        # From the internet, through DNS and the firewall, the site must report the new version.
+        # -k (inside smoke-test.sh) until the real certificate is issued; TLS is checked separately.
+        env:
+          SITE_DOMAIN: ${{ vars.SITE_DOMAIN }}
+        run: scripts/smoke-test.sh "https://$SITE_DOMAIN" "$IMAGE_TAG"
+
+      - name: Log the server out of GHCR
+        if: always()
+        run: ssh server 'docker logout ghcr.io' || true
