@@ -255,6 +255,13 @@ HSTS) and 8b (T29, HSTS for a year). The 8b merge is the third deploy and the la
       production. Fixed in its own PR: `deploy.sh` re-renders the template in the running container,
       `nginx -t`, reload (a rejected config is rolled back and fails the deploy). Its merge is the
       third deploy and shows HSTS on production.
+      Third deploy (PR #12): 704 requests, 0 failed, but still no HSTS. Cause: CD replaced
+      `/opt/ai-fitting/deploy` as a whole, and the running nginx kept mounting the deleted old
+      folder, so the new step rendered from an empty one, silently. Fixed in another PR: CD syncs
+      in place (`rsync --delete`), and the step fails loudly when nginx sees no template. nginx
+      was recreated once on the server (owner's OK) to drop the stale mount: about 1 s down
+      (5 requests refused, curl 7), HSTS `max-age=300` live since. The year-long value in T29 is the
+      check that the fix works: it must arrive without an nginx restart.
       Commit: `feat(deploy): enable hsts`
 - 👤 merges PR 8a; the checks above run on the deploy it triggers.
 - [ ] **T29. Acceptance.** Go through AC1–AC26, record the result and evidence of each below.

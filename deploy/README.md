@@ -20,7 +20,8 @@ Push в `main` (merge PR) → workflow **CI**: Secret scan, Checks, Images (сб
 blue-green деплоя на раннере, публикация в GHCR) → **CD** (`cd.yml`, окружение `production`):
 
 1. SSH на сервер под `deploy` (ключ сервера сверяется с `DEPLOY_KNOWN_HOSTS`);
-2. каталог `deploy/` целиком копируется в `/opt/ai-fitting/deploy`;
+2. каталог `deploy/` синхронизируется в `/opt/ai-fitting/deploy` на месте (`rsync --delete`):
+   папки не подменяются, иначе работающий nginx продолжал бы видеть старую, удалённую копию;
 3. `/opt/ai-fitting/.env` пишется заново из секретов и переменных GitHub — **правки на сервере
    затираются**, менять значения нужно в GitHub;
 4. сервер входит в GHCR временным токеном прогона и выходит после деплоя;
