@@ -1,0 +1,66 @@
+# Production, one copy of the app: api and web of one colour (blue or green) and one image tag.
+# Started as compose project ai-fitting-<colour> by deploy/scripts/deploy.sh with COLOR and IMAGE_TAG
+# set; joins the network of infra.yml under the names api-<colour> and web-<colour>, which nginx's
+# upstream file points at. No ports are published: traffic comes only through nginx.
+
+x-restart: &restart
+  restart: unless-stopped
+
+networks:
+  ai-fitting:
+    external: true
+
+services:
+  api:
+    <<: *restart
+    image: ${IMAGE_REGISTRY:-}ai-fitting-api:${IMAGE_TAG:?set IMAGE_TAG}
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      WEB_ORIGIN: https://${SITE_DOMAIN:?set SITE_DOMAIN}
+      APP_VERSION: ${IMAGE_TAG}
+      DATABASE_URL: postgresql://${POSTGRES_USER:?set POSTGRES_USER}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:?set POSTGRES_DB}
+      REDIS_URL: redis://redis:6379
+      TEMPORAL_ADDRESS: temporal:7233
+      THROTTLE_LIMIT: ${THROTTLE_LIMIT:-100}
+    networks:
+      ai-fitting:
+        aliases: ['api-${COLOR:?set COLOR}']
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/health/live').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 5s
+      timeout: 3s
+      retries: 6
+      start_period: 20s
+
+  web:
+    <<: *restart
+    image: ${IMAGE_REGISTRY:-}ai-fitting-web:${IMAGE_TAG:?set IMAGE_TAG}
+    environment:
+      # This colour's own api, over the internal network.
+      API_URL: http://api-${COLOR:?set COLOR}:3000
+      REDIS_URL: redis://redis:6379
+      APP_VERSION: ${IMAGE_TAG}
+      # Server-side Sentry; empty turns it off. The browser's DSN is baked in at build time.
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
+    networks:
+      ai-fitting:
+        aliases: ['web-${COLOR}']
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3001/').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 5s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    depends_on:
+      api:
+        condition: service_healthy

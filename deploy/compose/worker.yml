@@ -1,0 +1,25 @@
+# Production Temporal worker: one copy, replaced in place on every deploy (compose project
+# ai-fitting-worker). Not blue-green: two worker versions polling one task queue could replay running
+# workflows with different code and fail them; Temporal queues tasks while the worker restarts.
+
+name: ai-fitting-worker
+
+networks:
+  ai-fitting:
+    external: true
+
+services:
+  temporal-worker:
+    restart: unless-stopped
+    image: ${IMAGE_REGISTRY:-}ai-fitting-api:${IMAGE_TAG:?set IMAGE_TAG}
+    command: ['node', 'dist/temporal/worker.js']
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      WEB_ORIGIN: https://${SITE_DOMAIN:?set SITE_DOMAIN}
+      APP_VERSION: ${IMAGE_TAG}
+      DATABASE_URL: postgresql://${POSTGRES_USER:?set POSTGRES_USER}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:?set POSTGRES_DB}
+      REDIS_URL: redis://redis:6379
+      TEMPORAL_ADDRESS: temporal:7233
+    networks:
+      - ai-fitting

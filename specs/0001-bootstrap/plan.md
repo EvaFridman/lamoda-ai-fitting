@@ -202,11 +202,11 @@ name `ai-fitting`.
 **Production** (server and the CI smoke test) is split by lifetime, because blue-green needs two
 copies of the app but one copy of everything else:
 
-| File                        | Compose project                        | Contents                                                                                                                                     | Lifetime                      |
-| --------------------------- | -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
-| `deploy/compose/infra.yml`  | `ai-fitting`                           | `postgres`, `redis`, `temporal` (`--headless`), `nginx`, `certbot` (server only, compose profile `server`); creates the network `ai-fitting` | long-lived, changes rarely    |
-| `deploy/compose/app.yml`    | `ai-fitting-blue` / `ai-fitting-green` | `api`, `web` with `IMAGE_TAG` and `COLOR`; joins `ai-fitting` with aliases `api-<color>`, `web-<color>`; no published ports                  | one per deploy                |
-| `deploy/compose/worker.yml` | `ai-fitting-worker`                    | `temporal-worker` with `IMAGE_TAG`                                                                                                           | replaced in place each deploy |
+| File                        | Compose project                                                                                               | Contents                                                                                                                                                  | Lifetime                      |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| `deploy/compose/infra.yml`  | `ai-fitting-infra` (T19: `ai-fitting` is the dev stack's name; sharing it mixed their containers and volumes) | `postgres`, `redis`, `temporal` (`--headless`), `cert-init`, `nginx`, `certbot` (server only, compose profile `server`); creates the network `ai-fitting` | long-lived, changes rarely    |
+| `deploy/compose/app.yml`    | `ai-fitting-blue` / `ai-fitting-green`                                                                        | `api`, `web` with `IMAGE_TAG` and `COLOR`; joins `ai-fitting` with aliases `api-<color>`, `web-<color>`; no published ports                               | one per deploy                |
+| `deploy/compose/worker.yml` | `ai-fitting-worker`                                                                                           | `temporal-worker` with `IMAGE_TAG`                                                                                                                        | replaced in place each deploy |
 
 Only nginx publishes ports (80, 443). Startup order via `healthcheck` + `depends_on: service_healthy`
 inside a project; across projects, `deploy.sh` waits for health explicitly. Named volumes: `pgdata`,
@@ -242,15 +242,21 @@ new nginx workers with the new upstreams; old workers finish their requests and 
 request is dropped (AC26). Open WebSocket connections stay on the old color until the client
 reconnects, which is another reason the old color keeps running.
 
-nginx resolves upstream names when it loads the config, so it refuses to start if the named color
-does not exist. Hence the order on the very first deploy: app first, nginx second.
+Revised in T19: upstream servers carry `resolve` (nginx 1.27.3+) with Docker's DNS as `resolver`,
+so names are resolved at run time. nginx starts even if the named colour does not exist yet and
+follows containers as they are replaced: no start order is needed, after a server reboot included.
+
+Also from T19: unknown host names get their TLS handshake refused (`ssl_reject_handshake`); nginx
+overwrites `X-Forwarded-For` with the client address instead of appending to it; port 80 answers
+`/nginx-health` with 204 for the container's health check.
 
 HSTS is added only after the real certificate works. Before that, a wrong HSTS header could lock
 browsers out of the site.
 
-**First certificate.** This is the chicken-and-egg problem from the clarifications. An entrypoint
-script in the nginx container creates a temporary self-signed certificate if none exists, so nginx
-always starts with the full config. `deploy/scripts/init-cert.sh` (run once on the server) then
+**First certificate.** This is the chicken-and-egg problem from the clarifications. A one-shot
+`cert-init` service (certbot image: the nginx image has no `openssl`) creates a temporary
+self-signed certificate if none exists, before nginx starts, so nginx always starts with the full
+config. `deploy/scripts/init-cert.sh` (run once on the server) then
 runs `certbot certonly --webroot` for both names, first with `--staging`, then for real, and
 reloads nginx. The CI smoke test relies on the same self-signed fallback.
 
