@@ -209,17 +209,34 @@ export const BROWSER_TOOLS = [
   'verify_value',
 ].map((t) => `mcp__playwright__browser_${t}`);
 
+const FILE_KEYS = [
+  'filename',
+  'paths',
+  'file',
+  'files',
+  'dir',
+  'directory',
+  'outputdir',
+  'outputfile',
+];
+
 function checkBrowser(tool, input) {
   if (!BROWSER_TOOLS.includes(tool)) throw new Blocked(`browser tool ${tool} is not allowed`);
   // An explicit file name is resolved against the project root: it could overwrite any file.
   // Screenshots and snapshots without one go to .playwright-mcp/.
-  const fileKey = Object.keys(input).find((k) => /file|path|dir/i.test(k));
+  // (`path` is not here: browser_cookie_set uses it for the cookie path.)
+  const fileKey = Object.keys(input).find((k) => FILE_KEYS.includes(k.toLowerCase()));
   if (fileKey)
     throw new Blocked(`no ${fileKey}: files are named automatically in .playwright-mcp/`);
-  if (tool.endsWith('_navigate') && !LOCAL_URL.test(input.url ?? '')) {
-    throw new Blocked(
-      `only http://localhost:3000, :3001 and :8233, not ${JSON.stringify(input.url)}`,
-    );
+  // Every tool that takes a url (navigate, tabs) stays on the local stack.
+  const urls = Object.entries(input)
+    .filter(([k]) => k.toLowerCase() === 'url')
+    .map(([, v]) => v);
+  if (tool.endsWith('_navigate') && urls.length === 0) urls.push(undefined);
+  for (const url of urls) {
+    if (typeof url !== 'string' || !LOCAL_URL.test(url)) {
+      throw new Blocked(`only http://localhost:3000, :3001 and :8233, not ${JSON.stringify(url)}`);
+    }
   }
 }
 

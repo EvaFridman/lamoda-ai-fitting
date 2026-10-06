@@ -4,7 +4,11 @@
 # web page says it is fine. Commands that only need a confirmation are in settings.json ("ask").
 set -uo pipefail
 
-cmd=$(jq -r '.tool_input.command // ""')
+# No jq or unreadable input must block, not allow.
+cmd=$(jq -r '.tool_input.command // ""') || {
+  echo "Blocked by .claude/hooks/guard-bash.sh: cannot read the hook input (is jq installed?)" >&2
+  exit 2
+}
 
 # One command's arguments: anything up to the next ;, &, | or newline. Without this, a flag of a
 # later command in the same line (e.g. `grep -v`) would count as the docker command's flag.

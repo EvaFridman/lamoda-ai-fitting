@@ -13,7 +13,6 @@ const RG = {
   short: 'nilcwFSsvxoqHN',
   long: [
     '--files',
-    '--hidden',
     '--line-number',
     '--ignore-case',
     '--smart-case',
@@ -26,14 +25,12 @@ const RG = {
   ],
   withValue: [
     '-e',
-    '-g',
     '-t',
     '-T',
     '-A',
     '-B',
     '-C',
     '-m',
-    '--glob',
     '--type',
     '--type-not',
     '--max-count',
@@ -57,8 +54,9 @@ const FIND = {
 };
 
 const GIT_SUBCOMMANDS = ['diff', 'log', 'show', 'status', 'ls-files', 'blame'];
-// git has too many flags to allowlist; these write files, run programs or leave the repository.
-// git accepts any unambiguous abbreviation of a long option, so a prefix of one is refused too.
+// git has too many flags to allowlist; these write files, run programs, leave the repository or
+// read a file named in their value. git accepts any unambiguous abbreviation of a long option, so a
+// prefix of one is refused too. Short ones may have the value glued on (-S<file>).
 const GIT_BANNED = [
   '--output',
   '--ext-diff',
@@ -66,16 +64,28 @@ const GIT_BANNED = [
   '--textconv',
   '--exec-path',
   '--open-files-in-pager',
+  '--contents',
+  '--ignore-revs-file',
+  '--exclude-from',
+  '--orderfile',
 ];
+const GIT_BANNED_SHORT = ['-S', '-O', '-X'];
 
 function checkGit(args) {
   if (!GIT_SUBCOMMANDS.includes(args[0]))
     throw new Blocked(`git: only ${GIT_SUBCOMMANDS.join(', ')}`);
+  // `git log -S<string>` (pickaxe) is useful; only blame reads a file with -S.
+  const bannedShort = args[0] === 'blame' ? GIT_BANNED_SHORT : ['-O', '-X'];
   for (const a of args.slice(1)) {
     if (a === '--') break;
     const name = a.split('=')[0];
-    if (name.startsWith('--') && GIT_BANNED.some((b) => b.startsWith(name))) {
-      throw new Blocked(`git flag ${a} writes files, runs programs or leaves the repository`);
+    if (
+      (name.startsWith('--') && name.length > 2 && GIT_BANNED.some((b) => b.startsWith(name))) ||
+      (!a.startsWith('--') && bannedShort.some((b) => a.startsWith(b)))
+    ) {
+      throw new Blocked(
+        `git flag ${a} writes or reads files, runs programs or leaves the repository`,
+      );
     }
   }
 }
