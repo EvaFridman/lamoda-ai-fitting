@@ -166,6 +166,11 @@ installed and registered. Their first real use comes with features.
   the upload and still succeeds.
 - Release name = the commit hash, the same value as `APP_VERSION`, so an error in Sentry points at
   the exact deployed version.
+- Data collection (added in T16): Sentry 11 collects user info, cookies, headers, query parameters
+  and request/response bodies by default. `web/sentry.options.ts` turns every one of them off for
+  both the server and the browser. Without a token, source maps are not generated at all; the
+  server-side maps Next writes into `.next/standalone/.next/server` stay (not served over HTTP,
+  they make server stack traces readable).
 
 ## 6. Docker
 

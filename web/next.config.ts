@@ -1,3 +1,5 @@
+// Sentry 11 ships its build-time config helper from a separate entry point.
+import { withSentryConfig } from '@sentry/nextjs/config';
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
@@ -15,4 +17,18 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
 };
 
-export default nextConfig;
+// Source maps are generated, uploaded to Sentry and deleted from the build only when an auth token
+// is present (CI builds of main; the token enters the Docker build as a BuildKit secret). Without
+// it (local builds, pull requests) none are generated: there is nowhere to upload them to.
+const uploadSourceMaps = Boolean(process.env.SENTRY_AUTH_TOKEN);
+
+export default withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  // The commit hash, the same value the server reports as APP_VERSION.
+  release: { name: process.env.SENTRY_RELEASE },
+  sourcemaps: { disable: !uploadSourceMaps, deleteSourcemapsAfterUpload: true },
+  telemetry: false,
+  silent: !process.env.CI,
+});

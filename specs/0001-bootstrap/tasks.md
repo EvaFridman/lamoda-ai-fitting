@@ -116,9 +116,13 @@ Ready on the Mac: Node 26, npm 12, Docker 29, gitleaks 8.30, Ansible 2.21, jq, g
       `APP_VERSION`. The footer is a widget rendered once in the root layout. Zustand is installed
       with no store yet: stores live in the slice that owns the UI state, starting with the first one.
       Commit: `feat(web): show the api greeting on the home page`
-- [ ] **T16. Sentry.** `instrumentation*.ts`, `withSentryConfig`, upload only when the token is set,
+- [x] **T16. Sentry.** `instrumentation*.ts`, `withSentryConfig`, upload only when the token is set,
       source maps removed from the output.
       Check: build without the token succeeds and has no `.map` files in `.next/static`.
+      Done: 0 maps in `.next/static`; the page works with Sentry wired in and no DSN. Sentry 11
+      changes met: `withSentryConfig` comes from `@sentry/nextjs/config`; `sendDefaultPii` is
+      gone, data collection is turned off explicitly (plan 5.1). The upload itself is first
+      exercised by a CI build of `main` with the token (PR 5).
       Commit: `feat(web): add sentry with source map upload`
 - 👤 merges PR 3.
 
