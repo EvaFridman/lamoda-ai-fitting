@@ -51,6 +51,7 @@ jobs:
           cache-dependency-path: |
             package-lock.json
             api/package-lock.json
+            web/package-lock.json
 
       # Node ships npm 11; the project needs 12 (install scripts only from allowScripts).
       - name: Install npm ${{ env.NPM_VERSION }}
@@ -60,6 +61,7 @@ jobs:
         run: |
           npm ci
           npm ci --prefix api
+          npm ci --prefix web
 
       # Hooks run only on developers' machines; this catches commits made without them.
       - name: Commit messages

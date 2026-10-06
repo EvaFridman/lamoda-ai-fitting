@@ -29,6 +29,9 @@ Decisions made by the owner. Each line is final unless the owner changes it here
   with source and hash (decided in T10). Added: `prisma-cli`, `prisma-client-api` from
   `prisma/skills`. Not added: `prisma-orm-setup` (defaults to Prisma 8, against V3) and the skills
   for products not used here. `prisma init` is not run in the repository: it installs all of them.
+- A11b. `web/AGENTS.md` and `web/CLAUDE.md` are Next.js's own agent rules (pointing to the docs
+  bundled with the installed version); `next dev` writes them whenever an agent runs it. They are
+  committed as Next writes them, after review (T14), and never edited by hand.
 
 ## api (NestJS)
 

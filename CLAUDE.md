@@ -48,9 +48,9 @@ Pinned on purpose; each "not newer" has a reason and a condition to move on.
 - `npm run verify`: format check, lint, typecheck, tests and build in one command. The pre-push
   hook and CI run exactly this, so the list of checks lives in one place (root `package.json`).
 
-**Coverage of `verify` today: `api` only.** When `web` is added (task T14), its typecheck, tests
-and build (`next build`) join the root `typecheck`, `test` and `build` scripts; until then
-`verify` passing says nothing about `web`.
+`verify` covers `api` (lint, typecheck, tests, build) and `web` (lint, Stylelint, typecheck,
+`next build`). `web` has no tests yet: when its first test lands, add `web` to the root `test`
+script, or `verify` keeps saying nothing about web logic.
 
 Before calling a task done: `npm run verify`. Before opening a pull request, also a clean install
 the way CI does it (`npm ci` in the root and in each package), then `verify` again.

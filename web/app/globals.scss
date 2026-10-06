@@ -1,0 +1,25 @@
+:root {
+  --color-text: #1a1a1a;
+  --color-background: #fff;
+  --font-sans: system-ui, -apple-system, 'Segoe UI', roboto, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-text: #f2f2f2;
+    --color-background: #111;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--color-text);
+  background: var(--color-background);
+}

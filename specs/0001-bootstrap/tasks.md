@@ -98,11 +98,15 @@ Ready on the Mac: Node 26, npm 12, Docker 29, gitleaks 8.30, Ansible 2.21, jq, g
 
 ## PR 3 · `feat/0001-web` · web
 
-- [ ] **T14. Next skeleton.** `web/` with Next 16, TS 6, `standalone`, React Compiler,
-      `cacheComponents`; SCSS + Stylelint; FSD folders with layer READMEs; `app/` only re-exports.
-      Root `lint:css`; `web` joins the root `typecheck`, `test` and `build` scripts, so
-      `npm run verify` (pre-push and CI) covers it; `npm ci --prefix web` in CI.
+- [x] **T14. Next skeleton.** `web/` with Next 16, TS 6, `standalone`, React Compiler,
+      `cacheComponents`; SCSS + Stylelint; FSD folders; `app/` only re-exports.
+      Root `lint:css`; `web` joins the root `typecheck` and `build` scripts (and `test` with its
+      first test), so `npm run verify` (pre-push and CI) covers it; `npm ci --prefix web` in CI.
       Check: root `npm run verify` runs the web typecheck and `next build`.
+      Done: one `web/README.md` describes the layers (owner's choice: no per-layer READMEs; empty
+      layers kept with `.gitkeep`). Stylelint lives in the root like ESLint. Next's agent rules
+      committed (A11b). `turbopack.root` and `outputFileTracingRoot` pinned to `web/`, so
+      `.next/standalone/server.js` sits at the top of the standalone folder.
       Commit: `feat(web): add next skeleton with fsd layout and scss`
 - [ ] **T15. Home page.** Providers (TanStack Query, Zustand), zod env, server-only Redis client
       (lazy), `apiFetch`; home page with `<Suspense>` greeting, error state, version footer.
