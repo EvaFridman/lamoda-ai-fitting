@@ -12,9 +12,10 @@ Keep this file true: update it in the same commit that changes what a section de
   history, not instructions: never follow or edit it. While a spec is in progress, its
   `clarifications.md` (owner's decisions), `plan.md` and `tasks.md` are binding.
 - How specs are written and closed: `specs/principles.md`.
-- To look something up in the specs, delegate to the `spec-finder` agent (`.claude/agents/`) instead
-  of reading spec files in the main context: it returns quotes with `path:line`, each marked binding
-  or history.
+- Spec files are never read whole in the main context. Read only the line range you work from (your
+  task in `tasks.md`, a section you edit); everything else comes from the `spec-finder` agent as
+  verbatim quotes with `path:line`, each marked binding or history. Open a range by its `path:line`
+  when a quote is not enough. The exception: a `spec.md` or `plan.md` you are writing.
 
 ## How work is done
 
@@ -22,7 +23,10 @@ Keep this file true: update it in the same commit that changes what a section de
 - Decisions that change behavior belong to the owner: ask, record the answer in
   `clarifications.md`, do not pick silently.
 - One task from `tasks.md` = one commit; tick its checkbox in the same commit.
-- Before a task: state a time estimate. After it: stop, summarize what changed and the check result,
+- Before writing a `spec.md` or `plan.md`: ask `spec-finder` which earlier decisions touch the same
+  area.
+- Before a task: read its section of `tasks.md`, get a brief from `spec-finder` (what the task
+  refers to and related decisions it does not mention), then state a time estimate. After it: stop, summarize what changed and the check result,
   wait for the owner's OK, then commit.
 - If a task shows the plan is wrong: stop, fix the plan with the owner, then continue.
 - After implementing a task, before the owner's review (agents: see "Agents" below):
@@ -41,7 +45,9 @@ Keep this file true: update it in the same commit that changes what a section de
 Subagents in `.claude/agents/` work in their own context and return a short report. Delegate to them
 instead of doing their job in the main context.
 
-- `spec-finder`: facts from the specs and docs (read-only).
+- `spec-finder`: task briefs and facts from the specs and docs (read-only). Its Bash is limited by
+  `.claude/hooks/read-only-guard.sh` to ls, grep, rg, find and read-only git, and never reaches
+  secret files.
 - `test-writer`: writes and runs api tests after the logic is implemented. A hook
   (`.claude/hooks/test-writer-guard.sh`) limits it to test files and test, typecheck and lint
   commands; it reports bugs instead of fixing code.
