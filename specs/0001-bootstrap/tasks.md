@@ -233,8 +233,11 @@ Ready on the Mac: Node 26, npm 12, Docker 29, gitleaks 8.30, Ansible 2.21, jq, g
 
 ## PR 8 · `feat/0001-hsts` · certificate, HSTS, acceptance
 
-- [ ] **T27. Certificate.** `init-cert.sh` on the server: `--staging` first, then the real one.
+- [x] **T27. Certificate.** `init-cert.sh` on the server: `--staging` first, then the real one.
       Check: AC20, AC21 (`certbot renew --dry-run`).
+      Done: `deploy/scripts/init-cert.sh` (new: the plan named it, no task had written it) was copied
+      to the server by hand for this one run; the next deploy brings the same file. Staging and then
+      the real certificate succeeded on the first try. Documented in `deploy/README.md`.
       Commit (only if the script needed fixes): `fix(deploy): ...`
 - [ ] **T28. HSTS.** Enable HSTS in the nginx template. The merge of this PR is the second real deploy
       (green), run with a request loop from the Mac.
@@ -266,6 +269,8 @@ Filled in as criteria are checked; completed at T29.
 | AC15 | pass (T21)                        | first `main` run after the merge pushed `ghcr.io/evafridman/ai-fitting-{api,web}:5029a6f` (the merge commit); pull requests publish nothing                                                  |
 | AC16 | pass (T26)                        | merge commit `b6bf0a3` went live with no manual step; the page footer and `https://lamoda-ai-fitting.ru/api/health/live` report `b6bf0a3`                                                    |
 | AC17 | pass (T26)                        | CD log: `deploy: migrating the database with b6bf0a3` → `No pending migrations to apply.` before `starting blue`                                                                             |
+| AC20 | pass (T27)                        | with strict TLS (no `-k`): https 200, verify result 0; http → https and www → apex 301; Let's Encrypt certificate for both names, valid until 2027-01-04                                     |
+| AC21 | pass (T27)                        | `certbot renew --dry-run` in the running certbot container: all simulated renewals succeeded; nginx's 6-hour reload loop running                                                             |
 | AC24 | pass (T23)                        | on the server `docker ps -a` lists no containers, `docker images` only postgres, redis and temporal (kept for this stack); volume removal documented in `deploy/README.md`                   |
 | AC18 | pass locally (T20); server at T28 | nonexistent tag → exit 1 before any change; an image that never gets healthy → exit 1 after 51 s, copy stopped; the site kept serving the previous version, 0 of 3894 looped requests failed |
 | AC19 | pass locally (T20); server at T28 | rollback to the version on the idle copy: switch only, 2 s                                                                                                                                   |

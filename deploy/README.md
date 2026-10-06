@@ -172,6 +172,32 @@ gh variable list                    # SENTRY_ORG, SENTRY_PROJECT, NEXT_PUBLIC_SE
 `POSTGRES_PASSWORD` задаётся один раз, до первого деплоя: база инициализируется с ним, и смена
 секрета потом сломает подключение api к уже созданной базе.
 
+## Сертификат HTTPS
+
+До первого выпуска nginx работает на временном самоподписанном сертификате (`nginx/cert-init.sh`),
+браузеры показывают предупреждение. Настоящий сертификат Let's Encrypt выпускается **один раз**, на
+сервере, после первого деплоя (nginx должен отвечать на проверку домена):
+
+```bash
+ssh ai-fitting
+cd /opt/ai-fitting
+deploy/scripts/init-cert.sh --staging <email>   # тестовый сервер Let's Encrypt: лимиты мягкие
+deploy/scripts/init-cert.sh <email>             # настоящий; на email придут предупреждения
+```
+
+Сначала всегда `--staging`: у настоящего сервера жёсткий лимит (5 одинаковых сертификатов в неделю).
+Скрипт сам убирает временный или тестовый сертификат, при ошибке возвращает временный.
+
+Дальше всё автоматически: контейнер `certbot` дважды в сутки продлевает сертификат, nginx раз в
+6 часов перезагружается и подхватывает продлённый. Проверка:
+
+```bash
+ssh ai-fitting 'cd /opt/ai-fitting && docker compose -f deploy/compose/infra.yml --env-file .env \
+  --profile server exec -T certbot certbot renew --dry-run --webroot -w /var/www/certbot'
+```
+
+Выпущен 2026-10-06 на `lamoda-ai-fitting.ru` и `www.lamoda-ai-fitting.ru`.
+
 ## Предыдущий стек на сервере
 
 До этого проекта сервер обслуживал другой сайт (compose-проект `realty`). Его контейнеры и образы
