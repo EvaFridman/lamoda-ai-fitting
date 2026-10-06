@@ -128,8 +128,11 @@ Ready on the Mac: Node 26, npm 12, Docker 29, gitleaks 8.30, Ansible 2.21, jq, g
 
 ## PR 4 · `feat/0001-docker` · local Docker stack
 
-- [ ] **T17. Images.** `api/Dockerfile`, `web/Dockerfile`, `.dockerignore`s (npm 12 inside).
+- [x] **T17. Images.** `api/Dockerfile`, `web/Dockerfile`, `.dockerignore`s (npm 12 inside).
       Check: both runtime images build; `docker run` of each starts and answers (api `/health/live`).
+      Done: api 1.16 GB (Prisma CLI and Temporal dominate), web 461 MB. On one Docker network the
+      web container showed the greeting from the api container; both run as `node`; the app code
+      is read-only for it.
       Commit: `feat(infra): add api and web docker images`
 - [ ] **T18. Dev stack.** `docker-compose.yml`, `.env.example`, `scripts/init-env.sh`.
       Check: AC1–AC8 by hand, each with its command from the spec; results in the PR description.

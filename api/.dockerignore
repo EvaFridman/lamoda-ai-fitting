@@ -1,0 +1,16 @@
+# Rebuilt inside the image for Linux
+node_modules
+dist
+src/generated
+*.tsbuildinfo
+
+# Secrets
+.env
+.env.*
+
+# Not needed to build or run
+coverage
+test
+*.md
+Dockerfile
+.dockerignore

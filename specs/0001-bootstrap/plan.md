@@ -178,7 +178,8 @@ installed and registered. Their first real use comes with features.
 
 `api/Dockerfile` stages: `deps` → `build` (`prisma generate`, `nest build`) → `dev` (watch mode,
 `procps` for Nest's watcher) → `prod-deps` (`npm ci --omit=dev`) → `runtime` (dist, generated
-client, prisma files; user `node`, exec-form `CMD`).
+client, prisma files; user `node`, exec-form `CMD`). `prod-deps` keeps only the image's own Linux
+binary of Temporal's native module, which ships five platforms (added in T17: 1.31 → 1.16 GB).
 
 `web/Dockerfile` stages: `deps` (also the dev target, `next dev`) → `build` (`next build`, no api, no
 network services) → `runtime` (standalone server, `.next/static`, `public`; user `node`).

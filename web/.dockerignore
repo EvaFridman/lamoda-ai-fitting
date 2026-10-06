@@ -1,0 +1,15 @@
+# Rebuilt inside the image for Linux
+node_modules
+.next
+*.tsbuildinfo
+next-env.d.ts
+
+# Secrets
+.env
+.env.*
+
+# Not needed to build or run
+coverage
+*.md
+Dockerfile
+.dockerignore
