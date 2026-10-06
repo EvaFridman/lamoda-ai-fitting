@@ -65,6 +65,23 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   imports only downward: `_app → _pages → widgets → features → entities → shared`.
 - `deploy/`: production compose files, nginx, deploy scripts, Ansible (server setup).
 
+## Docker (local development)
+
+- The app runs in Docker: `docker compose up -d --wait` (quick start in `README.md`). Do not run
+  api or web natively against the compose services, or two copies end up fighting over ports.
+- `.env` (git-ignored, created by `scripts/init-env.sh`) holds local values; every variable is
+  listed in `.env.example`. Claude cannot read `.env` (settings deny it) and does not need to.
+- Sources are bind-mounted; rebuild an image (`docker compose up -d --build <service>`) only after
+  a dependency or config change. After a Prisma schema change:
+  `docker compose run --rm api npx prisma generate`.
+- Images: multi-stage, exact base-image versions, non-root user, exec-form `CMD`, dependencies
+  installed before sources are copied. Secrets never go into an image (`ARG`/`ENV`/`COPY`); the
+  web build takes the Sentry token as a BuildKit secret.
+- Containers reach each other by service name, never `localhost`; addresses come from compose.
+  Startup order uses health checks with `depends_on: service_healthy`, never sleeps.
+- `docker compose down -v` and `docker volume rm/prune` delete data; the guard hook blocks them.
+  The owner runs them by hand.
+
 ## Conventions
 
 - `api` is an ESM package: relative imports end in `.js`.

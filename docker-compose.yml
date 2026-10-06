@@ -1,0 +1,158 @@
+# Local development: the whole stack with one command.
+#   ./scripts/init-env.sh            # once: creates .env with random passwords
+#   docker compose up -d --wait      # everything healthy (or running, for the worker)
+# Sources are bind-mounted: api, the worker and web reload on change, no rebuild needed. Ports are
+# published on 127.0.0.1 only. Production uses deploy/compose/*.yml instead of this file.
+
+name: ai-fitting
+
+x-api-env: &api-env
+  NODE_ENV: development
+  PORT: 3000
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  WEB_ORIGIN: http://localhost:${WEB_HOST_PORT:-3001}
+  APP_VERSION: dev
+  # Containers reach each other by service name, never localhost.
+  DATABASE_URL: postgresql://${POSTGRES_USER:?run scripts/init-env.sh}:${POSTGRES_PASSWORD:?run scripts/init-env.sh}@postgres:5432/${POSTGRES_DB:?run scripts/init-env.sh}
+  REDIS_URL: redis://redis:6379
+  TEMPORAL_ADDRESS: temporal:7233
+  THROTTLE_LIMIT: ${THROTTLE_LIMIT:-100}
+
+# Sources over the image's copy. The anonymous volume keeps the Prisma client generated inside the
+# image visible under the mounted src/ (after a schema change: `docker compose run --rm api npx
+# prisma generate`). prisma/ is mounted so new migrations land in the repository.
+x-api-volumes: &api-volumes
+  - ./api/src:/app/src
+  - /app/src/generated
+  - ./api/prisma:/app/prisma
+
+services:
+  postgres:
+    image: postgres:18.6-trixie
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      # PostgreSQL 18 keeps its data in a versioned folder under /var/lib/postgresql.
+      - pgdata:/var/lib/postgresql
+    ports:
+      # 5433, not 5432: a Postgres installed on the Mac may already hold the default port.
+      - '127.0.0.1:${POSTGRES_HOST_PORT:-5433}:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  redis:
+    image: redis:8.10.2-trixie
+    volumes:
+      - redisdata:/data
+    ports:
+      - '127.0.0.1:${REDIS_HOST_PORT:-6380}:6379'
+    healthcheck:
+      # redis-cli exits 0 even on an error reply (e.g. LOADING), so check for PONG.
+      test: ['CMD-SHELL', 'redis-cli ping | grep -q PONG']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  temporal:
+    image: temporalio/temporal:1.9.1
+    # Single-node dev server, workflow history in a SQLite file on a volume. The web UI is on
+    # http://localhost:8233; the gRPC port 7233 stays inside the compose network.
+    command:
+      - server
+      - start-dev
+      - --ip=0.0.0.0
+      - --ui-ip=0.0.0.0
+      - --db-filename=/home/temporal/temporal.db
+    volumes:
+      # The image's home directory belongs to the temporal user, so a fresh volume does too.
+      - temporaldata:/home/temporal
+    ports:
+      - '127.0.0.1:${TEMPORAL_UI_HOST_PORT:-8233}:8233'
+    healthcheck:
+      test: ['CMD', 'temporal', 'operator', 'cluster', 'health', '--address', '127.0.0.1:7233']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+
+  api:
+    build:
+      context: ./api
+      target: dev
+    image: ai-fitting-api:dev
+    environment: *api-env
+    volumes: *api-volumes
+    ports:
+      - '127.0.0.1:${API_HOST_PORT:-3000}:3000'
+    healthcheck:
+      # Liveness only: an unavailable dependency is not a dead process (/health/ready reports it).
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/health/live').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      # Watch mode compiles before it starts listening.
+      start_period: 60s
+    depends_on: &infra-healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      temporal:
+        condition: service_healthy
+
+  temporal-worker:
+    # Same image as api, different entry point. No HTTP port, so no healthcheck.
+    build:
+      context: ./api
+      target: dev
+    image: ai-fitting-api:dev
+    command: ['npm', 'run', 'start:worker:dev']
+    environment: *api-env
+    volumes: *api-volumes
+    depends_on: *infra-healthy
+
+  web:
+    build:
+      context: ./web
+      # `next dev` on the project's sources and configs; no production build.
+      target: dev
+    image: ai-fitting-web:dev
+    environment:
+      API_URL: http://api:3000
+      REDIS_URL: redis://redis:6379
+      APP_VERSION: dev
+    volumes:
+      - ./web/app:/app/app
+      - ./web/src:/app/src
+    ports:
+      - '127.0.0.1:${WEB_HOST_PORT:-3001}:3001'
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3001/').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 10s
+      # next dev compiles a page on its first request.
+      timeout: 30s
+      retries: 3
+      start_period: 120s
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  redisdata:
+  temporaldata:
