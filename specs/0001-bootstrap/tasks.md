@@ -219,6 +219,13 @@ Ready on the Mac: Node 26, npm 12, Docker 29, gitleaks 8.30, Ansible 2.21, jq, g
       Check: AC16, AC17 (job log); `https://lamoda-ai-fitting.ru` answers (certificate warning expected
       until T27). Added in T25: a test error on the live site reaches Sentry with a readable stack
       trace (source maps), which also marks the project as set up in Sentry.
+      Open observation (AC26): the CI run of the PR 7 merge failed its deploy check with 1 of 1006
+      looped requests unanswered (`000` on `/`) during the switch, so nothing was published or
+      deployed. Not reproduced since: 15 local switches (15,463 requests) and 4 CI runs on 2-CPU
+      runners (3,961 requests), 0 failures, slowest request 0.29 s. Ruled out: CPU load from the
+      worker's start, an nginx restart. The request loop now records curl's exit code, the time of
+      each failure and the slowest requests (PR #10); the owner chose to go on with that in place.
+      If it recurs, those details point at the cause.
 
 ## PR 8 · `feat/0001-hsts` · certificate, HSTS, acceptance
 
