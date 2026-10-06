@@ -88,8 +88,11 @@ Ready on the Mac: Node 26, npm 12, Docker 29, gitleaks 8.30, Ansible 2.21, jq, g
       health never limited, socket `ping` → `pong`. Live: separate limits per `X-Forwarded-For`
       client, a spoofed leading address is ignored (`trust proxy` 1).
       Commit: `feat(api): add throttling, event emitter and websocket gateway`
-- [ ] **T13. Temporal worker.** `src/temporal/worker.ts`, `hello` workflow and activity, npm scripts.
+- [x] **T13. Temporal worker.** `src/temporal/worker.ts`, `hello` workflow and activity, npm scripts.
       Check: build; `dist/temporal/worker.js` exists. (Live run in T18.)
+      Done: config and logging moved to `CoreModule`, shared by both processes; tests for the
+      activity and for bundling workflows (fails on a forbidden import). Live run done early: the
+      built worker against a throwaway Temporal container completed `hello` with "Hello, world!".
       Commit: `feat(api): add temporal worker with hello workflow`
 - 👤 merges PR 2.
 
