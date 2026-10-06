@@ -173,10 +173,15 @@ Ready on the Mac: Node 26, npm 12, Docker 29, gitleaks 8.30, Ansible 2.21, jq, g
 
 ## PR 6 · `feat/0001-server` · server
 
-- [ ] **T22. Server baseline.** `deploy/ansible/` (`base.yml`: Docker, log rotation, ufw, swap, user
+- [x] **T22. Server baseline.** `deploy/ansible/` (`base.yml`: Docker, log rotation, ufw, swap, user
       `deploy`, `/opt/ai-fitting`). Generate the CI SSH key pair locally, outside the repo.
       👤 runs `ansible-playbook base.yml` (Claude prepares the command).
       Check: `ssh deploy@<host> docker ps` works with the CI key; `ufw status` shows 22/80/443.
+      Done: the owner ran the playbook (failed=0; a re-run in check mode: changed=0). Also, on the
+      owner's request: SSH alias `ai-fitting` in the owner's ~/.ssh/config, server hostname
+      `ai-fitting` (kept across reboots via cloud-init's `preserve_hostname`); 443/udp left by the
+      previous stack closed. `deploy` logs in with the CI key only, runs Docker, has no sudo.
+      `daemon.json` is written byte for byte as the server had it, so Docker was not restarted.
       Commit: `feat(deploy): add ansible server baseline with deploy user`
 - [ ] **T23. Remove the old stack.** 👤 confirms each command: `docker compose down` in
       `/opt/realty` (no `-v`), remove `realty-*` images. Document the user check and the volume removal
@@ -230,6 +235,9 @@ Filled in as criteria are checked; completed at T29.
 | AC6  | pass (T18)                        | socket.io client to :3000, `emitWithAck('ping')` → `pong`                                                                                                                                    |
 | AC7  | pass (T18)                        | edit in `api/src` served after 7 s, edit in `web/src` at once; no image rebuild                                                                                                              |
 | AC8  | pass (T18)                        | 101 requests to `/hello` within a minute → 100 × 200, 1 × 429 (counters in Redis)                                                                                                            |
+| AC13 | pass (T21)                        | PR #6: Secret scan, Checks and Images green; Images built both images and ran `ci-deploy-check.sh` on the runner (blue-green switch, 0 of 1056 looped requests failed)                       |
+| AC14 | pass (T21)                        | throwaway PR #7 with a broken test: Checks red (`expected 'Hello, world!' to deeply equal 'Hello, wrong!'`), merge blocked; closed unmerged. Locally the pre-push hook refuses such a push   |
+| AC15 | pass (T21)                        | first `main` run after the merge pushed `ghcr.io/evafridman/ai-fitting-{api,web}:5029a6f` (the merge commit); pull requests publish nothing                                                  |
 | AC18 | pass locally (T20); server at T28 | nonexistent tag → exit 1 before any change; an image that never gets healthy → exit 1 after 51 s, copy stopped; the site kept serving the previous version, 0 of 3894 looped requests failed |
 | AC19 | pass locally (T20); server at T28 | rollback to the version on the idle copy: switch only, 2 s                                                                                                                                   |
 | AC26 | pass locally (T20); server at T28 | full deploy under a request loop (page with the greeting + `/api/health/live`): 0 of 1229 failed across a deploy, a rollback and two failed deploys                                          |

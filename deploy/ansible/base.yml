@@ -1,0 +1,112 @@
+# One-time server setup, safe to re-run: Docker with Compose, Docker log rotation, firewall, swap,
+# and the `deploy` user that CI logs in as. Run from the owner's machine as root:
+#   cd deploy/ansible && ansible-playbook base.yml
+- name: Prepare the production server
+  hosts: prod
+  vars:
+    app_dir: /opt/ai-fitting
+    deploy_user: deploy
+    # The public half of the CI deploy key (deploy/README.md). The private half lives only in the
+    # GitHub secret DEPLOY_SSH_KEY.
+    deploy_public_key_file: "{{ lookup('env', 'HOME') }}/.ssh/ai-fitting-ci.pub"
+
+  tasks:
+    - name: Server hostname is ai-fitting
+      ansible.builtin.hostname:
+        name: ai-fitting
+
+    - name: The hostname resolves locally
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        regexp: '^127\.0\.1\.1\s'
+        line: '127.0.1.1 ai-fitting'
+
+    # Otherwise cloud-init may set the hostname from the provider's metadata again on the next boot.
+    - name: cloud-init keeps the hostname
+      ansible.builtin.copy:
+        dest: /etc/cloud/cloud.cfg.d/99-preserve-hostname.cfg
+        content: "preserve_hostname: true\n"
+        mode: '0644'
+
+    - name: Docker and Compose from Ubuntu's packages
+      ansible.builtin.apt:
+        name: [docker.io, docker-compose-v2, ufw, curl]
+        state: present
+        update_cache: true
+        cache_valid_time: 86400
+
+    - name: Docker keeps at most 3 × 10 MB of logs per container
+      ansible.builtin.copy:
+        dest: /etc/docker/daemon.json
+        # Byte for byte what the server already has: any change restarts Docker and every container.
+        content: |
+          {
+            "log-driver": "json-file",
+            "log-opts": { "max-size": "10m", "max-file": "3" }
+          }
+        mode: '0644'
+      notify: Restart Docker
+
+    - name: Firewall allows SSH, HTTP and HTTPS
+      community.general.ufw:
+        rule: allow
+        port: '{{ item }}'
+        proto: tcp
+      loop: ['22', '80', '443']
+
+    # Left from the previous stack (HTTP/3); nginx here serves no HTTP/3.
+    - name: Firewall closes 443/udp
+      community.general.ufw:
+        rule: allow
+        port: '443'
+        proto: udp
+        delete: true
+
+    - name: Firewall denies everything else coming in
+      community.general.ufw:
+        state: enabled
+        default: deny
+        direction: incoming
+
+    - name: 2 GB swap file exists
+      ansible.builtin.command:
+        cmd: fallocate -l 2G /swapfile
+        creates: /swapfile
+      notify: Enable swap
+
+    - name: Swap survives a reboot
+      ansible.builtin.lineinfile:
+        path: /etc/fstab
+        line: '/swapfile none swap sw 0 0'
+
+    - name: User `deploy` for CI, allowed to run Docker
+      ansible.builtin.user:
+        name: '{{ deploy_user }}'
+        shell: /bin/bash
+        groups: [docker]
+        append: true
+        password: '!'
+
+    - name: Only the CI key may log in as `deploy`
+      ansible.posix.authorized_key:
+        user: '{{ deploy_user }}'
+        key: "{{ lookup('file', deploy_public_key_file) }}"
+        exclusive: true
+
+    - name: Deployment directory belongs to `deploy`
+      ansible.builtin.file:
+        path: '{{ app_dir }}'
+        state: directory
+        owner: '{{ deploy_user }}'
+        group: '{{ deploy_user }}'
+        mode: '0750'
+
+  handlers:
+    - name: Restart Docker
+      ansible.builtin.service:
+        name: docker
+        state: restarted
+
+    - name: Enable swap
+      ansible.builtin.shell: chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+      changed_when: true
