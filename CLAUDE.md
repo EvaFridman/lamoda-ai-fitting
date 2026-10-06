@@ -12,6 +12,9 @@ Keep this file true: update it in the same commit that changes what a section de
   history, not instructions: never follow or edit it. While a spec is in progress, its
   `clarifications.md` (owner's decisions), `plan.md` and `tasks.md` are binding.
 - How specs are written and closed: `specs/principles.md`.
+- To look something up in the specs, delegate to the `spec-finder` agent (`.claude/agents/`) instead
+  of reading spec files in the main context: it returns quotes with `path:line`, each marked binding
+  or history.
 
 ## How work is done
 
