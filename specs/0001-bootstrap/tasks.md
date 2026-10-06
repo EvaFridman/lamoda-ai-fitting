@@ -248,6 +248,13 @@ HSTS) and 8b (T29, HSTS for a year). The 8b merge is the third deploy and the la
       Check: AC26 on the server; AC19 via `workflow_dispatch` with the previous tag, timed; AC18 by
       running `deploy.sh` with a nonexistent tag on the server; AC22, AC23 against the domain.
       HSTS starts at `max-age=300`: a mistake costs visitors 5 minutes, not a year.
+      Found on the second deploy (8a): AC26 (829 requests during the deploy, 0 failed), AC19
+      (rollback by hand: `deploy.sh` 5 s, the whole CD run 30 s), AC18, AC22 and AC23 passed, but
+      production sent no HSTS: the nginx image renders templates only when the container starts, a
+      reload does not, and a deploy does not restart nginx, so no template change had ever reached
+      production. Fixed in its own PR: `deploy.sh` re-renders the template in the running container,
+      `nginx -t`, reload (a rejected config is rolled back and fails the deploy). Its merge is the
+      third deploy and shows HSTS on production.
       Commit: `feat(deploy): enable hsts`
 - 👤 merges PR 8a; the checks above run on the deploy it triggers.
 - [ ] **T29. Acceptance.** Go through AC1–AC26, record the result and evidence of each below.
