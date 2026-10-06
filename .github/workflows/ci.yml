@@ -85,16 +85,20 @@ jobs:
     permissions:
       contents: read
       packages: write
+    outputs:
+      image_tag: ${{ steps.tag.outputs.image_tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Image tag and registry
+        id: tag
         # The short commit hash is the image tag and the version the site reports; GHCR needs a
         # lower-case owner.
         run: |
           echo "IMAGE_TAG=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
           echo "IMAGE_REGISTRY=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/" >> "$GITHUB_ENV"
+          echo "image_tag=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
       - name: Build api and web images
         env:
@@ -122,3 +126,16 @@ jobs:
           docker push "${IMAGE_REGISTRY}ai-fitting-api:${IMAGE_TAG}"
           docker push "${IMAGE_REGISTRY}ai-fitting-web:${IMAGE_TAG}"
           docker logout ghcr.io
+
+  # Continuous delivery: every push to main whose images passed the checks above goes live.
+  cd:
+    name: CD
+    needs: [images]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: read
+    uses: ./.github/workflows/cd.yml
+    with:
+      image_tag: ${{ needs.images.outputs.image_tag }}
+    secrets: inherit
