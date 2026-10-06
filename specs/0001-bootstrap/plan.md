@@ -242,6 +242,12 @@ new nginx workers with the new upstreams; old workers finish their requests and 
 request is dropped (AC26). Open WebSocket connections stay on the old color until the client
 reconnects, which is another reason the old color keeps running.
 
+**Config changes (added after the second deploy).** The nginx image renders the template into
+`conf.d` only when the container starts; a reload re-reads only what is rendered, and a deploy does
+not restart nginx. So `deploy.sh` re-renders the template with the image's own start-up scripts in
+the running container, runs `nginx -t` (a rejected config is put back and the deploy fails) and
+reloads. Without this step no template change reached production.
+
 Revised in T19: upstream servers carry `resolve` (nginx 1.27.3+) with Docker's DNS as `resolver`,
 so names are resolved at run time. nginx starts even if the named colour does not exist yet and
 follows containers as they are replaced: no start order is needed, after a server reboot included.
