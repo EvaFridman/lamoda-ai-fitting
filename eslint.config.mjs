@@ -56,9 +56,9 @@ export default tseslint.config(
     },
   },
 
-  // Root tooling scripts and configs run in Node.
+  // Root tooling scripts and configs, and the agents' guard hooks, run in Node.
   {
-    files: ['*.{js,mjs,cjs,ts}', 'scripts/**/*.{js,mjs}'],
+    files: ['*.{js,mjs,cjs,ts}', 'scripts/**/*.{js,mjs}', '.claude/hooks/**/*.mjs'],
     languageOptions: { globals: globals.node },
   },
 
