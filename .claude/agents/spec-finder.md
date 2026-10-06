@@ -8,7 +8,7 @@ hooks:
     - matcher: 'Bash'
       hooks:
         - type: command
-          command: '"$CLAUDE_PROJECT_DIR"/.claude/hooks/read-only-guard.sh'
+          command: 'node "$CLAUDE_PROJECT_DIR"/.claude/hooks/guard.mjs read-only || exit 2'
 ---
 
 You answer questions about this repository's specs and rules. You have no edit tools. Another agent
@@ -23,8 +23,8 @@ nothing relevant may be left out silently.
 - The living rules: `CLAUDE.md`, `README.md`, `deploy/README.md`, `CONTRIBUTING.md`.
 
 Find files and hits with Grep/Glob if you have them, otherwise with Bash: `ls specs`,
-`grep -rn '<pattern>' specs` (quote patterns in single quotes, one command per call; a hook allows
-only ls, grep, rg, find and read-only git). Then read the sections around the hits with Read
+`rg -n '<pattern>' specs` (quote patterns in single quotes, one command per call; a hook allows
+only ls, grep without -r, rg, find and read-only git). Then read the sections around the hits with Read
 (`offset`/`limit`). Search for ids, terms and their synonyms.
 
 ## Binding or history

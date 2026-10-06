@@ -1,0 +1,83 @@
+// Rules for Edit, Write and Bash in the test-writer agent.
+//
+// The agent may write only api test files and run only the api tests, typecheck and ESLint on api
+// files. Limit: a test it writes runs with the owner's rights when Vitest executes it, so a test can
+// still touch anything; the guard cannot see that. After the agent runs, the main context checks
+// `git status` that only test files changed (CLAUDE.md, "How work is done").
+
+import fs from 'node:fs';
+import path from 'node:path';
+
+import { Blocked, projectDir, words } from './guard-lib.mjs';
+
+const TEST_FILE = /^api\/src\/[\w./-]+\.spec\.ts$|^api\/test\/[\w./-]+\.e2e-spec\.ts$/;
+const VITEST_PATH = /^(src|test)\/[\w./-]+$/;
+const LINT_PATH = /^api\/(src|test)\/[\w./-]+$/;
+const hasDotDot = (p) => p.split('/').includes('..');
+
+/** Resolves symlinks of the longest existing parent, so a link cannot lead outside the project. */
+function realPath(p) {
+  const abs = path.resolve(p);
+  let dir = abs;
+  while (!fs.existsSync(dir)) dir = path.dirname(dir);
+  return path.join(fs.realpathSync(dir), path.relative(dir, abs));
+}
+
+function checkPath(file) {
+  if (!file) throw new Blocked('no file_path');
+  const root = fs.realpathSync(projectDir());
+  const real = realPath(file);
+  if (!real.startsWith(root + path.sep)) throw new Blocked(`outside the project: ${file}`);
+  const rel = path.relative(root, real).split(path.sep).join('/');
+  if (hasDotDot(rel) || !TEST_FILE.test(rel)) {
+    throw new Blocked(
+      `only api/src/**/*.spec.ts and api/test/**/*.e2e-spec.ts may be written, not ${rel}. ` +
+        'Report bugs in the code instead of changing it.',
+    );
+  }
+}
+
+function checkVitestArgs(args) {
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    if (['-t', '--testNamePattern'].includes(a) && i + 1 < args.length) i++;
+    else if (['--reporter=dot', '--reporter=verbose', '--reporter=default'].includes(a)) continue;
+    else if (VITEST_PATH.test(a) && !hasDotDot(a)) continue;
+    else {
+      throw new Blocked(
+        `vitest argument ${JSON.stringify(a)} is not allowed: test paths, -t <name>, --reporter=dot|verbose`,
+      );
+    }
+  }
+}
+
+const same = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
+
+function checkBash(cmd) {
+  const argv = words(cmd);
+  let rest;
+  if (same(argv.slice(0, 4), ['npm', '--prefix', 'api', 'test'])) rest = argv.slice(4);
+  else if (same(argv.slice(0, 5), ['npm', '--prefix', 'api', 'run', 'test'])) rest = argv.slice(5);
+  else if (same(argv, ['npm', '--prefix', 'api', 'run', 'typecheck'])) return;
+  else if (same(argv.slice(0, 3), ['npx', 'eslint', '--max-warnings=0']) && argv.length > 3) {
+    for (const p of argv.slice(3)) {
+      if (!LINT_PATH.test(p) || hasDotDot(p)) {
+        throw new Blocked(`eslint only on api files, no other flags: ${JSON.stringify(p)}`);
+      }
+    }
+    return;
+  } else {
+    throw new Blocked(
+      "allowed: 'npm --prefix api test [-- <test paths> | -t <name>]', " +
+        "'npm --prefix api run typecheck', 'npx eslint --max-warnings=0 api/<files>'",
+    );
+  }
+  if (rest[0] === '--') checkVitestArgs(rest.slice(1));
+  else if (rest.length > 0) throw new Blocked('vitest arguments go after --');
+}
+
+export function check(tool, input) {
+  if (tool === 'Edit' || tool === 'Write') return checkPath(input.file_path);
+  if (tool === 'Bash') return checkBash(input.command);
+  throw new Blocked(`unexpected tool ${JSON.stringify(tool)}`);
+}

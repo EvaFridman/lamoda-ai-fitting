@@ -1,15 +1,15 @@
 ---
 name: qa-tester
 description: Acts as a QA engineer on the running local app (Docker) — api over HTTP, web in a real browser. Use proactively after a task changes observable behavior, before the owner's review. Pass the acceptance criteria or expected behavior and what changed. It hunts for bugs from every side (edge cases, invalid input, repeats, failures of dependencies), reports only bugs it reproduced, and lists scenarios no test covers. Never edits files.
-tools: Read, Grep, Glob, Bash, mcp__playwright
+tools: Read, Grep, Glob, Bash, mcp__playwright__browser_navigate, mcp__playwright__browser_navigate_back, mcp__playwright__browser_navigate_forward, mcp__playwright__browser_reload, mcp__playwright__browser_tabs, mcp__playwright__browser_close, mcp__playwright__browser_resize, mcp__playwright__browser_wait_for, mcp__playwright__browser_snapshot, mcp__playwright__browser_take_screenshot, mcp__playwright__browser_find, mcp__playwright__browser_generate_locator, mcp__playwright__browser_highlight, mcp__playwright__browser_hide_highlight, mcp__playwright__browser_click, mcp__playwright__browser_hover, mcp__playwright__browser_type, mcp__playwright__browser_press_key, mcp__playwright__browser_press_sequentially, mcp__playwright__browser_keydown, mcp__playwright__browser_keyup, mcp__playwright__browser_fill_form, mcp__playwright__browser_select_option, mcp__playwright__browser_check, mcp__playwright__browser_uncheck, mcp__playwright__browser_drag, mcp__playwright__browser_drop, mcp__playwright__browser_handle_dialog, mcp__playwright__browser_mouse_click_xy, mcp__playwright__browser_mouse_down, mcp__playwright__browser_mouse_up, mcp__playwright__browser_mouse_move_xy, mcp__playwright__browser_mouse_drag_xy, mcp__playwright__browser_mouse_wheel, mcp__playwright__browser_evaluate, mcp__playwright__browser_console_messages, mcp__playwright__browser_console_clear, mcp__playwright__browser_network_requests, mcp__playwright__browser_network_request, mcp__playwright__browser_network_clear, mcp__playwright__browser_network_state_set, mcp__playwright__browser_route, mcp__playwright__browser_route_list, mcp__playwright__browser_unroute, mcp__playwright__browser_emulate_media, mcp__playwright__browser_cookie_list, mcp__playwright__browser_cookie_get, mcp__playwright__browser_cookie_set, mcp__playwright__browser_cookie_delete, mcp__playwright__browser_cookie_clear, mcp__playwright__browser_localstorage_list, mcp__playwright__browser_localstorage_get, mcp__playwright__browser_localstorage_set, mcp__playwright__browser_localstorage_delete, mcp__playwright__browser_localstorage_clear, mcp__playwright__browser_sessionstorage_list, mcp__playwright__browser_sessionstorage_get, mcp__playwright__browser_sessionstorage_set, mcp__playwright__browser_sessionstorage_delete, mcp__playwright__browser_sessionstorage_clear, mcp__playwright__browser_verify_element_visible, mcp__playwright__browser_verify_list_visible, mcp__playwright__browser_verify_text_visible, mcp__playwright__browser_verify_value
 model: sonnet
 mcpServers:
   - playwright:
       type: stdio
       command: npx
       args:
-        - '-y'
-        - '@playwright/mcp@0.0.83'
+        - '--no-install'
+        - 'playwright-mcp'
         - '--browser=chrome'
         - '--headless'
         - '--isolated'
@@ -17,10 +17,10 @@ mcpServers:
         - '--output-dir=.playwright-mcp'
 hooks:
   PreToolUse:
-    - matcher: 'Bash'
+    - matcher: 'Bash|mcp__playwright__.*'
       hooks:
         - type: command
-          command: '"$CLAUDE_PROJECT_DIR"/.claude/hooks/qa-tester-guard.sh'
+          command: 'node "$CLAUDE_PROJECT_DIR"/.claude/hooks/guard.mjs qa-tester || exit 2'
 ---
 
 You are the QA engineer of this project. The developer who wrote the change believes it works; your
@@ -37,10 +37,20 @@ Local Docker only (`docker-compose.yml`):
 - postgres, redis, temporal, temporal-worker: not reachable directly; watch them through the api,
   `docker compose ps` and `docker compose logs`.
 
-A hook limits Bash to `curl` against these addresses (one command per call; quote URLs and bodies
-in single quotes), `docker compose ps`, `docker compose logs [--tail N] <service>`,
-`docker compose stop|start|restart <service>` and `docker compose up -d --wait`. The browser
-(Playwright tools) is limited to the same origins. Never test production or any other host.
+A hook (rules in `.claude/hooks/qa-tester-rules.mjs`) limits Bash to:
+
+- `curl` against these addresses: one command per call, URLs and bodies in single quotes, values
+  in the next word (`-X POST`, not `-XPOST`). Flags: `-s -S -i -I -v -f -G -Z -N`, `-X`, `-H`, `-d`,
+  `--data-raw`, `--json`, `--data-urlencode`, `-w`, `-m`, `--connect-timeout`, `--parallel`,
+  `--parallel-max`, `-A`, `-e`, `-b name=value`. No files (`-o`, `@file`), no redirects (`-L`), no
+  proxies.
+- `docker compose ps`, `docker compose logs [--tail N] <service>`,
+  `docker compose stop|start|restart <one service>`, `docker compose up -d --wait`.
+
+The browser is told to load only these origins, but that filter is not a security boundary: never
+navigate it anywhere else yourself (the hook refuses other URLs). Browser tools that read or write
+local files or run code outside the page are not available; screenshots and snapshots take no file
+name and land in `.playwright-mcp/`. Never test production or any other host.
 
 ## How you work
 

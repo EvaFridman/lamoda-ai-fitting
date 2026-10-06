@@ -26,11 +26,12 @@ Keep this file true: update it in the same commit that changes what a section de
 - Before writing a `spec.md` or `plan.md`: ask `spec-finder` which earlier decisions touch the same
   area.
 - Before a task: read its section of `tasks.md`, get a brief from `spec-finder` (what the task
-  refers to and related decisions it does not mention), then state a time estimate. After it: stop, summarize what changed and the check result,
-  wait for the owner's OK, then commit.
+  refers to and related decisions it does not mention), then state a time estimate. After it: stop,
+  summarize what changed and the check result, wait for the owner's OK, then commit.
 - If a task shows the plan is wrong: stop, fix the plan with the owner, then continue.
 - After implementing a task, before the owner's review (agents: see "Agents" below):
-  1. `test-writer`: tests for new or changed api logic.
+  1. `test-writer`: tests for new or changed api logic. Then `git status`: only test files may have
+     changed (its hook limits its tools, not what a test does when Vitest runs it).
   2. `npm run verify`.
   3. `qa-tester`, when the task changes observable behavior (an endpoint, a page, a workflow); not
      for docs, tooling or config-only changes. Pass it the acceptance criteria.
@@ -45,18 +46,26 @@ Keep this file true: update it in the same commit that changes what a section de
 Subagents in `.claude/agents/` work in their own context and return a short report. Delegate to them
 instead of doing their job in the main context.
 
-- `spec-finder`: task briefs and facts from the specs and docs (read-only). Its Bash is limited by
-  `.claude/hooks/read-only-guard.sh` to ls, grep, rg, find and read-only git, and never reaches
-  secret files.
-- `test-writer`: writes and runs api tests after the logic is implemented. A hook
-  (`.claude/hooks/test-writer-guard.sh`) limits it to test files and test, typecheck and lint
-  commands; it reports bugs instead of fixing code.
-- `qa-tester`: a QA engineer on the running local stack (curl and a headless browser through
-  Playwright MCP, pinned in the agent file). Reports reproduced bugs and scenarios no test covers;
-  `test-writer` turns those into tests. Its hook (`.claude/hooks/qa-tester-guard.sh`) allows only
-  requests to the local stack and `docker compose` ps, logs, stop and start of single services;
-  stop, start and restart ask the owner (`.claude/settings.json`).
+- `spec-finder`: task briefs and facts from the specs and docs (read-only).
+- `test-writer`: writes and runs api tests after the logic is implemented; it reports bugs instead
+  of fixing code. Its guard allows writing only test files and running only the api tests,
+  typecheck and ESLint.
+- `qa-tester`: a QA engineer on the running local stack: curl and a headless Chrome through
+  Playwright MCP (`@playwright/mcp`, an exact root devDependency, started with `npx --no-install`).
+  Reports reproduced bugs and scenarios no test covers; `test-writer` turns those into tests. Its
+  guard allows curl to the local stack with an allowlist of flags and `docker compose` ps, logs,
+  stop/start/restart of one service and `up -d --wait`; stop, start and restart also ask the owner
+  (`.claude/settings.json`).
 - `code-reviewer`: reviews a diff against this file and the active spec (read-only).
+
+Guards: each agent's PreToolUse hook in its frontmatter runs `node .claude/hooks/guard.mjs <rules>`
+with the rules in `.claude/hooks/<rules>-rules.mjs` (read-only agents share `read-only`: ls, grep,
+rg, find, read-only git; never secret files). A guard splits a command into the exact arguments the
+program gets (`guard-lib.mjs`) and checks them against allowlists; anything else, including a guard
+error, blocks. qa-tester's browser tools are allowlisted twice: in its `tools:` and in its rules (a
+test checks they match). The cases are in `.claude/hooks/guards.test.mjs` (`node:test`, part of
+`npm test`); add a case for every bypass found. Agent files are loaded when a session starts:
+restart Claude Code after changing one.
 
 ## Stack and versions
 
@@ -81,8 +90,8 @@ Pinned on purpose; each "not newer" has a reason and a condition to move on.
 - `npm run verify`: format check, lint, typecheck, tests and build in one command. The pre-push
   hook and CI run exactly this, so the list of checks lives in one place (root `package.json`).
 
-`verify` covers `api` (lint, typecheck, tests, build) and `web` (lint, Stylelint, typecheck,
-`next build`). `web` has no tests yet: when its first test lands, add `web` to the root `test`
+`verify` covers `api` (lint, typecheck, tests, build), `web` (lint, Stylelint, typecheck,
+`next build`) and the agents' guard hooks (lint, tests). `web` has no tests yet: when its first test lands, add `web` to the root `test`
 script, or `verify` keeps saying nothing about web logic.
 
 Before calling a task done: `npm run verify`. Before opening a pull request, also a clean install

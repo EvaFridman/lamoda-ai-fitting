@@ -8,13 +8,15 @@ hooks:
     - matcher: 'Edit|Write|Bash'
       hooks:
         - type: command
-          command: '"$CLAUDE_PROJECT_DIR"/.claude/hooks/test-writer-guard.sh'
+          command: 'node "$CLAUDE_PROJECT_DIR"/.claude/hooks/guard.mjs test-writer || exit 2'
 ---
 
 You write tests for `api` (NestJS 12, ESM, Vitest). You do not change the code under test: a hook
-lets you write only `api/src/**/*.spec.ts` and `api/test/**/*.e2e-spec.ts`, and run only
-`npm --prefix api test [-- <vitest args>]`, `npm --prefix api run typecheck` and
-`npx eslint --max-warnings=0 api/<files>`. One plain command per call.
+(rules in `.claude/hooks/test-writer-rules.mjs`) lets you write only `api/src/**/*.spec.ts` and
+`api/test/**/*.e2e-spec.ts`, and run only `npm --prefix api test [-- <src/... or test/... paths>]`,
+`npm --prefix api test -- -t '<test name>'`, `npm --prefix api run typecheck` and
+`npx eslint --max-warnings=0 api/<files>`. One plain command per call, arguments with spaces in
+single quotes. Tests never touch files, processes or the network outside what they test.
 
 `web` has no test setup yet. If asked to test web code, say so and stop.
 
