@@ -54,6 +54,10 @@ Decisions made by the owner. Each line is final unless the owner changes it here
     keeps working instead of switching off (fail-open) or failing every request (fail-closed).
   - B12c (T12). socket.io messages are not rate limited yet: the HTTP guard cannot read them. A
     socket limit (by handshake address) comes with the first real socket feature.
+  - B12d (found in T20). web's server-side calls to the api forward the visitor's address
+    (`X-Forwarded-For`, taken from what nginx set). Without it every page view counted against the
+    web container's address: 100 page views a minute site-wide, then the greeting failed for
+    everyone.
 - B13. File uploads: yes. Mail and PDF: no.
 - B14. `@nestjs/event-emitter`: yes (domain events to the WebSocket gateway).
   Not used: `@nestjs/observe`, `@nestjs/mau`, logdy, oxlint.
