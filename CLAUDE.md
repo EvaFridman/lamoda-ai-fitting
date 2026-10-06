@@ -26,6 +26,17 @@ Keep this file true: update it in the same commit that changes what a section de
   wait for the owner's OK, then commit.
 - If a task shows the plan is wrong: stop, fix the plan with the owner, then continue.
 
+## Agents
+
+Subagents in `.claude/agents/` work in their own context and return a short report. Delegate to them
+instead of doing their job in the main context.
+
+- `spec-finder`: facts from the specs and docs (read-only).
+- `test-writer`: writes and runs api tests after the logic is implemented. A hook
+  (`.claude/hooks/test-writer-guard.sh`) limits it to test files and test, typecheck and lint
+  commands; it reports bugs instead of fixing code.
+- `code-reviewer`: reviews a diff against this file and the active spec (read-only).
+
 ## Stack and versions
 
 Pinned on purpose; each "not newer" has a reason and a condition to move on.
