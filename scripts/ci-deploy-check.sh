@@ -13,6 +13,10 @@ cd "$(dirname "$0")/.."
 
 tag="${IMAGE_TAG:?set IMAGE_TAG}"
 second="$tag-next"
+# The images just built on this machine, under their local names. The CI job sets IMAGE_REGISTRY for
+# publishing; with it, deploy.sh would pull from the registry, where nothing is pushed before this
+# check passes (and never from a pull request). On the server deploy.sh does pull from GHCR.
+export IMAGE_REGISTRY=""
 work="$(mktemp -d)"
 env_file="$work/deploy.env"
 
