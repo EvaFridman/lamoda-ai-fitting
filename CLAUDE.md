@@ -25,6 +25,16 @@ Keep this file true: update it in the same commit that changes what a section de
 - Before a task: state a time estimate. After it: stop, summarize what changed and the check result,
   wait for the owner's OK, then commit.
 - If a task shows the plan is wrong: stop, fix the plan with the owner, then continue.
+- After implementing a task, before the owner's review (agents: see "Agents" below):
+  1. `test-writer`: tests for new or changed api logic.
+  2. `npm run verify`.
+  3. `qa-tester`, when the task changes observable behavior (an endpoint, a page, a workflow); not
+     for docs, tooling or config-only changes. Pass it the acceptance criteria.
+  4. A bug it reproduces: `test-writer` pins it with a failing test, then fix it and repeat 2–3.
+     Stop and ask the owner instead when the bug shows the plan or spec is wrong, or the fix changes
+     behavior outside the task. Its "not covered by tests" list goes to `test-writer` too.
+  5. `code-reviewer` on the diff.
+  6. The task summary lists what each agent found and what was done about it.
 
 ## Agents
 
@@ -35,6 +45,11 @@ instead of doing their job in the main context.
 - `test-writer`: writes and runs api tests after the logic is implemented. A hook
   (`.claude/hooks/test-writer-guard.sh`) limits it to test files and test, typecheck and lint
   commands; it reports bugs instead of fixing code.
+- `qa-tester`: a QA engineer on the running local stack (curl and a headless browser through
+  Playwright MCP, pinned in the agent file). Reports reproduced bugs and scenarios no test covers;
+  `test-writer` turns those into tests. Its hook (`.claude/hooks/qa-tester-guard.sh`) allows only
+  requests to the local stack and `docker compose` ps, logs, stop and start of single services;
+  stop, start and restart ask the owner (`.claude/settings.json`).
 - `code-reviewer`: reviews a diff against this file and the active spec (read-only).
 
 ## Stack and versions

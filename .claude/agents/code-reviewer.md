@@ -21,7 +21,8 @@ Check, in this order:
    missing authorization, anything that would be logged or sent to Sentry that should not be.
 3. Spec: behavior that contradicts the acceptance criteria or the plan.
 4. Layers and conventions from `CLAUDE.md`.
-5. Tests: new logic without a test of the success case and the refusal case.
+
+Test coverage is the `qa-tester` agent's job: do not report it.
 
 Do not report formatting (Prettier and ESLint handle it) or matters of taste.
 
