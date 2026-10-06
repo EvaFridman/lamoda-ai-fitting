@@ -6,6 +6,9 @@
 #
 #   scripts/request-loop.sh <base-url> & pid=$!; ...deploy...; kill $pid; wait $pid
 #
+# REQUEST_LOOP_PAUSE (seconds, default 0) waits between rounds. Against production, where requests
+# from one address are rate limited (100 a minute), 0.7 keeps the page under the limit.
+#
 # Exit 0 if every response was 200, 1 otherwise. Certificates are not checked (-k).
 set -uo pipefail
 
@@ -45,4 +48,7 @@ while :; do
       statuses="$statuses $code$path@$started(curl $curl_exit)"
     fi
   done
+  # In the background, so SIGTERM is handled at once instead of after the pause.
+  sleep "${REQUEST_LOOP_PAUSE:-0}" &
+  wait $!
 done

@@ -233,6 +233,10 @@ Ready on the Mac: Node 26, npm 12, Docker 29, gitleaks 8.30, Ansible 2.21, jq, g
 
 ## PR 8 · `feat/0001-hsts` · certificate, HSTS, acceptance
 
+Split during the work (owner's decision): T28 is checked by the deploy its merge triggers, and T29
+records those results, so they go in two pull requests: 8a (T26 record, T27, T28 with a 5-minute
+HSTS) and 8b (T29, HSTS for a year). The 8b merge is the third deploy and the last live check.
+
 - [x] **T27. Certificate.** `init-cert.sh` on the server: `--staging` first, then the real one.
       Check: AC20, AC21 (`certbot renew --dry-run`).
       Done: `deploy/scripts/init-cert.sh` (new: the plan named it, no task had written it) was copied
@@ -243,12 +247,15 @@ Ready on the Mac: Node 26, npm 12, Docker 29, gitleaks 8.30, Ansible 2.21, jq, g
       (green), run with a request loop from the Mac.
       Check: AC26 on the server; AC19 via `workflow_dispatch` with the previous tag, timed; AC18 by
       running `deploy.sh` with a nonexistent tag on the server; AC22, AC23 against the domain.
+      HSTS starts at `max-age=300`: a mistake costs visitors 5 minutes, not a year.
       Commit: `feat(deploy): enable hsts`
+- 👤 merges PR 8a; the checks above run on the deploy it triggers.
 - [ ] **T29. Acceptance.** Go through AC1–AC26, record the result and evidence of each below.
       Finish `README.md` and `deploy/README.md`; bring `CLAUDE.md` in line with what was built; list any
       difference from the spec. Set `Status: done` in spec, clarifications, plan and tasks (A9a).
+      HSTS raised to a year (`max-age=31536000`) once the 5-minute one has been seen working.
       Commit: `docs(specs): close 0001-bootstrap`
-- 👤 merges PR 8.
+- 👤 merges PR 8b (the third deploy).
 
 ## Acceptance record
 
