@@ -51,6 +51,7 @@ server {
   server_name www.${SITE_DOMAIN};
   ssl_certificate /etc/letsencrypt/live/${SITE_DOMAIN}/fullchain.pem;
   ssl_certificate_key /etc/letsencrypt/live/${SITE_DOMAIN}/privkey.pem;
+  add_header Strict-Transport-Security "max-age=300" always;
   return 301 https://${SITE_DOMAIN}$request_uri;
 }
 
@@ -68,6 +69,12 @@ server {
   ssl_session_cache shared:SSL:10m;
   ssl_session_timeout 1d;
   ssl_session_tickets off;
+
+  # HSTS: browsers that saw this use only HTTPS for the site for max-age seconds, and refuse even a
+  # click-through on a certificate error. Raised step by step: 300 s (5 minutes) first, a year once
+  # it has been seen working. Without includeSubDomains and preload: both are hard to take back.
+  # `always` also sends it on error responses. A location with its own add_header would drop it.
+  add_header Strict-Transport-Security "max-age=300" always;
 
   # Photo uploads; nginx's default of 1 MB would answer 413.
   client_max_body_size 20m;

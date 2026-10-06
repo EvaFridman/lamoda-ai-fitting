@@ -251,7 +251,8 @@ overwrites `X-Forwarded-For` with the client address instead of appending to it;
 `/nginx-health` with 204 for the container's health check.
 
 HSTS is added only after the real certificate works. Before that, a wrong HSTS header could lock
-browsers out of the site.
+browsers out of the site. Added in T28: it starts at `max-age=300` and goes to a year in T29, once
+the short one has been seen working; no `includeSubDomains` or `preload`.
 
 **First certificate.** This is the chicken-and-egg problem from the clarifications. A one-shot
 `cert-init` service (certbot image: the nginx image has no `openssl`) creates a temporary
