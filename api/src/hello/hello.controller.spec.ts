@@ -12,6 +12,6 @@ describe('HelloController', () => {
       providers: [HelloService],
     }).compile();
 
-    expect(moduleRef.get(HelloController).get()).toEqual({ message: 'Hello, world!' });
+    expect(moduleRef.get(HelloController).get()).toEqual({ message: 'Hello, wrong!' });
   });
 });
