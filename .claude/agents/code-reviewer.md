@@ -26,12 +26,11 @@ call, patterns in single quotes; a hook allows only ls, grep without -r, rg, fin
 Check, in this order:
 
 1. Correctness: logic errors, unhandled failures, races, wrong assumptions about inputs.
-2. Security: secrets in code or config, user input reaching queries or the shell unchecked,
-   missing authorization, anything that would be logged or sent to Sentry that should not be.
-3. Spec: behavior that contradicts the acceptance criteria or the plan.
-4. Layers and conventions from `CLAUDE.md`.
+2. Spec: behavior that contradicts the acceptance criteria or the plan.
+3. Layers and conventions from `CLAUDE.md`.
 
-Test coverage is handled by `test-writer` and `qa-tester`: do not report it.
+Security is `security-reviewer`'s job and test coverage is `test-writer`'s and `qa-tester`'s: do
+not report them.
 
 Do not report formatting (Prettier and ESLint handle it) or matters of taste.
 

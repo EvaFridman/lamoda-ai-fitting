@@ -38,7 +38,9 @@ Keep this file true: update it in the same commit that changes what a section de
   4. A bug it reproduces: `test-writer` pins it with a failing test, then fix it and repeat 2–3.
      Stop and ask the owner instead when the bug shows the plan or spec is wrong, or the fix changes
      behavior outside the task. Its "not covered by tests" list goes to `test-writer` too.
-  5. `code-reviewer` on the diff.
+  5. `code-reviewer` on the diff and, in parallel, `security-reviewer` when the diff touches
+     endpoints or input handling, auth, config or env, logging, web rendering of data,
+     dependencies, Docker/nginx/deploy/CI or `.claude/`.
   6. The task summary lists what each agent found and what was done about it.
 
 ## Agents
@@ -56,7 +58,11 @@ instead of doing their job in the main context.
   guard allows curl to the local stack with an allowlist of flags and `docker compose` ps, logs,
   stop/start/restart of one service and `up -d --wait`; stop, start and restart also ask the owner
   (`.claude/settings.json`).
-- `code-reviewer`: reviews a diff against this file and the active spec (read-only).
+- `code-reviewer`: reviews a diff against this file and the active spec: correctness, spec,
+  conventions (read-only).
+- `security-reviewer`: reviews a diff for security: secrets, input, access, abuse, personal data,
+  web, infrastructure, dependencies, agent configuration; every finding with a concrete scenario
+  (read-only).
 
 Guards: each agent's PreToolUse hook in its frontmatter runs `node .claude/hooks/guard.mjs <rules>`
 with the rules in `.claude/hooks/<rules>-rules.mjs` (read-only agents share `read-only`: ls, grep,
