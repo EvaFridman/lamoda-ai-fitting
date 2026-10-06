@@ -70,14 +70,7 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: npx --no-install commitlint --from "$BASE_SHA" --to "$HEAD_SHA" --verbose
 
-      - name: Formatting
-        run: npm run format:check
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Typecheck
-        run: npm run typecheck
-
-      - name: Tests
-        run: npm test
+      # Format, lint, typecheck, tests, build: the same command as the pre-push hook and the local
+      # check before a task is done. Add checks to `verify` in package.json, not here.
+      - name: Verify
+        run: npm run verify
