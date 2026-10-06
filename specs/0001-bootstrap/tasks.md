@@ -108,9 +108,13 @@ Ready on the Mac: Node 26, npm 12, Docker 29, gitleaks 8.30, Ansible 2.21, jq, g
       committed (A11b). `turbopack.root` and `outputFileTracingRoot` pinned to `web/`, so
       `.next/standalone/server.js` sits at the top of the standalone folder.
       Commit: `feat(web): add next skeleton with fsd layout and scss`
-- [ ] **T15. Home page.** Providers (TanStack Query, Zustand), zod env, server-only Redis client
+- [x] **T15. Home page.** Providers (TanStack Query, Zustand), zod env, server-only Redis client
       (lazy), `apiFetch`; home page with `<Suspense>` greeting, error state, version footer.
       Check: `npm --prefix web run build` with no api, Redis or database running (AC12, natively).
+      Done: the build ran with `API_URL`/`REDIS_URL` unset (routes are Partial Prerender). Live,
+      natively: greeting from the api; api stopped → error state; footer shows the runtime
+      `APP_VERSION`. The footer is a widget rendered once in the root layout. Zustand is installed
+      with no store yet: stores live in the slice that owns the UI state, starting with the first one.
       Commit: `feat(web): show the api greeting on the home page`
 - [ ] **T16. Sentry.** `instrumentation*.ts`, `withSentryConfig`, upload only when the token is set,
       source maps removed from the output.
