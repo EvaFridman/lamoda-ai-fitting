@@ -145,10 +145,14 @@ Ready on the Mac: Node 26, npm 12, Docker 29, gitleaks 8.30, Ansible 2.21, jq, g
 
 ## PR 5 · `feat/0001-prod` · production setup, tested locally and in CI
 
-- [ ] **T19. Production compose and nginx.** `deploy/compose/{infra,app,worker}.yml`, nginx template,
+- [x] **T19. Production compose and nginx.** `deploy/compose/{infra,app,worker}.yml`, nginx template,
       entrypoint (self-signed fallback, reload loop), upstream file, certbot service.
       Check, on the Mac with `SITE_DOMAIN=localhost`: infra and blue started by hand, the page through
       `https://localhost` shows "Hello, world!".
+      Done, through nginx: page with the greeting and runtime version; `/api/hello`;
+      `/api/health/live`; `/api/health/ready` 403; http → https and www → apex 301; a bare IP's
+      TLS handshake refused; HTTP/2; a 10 MB POST reaches the api, 21 MB gets 413; socket.io over
+      WebSocket answers `pong`. Plan 7 revised (upstream `resolve`, `cert-init`, project name).
       Commit: `feat(deploy): add production compose files and nginx`
 - [ ] **T20. Blue-green script.** `deploy/scripts/deploy.sh`, `scripts/smoke-test.sh`.
       Check, on the Mac: deploy blue; deploy green with a request loop → zero failures (AC26); deploy a

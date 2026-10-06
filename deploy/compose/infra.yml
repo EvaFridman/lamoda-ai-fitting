@@ -1,0 +1,124 @@
+# Production, long-lived part: data stores, Temporal, nginx, certificates. One copy, compose project
+# `ai-fitting-infra` (not `ai-fitting`: that is the local dev stack, and sharing the name would mix
+# their containers and volumes); it creates the network `ai-fitting` the app copies (app.yml) and
+# the worker (worker.yml) join. Only nginx publishes ports. Values come from .env next to the
+# deployed files (written by CD; names in deploy/README.md). Run through deploy/scripts/deploy.sh.
+
+name: ai-fitting-infra
+
+x-restart: &restart
+  restart: unless-stopped
+
+networks:
+  default:
+    name: ai-fitting
+
+services:
+  postgres:
+    <<: *restart
+    image: postgres:18.6-trixie
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  redis:
+    <<: *restart
+    image: redis:8.10.2-trixie
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ['CMD-SHELL', 'redis-cli ping | grep -q PONG']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  temporal:
+    <<: *restart
+    image: temporalio/temporal:1.9.1
+    # Single-node server, history in a SQLite file. No UI in production (use an SSH tunnel to the
+    # gRPC port and a local `temporal` CLI if needed).
+    command:
+      - server
+      - start-dev
+      - --ip=0.0.0.0
+      - --headless
+      - --db-filename=/home/temporal/temporal.db
+    volumes:
+      - temporaldata:/home/temporal
+    healthcheck:
+      test: ['CMD', 'temporal', 'operator', 'cluster', 'health', '--address', '127.0.0.1:7233']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+
+  # One-shot: a temporary self-signed certificate if none exists, so nginx can start before the
+  # real one is issued (deploy/scripts/init-cert.sh).
+  cert-init:
+    image: certbot/certbot:v5.8.0
+    entrypoint: ['sh', '/cert-init.sh']
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN:?set SITE_DOMAIN}
+    volumes:
+      - ../nginx/cert-init.sh:/cert-init.sh:ro
+      - letsencrypt:/etc/letsencrypt
+
+  nginx:
+    <<: *restart
+    image: nginx:1.30.5-alpine
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN:?set SITE_DOMAIN}
+      # The image fills NGINX_LOCAL_RESOLVERS (Docker's DNS) for the `resolver` directive.
+      NGINX_ENTRYPOINT_LOCAL_RESOLVERS: '1'
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ../nginx/templates:/etc/nginx/templates:ro
+      - ../nginx/entrypoint/05-default-upstream.sh:/docker-entrypoint.d/05-default-upstream.sh:ro
+      - ../nginx/entrypoint/40-reload-loop.sh:/docker-entrypoint.d/40-reload-loop.sh:ro
+      - nginx-upstream:/etc/nginx/upstream
+      - letsencrypt:/etc/letsencrypt:ro
+      - certbot-www:/var/www/certbot:ro
+    healthcheck:
+      # /nginx-health answers 204 on port 80 (see the template).
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1/nginx-health']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    depends_on:
+      cert-init:
+        condition: service_completed_successfully
+
+  # Renews certificates twice a day; nginx picks them up on its 6-hour reload. Server only: CI and
+  # local runs use the self-signed certificate.
+  certbot:
+    <<: *restart
+    image: certbot/certbot:v5.8.0
+    profiles: [server]
+    entrypoint:
+      - sh
+      - -c
+      - trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done
+    volumes:
+      - letsencrypt:/etc/letsencrypt
+      - certbot-www:/var/www/certbot
+
+volumes:
+  pgdata:
+  redisdata:
+  temporaldata:
+  letsencrypt:
+  certbot-www:
+  nginx-upstream:
