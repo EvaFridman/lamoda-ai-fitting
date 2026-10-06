@@ -76,3 +76,49 @@ jobs:
       # check before a task is done. Add checks to `verify` in package.json, not here.
       - name: Verify
         run: npm run verify
+
+  images:
+    name: Images
+    needs: [secrets, checks]
+    runs-on: ubuntu-latest
+    # Pushing to GHCR needs packages: write; it happens only on a push to main (last step).
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Image tag and registry
+        # The short commit hash is the image tag and the version the site reports; GHCR needs a
+        # lower-case owner.
+        run: |
+          echo "IMAGE_TAG=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+          echo "IMAGE_REGISTRY=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/" >> "$GITHUB_ENV"
+
+      - name: Build api and web images
+        env:
+          IMAGE_SOURCE: ${{ github.server_url }}/${{ github.repository }}
+          # Browser-side Sentry is baked in at build time; empty values turn it off.
+          NEXT_PUBLIC_SENTRY_DSN: ${{ vars.NEXT_PUBLIC_SENTRY_DSN }}
+          NEXT_PUBLIC_SENTRY_ENVIRONMENT: production
+          SENTRY_ORG: ${{ vars.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT }}
+          # Source maps are uploaded only for images that can be deployed (main).
+          SENTRY_AUTH_TOKEN: ${{ github.event_name == 'push' && secrets.SENTRY_AUTH_TOKEN || '' }}
+        run: scripts/ci-build-images.sh
+
+      # The production setup on the runner with the same deploy.sh the server runs: a first deploy,
+      # then a blue-green switch under a request loop that must see no failed request (AC26).
+      - name: Deploy check
+        run: scripts/ci-deploy-check.sh
+
+      - name: Publish images to GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$REGISTRY_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker push "${IMAGE_REGISTRY}ai-fitting-api:${IMAGE_TAG}"
+          docker push "${IMAGE_REGISTRY}ai-fitting-web:${IMAGE_TAG}"
+          docker logout ghcr.io
