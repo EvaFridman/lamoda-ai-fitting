@@ -44,4 +44,7 @@ docker build --target runtime "${web_names[@]}" "${labels[@]}" "${secret[@]}" \
   web
 endgroup
 
-docker images --format '{{.Repository}}:{{.Tag}}  {{.Size}}' | grep -E "ai-fitting-(api|web):$tag$"
+for app in api web; do
+  size="$(docker image inspect --format '{{.Size}}' "ai-fitting-$app:$tag")"
+  echo "ai-fitting-$app:$tag  $((size / 1024 / 1024)) MB"
+done
