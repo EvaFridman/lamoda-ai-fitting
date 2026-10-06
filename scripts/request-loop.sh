@@ -14,26 +14,35 @@ total=0
 failed=0
 statuses=""
 
+body="$(mktemp)"
+timings="$(mktemp)"
+trap 'rm -f "$body" "$timings"' EXIT
+
 report() {
   echo "request-loop: $total requests, $failed failed${statuses:+ (non-200:$statuses)}"
+  # The slowest requests and when they started: compare with the deploy log's timestamps.
+  echo "request-loop: slowest: $(sort -rn "$timings" | head -5 | tr '\n' ' ')"
   [ "$failed" -eq 0 ]
   exit $?
 }
 trap report TERM INT
 
-body="$(mktemp)"
-trap 'rm -f "$body"' EXIT
-
 while :; do
   for path in / /api/health/live; do
-    code="$(curl -sk -o "$body" --max-time 5 -w '%{http_code}' "$base$path" || true)"
+    started="$(date -u +%H:%M:%S)"
+    result="$(curl -sk -o "$body" --max-time 5 -w '%{http_code} %{time_total}' "$base$path")"
+    curl_exit=$?
+    code="${result% *}"
+    echo "${result#* }s$path@$started" >> "$timings"
     if [ "$code" = 200 ] && [ "$path" = / ] && ! grep -q 'Hello, world!' "$body"; then
       code=200-without-greeting
     fi
     total=$((total + 1))
     if [ "$code" != 200 ]; then
       failed=$((failed + 1))
-      statuses="$statuses $code$path"
+      # curl's exit code tells why there was no answer: 7 refused, 28 timeout, 52 empty reply,
+      # 56 connection reset, 35 TLS handshake.
+      statuses="$statuses $code$path@$started(curl $curl_exit)"
     fi
   done
 done
