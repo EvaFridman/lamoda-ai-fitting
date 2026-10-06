@@ -154,9 +154,12 @@ Ready on the Mac: Node 26, npm 12, Docker 29, gitleaks 8.30, Ansible 2.21, jq, g
       TLS handshake refused; HTTP/2; a 10 MB POST reaches the api, 21 MB gets 413; socket.io over
       WebSocket answers `pong`. Plan 7 revised (upstream `resolve`, `cert-init`, project name).
       Commit: `feat(deploy): add production compose files and nginx`
-- [ ] **T20. Blue-green script.** `deploy/scripts/deploy.sh`, `scripts/smoke-test.sh`.
+- [x] **T20. Blue-green script.** `deploy/scripts/deploy.sh`, `scripts/smoke-test.sh`.
       Check, on the Mac: deploy blue; deploy green with a request loop → zero failures (AC26); deploy a
       nonexistent tag → fails, site stays up (AC18); deploy the previous tag → takes seconds (AC19).
+      Done: plus `scripts/request-loop.sh` (a page without the greeting counts as failed). Found
+      and fixed in its own commit: page views shared one rate limit (B12d). The deploy script needs
+      bash 4+ (`brew install bash` on the Mac), checked at its start.
       Commit: `feat(deploy): add blue-green deploy script`
 - [ ] **T21. Image job in CI.** `scripts/ci-build-images.sh`; job `images` (build, smoke test through
       nginx with a blue-green switch; GHCR push only on `main`).
@@ -213,13 +216,16 @@ Ready on the Mac: Node 26, npm 12, Docker 29, gitleaks 8.30, Ansible 2.21, jq, g
 
 Filled in as criteria are checked; completed at T29.
 
-| AC  | Result                 | Evidence                                                                                                                                                         |
-| --- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| AC1 | pass (T18, 2026-10-06) | fresh copy of the tracked files: `npm ci`, `init-env.sh`, `docker compose up -d --wait` → all services healthy (worker running) in 22 s, page shows the greeting |
-| AC2 | pass (T18)             | page shows "Hello, world!"; `docker compose stop api` → the Russian error state; api back → greeting again                                                       |
-| AC3 | pass (T18)             | `/health/live` 200 `{"status":"ok","version":"dev"}`; `/health/ready` 200, postgres/redis/temporal up; Redis stopped → 503, error names `redis`                  |
-| AC4 | pass (T18)             | `/docs` 200; `/docs-json` paths include `/hello`                                                                                                                 |
-| AC5 | pass (T18)             | Temporal UI 200 on :8233; `temporal workflow execute --type hello --task-queue main` → COMPLETED, "Hello, world!"                                                |
-| AC6 | pass (T18)             | socket.io client to :3000, `emitWithAck('ping')` → `pong`                                                                                                        |
-| AC7 | pass (T18)             | edit in `api/src` served after 7 s, edit in `web/src` at once; no image rebuild                                                                                  |
-| AC8 | pass (T18)             | 101 requests to `/hello` within a minute → 100 × 200, 1 × 429 (counters in Redis)                                                                                |
+| AC   | Result                            | Evidence                                                                                                                                                                                     |
+| ---- | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AC1  | pass (T18, 2026-10-06)            | fresh copy of the tracked files: `npm ci`, `init-env.sh`, `docker compose up -d --wait` → all services healthy (worker running) in 22 s, page shows the greeting                             |
+| AC2  | pass (T18)                        | page shows "Hello, world!"; `docker compose stop api` → the Russian error state; api back → greeting again                                                                                   |
+| AC3  | pass (T18)                        | `/health/live` 200 `{"status":"ok","version":"dev"}`; `/health/ready` 200, postgres/redis/temporal up; Redis stopped → 503, error names `redis`                                              |
+| AC4  | pass (T18)                        | `/docs` 200; `/docs-json` paths include `/hello`                                                                                                                                             |
+| AC5  | pass (T18)                        | Temporal UI 200 on :8233; `temporal workflow execute --type hello --task-queue main` → COMPLETED, "Hello, world!"                                                                            |
+| AC6  | pass (T18)                        | socket.io client to :3000, `emitWithAck('ping')` → `pong`                                                                                                                                    |
+| AC7  | pass (T18)                        | edit in `api/src` served after 7 s, edit in `web/src` at once; no image rebuild                                                                                                              |
+| AC8  | pass (T18)                        | 101 requests to `/hello` within a minute → 100 × 200, 1 × 429 (counters in Redis)                                                                                                            |
+| AC18 | pass locally (T20); server at T28 | nonexistent tag → exit 1 before any change; an image that never gets healthy → exit 1 after 51 s, copy stopped; the site kept serving the previous version, 0 of 3894 looped requests failed |
+| AC19 | pass locally (T20); server at T28 | rollback to the version on the idle copy: switch only, 2 s                                                                                                                                   |
+| AC26 | pass locally (T20); server at T28 | full deploy under a request loop (page with the greeting + `/api/health/live`): 0 of 1229 failed across a deploy, a rollback and two failed deploys                                          |

@@ -336,6 +336,11 @@ Known limits, accepted for this scope:
   with the previous release (add first, remove in a later release); a bad migration is fixed by
   rolling forward.
 - The temporal-worker restarts in place, so background jobs pause for a few seconds per deploy.
+- A deploy that fails after its copy started (unhealthy, not ready) stops that copy, and it was the
+  rollback copy: rolling back to the version before is then a normal deploy (~15 s), not a switch.
+  A missing image fails before anything is touched (added in T20).
+- Environments that check switching with a request loop from one address (local runs, CI) set a high
+  `THROTTLE_LIMIT`, or the loop hits the per-client limit and reads as failures (added in T20).
 
 ### GitHub settings the owner creates
 
