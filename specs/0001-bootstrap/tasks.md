@@ -214,7 +214,7 @@ Ready on the Mac: Node 26, npm 12, Docker 29, gitleaks 8.30, Ansible 2.21, jq, g
       trigger: order guaranteed, one run shows the whole path). `actionlint` clean. The Sentry
       build plugin now reports the source map upload (it was silent inside the Docker build). CD
       itself first runs at the merge of this PR: the environment accepts `main` only.
-- [ ] **T26. First deploy.** 👤 merges PR 7: CI publishes images and deploys blue; nginx runs on its
+- [x] **T26. First deploy.** 👤 merges PR 7: CI publishes images and deploys blue; nginx runs on its
       self-signed certificate.
       Check: AC16, AC17 (job log); `https://lamoda-ai-fitting.ru` answers (certificate warning expected
       until T27). Added in T25: a test error on the live site reaches Sentry with a readable stack
@@ -226,6 +226,10 @@ Ready on the Mac: Node 26, npm 12, Docker 29, gitleaks 8.30, Ansible 2.21, jq, g
       worker's start, an nginx restart. The request loop now records curl's exit code, the time of
       each failure and the slowest requests (PR #10); the owner chose to go on with that in place.
       If it recurs, those details point at the cause.
+      Done: the merge of PR #10 deployed `b6bf0a3` to blue (CI and CD green). From the internet: the
+      page with the greeting and version, `/api/health/live`, `/api/health/ready` 403, redirects.
+      Sentry: a test error from the live site arrived; source maps for release `b6bf0a3` uploaded
+      (the build log now says so).
 
 ## PR 8 · `feat/0001-hsts` · certificate, HSTS, acceptance
 
@@ -260,6 +264,8 @@ Filled in as criteria are checked; completed at T29.
 | AC13 | pass (T21)                        | PR #6: Secret scan, Checks and Images green; Images built both images and ran `ci-deploy-check.sh` on the runner (blue-green switch, 0 of 1056 looped requests failed)                       |
 | AC14 | pass (T21)                        | throwaway PR #7 with a broken test: Checks red (`expected 'Hello, world!' to deeply equal 'Hello, wrong!'`), merge blocked; closed unmerged. Locally the pre-push hook refuses such a push   |
 | AC15 | pass (T21)                        | first `main` run after the merge pushed `ghcr.io/evafridman/ai-fitting-{api,web}:5029a6f` (the merge commit); pull requests publish nothing                                                  |
+| AC16 | pass (T26)                        | merge commit `b6bf0a3` went live with no manual step; the page footer and `https://lamoda-ai-fitting.ru/api/health/live` report `b6bf0a3`                                                    |
+| AC17 | pass (T26)                        | CD log: `deploy: migrating the database with b6bf0a3` → `No pending migrations to apply.` before `starting blue`                                                                             |
 | AC24 | pass (T23)                        | on the server `docker ps -a` lists no containers, `docker images` only postgres, redis and temporal (kept for this stack); volume removal documented in `deploy/README.md`                   |
 | AC18 | pass locally (T20); server at T28 | nonexistent tag → exit 1 before any change; an image that never gets healthy → exit 1 after 51 s, copy stopped; the site kept serving the previous version, 0 of 3894 looped requests failed |
 | AC19 | pass locally (T20); server at T28 | rollback to the version on the idle copy: switch only, 2 s                                                                                                                                   |
