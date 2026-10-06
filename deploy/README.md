@@ -64,3 +64,30 @@ Host ai-fitting
 Пользователь `deploy` в группе `docker` фактически может управлять контейнерами сервера. Выигрыш
 отдельного пользователя — отдельный ключ: его можно отозвать (`exclusive` в плейбуке заменяет
 ключи), не трогая доступ владельца, и в логах сервера видно, что делал CI.
+
+## Предыдущий стек на сервере
+
+До этого проекта сервер обслуживал другой сайт (compose-проект `realty`). Его контейнеры и образы
+удалены 2026-10-06; **тома и `/opt/realty` оставлены**: в них база с данными пользователей.
+
+Удалять их или нет — решение владельца, команды выполняются вручную (агенту удаление томов
+запрещено). На 2026-10-06 в базе 211 пользователей, 2 из них зарегистрировались после последней
+имеющейся копии (2026-10-02, 03:22 по Москве). Поэтому сначала свежая копия:
+
+1. **Копия базы на Mac.** Одноразовый Postgres на старом томе, старый стек для этого не нужен:
+
+   ```bash
+   ssh ai-fitting 'docker run -d --rm --name realty-dump -v realty_pgdata:/var/lib/postgresql \
+       postgres:18.6-trixie >/dev/null && sleep 5 \
+     && docker exec realty-dump pg_dumpall -U realty; docker stop realty-dump >/dev/null' \
+     > realty-backup-$(date +%F).sql
+   ```
+
+   В файле персональные данные: хранить вне репозитория (`*-backup-*.sql` в `.gitignore`).
+
+2. **Удаление**, только когда копия проверена:
+
+   ```bash
+   ssh ai-fitting 'docker volume rm realty_caddyconfig realty_caddydata realty_pgdata \
+     realty_redisdata realty_temporaldata realty_uploads && rm -rf /opt/realty'
+   ```

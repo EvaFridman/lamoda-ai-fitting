@@ -183,10 +183,14 @@ Ready on the Mac: Node 26, npm 12, Docker 29, gitleaks 8.30, Ansible 2.21, jq, g
       previous stack closed. `deploy` logs in with the CI key only, runs Docker, has no sudo.
       `daemon.json` is written byte for byte as the server had it, so Docker was not restarted.
       Commit: `feat(deploy): add ansible server baseline with deploy user`
-- [ ] **T23. Remove the old stack.** 👤 confirms each command: `docker compose down` in
+- [x] **T23. Remove the old stack.** 👤 confirms each command: `docker compose down` in
       `/opt/realty` (no `-v`), remove `realty-*` images. Document the user check and the volume removal
       command in `deploy/README.md`.
       Check: AC24 (`docker ps -a`, `docker images`).
+      Done: 9 containers and the old app, Caddy and RabbitMQ images removed (2.6 GB freed); the
+      Postgres, Redis and Temporal images of the same versions this stack uses are kept. User check:
+      2 of 211 users registered after the last database copy, so `deploy/README.md` gives a fresh
+      copy first, then the removal command. `*-backup-*.sql` added to `.gitignore`.
       Commit: `docs(deploy): document removal of the previous server stack`
 - [ ] **T24. GitHub and Sentry settings.** Step-by-step list in `deploy/README.md`; 👤 creates the
       Environment `production`, the repository secrets and variables (plan §10), the Sentry project and
@@ -238,6 +242,7 @@ Filled in as criteria are checked; completed at T29.
 | AC13 | pass (T21)                        | PR #6: Secret scan, Checks and Images green; Images built both images and ran `ci-deploy-check.sh` on the runner (blue-green switch, 0 of 1056 looped requests failed)                       |
 | AC14 | pass (T21)                        | throwaway PR #7 with a broken test: Checks red (`expected 'Hello, world!' to deeply equal 'Hello, wrong!'`), merge blocked; closed unmerged. Locally the pre-push hook refuses such a push   |
 | AC15 | pass (T21)                        | first `main` run after the merge pushed `ghcr.io/evafridman/ai-fitting-{api,web}:5029a6f` (the merge commit); pull requests publish nothing                                                  |
+| AC24 | pass (T23)                        | on the server `docker ps -a` lists no containers, `docker images` only postgres, redis and temporal (kept for this stack); volume removal documented in `deploy/README.md`                   |
 | AC18 | pass locally (T20); server at T28 | nonexistent tag → exit 1 before any change; an image that never gets healthy → exit 1 after 51 s, copy stopped; the site kept serving the previous version, 0 of 3894 looped requests failed |
 | AC19 | pass locally (T20); server at T28 | rollback to the version on the idle copy: switch only, 2 s                                                                                                                                   |
 | AC26 | pass locally (T20); server at T28 | full deploy under a request loop (page with the greeting + `/api/health/live`): 0 of 1229 failed across a deploy, a rollback and two failed deploys                                          |

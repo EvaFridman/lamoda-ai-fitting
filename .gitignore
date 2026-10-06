@@ -31,6 +31,9 @@ npm-debug.log*
 !.vscode/extensions.json
 !.vscode/settings.json
 
+# Database copies hold personal data
+*-backup-*.sql
+
 # State and lock of deploy/scripts/deploy.sh on the machine that deploys
 .deploy-state
 .deploy-lock/
