@@ -2,7 +2,11 @@
 
 Монорепозиторий: `api` (NestJS) и `web` (Next.js). Сайт: https://lamoda-ai-fitting.ru
 
-Проект в разработке. Решения и план первой задачи: [specs/0001-bootstrap](specs/0001-bootstrap/).
+Каждый merge в `main` проверяется и выкатывается на сервер автоматически, без простоя
+(blue-green). Как устроены CI, CD и сервер, как откатиться: [deploy/README.md](deploy/README.md).
+
+Работа идёт по спекам (`specs/`, порядок в [specs/principles.md](specs/principles.md)); первая —
+[0001-bootstrap](specs/0001-bootstrap/) — завершена: решения, план и результаты приёмки.
 
 ## Требования
 
@@ -43,3 +47,9 @@ npm run format         # отформатировать всё Prettier
 ```
 
 Остальные команды: `api/package.json`, `web/README.md`.
+
+## Как вносить изменения
+
+Ветка от свежего `main` → коммиты в формате `type(scope): subject` (проверяет git-хук) → pull
+request → зелёный CI → «Rebase and merge». Merge выкатывает изменения на прод. Правила для людей и
+агентов: [CONTRIBUTING.md](CONTRIBUTING.md), [CLAUDE.md](CLAUDE.md).

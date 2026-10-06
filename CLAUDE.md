@@ -1,11 +1,9 @@
 # lamoda-ai-fitting
 
-Monorepo: `api` (NestJS) and `web` (Next.js), delivered to https://lamoda-ai-fitting.ru.
+Monorepo: `api` (NestJS) and `web` (Next.js), delivered to https://lamoda-ai-fitting.ru: every
+merge into `main` is checked and deployed automatically. Set up by spec `0001-bootstrap` (closed).
 
-**Bootstrap in progress** (`specs/0001-bootstrap/`, see `tasks.md` for what is done). Until it is
-closed, sections below describe the target setup from `plan.md`: before relying on a file or
-command, check that it exists. Update this file in the same commit that makes a section true or
-wrong.
+Keep this file true: update it in the same commit that changes what a section describes.
 
 ## Where the truth is
 
@@ -97,6 +95,25 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
 - Migrations stay compatible with the previous release: add in one release, remove in a later one.
   A bad migration is fixed by rolling forward.
 
+## Production and deploys
+
+Details and commands: `deploy/README.md`.
+
+- A merge into `main` is the deploy: CI (secret scan, `verify`, images built and a blue-green deploy
+  checked on the runner, published to GHCR) → CD (`.github/workflows/cd.yml`) → the server runs
+  `deploy/scripts/deploy.sh <commit hash>`. Rollback: run CD by hand with an earlier hash.
+- Blue-green: the new copy of api and web starts next to the running one, nginx switches only when
+  it is healthy; the previous copy stays as the rollback. The Temporal worker is replaced in place.
+- Every change to deploy files is tested the way it reaches production: on a copy of `deploy/`
+  updated as CD updates the server, and in CI by `scripts/ci-deploy-check.sh`. nginx config changes
+  are applied by `deploy.sh` without restarting nginx.
+- The server's `.env` is rewritten from GitHub on every deploy; values change in GitHub, not on the
+  server. Production secrets never pass through the chat.
+- Migrations must stay compatible with the running version (`specs/principles.md`): a rollback does
+  not undo them.
+- The server is reached as `ssh ai-fitting` (the owner's SSH alias); CI logs in as `deploy`.
+  Commands that change the server need the owner's confirmation.
+
 ## Dependencies
 
 - Check a package before adding it (rules in `CONTRIBUTING.md`). Plain `npm ci` must work: never
@@ -114,7 +131,9 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   specs, tooling.
 - No `Co-Authored-By` lines in commit messages.
 - Hooks: pre-commit (lint-staged, then gitleaks on staged changes), commit-msg (commitlint),
-  pre-push (`check:push`). Never skip them; `.claude/hooks/guard-bash.sh` blocks `--no-verify`.
+  pre-push (`npm run verify`). Never skip them; `.claude/hooks/guard-bash.sh` blocks `--no-verify`.
+- The guard reads a Bash command's text, so a `grep` for a blocked phrase is blocked too: search
+  files with the Grep/Read tools, and write such text with the editor, not with `cat <<EOF`.
 - A gitleaks hit is a real secret until proven otherwise: unstage it. Only a value confirmed to be a
   placeholder goes into the `.gitleaks.toml` allowlist, with a description.
 - One branch and pull request per phase of `tasks.md`; merged with "Rebase and merge".

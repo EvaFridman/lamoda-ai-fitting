@@ -1,6 +1,6 @@
 # 0001 Bootstrap: clarifications
 
-Status: accepted (2026-10-06).
+Status: done (2026-10-06). History, not instructions.
 
 Decisions made by the owner. Each line is final unless the owner changes it here.
 

@@ -1,6 +1,6 @@
 # 0001 Bootstrap: plan
 
-Status: accepted (2026-10-05).
+Status: done (2026-10-06). History, not instructions; what was built differs where noted inline and in `tasks.md`, "Outcome".
 Implements [spec.md](spec.md) (criteria AC1–AC26) under the decisions in
 [clarifications.md](clarifications.md) (ids like B7).
 
