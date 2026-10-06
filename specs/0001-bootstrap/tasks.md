@@ -100,8 +100,9 @@ Ready on the Mac: Node 26, npm 12, Docker 29, gitleaks 8.30, Ansible 2.21, jq, g
 
 - [ ] **T14. Next skeleton.** `web/` with Next 16, TS 6, `standalone`, React Compiler,
       `cacheComponents`; SCSS + Stylelint; FSD folders with layer READMEs; `app/` only re-exports.
-      Root `lint:css` script and CI step.
-      Check: root `npm run lint`, `npm run lint:css`, `npm run typecheck`.
+      Root `lint:css`; `web` joins the root `typecheck`, `test` and `build` scripts, so
+      `npm run verify` (pre-push and CI) covers it; `npm ci --prefix web` in CI.
+      Check: root `npm run verify` runs the web typecheck and `next build`.
       Commit: `feat(web): add next skeleton with fsd layout and scss`
 - [ ] **T15. Home page.** Providers (TanStack Query, Zustand), zod env, server-only Redis client
       (lazy), `apiFetch`; home page with `<Suspense>` greeting, error state, version footer.

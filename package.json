@@ -12,7 +12,8 @@
     "lint": "eslint --max-warnings=0 .",
     "typecheck": "npm --prefix api run typecheck",
     "test": "npm --prefix api run test",
-    "check:push": "npm run lint && npm run typecheck && npm test"
+    "build": "npm --prefix api run build",
+    "verify": "npm run format:check && npm run lint && npm run typecheck && npm test && npm run build"
   },
   "allowScripts": {},
   "devDependencies": {

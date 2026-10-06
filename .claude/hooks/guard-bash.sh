@@ -34,7 +34,11 @@ has "git${A}(commit|push|merge|rebase)${A}--no-verify\b" && deny 'skipping git h
 has "git${A}commit${A}[[:space:]]-[a-zA-Z]*n[a-zA-Z]*\b" && deny 'skipping git hooks (-n)'
 has "git${A}push${A}(--force\b|--force-with-lease\b|[[:space:]]-[a-zA-Z]*f[a-zA-Z]*\b|[[:space:]]\+)" &&
   deny 'force push'
-has "git${A}config${A}core\.hooksPath" && ! has "core\.hooksPath[[:space:]]+\.githooks" &&
+# Reading the setting (`git config core.hooksPath`) is fine; unsetting it or pointing it anywhere but
+# .githooks is not.
+has "git${A}config${A}--unset${A}core\.hooksPath" && deny 'unsetting the hooks path'
+has "git${A}config${A}core\.hooksPath[[:space:]]+[^;&|[:space:]]" &&
+  ! has "core\.hooksPath[[:space:]]+\.githooks([[:space:];&|]|$)" &&
   deny 'changing the hooks path'
 
 exit 0
