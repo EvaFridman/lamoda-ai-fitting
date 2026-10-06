@@ -62,8 +62,9 @@ Guards: each agent's PreToolUse hook in its frontmatter runs `node .claude/hooks
 with the rules in `.claude/hooks/<rules>-rules.mjs` (read-only agents share `read-only`: ls, grep,
 rg, find, read-only git; never secret files). A guard splits a command into the exact arguments the
 program gets (`guard-lib.mjs`) and checks them against allowlists; anything else, including a guard
-error, blocks. qa-tester's browser tools are allowlisted twice: in its `tools:` and in its rules (a
-test checks they match). The cases are in `.claude/hooks/guards.test.mjs` (`node:test`, part of
+error, blocks. qa-tester's browser tools are allowlisted in its rules; `tools:` lists the same set
+(a test keeps them equal) but does not limit an MCP server declared in the agent file (checked
+live), so the guard is what enforces it. The cases are in `.claude/hooks/guards.test.mjs` (`node:test`, part of
 `npm test`); add a case for every bypass found. Agent files are loaded when a session starts:
 restart Claude Code after changing one.
 
@@ -91,8 +92,8 @@ Pinned on purpose; each "not newer" has a reason and a condition to move on.
   hook and CI run exactly this, so the list of checks lives in one place (root `package.json`).
 
 `verify` covers `api` (lint, typecheck, tests, build), `web` (lint, Stylelint, typecheck,
-`next build`) and the agents' guard hooks (lint, tests). `web` has no tests yet: when its first test lands, add `web` to the root `test`
-script, or `verify` keeps saying nothing about web logic.
+`next build`) and the agents' guard hooks (lint, tests). `web` has no tests yet: when its first test
+lands, add `web` to the root `test` script, or `verify` keeps saying nothing about web logic.
 
 Before calling a task done: `npm run verify`. Before opening a pull request, also a clean install
 the way CI does it (`npm ci` in the root and in each package), then `verify` again.

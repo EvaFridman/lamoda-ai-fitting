@@ -40,7 +40,13 @@ function checkPath(file) {
 function checkVitestArgs(args) {
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
-    if (['-t', '--testNamePattern'].includes(a) && i + 1 < args.length) i++;
+    // A value starting with - would be parsed by Vitest as a flag of its own (--outputFile=...).
+    if (
+      ['-t', '--testNamePattern'].includes(a) &&
+      i + 1 < args.length &&
+      !args[i + 1].startsWith('-')
+    )
+      i++;
     else if (['--reporter=dot', '--reporter=verbose', '--reporter=default'].includes(a)) continue;
     else if (VITEST_PATH.test(a) && !hasDotDot(a)) continue;
     else {

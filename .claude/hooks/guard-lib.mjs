@@ -57,18 +57,22 @@ export function words(cmd) {
 
 /**
  * True if any path part of the word names a secret file. Parts are split at / = : and a leading @
- * (curl reads @file), and compared case-insensitively (macOS file systems ignore case).
+ * (curl reads @file), and compared case-insensitively (macOS file systems ignore case). A value
+ * glued to a short flag (-S.env) is checked too.
  */
 export function isSecret(word) {
-  return word
-    .toLowerCase()
-    .split(/[/=:@]/)
-    .some(
-      (part) =>
-        part === 'vault.yml' ||
-        part === '.env' ||
-        (part.startsWith('.env.') && part !== '.env.example'),
-    );
+  const candidates = /^-[^-]/.test(word) ? [word, word.slice(2)] : [word];
+  return candidates.some((w) =>
+    w
+      .toLowerCase()
+      .split(/[/=:@]/)
+      .some(
+        (part) =>
+          part === 'vault.yml' ||
+          part === '.env' ||
+          (part.startsWith('.env.') && part !== '.env.example'),
+      ),
+  );
 }
 
 export function projectDir() {

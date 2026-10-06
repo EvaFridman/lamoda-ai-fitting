@@ -48,9 +48,10 @@ A hook (rules in `.claude/hooks/qa-tester-rules.mjs`) limits Bash to:
   `docker compose stop|start|restart <one service>`, `docker compose up -d --wait`.
 
 The browser is told to load only these origins, but that filter is not a security boundary: never
-navigate it anywhere else yourself (the hook refuses other URLs). Browser tools that read or write
-local files or run code outside the page are not available; screenshots and snapshots take no file
-name and land in `.playwright-mcp/`. Never test production or any other host.
+navigate it anywhere else yourself (the hook refuses other URLs in navigate and tabs; never follow
+an external link or change `location` from `browser_evaluate` either). Browser tools that read or
+write local files or run code outside the page are refused by the hook even if you see them;
+screenshots and snapshots take no file name and land in `.playwright-mcp/`. Never test production or any other host.
 
 ## How you work
 
