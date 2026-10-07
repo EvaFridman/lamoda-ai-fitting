@@ -186,8 +186,10 @@ The values come from Lamoda's stylesheets, which are referenced by the saved pag
 
 ## Tests (D12)
 
-- `web/vitest.config.ts`: `environment: 'jsdom'`, `resolve.tsconfigPaths`, CSS modules on with
-  class names kept, a setup file for `jest-dom`, and tests matching `src/**/*.test.tsx?`.
+- `web/vitest.config.mts`: `environment: 'jsdom'`, `resolve.tsconfigPaths`, CSS modules on with
+  class names kept, a setup file for `jest-dom`, and tests matching `src/**/*.test.tsx?`. `.mts`,
+  not `.ts` (changed in T2 with the owner): `web` is a CommonJS package, and Vite warns about an ESM
+  config loaded as CommonJS; `"type": "module"` would touch `next.config.ts` and instrumentation.
 - `web/package.json`: `"test": "vitest run"`. The root `test` script gets `npm --prefix web run
 test`, so `verify` runs it (AC10). `CLAUDE.md` loses "web has no tests yet".
 - What is tested is behaviour, not looks:
@@ -218,7 +220,7 @@ test`, so `verify` runs it (AC10). `CLAUDE.md` loses "web has no tests yet".
   - `web/src/shared/lib/format-price.ts`;
   - `web/src/_pages/ui-kit/{index.ts, ui/*, config/sections.ts}`;
   - `web/app/ui-kit/page.tsx`;
-  - `web/vitest.config.ts`, `web/vitest.setup.ts`.
+  - `web/vitest.config.mts`, `web/vitest.setup.ts`.
 - Changed:
   - `web/app/globals.scss` (tokens, font, no dark theme);
   - `web/app/layout.tsx` (Onest via `next/font/google`, variable on `<html>`);

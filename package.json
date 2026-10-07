@@ -12,7 +12,7 @@
     "lint": "eslint --max-warnings=0 .",
     "lint:css": "stylelint --max-warnings=0 \"web/**/*.scss\"",
     "typecheck": "npm --prefix api run typecheck && npm --prefix web run typecheck",
-    "test": "node --test .claude/hooks/guards.test.mjs && npm --prefix api run test",
+    "test": "node --test .claude/hooks/guards.test.mjs && npm --prefix api run test && npm --prefix web run test",
     "build": "npm --prefix api run build && npm --prefix web run build",
     "verify": "npm run format:check && npm run lint && npm run lint:css && npm run typecheck && npm test && npm run build"
   },

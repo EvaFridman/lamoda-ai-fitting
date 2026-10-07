@@ -11,6 +11,7 @@ npm run dev         # dev-сервер на http://localhost:3001
 npm run build       # production-сборка (.next/standalone)
 npm run start       # запуск собранного сервера на порту 3001
 npm run typecheck   # типы маршрутов (next typegen) и проверка TypeScript
+npm test            # тесты Vitest (jsdom, Testing Library): src/**/*.test.ts(x), Docker не нужен
 ```
 
 Сборка не обращается к api, Redis и базе: данные с api рендерятся при запросе внутри `<Suspense>`,
