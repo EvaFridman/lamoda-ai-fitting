@@ -24,6 +24,11 @@ Details and commands: `deploy/README.md`.
   are applied by `deploy.sh` without restarting nginx.
 - The server's `.env` is rewritten from GitHub on every deploy; values change in GitHub, not on the
   server.
+- Before the new copy starts, `deploy.sh` runs, from the new image, the migrations and then the seed
+  (`dist/seed/main.js`, the demo catalog: adds only missing rows, a no-op once loaded). A failed
+  migration or seed stops the deploy and the active copy keeps serving. An image without the seed
+  (a rollback to a version from before it) logs "seed skipped" and deploys. A rollback to the copy
+  that still runs only switches nginx: no migrations, no seed.
 - Migrations must stay compatible with the running version (`specs/principles.md`): a rollback does
   not undo them.
 - The server is reached as `ssh ai-fitting` (the owner's SSH alias); CI logs in as `deploy`.

@@ -163,7 +163,8 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
 ## Production and deploys
 
 A merge into `main` is the deploy (blue-green for api and web; the Temporal worker is replaced in
-place). How deploys, rollbacks and images work: `.claude/rules/deploy.md`, loaded when you work on
+place). Before the new copy starts, the deploy runs the migrations, then the seed (the demo catalog,
+a no-op once loaded); a failure of either stops it, the running copy keeps serving. How deploys, rollbacks and images work: `.claude/rules/deploy.md`, loaded when you work on
 deploy, CI, Docker or `scripts/` files, and `deploy/README.md`. Production secrets never pass through the chat;
 commands that change the server (`ssh ai-fitting`) need the owner's confirmation.
 

@@ -122,6 +122,16 @@ the owner's drawsql diagram (12 tables); the decisions below amend it.
   sizes, attribute links) are never re-added: deleting one is an edit too.
 - C16a. Exception: a deploy of an image that has no seed (a rollback to a version from before this
   spec's seed) skips the step and logs "seed skipped", so such a rollback still works.
+- C25. (T6 review) The backlog item "Local deploy check leaves its stack" is done in T6, which
+  changes the same script. Outside CI, `scripts/ci-deploy-check.sh` removes on exit, success or
+  failure, the stacks it started, their volumes, `.deploy-state` and its `<tag>-next` image tags. It removes only what it
+  started: when the compose projects of a deploy, their volumes or `.deploy-state` already exist
+  (an earlier run, or a real deploy), it refuses to start and touches nothing. It and `deploy.sh`
+  ignore `COMPOSE_PROJECT_NAME` from the caller's shell, which would otherwise point them at another
+  project, such as the development stack. CI keeps the stack: the runner is thrown away. Accepted
+  risk: run by hand on the server before its first deploy, it finds no stack and would remove the
+  one a deploy starts meanwhile; the script never reaches the server (CD syncs only `deploy/`).
+  Recorded in `.claude/README.md` ("Принятые риски"), as the guard sees only command text.
 
 ## Workflow
 

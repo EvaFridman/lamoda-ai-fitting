@@ -34,6 +34,9 @@ set -a
 set +a
 : "${SITE_DOMAIN:?set SITE_DOMAIN in $env_file}"
 export IMAGE_REGISTRY="${IMAGE_REGISTRY:-}"
+# The project names come from the compose files (and -p); one from the caller's shell or the env file
+# would put infra and the worker into another project.
+unset COMPOSE_PROJECT_NAME COMPOSE_FILE COMPOSE_PROFILES
 
 log() { printf '%s deploy: %s\n' "$(date -u +%H:%M:%S)" "$*" >&2; }
 fail() { log "FAILED: $*"; exit 1; }
@@ -130,6 +133,22 @@ else
   log "migrating the database with $tag"
   app "$target" "$tag" run --rm --no-deps -T api npx --no-install prisma migrate deploy >&2 \
     || fail "migrations failed; $active keeps serving"
+
+  # The demo catalog (spec 0002): adds only the rows that are missing, a no-op once loaded. An image
+  # from before the seed existed (a rollback) has no entry point and skips the step. Its own exit
+  # code 3, because docker compose itself exits with 1 on many of its errors.
+  seed_status=0
+  app "$target" "$tag" run --rm --no-deps -T api sh -c 'test -f dist/seed/main.js || exit 3' \
+    || seed_status=$?
+  case "$seed_status" in
+    0)
+      log "seeding the demo catalog with $tag"
+      app "$target" "$tag" run --rm --no-deps -T api node dist/seed/main.js >&2 \
+        || fail "the seed failed; ${active:-nothing} keeps serving"
+      ;;
+    3) log "seed skipped: $tag has no dist/seed/main.js" ;;
+    *) fail "cannot check $tag for the seed (exit $seed_status); ${active:-nothing} keeps serving" ;;
+  esac
 
   log "starting $target with $tag"
   if ! app "$target" "$tag" up -d --wait --remove-orphans; then

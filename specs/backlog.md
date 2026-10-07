@@ -12,10 +12,6 @@ removes it from this list. Found by the agents' first security audit and trial r
   on checkouts.
 - **Sentry token scope.** `SENTRY_AUTH_TOKEN` is a repository secret; move it to the `production`
   environment with the step that uploads source maps.
-- **Local deploy check leaves its stack.** `scripts/ci-deploy-check.sh` leaves the containers and
-  the `ai-fitting-infra_*` volumes running after it ends. CI gets a fresh runner, but a second local
-  run fails: the old database volume keeps the previous run's random password (`P1000`). Tear the
-  stacks and their volumes down on exit when the script runs outside CI.
 
 ## nginx and realtime
 

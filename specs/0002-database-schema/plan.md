@@ -211,7 +211,8 @@ Items added by this spec (`specs/backlog.md`, T1):
 - auth (0003): normalize phone input to `+79…`, email to lower case, minimum age 14 (C12);
 - file storage for user photos and generation results (C9a).
 
-Existing item in this spec's area: "Image ownership" (`web/Dockerfile`), done in T5.
+Existing items in this spec's area: "Image ownership" (`web/Dockerfile`), done in T5; "Local deploy
+check leaves its stack" (`scripts/ci-deploy-check.sh`), done in T6 (C25).
 
 ## Risks
 
