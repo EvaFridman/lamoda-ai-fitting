@@ -321,6 +321,8 @@ describe('main rules', () => {
       bash('ssh ai-fitting'),
       bash('cp api/src/{a,b}.ts /tmp'),
       bash('git grep -n apiFetch'),
+      bash('git diff --output-indicator-new=+ HEAD'),
+      bash('git diff HEAD > /tmp/x.patch'),
       bash('git grep --no-index --exclude-standard KEY'),
       bash("npx -c 'prisma generate'"),
       bash("git commit -q -F - <<'EOF'\nfix: y\n\n1) a paren and an apostrophe: don't\nEOF"),
@@ -452,6 +454,8 @@ describe('main rules', () => {
       bash("npx -c 'prisma migrate reset --force'"),
       bash("npm exec -c 'prisma db push'"),
       bash("npm exec --call='git push --force'"),
+      bash('git diff --output=.claude/hooks/main-rules.mjs HEAD~1'),
+      bash('git log -p --outp=CLAUDE.md'),
       bash("echo $(cat <<'EOF'\n1) don't\nEOF\n) && git push --force"),
     ],
   );

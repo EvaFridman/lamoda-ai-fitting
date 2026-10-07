@@ -553,6 +553,16 @@ function checkSegment(seg) {
   let sub = gitAt + 1;
   while (lw[sub]?.startsWith('-'))
     sub += ['-c', '-C', '--git-dir', '--work-tree'].includes(lw[sub]) ? 2 : 1;
+  // git diff/log/show --output=<file> writes any file (abbreviations included: --outp).
+  if (
+    ['diff', 'log', 'show'].includes(lw[sub]) &&
+    lw.some((x) => {
+      const name = x.split('=')[0];
+      return name.length >= 6 && '--output'.startsWith(name);
+    })
+  ) {
+    block('git --output writes a file; redirect with > if a file is really needed');
+  }
   // git grep --no-index searches ignored files (.env) unless told otherwise.
   if (lw[sub] === 'grep' && has('--no-index') && !has('--exclude-standard')) {
     block('git grep --no-index reads .env; add --exclude-standard or use rg');
