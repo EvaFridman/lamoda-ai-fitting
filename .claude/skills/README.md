@@ -34,9 +34,10 @@ Docker Compose (`CLAUDE.md`), which takes precedence. MIT licence.
 
 Written for this repository; edited like code.
 
-| Skill | Purpose                                                                                 | Used by                    |
-| ----- | --------------------------------------------------------------------------------------- | -------------------------- |
-| `fsd` | Feature-Sliced Design as `web/` applies it: layers (`_app`, `_pages`), slices, segments | main agent, `fsd-reviewer` |
+| Skill         | Purpose                                                                                   | Used by                     |
+| ------------- | ----------------------------------------------------------------------------------------- | --------------------------- |
+| `fsd`         | Feature-Sliced Design as `web/` applies it: layers (`_app`, `_pages`), slices, segments   | main agent, `fsd-reviewer`  |
+| `finish-task` | Runs the agents CLAUDE.md requires after a task, by changed files, and writes the summary | main agent (`/finish-task`) |
 
 Not added: `prisma-orm-setup` defaults new applications to Prisma 8 (a release candidate; this project
 pins Prisma 7, see `CLAUDE.md`); `prisma-upgrade-v7` is a v6-to-v7 migration guide; the MongoDB,
