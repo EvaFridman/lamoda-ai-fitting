@@ -7,3 +7,4 @@ api/src/generated
 
 # Third-party agent skills, kept byte-identical to upstream (.claude/skills/README.md)
 .claude/skills/prisma-*
+.claude/skills/temporal-developer

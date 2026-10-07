@@ -38,9 +38,12 @@ Keep this file true: update it in the same commit that changes what a section de
   4. A bug it reproduces: `test-writer` pins it with a failing test, then fix it and repeat 2–3.
      Stop and ask the owner instead when the bug shows the plan or spec is wrong, or the fix changes
      behavior outside the task. Its "not covered by tests" list goes to `test-writer` too.
-  5. `code-reviewer` on the diff and, in parallel, `security-reviewer` when the diff touches
-     endpoints or input handling, auth, config or env, logging, web rendering of data,
-     dependencies, Docker/nginx/deploy/CI or `.claude/`.
+  5. `code-reviewer` on the diff and, in parallel:
+     - `security-reviewer` when the diff touches endpoints or input handling, auth, config or env,
+       logging, web rendering of data, dependencies, Docker/nginx/deploy/CI or `.claude/`;
+     - `fsd-reviewer` when it touches `web/app` or `web/src`;
+     - `temporal-reviewer` when it touches `api/src/temporal` or code that starts or signals
+       workflows.
   6. The task summary lists what each agent found and what was done about it.
 
 ## Agents
@@ -63,6 +66,11 @@ instead of doing their job in the main context.
 - `security-reviewer`: reviews a diff for security: secrets, input, access, abuse, personal data,
   web, infrastructure, dependencies, agent configuration; every finding with a concrete scenario
   (read-only).
+- `fsd-reviewer`: reviews `web/` changes against Feature-Sliced Design (read-only). The rules are
+  the `fsd` skill (`.claude/skills/fsd/`): use it when writing code in `web/` too.
+- `temporal-reviewer`: reviews Temporal code against the official `temporal-developer` skill and
+  this project's setup, above all workflow versioning, since the worker is replaced in place
+  (read-only). Use that skill when writing Temporal code too.
 
 How the agents and their guard hooks work, the owner's decisions behind them and the accepted
 risks: [.claude/README.md](.claude/README.md). Working rules:
