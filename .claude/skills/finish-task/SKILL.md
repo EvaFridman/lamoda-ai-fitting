@@ -20,24 +20,31 @@ request): `qa-tester` needs them.
 
 ## 2. Which agents
 
-| Changed                                                             | Agent                    |
-| ------------------------------------------------------------------- | ------------------------ |
-| logic in `api/src` (not only tests, types or comments)              | `test-writer` (step 1)   |
-| an endpoint, a page, a workflow: anything a user or client observes | `qa-tester` (step 3)     |
-| anything                                                            | `code-reviewer` (step 5) |
-| the areas CLAUDE.md step 5 lists for security                       | `security-reviewer`      |
-| `web/app`, `web/src`                                                | `fsd-reviewer`           |
-| `api/src/temporal`, or code that starts or signals workflows        | `temporal-reviewer`      |
+| Changed                                                                     | Agent                    |
+| --------------------------------------------------------------------------- | ------------------------ |
+| logic in `api/src` or `web/src` (not only tests, types, styles or comments) | `test-writer` (step 1)   |
+| an endpoint, a page, a workflow: anything a user or client observes         | `qa-tester` (step 3)     |
+| anything                                                                    | `code-reviewer` (step 5) |
+| the areas CLAUDE.md step 5 lists for security                               | `security-reviewer`      |
+| `web/app`, `web/src`                                                        | `fsd-reviewer`           |
+| `api/src/temporal`, or code that starts or signals workflows                | `temporal-reviewer`      |
 
 Docs, specs, tooling or config only: no `test-writer`, no `qa-tester`.
 
 ## 3. Run, in this order
 
-1. `test-writer`, if needed. Before it runs, take a snapshot of everything except test files, so a
-   write by a test to a file the task already changed shows up too:
-   `git diff HEAD -- . ':!*.spec.ts' ':!*.e2e-spec.ts' | shasum` and `git status --short`. Pass it
-   the changed files and the acceptance criteria. After it, repeat both: any difference outside
-   `*.spec.ts` / `*.e2e-spec.ts` is a finding to report and undo with the owner.
+1. `test-writer`, if needed. Before it runs, take a snapshot of everything except the test files
+   its hook allows, so a write by a test to a file the task already changed or created shows up
+   too. With `X` = `':!api/src/*.spec.ts' ':!api/test/*.e2e-spec.ts' ':!web/src/*.test.ts' ':!web/src/*.test.tsx'`
+   (in a pathspec `*` also matches `/`):
+   - `git diff HEAD -- . X | shasum` (tracked files);
+   - `git -c core.quotePath=false ls-files -o --exclude-standard -- . X | git hash-object --stdin-paths | shasum` (new,
+     untracked files, which `git diff` does not show);
+   - `git status --short`.
+
+   Pass it the changed files and the acceptance criteria. After it, repeat all three: any
+   difference outside those test files is a finding to report and undo with the owner.
+
 2. `npm run verify`, capturing the exit code right after the command. A failure is fixed before
    going on.
 3. `qa-tester`, if needed, with the acceptance criteria and what changed. A reproduced bug:
@@ -49,7 +56,7 @@ Docs, specs, tooling or config only: no `test-writer`, no `qa-tester`.
    the base: the uncommitted changes, `git diff HEAD` plus the untracked files.
 5. Fix what the reviewers found that is in the task's scope; anything else (outside the task, or
    the owner's decision) goes to the summary as an open question. After fixes: if a fix changes
-   api logic or observable behavior, repeat steps 1–3 for it; re-run `npm run verify`; re-run the
+   api or web logic or observable behavior, repeat steps 1–3 for it; re-run `npm run verify`; re-run the
    reviewer whose area the fix touched on the final diff, or say in the summary that the fix was
    not reviewed.
 

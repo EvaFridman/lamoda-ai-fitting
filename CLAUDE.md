@@ -41,7 +41,7 @@ Keep this file true: update it in the same commit that changes what a section de
 - After implementing a task, before the owner's review, run the `finish-task` skill
   (`.claude/skills/finish-task/`): it picks the agents for the changed files and carries out these
   steps (agents: see "Agents" below):
-  1. `test-writer`: tests for new or changed api logic. Then `git status`: only test files may have
+  1. `test-writer`: tests for new or changed api or web logic. Then `git status`: only test files may have
      changed (its hook limits its tools, not what a test does when Vitest runs it).
   2. `npm run verify`.
   3. `qa-tester`, when the task changes observable behavior (an endpoint, a page, a workflow); not
@@ -63,7 +63,7 @@ Subagents in `.claude/agents/` work in their own context and return a short repo
 instead of doing their job in the main context.
 
 - `spec-finder`: task briefs and facts from the specs and docs (read-only).
-- `test-writer`: writes and runs api tests; reports bugs instead of fixing code.
+- `test-writer`: writes and runs api and web tests; reports bugs instead of fixing code.
 - `qa-tester`: tests the running local stack with curl and a browser; reports reproduced bugs and
   scenarios no test covers.
 - `code-reviewer`, `security-reviewer`, `fsd-reviewer`, `temporal-reviewer`: review a diff

@@ -74,3 +74,8 @@ lamoda.ru: the catalog, a product page and the order history.
 
 - D12. Vitest and Testing Library for components with logic. `web` joins the root `npm test` and so
   `verify`. The `test-writer` agent is extended to `web`; `.claude/README.md` is updated with it.
+- D12a. `test-writer` in web (decided in T3): web test runs take `-t <name>` and `--reporter=` like
+  api's; the agent may run `npm --prefix web run typecheck` (`next typegen` writes only git-ignored
+  files). A test writing git-ignored files (`.claude/settings.local.json`, `node_modules`) stays
+  part of the accepted risk that a test runs with the owner's rights; the check after the agent
+  does not cover them.

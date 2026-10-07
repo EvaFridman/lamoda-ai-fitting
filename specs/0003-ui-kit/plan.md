@@ -204,7 +204,8 @@ test`, so `verify` runs it (AC10). `CLAUDE.md` loses "web has no tests yet".
   - Pagination edges.
 - **`test-writer` extended to web**:
   - `.claude/hooks/test-writer-rules.mjs` also allows writing `web/src/**/*.test.ts(x)` and running
-    `npm --prefix web test [-- <src/... paths>]` and `npx eslint --max-warnings=0 web/<files>`;
+    `npm --prefix web test [-- <src/... paths> | -t <name> | --reporter=…]`,
+    `npm --prefix web run typecheck` and `npx eslint --max-warnings=0 web/src/<files>` (D12a);
   - new cases in `guards.test.mjs`;
   - `.claude/agents/test-writer.md` gets a web section;
   - `.claude/README.md` is updated;
