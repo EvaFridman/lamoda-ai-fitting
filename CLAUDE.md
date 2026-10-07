@@ -29,7 +29,9 @@ Keep this file true: update it in the same commit that changes what a section de
   refers to and related decisions it does not mention), then state a time estimate. After it: stop,
   summarize what changed and the check result, wait for the owner's OK, then commit.
 - If a task shows the plan is wrong: stop, fix the plan with the owner, then continue.
-- After implementing a task, before the owner's review (agents: see "Agents" below):
+- After implementing a task, before the owner's review, run the `finish-task` skill
+  (`.claude/skills/finish-task/`): it picks the agents for the changed files and carries out these
+  steps (agents: see "Agents" below):
   1. `test-writer`: tests for new or changed api logic. Then `git status`: only test files may have
      changed (its hook limits its tools, not what a test does when Vitest runs it).
   2. `npm run verify`.
