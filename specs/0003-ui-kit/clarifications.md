@@ -40,6 +40,8 @@ lamoda.ru: the catalog, a product page and the order history.
   someone else's graphics in a public repository and on the production site.
 - D4. Font: the closest free font with Cyrillic from Google Fonts, served through `next/font` from
   our own domain. The plan offers two or three candidates; the owner picks one.
+- D4a. Lamoda's font is CoFo Sans (commercial). The owner picked Onest (candidates: Onest, Golos
+  Text, Inter).
 - D8. Light theme only, as on Lamoda. The dark values in `web/app/globals.scss` go. Tokens stay CSS
   custom properties, so a dark theme can be added later.
 - D9. The model is desktop Lamoda. Components do not break and the page does not scroll sideways
@@ -51,6 +53,8 @@ lamoda.ru: the catalog, a product page and the order history.
 - D7. Keyboard and screen-reader behaviour of dropdowns, selects, dialogs, tabs and tooltips comes
   from a headless library (Radix UI or Base UI, chosen in the plan after the checks in
   `CONTRIBUTING.md`), styled with our own SCSS.
+- D7a. The owner picked Base UI (`@base-ui/react`) over Radix UI: one package that also has the
+  Drawer, Toast, two-thumb Slider and CheckboxGroup the kit needs.
 
 ## Page
 
@@ -58,6 +62,9 @@ lamoda.ru: the catalog, a product page and the order history.
 - D11. One page: tokens first (colours, type, spacing), then a section per component with every
   variant and state, and a table of contents on the left with anchor links. Examples are live: they
   can be clicked and change state.
+- D11a. Hover and focus are shown live (pointer, Tab) with a caption, not frozen: freezing them
+  would put demo-only code into every component. Disabled, selected, open, error and applied are
+  shown as static examples. AC3 amended accordingly.
 
 ## Tests
 

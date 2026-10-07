@@ -1,6 +1,6 @@
 # 0003 UI-kit
 
-Status: accepted (2026-10-08).
+Status: accepted (2026-10-08), amended the same day while planning: AC3 (D11a).
 Decisions this spec relies on: [clarifications.md](clarifications.md) (referred to by their ids, e.g. D5).
 
 ## Goal
@@ -65,8 +65,9 @@ state and tried out.
 - AC1. `GET /ui-kit` returns 200. The page has a section for every component of D5 and D5a, and
   the table of contents links to each section by anchor.
 - AC2. The page carries `<meta name="robots" content="noindex">`.
-- AC3. Each section shows every variant and state named in "In scope": default, hover, focus,
-  disabled, error where the component has one, open or applied.
+- AC3. Each section shows every variant and state named in "In scope" as a static example:
+  default, disabled, error where the component has one, selected, open or applied. Hover and focus
+  are shown live, with a caption telling how to see them (D11a).
 - AC4. The examples are live. A chip opens its dropdown, "Применить" turns the chip to applied, ×
   clears it, a tab switches its panel, the favourite toggle switches, a toast appears and goes
   away.
