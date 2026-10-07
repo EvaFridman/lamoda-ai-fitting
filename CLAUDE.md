@@ -64,16 +64,16 @@ instead of doing their job in the main context.
   web, infrastructure, dependencies, agent configuration; every finding with a concrete scenario
   (read-only).
 
-Guards: each agent's PreToolUse hook in its frontmatter runs `node .claude/hooks/guard.mjs <rules>`
-with the rules in `.claude/hooks/<rules>-rules.mjs` (read-only agents share `read-only`: ls, grep,
-rg, find, read-only git; never secret files). A guard splits a command into the exact arguments the
-program gets (`guard-lib.mjs`) and checks them against allowlists; anything else, including a guard
-error, blocks. qa-tester's browser tools are allowlisted in its rules; `tools:` lists the same set
-(a test keeps them equal) but does not limit an MCP server declared in the agent file (checked
-live), so the guard is what enforces it. The main session's guard uses the same entry point with
-the `main` rules (a blocklist; see "Git"). The cases are in `.claude/hooks/guards.test.mjs`
-(`node:test`, part of `npm test`); add a case for every bypass found. Agent files are loaded when a session starts:
-restart Claude Code after changing one.
+How the agents and their guard hooks work, the owner's decisions behind them and the accepted
+risks: [.claude/README.md](.claude/README.md). Working rules:
+
+- Every guard runs as `node .claude/hooks/guard.mjs <rules>` (rules in `.claude/hooks/*-rules.mjs`);
+  agents' guards are allowlists, the main session's is a blocklist (see "Git").
+- A guard bypass found gets a case in `.claude/hooks/guards.test.mjs` (part of `npm test`).
+- A `tools:` list does not limit an MCP server declared in the agent file; its guard does.
+- Agent files are loaded when a session starts: restart Claude Code after changing one.
+- A change to `.claude/` updates `.claude/README.md` in the same commit when it changes what the
+  README describes.
 
 ## Stack and versions
 
