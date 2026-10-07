@@ -20,7 +20,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       three new items in `specs/backlog.md` (plan, "Backlog").
       Check: `npm run format:check`; the owner has accepted spec, plan and tasks.
       Commit: `docs(specs): add spec 0002 for the database schema`
-- [ ] **T2. Prisma schema and migration.** Models, enums, relations, `onDelete`, unique constraints,
+- [x] **T2. Prisma schema and migration.** Models, enums, relations, `onDelete`, unique constraints,
       indexes and the partial unique index in `api/prisma/schema.prisma` (plan, "Schema");
       `migrate dev --create-only --name init_schema`, the CHECK constraints appended to
       `migration.sql` (plan, "Migration"), the migration applied; `prisma generate`.
@@ -35,8 +35,8 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       `.claude/agents/test-writer.md`, `.claude/README.md`, the comment in `api/vitest.config.ts`;
       Claude Code restarted before `test-writer` runs. `CLAUDE.md` (Commands) and `README.md`:
       Docker must be running for `verify`.
-      Check: AC3–AC6 (each rule of C12, the unique keys of C7/C11/C15, the deletes of C8, UUID v7 and
-      timestamps); AC7 (`npm run verify` locally with a clean `npm ci --prefix api`; CI green on the
+      Check: AC3–AC6 (each rule of C12 with C22/C23, the unique keys of C7/C11/C15 including a user
+      with two archived sessions and an active one (C21), the deletes of C8, UUID v7 and timestamps); AC7 (`npm run verify` locally with a clean `npm ci --prefix api`; CI green on the
       pull request); with Docker stopped, `npm test` fails with the message to start it.
       Commit: `test(api): check the database constraints on a throwaway postgres`
 - [ ] 👤 **Merge PR 1.** CD applies the migration on production (deploy log shows the migration and
@@ -47,7 +47,8 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 - [ ] **T4. Seed.** `api/src/seed/` (entry, module, service, catalog data with articles, garment
       kinds and image keys), scripts `seed` and `seed:dev` in `api/package.json`; tests for the
       idempotence rules in `api/test/database/seed.e2e-spec.ts` (`test-writer`, on the throwaway
-      database of T3, C20). `CLAUDE.md` (Docker (local development)) and `README.md`: local migrate
+      database of T3, C20), and that every article matches `[A-Za-z0-9][A-Za-z0-9-]*`, at most 50
+      characters (C22). `CLAUDE.md` (Docker (local development)) and `README.md`: local migrate
       and seed.
       Check: AC8 (counts after `docker compose run --rm api npm run seed:dev` on an empty database);
       AC9 (second run: same counts; a price edited by hand survives); `npm run verify`.

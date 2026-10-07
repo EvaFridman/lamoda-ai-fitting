@@ -93,7 +93,8 @@ failed }` → `generation_status` (C6).
 | `products_rating_check`                                                                 | `rating BETWEEN 0 AND 5` (NULL passes)                                                                                                                                                                                                  |
 | `product_variations_stock_check`                                                        | `stock >= 0`                                                                                                                                                                                                                            |
 | `categories_sort_order_check`, `product_images_sort_order_check`                        | `sort_order >= 0`                                                                                                                                                                                                                       |
-| `<table>_<column>_check` for the four image keys                                        | `x <> '' AND x !~ '^/' AND strpos(x, '..') = 0 AND strpos(x, '://') = 0`                                                                                                                                                                |
+| `<table>_<column>_check` for the four image keys (C22)                                  | `x ~ '^[A-Za-z0-9][A-Za-z0-9._-]*(/[A-Za-z0-9][A-Za-z0-9._-]*)*$' AND strpos(x, '..') = 0`                                                                                                                                              |
+| `ai_generations_error_message_check` (C23)                                              | `error_message <> ''` (the length is the column type, `varchar(1000)`)                                                                                                                                                                  |
 | `ai_generations_status_check`                                                           | `(status = 'completed' AND result_image_key IS NOT NULL AND error_message IS NULL) OR (status = 'failed' AND error_message IS NOT NULL) OR (status IN ('pending','processing') AND result_image_key IS NULL AND error_message IS NULL)` |
 
 - `CURRENT_DATE` in a CHECK is evaluated when a row is written: a date valid then stays valid, so
@@ -149,6 +150,8 @@ failed }` → `generation_status` (C6).
 
 ## Placeholder images (C9a, C9b, C9c)
 
+- Seed articles match `[A-Za-z0-9][A-Za-z0-9-]*`, at most 50 characters, so every key passes the
+  image key CHECK (C22); the seed test checks it together with the files.
 - Keys `seed/products/<article>/<n>.webp`, files `web/public/media/seed/products/…`, WebP only: a
   drawn garment of the product's kind (dress, jeans, jacket, T-shirt, sneakers, …) in the product's
   colour on a light background, 3:4, 600×800, under 100 KB each. No photos of real products.
@@ -202,6 +205,7 @@ Existing item in this spec's area: "Image ownership" (`web/Dockerfile`), done in
 | Risk                                                                           | Mitigation                                                                                                                                    |
 | ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | `partialIndexes` is a preview feature: its syntax may change in a later Prisma | pinned Prisma 7.10; if it misbehaves, the index moves to raw SQL in the migration and the test of C15 catches a regression                    |
+| The client treats the partial key `userId` as fully unique (C21)               | queries add `isActive: true`; a comment in `schema.prisma`; T3 tests a user with archived sessions and an active one                          |
 | A later `migrate dev` wants to drop or rewrite something added by hand         | only CHECKs are added by hand, and Prisma ignores them; T2 runs `prisma migrate diff` against the migrated database and expects no difference |
 | Regex classes behave differently under the database's locale                   | ASCII and explicit Cyrillic ranges only, no `[[:alpha:]]`; tests run on the same image as production                                          |
 | Docker not running blocks `verify` and pre-push                                | intended (C19); the failure message says to start Docker                                                                                      |
