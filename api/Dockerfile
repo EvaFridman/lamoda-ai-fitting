@@ -57,13 +57,16 @@ RUN case "$(uname -m)" in \
 # readable by the app user, so a compromised process cannot rewrite its own code.
 FROM base AS runtime
 ENV NODE_ENV=production
-COPY --from=prod-deps /app/node_modules ./node_modules
+# --chown: COPY --from keeps the owner the files had in the build stage (the app user).
+COPY --from=prod-deps --chown=root:root /app/node_modules ./node_modules
 # "type": "module" tells Node that dist/*.js is ESM.
 COPY package.json ./
 # Schema, migrations and config for `prisma migrate deploy`.
 COPY prisma ./prisma
 COPY prisma.config.ts ./
-COPY --from=build /app/dist ./dist
+COPY --from=build --chown=root:root /app/dist ./dist
+# base gives /app to the app user; take it back, or the process could replace files in it.
+RUN chown root:root /app
 USER node
 EXPOSE 3000
 # The temporal-worker runs the same image with ["node", "dist/temporal/worker.js"].

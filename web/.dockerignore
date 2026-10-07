@@ -11,5 +11,6 @@ next-env.d.ts
 # Not needed to build or run
 coverage
 *.md
+**/.DS_Store
 Dockerfile
 .dockerignore

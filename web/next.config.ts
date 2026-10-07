@@ -15,6 +15,16 @@ const nextConfig: NextConfig = {
   // Cache Components: the build prerenders a static shell; uncached data (anything from the api)
   // renders per request inside <Suspense>. So the image builds with no api, Redis or database.
   cacheComponents: true,
+  // Images under public/media/ keep their key when the file is replaced, so they are not immutable:
+  // a day bounds how long a visitor sees an old one (spec 0002, C9e).
+  async headers() {
+    return [
+      {
+        source: '/media/:path*',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=86400' }],
+      },
+    ];
+  },
 };
 
 // Source maps are generated, uploaded to Sentry and deleted from the build only when an auth token

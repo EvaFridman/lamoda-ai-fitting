@@ -37,6 +37,27 @@ the owner's drawsql diagram (12 tables); the decisions below amend it.
   binary, so a Node script in the task's scratchpad writes them, with `sharp` installed there (not in
   the repository) after the owner confirms the install. The owner looks at the images before the
   commit.
+- C9d. (T5 review: drawings were rejected) Placeholder images are stock photos from Unsplash, not
+  drawings. The Unsplash License allows downloading, changing and distributing them, commercial use
+  included, with no attribution required; Unsplash+ photos (paid) are not used. Each photo shows the
+  garment alone (flat lay, hanger or plain background) in the product's colour: no people, no
+  visible logos. One photo per product: image 1 is the whole garment, images 2 and 3 are closer
+  crops of the same photo. Each product's photo source (Unsplash page and author) is a field of the
+  seed data, checked by the seed test and not written to the database. The scratchpad script of
+  C9c re-encodes the photos to WebP, which drops their metadata.
+- C9e. (T5 review) `/media/` responses carry `Cache-Control: public, max-age=86400`: an image
+  replaced under the same key reaches visitors within a day.
+- C9f. (T5 review) `api/Dockerfile` claims root-owned files, but `COPY --from` keeps the build
+  stage's owner (the app user), and `/app` itself belongs to the app user, so a compromised api
+  process can rewrite its code. Fixed in T5 the same way as web: `--chown=root:root`, `/app` back to
+  root.
+- C9g. (T5) Clean stock photos rarely match an invented product, so the seed data follows the
+  photo: a product's colour, garment kind, name, description, material and season may change to
+  match its photo; articles stay, and every category keeps its products. A colour the catalog lacks
+  joins the colour attribute's values, and a value no product uses leaves it (the seed creates only
+  values products use, so AC8 counts every listed value). Photos still show no people (mannequins
+  and hangers are fine). The local database keeps the old rows (the seed never changes existing
+  products, C16b): the owner clears it and reseeds.
 - C10. Fixes to the design: `ai_generations.updared_at` → `updated_at`; all timestamps are
   `timestamptz`; `created_at` and `updated_at` are filled automatically; `generation_products` gets
   no timestamps (a link is created with its generation). Prisma models are PascalCase and fields

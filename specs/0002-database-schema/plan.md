@@ -2,7 +2,9 @@
 
 Status: accepted (2026-10-07), amended the same day after the review of T1: three pull requests,
 seed skipped by older images, `updated_at` default, the test-writer rules (C20), image ownership;
-amended after the review of T4: reference rows only with a new product (C16b).
+amended after the review of T4: reference rows only with a new product (C16b); amended during T5:
+Unsplash photos and seed data that follows them (C9d, C9g), `/media/` cache (C9e), api image
+ownership (C9f).
 How the accepted [spec.md](spec.md) is built. Decisions are referred to by their ids in
 [clarifications.md](clarifications.md).
 
@@ -150,16 +152,25 @@ failed }` → `generation_status` (C6).
     transaction together with its images, sizes and attribute links. So a reseed never adds,
     changes or removes anything under an existing product, and a hand edit survives (AC9).
 
-## Placeholder images (C9a, C9b, C9c)
+## Placeholder images (C9a–C9g)
 
 - Seed articles match `[A-Za-z0-9][A-Za-z0-9-]*`, at most 50 characters, so every key passes the
   image key CHECK (C22); the seed test checks it together with the files.
-- Keys `seed/products/<article>/<n>.webp`, files `web/public/media/seed/products/…`, WebP only: a
-  drawn garment of the product's kind (dress, jeans, jacket, T-shirt, sneakers, …) in the product's
-  colour on a light background, 3:4, 600×800, under 100 KB each. No photos of real products.
-- Drawn as SVG and converted to WebP once by a Node script in the task's scratchpad, with `sharp`
-  installed there (the owner confirms the install); only the `.webp` files are committed (C9c).
-- A test in api checks that every image key of the seed data has its file under `web/public/media/`.
+- Keys `seed/products/<article>/<n>.webp`, files `web/public/media/seed/products/…`, WebP only:
+  an Unsplash photo of one garment, no people or visible logos (C9d); image 1 the whole garment,
+  images 2 and 3 closer crops of the same photo; 3:4, 600×800, under 100 KB each.
+- The seed data follows the photo (C9g): a product's colour, kind, name, description, material and
+  season match it; articles and categories stay. The colour attribute gains `коричневый`,
+  `жёлтый`, `оранжевый` and loses the unused `красный`. 👤 The owner clears the local database and
+  reseeds, since the seed never changes existing products (C16b).
+- Each seed product names its photo (`photo: { url, author }`, the Unsplash page); the seed does not
+  store it. Downloads go to a fresh scratchpad folder; a Node script there, with `sharp` installed
+  there (the owner confirms the install), crops and re-encodes them; only the `.webp` files are
+  committed (C9c).
+- A test in api checks that every image key of the seed data has its file under `web/public/media/`,
+  no seed file lacks a key, and every product names an Unsplash photo.
+- `web/next.config.ts` sends `Cache-Control: public, max-age=86400` for `/media/:path*` (C9e).
+- `api/Dockerfile` runtime copies with `--chown=root:root` and gives `/app` back to root (C9f).
 - `web/Dockerfile`: the runtime stage copies `public/` (the standalone output does not include it),
   so `/media/…` is served in production (AC10). The backlog item "Image ownership" is in this area
   and is done in the same task: the app is owned by root and only `.next/cache` is writable by the
