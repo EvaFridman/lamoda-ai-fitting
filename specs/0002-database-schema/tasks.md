@@ -53,15 +53,18 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Check: AC8 (counts after `docker compose run --rm api npm run seed:dev` on an empty database);
       AC9 (second run: same counts; a price edited by hand survives); `npm run verify`.
       Commit: `feat(api): seed a demo catalog`
-- [ ] **T5. Placeholder images.** One WebP garment drawing per image key of T4 (C9b, C9c) in
-      `web/public/media/seed/products/<article>/<n>.webp`; a test that every key has its file;
+- [x] **T5. Placeholder images.** One WebP per image key of T4 in
+      `web/public/media/seed/products/<article>/<n>.webp`, cut from one Unsplash photo per product
+      (C9b, C9c, C9d); each product names its photo in `catalog.data.ts`, and its data follows the
+      photo (C9g); a test that every key has its file and every product its photo source;
       `web/Dockerfile` copies `public/` and owns the app by root with only `.next/cache` writable
-      (backlog "Image ownership", removed from `specs/backlog.md`); `docker-compose.yml` mounts
-      `./web/public`.
+      (backlog "Image ownership", removed from `specs/backlog.md`), `api/Dockerfile` the same
+      (C9f); `/media/` cached for a day (C9e); `docker-compose.yml` mounts `./web/public`.
       Check: every file is WebP (`file` reports `Web/P image`), 600×800, under 100 KB; the owner looks
-      at them; `curl -I localhost:3001/media/seed/…` → 200 for every key; the production web image
-      built by `scripts/ci-build-images.sh` serves one too and runs with a read-only app tree;
-      `npm run verify`.
+      at them; `curl -I localhost:3001/media/seed/…` → 200 with the C9e `Cache-Control` for every
+      key; the production images built by `scripts/ci-build-images.sh` serve one too and run with a
+      read-only app tree; `npm run verify`; 👤 the owner clears the local database and reseeds, then
+      AC8 and AC9 counts again.
       Commit: `feat(web): add placeholder images for the demo catalog`
 - [ ] **T6. Seed on deploy.** `deploy/scripts/deploy.sh` runs `node dist/seed/main.js` after the
       migrations when the image has it, "seed skipped" otherwise; a failed seed fails the deploy like

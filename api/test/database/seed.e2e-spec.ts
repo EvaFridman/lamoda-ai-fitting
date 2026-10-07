@@ -1,7 +1,11 @@
+import { existsSync, readFileSync, readdirSync, type Dirent } from 'node:fs';
+import { join, relative, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import type { PrismaClient } from '../../src/generated/prisma/client.js';
-import { CATALOG, imageKeys } from '../../src/seed/catalog.data.js';
+import { CATALOG, COLOUR, imageKeys } from '../../src/seed/catalog.data.js';
 import { SeedService } from '../../src/seed/seed.service.js';
 import { createTestDatabase } from '../support/test-database.js';
 
@@ -24,6 +28,28 @@ function pick(index: number) {
 }
 
 const sum = (numbers: number[]): number => numbers.reduce((a, b) => a + b, 0);
+
+// Reads the pixel size from the header of a WebP file (VP8 lossy, VP8L lossless, VP8X extended).
+// Throws on anything it cannot read, so an unknown format fails the test instead of passing.
+function webpSize(bytes: Buffer): { width: number; height: number } {
+  if (bytes.length < 30) throw new Error('too short for a WebP header');
+  const chunk = bytes.subarray(12, 16).toString('latin1');
+  if (chunk === 'VP8 ') {
+    if (bytes[23] !== 0x9d || bytes[24] !== 0x01 || bytes[25] !== 0x2a) {
+      throw new Error('VP8 start code not found');
+    }
+    return { width: bytes.readUInt16LE(26) & 0x3fff, height: bytes.readUInt16LE(28) & 0x3fff };
+  }
+  if (chunk === 'VP8L') {
+    if (bytes[20] !== 0x2f) throw new Error('VP8L signature not found');
+    const bits = bytes.readUInt32LE(21);
+    return { width: (bits & 0x3fff) + 1, height: ((bits >>> 14) & 0x3fff) + 1 };
+  }
+  if (chunk === 'VP8X') {
+    return { width: bytes.readUIntLE(24, 3) + 1, height: bytes.readUIntLE(27, 3) + 1 };
+  }
+  throw new Error(`unknown WebP chunk "${chunk}"`);
+}
 
 async function counts() {
   const [
@@ -85,6 +111,97 @@ describe('catalog data (C22)', () => {
       expect(product.sizes.length).toBeGreaterThanOrEqual(1);
       expect(Object.keys(product.attributes).length).toBeGreaterThanOrEqual(1);
     }
+  });
+
+  it('names an Unsplash photo and its author for every product, one photo per product (C9d)', () => {
+    for (const { article, photo } of CATALOG.products) {
+      expect(photo.url, article).toMatch(/^https:\/\/unsplash\.com\/photos\/[A-Za-z0-9_-]+$/);
+      expect(photo.author.length, article).toBeGreaterThan(0);
+      expect(photo.author, article).toBe(photo.author.trim());
+    }
+    const urls = CATALOG.products.map((p) => p.photo.url);
+    expect(new Set(urls).size).toBe(urls.length);
+  });
+
+  it('gives every product a colour from the colour attribute', () => {
+    const colours = CATALOG.attributes.find((a) => a.name === COLOUR)?.values ?? [];
+    expect(colours.length).toBeGreaterThan(0);
+    for (const { article, attributes } of CATALOG.products) {
+      expect(colours, article).toContain(attributes[COLOUR]);
+    }
+  });
+
+  describe('image files', () => {
+    const mediaDir = fileURLToPath(new URL('../../../web/public/media/', import.meta.url));
+    const keys = CATALOG.products.flatMap((product) => imageKeys(product));
+
+    it('uses keys the image key CHECK accepts', () => {
+      expect(keys.length).toBeGreaterThan(0);
+      for (const key of keys) {
+        expect(key).toMatch(/^[A-Za-z0-9][A-Za-z0-9._-]*(\/[A-Za-z0-9][A-Za-z0-9._-]*)*$/);
+        expect(key).not.toContain('..');
+      }
+      expect(new Set(keys).size).toBe(keys.length);
+    });
+
+    it('has a non-empty WebP file under web/public/media for every key', () => {
+      for (const key of keys) {
+        const file = join(mediaDir, key);
+        expect(existsSync(file), `missing file for ${key}`).toBe(true);
+        const bytes = readFileSync(file);
+        expect(bytes.length, `empty file for ${key}`).toBeGreaterThan(12);
+        expect(bytes.subarray(0, 4).toString('latin1'), key).toBe('RIFF');
+        expect(bytes.subarray(8, 12).toString('latin1'), key).toBe('WEBP');
+      }
+    });
+
+    it('keeps every image under 100 KB and 600x800 pixels', () => {
+      for (const key of keys) {
+        const bytes = readFileSync(join(mediaDir, key));
+        expect(bytes.length, `${key} is too big`).toBeLessThan(100 * 1024);
+        expect(webpSize(bytes), `${key} size`).toEqual({ width: 600, height: 800 });
+      }
+    });
+
+    it('reads sizes of the three WebP formats and rejects unknown data', () => {
+      const header = (chunk: string, fill: (b: Buffer) => void) => {
+        const b = Buffer.alloc(40);
+        b.write('RIFF', 0, 'latin1');
+        b.write('WEBP', 8, 'latin1');
+        b.write(chunk, 12, 'latin1');
+        fill(b);
+        return b;
+      };
+      const lossy = header('VP8 ', (b) => {
+        b.set([0x9d, 0x01, 0x2a], 23);
+        b.writeUInt16LE(600, 26);
+        b.writeUInt16LE(800, 28);
+      });
+      const lossless = header('VP8L', (b) => {
+        b[20] = 0x2f;
+        b.writeUInt32LE((599 | (799 << 14)) >>> 0, 21);
+      });
+      const extended = header('VP8X', (b) => {
+        b.writeUIntLE(599, 24, 3);
+        b.writeUIntLE(799, 27, 3);
+      });
+      for (const bytes of [lossy, lossless, extended]) {
+        expect(webpSize(bytes)).toEqual({ width: 600, height: 800 });
+      }
+      expect(() => webpSize(header('ABCD', () => undefined))).toThrow();
+      expect(() => webpSize(Buffer.alloc(10))).toThrow();
+    });
+
+    it('has no seed file without a key', () => {
+      const seedDir = join(mediaDir, 'seed');
+      const onDisk = (readdirSync(seedDir, { recursive: true, withFileTypes: true }) as Dirent[])
+        // Hidden files (.DS_Store from Finder) are git-ignored and never served as seed images.
+        .filter((entry) => entry.isFile() && !entry.name.startsWith('.'))
+        .map((entry) =>
+          relative(mediaDir, join(entry.parentPath, entry.name)).split(sep).join('/'),
+        );
+      expect(onDisk.sort()).toEqual([...keys].sort());
+    });
   });
 });
 
@@ -284,6 +401,7 @@ describe('SeedService on a throwaway database', () => {
       products: [
         {
           article: 'CUSTOM-001',
+          photo: { url: 'https://unsplash.com/photos/custom_Photo-1', author: 'Custom Author' },
           name: 'Custom product',
           description: 'Custom',
           kind: 'dress' as const,

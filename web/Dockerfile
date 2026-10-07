@@ -43,14 +43,22 @@ ARG SENTRY_RELEASE
 RUN --mount=type=secret,id=sentry_auth_token,env=SENTRY_AUTH_TOKEN \
     npm run build
 
-# Runtime: the standalone server and its static files, nothing else.
+# Runtime: the standalone server, its static files and public/ (the standalone output leaves both
+# out; public/ holds the placeholder images under /media/), nothing else. Files are owned by root
+# and only readable by the app user, so a compromised process cannot rewrite its own code; the
+# server's cache under .next/cache is the only place it writes.
 FROM base AS runtime
 ENV NODE_ENV=production \
     PORT=3001 \
     HOSTNAME=0.0.0.0
-# The server writes its cache under .next at runtime, so this tree belongs to the app user.
-COPY --from=build --chown=node:node /app/.next/standalone ./
-COPY --from=build --chown=node:node /app/.next/static ./.next/static
+# --chown: COPY --from keeps the owner the files had in the build stage (the app user).
+COPY --from=build --chown=root:root /app/.next/standalone ./
+COPY --from=build --chown=root:root /app/.next/static ./.next/static
+COPY --from=build --chown=root:root /app/public ./public
+# base gives /app to the app user; take it back, or the process could replace files in it.
+RUN chown root:root /app \
+    && mkdir -p .next/cache \
+    && chown node:node .next/cache
 USER node
 EXPOSE 3001
 CMD ["node", "server.js"]

@@ -84,4 +84,5 @@ Each criterion is checked by the command or action next to it.
 ## Assumptions
 
 - The production database has no tables of its own yet: spec 0001 shipped no migrations.
-- The demo catalog is invented: no real products, brands or photos, so no rights to clear.
+- The demo catalog is invented: no real products or brands. Its photos come from Unsplash under the
+  Unsplash License, each product naming its source (C9d).

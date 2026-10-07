@@ -12,6 +12,10 @@ removes it from this list. Found by the agents' first security audit and trial r
   on checkouts.
 - **Sentry token scope.** `SENTRY_AUTH_TOKEN` is a repository secret; move it to the `production`
   environment with the step that uploads source maps.
+- **Local deploy check leaves its stack.** `scripts/ci-deploy-check.sh` leaves the containers and
+  the `ai-fitting-infra_*` volumes running after it ends. CI gets a fresh runner, but a second local
+  run fails: the old database volume keeps the previous run's random password (`P1000`). Tear the
+  stacks and their volumes down on exit when the script runs outside CI.
 
 ## nginx and realtime
 
@@ -26,8 +30,10 @@ removes it from this list. Found by the agents' first security audit and trial r
 - **`apiFetch` paths.** `web/src/shared/api/api-fetch.ts` accepts any path. Before a path segment
   comes from user input, require one leading `/`, check the resolved origin equals `API_URL` and
   build segments with `encodeURIComponent`.
-- **Image ownership.** `web/Dockerfile` copies the app owned by the runtime user; own it by root and
-  leave only `.next/cache` writable, as `api/Dockerfile` does.
+- **Page cache in a read-only image.** The web runtime user writes only to `.next/cache`. Next keeps
+  regenerated ISR pages and `'use cache'` results with revalidation under `.next/server/app/`, so
+  the first such page fails to write them (a warning, cache only in memory, per blue-green copy).
+  Before it lands, choose a `cacheHandler` (Redis is already there) or a writable cache path.
 
 ## Server
 

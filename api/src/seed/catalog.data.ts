@@ -1,6 +1,7 @@
 // The demo catalog the seed loads (spec 0002, C5): invented brands and products, no users.
-// Articles and image keys are fixed here; web/public/media/<key> holds one drawing per image key
-// (T5), showing the product's garment kind in its colour. Change an article only together with its
+// Articles and image keys are fixed here; web/public/media/<key> holds the images, cut from the
+// Unsplash photo each product names (C9d): image 1 the whole garment, the others closer crops. The
+// product's kind, colour and name follow its photo (C9g). Change an article only together with its
 // image files: a reseed never touches an existing product, so the old row and files would stay.
 
 export type GarmentKind =
@@ -17,8 +18,16 @@ export interface SeedAttribute {
   values: string[];
 }
 
+// The Unsplash photo a product's images are cut from (Unsplash License). Kept for the record only:
+// the seed does not store it.
+export interface SeedPhoto {
+  url: string;
+  author: string;
+}
+
 export interface SeedProduct {
   article: string;
+  photo: SeedPhoto;
   name: string;
   description: string;
   kind: GarmentKind;
@@ -68,6 +77,7 @@ function sizes(scale: string[], from: string, count: number, seed: number) {
 
 interface ProductRow {
   article: string;
+  photo: SeedPhoto;
   name: string;
   description: string;
   kind: GarmentKind;
@@ -105,7 +115,18 @@ export const CATALOG: SeedCatalog = {
   attributes: [
     {
       name: COLOUR,
-      values: ['чёрный', 'белый', 'синий', 'голубой', 'бежевый', 'зелёный', 'красный', 'серый'],
+      values: [
+        'чёрный',
+        'белый',
+        'синий',
+        'голубой',
+        'бежевый',
+        'зелёный',
+        'серый',
+        'коричневый',
+        'жёлтый',
+        'оранжевый',
+      ],
     },
     { name: MATERIAL, values: ['хлопок', 'деним', 'лён', 'шерсть', 'полиэстер', 'кожа'] },
     { name: SEASON, values: ['лето', 'демисезон', 'зима', 'всесезон'] },
@@ -114,36 +135,39 @@ export const CATALOG: SeedCatalog = {
     // Dresses
     product({
       article: 'LMR-DR-001',
-      name: 'Платье миди с запахом',
-      description: 'Платье миди из струящейся ткани, с запахом и поясом.',
+      photo: { url: 'https://unsplash.com/photos/pHA6KL_HpoE', author: 'Alessandra Caretto' },
+      name: 'Платье-бюстье миди',
+      description: 'Платье миди с вырезом-сердечком и поясом.',
       kind: 'dress',
       brand: 'Lumora',
       categorySlug: 'dresses',
       price: 5990,
       discount: 20,
       rating: 4.7,
-      colour: 'красный',
+      colour: 'белый',
       material: 'полиэстер',
       season: 'всесезон',
       sizes: sizes(LETTER_SIZES, 'XS', 5, 1),
     }),
     product({
       article: 'LMR-DR-002',
-      name: 'Платье-рубашка',
-      description: 'Платье-рубашка свободного кроя на пуговицах.',
+      photo: { url: 'https://unsplash.com/photos/7tDTX5PU5mw', author: 'Nellie Adamyan' },
+      name: 'Сарафан на бретелях',
+      description: 'Короткий сарафан на широких бретелях с кантом.',
       kind: 'dress',
       brand: 'Lumora',
       categorySlug: 'dresses',
       price: 4490,
       discount: 0,
       rating: 4.4,
-      colour: 'бежевый',
-      material: 'лён',
+      colour: 'зелёный',
+      material: 'хлопок',
       season: 'лето',
       sizes: sizes(LETTER_SIZES, 'S', 4, 2),
     }),
     product({
       article: 'TRV-DR-003',
+      photo: { url: 'https://unsplash.com/photos/P7PTwHhtfsw', author: 'Pew Nguyen' },
       name: 'Платье макси на бретелях',
       description: 'Длинное летнее платье на тонких бретелях.',
       kind: 'dress',
@@ -152,7 +176,7 @@ export const CATALOG: SeedCatalog = {
       price: 3990,
       discount: 30,
       rating: 4.2,
-      colour: 'зелёный',
+      colour: 'серый',
       material: 'хлопок',
       season: 'лето',
       sizes: sizes(LETTER_SIZES, 'XS', 4, 3),
@@ -160,8 +184,9 @@ export const CATALOG: SeedCatalog = {
     }),
     product({
       article: 'VLM-DR-004',
-      name: 'Платье-футляр',
-      description: 'Строгое платье-футляр длиной до колена.',
+      photo: { url: 'https://unsplash.com/photos/cp-VMJ-mdKs', author: 'H&CO' },
+      name: 'Платье-футляр без рукавов',
+      description: 'Строгое платье-футляр без рукавов длиной до колена.',
       kind: 'dress',
       brand: 'Vellmar',
       categorySlug: 'dresses',
@@ -175,8 +200,9 @@ export const CATALOG: SeedCatalog = {
     }),
     product({
       article: 'OST-DR-005',
-      name: 'Трикотажное платье-свитер',
-      description: 'Тёплое платье-свитер из мягкой шерсти.',
+      photo: { url: 'https://unsplash.com/photos/TaJQaxEkpq0', author: 'Sandra Seitamaa' },
+      name: 'Платье с цветочным узором',
+      description: 'Платье без рукавов с пышной юбкой и цветочным узором.',
       kind: 'dress',
       brand: 'Ostrova',
       categorySlug: 'dresses',
@@ -184,8 +210,8 @@ export const CATALOG: SeedCatalog = {
       discount: 15,
       rating: 4.5,
       colour: 'серый',
-      material: 'шерсть',
-      season: 'зима',
+      material: 'хлопок',
+      season: 'лето',
       sizes: sizes(LETTER_SIZES, 'S', 3, 5),
       imageCount: 2,
     }),
@@ -193,6 +219,7 @@ export const CATALOG: SeedCatalog = {
     // Jeans
     product({
       article: 'BRS-JN-001',
+      photo: { url: 'https://unsplash.com/photos/u-TajA5X5rg', author: 'TuanAnh Blue' },
       name: 'Джинсы прямого кроя',
       description: 'Классические джинсы прямого кроя со средней посадкой.',
       kind: 'jeans',
@@ -208,6 +235,7 @@ export const CATALOG: SeedCatalog = {
     }),
     product({
       article: 'BRS-JN-002',
+      photo: { url: 'https://unsplash.com/photos/aWLTXw6kbDw', author: 'Claire Abdo' },
       name: 'Джинсы мом',
       description: 'Джинсы мом с высокой посадкой и зауженным низом.',
       kind: 'jeans',
@@ -223,6 +251,7 @@ export const CATALOG: SeedCatalog = {
     }),
     product({
       article: 'TRV-JN-003',
+      photo: { url: 'https://unsplash.com/photos/h6PKsr0wDH4', author: 'TuanAnh Blue' },
       name: 'Джинсы широкие',
       description: 'Широкие джинсы свободного кроя с высокой посадкой.',
       kind: 'jeans',
@@ -239,6 +268,7 @@ export const CATALOG: SeedCatalog = {
     }),
     product({
       article: 'OST-JN-004',
+      photo: { url: 'https://unsplash.com/photos/muo8Zdkz_4w', author: 'TuanAnh Blue' },
       name: 'Джинсы скинни',
       description: 'Облегающие джинсы скинни из эластичного денима.',
       kind: 'jeans',
@@ -247,13 +277,14 @@ export const CATALOG: SeedCatalog = {
       price: 3790,
       discount: 0,
       rating: 4.1,
-      colour: 'серый',
+      colour: 'чёрный',
       material: 'деним',
       season: 'всесезон',
       sizes: sizes(JEANS_SIZES, '26', 5, 9),
     }),
     product({
       article: 'VLM-JN-005',
+      photo: { url: 'https://unsplash.com/photos/KVHIG5biScQ', author: 'TuanAnh Blue' },
       name: 'Джинсы бойфренды',
       description: 'Свободные джинсы бойфренды с подворотами.',
       kind: 'jeans',
@@ -272,21 +303,23 @@ export const CATALOG: SeedCatalog = {
     // Outerwear
     product({
       article: 'VLM-OW-001',
-      name: 'Пальто прямого кроя',
-      description: 'Шерстяное пальто прямого кроя длиной до колена.',
+      photo: { url: 'https://unsplash.com/photos/nqBvAhRXWLc', author: 'Sebastian Schuster' },
+      name: 'Пальто-тренч',
+      description: 'Лёгкое пальто-тренч прямого кроя с отложным воротником.',
       kind: 'coat',
       brand: 'Vellmar',
       categorySlug: 'outerwear',
       price: 15990,
       discount: 20,
       rating: 4.9,
-      colour: 'бежевый',
-      material: 'шерсть',
+      colour: 'жёлтый',
+      material: 'хлопок',
       season: 'демисезон',
       sizes: sizes(LETTER_SIZES, 'XS', 5, 11),
     }),
     product({
       article: 'OST-OW-002',
+      photo: { url: 'https://unsplash.com/photos/pvCjWi5bATg', author: 'Lisa Anna' },
       name: 'Пальто оверсайз',
       description: 'Тёплое пальто оверсайз со спущенным плечом.',
       kind: 'coat',
@@ -303,6 +336,7 @@ export const CATALOG: SeedCatalog = {
     }),
     product({
       article: 'BRS-OW-003',
+      photo: { url: 'https://unsplash.com/photos/_BDBEP0ePQc', author: 'kemal alkan' },
       name: 'Джинсовая куртка',
       description: 'Джинсовая куртка свободного кроя с нагрудными карманами.',
       kind: 'jacket',
@@ -311,13 +345,14 @@ export const CATALOG: SeedCatalog = {
       price: 5990,
       discount: 10,
       rating: 4.5,
-      colour: 'синий',
+      colour: 'голубой',
       material: 'деним',
       season: 'демисезон',
       sizes: sizes(LETTER_SIZES, 'XS', 5, 13),
     }),
     product({
       article: 'TRV-OW-004',
+      photo: { url: 'https://unsplash.com/photos/YehJ089r0uY', author: 'Anna Evans' },
       name: 'Кожаная куртка-косуха',
       description: 'Косуха из натуральной кожи на молнии.',
       kind: 'jacket',
@@ -333,16 +368,17 @@ export const CATALOG: SeedCatalog = {
     }),
     product({
       article: 'LMR-OW-005',
-      name: 'Стёганая куртка',
-      description: 'Лёгкая стёганая куртка с воротником-стойкой.',
+      photo: { url: 'https://unsplash.com/photos/gJtwWqMiyUw', author: 'Nikola Tasic' },
+      name: 'Куртка из шерсти',
+      description: 'Короткая куртка из плотной шерсти на пуговицах.',
       kind: 'jacket',
       brand: 'Lumora',
       categorySlug: 'outerwear',
       price: 7990,
       discount: 15,
       rating: 4.3,
-      colour: 'зелёный',
-      material: 'полиэстер',
+      colour: 'коричневый',
+      material: 'шерсть',
       season: 'демисезон',
       sizes: sizes(LETTER_SIZES, 'XS', 4, 15),
       imageCount: 2,
@@ -351,6 +387,7 @@ export const CATALOG: SeedCatalog = {
     // T-shirts
     product({
       article: 'BRS-TS-001',
+      photo: { url: 'https://unsplash.com/photos/8ACmRoleM24', author: 'Avtar Singh' },
       name: 'Футболка базовая',
       description: 'Базовая футболка прямого кроя из плотного хлопка.',
       kind: 't-shirt',
@@ -366,6 +403,7 @@ export const CATALOG: SeedCatalog = {
     }),
     product({
       article: 'BRS-TS-002',
+      photo: { url: 'https://unsplash.com/photos/Cs4GVbMqKGY', author: 'Ryan Hoffman' },
       name: 'Футболка оверсайз',
       description: 'Свободная футболка оверсайз со спущенным плечом.',
       kind: 't-shirt',
@@ -382,6 +420,7 @@ export const CATALOG: SeedCatalog = {
     }),
     product({
       article: 'LMR-TS-003',
+      photo: { url: 'https://unsplash.com/photos/oLSnyhU2BVU', author: 'tian dayong' },
       name: 'Футболка из льна',
       description: 'Лёгкая льняная футболка для жаркой погоды.',
       kind: 't-shirt',
@@ -390,13 +429,14 @@ export const CATALOG: SeedCatalog = {
       price: 2190,
       discount: 20,
       rating: 4.2,
-      colour: 'бежевый',
+      colour: 'зелёный',
       material: 'лён',
       season: 'лето',
       sizes: sizes(LETTER_SIZES, 'XS', 4, 18),
     }),
     product({
       article: 'OST-TS-004',
+      photo: { url: 'https://unsplash.com/photos/AqLIkOzWDAk', author: 'Cristofer Maximilian' },
       name: 'Футболка с круглым вырезом',
       description: 'Мягкая футболка с круглым вырезом.',
       kind: 't-shirt',
@@ -413,6 +453,7 @@ export const CATALOG: SeedCatalog = {
     }),
     product({
       article: 'TRV-TS-005',
+      photo: { url: 'https://unsplash.com/photos/TvL5vIgwiwo', author: 'Mediamodifier' },
       name: 'Футболка приталенная',
       description: 'Приталенная футболка из эластичного хлопка.',
       kind: 't-shirt',
@@ -421,7 +462,7 @@ export const CATALOG: SeedCatalog = {
       price: 1490,
       discount: 15,
       rating: 4.3,
-      colour: 'красный',
+      colour: 'белый',
       material: 'хлопок',
       season: 'лето',
       sizes: sizes(LETTER_SIZES, 'XS', 5, 20),
@@ -430,6 +471,7 @@ export const CATALOG: SeedCatalog = {
     // Hoodies
     product({
       article: 'BRS-HD-001',
+      photo: { url: 'https://unsplash.com/photos/VXEca6MPGKk', author: 'Anastasiia Polishchuk' },
       name: 'Худи на флисе',
       description: 'Тёплое худи на флисе с капюшоном и карманом-кенгуру.',
       kind: 'hoodie',
@@ -445,6 +487,7 @@ export const CATALOG: SeedCatalog = {
     }),
     product({
       article: 'OST-HD-002',
+      photo: { url: 'https://unsplash.com/photos/wIy8Eh4CFis', author: 'Just Capturing It' },
       name: 'Худи оверсайз',
       description: 'Объёмное худи оверсайз со спущенным плечом.',
       kind: 'hoodie',
@@ -453,7 +496,7 @@ export const CATALOG: SeedCatalog = {
       price: 4490,
       discount: 25,
       rating: 4.5,
-      colour: 'зелёный',
+      colour: 'оранжевый',
       material: 'хлопок',
       season: 'демисезон',
       sizes: sizes(LETTER_SIZES, 'S', 4, 22),
@@ -461,21 +504,23 @@ export const CATALOG: SeedCatalog = {
     }),
     product({
       article: 'TRV-HD-003',
-      name: 'Худи на молнии',
-      description: 'Худи на молнии с капюшоном.',
+      photo: { url: 'https://unsplash.com/photos/RYHvzYdeoCI', author: 'Kajetan Sumila' },
+      name: 'Худи из флиса',
+      description: 'Мягкое худи из флиса с капюшоном.',
       kind: 'hoodie',
       brand: 'Tervana',
       categorySlug: 'hoodies',
       price: 4290,
       discount: 10,
       rating: 4.2,
-      colour: 'чёрный',
+      colour: 'зелёный',
       material: 'полиэстер',
       season: 'демисезон',
       sizes: sizes(LETTER_SIZES, 'XS', 4, 23),
     }),
     product({
       article: 'LMR-HD-004',
+      photo: { url: 'https://unsplash.com/photos/kJXGTOY1wLQ', author: 'Mediamodifier' },
       name: 'Укороченное худи',
       description: 'Укороченное худи из мягкого трикотажа.',
       kind: 'hoodie',
@@ -492,6 +537,7 @@ export const CATALOG: SeedCatalog = {
     }),
     product({
       article: 'VLM-HD-005',
+      photo: { url: 'https://unsplash.com/photos/5KsOC5wQAL8', author: 'Andres Jasso' },
       name: 'Худи из шерсти',
       description: 'Худи из смесовой шерсти с капюшоном.',
       kind: 'hoodie',
@@ -509,8 +555,9 @@ export const CATALOG: SeedCatalog = {
     // Shoes
     product({
       article: 'BRS-SH-001',
+      photo: { url: 'https://unsplash.com/photos/ZiBh2yOxB5Q', author: 'mojtaba mosayebzadeh' },
       name: 'Кеды низкие',
-      description: 'Низкие кеды на плоской подошве.',
+      description: 'Низкие кожаные кеды на плоской подошве.',
       kind: 'sneakers',
       brand: 'Brisko',
       categorySlug: 'shoes',
@@ -518,27 +565,29 @@ export const CATALOG: SeedCatalog = {
       discount: 0,
       rating: 4.5,
       colour: 'белый',
-      material: 'хлопок',
+      material: 'кожа',
       season: 'лето',
       sizes: sizes(SHOE_SIZES, '37', 5, 26),
     }),
     product({
       article: 'TRV-SH-002',
-      name: 'Кроссовки беговые',
-      description: 'Лёгкие беговые кроссовки с сетчатым верхом.',
+      photo: { url: 'https://unsplash.com/photos/JavdKoyGF28', author: 'Antonino Visalli' },
+      name: 'Кеды из канваса',
+      description: 'Низкие кеды из плотного канваса на шнуровке.',
       kind: 'sneakers',
       brand: 'Tervana',
       categorySlug: 'shoes',
       price: 7990,
       discount: 15,
       rating: 4.8,
-      colour: 'серый',
-      material: 'полиэстер',
-      season: 'всесезон',
+      colour: 'синий',
+      material: 'хлопок',
+      season: 'лето',
       sizes: sizes(SHOE_SIZES, '39', 5, 27),
     }),
     product({
       article: 'LMR-SH-003',
+      photo: { url: 'https://unsplash.com/photos/t4g1gctAaKk', author: 'Mojtaba Fahiminia' },
       name: 'Кроссовки кожаные',
       description: 'Кожаные кроссовки на толстой подошве.',
       kind: 'sneakers',
@@ -555,6 +604,7 @@ export const CATALOG: SeedCatalog = {
     }),
     product({
       article: 'VLM-SH-004',
+      photo: { url: 'https://unsplash.com/photos/_D7x0SJjiSs', author: 'Jia Ye' },
       name: 'Ботинки челси',
       description: 'Кожаные ботинки челси с эластичными вставками.',
       kind: 'boots',
@@ -570,17 +620,18 @@ export const CATALOG: SeedCatalog = {
     }),
     product({
       article: 'OST-SH-005',
-      name: 'Ботинки утеплённые',
-      description: 'Утеплённые ботинки на шнуровке с рельефной подошвой.',
+      photo: { url: 'https://unsplash.com/photos/o1P_ylA6t3k', author: 'roberto saborizado' },
+      name: 'Ботинки челси с тиснением',
+      description: 'Ботинки челси из гладкой кожи с тиснением и эластичными вставками.',
       kind: 'boots',
       brand: 'Ostrova',
       categorySlug: 'shoes',
       price: 9490,
       discount: 0,
       rating: 4.3,
-      colour: 'бежевый',
+      colour: 'коричневый',
       material: 'кожа',
-      season: 'зима',
+      season: 'демисезон',
       sizes: sizes(SHOE_SIZES, '38', 5, 30),
       imageCount: 2,
     }),
