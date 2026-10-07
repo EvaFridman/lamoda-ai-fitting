@@ -56,33 +56,17 @@ Subagents in `.claude/agents/` work in their own context and return a short repo
 instead of doing their job in the main context.
 
 - `spec-finder`: task briefs and facts from the specs and docs (read-only).
-- `test-writer`: writes and runs api tests after the logic is implemented; it reports bugs instead
-  of fixing code. Its guard allows writing only test files and running only the api tests,
-  typecheck and ESLint.
-- `qa-tester`: a QA engineer on the running local stack: curl and a headless Chrome through
-  Playwright MCP (`@playwright/mcp`, an exact root devDependency, started with `npx --no-install`).
-  Reports reproduced bugs and scenarios no test covers; `test-writer` turns those into tests. Its
-  guard allows curl to the local stack with an allowlist of flags and `docker compose` ps, logs,
-  stop/start/restart of one service and `up -d --wait`; stop, start and restart also ask the owner
-  (`.claude/settings.json`).
-- `code-reviewer`: reviews a diff against this file and the active spec: correctness, spec,
-  conventions (read-only).
-- `security-reviewer`: reviews a diff for security: secrets, input, access, abuse, personal data,
-  web, infrastructure, dependencies, agent configuration; every finding with a concrete scenario
-  (read-only).
-- `fsd-reviewer`: reviews `web/` changes against Feature-Sliced Design (read-only). The rules are
-  the `fsd` skill (`.claude/skills/fsd/`): use it when writing code in `web/` too.
-- `temporal-reviewer`: reviews Temporal code against the official `temporal-developer` skill and
-  this project's setup, above all workflow versioning, since the worker is replaced in place
-  (read-only). Use that skill when writing Temporal code too.
+- `test-writer`: writes and runs api tests; reports bugs instead of fixing code.
+- `qa-tester`: tests the running local stack with curl and a browser; reports reproduced bugs and
+  scenarios no test covers.
+- `code-reviewer`, `security-reviewer`, `fsd-reviewer`, `temporal-reviewer`: review a diff
+  (read-only). `fsd-reviewer` and `temporal-reviewer` use the skills `fsd` and
+  `temporal-developer`; use them when writing that code too.
 
-How the agents and their guard hooks work, the owner's decisions behind them and the accepted
-risks: [.claude/README.md](.claude/README.md). Working rules:
+What each agent may do, how the guard hooks work, the owner's decisions and the accepted risks:
+[.claude/README.md](.claude/README.md). Working rules:
 
-- Every guard runs as `node .claude/hooks/guard.mjs <rules>` (rules in `.claude/hooks/*-rules.mjs`);
-  agents' guards are allowlists, the main session's is a blocklist (see "Git").
 - A guard bypass found gets a case in `.claude/hooks/guards.test.mjs` (part of `npm test`).
-- A `tools:` list does not limit an MCP server declared in the agent file; its guard does.
 - Agent files are loaded when a session starts: restart Claude Code after changing one.
 - A change to `.claude/` updates `.claude/README.md` in the same commit when it changes what the
   README describes.
@@ -136,9 +120,6 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
 - Sources are bind-mounted; rebuild an image (`docker compose up -d --build <service>`) only after
   a dependency or config change. After a Prisma schema change:
   `docker compose run --rm api npx prisma generate`.
-- Images: multi-stage, exact base-image versions, non-root user, exec-form `CMD`, dependencies
-  installed before sources are copied. Secrets never go into an image (`ARG`/`ENV`/`COPY`); the
-  web build takes the Sentry token as a BuildKit secret.
 - Containers reach each other by service name, never `localhost`; addresses come from compose.
   Startup order uses health checks with `depends_on: service_healthy`, never sleeps.
 - `docker compose down -v` and `docker volume rm/prune` delete data; the Bash guard blocks them.
@@ -163,22 +144,10 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
 
 ## Production and deploys
 
-Details and commands: `deploy/README.md`.
-
-- A merge into `main` is the deploy: CI (secret scan, `verify`, images built and a blue-green deploy
-  checked on the runner, published to GHCR) → CD (`.github/workflows/cd.yml`) → the server runs
-  `deploy/scripts/deploy.sh <commit hash>`. Rollback: run CD by hand with an earlier hash.
-- Blue-green: the new copy of api and web starts next to the running one, nginx switches only when
-  it is healthy; the previous copy stays as the rollback. The Temporal worker is replaced in place.
-- Every change to deploy files is tested the way it reaches production: on a copy of `deploy/`
-  updated as CD updates the server, and in CI by `scripts/ci-deploy-check.sh`. nginx config changes
-  are applied by `deploy.sh` without restarting nginx.
-- The server's `.env` is rewritten from GitHub on every deploy; values change in GitHub, not on the
-  server. Production secrets never pass through the chat.
-- Migrations must stay compatible with the running version (`specs/principles.md`): a rollback does
-  not undo them.
-- The server is reached as `ssh ai-fitting` (the owner's SSH alias); CI logs in as `deploy`.
-  Commands that change the server need the owner's confirmation.
+A merge into `main` is the deploy (blue-green for api and web; the Temporal worker is replaced in
+place). How deploys, rollbacks and images work: `.claude/rules/deploy.md`, loaded when you work on
+deploy, CI, Docker or `scripts/` files, and `deploy/README.md`. Production secrets never pass through the chat;
+commands that change the server (`ssh ai-fitting`) need the owner's confirmation.
 
 ## Dependencies
 
@@ -198,11 +167,10 @@ Details and commands: `deploy/README.md`.
 - No `Co-Authored-By` lines in commit messages.
 - Hooks: pre-commit (lint-staged, then gitleaks on staged changes), commit-msg (commitlint),
   pre-push (`npm run verify`). Never skip them; the main session's guard blocks `--no-verify`.
-- The main session's Bash guard (`.claude/hooks/main-rules.mjs`, hook in `.claude/settings.json`)
-  looks for dangerous word sequences anywhere in a command line and blocks data deletion, skipped
-  hooks, force pushes and printing secrets (`.env`, `docker compose config`, `printenv`, recursive
-  `grep`: use `rg`). A quoted string with spaces and a heredoc no shell reads are data, so a commit
-  message may mention a blocked command. It guards against mistakes, not a determined bypass.
+- The Bash guard (`.claude/hooks/main-rules.mjs`) blocks data deletion, skipped hooks, force pushes
+  and printing secrets; for recursive search use `rg`. Quoted strings and heredocs no shell reads
+  are data, so a commit message may mention a blocked command. A real need for a blocked command:
+  the owner runs it by hand; a false positive: fix the rule and add a case to `guards.test.mjs`.
 - A gitleaks hit is a real secret until proven otherwise: unstage it. Only a value confirmed to be a
   placeholder goes into the `.gitleaks.toml` allowlist, with a description.
 - One branch and pull request per phase of `tasks.md`; merged with "Rebase and merge".

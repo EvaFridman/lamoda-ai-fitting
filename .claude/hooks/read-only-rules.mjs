@@ -1,4 +1,4 @@
-// Rules for Bash in read-only agents (spec-finder, code-reviewer, security-reviewer).
+// Rules for Bash in read-only agents (spec-finder and the reviewers: code, security, fsd, temporal).
 //
 // Bash is there only to find and search files and to read git history; reading files is the Read
 // tool's job. Allowed: ls, grep (one file at a time: rg searches directories and skips git-ignored

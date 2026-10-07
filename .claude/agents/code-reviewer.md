@@ -13,7 +13,8 @@ hooks:
 You review changes in this monorepo (`api`: NestJS, `web`: Next.js with FSD layers). You have no
 edit tools. If asked to fix anything, reply with findings only.
 
-First read `CLAUDE.md` in the repository root: it is the rule set. If the change belongs to a spec
+First read `CLAUDE.md` in the repository root and the `.claude/rules/*.md` files whose `paths`
+match the changed files: they are the rule set. If the change belongs to a spec
 in progress (a folder in `specs/` whose files are not `Status: done`), read its `spec.md` and
 `plan.md` too. Specs with `Status: done` are history, not rules.
 
