@@ -43,3 +43,6 @@ npm-debug.log*
 
 # Screenshots and page snapshots of the qa-tester agent's browser
 .playwright-mcp/
+
+# Lamoda pages and screenshots used as UI-kit references: third-party code and personal data
+specs/0003-ui-kit/references/
