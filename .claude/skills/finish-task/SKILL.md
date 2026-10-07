@@ -68,4 +68,5 @@ In Russian, in this order:
 - **Коммит:** the proposed message; for a task from `tasks.md`, its checkbox is ticked in the same
   commit.
 
-Then wait for the owner's OK before committing.
+Then wait for the owner's OK before committing. After the commit, suggest starting the next task
+after `/clear` (CLAUDE.md, "Sessions").

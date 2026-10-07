@@ -31,6 +31,11 @@ Keep this file true: update it in the same commit that changes what a section de
   refers to and related decisions it does not mention), then state a time estimate. After it: stop,
   summarize what changed and the check result, wait for the owner's OK, then commit.
 - If a task shows the plan is wrong: stop, fix the plan with the owner, then continue.
+- Sessions: write the spec, clarifications, plan and tasks in one session; do each task of
+  `tasks.md` in a fresh session (or after `/clear`). Every call re-reads the whole context, so a
+  long session costs more and keeps less in focus; the task's section of `tasks.md`, the
+  `spec-finder` brief and `clarifications.md` carry what the next task needs. After a task's
+  commit, suggest `/clear` before the next one.
 - After implementing a task, before the owner's review, run the `finish-task` skill
   (`.claude/skills/finish-task/`): it picks the agents for the changed files and carries out these
   steps (agents: see "Agents" below):
