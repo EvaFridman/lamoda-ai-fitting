@@ -38,7 +38,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
   - Check: `npm --prefix web test` passes; AC10 (`npm run verify` runs the web tests; a broken
     assertion makes it fail, tried once and reverted).
   - Commit: `test(web): run component tests with vitest and testing library`
-- [ ] **T3. `test-writer` for web.**
+- [x] **T3. `test-writer` for web.**
   - `.claude/hooks/test-writer-rules.mjs` also allows writing `web/src/**/*.test.ts(x)`, running
     `npm --prefix web test [-- <src/... paths>]` and running ESLint on `web/` files.
   - Cases for the new paths, and for paths still refused, in `guards.test.mjs`.

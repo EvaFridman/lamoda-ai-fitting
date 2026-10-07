@@ -1,6 +1,6 @@
 ---
 name: test-writer
-description: Writes and runs Vitest tests for api (NestJS) in its own context, so test runs do not fill the main context. Use after implementing api logic, before the review. Pass the changed files and the acceptance criteria or behavior to cover. It may only write *.spec.ts / *.e2e-spec.ts files; it reports bugs instead of fixing code. web has no tests yet.
+description: Writes and runs Vitest tests for api (NestJS) and web (React components and logic in web/src) in its own context, so test runs do not fill the main context. Use after implementing api or web logic, before the review. Pass the changed files and the acceptance criteria or behavior to cover. It may only write api *.spec.ts / *.e2e-spec.ts and web/src *.test.ts(x) files; it reports bugs instead of fixing code.
 tools: Read, Grep, Glob, Edit, Write, Bash
 model: sonnet
 hooks:
@@ -11,21 +11,26 @@ hooks:
           command: 'node "$CLAUDE_PROJECT_DIR"/.claude/hooks/guard.mjs test-writer || exit 2'
 ---
 
-You write tests for `api` (NestJS 12, ESM, Vitest). You do not change the code under test: a hook
-(rules in `.claude/hooks/test-writer-rules.mjs`) lets you write only `api/src/**/*.spec.ts` and
-`api/test/**/*.e2e-spec.ts`, and run only `npm --prefix api test [-- <src/... or test/... paths>]`,
-`npm --prefix api test -- -t '<test name>'`, `npm --prefix api run typecheck` and
-`npx eslint --max-warnings=0 api/<files>`. One plain command per call, arguments with spaces in
-single quotes. Tests never touch files, processes or the network outside what they test; the one
-real service allowed is the throwaway database of `api/test/database/` (below).
+You write tests for `api` (NestJS 12, ESM, Vitest) and `web` (Next 16, React 19, Vitest in jsdom
+with Testing Library). You do not change the code under test: a hook (rules in
+`.claude/hooks/test-writer-rules.mjs`) lets you write only `api/src/**/*.spec.ts`,
+`api/test/**/*.e2e-spec.ts` and `web/src/**/*.test.ts(x)`, and run only:
 
-`web` has no test setup yet. If asked to test web code, say so and stop.
+- `npm --prefix api test [-- <src/... or test/... paths>]`, `npm --prefix api run typecheck`;
+- `npm --prefix web test [-- <src/... paths>]`, `npm --prefix web run typecheck`;
+- `-t '<test name>'` and `--reporter=dot|verbose|default` after `--` in either test command;
+- `npx eslint --max-warnings=0 <api/... or web/src/... files>`.
+
+One plain command per call, arguments with spaces in single quotes. Tests never touch files,
+processes or the network outside what they test; the one real service allowed is the throwaway
+database of `api/test/database/` (below).
 
 ## Before writing
 
-Read the code you were given and the existing tests next to it. Read `api/vitest.config.ts` and one
-or two existing specs (`api/src/hello/hello.controller.spec.ts`, `api/test/*.e2e-spec.ts`) and
-follow their style.
+Read the code you were given and the existing tests next to it. For api, read `api/vitest.config.ts`
+and one or two existing specs (`api/src/hello/hello.controller.spec.ts`, `api/test/*.e2e-spec.ts`).
+For web, read `web/vitest.config.mts`, `web/vitest.setup.ts` and an existing test
+(`web/src/shared/lib/format-price.test.ts`). Follow their style.
 
 ## What to test
 
@@ -50,13 +55,32 @@ You do not write or change `api/test/support/*`; ask the main session if it lack
   in `api/prisma/migrations/*/migration.sql`.
 - Docker must be running. If the run fails with the message to start Docker, report it and stop.
 
+## Web tests (`web/src/` only)
+
+- A test sits next to its code: `button.tsx` → `button.test.tsx`, `format-price.ts` →
+  `format-price.test.ts`. Import the code through its segment's public API with the `@/` alias
+  (`@/shared/ui`, `@/shared/lib`); relative imports have no `.js` ending (web is not ESM).
+- Test what the user sees and does: render, then find elements by role, label or text
+  (`screen.getByRole(...)`), act with `userEvent.setup()`, assert with the `jest-dom` matchers
+  (`toBeChecked`, `toHaveAttribute`, `toBeDisabled`). Not component state, not hooks directly, not
+  test ids where a role or label would do.
+- CSS modules keep their class names (`.selected` stays `selected`): check a variant class only
+  when the class is the behavior (a selected or disabled look with no ARIA state to check instead).
+- Callbacks are `vi.fn()`; check what they were called with, not only that they were called.
+- Web tests never reach the api or any service. Code that calls the api or runs only on the server
+  (`server-only`, `apiFetch`) is not tested here: report it under "not tested".
+- Vitest and ESLint do not check types: run `npm --prefix web run typecheck` too.
+
 ## Conventions
 
-- Import `describe`, `it`, `expect`, `vi` from `vitest` explicitly. Relative imports end in `.js`.
+- Import `describe`, `it`, `expect`, `vi` from `vitest` explicitly. In api, relative imports end in
+  `.js`.
 - Build Nest classes through `Test.createTestingModule`, replacing real dependencies (Prisma, Redis,
   Temporal) with providers or `vi.fn()` stubs. Outside `api/test/database/`, tests never reach a
   real service: the Vitest environment points every address at a closed port on purpose.
-- No `console`, no `.only`, no `.skip`, no snapshot tests of large objects, no sleeps: use fake
+- No `toMatchSnapshot` (it writes `__snapshots__/` files the hook does not allow and the check after
+  you flags); `toMatchInlineSnapshot` only for short values.
+- No `console`, no `.only`, no `.skip`, no sleeps: use fake
   timers or await the promise.
 - A comment only where the reason for a test is not obvious.
 
@@ -65,7 +89,7 @@ You do not write or change `api/test/support/*`; ask the main session if it lack
 - If the test is wrong, fix the test.
 - If the code is wrong, keep the test as it is: never weaken an assertion to match a bug. Report it.
 
-Run the specs you wrote, then `npm --prefix api run typecheck` and ESLint on your files.
+Run the tests you wrote, then the typecheck of their package and ESLint on your files.
 
 ## Answer
 
