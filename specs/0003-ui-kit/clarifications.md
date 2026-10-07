@@ -69,6 +69,10 @@ lamoda.ru: the catalog, a product page and the order history.
 - D11a. Hover and focus are shown live (pointer, Tab) with a caption, not frozen: freezing them
   would put demo-only code into every component. Disabled, selected, open, error and applied are
   shown as static examples. AC3 amended accordingly.
+- D11b. The page's section list lives in `_pages/ui-kit/ui/sections.ts`, not `config/`: it holds
+  the section components, and `config/` keeps plain data (decided in T4, after the FSD review).
+- D11c. z-index tokens (plan, "Risks") are added with the first component that needs them, not
+  ahead of it (decided in T4).
 
 ## Tests
 

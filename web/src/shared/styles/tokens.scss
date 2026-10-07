@@ -1,0 +1,90 @@
+// Design tokens: the values of Lamoda's stylesheets (spec 0003, plan "Tokens"), under our own names.
+// Imported once by app/globals.scss; components read them through var(--…). Light theme only (D8):
+// a dark theme would redefine these properties, so components never hold a colour of their own.
+// The /ui-kit tokens section lists the same values in _pages/ui-kit/config/tokens.ts.
+
+:root {
+  // Colour: text
+  --color-text: #000;
+  --color-text-secondary: #888;
+  --color-text-disabled: #ccc;
+
+  // Colour: accent (sale price, discount badge, "Скидки") and statuses
+  --color-accent: #f93c00;
+  --color-accent-hover: #db0d00;
+  --color-error: #c20000;
+  --color-success: #00a200;
+
+  // Colour: backgrounds
+  --color-background: #fff;
+  --color-background-secondary: #f5f5f5;
+  --color-background-tertiary: #e5e5e5;
+
+  // Colour: borders (thin separator and chip; neutral; select and input outline; hover, open, focus)
+  --color-border: #e5e5e5;
+  --color-border-neutral: #ccc;
+  --color-border-control: #888;
+  --color-border-active: #000;
+
+  // Colour: badges
+  --color-badge-club-text: #3c5064;
+  --color-badge-club: #cde6ff;
+  --color-badge-premium: #000;
+  --color-badge-promo: #a5d2a0;
+
+  // Colour: overlay under modals and drawers
+  --color-overlay: rgb(0 0 0 / 50%);
+
+  // Type: Onest from next/font (its variable is set on <html> by app/layout.tsx)
+  // The fallback inside var() keeps the declaration valid where next/font's variable is not set.
+  --font-sans:
+    var(--font-onest, system-ui), system-ui, -apple-system, 'Segoe UI', roboto, sans-serif;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-bold: 700;
+  --font-size-headline-l: 32px;
+  --line-height-headline-l: 40px;
+  --font-size-headline-m: 24px;
+  --line-height-headline-m: 28px;
+  --font-size-headline-s: 20px;
+  --line-height-headline-s: 24px;
+  --font-size-body-m: 16px;
+  --line-height-body-m: 20px;
+  --font-size-body-s: 13px;
+  --line-height-body-s: 16px;
+  --font-size-caption: 11px;
+  --line-height-caption: 16px;
+
+  // Shape: checkboxes; buttons, chips, selects and pagination; filter search; switches, radios, thumbs
+  --radius-xs: 3px;
+  --radius-s: 4px;
+  --radius-m: 8px;
+  --radius-full: 9999px;
+  --border-width: 1px;
+
+  // Shadow
+  --shadow-popover: 0 2px 8px rgb(0 0 0 / 8%);
+  --shadow-box: 0 0 8px rgb(0 0 0 / 16%);
+  --shadow-modal: 0 2px 48px rgb(0 0 0 / 24%);
+
+  // Spacing: a 4px scale
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+
+  // Motion
+  --duration-fast: 0.2s;
+  --duration-slow: 0.3s;
+}
+
+// Animations are off for visitors who ask for less motion.
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0s;
+    --duration-slow: 0s;
+  }
+}

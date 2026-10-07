@@ -14,7 +14,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
   - the component in `web/src/shared/ui/<component>/` with its `.module.scss`, styled from the
     tokens and the measurements in plan, "Components";
   - its export in `web/src/shared/ui/index.ts`;
-  - its section on `/ui-kit` and its entry in `_pages/ui-kit/config/sections.ts`;
+  - its section on `/ui-kit` and its entry in `_pages/ui-kit/ui/sections.ts`;
   - tests for its logic;
   - a look at the section next to the references in `specs/0003-ui-kit/references/`.
 - A task that changes what `CLAUDE.md` or a README describes updates it in the same commit.
@@ -47,11 +47,11 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
   - Check: `npm test` (guard cases); after the restart, `test-writer` writes and runs one web test
     for `format-price`.
   - Commit: `chore(tooling): let test-writer write and run web tests`
-- [ ] **T4. Tokens, font and the page.**
+- [x] **T4. Tokens, font and the page.**
   - `web/src/shared/styles/tokens.scss` with the values of plan, "Tokens"; imported by
     `web/app/globals.scss`; the dark theme removed (D8).
   - Onest through `next/font/google` in `web/app/layout.tsx`, its variable feeding `--font-sans`.
-  - `_pages/ui-kit` (table of contents and sections from `config/sections.ts`, the tokens section)
+  - `_pages/ui-kit` (table of contents and sections from `ui/sections.ts`, the tokens section)
     and `web/app/ui-kit/page.tsx` with `robots: { index: false, follow: false }`.
   - `web/README.md` describes `shared/ui`, the tokens and `/ui-kit`.
   - Check: AC1 for the tokens section; AC2 (`curl -s localhost:4001/ui-kit | rg noindex`); AC5 at

@@ -1,0 +1,90 @@
+// A sticky table of contents on the left and the sections on the right, at most 1200px wide like
+// Lamoda's grid. Under 768px the table of contents moves above the sections.
+
+.page {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: var(--space-8);
+  align-items: start;
+
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-4);
+}
+
+.toc {
+  position: sticky;
+  top: var(--space-4);
+}
+
+.tocList {
+  display: grid;
+  gap: var(--space-1);
+
+  margin: 0;
+  padding: 0;
+
+  list-style: none;
+}
+
+.tocLink {
+  display: block;
+
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-s);
+
+  color: var(--color-text);
+  text-decoration: none;
+
+  transition: background-color var(--duration-fast);
+
+  &:hover {
+    background: var(--color-background-secondary);
+  }
+
+  &:focus-visible {
+    outline: var(--border-width) solid var(--color-border-active);
+  }
+}
+
+.content {
+  min-width: 0;
+}
+
+.title {
+  margin: 0 0 var(--space-6);
+  font-size: var(--font-size-headline-l);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-headline-l);
+}
+
+.section {
+  // Keeps an anchored section's heading off the very top edge.
+  scroll-margin-top: var(--space-4);
+  padding-bottom: var(--space-12);
+  border-bottom: var(--border-width) solid var(--color-border);
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: var(--font-size-headline-m);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-headline-m);
+}
+
+@media (width < 768px) {
+  .page {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-6);
+    padding-top: var(--space-4);
+  }
+
+  .toc {
+    position: static;
+  }
+
+  .tocList {
+    display: flex;
+    flex-wrap: wrap;
+  }
+}
