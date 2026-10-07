@@ -1,19 +1,4 @@
-:root {
-  --color-text: #1a1a1a;
-  --color-muted: #6b6b6b;
-  --color-error: #b3261e;
-  --color-background: #fff;
-  --font-sans: system-ui, -apple-system, 'Segoe UI', roboto, sans-serif;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-text: #f2f2f2;
-    --color-muted: #a0a0a0;
-    --color-error: #f2b8b5;
-    --color-background: #111;
-  }
-}
+@use '../src/shared/styles/tokens';
 
 *,
 *::before,
@@ -23,7 +8,11 @@
 
 body {
   margin: 0;
+
   font-family: var(--font-sans);
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
   color: var(--color-text);
+
   background: var(--color-background);
 }

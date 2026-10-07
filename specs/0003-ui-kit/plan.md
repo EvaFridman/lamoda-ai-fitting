@@ -179,8 +179,9 @@ The values come from Lamoda's stylesheets, which are referenced by the saved pag
   2. One section per component group, each component with a heading, its static states (D11a) and
      a live example. A grey caption says "Наведите курсор / нажмите Tab" where hover and focus
      matter.
-- The section list is one array in `_pages/ui-kit/config/sections.ts`. The table of contents and
-  the sections are rendered from it, so they cannot drift apart (AC1).
+- The section list is one array in `_pages/ui-kit/ui/sections.ts` (in `ui/`, since it holds the
+  section components; `config/` keeps plain data, D11b). The table of contents and the sections
+  are rendered from it, so they cannot drift apart (AC1).
 - The page has no api data, so it is static. `next build` prerenders it with no api running
   (AC11).
 
@@ -219,7 +220,7 @@ test`, so `verify` runs it (AC10). `CLAUDE.md` loses "web has no tests yet".
     `<component>.test.tsx` where there is logic;
   - `web/src/shared/ui/index.ts` (public API);
   - `web/src/shared/lib/format-price.ts`;
-  - `web/src/_pages/ui-kit/{index.ts, ui/*, config/sections.ts}`;
+  - `web/src/_pages/ui-kit/{index.ts, ui/*, config/tokens.ts}` (`ui/sections.ts` among `ui/*`);
   - `web/app/ui-kit/page.tsx`;
   - `web/vitest.config.mts`, `web/vitest.setup.ts`.
 - Changed:

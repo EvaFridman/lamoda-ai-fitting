@@ -13,7 +13,15 @@ export default function GlobalError({ error }: { error: Error & { digest?: strin
   return (
     <html lang="ru">
       <body>
-        <main style={{ padding: '2rem', fontFamily: 'system-ui, sans-serif', textAlign: 'center' }}>
+        {/* Own line height: globals.scss may still be loaded, and its body sets an absolute 20px. */}
+        <main
+          style={{
+            padding: '2rem',
+            fontFamily: 'system-ui, sans-serif',
+            lineHeight: 1.2,
+            textAlign: 'center',
+          }}
+        >
           <h1>Что-то пошло не так</h1>
           <p>Мы уже знаем об ошибке. Попробуйте обновить страницу.</p>
         </main>
