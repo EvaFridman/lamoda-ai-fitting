@@ -25,8 +25,9 @@ Keep this file true: update it in the same commit that changes what a section de
 - Decisions that change behavior belong to the owner: ask, record the answer in
   `clarifications.md`, do not pick silently.
 - One task from `tasks.md` = one commit; tick its checkbox in the same commit.
-- Before writing a `spec.md` or `plan.md`: ask `spec-finder` which earlier decisions touch the same
-  area.
+- Before writing a `spec.md` or `plan.md`: ask `spec-finder` which earlier decisions and which
+  items of `specs/backlog.md` touch the same area. Backlog items in that area go into the spec;
+  the commit that closes one removes it from the backlog.
 - Before a task: read its section of `tasks.md`, get a brief from `spec-finder` (what the task
   refers to and related decisions it does not mention), then state a time estimate. After it: stop,
   summarize what changed and the check result, wait for the owner's OK, then commit.
