@@ -1,7 +1,8 @@
 # lamoda-ai-fitting
 
 Monorepo: `api` (NestJS) and `web` (Next.js), delivered to https://lamoda-ai-fitting.ru: every
-merge into `main` is checked and deployed automatically. Set up by spec `0001-bootstrap` (closed).
+merge into `main` is checked and deployed automatically. Set up by spec `0001-bootstrap`; database
+schema and demo catalog by `0002-database-schema` (both closed).
 
 Keep this file true: update it in the same commit that changes what a section describes.
 
@@ -117,6 +118,10 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   `.claude/`, `specs/`.
 - `api/src/<module>/`: controller (thin) → service (logic) → Prisma. Imports go downward only.
   Generated Prisma client in `api/src/generated/` (git-ignored, never edited by hand).
+- `api/prisma/`: `schema.prisma` and migrations. CHECK constraints live only in the migrations'
+  `migration.sql` (Prisma does not model them); `schema.prisma` notes the rules queries must follow.
+- `api/src/seed/`: the demo catalog. Its image columns hold keys, not URLs; the files are in
+  `web/public/media/<key>` and web serves them at `/media/<key>`.
 - `web/`: `app/` holds routing only and re-exports pages from `src/_pages`. FSD layers in `web/src/`,
   imports only downward: `_app → _pages → widgets → features → entities → shared`.
 - `deploy/`: production compose files, nginx, deploy scripts, Ansible (server setup).

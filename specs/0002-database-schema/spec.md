@@ -1,6 +1,7 @@
 # 0002 Database schema: catalog, users, fittings
 
-Status: accepted (2026-10-07), amended the same day after the review of T1: AC2, AC3, AC12.
+Status: done (2026-10-08): all 12 criteria pass (`tasks.md`, "Acceptance record"). History, not instructions.
+Accepted 2026-10-07, amended the same day after the review of T1: AC2, AC3, AC12.
 Decisions this spec relies on: [clarifications.md](clarifications.md) (referred to by their ids, e.g. C7).
 
 ## Goal

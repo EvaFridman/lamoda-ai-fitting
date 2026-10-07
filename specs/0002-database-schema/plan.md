@@ -1,6 +1,7 @@
 # 0002 Database schema: plan
 
-Status: accepted (2026-10-07), amended the same day after the review of T1: three pull requests,
+Status: done (2026-10-08). History, not instructions.
+Accepted 2026-10-07, amended the same day after the review of T1: three pull requests,
 seed skipped by older images, `updated_at` default, the test-writer rules (C20), image ownership;
 amended after the review of T4: reference rows only with a new product (C16b); amended during T5:
 Unsplash photos and seed data that follows them (C9d, C9g), `/media/` cache (C9e), api image

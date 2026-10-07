@@ -1,7 +1,8 @@
 # 0002 Database schema: tasks
 
-Status: accepted (2026-10-07), amended the same day after the review of T1: seed before images,
-`CLAUDE.md` updated per task, rollback check in T6, acceptance in its own pull request.
+Status: done (2026-10-08). History, not instructions.
+Accepted 2026-10-07, amended the same day after the review of T1: seed before images, `CLAUDE.md`
+updated per task, rollback check in T6, acceptance in its own pull request.
 Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## How the work flows
@@ -39,7 +40,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       with two archived sessions and an active one (C21), the deletes of C8, UUID v7 and timestamps); AC7 (`npm run verify` locally with a clean `npm ci --prefix api`; CI green on the
       pull request); with Docker stopped, `npm test` fails with the message to start it.
       Commit: `test(api): check the database constraints on a throwaway postgres`
-- [ ] 👤 **Merge PR 1.** CD applies the migration on production (deploy log shows the migration and
+- [x] 👤 **Merge PR 1.** CD applies the migration on production (deploy log shows the migration and
       the new api ready).
 
 ## PR 2 · `feat/0002-seed` · demo catalog, images, deploys
@@ -76,12 +77,12 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       second deploy changes no counts); `deploy.sh` with an image from before T4 logs "seed skipped"
       and deploys; `npm run verify`.
       Commit: `feat(deploy): load the demo catalog on every deploy`
-- [ ] 👤 **Merge PR 2.** CD log shows the migration (no-op), the seed and the new api ready; the
+- [x] 👤 **Merge PR 2.** CD log shows the migration (no-op), the seed and the new api ready; the
       owner applies the drawsql patch (spec, "Owner actions").
 
 ## PR 3 · `docs/0002-close` · acceptance
 
-- [ ] **T7. Close the spec.** AC10 (`curl -I` on every seed key on production) and AC12 (CD log;
+- [x] **T7. Close the spec.** AC10 (`curl -I` on every seed key on production) and AC12 (CD log;
       counts read by the owner over SSH); "Acceptance record" filled in; a last pass over `CLAUDE.md`
       and `README.md` against what was built; all spec files `Status: done`.
       Check: every AC has evidence below; `npm run format:check`.
@@ -89,19 +90,21 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## Acceptance record
 
-Filled in by T7.
+All 12 criteria checked on 2026-10-08. Production checks ran against https://lamoda-ai-fitting.ru;
+CD logs are the `CD / Deploy to production` jobs of the CI runs on `main` for PR #19 (acb4d10),
+PR #20 (545fc97) and PR #21 (e6d2fb9).
 
-| AC   | Result | Evidence |
-| ---- | ------ | -------- |
-| AC1  |        |          |
-| AC2  |        |          |
-| AC3  |        |          |
-| AC4  |        |          |
-| AC5  |        |          |
-| AC6  |        |          |
-| AC7  |        |          |
-| AC8  |        |          |
-| AC9  |        |          |
-| AC10 |        |          |
-| AC11 |        |          |
-| AC12 |        |          |
+| AC   | Result    | Evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ---- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| AC1  | pass (T2) | local: `prisma migrate status` → "Database schema is up to date!"; `prisma migrate diff` from the database to `schema.prisma` → "No difference detected". On empty databases: every run of the Vitest project `database` (a throwaway PostgreSQL); the CI deploy check and the production CD of acb4d10 both log "Applying migration `20261007174845_init_schema`" → "All migrations have been successfully applied"                                                                                                                       |
+| AC2  | pass (T2) | `\dt` lists `_prisma_migrations` and the twelve tables of C4, nothing else; columns, types and nullability checked with `\d+` against the clarifications in T2                                                                                                                                                                                                                                                                                                                                                                             |
+| AC3  | pass (T3) | `api/test/database/`: "ids and timestamps (AC3)" in `users`, `catalog` and `fittings` (UUID v7, `created_at`/`updated_at` filled); `updated_at` changing on update is checked in `users`                                                                                                                                                                                                                                                                                                                                                   |
+| AC4  | pass (T3) | `api/test/database/`: each rule of C12 (with C22/C23) has an accepted and a rejected row, in `users`, `catalog` and `fittings`                                                                                                                                                                                                                                                                                                                                                                                                             |
+| AC5  | pass (T3) | `api/test/database/`: duplicates of C7/C11/C15 rejected, including a user with two archived sessions and one active (C21)                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| AC6  | pass (T3) | `api/test/database/`: "deletes (AC6, C8)" in `catalog` and `fittings`                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| AC7  | pass (T3) | the Vitest project `database` runs in `npm run verify`; CI `Checks` green on PR #19, PR #21 and `main` (e6d2fb9: 4 database files, 334 tests passed)                                                                                                                                                                                                                                                                                                                                                                                       |
+| AC8  | pass (T4) | `seed.e2e-spec.ts` "loads the whole catalog into an empty database (AC8)"; local after `seed:dev`: 6 categories, 5 brands, 30 products, 0 users; the CI deploy check counts after the first deploy, incomplete products 0                                                                                                                                                                                                                                                                                                                  |
+| AC9  | pass (T4) | `seed.e2e-spec.ts` (second run, a price edited by hand survives); CI deploy check, second deploy: "Seed done: 0 products created, 30 already there", counts unchanged                                                                                                                                                                                                                                                                                                                                                                      |
+| AC10 | pass (T7) | `curl -I` on all 78 keys of `web/public/media/` → 200, `image/webp`, `Cache-Control: public, max-age=86400`, locally (port 3001) and on production                                                                                                                                                                                                                                                                                                                                                                                         |
+| AC11 | pass (T6) | CI deploy check (e6d2fb9): migration, then "seeding the demo catalog", before the new api starts; the second deploy logs "No pending migrations to apply" and "0 products created, 30 already there". Production: acb4d10 applies the migration; 545fc97 "No pending migrations to apply"; e6d2fb9 migration no-op, then "Seed done: 30 products created, 0 already there", then the new copy starts. A no-op seed on production is first seen in the deploy of this pull request; the no-op of both steps is shown by the CI deploy check |
+| AC12 | pass (T7) | CD of e6d2fb9: green api and web "Healthy" (readiness checked inside the server), "done: e6d2fb9 serves the site from green". Production counts read by the owner over SSH: 6 categories, 5 brands, 30 products, 78 images, 129 sizes, 90 attribute links, 0 users, 0 products without an image, a size or an attribute value                                                                                                                                                                                                              |
