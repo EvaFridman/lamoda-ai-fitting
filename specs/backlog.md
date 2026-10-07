@@ -68,3 +68,11 @@ Left for later specs by `0002-database-schema` (its `clarifications.md` has the 
   need real storage (object storage or a server folder), with backups and limits on size and type.
   Deleting a user or a generation deletes its files too (the database cascade of C8 does not reach
   storage), and old photo snapshots of C14 get a retention period.
+
+## Tests
+
+- **Database specs stay on the helper.** Specs under `api/test/database/` reach a real database
+  (0002, C20). An ESLint rule for `api/test/**` forbids `new PrismaClient`, `PrismaPg`,
+  `process.env`, `node:fs` and `node:child_process` in specs, so a spec reaches the database only
+  through `createTestDatabase()` and cannot point a client at the development database; a bypass
+  of the rule gets a test case.

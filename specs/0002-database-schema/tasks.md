@@ -28,7 +28,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       `\d+` per table against the clarifications); `prisma migrate diff` from the migrated database
       to the schema reports no difference; `npm run verify`.
       Commit: `feat(api): add the database schema with its constraints`
-- [ ] **T3. Constraint tests.** `@testcontainers/postgresql` in api devDependencies (no install script
+- [x] **T3. Constraint tests.** `@testcontainers/postgresql` in api devDependencies (no install script
       approved); `test/support/database.ts` as Vitest `globalSetup` (one container, a template
       database, one database per file) and the `expectViolation` helper, written by the main
       session; `test/database/{users,catalog,fittings}.e2e-spec.ts` by `test-writer`. C20:

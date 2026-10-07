@@ -6,9 +6,8 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     environment: 'node',
-    include: ['src/**/*.spec.ts', 'test/**/*.e2e-spec.ts'],
     // Environment for tests that boot the whole app: valid values, but every dependency points at
-    // a closed local port, so nothing real is touched.
+    // a closed local port, so nothing real is touched. The one exception is the `database` project.
     env: {
       NODE_ENV: 'test',
       LOG_LEVEL: 'silent',
@@ -19,5 +18,26 @@ export default defineConfig({
       TEMPORAL_ADDRESS: '127.0.0.1:1',
       THROTTLE_LIMIT: '5',
     },
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'unit',
+          include: ['src/**/*.spec.ts', 'test/**/*.e2e-spec.ts'],
+          exclude: ['test/database/**'],
+        },
+      },
+      // Specs under test/database/ (and only there) use a real, throwaway PostgreSQL: one
+      // Testcontainers container per run, a database per file (test/support/database.ts, spec
+      // 0002 C19/C20). Its globalSetup runs only when one of these files runs, and needs Docker.
+      {
+        extends: true,
+        test: {
+          name: 'database',
+          include: ['test/database/**/*.e2e-spec.ts'],
+          globalSetup: ['test/support/database.ts'],
+        },
+      },
+    ],
   },
 });
