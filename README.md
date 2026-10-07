@@ -21,6 +21,7 @@
 npm ci                          # зависимости корня и git-хуки
 ./scripts/init-env.sh           # один раз: .env со случайным паролем базы
 docker compose up -d --wait     # весь стек, ждёт, пока сервисы станут здоровы
+docker compose run --rm api npx prisma migrate deploy   # миграции: dev-стек сам их не применяет
 ```
 
 | Что         | Адрес                                                       |
@@ -37,6 +38,32 @@ docker compose up -d --wait     # весь стек, ждёт, пока серв
 `docker compose run --rm api npx prisma generate`.
 
 `docker compose down` останавливает и удаляет контейнеры, данные остаются в томах.
+
+### Вторая копия стека (git worktree)
+
+Контейнеры, тома и образы api/web называются по имени проекта Compose (`ai-fitting` по умолчанию).
+Чтобы вторая копия (например, в `git worktree`) работала рядом с первой и не трогала её данные и
+образы, задайте в `.env` этой копии своё имя проекта и свободные порты:
+
+```bash
+git worktree add ../lamoda-ai-fitting-ui-kit -b feat/ui-kit
+cd ../lamoda-ai-fitting-ui-kit
+npm ci
+./scripts/init-env.sh
+# в .env заполнить уже существующие пустые строки:
+#   COMPOSE_PROJECT_NAME=ai-fitting-ui-kit
+#   API_HOST_PORT=4000  WEB_HOST_PORT=4001  POSTGRES_HOST_PORT=5434
+#   REDIS_HOST_PORT=6381  TEMPORAL_UI_HOST_PORT=8234
+docker compose up -d --wait
+docker compose run --rm api npx prisma migrate deploy
+```
+
+У копии свои тома, значит и своя пустая база. Останавливается копия командой
+`docker compose down` из её папки.
+
+Агент `qa-tester` ходит только на порты api, web и Temporal UI этих двух копий (3000, 3001, 8233 и
+4000, 4001, 8234) и выбирает свои по `docker compose ps` в папке, из которой запущен. Другие
+порты для второй копии он не пропустит.
 
 ## Команды
 

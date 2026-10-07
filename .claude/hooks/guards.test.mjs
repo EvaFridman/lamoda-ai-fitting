@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 
 import { Blocked } from './guard-lib.mjs';
 import { check as main } from './main-rules.mjs';
-import { BROWSER_TOOLS, check as qaTester } from './qa-tester-rules.mjs';
+import { BROWSER_TOOLS, PORTS, check as qaTester } from './qa-tester-rules.mjs';
 import { check as readOnly } from './read-only-rules.mjs';
 import { check as testWriter } from './test-writer-rules.mjs';
 
@@ -133,6 +133,9 @@ describe('qa-tester rules', () => {
       bash('curl -s --max-time=5 http://localhost:3000/'),
       bash("curl -s -G --data-urlencode 'name=Ёжик в тумане' http://localhost:3000/hello"),
       bash("curl -s -b 'sid=1' http://localhost:3001/"),
+      bash(
+        'curl -s http://localhost:4000/health/live http://127.0.0.1:4001/ http://localhost:8234/',
+      ),
       bash('docker compose ps'),
       bash('docker compose logs --tail 100 api'),
       bash('docker compose logs --tail=50 --no-color api temporal-worker'),
@@ -143,6 +146,7 @@ describe('qa-tester rules', () => {
       ['mcp__playwright__browser_take_screenshot', { type: 'png', fullPage: true }],
       ['mcp__playwright__browser_snapshot', {}],
       ['mcp__playwright__browser_tabs', { action: 'new', url: 'http://localhost:3001/' }],
+      ['mcp__playwright__browser_navigate', { url: 'http://localhost:4001/' }],
       ['mcp__playwright__browser_tabs', { action: 'list' }],
       ['mcp__playwright__browser_cookie_set', { name: 'a', value: 'b', path: '/' }],
       ['mcp__playwright__browser_evaluate', { function: '() => document.title' }],
@@ -154,6 +158,11 @@ describe('qa-tester rules', () => {
       bash('curl http://localhost:3000/ evil'),
       bash('curl -s http://localhost:5433/'),
       bash('curl -s http://localhost:3000.evil.com/'),
+      bash('curl -s http://localhost:3002/'),
+      bash('curl -s http://localhost:4002/'),
+      bash('curl -s http://localhost:40000/'),
+      bash('curl -s http://localhost:5434/'),
+      ['mcp__playwright__browser_navigate', { url: 'http://localhost:6381/' }],
       bash('curl -o out.html http://localhost:3001/'),
       bash('curl -o/tmp/x http://localhost:3000/'),
       bash('curl -sO http://localhost:3001/x'),
@@ -509,5 +518,14 @@ describe('agent files', () => {
     const agent = fs.readFileSync(path.join(ROOT, '.claude/agents/qa-tester.md'), 'utf8');
     const listed = agent.match(/^tools: (.*)$/m)[1].match(/mcp__playwright__\w+/g) ?? [];
     assert.deepEqual([...listed].sort(), [...BROWSER_TOOLS].sort());
+  });
+
+  it('qa-tester --allowed-origins lists the same ports as its rules allow', () => {
+    const agent = fs.readFileSync(path.join(ROOT, '.claude/agents/qa-tester.md'), 'utf8');
+    const origins = agent.match(/--allowed-origins=([^']*)/)[1].split(';');
+    assert.deepEqual(
+      origins.map((o) => o.replace(/^http:\/\/localhost:/, '')).sort(),
+      [...PORTS].sort(),
+    );
   });
 });

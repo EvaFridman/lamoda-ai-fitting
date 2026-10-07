@@ -8,7 +8,13 @@
 
 import { Blocked, isSecret, words } from './guard-lib.mjs';
 
-const LOCAL_URL = /^https?:\/\/(localhost|127\.0\.0\.1):(3000|3001|8233)([/?#].*)?$/;
+// api, web and Temporal UI of the default stack and of a second copy (README, "Вторая копия
+// стека"). The agent's --allowed-origins lists the same ports (checked by guards.test.mjs).
+export const PORTS = ['3000', '3001', '8233', '4000', '4001', '8234'];
+const LOCAL_URL = new RegExp(
+  `^https?://(localhost|127\\.0\\.0\\.1):(${PORTS.join('|')})([/?#].*)?$`,
+);
+const ALLOWED = `only http://localhost on ports ${PORTS.join(', ')}`;
 const SERVICES = new Set(['postgres', 'redis', 'temporal', 'temporal-worker', 'api', 'web']);
 
 // curl flags without a value; short ones may be bundled (-si).
@@ -87,9 +93,7 @@ function checkCurl(args) {
     } else if (LOCAL_URL.test(a)) {
       urls++;
     } else {
-      throw new Blocked(
-        `only http://localhost:3000 (api), :3001 (web), :8233 (Temporal UI), not ${JSON.stringify(a)}`,
-      );
+      throw new Blocked(`${ALLOWED}, not ${JSON.stringify(a)}`);
     }
     if (problem) throw new Blocked(problem);
   }
@@ -235,7 +239,7 @@ function checkBrowser(tool, input) {
   if (tool.endsWith('_navigate') && urls.length === 0) urls.push(undefined);
   for (const url of urls) {
     if (typeof url !== 'string' || !LOCAL_URL.test(url)) {
-      throw new Blocked(`only http://localhost:3000, :3001 and :8233, not ${JSON.stringify(url)}`);
+      throw new Blocked(`${ALLOWED}, not ${JSON.stringify(url)}`);
     }
   }
 }
