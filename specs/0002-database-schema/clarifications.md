@@ -1,6 +1,6 @@
 # 0002 Database schema: clarifications
 
-Status: in progress (2026-10-07).
+Status: done (2026-10-08). History, not instructions.
 
 Decisions made by the owner. Each line is final unless the owner changes it here. The source design is
 the owner's drawsql diagram (12 tables); the decisions below amend it.
