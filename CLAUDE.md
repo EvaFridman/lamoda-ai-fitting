@@ -101,8 +101,12 @@ Pinned on purpose; each "not newer" has a reason and a condition to move on.
   hook and CI run exactly this, so the list of checks lives in one place (root `package.json`).
 
 `verify` covers `api` (lint, typecheck, tests, build), `web` (lint, Stylelint, typecheck,
-`next build`) and the agents' guard hooks (lint, tests). `web` has no tests yet: when its first test
-lands, add `web` to the root `test` script, or `verify` keeps saying nothing about web logic.
+`next build`) and the agents' guard hooks (lint, tests). Docker must be running for `verify` and
+`npm test`: the Vitest project `database` (`api/test/database/`) starts a throwaway PostgreSQL with
+Testcontainers (`api/test/support/`), never the development database; without Docker it fails
+with a message to start it. The project `unit` (everything else) needs no Docker. `web` has no
+tests yet: when its first test lands, add `web` to the root `test` script, or `verify` keeps saying
+nothing about web logic.
 
 Before calling a task done: `npm run verify`. Before opening a pull request, also a clean install
 the way CI does it (`npm ci` in the root and in each package), then `verify` again.

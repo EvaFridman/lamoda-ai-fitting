@@ -11,7 +11,8 @@
 ## Требования
 
 - Node 26 и npm 12 (версия Node задана в `.nvmrc`; установка на другой версии остановится с ошибкой)
-- Docker с Compose
+- Docker с Compose; должен быть запущен и для `npm run verify` (тесты базы поднимают одноразовую
+  PostgreSQL в контейнере)
 - gitleaks (`brew install gitleaks`): его запускает git-хук перед каждым коммитом
 
 ## Быстрый старт
@@ -45,6 +46,12 @@ docker compose up -d --wait     # весь стек, ждёт, пока серв
 npm run verify         # всё, что проверяет CI: формат, линтеры, типы, тесты, сборки
 npm run format         # отформатировать всё Prettier
 ```
+
+`verify` и `npm test` требуют запущенного Docker: тесты в `api/test/database/` проверяют ограничения
+базы на одноразовой PostgreSQL (Testcontainers), а не на базе разработки. Без Docker тесты падают
+с сообщением его запустить. Контейнер удаляется в конце прогона; если прогон оборвать (Ctrl+C,
+падение процесса), он остаётся — найти его можно по метке `org.testcontainers=true` и удалить в
+Docker Desktop.
 
 Остальные команды: `api/package.json`, `web/README.md`.
 

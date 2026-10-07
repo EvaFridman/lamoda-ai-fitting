@@ -110,3 +110,13 @@ the owner's drawsql diagram (12 tables); the decisions below amend it.
   there) may use the throwaway database of C19; every other test still stubs Prisma and reaches no
   real service. The hook that limits its writes to spec files stays as it is; the test support files
   are written by the main session.
+- C24. Found in the security review of T3: Testcontainers publishes its ports (the test database and
+  Ryuk, its cleanup container, which holds the Docker socket and removes containers and volumes by
+  label on request) on every interface while the tests run. Ryuk is disabled; the test database
+  gets a random password per run and is removed by the tests' teardown. A killed run leaves its
+  container behind (label `org.testcontainers=true`), removed by hand. Binding published ports to
+  `127.0.0.1` with the Docker Engine setting `"ip"` was chosen first and dropped: Docker Desktop 29
+  ignores it (checked: a port without an address still listens on every interface of the Mac), and
+  Testcontainers 12.2 cannot set the address. A macOS firewall rule and accepting the exposure were
+  the other options. A lint rule that keeps database specs on `createTestDatabase()` goes to the
+  backlog.
