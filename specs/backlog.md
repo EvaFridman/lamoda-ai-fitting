@@ -57,10 +57,14 @@ removes it from this list. Found by the agents' first security audit and trial r
 Left for later specs by `0002-database-schema` (its `clarifications.md` has the decisions).
 
 - **Catalog API.** Image columns hold object keys (C9): the first API that returns images adds
-  `MEDIA_BASE_URL` (validated, in `.env.example`) and builds full URLs. It also computes the price
+  `MEDIA_BASE_URL` (validated, in `.env.example`) and builds full URLs, checking that each result
+  stays on the base's origin and under its path (not a bare `new URL(key, base)`; the base ends with
+  `/`, or its last segment is dropped). It also computes the price
   after the discount from `price` and `discount` (C17), with a rounding rule decided by the owner.
 - **Auth input rules (`0003-auth`).** Normalize phone input (`8 …`, `+7 …`, spaces, brackets,
   hyphens) to `+79XXXXXXXXX`; trim and lower-case email; require age 14 or more at sign-up. The
   database rejects anything else (C12), so without these rules valid users get database errors.
 - **File storage.** Placeholders are static files of web (C9a). Photo upload and generation results
   need real storage (object storage or a server folder), with backups and limits on size and type.
+  Deleting a user or a generation deletes its files too (the database cascade of C8 does not reach
+  storage), and old photo snapshots of C14 get a retention period.

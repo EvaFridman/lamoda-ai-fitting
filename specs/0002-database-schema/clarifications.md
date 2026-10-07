@@ -70,9 +70,21 @@ the owner's drawsql diagram (12 tables); the decisions below amend it.
   - names (category, brand, product, attribute), article, size and attribute value: not empty, no
     leading or trailing spaces;
   - price greater than 0; discount 0–100; rating 0–5 or empty; stock and sort order 0 or more;
-  - image keys: not empty, no leading `/`, no `..`, no `://`;
+  - image keys: an allowlist (C22);
   - generation status: `completed` has a result image and no error; `failed` has an error message;
-    `pending` and `processing` have neither.
+    `pending` and `processing` have neither;
+  - error message: not empty, at most 1000 characters (C23).
+- C21. The partial unique key of C15 looks like a full unique key to the generated client: a query
+  by `{ userId }` alone (`findUnique`, `update`, `delete`, `upsert`, `connect`) may hit an archived
+  session. Code always adds `isActive: true`; a comment in `schema.prisma` says so, and the tests of
+  T3 cover a user with archived sessions and an active one. No lint rule.
+- C22. Image keys (the four columns of C9) are relative object keys built from ASCII letters,
+  digits, `.`, `_` and `-`, in segments joined by `/`; each segment starts with a letter or digit,
+  and `..` is not allowed anywhere. A deny list (no leading `/`, no `..`, no `://`) was rejected:
+  browsers and `new URL()` turn `\\host/x`, ` //host/x`, `javascript:…` or `%2e%2e/` into another
+  host or path. The URL built from a key is checked by the first API that returns images (backlog).
+- C23. `ai_generations.error_message` is `varchar(1000)` and not empty: it holds a short message or
+  code, not a provider's raw response or a stack trace.
 
 ## Seed and deploys
 

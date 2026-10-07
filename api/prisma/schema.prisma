@@ -1,5 +1,7 @@
 // Database schema. Every change goes through a migration (`prisma migrate dev`), never `db push`.
 // Migrations stay compatible with the previous release: add first, remove in a later release.
+// CHECK constraints live in the migrations only: Prisma does not model them and ignores them when it
+// compares this schema with the database.
 
 generator client {
   provider            = "prisma-client"
@@ -8,10 +10,218 @@ generator client {
   moduleFormat        = "esm"
   // The api is ESM with "nodenext" resolution: relative imports need the .js extension.
   importFileExtension = "js"
+  // For the partial unique index on fitting_sessions (one active session per user).
+  previewFeatures     = ["partialIndexes"]
 }
 
 // The connection URL lives in prisma.config.ts; at runtime PrismaService connects through
 // @prisma/adapter-pg.
 datasource db {
   provider = "postgresql"
+}
+
+enum Gender {
+  male
+  female
+
+  @@map("gender")
+}
+
+enum GenerationStatus {
+  pending
+  processing
+  completed
+  failed
+
+  @@map("generation_status")
+}
+
+model User {
+  id                     String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  phone                  String    @unique @db.VarChar(12)
+  email                  String    @unique @db.VarChar(254)
+  firstName              String    @map("first_name") @db.VarChar(50)
+  lastName               String?   @map("last_name") @db.VarChar(50)
+  patronymic             String?   @db.VarChar(50)
+  dateOfBirth            DateTime? @map("date_of_birth") @db.Date
+  gender                 Gender?
+  fittingProfileImageKey String?   @map("fitting_profile_image_key") @db.VarChar(255)
+  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt              DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  fittingSessions FittingSession[]
+
+  @@map("users")
+}
+
+model Category {
+  id          String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  name        String   @unique @db.VarChar(255)
+  slug        String   @unique @db.VarChar(255)
+  isActive    Boolean  @map("is_active")
+  description String?  @db.Text
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  products Product[]
+
+  @@map("categories")
+}
+
+model Brand {
+  id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  name      String   @unique @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  products Product[]
+
+  @@map("brands")
+}
+
+model Product {
+  id          String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  article     String   @unique @db.VarChar(255)
+  name        String   @db.VarChar(255)
+  description String?  @db.Text
+  rating      Decimal? @db.Decimal(2, 1)
+  price       Decimal  @db.Decimal(10, 2)
+  discount    Int      @default(0)
+  brandId     String   @map("brand_id") @db.Uuid
+  categoryId  String   @map("category_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  brand              Brand                   @relation(fields: [brandId], references: [id], onDelete: Restrict)
+  category           Category                @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  images             ProductImage[]
+  variations         ProductVariation[]
+  attributeValues    ProductAttributeValue[]
+  generationProducts GenerationProduct[]
+
+  @@index([brandId])
+  @@index([categoryId])
+  @@map("products")
+}
+
+model ProductImage {
+  id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  productId String   @map("product_id") @db.Uuid
+  imageKey  String   @map("image_key") @db.VarChar(255)
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("product_images")
+}
+
+model ProductVariation {
+  id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  productId String   @map("product_id") @db.Uuid
+  size      String   @db.VarChar(20)
+  stock     Int
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, size])
+  @@map("product_variations")
+}
+
+model Attribute {
+  id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  name      String   @unique @db.VarChar(100)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  values AttributeValue[]
+
+  @@map("attributes")
+}
+
+model AttributeValue {
+  id          String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  attributeId String   @map("attribute_id") @db.Uuid
+  value       String   @db.VarChar(255)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  attribute Attribute               @relation(fields: [attributeId], references: [id], onDelete: Restrict)
+  products  ProductAttributeValue[]
+
+  @@unique([attributeId, value])
+  @@map("attribute_values")
+}
+
+model ProductAttributeValue {
+  productId        String   @map("product_id") @db.Uuid
+  attributeValueId String   @map("attribute_value_id") @db.Uuid
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  product        Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  attributeValue AttributeValue @relation(fields: [attributeValueId], references: [id], onDelete: Restrict)
+
+  @@id([productId, attributeValueId])
+  @@index([attributeValueId])
+  @@map("product_attribute_values")
+}
+
+model FittingSession {
+  id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  title     String?  @db.VarChar(255)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  generations AiGeneration[]
+
+  // One active session per user (C15); the plain index serves the history list.
+  // The generated client treats userId as a full unique key, but it is unique only among active
+  // sessions: `where: { userId }` in findUnique/update/delete/upsert/connect may hit an archived
+  // session. Always add `isActive: true`.
+  @@unique([userId], where: raw("is_active"))
+  @@index([userId])
+  @@map("fitting_sessions")
+}
+
+model AiGeneration {
+  id             String           @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  sessionId      String           @map("session_id") @db.Uuid
+  // A snapshot of the photo the generation used, not a link to the profile photo (C14).
+  userImageKey   String           @map("user_image_key") @db.VarChar(255)
+  resultImageKey String?          @map("result_image_key") @db.VarChar(255)
+  status         GenerationStatus
+  aiProvider     String           @map("ai_provider") @db.VarChar(50)
+  aiModel        String           @map("ai_model") @db.VarChar(50)
+  // A short message or code, not a provider's raw response (C23).
+  errorMessage   String?          @map("error_message") @db.VarChar(1000)
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  session  FittingSession      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  products GenerationProduct[]
+
+  @@index([sessionId])
+  @@map("ai_generations")
+}
+
+// A link is created with its generation, so it has no timestamps (C10).
+model GenerationProduct {
+  generationId String @map("generation_id") @db.Uuid
+  productId    String @map("product_id") @db.Uuid
+
+  generation AiGeneration @relation(fields: [generationId], references: [id], onDelete: Cascade)
+  product    Product      @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@id([generationId, productId])
+  @@index([productId])
+  @@map("generation_products")
 }
