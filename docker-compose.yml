@@ -19,8 +19,9 @@ x-api-env: &api-env
   THROTTLE_LIMIT: ${THROTTLE_LIMIT:-100}
 
 # Sources over the image's copy. The anonymous volume keeps the Prisma client generated inside the
-# image visible under the mounted src/ (after a schema change: `docker compose run --rm api npx
-# prisma generate`). prisma/ is mounted so new migrations land in the repository.
+# image visible under the mounted src/ (after a schema change: `docker compose up -d --build
+# --renew-anon-volumes --wait api temporal-worker`). prisma/ is mounted so new migrations land in
+# the repository.
 x-api-volumes: &api-volumes
   - ./api/src:/app/src
   - /app/src/generated

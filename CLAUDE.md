@@ -132,7 +132,12 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   listed in `.env.example`. Claude cannot read `.env` (settings deny it) and does not need to.
 - Sources are bind-mounted; rebuild an image (`docker compose up -d --build <service>`) only after
   a dependency or config change. After a Prisma schema change:
-  `docker compose run --rm api npx prisma generate`.
+  `docker compose up -d --build --renew-anon-volumes --wait api temporal-worker`. The generated
+  client lives in the image and in each container's anonymous volume: `prisma generate` in a
+  `run --rm` container reaches neither the running services nor the next `run`.
+- Local database: `docker compose run --rm api npx prisma migrate dev`, then
+  `docker compose run --rm api npm run seed:dev` (the demo catalog of `api/src/seed/`). The seed
+  only adds rows that are missing, found by natural keys, and never changes existing ones.
 - Containers reach each other by service name, never `localhost`; addresses come from compose.
   Startup order uses health checks with `depends_on: service_healthy`, never sleeps.
 - `docker compose down -v` and `docker volume rm/prune` delete data; the Bash guard blocks them.

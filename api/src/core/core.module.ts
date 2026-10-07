@@ -5,7 +5,7 @@ import { LoggerModule } from 'nestjs-pino';
 import { type Env, validateEnv } from '../config/env.js';
 
 // What every process of the api image needs: validated configuration and logging. Imported by
-// AppModule (HTTP server) and WorkerModule (Temporal worker).
+// AppModule (HTTP server), WorkerModule (Temporal worker) and SeedModule (seed).
 @Module({
   imports: [
     // Configuration comes only from the process environment (compose sets it); no .env loading.

@@ -15,6 +15,8 @@
     "start:worker": "nest start --entryFile temporal/worker",
     "start:worker:dev": "nest start --watch --entryFile temporal/worker",
     "start:worker:prod": "node dist/temporal/worker.js",
+    "seed": "node dist/seed/main.js",
+    "seed:dev": "nest start --entryFile seed/main",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
