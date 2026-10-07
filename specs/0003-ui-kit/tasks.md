@@ -27,10 +27,10 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Check: `npm run format:check`; AC12 (`git check-ignore -v specs/0003-ui-kit/references/x.png`);
       the owner has accepted spec, plan and tasks.
       Commit: `docs(specs): add the tasks of spec 0003`
-- [ ] **T2. Web tests.**
+- [x] **T2. Web tests.**
   - `vitest`, `jsdom` and `@testing-library/{react,user-event,jest-dom}` in web devDependencies,
     at the versions in plan, "Versions"; none needs an install script.
-  - `web/vitest.config.ts` and `web/vitest.setup.ts`; a `test` script in `web/package.json`; the
+  - `web/vitest.config.mts` and `web/vitest.setup.ts`; a `test` script in `web/package.json`; the
     root `test` script runs it.
   - The first tested code: `web/src/shared/lib/format-price.ts` (`ru-RU`, thin spaces, "₽") with
     its test.

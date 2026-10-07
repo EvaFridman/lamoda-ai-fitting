@@ -82,15 +82,15 @@ What each agent may do, how the guard hooks work, the owner's decisions and the 
 
 Pinned on purpose; each "not newer" has a reason and a condition to move on.
 
-| What       | Version                                                                                  | Why                                                                                                                                                          |
-| ---------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Node / npm | 26 / 12                                                                                  | Node 26 is LTS from 2026-10-28. npm 12 runs install scripts only from `allowScripts` in `package.json`; Node images ship npm 11, so images and CI install 12 |
-| TypeScript | 6.0                                                                                      | 7.0 has no JS API (typescript-eslint, Nest Swagger plugin, Next need it). Move when they support 7                                                           |
-| ESLint     | 10                                                                                       | React/a11y rules from `@eslint-react/eslint-plugin` and `eslint-plugin-jsx-a11y-x`; the classic plugins do not run on 10                                     |
-| Prisma     | 7.10                                                                                     | install as `prisma@7`: npm's `latest` tag points at an 8.0 release candidate                                                                                 |
-| api        | NestJS 12, PostgreSQL 18, Redis 8 (ioredis), Temporal (SDK 1.x), pino, socket.io, Vitest |                                                                                                                                                              |
-| web        | Next 16, React 19, TanStack Query 5, Zustand 5, zod, SCSS, Sentry                        |                                                                                                                                                              |
-| Server     | Docker Compose, nginx + certbot, blue-green deploys                                      | `deploy/README.md`                                                                                                                                           |
+| What       | Version                                                                                    | Why                                                                                                                                                          |
+| ---------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Node / npm | 26 / 12                                                                                    | Node 26 is LTS from 2026-10-28. npm 12 runs install scripts only from `allowScripts` in `package.json`; Node images ship npm 11, so images and CI install 12 |
+| TypeScript | 6.0                                                                                        | 7.0 has no JS API (typescript-eslint, Nest Swagger plugin, Next need it). Move when they support 7                                                           |
+| ESLint     | 10                                                                                         | React/a11y rules from `@eslint-react/eslint-plugin` and `eslint-plugin-jsx-a11y-x`; the classic plugins do not run on 10                                     |
+| Prisma     | 7.10                                                                                       | install as `prisma@7`: npm's `latest` tag points at an 8.0 release candidate                                                                                 |
+| api        | NestJS 12, PostgreSQL 18, Redis 8 (ioredis), Temporal (SDK 1.x), pino, socket.io, Vitest   |                                                                                                                                                              |
+| web        | Next 16, React 19, TanStack Query 5, Zustand 5, zod, SCSS, Sentry, Vitest, Testing Library |                                                                                                                                                              |
+| Server     | Docker Compose, nginx + certbot, blue-green deploys                                        | `deploy/README.md`                                                                                                                                           |
 
 ## Commands (from the root)
 
@@ -101,13 +101,13 @@ Pinned on purpose; each "not newer" has a reason and a condition to move on.
 - `npm run verify`: format check, lint, typecheck, tests and build in one command. The pre-push
   hook and CI run exactly this, so the list of checks lives in one place (root `package.json`).
 
-`verify` covers `api` (lint, typecheck, tests, build), `web` (lint, Stylelint, typecheck,
+`verify` covers `api` (lint, typecheck, tests, build), `web` (lint, Stylelint, typecheck, tests,
 `next build`) and the agents' guard hooks (lint, tests). Docker must be running for `verify` and
 `npm test`: the Vitest project `database` (`api/test/database/`) starts a throwaway PostgreSQL with
 Testcontainers (`api/test/support/`), never the development database; without Docker it fails
-with a message to start it. The project `unit` (everything else) needs no Docker. `web` has no
-tests yet: when its first test lands, add `web` to the root `test` script, or `verify` keeps saying
-nothing about web logic.
+with a message to start it. The project `unit` (everything else) needs no Docker. `web` tests
+(Vitest in jsdom with Testing Library, `web/vitest.config.mts`) sit next to their code as
+`web/src/**/*.test.ts(x)` and need no Docker: `npm --prefix web test`.
 
 Before calling a task done: `npm run verify`. Before opening a pull request, also a clean install
 the way CI does it (`npm ci` in the root and in each package), then `verify` again.

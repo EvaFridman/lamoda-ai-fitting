@@ -47,6 +47,10 @@ lamoda.ru: the catalog, a product page and the order history.
 - D9. The model is desktop Lamoda. Components do not break and the page does not scroll sideways
   on a narrow screen, but there are no mobile variants (bottom sheets instead of dropdowns): the kit
   serves `/ui-kit` for now, and mobile variants come with the real pages.
+- D13. Prices (`formatPrice`, decided in T2): the input is rubles, as the api stores them
+  (`Decimal(10,2)`). Kopecks show only when there are any: 1299 → "1 299 ₽", 1299.5 →
+  "1 299,50 ₽". The spaces are what `Intl.NumberFormat('ru-RU')` puts in (no-break U+00A0, between
+  digit groups and before "₽"); the plan's "thin spaces" means these.
 
 ## Behaviour
 
