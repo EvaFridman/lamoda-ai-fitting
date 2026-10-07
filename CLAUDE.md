@@ -187,10 +187,10 @@ Details and commands: `deploy/README.md`.
 - Hooks: pre-commit (lint-staged, then gitleaks on staged changes), commit-msg (commitlint),
   pre-push (`npm run verify`). Never skip them; the main session's guard blocks `--no-verify`.
 - The main session's Bash guard (`.claude/hooks/main-rules.mjs`, hook in `.claude/settings.json`)
-  splits a command line into simple commands and blocks data deletion, skipped hooks, force pushes
-  and printing secrets (`.env`, `docker compose config`, `printenv`). Quoted text and heredoc
-  bodies are data, so a commit message may mention a blocked command. It guards against mistakes,
-  not a determined bypass.
+  looks for dangerous word sequences anywhere in a command line and blocks data deletion, skipped
+  hooks, force pushes and printing secrets (`.env`, `docker compose config`, `printenv`, recursive
+  `grep`: use `rg`). A quoted string with spaces and a heredoc no shell reads are data, so a commit
+  message may mention a blocked command. It guards against mistakes, not a determined bypass.
 - A gitleaks hit is a real secret until proven otherwise: unstage it. Only a value confirmed to be a
   placeholder goes into the `.gitleaks.toml` allowlist, with a description.
 - One branch and pull request per phase of `tasks.md`; merged with "Rebase and merge".
