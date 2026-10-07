@@ -34,8 +34,17 @@ docker compose run --rm api npx prisma migrate deploy   # миграции: dev-
 
 Исходники `api/src` и `web/{app,src}` примонтированы в контейнеры: правки подхватываются без
 пересборки. Пересобрать образ (`docker compose up -d --build <сервис>`) нужно после изменения
-зависимостей или конфигов. После изменения схемы Prisma:
-`docker compose run --rm api npx prisma generate`.
+зависимостей или конфигов. После изменения схемы Prisma клиент Prisma нужно собрать заново: он
+лежит в образе и в анонимных томах контейнеров, а не в примонтированных исходниках:
+`docker compose up -d --build --renew-anon-volumes --wait api temporal-worker`.
+
+База после первого запуска и после изменения схемы: миграции, затем демо-каталог. Сид только
+добавляет недостающее (товары ищет по артикулу), правки, сделанные в базе, остаются:
+
+```bash
+docker compose run --rm api npx prisma migrate dev
+docker compose run --rm api npm run seed:dev
+```
 
 `docker compose down` останавливает и удаляет контейнеры, данные остаются в томах.
 

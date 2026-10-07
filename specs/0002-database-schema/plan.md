@@ -1,7 +1,8 @@
 # 0002 Database schema: plan
 
 Status: accepted (2026-10-07), amended the same day after the review of T1: three pull requests,
-seed skipped by older images, `updated_at` default, the test-writer rules (C20), image ownership.
+seed skipped by older images, `updated_at` default, the test-writer rules (C20), image ownership;
+amended after the review of T4: reference rows only with a new product (C16b).
 How the accepted [spec.md](spec.md) is built. Decisions are referred to by their ids in
 [clarifications.md](clarifications.md).
 
@@ -140,10 +141,11 @@ failed }` → `generation_status` (C6).
   values, 30 products with a unique article, a garment kind (for its picture), price, discount,
   rating, 2–3 images, 3–5 sizes with stock, and attribute values. No users (C5). The seed task (T4)
   fixes the articles and image keys; the image task (T5) draws one file per key.
-- Idempotence (C16):
-  - categories, brands, attributes, attribute values: `createMany({ skipDuplicates: true })` on
-    their unique keys (`slug`/`name`, `name`, `name`, `(attributeId, value)`), then read back the
-    ids by those keys;
+- Idempotence (C16, C16b):
+  - the articles that exist are read in one query; when every product exists, the run ends there;
+  - categories, brands, attributes, attribute values that the missing products need (and only
+    those): `createMany({ skipDuplicates: true })` on their unique keys (`slug`/`name`, `name`,
+    `name`, `(attributeId, value)`), then read back the ids by those keys;
   - products: a product whose article exists is skipped whole. A new product is created in one
     transaction together with its images, sizes and attribute links. So a reseed never adds,
     changes or removes anything under an existing product, and a hand edit survives (AC9).
@@ -211,7 +213,7 @@ Existing item in this spec's area: "Image ownership" (`web/Dockerfile`), done in
 | Docker not running blocks `verify` and pre-push                                | intended (C19); the failure message says to start Docker                                                                                      |
 | Testcontainers on macOS needs the Docker socket path                           | Docker Desktop's default socket works; noted in `README.md` if T3 needs a setting                                                             |
 | A rollback deploys an image without the seed                                   | the seed step runs only when the image has `dist/seed/main.js`; T6 checks a deploy of an image from before T4                                 |
-| The seed slows every deploy                                                    | a run that finds everything is a handful of queries; measured in the deploy check log                                                         |
+| The seed slows every deploy                                                    | a run that finds every product is one query; measured in the deploy check log                                                                 |
 
 ## How each criterion is verified
 

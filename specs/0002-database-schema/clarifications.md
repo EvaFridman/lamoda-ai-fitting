@@ -92,7 +92,13 @@ the owner's drawsql diagram (12 tables); the decisions below amend it.
   attributes and placeholder images. No users. It is loaded locally and in production.
 - C16. Every deploy runs the seed after `prisma migrate deploy`. The seed only creates rows that are
   missing, found by their natural keys (slug, article, name, product and size, …); it never updates
-  or deletes existing rows, so edits made in the database survive.
+  or deletes existing rows, so edits made in the database survive (narrowed by C16b).
+- C16b. (T4 review) Catalog reference rows (categories, brands, attributes, attribute values) are
+  created only together with a new product that needs them, so a reference row renamed by hand
+  stays renamed while its products exist. A product deleted by hand brings back, with it, the
+  reference rows it needs under their seed names; a category whose slug alone was renamed (its name
+  still taken) fails the seed with the product's article. Rows under an existing product (images,
+  sizes, attribute links) are never re-added: deleting one is an edit too.
 - C16a. Exception: a deploy of an image that has no seed (a rollback to a version from before this
   spec's seed) skips the step and logs "seed skipped", so such a rollback still works.
 

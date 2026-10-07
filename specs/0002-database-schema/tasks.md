@@ -44,7 +44,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## PR 2 · `feat/0002-seed` · demo catalog, images, deploys
 
-- [ ] **T4. Seed.** `api/src/seed/` (entry, module, service, catalog data with articles, garment
+- [x] **T4. Seed.** `api/src/seed/` (entry, module, service, catalog data with articles, garment
       kinds and image keys), scripts `seed` and `seed:dev` in `api/package.json`; tests for the
       idempotence rules in `api/test/database/seed.e2e-spec.ts` (`test-writer`, on the throwaway
       database of T3, C20), and that every article matches `[A-Za-z0-9][A-Za-z0-9-]*`, at most 50
