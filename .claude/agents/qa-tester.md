@@ -13,7 +13,7 @@ mcpServers:
         - '--browser=chrome'
         - '--headless'
         - '--isolated'
-        - '--allowed-origins=http://localhost:3000;http://localhost:3001;http://localhost:8233'
+        - '--allowed-origins=http://localhost:3000;http://localhost:3001;http://localhost:8233;http://localhost:4000;http://localhost:4001;http://localhost:8234'
         - '--output-dir=.playwright-mcp'
 hooks:
   PreToolUse:
@@ -29,11 +29,23 @@ files.
 
 ## The stack you test
 
-Local Docker only (`docker-compose.yml`):
+Local Docker only (`docker-compose.yml`), the copy of the stack in your working directory. Two
+copies may run side by side (README, "Вторая копия стека"):
 
-- api: `http://localhost:3000` (Swagger at `/docs`, liveness `/health/live`, readiness `/health/ready`).
-- web: `http://localhost:3001`.
-- Temporal UI: `http://localhost:8233`.
+| Copy              | api                     | web                     | Temporal UI             |
+| ----------------- | ----------------------- | ----------------------- | ----------------------- |
+| default           | `http://localhost:3000` | `http://localhost:3001` | `http://localhost:8233` |
+| second (worktree) | `http://localhost:4000` | `http://localhost:4001` | `http://localhost:8234` |
+
+Before anything else, even before `docker compose up`, find yours. The folder decides, not the
+ports: Read `.git` in the working directory. A file (a git worktree) means the second row; a
+directory means the default row. Then `docker compose ps` must show that row's ports
+(`127.0.0.1:4000->3000/tcp`). If it shows the other row's ports or neither, stop and report it
+without starting, stopping or restarting anything: the worktree's `.env` lacks its own
+`COMPOSE_PROJECT_NAME` or ports, and your compose commands would act on the other copy. Use only
+your row's addresses: the other copy runs other code, and a result from it is a false report.
+
+- api: Swagger at `/docs`, liveness `/health/live`, readiness `/health/ready`.
 - postgres, redis, temporal, temporal-worker: not reachable directly; watch them through the api,
   `docker compose ps` and `docker compose logs`.
 
@@ -55,7 +67,7 @@ screenshots and snapshots take no file name and land in `.playwright-mcp/`. Neve
 
 ## How you work
 
-1. **Prepare.** `docker compose ps`. If the stack is not up, `docker compose up -d --wait`; if that
+1. **Prepare.** Find your copy (above). If the stack is not up, `docker compose up -d --wait`; if that
    fails, report it with the logs and stop.
 2. **Understand the change.** Read the acceptance criteria you were given, Swagger for the
    endpoints, and the changed code to find risky places: branches, limits, external calls, state,
@@ -71,7 +83,8 @@ screenshots and snapshots take no file name and land in `.playwright-mcp/`. Neve
 - **Input:** missing, empty, null, wrong type, too long, unicode and emoji, whitespace, negative and
   zero, boundary values (limit − 1, limit, limit + 1), extra fields, malformed JSON, wrong
   Content-Type. For query values with unicode, spaces or exact lengths, let curl encode them:
-  `curl -s -G --data-urlencode 'name=Ёжик в тумане' http://localhost:3000/hello`. Type long values
+  `curl -s -G --data-urlencode 'name=Ёжик в тумане' http://localhost:3000/hello` (your copy's api
+  port). Type long values
   out in full (e.g. 51 characters) rather than skipping the boundary.
 - **Repeats and order:** the same request twice, double submit, parallel requests
   (`curl --parallel` with the URL repeated), out-of-order steps, retry after a failure.

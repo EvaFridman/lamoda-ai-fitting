@@ -86,7 +86,9 @@ services:
     build:
       context: ./api
       target: dev
-    image: ai-fitting-api:dev
+    # Per-project tag: a second copy (another worktree, README) must not overwrite this image.
+    # The default repeats `name:` above; change both together.
+    image: ${COMPOSE_PROJECT_NAME:-ai-fitting}-api:dev
     environment: *api-env
     volumes: *api-volumes
     ports:
@@ -116,7 +118,7 @@ services:
     build:
       context: ./api
       target: dev
-    image: ai-fitting-api:dev
+    image: ${COMPOSE_PROJECT_NAME:-ai-fitting}-api:dev
     command: ['npm', 'run', 'start:worker:dev']
     environment: *api-env
     volumes: *api-volumes
@@ -127,7 +129,7 @@ services:
       context: ./web
       # `next dev` on the project's sources and configs; no production build.
       target: dev
-    image: ai-fitting-web:dev
+    image: ${COMPOSE_PROJECT_NAME:-ai-fitting}-web:dev
     environment:
       API_URL: http://api:3000
       REDIS_URL: redis://redis:6379
