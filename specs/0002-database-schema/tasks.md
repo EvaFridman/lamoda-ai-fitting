@@ -66,9 +66,10 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       read-only app tree; `npm run verify`; 👤 the owner clears the local database and reseeds, then
       AC8 and AC9 counts again.
       Commit: `feat(web): add placeholder images for the demo catalog`
-- [ ] **T6. Seed on deploy.** `deploy/scripts/deploy.sh` runs `node dist/seed/main.js` after the
+- [x] **T6. Seed on deploy.** `deploy/scripts/deploy.sh` runs `node dist/seed/main.js` after the
       migrations when the image has it, "seed skipped" otherwise; a failed seed fails the deploy like
-      a failed migration. `scripts/ci-deploy-check.sh` checks the counts after both deploys.
+      a failed migration. `scripts/ci-deploy-check.sh` checks the counts after both deploys and,
+      outside CI, removes the stack it started (C25; closes the backlog item).
       `deploy/README.md`, `.claude/rules/deploy.md` and `CLAUDE.md` (Production and deploys) describe
       the step.
       Check: AC11 on CI (deploy check log: migration, then seed, before the new api starts; the
