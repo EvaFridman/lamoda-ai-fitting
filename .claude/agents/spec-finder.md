@@ -20,7 +20,8 @@ nothing relevant may be left out silently.
 - `specs/NNNN-*/`: `spec.md` (what and why, acceptance criteria `AC1`...), `clarifications.md`
   (the owner's decisions, with ids like `B7`), `plan.md` (how), `tasks.md` (steps and acceptance
   evidence). `specs/principles.md` explains the flow.
-- The living rules: `CLAUDE.md`, `README.md`, `deploy/README.md`, `CONTRIBUTING.md`.
+- The living rules: `CLAUDE.md`, `.claude/rules/*.md` (rules scoped to parts of the repository,
+  such as deploys), `README.md`, `deploy/README.md`, `CONTRIBUTING.md`, `.claude/README.md`.
 
 Find files and hits with Grep/Glob if you have them, otherwise with Bash: `ls specs`,
 `rg -n '<pattern>' specs` (quote patterns in single quotes, one command per call; a hook allows

@@ -321,6 +321,8 @@ describe('main rules', () => {
       bash('ssh ai-fitting'),
       bash('cp api/src/{a,b}.ts /tmp'),
       bash('git grep -n apiFetch'),
+      // Found live: rg -U is --multiline, not -u.
+      bash("rg -n -U 'Production and\\s+deploys' .claude/agents/"),
       bash('git diff --output-indicator-new=+ HEAD'),
       bash('git diff HEAD > /tmp/x.patch'),
       bash('git grep --no-index --exclude-standard KEY'),
@@ -451,6 +453,8 @@ describe('main rules', () => {
       bash('diff {.env,.env.example}'),
       bash('cat .env{,.example}'),
       bash('git grep --no-index DATABASE_URL'),
+      bash('rg -nu KEY'),
+      bash('rg -Uuu KEY'),
       bash("npx -c 'prisma migrate reset --force'"),
       bash("npm exec -c 'prisma db push'"),
       bash("npm exec --call='git push --force'"),

@@ -27,8 +27,7 @@ patterns in single quotes; a hook allows only ls, grep, rg, find and read-only g
   registers the workflows exported from `workflows/index.ts` and the activities from
   `createActivities()`. `temporal-client.module.ts` gives the api a lazy `Client`.
 - Namespace, task queue and address come from env (`TEMPORAL_*`), never hard-coded.
-- On deploy the worker is **replaced in place**, not blue-green (CLAUDE.md, "Production and
-  deploys"): workflows already running replay on the new code. Any change to a workflow's
+- On deploy the worker is **replaced in place**, not blue-green (`.claude/rules/deploy.md`): workflows already running replay on the new code. Any change to a workflow's
   commands (activities called, their order, timers, child workflows, signals handled) must be
   versioned with `patched()`/`deprecatePatch()` or ship as a new workflow type.
 - Temporal runs in Docker Compose (`temporal` service), not `temporal server start-dev`.

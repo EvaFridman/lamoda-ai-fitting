@@ -435,7 +435,8 @@ function checkSegment(seg) {
   }
   if (
     lw.some((x) => base(x) === 'rg') &&
-    lw.some((x) => x.startsWith('--no-ignore') || /^-u+$/.test(x) || x === '--unrestricted')
+    // Case matters here: -u is --unrestricted, -U is --multiline.
+    w.some((x) => x.startsWith('--no-ignore') || /^-[a-zA-Z]*u/.test(x) || x === '--unrestricted')
   ) {
     block('rg without ignore files reads .env');
   }
