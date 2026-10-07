@@ -15,7 +15,9 @@ Keep this file true: update it in the same commit that changes what a section de
 - Spec files are never read whole in the main context. Read only the line range you work from (your
   task in `tasks.md`, a section you edit); everything else comes from the `spec-finder` agent as
   verbatim quotes with `path:line`, each marked binding or history. Open a range by its `path:line`
-  when a quote is not enough. The exception: a `spec.md` or `plan.md` you are writing.
+  when a quote is not enough. The exception: a `spec.md` or `plan.md` you are writing. To follow
+  the format of an earlier spec file, take it from `specs/principles.md` or ask `spec-finder` for
+  that file's headings; do not open the file whole.
 
 ## How work is done
 
