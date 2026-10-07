@@ -1,0 +1,65 @@
+# 0003 UI-kit: clarifications
+
+Status: in progress (2026-10-08).
+
+Decisions made by the owner. Each line is final unless the owner changes it here. The model is
+lamoda.ru: the catalog, a product page and the order history.
+
+## Scope
+
+- D1. References: the owner's screenshots and the three pages saved from the browser as HTML. They
+  live in `specs/0003-ui-kit/references/`, which is git-ignored, because they hold Lamoda's code and
+  images and the order history holds the owner's personal data. Only values taken from them
+  (colours, sizes, spacing, copy) enter the spec files and the code. lamoda.ru answers 403 to
+  automated fetches, so there is no other source.
+- D5. Components of the kit:
+  - basic: Button (variants, sizes, loading, disabled), IconButton, Link, TextField, Checkbox,
+    Radio, Switch, Spinner;
+  - catalog filters: filter chip, filter dropdown (checkbox list with search), sort select, size
+    picker, colour swatches, price range;
+  - product and order pieces: Price (current, old, discount), Badge, read-only star Rating, size
+    selector (selected, out of stock), favourite toggle, order status;
+  - navigation and feedback: Tabs, Breadcrumbs, Pagination, Accordion, Modal and Drawer, Tooltip,
+    Toast, Skeleton.
+- D5a. Added after the screenshots: a search field (grey field with a black square search button)
+  and a select with a thumbnail and a border (the colour and size selects of the product page).
+- D5b. The order status follows Lamoda: coloured text with a grey date ("Доставлен" in black,
+  "Не выкуплен" in red), not a filled badge.
+- D6. Not in the kit: the product card and the order card.
+- D6a. Not in the kit, left for the pages that need them: the header, the footer, the black
+  announcement bar and the floating chat button. Also left out of the kit: the side category and
+  account menus, pill buttons ("С чем носить", "Идет размер в размер"), the round carousel arrow,
+  bordered link rows ("Узнать условия доставки"), the characteristics list with dotted leaders, the
+  promo countdown and small product labels.
+
+## Look
+
+- D2. As close to Lamoda as possible: colours, sizes, spacing, states and copy. No Lamoda logo and
+  no Lamoda font files.
+- D3. Icons are SVGs taken from Lamoda's code. Accepted risk, raised during the questions:
+  someone else's graphics in a public repository and on the production site.
+- D4. Font: the closest free font with Cyrillic from Google Fonts, served through `next/font` from
+  our own domain. The plan offers two or three candidates; the owner picks one.
+- D8. Light theme only, as on Lamoda. The dark values in `web/app/globals.scss` go. Tokens stay CSS
+  custom properties, so a dark theme can be added later.
+- D9. The model is desktop Lamoda. Components do not break and the page does not scroll sideways
+  on a narrow screen, but there are no mobile variants (bottom sheets instead of dropdowns): the kit
+  serves `/ui-kit` for now, and mobile variants come with the real pages.
+
+## Behaviour
+
+- D7. Keyboard and screen-reader behaviour of dropdowns, selects, dialogs, tabs and tooltips comes
+  from a headless library (Radix UI or Base UI, chosen in the plan after the checks in
+  `CONTRIBUTING.md`), styled with our own SCSS.
+
+## Page
+
+- D10. `/ui-kit` is public in production, closed to search engines (`noindex`).
+- D11. One page: tokens first (colours, type, spacing), then a section per component with every
+  variant and state, and a table of contents on the left with anchor links. Examples are live: they
+  can be clicked and change state.
+
+## Tests
+
+- D12. Vitest and Testing Library for components with logic. `web` joins the root `npm test` and so
+  `verify`. The `test-writer` agent is extended to `web`; `.claude/README.md` is updated with it.
