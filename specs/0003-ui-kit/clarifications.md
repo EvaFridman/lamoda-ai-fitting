@@ -146,6 +146,26 @@ lamoda.ru: the catalog, a product page and the order history.
   and "31 июля 2024 года" (the current year differs between server and browser around New Year,
   and `Intl` writes "2024 г."). The `caution` tone is Lamoda's orange `#be5b04`
   (`--color-caution`), `secondary` is `#888`.
+- D7v. Decided in T14. An arrow key on Tabs moves to the next tab and shows its panel at once
+  (automatic activation, as the APG advises when panels need no loading). A disabled tab is grey
+  and cannot be shown, but the arrows stop on it: Base UI's tab list has no option to skip disabled
+  tabs (checked in T14). Tab from the list goes to the panel. The active tab's underline does not
+  slide, as on Lamoda. With no `defaultValue` the first enabled tab is shown. The large size uses
+  the kit's headline-m (24/28), not the plan's and Lamoda's 24/32: no token has a 32px line.
+- D7w. Decided in T14. The last item of Breadcrumbs, the current page, is text, not a link (Lamoda
+  links it to itself), with `aria-current="page"`. On a narrow screen the crumbs wrap to a new
+  line instead of scrolling sideways as Lamoda's do.
+- D7x. Decided in T14, a change to plan, "Components" (Pagination). Pagination works as links
+  (`getHref`, `next/link`: the catalog's pages have addresses) or as buttons (`onPageChange`).
+  "← Назад" is not shown on the first page and "Дальше →" not on the last, as on Lamoda, rather
+  than disabled (a link has no disabled state, D7b). The counter is items, not pages: "10 из 11"
+  is 10 orders shown of 11, as on Lamoda. With many pages it shows the first, the last and the
+  current one with its neighbours, and "…" for the rest. "Показать ещё" is an outline button
+  across the width, shown only with `onShowMore` while pages remain.
+- D7y. Decided in T14. One Accordion item is open at a time unless `multiple` is set. Closed panels
+  are `hidden="until-found"`: the browser's find-in-page opens them and search engines see them.
+  The panel's height is animated (0.3s), not under `prefers-reduced-motion`. The rows' titles are
+  `h3`. Tab moves from row to row; the arrows do nothing (Base UI follows the APG's update).
 
 ## Page
 

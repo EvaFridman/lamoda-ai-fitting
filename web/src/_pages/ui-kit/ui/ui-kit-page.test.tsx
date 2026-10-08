@@ -22,7 +22,10 @@ describe('UiKitPage', () => {
   it('renders a section with the entry id, labelled by its title heading, for every entry', () => {
     render(<UiKitPage />);
 
-    expect(screen.getAllByRole('region')).toHaveLength(sections.length);
+    // Open accordion panels are regions too, so only the page's own sections are counted.
+    const ids = sections.map(({ id }) => id);
+    const pageRegions = screen.getAllByRole('region').filter((region) => ids.includes(region.id));
+    expect(pageRegions).toHaveLength(sections.length);
     for (const { id, title } of sections) {
       const region = screen.getByRole('region', { name: title });
       expect(region).toHaveAttribute('id', id);

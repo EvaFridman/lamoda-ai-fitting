@@ -34,7 +34,8 @@
   list-style: none;
 }
 
-// Examples one under the other, for the ones as wide as a line of text (order statuses).
+// Examples one under the other, for the ones as wide as a line or wider (order statuses, tabs,
+// breadcrumbs, pagination, accordion).
 .column {
   display: grid;
   gap: var(--space-4);
@@ -55,6 +56,13 @@
 .wide {
   width: 100%;
   max-width: 400px;
+}
+
+// A block as wide as Lamoda's order list (pagination, accordion).
+.wideBlock {
+  justify-items: stretch;
+  width: 100%;
+  max-width: 896px;
 }
 
 // A text or search field, as wide as Lamoda's header search.

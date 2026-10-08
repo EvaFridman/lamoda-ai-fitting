@@ -1,0 +1,74 @@
+// Lamoda's x-tabs-default: grey labels, black on hover and when active; the active label has a 2px
+// black border under it 6px below the text, the others a transparent one. 24px between labels
+// (16px for the small size), 16px from the labels to the panel. The large size is the kit's
+// headline-m, 24/28, not Lamoda's 24/32 (D7v). Base UI sets data-active and data-disabled on a
+// tab.
+
+.list {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: var(--space-6);
+  margin-bottom: var(--space-4);
+}
+
+.tab {
+  cursor: pointer;
+
+  margin: 0;
+  padding: 0 0 6px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+
+  font: inherit;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+
+  background: none;
+
+  transition:
+    color var(--duration-fast),
+    border-color var(--duration-fast);
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: 2px;
+  }
+
+  &[data-active] {
+    cursor: default;
+    border-bottom-color: var(--color-border-active);
+    color: var(--color-text);
+  }
+
+  &[data-disabled] {
+    cursor: default;
+    color: var(--color-text-disabled);
+  }
+
+  @media (hover: hover) {
+    &:hover:not([data-disabled]) {
+      color: var(--color-text);
+    }
+  }
+}
+
+.panel:focus-visible {
+  outline: 2px solid var(--color-border-active);
+  outline-offset: 2px;
+}
+
+.l .list {
+  font-size: var(--font-size-headline-m);
+  line-height: var(--line-height-headline-m);
+}
+
+.m .list {
+  font-size: var(--font-size-headline-s);
+  line-height: var(--line-height-headline-s);
+}
+
+.s .list {
+  column-gap: var(--space-4);
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+}
