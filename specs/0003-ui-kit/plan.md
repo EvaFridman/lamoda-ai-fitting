@@ -162,7 +162,7 @@ The values come from Lamoda's stylesheets, which are referenced by the saved pag
   arrow. Lamoda's 14px round "?" is `HelpTip` with the same look on Base UI `Popover`, so touch
   and screen-reader users reach its text (D7aa).
 - **Toast** (Base UI `Toast`): Lamoda's snackbar — dark body with white 16/20 text, an optional
-  action button, on the error tone a pale pink body (`#ffeae8`). Bottom of the screen, goes away
+  action button, on the error tone a red body (`#d13100`, D7ac). Bottom of the screen, goes away
   after 5s. `ToastProvider` in `_app/providers.tsx`, because toasts are app-wide.
 - **Skeleton**: `#f5f5f5` box with Lamoda's 1.4s colour pulse; width, height and radius props.
 - **Icons**: `shared/ui/icon/` holds one React component per SVG, at 16 and 24px, `currentColor`

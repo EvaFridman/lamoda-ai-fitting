@@ -181,6 +181,26 @@ lamoda.ru: the catalog, a product page and the order history.
 - D7ab. Decided in T15. As on Lamoda, the modal's × is white on the overlay, 40px right of the
   frame and 8px above it; the drawer's × is inside, 16px from its top right corner. The drawer is
   Base UI Drawer, as planned: on a touch screen a swipe to the right also closes it.
+- D7ac. Decided in T16. The error toast is red `#d13100` with white text, the warning body of
+  Lamoda's snackbar (contrast 5.1:1), not the pale pink `#ffeae8` the plan first named: that is a
+  brand colour Lamoda's snackbar does not use. Plan amended.
+- D7ad. Decided in T16. A toast is shown by `showToast({ title, tone, actionLabel, onAction })`
+  from `@/shared/ui`, a function on one app-wide Base UI toast manager, so it works anywhere (an
+  event handler, a mutation's `onError`) without a hook; `ToastProvider` in
+  `_app/providers.tsx` renders the toasts. A page rendered without it (a test) shows none and
+  does not fail.
+- D7ae. Decided in T16. Toasts sit at the bottom of the screen in the middle, 16px above the
+  edge, up to three at a time with the newest at the bottom; each goes away after 5s, and its
+  timer stops while the pointer is on it, while it has the focus and while the window is in the
+  background. Each has a × "Закрыть"; the action button closes the toast too. The region is named
+  "Уведомления"; a toast is announced politely, an error at once (`priority: 'high'`). A toast
+  slides up in 0.3s, with no slide under `prefers-reduced-motion`.
+- D7af. Decided in T16. Skeleton is our own (Base UI has none): `width`, `height`, `radius`.
+  Screen readers skip it (`aria-hidden`); the block that is loading marks itself `aria-busy`.
+  Under `prefers-reduced-motion` it does not pulse and stays `#f5f5f5`.
+- D7ag. Decided after the T15–T16 checks. A HelpTip opened by hover stays open on a click within
+  0.5s, and a later click closes it (the "?" toggles; Base UI's own behaviour). Tab among toasts
+  goes from the newest, at the bottom, up to the oldest: the order follows the layout of D7ae.
 
 ## Page
 

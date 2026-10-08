@@ -37,6 +37,12 @@
   // Colour: overlay under modals and drawers
   --color-overlay: rgb(0 0 0 / 50%);
 
+  // Colour: toasts (Lamoda's snackbar and its error tone, D7ac); the darker grey of a skeleton's
+  // pulse
+  --color-snackbar: #363636;
+  --color-snackbar-error: #d13100;
+  --color-skeleton-pulse: #e7e7e7;
+
   // Colour: the swatches of the colour filter, Lamoda's FilterValue palette (ColorSwatch, D7o).
   // Multicolor is a gradient: these tokens go into `background`, not `background-color`.
   --color-swatch-black: #000;
@@ -121,6 +127,9 @@
   --z-modal: 20;
   --z-popover: 30;
   --z-tooltip: 40;
+
+  // Toasts stay over everything, an open modal included.
+  --z-toast: 50;
 }
 
 // Animations are off for visitors who ask for less motion.

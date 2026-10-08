@@ -2,6 +2,7 @@ import type { ComponentType } from 'react';
 
 import { ButtonsSection } from './buttons-section';
 import { ChoiceSection } from './choice-section';
+import { FeedbackSection } from './feedback-section';
 import { FieldsSection } from './fields-section';
 import { FiltersSection } from './filters-section';
 import { IconsSection } from './icons-section';
@@ -38,4 +39,5 @@ export const sections: UiKitSection[] = [
   { id: 'product', title: 'Товар и заказ', Content: ProductSection },
   { id: 'navigation', title: 'Навигация', Content: NavigationSection },
   { id: 'overlays', title: 'Окна и подсказки', Content: OverlaysSection },
+  { id: 'feedback', title: 'Уведомления и загрузка', Content: FeedbackSection },
 ];

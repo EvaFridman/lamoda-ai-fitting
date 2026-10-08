@@ -1,0 +1,122 @@
+// Lamoda's snackbar: 300–560px wide, 16px of padding, a 4px radius, 16px above the bottom of the
+// screen in the middle. Up to three at a time, the newest at the bottom (Base UI lists the newest
+// first, so Tab goes from the newest up to the oldest). A toast slides up from under the edge of
+// the screen over 0.3s and slides back down when it goes; a swipe down or to the right dismisses
+// it. Base UI sets data-starting-style and
+// data-ending-style while it moves, data-type with the tone, and the --toast-swipe-movement-*
+// variables while a finger drags it.
+
+.viewport {
+  pointer-events: none;
+
+  position: fixed;
+  z-index: var(--z-toast);
+  right: 0;
+  bottom: var(--space-4);
+  left: 0;
+
+  display: flex;
+  flex-direction: column-reverse;
+  gap: var(--space-2);
+  align-items: center;
+
+  padding: 0 var(--space-4);
+
+  // F6 focuses the region itself before Tab moves into a toast.
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: 2px;
+  }
+}
+
+.toast {
+  pointer-events: auto;
+
+  transform: translate(var(--toast-swipe-movement-x, 0), var(--toast-swipe-movement-y, 0));
+
+  box-sizing: border-box;
+  width: fit-content;
+  min-width: min(300px, 100%);
+  max-width: min(560px, 100%);
+  padding: var(--space-4);
+  border-radius: var(--radius-s);
+
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+  color: var(--color-background);
+
+  background-color: var(--color-snackbar);
+  outline: none;
+
+  transition:
+    transform var(--duration-slow) cubic-bezier(0, 0, 0.58, 1),
+    opacity var(--duration-slow);
+
+  &[data-type='error'] {
+    background-color: var(--color-snackbar-error);
+  }
+
+  &[data-starting-style],
+  &[data-ending-style] {
+    transform: translateY(calc(100% + var(--space-4)));
+  }
+
+  &[data-ending-style][data-swipe-direction='right'] {
+    transform: translateX(calc(100% + var(--space-4)));
+    opacity: 0;
+  }
+
+  &[data-swiping] {
+    transition-duration: 0s;
+  }
+
+  &[data-limited] {
+    display: none;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-text);
+    outline-offset: 2px;
+  }
+}
+
+.content {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+}
+
+.title {
+  flex: 1;
+  margin: 0;
+  font: inherit;
+}
+
+.action,
+.close {
+  cursor: pointer;
+
+  flex: none;
+
+  margin: 0;
+  padding: 0;
+  border: none;
+
+  font: inherit;
+  color: inherit;
+
+  background: none;
+
+  &:focus-visible {
+    outline: 2px solid var(--color-background);
+    outline-offset: 2px;
+  }
+}
+
+.action {
+  font-weight: var(--font-weight-medium);
+}
+
+.close {
+  display: flex;
+}
