@@ -97,7 +97,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       stock) and `ColorSwatch`.
       Check: AC3; AC9 (an out-of-stock size is announced as unavailable); tests; `npm run verify`.
       Commit: `feat(web): add size and colour pickers`
-- [ ] **T12. Select.** Lamoda's product select, with and without a thumbnail, and disabled.
+- [x] **T12. Select.** Lamoda's product select, with and without a thumbnail, and disabled.
       Check: AC8 (open with Enter, arrows, select, Esc); AC9; tests; `npm run verify`.
       Commit: `feat(web): add the select`
 
