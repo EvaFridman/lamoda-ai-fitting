@@ -91,6 +91,22 @@ lamoda.ru: the catalog, a product page and the order history.
   `FilterDefault`; the sort dropdown is as wide as the checkbox one.
 - D7h. Decided in T9. "Очистить фильтры" is a `<button>` styled as the
   Link (black, grey underline), not a link: it resets the filters on the page and has no address.
+- D7i. Decided in T10. A price field whose thumb stands at the bound is empty and shows the bound
+  in grey as its placeholder, as on the reference screenshot; a moved thumb puts its price into the
+  field in black ("1 500"). An emptied field sends its thumb back to the bound.
+- D7j. Decided in T10. A typed price moves its thumb at once, to where the correction puts it: a
+  price out of the bounds to the bound, a min above the max (or a max below the min) to the other
+  thumb. The thumbs always show what "Применить" applies, and it follows them, so Tab from a field
+  reaches an enabled button. On blur or Enter the field's text is corrected the same way.
+  Characters other than digits and spaces never reach a field.
+- D7k. Decided in T10. An applied price chip reads "от 1 500 до 9 000 ₽", or "от 1 500 ₽" and
+  "до 9 000 ₽" when only one side moved, and a single price ("3 000 ₽") when both thumbs stand on
+  one price; priced with `formatPrice` (the first price of a range with `formatAmount`, the same
+  digits without "₽").
+- D7l. Decided in T10, a change to plan, "Components" (TextField). The price fields are not a
+  compact TextField: their label stays above in 11px grey (no floating label, D7c), the field is
+  47px high, an empty field shows its bound as the placeholder (D7i), and there is no hint or
+  error. They are built on Base UI `Field` and `Input` inside `PriceFilter`.
 
 ## Page
 

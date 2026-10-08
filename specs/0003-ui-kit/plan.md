@@ -84,8 +84,8 @@ The values come from Lamoda's stylesheets, which are referenced by the saved pag
 - **Link**: black with a grey underline (`#888`). A `secondary` variant uses grey text.
 - **TextField**: Lamoda's "material" field — 56px high, a floating label (D7c), bottom border
   `#888`, black on hover and focus, `#c20000` with an error text, `#e5e5e5` when disabled; hint and
-  error 11px under it. Built on Base UI `Field` and `Input`. The underlined price inputs reuse it in
-  a compact form.
+  error 11px under it. Built on Base UI `Field` and `Input`. The underlined price inputs are their
+  own fields inside `PriceFilter`, not a compact TextField (D7l).
 - **SearchField**: a search form (D7d): `#f5f5f5` field 40px high, 4px radius, 16px text, white with
   a shadow on hover and focus, a reset button while filled, and a black 48×40 button with the
   search icon.

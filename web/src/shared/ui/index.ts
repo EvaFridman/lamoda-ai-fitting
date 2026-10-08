@@ -42,6 +42,8 @@ export type { IconButtonProps, IconButtonSize } from './icon-button/icon-button'
 export { IconButton } from './icon-button/icon-button';
 export type { LinkProps, LinkVariant } from './link/link';
 export { Link } from './link/link';
+export type { PriceFilterProps, PriceRange } from './price-filter/price-filter';
+export { PriceFilter } from './price-filter/price-filter';
 export type { RadioProps } from './radio/radio';
 export { Radio } from './radio/radio';
 export type { RadioGroupProps } from './radio-group/radio-group';

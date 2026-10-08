@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 // Through the segment's public API and the `@/` alias, so the test also checks the alias resolves.
-import { formatPrice } from '@/shared/lib';
+import { formatAmount, formatPrice } from '@/shared/lib';
 
 // U+00A0, the no-break space Intl puts between digit groups and before "₽".
 const nbsp = String.fromCodePoint(0xa0);
@@ -27,5 +27,17 @@ describe('formatPrice', () => {
 
   it('uses only no-break spaces, so a price never wraps', () => {
     expect(formatPrice(12_345.67)).not.toMatch(/ /);
+  });
+});
+
+describe('formatAmount', () => {
+  it('groups whole rubles with no-break spaces and no "₽"', () => {
+    expect(formatAmount(1500)).toBe(`1${nbsp}500`);
+    expect(formatAmount(1_234_567)).toBe(`1${nbsp}234${nbsp}567`);
+  });
+
+  it('leaves short numbers alone', () => {
+    expect(formatAmount(999)).toBe('999');
+    expect(formatAmount(0)).toBe('0');
   });
 });

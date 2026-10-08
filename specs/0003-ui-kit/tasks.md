@@ -88,7 +88,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Check: AC4 (open, pick, apply → applied chip; × clears; sort applies on click); AC8 (Esc
       closes, focus returns to the chip); tests of these flows; `npm run verify`.
       Commit: `feat(web): add filter chips with checkbox and sort dropdowns`
-- [ ] **T10. Price filter.** `PriceFilter` with the two-thumb slider and the "Мин. цена" and "Макс.
+- [x] **T10. Price filter.** `PriceFilter` with the two-thumb slider and the "Мин. цена" and "Макс.
       цена" inputs.
       Check: AC4 ("Применить" disabled until the range changes; inputs and slider agree;
       min ≤ max); AC8 (arrows move a thumb); tests; `npm run verify`.

@@ -1,0 +1,143 @@
+// Lamoda's FilterHeader (vue-slider, priceInputs) inside DesktopFilterItemWrapper: in 16px padding
+// a slider whose thumb centres stand 8px in from its rail and 24px above the fields; 20px white
+// thumbs with a #e5e5e5 border and the thumb shadow, a 4px #e5e5e5 rail with the chosen range in
+// #888; two 160px underlined fields (an 11px grey label over a 16px price) with a dash 16px from
+// each; under a thin line, a 16px footer with the full-width "Применить". On a narrow screen the
+// fields shrink.
+
+.priceFilter {
+  display: flex;
+  flex-direction: column;
+}
+
+.body {
+  padding: var(--space-4);
+}
+
+.slider {
+  margin: 0 var(--space-2) var(--space-6);
+}
+
+.control {
+  touch-action: none;
+  user-select: none;
+
+  display: flex;
+  align-items: center;
+
+  padding-block: var(--space-3);
+}
+
+// The rail runs 8px past the thumb centres, to the edges of the padding.
+.track {
+  position: relative;
+  width: 100%;
+  height: 4px;
+
+  &::before {
+    content: '';
+
+    position: absolute;
+    inset: 0 calc(-1 * var(--space-2));
+
+    border-radius: var(--radius-full);
+
+    background-color: var(--color-border);
+  }
+}
+
+.indicator {
+  border-radius: var(--radius-full);
+  background-color: var(--color-border-control);
+}
+
+.thumb {
+  cursor: pointer;
+
+  box-sizing: border-box;
+  width: 20px;
+  height: 20px;
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-full);
+
+  background-color: var(--color-background);
+  box-shadow: var(--shadow-thumb);
+
+  // The focus sits on the range input inside the thumb.
+  &:has(:focus-visible) {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: 2px;
+  }
+}
+
+.fields {
+  display: flex;
+  align-items: flex-end;
+}
+
+// A set width, not a flex basis: the input's own default width would widen the dropdown.
+.field {
+  flex: 1 1 auto;
+
+  width: 160px;
+  min-width: 0;
+  border-bottom: var(--border-width) solid var(--color-border-control);
+
+  transition: border-color var(--duration-fast);
+
+  &[data-focused] {
+    border-color: var(--color-border-active);
+  }
+
+  @media (hover: hover) {
+    &:hover {
+      border-color: var(--color-border-active);
+    }
+  }
+}
+
+.label {
+  display: block;
+  font-size: var(--font-size-caption);
+  line-height: var(--line-height-caption);
+  color: var(--color-text-secondary);
+}
+
+.input {
+  box-sizing: border-box;
+  width: 100%;
+  height: 30px;
+  margin: 0;
+  padding: 2px 0 var(--space-2);
+  border: none;
+  border-radius: 0;
+
+  font-family: inherit;
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+  color: var(--color-text);
+
+  background-color: transparent;
+  outline: none;
+
+  // The bound, while the thumb stands on it (D7i).
+  &::placeholder {
+    color: var(--color-text-secondary);
+  }
+}
+
+// On the line of the prices.
+.dash {
+  flex: none;
+
+  margin: 0 var(--space-4);
+  padding-bottom: 9px;
+
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+}
+
+.footer {
+  padding: var(--space-4);
+  border-top: var(--border-width) solid var(--color-border);
+}

@@ -117,6 +117,43 @@ describe('filters demo', () => {
     expect(live.getByRole('button', { name: 'Подобрали для вас' })).toHaveFocus();
   });
 
+  it('applies a price from the dropdown, and × clears it', async () => {
+    const user = userEvent.setup();
+    const { live, popup } = renderLive();
+
+    const chip = live.getByRole('button', { name: 'Цена' });
+    await user.click(chip);
+    const dropdown = popup(chip);
+    await user.type(dropdown.getByRole('textbox', { name: 'Мин. цена' }), '1500');
+    await user.type(dropdown.getByRole('textbox', { name: 'Макс. цена' }), '9000');
+    await user.click(dropdown.getByRole('button', { name: 'Применить' }));
+
+    expect(live.getByRole('button', { name: /^Цена от 1\s500 до 9\s000\s₽/ })).toBeInTheDocument();
+    expect(
+      live.getByText(/^Применено: сортировка «Подобрали для вас»; цена от 1\s500 до 9\s000\s₽$/),
+    ).toBeInTheDocument();
+
+    await user.click(live.getByRole('button', { name: 'Сбросить «Цена»' }));
+    expect(live.getByRole('button', { name: 'Цена' })).toBeInTheDocument();
+    expect(live.getByText('Применено: сортировка «Подобрали для вас»')).toBeInTheDocument();
+  });
+
+  it('"Очистить фильтры" resets the price too', async () => {
+    const user = userEvent.setup();
+    const { live, popup } = renderLive();
+
+    const chip = live.getByRole('button', { name: 'Цена' });
+    await user.click(chip);
+    await user.type(popup(chip).getByRole('textbox', { name: 'Макс. цена' }), '9000');
+    await user.click(popup(chip).getByRole('button', { name: 'Применить' }));
+    expect(live.getByText(/цена до 9\s000\s₽/)).toBeInTheDocument();
+
+    await user.click(live.getByRole('button', { name: 'Очистить фильтры' }));
+
+    expect(live.getByRole('button', { name: 'Цена' })).toBeInTheDocument();
+    expect(live.getByText('Применено: сортировка «Подобрали для вас»')).toBeInTheDocument();
+  });
+
   it('resets everything with "Очистить фильтры"', async () => {
     const user = userEvent.setup();
     const { live, popup } = renderLive();

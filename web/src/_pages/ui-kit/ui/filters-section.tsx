@@ -1,5 +1,5 @@
 import styles from './examples.module.scss';
-import { FilterChipStates, OpenFilterState } from './filter-states';
+import { FilterChipStates, OpenFilterState, OpenPriceState } from './filter-states';
 import { FiltersDemo } from './filters-demo';
 
 // Filter chips with their dropdowns (checkbox list, sort) in every state, and a live row of them.
@@ -16,6 +16,9 @@ export function FiltersSection() {
 
       <h3 className={styles.heading}>FilterDropdown с CheckboxFilter, открыт</h3>
       <OpenFilterState />
+
+      <h3 className={styles.heading}>FilterDropdown с PriceFilter, открыт</h3>
+      <OpenPriceState />
 
       <h3 className={styles.heading}>FilterChips, живой пример</h3>
       <FiltersDemo />
