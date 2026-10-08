@@ -6,6 +6,7 @@ import { FieldsSection } from './fields-section';
 import { FiltersSection } from './filters-section';
 import { IconsSection } from './icons-section';
 import { LinksSection } from './links-section';
+import { SelectSection } from './select-section';
 import { SizesColorsSection } from './sizes-colors-section';
 import { SpinnerSection } from './spinner-section';
 import { TokensSection } from './tokens-section';
@@ -30,4 +31,5 @@ export const sections: UiKitSection[] = [
   { id: 'choice', title: 'Чекбоксы, радиокнопки, переключатели', Content: ChoiceSection },
   { id: 'filters', title: 'Фильтры', Content: FiltersSection },
   { id: 'sizes-colors', title: 'Размеры и цвета', Content: SizesColorsSection },
+  { id: 'select', title: 'Выпадающий список', Content: SelectSection },
 ];

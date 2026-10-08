@@ -121,6 +121,14 @@ lamoda.ru: the catalog, a product page and the order history.
   `FilterValue` CSS: an 18px round swatch in place of the box, the colour's name and an optional
   count. The colours are Lamoda's filter palette, one token each (`--color-swatch-*`); the tick is
   white, and black on the light colours Lamoda inverts it on.
+- D7p. Decided in T12. Select's list opens under the field, as wide as it, as on Lamoda, not over
+  the field as Base UI does by default; the page keeps scrolling while it is open (not modal).
+  The picked option is marked only by the grey background it has when the list opens, as on
+  Lamoda, with no tick; screen readers get it from `aria-selected`.
+- D7q. Decided in T12, an exception to AC3. Select's open state is shown live only (open any
+  example), not as a static example open from the start: Base UI's select moves the focus into
+  its list whenever it opens and has no option to stop it, so a list open on load would take the
+  focus, and maybe the scroll, as the page loads. The screenshots for AC6 show it opened.
 
 ## Page
 

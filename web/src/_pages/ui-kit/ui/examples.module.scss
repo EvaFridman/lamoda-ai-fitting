@@ -78,6 +78,13 @@
   max-width: 100%;
 }
 
+// A product select, 280px wide as in the product page's right column.
+.select {
+  justify-items: stretch;
+  width: 280px;
+  max-width: 100%;
+}
+
 // The visible name of a checkbox or radio group in a live example.
 .groupLabel {
   margin: 0;

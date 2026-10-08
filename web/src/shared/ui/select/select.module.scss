@@ -1,0 +1,148 @@
+// Lamoda's product select (DesktopProductPageColorChooser): a 1px #888 border with a 4px radius,
+// 8px 16px 8px 8px padding (14px on the left without thumbnails), a 23×32 thumbnail 8px before a
+// 16px value, and a chevron; 50px high, as on the reference screenshot. Hover and open: a black
+// border. Disabled: a #e5e5e5 border and grey text ("40/44 RUS"). The list is as wide as the
+// field, right under it, at most 216px high and scrolling, with the box shadow; options have
+// 8px 14px padding and #f5f5f5 when highlighted. Base UI sets data-popup-open,
+// data-disabled, data-placeholder on the field and data-highlighted, data-selected and
+// data-disabled on the options.
+
+.trigger {
+  cursor: pointer;
+
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: space-between;
+
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 50px;
+  padding: var(--space-2) var(--space-4) var(--space-2) 14px;
+  border: var(--border-width) solid var(--color-border-control);
+  border-radius: var(--radius-s);
+
+  font: inherit;
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+  color: var(--color-text);
+  text-align: start;
+
+  background-color: var(--color-background);
+
+  transition: border-color var(--duration-fast);
+
+  &[data-thumbnails] {
+    padding-left: var(--space-2);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: 2px;
+  }
+
+  &[data-popup-open] {
+    border-color: var(--color-border-active);
+  }
+
+  &[data-disabled] {
+    cursor: default;
+    border-color: var(--color-border);
+    color: var(--color-text-secondary);
+  }
+}
+
+@media (hover: hover) {
+  .trigger:hover:not([data-disabled]) {
+    border-color: var(--color-border-active);
+  }
+}
+
+.value {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  min-width: 0;
+}
+
+.placeholder {
+  color: var(--color-text-secondary);
+}
+
+.icon {
+  display: flex;
+  flex-shrink: 0;
+  transition: transform var(--duration-fast);
+
+  .trigger[data-popup-open] & {
+    transform: rotate(180deg);
+  }
+}
+
+.thumbnail {
+  flex-shrink: 0;
+
+  width: 23px;
+  height: 32px;
+
+  object-fit: cover;
+  background-color: var(--color-background-secondary);
+}
+
+.label {
+  overflow: hidden;
+  min-width: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.positioner {
+  z-index: var(--z-popover);
+  width: var(--anchor-width);
+}
+
+.popup {
+  overflow-y: auto;
+
+  box-sizing: border-box;
+  max-height: min(216px, var(--available-height));
+
+  background-color: var(--color-background);
+  outline: none;
+  box-shadow: var(--shadow-box);
+
+  transition: opacity var(--duration-fast);
+
+  &[data-starting-style],
+  &[data-ending-style] {
+    opacity: 0;
+  }
+}
+
+.item {
+  cursor: pointer;
+  user-select: none;
+
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+
+  padding: var(--space-2) 14px;
+
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+  color: var(--color-text);
+
+  outline: none;
+
+  // Base UI highlights the picked option as the list opens, so it starts grey (D7p).
+  &[data-highlighted] {
+    background-color: var(--color-background-secondary);
+  }
+
+  &[data-disabled] {
+    cursor: default;
+    color: var(--color-text-secondary);
+    background-color: var(--color-background);
+  }
+}

@@ -52,6 +52,8 @@ export type { RadioGroupProps } from './radio-group/radio-group';
 export { RadioGroup } from './radio-group/radio-group';
 export type { SearchFieldProps } from './search-field/search-field';
 export { SearchField } from './search-field/search-field';
+export type { SelectOption, SelectProps } from './select/select';
+export { Select } from './select/select';
 export type { SizePickerOption, SizePickerProps } from './size-picker/size-picker';
 export { SizePicker } from './size-picker/size-picker';
 export type { SizeSelectorOption, SizeSelectorProps } from './size-selector/size-selector';
