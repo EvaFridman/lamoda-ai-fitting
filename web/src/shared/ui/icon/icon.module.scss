@@ -1,0 +1,6 @@
+// Colour comes from the text around the icon (currentColor); the icon never shrinks in a flex row.
+.icon {
+  display: inline-block;
+  flex: none;
+  vertical-align: middle;
+}

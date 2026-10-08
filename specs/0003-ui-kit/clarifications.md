@@ -38,6 +38,10 @@ lamoda.ru: the catalog, a product page and the order history.
   no Lamoda font files.
 - D3. Icons are SVGs taken from Lamoda's code. Accepted risk, raised during the questions:
   someone else's graphics in a public repository and on the production site.
+- D3a. Icons drawn at one size only are scaled to the other (decided in T5). The map pin, drawn
+  with fills at 24px, stays as drawn: at 16px its lines thin to about 0.7px. The outline heart is
+  hollow (the source's was filled white); FavoriteToggle (T13) gives itself a white backing for
+  photos.
 - D4. Font: the closest free font with Cyrillic from Google Fonts, served through `next/font` from
   our own domain. The plan offers two or three candidates; the owner picks one.
 - D4a. Lamoda's font is CoFo Sans (commercial). The owner picked Onest (candidates: Onest, Golos
