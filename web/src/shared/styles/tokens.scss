@@ -36,7 +36,8 @@
   // Colour: overlay under modals and drawers
   --color-overlay: rgb(0 0 0 / 50%);
 
-  // Colour: the swatches of the colour filter, Lamoda's FilterValue palette (ColorSwatch, D7o)
+  // Colour: the swatches of the colour filter, Lamoda's FilterValue palette (ColorSwatch, D7o).
+  // Multicolor is a gradient: these tokens go into `background`, not `background-color`.
   --color-swatch-black: #000;
   --color-swatch-gray: #b6b6b6;
   --color-swatch-white: #fff;

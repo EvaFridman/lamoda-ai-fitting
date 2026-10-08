@@ -27,10 +27,19 @@ export type SizePickerProps = Omit<
 // The size filter of the catalog: a wrapping row of 46×46 cells, several of them can be picked
 // (D7m). Each cell is a Base UI checkbox (role="checkbox", aria-checked, Space toggles, Tab moves
 // from cell to cell); the value is the list of picked sizes.
-export function SizePicker({ options, className, ...group }: SizePickerProps) {
+export function SizePicker({ options, className, onValueChange, ...group }: SizePickerProps) {
   return (
     <BaseCheckboxGroup
       className={[styles.sizePicker, className].filter(Boolean).join(' ')}
+      // The picked sizes in the order of `options`, not of the clicks, as CheckboxFilter applies.
+      onValueChange={
+        onValueChange &&
+        ((value, details) =>
+          onValueChange(
+            options.map((option) => option.value).filter((size) => value.includes(size)),
+            details,
+          ))
+      }
       {...group}
     >
       {options.map((option) => (
