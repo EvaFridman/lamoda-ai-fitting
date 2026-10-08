@@ -1,0 +1,59 @@
+// Lamoda's x-product-card-description prices, measured on the reference screenshots: in the catalog
+// the old prices are 13px and the price 16px bold; on the product page all are 16px regular. The
+// old prices are black and struck out, the price is red after them; 8px between the prices.
+
+.price {
+  display: inline-flex;
+  flex-wrap: wrap;
+  column-gap: var(--space-2);
+  align-items: baseline;
+
+  color: var(--color-text);
+  white-space: nowrap;
+}
+
+.current {
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+
+  .price[data-discounted] & {
+    color: var(--color-accent);
+  }
+}
+
+.catalog {
+  .old {
+    font-size: var(--font-size-body-s);
+    line-height: var(--line-height-body-s);
+  }
+
+  .current {
+    font-weight: var(--font-weight-bold);
+  }
+}
+
+.product .old {
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+}
+
+.old {
+  text-decoration: line-through;
+}
+
+// Words for screen readers only: out of sight, still read.
+.hidden {
+  position: absolute;
+
+  overflow: hidden;
+
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+
+  white-space: nowrap;
+
+  clip-path: inset(50%);
+}

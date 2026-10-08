@@ -28,6 +28,7 @@ export const colorGroups: ColorGroup[] = [
       { token: '--color-accent-hover', name: 'Акцент при наведении', value: '#db0d00' },
       { token: '--color-error', name: 'Ошибка', value: '#c20000' },
       { token: '--color-success', name: 'Успех', value: '#00a200' },
+      { token: '--color-caution', name: 'Внимание', value: '#be5b04' },
     ],
   },
   {

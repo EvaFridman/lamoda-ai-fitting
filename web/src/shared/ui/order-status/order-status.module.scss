@@ -1,0 +1,34 @@
+// Lamoda's OrdersListItem: headline-s (20/24), 5px between the status and the date, the tones'
+// text colours from its semantic palette.
+
+.status {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 5px;
+
+  margin: 0;
+
+  font-size: var(--font-size-headline-s);
+  line-height: var(--line-height-headline-s);
+}
+
+.primary {
+  color: var(--color-text);
+}
+
+.success {
+  color: var(--color-success);
+}
+
+.warning {
+  color: var(--color-error);
+}
+
+.caution {
+  color: var(--color-caution);
+}
+
+.secondary,
+.date {
+  color: var(--color-text-secondary);
+}

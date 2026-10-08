@@ -103,7 +103,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## PR 3 · `feat/0003-ui-kit-display` · product and order pieces, navigation, feedback
 
-- [ ] **T13. Price, Badge, Rating, FavoriteToggle, OrderStatus.**
+- [x] **T13. Price, Badge, Rating, FavoriteToggle, OrderStatus.**
       Check: AC3 (price alone, with one and two old prices; every badge tone; every status tone);
       AC4 (favourite switches); AC9 (rating's accessible name, `aria-pressed`); tests;
       `npm run verify`.
