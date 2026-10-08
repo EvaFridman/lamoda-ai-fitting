@@ -112,7 +112,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Check: AC4 (a tab switches its panel); AC8 (arrows across tabs; Enter on an accordion row);
       pagination edges in tests; `npm run verify`.
       Commit: `feat(web): add tabs, breadcrumbs, pagination and accordion`
-- [ ] **T15. Modal, Drawer, Tooltip.**
+- [x] **T15. Modal, Drawer, Tooltip.**
       Check: AC8 (open, Esc closes, focus returns; focus stays inside an open modal); AC9 (dialog
       role and name); tests; `npm run verify`.
       Commit: `feat(web): add modal, drawer and tooltip`

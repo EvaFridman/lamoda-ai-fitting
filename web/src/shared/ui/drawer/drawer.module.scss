@@ -1,0 +1,138 @@
+// Lamoda's SideModal: 432px (636px wide) at the right edge, the full height of the window; it
+// slides in over 0.2s while the overlay darkens. Base UI sets data-starting-style and
+// data-ending-style while it slides, and --drawer-swipe-movement-x while a finger drags it.
+
+.backdrop {
+  position: fixed;
+  z-index: var(--z-modal);
+  inset: 0;
+
+  background-color: var(--color-overlay);
+
+  transition: opacity var(--duration-fast) ease-in;
+
+  &[data-starting-style],
+  &[data-ending-style] {
+    opacity: 0;
+  }
+
+  &[data-swiping] {
+    transition-duration: 0s;
+  }
+}
+
+.viewport {
+  position: fixed;
+  z-index: var(--z-modal);
+  inset: 0;
+
+  display: flex;
+  justify-content: flex-end;
+}
+
+.popup {
+  position: relative;
+  transform: translateX(var(--drawer-swipe-movement-x, 0));
+
+  display: flex;
+  flex-direction: column;
+
+  box-sizing: border-box;
+  width: 432px;
+  max-width: 100%;
+  height: 100%;
+
+  color: var(--color-text);
+
+  background-color: var(--color-background);
+  outline: none;
+
+  transition: transform var(--duration-fast) ease-in;
+
+  &[data-starting-style],
+  &[data-ending-style] {
+    transform: translateX(100%);
+  }
+
+  &[data-swiping] {
+    transition-duration: 0s;
+  }
+}
+
+.wide {
+  width: 636px;
+}
+
+.title {
+  flex: none;
+
+  margin: 0;
+
+  // Room on the right for the ×.
+  padding: var(--space-6) 56px var(--space-2) var(--space-6);
+
+  font-size: var(--font-size-headline-m);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-headline-m);
+}
+
+.content {
+  overflow-y: auto;
+  flex: 1;
+
+  padding: var(--space-1) var(--space-6) var(--space-6);
+
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+
+  > :first-child {
+    margin-top: 0;
+  }
+
+  > :last-child {
+    margin-bottom: 0;
+  }
+}
+
+.footer {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+
+  padding: var(--space-4) var(--space-6);
+  border-top: var(--border-width) solid var(--color-border);
+}
+
+.close {
+  cursor: pointer;
+
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 32px;
+  height: 32px;
+  margin: 0;
+  padding: 0;
+  border: none;
+
+  color: var(--color-text);
+
+  background: none;
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: 2px;
+  }
+
+  @media (hover: hover) {
+    &:hover {
+      color: var(--color-text-secondary);
+    }
+  }
+}

@@ -1,0 +1,131 @@
+// Lamoda's tooltip and help popover (x-popover, x-popover-help): white with a #e5e5e5 border, the
+// popover shadow, a 4px radius and an arrow, a 14px square turned 45°, 10px from the control.
+// Base UI sets data-side on the arrow and data-starting-style / data-ending-style while the hint
+// fades in and out.
+
+.positioner {
+  z-index: var(--z-tooltip);
+}
+
+.popup {
+  position: relative;
+
+  box-sizing: border-box;
+  max-width: min(285px, var(--available-width));
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-s);
+
+  color: var(--color-text);
+
+  background-color: var(--color-background);
+  outline: none;
+  box-shadow: var(--shadow-popover);
+
+  transition: opacity var(--duration-fast);
+
+  &[data-starting-style],
+  &[data-ending-style] {
+    opacity: 0;
+  }
+
+  &[data-instant] {
+    transition-duration: 0s;
+  }
+}
+
+// Tooltip: a short line next to a control.
+.label {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+}
+
+// HelpTip: a paragraph.
+.help {
+  padding: var(--space-4);
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+}
+
+.arrow {
+  position: absolute;
+  transform: rotate(45deg);
+
+  box-sizing: border-box;
+  width: 14px;
+  height: 14px;
+  border: var(--border-width) solid var(--color-border);
+
+  background-color: var(--color-background);
+
+  &[data-side='top'] {
+    bottom: -8px;
+    border-top-color: transparent;
+    border-left-color: transparent;
+  }
+
+  &[data-side='bottom'] {
+    top: -8px;
+    border-right-color: transparent;
+    border-bottom-color: transparent;
+  }
+
+  &[data-side='left'] {
+    right: -8px;
+    border-bottom-color: transparent;
+    border-left-color: transparent;
+  }
+
+  &[data-side='right'] {
+    left: -8px;
+    border-top-color: transparent;
+    border-right-color: transparent;
+  }
+}
+
+// The "?": a 14px circle with an 11px sign, grey and black under the pointer.
+.helpTrigger {
+  cursor: pointer;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  box-sizing: border-box;
+  width: 14px;
+  height: 14px;
+  margin: 0 0 0 var(--space-1);
+  padding: 0;
+  border: var(--border-width) solid var(--color-text-secondary);
+  border-radius: var(--radius-full);
+
+  font-family: inherit;
+  font-size: var(--font-size-caption);
+  font-style: normal;
+  line-height: 1;
+  color: var(--color-text-secondary);
+  vertical-align: text-bottom;
+
+  background: none;
+
+  transition:
+    color var(--duration-fast),
+    border-color var(--duration-fast);
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: 2px;
+  }
+
+  &[data-popup-open] {
+    border-color: var(--color-text);
+    color: var(--color-text);
+  }
+
+  @media (hover: hover) {
+    &:hover {
+      border-color: var(--color-text);
+      color: var(--color-text);
+    }
+  }
+}
