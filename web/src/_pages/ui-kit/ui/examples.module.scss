@@ -126,6 +126,13 @@
   line-height: var(--line-height-body-m);
 }
 
+// A line of page text with a component inside it (the "?" of HelpTip).
+.text {
+  margin: 0;
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+}
+
 .props {
   font-family: inherit;
   font-size: var(--font-size-body-s);

@@ -7,6 +7,7 @@ import { FiltersSection } from './filters-section';
 import { IconsSection } from './icons-section';
 import { LinksSection } from './links-section';
 import { NavigationSection } from './navigation-section';
+import { OverlaysSection } from './overlays-section';
 import { ProductSection } from './product-section';
 import { SelectSection } from './select-section';
 import { SizesColorsSection } from './sizes-colors-section';
@@ -36,4 +37,5 @@ export const sections: UiKitSection[] = [
   { id: 'select', title: 'Выпадающий список', Content: SelectSection },
   { id: 'product', title: 'Товар и заказ', Content: ProductSection },
   { id: 'navigation', title: 'Навигация', Content: NavigationSection },
+  { id: 'overlays', title: 'Окна и подсказки', Content: OverlaysSection },
 ];

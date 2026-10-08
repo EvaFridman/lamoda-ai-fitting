@@ -21,6 +21,8 @@ export type { CheckboxGroupProps } from './checkbox-group/checkbox-group';
 export { CheckboxGroup } from './checkbox-group/checkbox-group';
 export type { ColorSwatchProps, SwatchColor } from './color-swatch/color-swatch';
 export { ColorSwatch, swatchColors } from './color-swatch/color-swatch';
+export type { DrawerProps } from './drawer/drawer';
+export { Drawer, DrawerClose } from './drawer/drawer';
 export type { FavoriteToggleProps, FavoriteToggleSize } from './favorite-toggle/favorite-toggle';
 export { FavoriteToggle } from './favorite-toggle/favorite-toggle';
 export type { FilterChipProps } from './filter-chip/filter-chip';
@@ -29,6 +31,8 @@ export type { FilterChipsProps } from './filter-chips/filter-chips';
 export { FilterChips } from './filter-chips/filter-chips';
 export type { FilterDropdownProps } from './filter-dropdown/filter-dropdown';
 export { FilterDropdown } from './filter-dropdown/filter-dropdown';
+export type { HelpTipProps } from './tooltip/help-tip';
+export { HelpTip } from './tooltip/help-tip';
 export type { IconProps, IconSize } from './icon/icon';
 export {
   ArrowBackIcon,
@@ -52,6 +56,8 @@ export type { IconButtonProps, IconButtonSize } from './icon-button/icon-button'
 export { IconButton } from './icon-button/icon-button';
 export type { LinkProps, LinkVariant } from './link/link';
 export { Link } from './link/link';
+export type { ModalProps } from './modal/modal';
+export { Modal, ModalClose } from './modal/modal';
 export type { OrderStatusProps, OrderStatusTone } from './order-status/order-status';
 export { OrderStatus } from './order-status/order-status';
 export type { PaginationProps } from './pagination/pagination';
@@ -84,3 +90,5 @@ export type { TabItem, TabsProps, TabsSize } from './tabs/tabs';
 export { Tabs } from './tabs/tabs';
 export type { TextFieldProps } from './text-field/text-field';
 export { TextField } from './text-field/text-field';
+export type { TooltipProps, TooltipSide } from './tooltip/tooltip';
+export { Tooltip } from './tooltip/tooltip';

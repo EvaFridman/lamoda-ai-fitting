@@ -159,7 +159,8 @@ The values come from Lamoda's stylesheets, which are referenced by the saved pag
 - **Drawer** (Base UI `Drawer`): side sheet from the right, 432px (636px wide variant), header
   24/28.
 - **Tooltip** (Base UI `Tooltip`): white with a `#e5e5e5` border, popover shadow, 4px radius and an
-  arrow. Plus Lamoda's 14px round "?" trigger.
+  arrow. Lamoda's 14px round "?" is `HelpTip` with the same look on Base UI `Popover`, so touch
+  and screen-reader users reach its text (D7aa).
 - **Toast** (Base UI `Toast`): Lamoda's snackbar — dark body with white 16/20 text, an optional
   action button, on the error tone a pale pink body (`#ffeae8`). Bottom of the screen, goes away
   after 5s. `ToastProvider` in `_app/providers.tsx`, because toasts are app-wide.

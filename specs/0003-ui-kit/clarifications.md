@@ -166,6 +166,21 @@ lamoda.ru: the catalog, a product page and the order history.
   are `hidden="until-found"`: the browser's find-in-page opens them and search engines see them.
   The panel's height is animated (0.3s), not under `prefers-reduced-motion`. The rows' titles are
   `h3`. Tab moves from row to row; the arrows do nothing (Base UI follows the APG's update).
+- D7z. Decided in T15, an exception to AC3 like D7q. Modal, Drawer, Tooltip and Toast are shown
+  open live only (a button, Enter or Space, the pointer or Tab), not as static examples open from
+  the start: an open modal or drawer takes the focus and stops the page from scrolling, a static
+  copy would put demo-only code into the components (D11a), and a hint is a hover state. The
+  screenshots for AC6 show them open.
+- D7aa. Decided in T15. Two kinds of hint with one look (white, `#e5e5e5` border, arrow).
+  `Tooltip` (Base UI Tooltip) is a short label for a control, for sighted mouse and keyboard
+  users only: it opens after 600ms of hover or at once on keyboard focus, Esc closes it, touch
+  screens never show it, and screen readers hear the control's own `aria-label` instead. Lamoda's
+  "?" is `HelpTip` on Base UI Popover with `openOnHover`, because its text is information of its
+  own: hover (300ms), a click, a tap, Enter or Space open it, a screen reader reads it as a
+  dialog named by the "?", and Esc returns the focus to the "?".
+- D7ab. Decided in T15. As on Lamoda, the modal's × is white on the overlay, 40px right of the
+  frame and 8px above it; the drawer's × is inside, 16px from its top right corner. The drawer is
+  Base UI Drawer, as planned: on a touch screen a swipe to the right also closes it.
 
 ## Page
 
