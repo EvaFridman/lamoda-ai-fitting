@@ -1,0 +1,46 @@
+// A conic gradient from transparent to currentColor, cut to a ring by a radial mask. A mask uses
+// only the alpha of its colours, so #000 in it is "visible", not a colour of the spinner.
+
+.spinner {
+  --spinner-ring: 2px;
+
+  display: inline-block;
+  flex: none;
+
+  border-radius: var(--radius-full);
+
+  background: conic-gradient(from 0deg, transparent, currentcolor);
+
+  mask: radial-gradient(
+    farthest-side,
+    transparent calc(100% - var(--spinner-ring)),
+    #000 calc(100% - var(--spinner-ring) + 0.5px)
+  );
+
+  animation: spinner-turn 1.4s linear infinite;
+}
+
+.size24 {
+  width: 24px;
+  height: 24px;
+}
+
+.size64 {
+  --spinner-ring: 4px;
+
+  width: 64px;
+  height: 64px;
+}
+
+@keyframes spinner-turn {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+// Under reduced motion the ring stands still: it still reads as "loading" without turning.
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}

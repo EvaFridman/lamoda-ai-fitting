@@ -1,0 +1,41 @@
+// Text links inherit the size of the text around them; only colour and underline are set here.
+
+.link {
+  border-radius: var(--radius-xs);
+
+  text-decoration-line: underline;
+  text-decoration-thickness: var(--border-width);
+  text-underline-offset: 3px;
+
+  transition:
+    color var(--duration-fast),
+    text-decoration-color var(--duration-fast);
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: 2px;
+  }
+}
+
+.primary {
+  color: var(--color-text);
+  text-decoration-color: var(--color-text-secondary);
+
+  @media (hover: hover) {
+    &:hover {
+      color: var(--color-text-secondary);
+    }
+  }
+}
+
+.secondary {
+  color: var(--color-text-secondary);
+  text-decoration-color: var(--color-border-neutral);
+
+  @media (hover: hover) {
+    &:hover {
+      color: var(--color-text);
+      text-decoration-color: var(--color-text-secondary);
+    }
+  }
+}

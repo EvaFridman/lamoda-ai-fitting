@@ -36,6 +36,10 @@ lamoda.ru: the catalog, a product page and the order history.
 
 - D2. As close to Lamoda as possible: colours, sizes, spacing, states and copy. No Lamoda logo and
   no Lamoda font files.
+- D2a. Decided in T6. Button text has weight 400, as in Lamoda's `.x-button` CSS. The text looks
+  heavier on the screenshots only because of Lamoda's own font. The Spinner follows the plan's
+  description: Lamoda's stylesheets have no rule for it, and the loader in the saved "Заказы" page
+  is the anti-bot check's, not Lamoda's. Its ring is 2px thick at 24px and 4px at 64px.
 - D3. Icons are SVGs taken from Lamoda's code. Accepted risk, raised during the questions:
   someone else's graphics in a public repository and on the production site.
 - D3a. Icons drawn at one size only are scaled to the other (decided in T5). The map pin, drawn
@@ -63,6 +67,9 @@ lamoda.ru: the catalog, a product page and the order history.
   `CONTRIBUTING.md`), styled with our own SCSS.
 - D7a. The owner picked Base UI (`@base-ui/react`) over Radix UI: one package that also has the
   Drawer, Toast, two-thumb Slider and CheckboxGroup the kit needs.
+- D7b. Decided in T6. `Link`, and `Button` given `href`, render `next/link`, so links inside the
+  site navigate without a full page load. A button-styled link does not use Base UI's Button: its
+  docs say a link must not get button semantics. A link has no `disabled` or `loading`.
 
 ## Page
 
