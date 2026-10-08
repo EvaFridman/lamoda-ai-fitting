@@ -30,8 +30,12 @@ export function FavoriteToggle({
   onPressedChange,
   ...toggle
 }: FavoriteToggleProps) {
-  // Set by a press only, so a heart pressed from the start does not beat as the page loads.
+  // Set by a press only, so a heart pressed from the start does not beat as the page loads. The
+  // styles beat it only while it is also pressed (data-pressed). A controlled toggle whose page
+  // refused the press is not pressed on the next render: the flag drops there, so a later
+  // pressed={true} from the page does not beat.
   const [beating, setBeating] = useState(false);
+  if (beating && toggle.pressed === false) setBeating(false);
 
   return (
     <Toggle

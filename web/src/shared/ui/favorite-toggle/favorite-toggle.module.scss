@@ -33,8 +33,9 @@
   }
 
   // Lamoda's heartbeat (scale .9 at 20%, back at 40%), 0.6s, once per press; none under
-  // prefers-reduced-motion, where the duration tokens are 0.
-  &[data-beating] .heart {
+  // prefers-reduced-motion, where the duration tokens are 0. Only once the toggle is pressed: a
+  // controlled one whose page refuses the press stays hollow and still.
+  &[data-beating][data-pressed] .heart {
     animation: heartbeat calc(var(--duration-slow) * 2) 1;
   }
 
