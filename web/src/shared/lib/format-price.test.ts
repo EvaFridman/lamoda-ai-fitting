@@ -30,6 +30,21 @@ describe('formatPrice', () => {
   });
 });
 
+describe('formatPrice without the currency', () => {
+  it('gives the same digits without "₽" and without a trailing space', () => {
+    expect(formatPrice(10_399, { currency: false })).toBe(`10${nbsp}399`);
+    expect(formatPrice(999, { currency: false })).toBe('999');
+  });
+
+  it('keeps the kopecks when there are any', () => {
+    expect(formatPrice(1299.5, { currency: false })).toBe(`1${nbsp}299,50`);
+  });
+
+  it('is the default formatting without "₽" and the space before it', () => {
+    expect(`${formatPrice(4500, { currency: false })}${nbsp}₽`).toBe(formatPrice(4500));
+  });
+});
+
 describe('formatAmount', () => {
   it('groups whole rubles with no-break spaces and no "₽"', () => {
     expect(formatAmount(1500)).toBe(`1${nbsp}500`);
