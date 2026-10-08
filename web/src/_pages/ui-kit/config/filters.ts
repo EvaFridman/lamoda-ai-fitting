@@ -1,6 +1,9 @@
 // The options of the filter examples, with Lamoda's copy and its counts from the catalog snapshot.
 
-import type { CheckboxFilterOption, SortFilterOption } from '@/shared/ui';
+import type { CheckboxFilterOption, PriceRange, SortFilterOption } from '@/shared/ui';
+
+// The cheapest and the dearest product of the snapshot, the bounds of the price slider.
+export const priceBounds: PriceRange = [60, 288900];
 
 export const sortOptions: SortFilterOption[] = [
   { value: 'popularity', label: 'Подобрали для вас' },

@@ -1,13 +1,23 @@
 'use client';
 
-import { CheckboxFilter, FilterChip, FilterDropdown, SortFilter } from '@/shared/ui';
+import {
+  CheckboxFilter,
+  FilterChip,
+  FilterDropdown,
+  PriceFilter,
+  type PriceRange,
+  SortFilter,
+} from '@/shared/ui';
 
-import { sortOptions, styleOptions } from '../config/filters';
+import { priceBounds, sortOptions, styleOptions } from '../config/filters';
+import { priceLabel } from '../lib/price-label';
 
 import styles from './examples.module.scss';
 
 // Static examples hold no state of their own: what they apply goes nowhere.
 function ignore() {}
+
+const appliedPrice: PriceRange = [1500, 9000];
 
 // The chip in each state (D11a): default, applied with a ×, the sort chip applied (its title is the
 // chosen order, it keeps the chevron), and the toggle off and on. The open state is the next
@@ -34,6 +44,17 @@ export function FilterChipStates() {
         <code className={styles.props}>applied, сортировка</code>
       </li>
       <li className={styles.example}>
+        <FilterDropdown title="Цена" value={priceLabel(priceBounds, appliedPrice)} onClear={ignore}>
+          <PriceFilter
+            min={priceBounds[0]}
+            max={priceBounds[1]}
+            value={appliedPrice}
+            onApply={ignore}
+          />
+        </FilterDropdown>
+        <code className={styles.props}>applied, цена</code>
+      </li>
+      <li className={styles.example}>
         <FilterChip title="Только со скидкой" />
         <code className={styles.props}>FilterChip</code>
       </li>
@@ -53,6 +74,24 @@ export function OpenFilterState() {
       <code className={styles.props}>defaultOpen</code>
       <FilterDropdown title="Стиль" defaultOpen>
         <CheckboxFilter options={styleOptions} value={['evening']} onApply={ignore} />
+      </FilterDropdown>
+    </div>
+  );
+}
+
+// The price dropdown open, nothing applied: both fields show their bounds and "Применить" waits
+// for a change.
+export function OpenPriceState() {
+  return (
+    <div className={[styles.example, styles.openDropdown].join(' ')}>
+      <code className={styles.props}>defaultOpen</code>
+      <FilterDropdown title="Цена" defaultOpen>
+        <PriceFilter
+          min={priceBounds[0]}
+          max={priceBounds[1]}
+          value={priceBounds}
+          onApply={ignore}
+        />
       </FilterDropdown>
     </div>
   );

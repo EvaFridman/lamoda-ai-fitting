@@ -8,10 +8,19 @@ import {
   FilterChip,
   FilterChips,
   FilterDropdown,
+  PriceFilter,
+  type PriceRange,
   SortFilter,
 } from '@/shared/ui';
 
-import { brandOptions, defaultSort, sortOptions, styleOptions } from '../config/filters';
+import {
+  brandOptions,
+  defaultSort,
+  priceBounds,
+  sortOptions,
+  styleOptions,
+} from '../config/filters';
+import { priceLabel } from '../lib/price-label';
 
 import styles from './examples.module.scss';
 
@@ -30,14 +39,22 @@ export function FiltersDemo() {
   const [sort, setSort] = useState(defaultSort);
   const [style, setStyle] = useState<string[]>([]);
   const [brands, setBrands] = useState<string[]>([]);
+  const [price, setPrice] = useState<PriceRange>(priceBounds);
   const [saleOnly, setSaleOnly] = useState(false);
 
   const sortLabel = sortOptions.find((option) => option.value === sort)?.label ?? '';
-  const anyApplied = sort !== defaultSort || style.length > 0 || brands.length > 0 || saleOnly;
+  const priceText = priceLabel(priceBounds, price);
+  const anyApplied =
+    sort !== defaultSort ||
+    style.length > 0 ||
+    brands.length > 0 ||
+    priceText !== undefined ||
+    saleOnly;
   const applied = [
     `сортировка «${sortLabel}»`,
     style.length > 0 && `стиль: ${labels(styleOptions, style, true)}`,
     brands.length > 0 && `бренд: ${labels(brandOptions, brands)}`,
+    priceText && `цена ${priceText}`,
     saleOnly && 'только со скидкой',
   ].filter(Boolean);
 
@@ -50,6 +67,7 @@ export function FiltersDemo() {
                 setSort(defaultSort);
                 setStyle([]);
                 setBrands([]);
+                setPrice(priceBounds);
                 setSaleOnly(false);
               }
             : undefined
@@ -77,6 +95,9 @@ export function FiltersDemo() {
             searchable
             searchPlaceholder="Найти бренд"
           />
+        </FilterDropdown>
+        <FilterDropdown title="Цена" value={priceText} onClear={() => setPrice(priceBounds)}>
+          <PriceFilter min={priceBounds[0]} max={priceBounds[1]} value={price} onApply={setPrice} />
         </FilterDropdown>
         <FilterChip title="Только со скидкой" pressed={saleOnly} onPressedChange={setSaleOnly} />
       </FilterChips>
