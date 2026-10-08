@@ -1,0 +1,8 @@
+// A column of options 16px apart, as Lamoda's x-radio-group-material spaces its rows.
+
+.checkboxGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  align-items: flex-start;
+}

@@ -36,6 +36,11 @@ export const colorGroups: ColorGroup[] = [
       { token: '--color-background', name: 'Основной', value: '#fff' },
       { token: '--color-background-secondary', name: 'Второстепенный', value: '#f5f5f5' },
       { token: '--color-background-tertiary', name: 'Третичный', value: '#e5e5e5' },
+      {
+        token: '--color-switch-track',
+        name: 'Выключенный переключатель',
+        value: 'rgb(186 186 186 / 50%)',
+      },
     ],
   },
   {
@@ -95,4 +100,9 @@ export const shadows = [
   { token: '--shadow-popover', name: 'Всплывающее окно', value: '0 2px 8px rgb(0 0 0 / 8%)' },
   { token: '--shadow-box', name: 'Блок', value: '0 0 8px rgb(0 0 0 / 16%)' },
   { token: '--shadow-modal', name: 'Модальное окно', value: '0 2px 48px rgb(0 0 0 / 24%)' },
+  {
+    token: '--shadow-thumb',
+    name: 'Бегунок переключателя',
+    value: '0 1px 1px rgb(0 0 0 / 14%), 0 2px 1px rgb(0 0 0 / 12%), 0 1px 3px rgb(0 0 0 / 20%)',
+  },
 ] as const;

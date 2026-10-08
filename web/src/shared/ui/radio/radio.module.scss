@@ -1,0 +1,83 @@
+// Lamoda's x-radio-group-material: a 20px circle with a 1px black border and, when checked, a 10px
+// black dot; on hover the label, the border and the dot turn grey (#888). Disabled: the circle and
+// the dot #e5e5e5, the label grey. Base UI sets data-checked and data-disabled on the circle.
+
+.radio {
+  cursor: pointer;
+
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+  color: var(--color-text);
+
+  transition: color var(--duration-slow) linear;
+}
+
+.circle {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+
+  box-sizing: border-box;
+  width: 20px;
+  height: 20px;
+  border: var(--border-width) solid var(--color-border-active);
+  border-radius: var(--radius-full);
+
+  background-color: var(--color-background);
+
+  transition: border-color var(--duration-slow) linear;
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: 2px;
+  }
+}
+
+.dot {
+  display: block;
+
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+
+  background-color: var(--color-text);
+
+  transition: background-color var(--duration-slow) linear;
+}
+
+.label {
+  flex-grow: 1;
+  min-width: 0;
+}
+
+@media (hover: hover) {
+  .radio:hover:not(:has(.circle[data-disabled])) {
+    color: var(--color-text-secondary);
+
+    .circle {
+      border-color: var(--color-border-control);
+    }
+
+    .dot {
+      background-color: var(--color-text-secondary);
+    }
+  }
+}
+
+.radio:has(.circle[data-disabled]) {
+  cursor: default;
+  color: var(--color-text-secondary);
+
+  .circle {
+    border-color: var(--color-border);
+  }
+
+  .dot {
+    background-color: var(--color-border);
+  }
+}

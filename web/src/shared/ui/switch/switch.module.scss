@@ -1,0 +1,92 @@
+// Lamoda's filter switch: a 34×14 track (#bababa80, black when on) and a 20px white thumb with a
+// shadow that stands 3px out of the track. Lamoda shows no hover or disabled switch; by analogy
+// with the checkbox the label and an on track turn grey on hover, and a disabled track is pale.
+// Base UI sets data-checked and data-disabled on the track and the thumb.
+
+.switch {
+  cursor: pointer;
+
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+  color: var(--color-text);
+
+  transition: color var(--duration-fast);
+}
+
+.label {
+  min-width: 0;
+}
+
+.track {
+  position: relative;
+
+  display: block;
+  flex-shrink: 0;
+
+  width: 34px;
+  height: 14px;
+  margin: 3px 0;
+  border-radius: var(--radius-full);
+
+  background-color: var(--color-switch-track);
+
+  transition: background-color var(--duration-fast);
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: 5px;
+  }
+
+  &[data-checked] {
+    background-color: var(--color-text);
+  }
+}
+
+.thumb {
+  position: absolute;
+  top: -3px;
+  left: 0;
+
+  display: block;
+
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-full);
+
+  background-color: var(--color-background);
+  box-shadow: var(--shadow-thumb);
+
+  transition: transform var(--duration-fast) ease-out;
+
+  &[data-checked] {
+    transform: translateX(14px);
+  }
+}
+
+@media (hover: hover) {
+  .switch:hover:not(:has(.track[data-disabled])) {
+    color: var(--color-text-secondary);
+
+    .track[data-checked] {
+      background-color: var(--color-text-secondary);
+    }
+  }
+}
+
+.switch:has(.track[data-disabled]) {
+  cursor: default;
+  color: var(--color-text-secondary);
+
+  // Paler than the enabled off track (#bababa80 reads as about #ddd on white).
+  .track {
+    background-color: var(--color-background-secondary);
+  }
+
+  .track[data-checked] {
+    background-color: var(--color-text-disabled);
+  }
+}

@@ -78,7 +78,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Check: AC3 (empty, filled, error, disabled); AC9 (label and error are announced); tests;
       `npm run verify`.
       Commit: `feat(web): add text and search fields`
-- [ ] **T8. Checkbox, Radio and Switch.** With their groups (`CheckboxGroup`, `RadioGroup`).
+- [x] **T8. Checkbox, Radio and Switch.** With their groups (`CheckboxGroup`, `RadioGroup`).
       Check: AC3; AC8 (Space toggles, arrows move within a radio group); AC9 (checked state in the
       accessibility tree); tests; `npm run verify`.
       Commit: `feat(web): add checkbox, radio and switch`

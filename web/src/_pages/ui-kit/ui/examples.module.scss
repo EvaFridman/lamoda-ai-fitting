@@ -65,6 +65,14 @@
   max-width: 280px;
 }
 
+// The visible name of a checkbox or radio group in a live example.
+.groupLabel {
+  margin: 0;
+  font-size: var(--font-size-body-m);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-body-m);
+}
+
 .props {
   font-family: inherit;
   font-size: var(--font-size-body-s);

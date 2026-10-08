@@ -76,6 +76,13 @@ lamoda.ru: the catalog, a product page and the order history.
 - D7d. Decided in T7. SearchField is a `<form role="search">`: Enter or the black button ("Найти")
   submits the value. A reset button ("Очистить") shows while the field is filled, as on Lamoda; it
   empties the field and puts the focus back into it.
+- D7e. Decided in T8. Checkbox, Radio and Switch have no error state, as on Lamoda: default,
+  checked and disabled. An error is added with the first form that needs one. Checkbox has no
+  indeterminate (parent) state: the plan's filters and colour swatches do not use it.
+  A disabled radio leaves the Tab order when its group has nothing to pick. Accepted: when the
+  checked radio is disabled but others are enabled, or radios are enabled after the first render,
+  Tab may land on the disabled radio first and the arrows move to the enabled ones (Base UI keeps
+  its tab stop there).
 
 ## Page
 
