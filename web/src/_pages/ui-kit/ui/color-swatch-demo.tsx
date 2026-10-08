@@ -55,7 +55,13 @@ export function ColorSwatchDemo() {
         ))}
       </CheckboxGroup>
       <p className={styles.props} aria-live="polite">
-        {value.length === 0 ? 'Ничего не выбрано' : `Выбрано: ${value.join(', ')}`}
+        {value.length === 0
+          ? 'Ничего не выбрано'
+          : // In the order of the palette, not of the clicks.
+            `Выбрано: ${colors
+              .filter((color) => value.includes(color.value))
+              .map((color) => color.value)
+              .join(', ')}`}
       </p>
     </div>
   );

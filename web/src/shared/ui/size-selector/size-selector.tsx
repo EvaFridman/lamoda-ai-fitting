@@ -31,6 +31,11 @@ export type SizeSelectorProps = Omit<
 // readers announce as unavailable and Base UI's arrow keys pass by; it is read-only for Base UI,
 // so a click does not pick it either (D7n).
 export function SizeSelector({ options, className, ...group }: SizeSelectorProps) {
+  // A group with nothing to pick (disabled, or every size out of stock) leaves the Tab order, as
+  // a radio group does (D7e): Base UI would otherwise keep a tab stop on a cell that cannot be
+  // picked.
+  const unreachable = group.disabled || options.every((option) => option.soldOut);
+
   return (
     <BaseRadioGroup<string>
       className={[styles.sizeSelector, className].filter(Boolean).join(' ')}
@@ -43,9 +48,8 @@ export function SizeSelector({ options, className, ...group }: SizeSelectorProps
           readOnly={option.soldOut}
           aria-disabled={option.soldOut || undefined}
           className={styles.cell}
-          // A disabled group has nothing to pick: it leaves the Tab order, as a disabled radio
-          // group does (D7e). An explicit undefined would override Base UI's roving tabIndex.
-          {...(group.disabled ? { tabIndex: -1 } : {})}
+          // Only when unreachable: an explicit undefined would override Base UI's roving tabIndex.
+          {...(unreachable ? { tabIndex: -1 } : {})}
         >
           {option.label}
         </BaseRadio.Root>

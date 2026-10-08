@@ -69,6 +69,12 @@
     }
   }
 
+  // A picked size that ran out of stock stays grey with the strike, outlined in #888 as on
+  // Lamoda, so it still reads as picked.
+  &[aria-disabled='true'][data-checked] {
+    border-color: var(--color-border-control);
+  }
+
   &[data-disabled] {
     cursor: default;
     color: var(--color-text-disabled);
