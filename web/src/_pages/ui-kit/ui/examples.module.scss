@@ -71,6 +71,13 @@
   min-height: 340px;
 }
 
+// A filter's content as wide as a filter dropdown's inside (292px less 16px padding, D7g).
+.filterColumn {
+  justify-items: stretch;
+  width: 260px;
+  max-width: 100%;
+}
+
 // The visible name of a checkbox or radio group in a live example.
 .groupLabel {
   margin: 0;

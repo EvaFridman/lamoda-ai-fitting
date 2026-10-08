@@ -62,6 +62,37 @@ export const colorGroups: ColorGroup[] = [
       { token: '--color-overlay', name: 'Подложка', value: 'rgb(0 0 0 / 50%)' },
     ],
   },
+  {
+    title: 'Фильтр по цвету',
+    tokens: [
+      { token: '--color-swatch-black', name: 'Черный', value: '#000' },
+      { token: '--color-swatch-gray', name: 'Серый', value: '#b6b6b6' },
+      { token: '--color-swatch-white', name: 'Белый', value: '#fff' },
+      { token: '--color-swatch-beige', name: 'Бежевый', value: '#dfbd93' },
+      { token: '--color-swatch-red', name: 'Красный', value: '#e50101' },
+      { token: '--color-swatch-pink', name: 'Розовый', value: '#ff9bd5' },
+      { token: '--color-swatch-orange', name: 'Оранжевый', value: '#ff7a01' },
+      {
+        token: '--color-swatch-multicolor',
+        name: 'Мультиколор',
+        value: 'conic-gradient(#ff7a01 25%, #22bd63 25% 50%, #e50101 50% 75%, #3972fc 0)',
+      },
+      { token: '--color-swatch-yellow', name: 'Желтый', value: '#ffec1c' },
+      { token: '--color-swatch-green', name: 'Зеленый', value: '#3db801' },
+      { token: '--color-swatch-navy-blue', name: 'Синий', value: '#3972fc' },
+      { token: '--color-swatch-blue', name: 'Голубой', value: '#8bcdff' },
+      { token: '--color-swatch-purple', name: 'Фиолетовый', value: '#6c2ee9' },
+      { token: '--color-swatch-vinous', name: 'Бордовый', value: '#90011b' },
+      { token: '--color-swatch-coral', name: 'Коралловый', value: '#ff616f' },
+      { token: '--color-swatch-turquoise', name: 'Бирюзовый', value: '#38e2da' },
+      { token: '--color-swatch-fuchsia', name: 'Фуксия', value: '#f0f' },
+      { token: '--color-swatch-gold', name: 'Золотой', value: '#d7b551' },
+      { token: '--color-swatch-silver', name: 'Серебряный', value: '#d1d2ce' },
+      { token: '--color-swatch-khaki', name: 'Хаки', value: '#8c9448' },
+      { token: '--color-swatch-brown', name: 'Коричневый', value: '#743d02' },
+      { token: '--color-swatch-transparent', name: 'Прозрачный', value: '#fff' },
+    ],
+  },
 ];
 
 export interface TypeStyle {

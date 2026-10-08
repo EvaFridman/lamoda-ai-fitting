@@ -36,6 +36,35 @@
   // Colour: overlay under modals and drawers
   --color-overlay: rgb(0 0 0 / 50%);
 
+  // Colour: the swatches of the colour filter, Lamoda's FilterValue palette (ColorSwatch, D7o)
+  --color-swatch-black: #000;
+  --color-swatch-gray: #b6b6b6;
+  --color-swatch-white: #fff;
+  --color-swatch-beige: #dfbd93;
+  --color-swatch-red: #e50101;
+  --color-swatch-pink: #ff9bd5;
+  --color-swatch-orange: #ff7a01;
+  --color-swatch-multicolor: conic-gradient(
+    #ff7a01 25%,
+    #22bd63 25% 50%,
+    #e50101 50% 75%,
+    #3972fc 0
+  );
+  --color-swatch-yellow: #ffec1c;
+  --color-swatch-green: #3db801;
+  --color-swatch-navy-blue: #3972fc;
+  --color-swatch-blue: #8bcdff;
+  --color-swatch-purple: #6c2ee9;
+  --color-swatch-vinous: #90011b;
+  --color-swatch-coral: #ff616f;
+  --color-swatch-turquoise: #38e2da;
+  --color-swatch-fuchsia: #f0f;
+  --color-swatch-gold: #d7b551;
+  --color-swatch-silver: #d1d2ce;
+  --color-swatch-khaki: #8c9448;
+  --color-swatch-brown: #743d02;
+  --color-swatch-transparent: #fff;
+
   // Type: Onest from next/font (its variable is set on <html> by app/layout.tsx)
   // The fallback inside var() keeps the declaration valid where next/font's variable is not set.
   --font-sans:
