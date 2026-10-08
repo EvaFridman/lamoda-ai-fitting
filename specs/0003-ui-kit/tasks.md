@@ -1,6 +1,6 @@
 # 0003 UI-kit: tasks
 
-Status: accepted (2026-10-08).
+Status: done (2026-10-08). History, not instructions.
 Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## How the work flows
@@ -129,7 +129,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
   - Differences are fixed, each in its own commit (`fix(web): …`).
   - Check: every AC has evidence; AC6 accepted by the owner.
   - Commit: `docs(specs): record the acceptance of spec 0003`
-- [ ] **T18. Close the spec.** "Acceptance record" filled in; a last pass over `CLAUDE.md`,
+- [x] **T18. Close the spec.** "Acceptance record" filled in; a last pass over `CLAUDE.md`,
       `README.md` and `web/README.md` against what was built; all spec files `Status: done`.
       Check: every AC has evidence below; `npm run format:check`.
       Commit: `docs(specs): close spec 0003`
@@ -149,6 +149,6 @@ Filled in by T17 and T18.
 | AC7  | pass   | T17, `qa-tester`: 38 requests, one host (`localhost:4001`); Onest from `/_next/static/media/*.woff2`                                                                                                                                                                                                                                  |
 | AC8  | pass   | T17, `qa-tester`, keyboard only: Enter or Space opens Modal, Drawer, Select and a filter dropdown; Tab stays inside an open Modal; arrows and End move through Select options and tabs; Esc closes each and focus returns to its opener; focus visible (outline or field underline). Component tests with `user-event` cover the same |
 | AC9  | pass   | T17, `qa-tester` accessibility tree: checkbox, radio in a named radiogroup, switch with `aria-checked`, tablist / tab `selected` / tabpanel, chips `expanded` and `pressed`, combobox with listbox and options, filter and modal `dialog` with a name                                                                                 |
-| AC10 |        |                                                                                                                                                                                                                                                                                                                                       |
-| AC11 |        |                                                                                                                                                                                                                                                                                                                                       |
-| AC12 |        |                                                                                                                                                                                                                                                                                                                                       |
+| AC10 | pass   | T18: `npm run verify` → exit 0, its `npm --prefix web run test` step ran 52 files, 516 tests. One assertion in `rating.test.tsx` broken on purpose (not committed): `verify` → exit 1, "1 failed \| 515 passed"                                                                                                                       |
+| AC11 | pass   | T18: `docker build --target runtime web`, the command of `scripts/ci-build-images.sh`, in a build container that reaches no api, Redis or database → exit 0; `/ui-kit` prerendered at build time. CI builds the same image with no services                                                                                           |
+| AC12 | pass   | T18: `git check-ignore -v specs/0003-ui-kit/references/x.png` → `.gitignore:48:specs/0003-ui-kit/references/`                                                                                                                                                                                                                         |
