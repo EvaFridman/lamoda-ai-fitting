@@ -123,7 +123,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## PR 4 · `docs/0003-ui-kit-close` · acceptance
 
-- [ ] **T17. Acceptance pass.**
+- [x] **T17. Acceptance pass.**
   - `qa-tester` over the whole page: AC1–AC5 and AC7–AC9 at 1600px and 375px.
   - 👤 The owner compares the screenshots of every section with the references (AC6).
   - Differences are fixed, each in its own commit (`fix(web): …`).
@@ -138,17 +138,17 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 Filled in by T17 and T18.
 
-| AC   | Result | Evidence |
-| ---- | ------ | -------- |
-| AC1  |        |          |
-| AC2  |        |          |
-| AC3  |        |          |
-| AC4  |        |          |
-| AC5  |        |          |
-| AC6  |        |          |
-| AC7  |        |          |
-| AC8  |        |          |
-| AC9  |        |          |
-| AC10 |        |          |
-| AC11 |        |          |
-| AC12 |        |          |
+| AC   | Result | Evidence                                                                                                                                                                                                                                                                                                                              |
+| ---- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AC1  | pass   | T17, `qa-tester` at 1600 and 375px: `/ui-kit` → 200; 14 `section[id]`, the same ids in the same order as `sections.ts`; 14 table of contents links, none dangling, no section without one                                                                                                                                             |
+| AC2  | pass   | T17: `curl -s localhost:4001/ui-kit \| rg 'name="robots" content="noindex'` → `<meta name="robots" content="noindex, nofollow"/>`                                                                                                                                                                                                     |
+| AC3  | pass   | T17, `qa-tester` walked every section: default, disabled, error, selected and applied shown statically; hover and focus live with a caption in every section (D11a); Select open and Modal, Drawer, Tooltip, Toast open shown live only (D7q, D7z)                                                                                    |
+| AC4  | pass   | T17, `qa-tester`: chip "Бренд" opens, "Применить" turns it into "Бренд Animiss", × clears it and focus returns to the chip; a tab switches its panel; the favourite toggle switches `aria-pressed`; a toast appears and is gone after about 5 s. Component tests cover the same flows                                                 |
+| AC5  | pass   | T17, `qa-tester` at 375px: `scrollWidth` 375 = `innerWidth`, and stays 375 with each drawer, modal, the select list, the filter dropdowns, a toast and a tooltip open                                                                                                                                                                 |
+| AC6  | pass   | T17: screenshots of all 14 sections at 1600px, open states (Select, filters, Modal, Drawer, Tooltip, HelpTip, Toast) shot apart, next to the references; accepted by the owner with no differences to fix. Known: Onest, not Lamoda's font (D4a)                                                                                      |
+| AC7  | pass   | T17, `qa-tester`: 38 requests, one host (`localhost:4001`); Onest from `/_next/static/media/*.woff2`                                                                                                                                                                                                                                  |
+| AC8  | pass   | T17, `qa-tester`, keyboard only: Enter or Space opens Modal, Drawer, Select and a filter dropdown; Tab stays inside an open Modal; arrows and End move through Select options and tabs; Esc closes each and focus returns to its opener; focus visible (outline or field underline). Component tests with `user-event` cover the same |
+| AC9  | pass   | T17, `qa-tester` accessibility tree: checkbox, radio in a named radiogroup, switch with `aria-checked`, tablist / tab `selected` / tabpanel, chips `expanded` and `pressed`, combobox with listbox and options, filter and modal `dialog` with a name                                                                                 |
+| AC10 |        |                                                                                                                                                                                                                                                                                                                                       |
+| AC11 |        |                                                                                                                                                                                                                                                                                                                                       |
+| AC12 |        |                                                                                                                                                                                                                                                                                                                                       |
