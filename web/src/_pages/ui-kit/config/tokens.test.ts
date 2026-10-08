@@ -20,7 +20,8 @@ function readDeclared(): Map<string, string> {
 
   const declared = new Map<string, string>();
   for (const [, name, raw] of block.matchAll(/(--[\w-]+):([^;]+);/g)) {
-    const value = raw?.replace(/\s+/g, ' ').trim();
+    // Prettier breaks a long function value after "(": "conic-gradient(\n    #ff7a01 25%, …\n  )".
+    const value = raw?.replace(/\s+/g, ' ').replace(/\( /g, '(').replace(/ \)/g, ')').trim();
     if (name && value) declared.set(name, value);
   }
   return declared;

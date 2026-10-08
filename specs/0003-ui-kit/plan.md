@@ -114,11 +114,13 @@ The values come from Lamoda's stylesheets, which are referenced by the saved pag
     (11px grey label), and "Применить", disabled until the range changes.
 - **SizePicker** (filter) and **SizeSelector** (product): 46×46 (filter) or 56×52 (product)
   cells, `#e5e5e5` border, 4px radius, hover `#f5f5f5`, selected black with white text. Out of
-  stock: grey on `#e5e5e5` with a diagonal strike, still focusable but marked `aria-disabled`.
-  Built on Base UI `Radio`.
-- **ColorSwatch** (colour filter): a round swatch in Lamoda's filter colours (black `#000`, grey
-  `#b6b6b6`, white with a border, beige `#dfbd93`, red `#e50101`, pink `#ff9bd5`, …). The tick is
-  inverted on light colours. Multi-select through `CheckboxGroup`.
+  stock (SizeSelector): grey on `#e5e5e5` with a diagonal strike, marked `aria-disabled`; it
+  cannot be picked and the arrow keys pass it by (D7n). SizeSelector is built on Base UI `Radio`;
+  SizePicker picks several sizes, on Base UI `Checkbox` in a `CheckboxGroup` (D7m).
+- **ColorSwatch** (colour filter): a checkbox row with a round swatch in Lamoda's filter colours
+  (black `#000`, grey `#b6b6b6`, white with a border, beige `#dfbd93`, red `#e50101`, pink
+  `#ff9bd5`, …), the colour's name and a count (D7o). The tick is inverted on light colours.
+  Multi-select through `CheckboxGroup`.
 - **Select** (Base UI `Select`): Lamoda's product select — 1px `#888` border, 4px radius, `8px 16px
 8px 8px` padding, optional 23×32 thumbnail, 16px value, chevron. Options have `8px 14px` padding
   with an `#f5f5f5` hover; the list is at most 216px high with a box shadow. Disabled is greyed
@@ -202,7 +204,8 @@ test`, so `verify` runs it (AC10). `CLAUDE.md` loses "web has no tests yet".
   - FilterChip with CheckboxFilter: open, pick, apply → applied text; × clears.
   - CheckboxFilter search narrows the list.
   - PriceFilter: "Применить" disabled until a change; inputs and slider agree; min ≤ max.
-  - SizeSelector keeps out-of-stock sizes reachable but announced as unavailable.
+  - SizeSelector announces out-of-stock sizes as unavailable, and neither a click nor the arrow
+    keys pick them (D7n).
   - Price formatting and the discount layout.
   - Rating's accessible name.
   - Tabs and Select keyboard paths.

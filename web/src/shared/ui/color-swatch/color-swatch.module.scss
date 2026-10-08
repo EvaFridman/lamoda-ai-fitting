@@ -1,0 +1,89 @@
+// Lamoda's FilterValue with a colour icon: an 18px swatch, the name in 16px and the count in 13px
+// grey on the right; on hover the row turns grey (#888). White and transparent swatches have a
+// #e5e5e5 border. The tick is white, black on light colours (data-light). Base UI sets
+// data-checked and data-disabled on the swatch.
+
+.colorSwatch {
+  cursor: pointer;
+  user-select: none;
+
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+
+  width: 100%;
+
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+  color: var(--color-text);
+
+  transition: color var(--duration-fast);
+}
+
+.swatch {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+
+  box-sizing: border-box;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-full);
+
+  &[data-bordered] {
+    border: var(--border-width) solid var(--color-border);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: 2px;
+  }
+}
+
+// A tick of 2px borders, rotated; it shows only while the swatch is ticked.
+.tick {
+  transform: rotate(45deg);
+
+  display: block;
+
+  box-sizing: content-box;
+  width: 4px;
+  height: 8px;
+  margin-top: -2px;
+  border-color: var(--color-background);
+  border-style: solid;
+  border-width: 0 2px 2px 0;
+
+  .swatch[data-light] & {
+    border-color: var(--color-text);
+  }
+}
+
+.label {
+  flex-grow: 1;
+  min-width: 0;
+}
+
+.count {
+  flex: none;
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  color: var(--color-text-secondary);
+}
+
+@media (hover: hover) {
+  .colorSwatch:hover:not(:has(.swatch[data-disabled])) {
+    color: var(--color-text-secondary);
+  }
+}
+
+// A disabled colour: the name grey and the swatch faded.
+.colorSwatch:has(.swatch[data-disabled]) {
+  cursor: default;
+  color: var(--color-text-disabled);
+
+  .swatch {
+    opacity: 0.4;
+  }
+}

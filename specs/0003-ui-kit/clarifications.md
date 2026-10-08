@@ -107,6 +107,20 @@ lamoda.ru: the catalog, a product page and the order history.
   compact TextField: their label stays above in 11px grey (no floating label, D7c), the field is
   47px high, an empty field shows its bound as the placeholder (D7i), and there is no hint or
   error. They are built on Base UI `Field` and `Input` inside `PriceFilter`.
+- D7m. Decided in T11, a change to plan, "Components" (SizePicker). The size filter picks several
+  sizes, as Lamoda's catalog filters do: its cells are checkboxes in a `CheckboxGroup`, the value
+  is the list of picked sizes, and Tab moves from cell to cell. SizeSelector (one size of a
+  product) stays a radio group.
+- D7n. Decided in T11, a change to plan, "Components" (SizeSelector). An out-of-stock size of
+  SizeSelector cannot be picked: a click does not select it, and the arrow keys and Tab pass it
+  by, as in a radio group with a disabled radio. A screen reader announces it as unavailable
+  (`aria-disabled`) when it reads the group. The plan's "still focusable" cannot be built: Base
+  UI's radio group skips every `aria-disabled` radio and has no option to stop it (checked in
+  T11). Lamoda's "Сообщить о поступлении" is not part of the kit.
+- D7o. Decided in T11. A ColorSwatch is a checkbox row of the colour filter, as in Lamoda's
+  `FilterValue` CSS: an 18px round swatch in place of the box, the colour's name and an optional
+  count. The colours are Lamoda's filter palette, one token each (`--color-swatch-*`); the tick is
+  white, and black on the light colours Lamoda inverts it on.
 
 ## Page
 

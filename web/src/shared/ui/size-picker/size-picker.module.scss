@@ -1,0 +1,64 @@
+// Lamoda's size chip: at least 46×46 with 8px sides, a 1px #e5e5e5 border, a 4px radius and the
+// size in 13px; #f5f5f5 on hover, black with white text when picked. Cells sit 8px apart. Base UI
+// sets data-checked and data-disabled on the cell.
+
+.sizePicker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.cell {
+  cursor: pointer;
+  user-select: none;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  box-sizing: border-box;
+  min-width: 46px;
+  height: 46px;
+  padding: 0 var(--space-2);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-s);
+
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  color: var(--color-text);
+
+  background-color: var(--color-background);
+
+  transition:
+    background-color var(--duration-fast),
+    border-color var(--duration-fast),
+    color var(--duration-fast);
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: 2px;
+  }
+
+  &[data-checked] {
+    border-color: var(--color-text);
+    color: var(--color-background);
+    background-color: var(--color-text);
+  }
+
+  &[data-disabled] {
+    cursor: default;
+    color: var(--color-text-disabled);
+  }
+
+  &[data-disabled][data-checked] {
+    border-color: var(--color-text-disabled);
+    color: var(--color-background);
+    background-color: var(--color-text-disabled);
+  }
+}
+
+@media (hover: hover) {
+  .cell:hover:not([data-checked], [data-disabled]) {
+    background-color: var(--color-background-secondary);
+  }
+}

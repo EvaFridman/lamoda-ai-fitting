@@ -93,7 +93,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Check: AC4 ("Применить" disabled until the range changes; inputs and slider agree;
       min ≤ max); AC8 (arrows move a thumb); tests; `npm run verify`.
       Commit: `feat(web): add the price range filter`
-- [ ] **T11. Size and colour pickers.** `SizePicker` (filter), `SizeSelector` (product page, out of
+- [x] **T11. Size and colour pickers.** `SizePicker` (filter), `SizeSelector` (product page, out of
       stock) and `ColorSwatch`.
       Check: AC3; AC9 (an out-of-stock size is announced as unavailable); tests; `npm run verify`.
       Commit: `feat(web): add size and colour pickers`
