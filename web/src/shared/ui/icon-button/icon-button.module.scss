@@ -1,0 +1,52 @@
+// The outlined square of Button's outline variant; disabled at opacity .4 like Lamoda's
+// .x-button_icon.
+
+.iconButton {
+  cursor: pointer;
+
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border: var(--border-width) solid var(--color-border-active);
+  border-radius: var(--radius-s);
+
+  color: var(--color-text);
+
+  background-color: transparent;
+
+  transition:
+    color var(--duration-fast),
+    border-color var(--duration-fast);
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: 2px;
+  }
+
+  &[data-disabled] {
+    cursor: default;
+    opacity: 0.4;
+  }
+
+  @media (hover: hover) {
+    &:hover:not([data-disabled]) {
+      border-color: var(--color-border-control);
+      color: var(--color-text-secondary);
+    }
+  }
+}
+
+.size48 {
+  width: 48px;
+  height: 48px;
+}
+
+.size56 {
+  width: 56px;
+  height: 56px;
+}

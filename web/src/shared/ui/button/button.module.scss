@@ -1,0 +1,139 @@
+// Lamoda's .x-button: 4px radius, 16px text at weight 400 (D2a), one line; heights 32–56px. Base
+// UI marks a disabled button with data-disabled, so hover styles skip it; a loading button is
+// disabled too.
+
+.button {
+  cursor: pointer;
+  user-select: none;
+
+  position: relative;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0 var(--space-4);
+  border: var(--border-width) solid transparent;
+  border-radius: var(--radius-s);
+
+  font-family: inherit;
+  font-size: var(--font-size-body-m);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-body-m);
+  text-decoration: none;
+  white-space: nowrap;
+
+  transition:
+    color var(--duration-fast),
+    background-color var(--duration-fast),
+    border-color var(--duration-fast);
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: 2px;
+  }
+}
+
+.label {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+// Variants
+
+.primary {
+  border-color: var(--color-text);
+  color: var(--color-background);
+  background-color: var(--color-text);
+}
+
+.secondary {
+  border-color: var(--color-background-secondary);
+  color: var(--color-text);
+  background-color: var(--color-background-secondary);
+}
+
+.outline {
+  border-color: var(--color-border-active);
+  color: var(--color-text);
+  background-color: transparent;
+}
+
+@media (hover: hover) {
+  .primary:hover:not([data-disabled]) {
+    border-color: var(--color-text-secondary);
+    background-color: var(--color-text-secondary);
+  }
+
+  .secondary:hover:not([data-disabled]) {
+    border-color: var(--color-background-tertiary);
+    background-color: var(--color-background-tertiary);
+  }
+
+  .outline:hover:not([data-disabled]) {
+    border-color: var(--color-border-control);
+    color: var(--color-text-secondary);
+  }
+}
+
+// Sizes
+
+.size32 {
+  height: 32px;
+}
+
+.size40 {
+  height: 40px;
+}
+
+.size48 {
+  height: 48px;
+}
+
+.size56 {
+  height: 56px;
+}
+
+.textBodyS {
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+}
+
+.fullWidth {
+  display: flex;
+  width: 100%;
+}
+
+// States
+
+.disabled {
+  cursor: default;
+
+  &.primary {
+    opacity: 0.4;
+  }
+
+  &.secondary,
+  &.outline {
+    border-color: var(--color-background-tertiary);
+    color: var(--color-text-secondary);
+    background-color: var(--color-background-tertiary);
+  }
+}
+
+.loading {
+  cursor: progress;
+
+  .label {
+    opacity: 0;
+  }
+}
+
+.spinner {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+}

@@ -68,7 +68,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## PR 2 · `feat/0003-ui-kit-controls` · basic controls and filters
 
-- [ ] **T6. Button, IconButton, Link, Spinner.** `@base-ui/react` 1.8.0 added to web (no install
+- [x] **T6. Button, IconButton, Link, Spinner.** `@base-ui/react` 1.8.0 added to web (no install
       script). Buttons in every variant, size and state of plan, "Components".
       Check: AC3 and AC8 for the section (Tab, Enter, Space; `loading` sets `aria-busy`); tests;
       `npm run verify`.

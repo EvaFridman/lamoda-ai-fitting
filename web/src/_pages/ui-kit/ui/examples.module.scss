@@ -1,0 +1,67 @@
+// Shared layout of the component sections: a heading per component, a row of examples, each with
+// its props in grey under it.
+
+.caption {
+  margin: 0 0 var(--space-4);
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  color: var(--color-text-secondary);
+}
+
+.heading {
+  margin: var(--space-8) 0 var(--space-4);
+  font-size: var(--font-size-headline-s);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-headline-s);
+}
+
+.groupTitle {
+  margin: var(--space-6) 0 var(--space-3);
+  font-size: var(--font-size-body-m);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-body-m);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-6);
+  align-items: flex-end;
+
+  margin: 0;
+  padding: 0;
+
+  list-style: none;
+}
+
+.example {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+  min-width: 0;
+}
+
+.wide {
+  width: 100%;
+  max-width: 400px;
+}
+
+.smallText {
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+}
+
+// "Добавить в корзину" with the favourite button, 280px wide as on the product page.
+.pair {
+  display: flex;
+  gap: var(--space-2);
+  max-width: 280px;
+}
+
+.props {
+  font-family: inherit;
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+}

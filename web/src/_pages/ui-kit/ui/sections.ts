@@ -1,6 +1,9 @@
 import type { ComponentType } from 'react';
 
+import { ButtonsSection } from './buttons-section';
 import { IconsSection } from './icons-section';
+import { LinksSection } from './links-section';
+import { SpinnerSection } from './spinner-section';
 import { TokensSection } from './tokens-section';
 
 export interface UiKitSection {
@@ -16,4 +19,7 @@ export interface UiKitSection {
 export const sections: UiKitSection[] = [
   { id: 'tokens', title: 'Токены', Content: TokensSection },
   { id: 'icons', title: 'Иконки', Content: IconsSection },
+  { id: 'buttons', title: 'Кнопки', Content: ButtonsSection },
+  { id: 'links', title: 'Ссылки', Content: LinksSection },
+  { id: 'spinner', title: 'Спиннер', Content: SpinnerSection },
 ];
