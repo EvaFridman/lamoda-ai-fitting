@@ -1,6 +1,7 @@
 # 0003 UI-kit
 
-Status: accepted (2026-10-08), amended the same day while planning: AC3 (D11a).
+Status: done (2026-10-08): all 12 criteria pass (`tasks.md`, "Acceptance record"); AC3 amended
+while planning (D11a). History, not instructions.
 Decisions this spec relies on: [clarifications.md](clarifications.md) (referred to by their ids, e.g. D5).
 
 ## Goal

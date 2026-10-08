@@ -1,6 +1,6 @@
 # 0003 UI-kit: clarifications
 
-Status: in progress (2026-10-08).
+Status: done (2026-10-08). History, not instructions.
 
 Decisions made by the owner. Each line is final unless the owner changes it here. The model is
 lamoda.ru: the catalog, a product page and the order history.

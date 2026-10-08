@@ -1,6 +1,6 @@
 # 0003 UI-kit: plan
 
-Status: accepted (2026-10-08).
+Status: done (2026-10-08). History, not instructions.
 Implements [spec.md](spec.md); decisions in [clarifications.md](clarifications.md).
 
 ## Overview
