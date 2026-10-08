@@ -83,6 +83,14 @@ lamoda.ru: the catalog, a product page and the order history.
   checked radio is disabled but others are enabled, or radios are enabled after the first render,
   Tab may land on the disabled radio first and the arrows move to the enabled ones (Base UI keeps
   its tab stop there).
+- D7f. Decided in T9. SortFilter applies every change at once, the arrow keys included (a radio
+  group selects as it moves). A click closes the dropdown; with the arrows it stays open, and
+  Enter, Space or Esc close it, the focus back on the chip.
+- D7g. Decided in T9. Filter dropdowns are at least 292px wide, as on the reference screenshots
+  (Lamoda's "Применить" is at least 260px wide inside 16px padding), not the 246px of Lamoda's
+  `FilterDefault`; the sort dropdown is as wide as the checkbox one.
+- D7h. Decided in T9. "Очистить фильтры" is a `<button>` styled as the
+  Link (black, grey underline), not a link: it resets the filters on the page and has no address.
 
 ## Page
 

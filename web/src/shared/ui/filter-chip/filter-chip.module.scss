@@ -1,0 +1,111 @@
+// Lamoda's DesktopFiltersItem: a chip 36px high with a 4px radius and a #e5e5e5 border, 16px text
+// 12px from the edges and a 16px chevron 8px after it. Hover and open: a black border; open also
+// fills it #f5f5f5. Applied: black with white text, the value in grey 4px after the title. Base UI
+// sets data-popup-open on the trigger while its dropdown is open and data-pressed on a toggle.
+
+.chip {
+  display: inline-flex;
+  flex: none;
+  align-items: stretch;
+
+  box-sizing: border-box;
+  height: 36px;
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-s);
+
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+  color: var(--color-text);
+  white-space: nowrap;
+
+  background-color: var(--color-background);
+
+  transition:
+    border-color var(--duration-fast),
+    background-color var(--duration-fast),
+    color var(--duration-fast);
+
+  &:has([data-popup-open]):not(.applied) {
+    border-color: var(--color-border-active);
+    background-color: var(--color-background-secondary);
+  }
+
+  @media (hover: hover) {
+    &:hover {
+      border-color: var(--color-border-active);
+    }
+  }
+}
+
+.applied,
+.toggle[data-pressed] {
+  border-color: var(--color-border-active);
+  color: var(--color-background);
+  background-color: var(--color-text);
+}
+
+// The parts that are buttons: the toggle chip itself, the trigger and the × of an applied chip.
+.toggle,
+.trigger,
+.clear {
+  cursor: pointer;
+  align-items: center;
+  margin: 0;
+  font: inherit;
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: 2px;
+  }
+}
+
+// The toggle is the chip: it keeps the chip's border and fill.
+.toggle {
+  padding: 0 var(--space-3);
+}
+
+// The trigger and the × sit inside the chip's border.
+.trigger,
+.clear {
+  display: flex;
+
+  border: none;
+  border-radius: var(--radius-s);
+
+  color: inherit;
+
+  background-color: transparent;
+}
+
+.trigger {
+  padding: 0 var(--space-3);
+}
+
+.withClear {
+  padding-right: 0;
+}
+
+.clear {
+  padding: 0 var(--space-3) 0 var(--space-2);
+}
+
+.value {
+  margin-left: var(--space-1);
+  color: var(--color-text-secondary);
+}
+
+.icon {
+  flex: none;
+  margin-left: var(--space-2);
+}
+
+// The × of a toggle shows only while it is pressed.
+.toggleCross {
+  display: none;
+  flex: none;
+  margin-left: var(--space-2);
+
+  .toggle[data-pressed] & {
+    display: block;
+  }
+}

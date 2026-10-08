@@ -1,0 +1,44 @@
+// Lamoda's DesktopFilters: chips in a wrap 8px apart; "Очистить фильтры" in 16px black text with
+// a grey underline (as the Link), in a 36px box 8px from the last chip, so the text stands 16px off.
+
+.filterChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.clearAll {
+  cursor: pointer;
+
+  height: 36px;
+  margin: 0;
+  padding: 0 var(--space-2);
+  border: none;
+  border-radius: var(--radius-s);
+
+  font-family: inherit;
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+  color: var(--color-text);
+  text-decoration-color: var(--color-text-secondary);
+  text-decoration-line: underline;
+  text-decoration-thickness: var(--border-width);
+  text-underline-offset: 3px;
+  white-space: nowrap;
+
+  background-color: transparent;
+
+  transition: color var(--duration-fast);
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: 2px;
+  }
+
+  @media (hover: hover) {
+    &:hover {
+      color: var(--color-text-secondary);
+    }
+  }
+}

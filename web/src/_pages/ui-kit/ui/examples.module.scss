@@ -65,6 +65,12 @@
   max-width: 280px;
 }
 
+// An open filter dropdown: room under the chip for its list and "Применить".
+.openDropdown {
+  align-content: start;
+  min-height: 340px;
+}
+
 // The visible name of a checkbox or radio group in a live example.
 .groupLabel {
   margin: 0;
