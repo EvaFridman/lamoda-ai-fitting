@@ -1,0 +1,23 @@
+// Lamoda's x-skeleton-box: #f5f5f5 that turns #e7e7e7 and back over 1.4s, linearly.
+
+.skeleton {
+  user-select: none;
+
+  display: block;
+
+  max-width: 100%;
+
+  background-color: var(--color-background-secondary);
+
+  animation: pulse 1.4s linear infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@keyframes pulse {
+  50% {
+    background-color: var(--color-skeleton-pulse);
+  }
+}

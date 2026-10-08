@@ -116,7 +116,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Check: AC8 (open, Esc closes, focus returns; focus stays inside an open modal); AC9 (dialog
       role and name); tests; `npm run verify`.
       Commit: `feat(web): add modal, drawer and tooltip`
-- [ ] **T16. Toast and Skeleton.** `ToastProvider` in `web/src/_app/providers.tsx`.
+- [x] **T16. Toast and Skeleton.** `ToastProvider` in `web/src/_app/providers.tsx`.
       Check: AC4 (a toast appears and goes away; the error tone); animations off under
       `prefers-reduced-motion`; `npm run verify`.
       Commit: `feat(web): add toasts and skeletons`

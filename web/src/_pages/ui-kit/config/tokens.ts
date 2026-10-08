@@ -54,13 +54,16 @@ export const colorGroups: ColorGroup[] = [
     ],
   },
   {
-    title: 'Бейджи и подложка',
+    title: 'Бейджи, подложка, уведомления',
     tokens: [
       { token: '--color-badge-club-text', name: 'Клуб, текст', value: '#3c5064' },
       { token: '--color-badge-club', name: 'Клуб', value: '#cde6ff' },
       { token: '--color-badge-premium', name: 'Премиум', value: '#000' },
       { token: '--color-badge-promo', name: 'Промо', value: '#a5d2a0' },
       { token: '--color-overlay', name: 'Подложка', value: 'rgb(0 0 0 / 50%)' },
+      { token: '--color-snackbar', name: 'Уведомление', value: '#363636' },
+      { token: '--color-snackbar-error', name: 'Уведомление, ошибка', value: '#d13100' },
+      { token: '--color-skeleton-pulse', name: 'Скелетон, пульс', value: '#e7e7e7' },
     ],
   },
   {
