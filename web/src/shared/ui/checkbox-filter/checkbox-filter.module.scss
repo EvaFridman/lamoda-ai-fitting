@@ -1,0 +1,150 @@
+// Lamoda's FilterDefault, FilterSearch, FilterValue and DesktopFilterItemWrapper: the search and
+// the list together at most 340px high, the list scrolling inside; rows 36px apart (8px above and
+// below a 20px line), the count in 13px grey on the right; the search a #f5f5f5 field with an 8px
+// radius and 12px/44px padding, its icons 12px from the edges; under a thin line, a 16px footer
+// with the full-width "Применить".
+
+.checkboxFilter {
+  display: flex;
+  flex-direction: column;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: 340px;
+}
+
+.searchRow {
+  flex: none;
+  padding: var(--space-4) var(--space-4) 0;
+}
+
+.search {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-m);
+  background-color: var(--color-background-secondary);
+
+  // The input has no outline of its own: the field shows where the focus is.
+  &:focus-within {
+    outline: var(--border-width) solid var(--color-border-active);
+  }
+}
+
+.input {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  padding: var(--space-3) 44px;
+  border: none;
+
+  font-family: inherit;
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+  color: var(--color-text);
+
+  appearance: none;
+  background-color: transparent;
+  outline: none;
+
+  &::placeholder {
+    color: var(--color-text-secondary);
+  }
+
+  // The reset button replaces the browser's own clear button.
+  &::-webkit-search-cancel-button {
+    appearance: none;
+  }
+}
+
+.searchIcon,
+.reset {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.searchIcon {
+  pointer-events: none;
+  left: var(--space-3);
+}
+
+.reset {
+  cursor: pointer;
+
+  right: var(--space-3);
+
+  display: flex;
+
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-s);
+
+  color: var(--color-text);
+
+  background-color: transparent;
+
+  transition: color var(--duration-fast);
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: 2px;
+  }
+
+  @media (hover: hover) {
+    &:hover {
+      color: var(--color-text-secondary);
+    }
+  }
+}
+
+.list {
+  overflow-y: auto;
+  flex: 1 1 auto;
+  gap: 0;
+  align-items: stretch;
+
+  min-height: 0;
+  padding: var(--space-2) var(--space-4);
+}
+
+// Two classes, to win over the Checkbox's own inline-flex.
+.list .row {
+  display: flex;
+  padding: var(--space-2) 0;
+}
+
+.option {
+  display: flex;
+  gap: var(--space-4);
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.count {
+  flex: none;
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  color: var(--color-text-secondary);
+}
+
+// "Ничего не найдено"; the region stays mounted and takes no room while it is empty.
+.status {
+  margin: 0;
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+  color: var(--color-text-secondary);
+
+  &:not(:empty) {
+    padding: var(--space-4);
+  }
+}
+
+.footer {
+  flex: none;
+  padding: var(--space-4);
+  border-top: var(--border-width) solid var(--color-border);
+}

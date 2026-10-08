@@ -82,7 +82,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Check: AC3; AC8 (Space toggles, arrows move within a radio group); AC9 (checked state in the
       accessibility tree); tests; `npm run verify`.
       Commit: `feat(web): add checkbox, radio and switch`
-- [ ] **T9. Filter chips and dropdowns.** `FilterChip` (default, open, applied, toggle),
+- [x] **T9. Filter chips and dropdowns.** `FilterChip` (default, open, applied, toggle),
       `FilterChips` with "Очистить фильтры", `FilterDropdown` with `CheckboxFilter` (counts,
       search, "Применить") and `SortFilter`.
       Check: AC4 (open, pick, apply → applied chip; × clears; sort applies on click); AC8 (Esc

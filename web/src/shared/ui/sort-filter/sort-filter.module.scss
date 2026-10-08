@@ -1,0 +1,17 @@
+// Lamoda's sort dropdown: radio rows 36px apart (8px above and below a 20px line), the list in 16px
+// padding, at most 340px high with the list scrolling inside.
+
+.sortFilter {
+  overflow-y: auto;
+  gap: 0;
+  align-items: stretch;
+
+  max-height: 340px;
+  padding: var(--space-4);
+}
+
+// Two classes, to win over the Radio's own inline-flex.
+.sortFilter .row {
+  display: flex;
+  padding: var(--space-2) 0;
+}

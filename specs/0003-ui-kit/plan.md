@@ -94,18 +94,21 @@ The values come from Lamoda's stylesheets, which are referenced by the saved pag
 - **Radio**: a 20px circle, black dot. **RadioGroup** from Base UI.
 - **Switch**: a 34×14 track (`#bababa80`, black when on) and a 20px white thumb with a shadow.
 - **Spinner**: Lamoda's ring loader in black (gradient ring, 1.4s), sizes 24 and 64.
-- **FilterChip** (trigger, Base UI `Popover.Trigger`):
+- **Filter chip** (decided in T9: the chip that opens a list is part of `FilterDropdown`, its
+  Base UI `Popover.Trigger`; the exported `FilterChip` is the toggle, Base UI `Toggle`):
   - 36px high, `8px 12px` padding, `#e5e5e5` border, 16px text, chevron 16px;
   - hover and open: black border; open also gets an `#f5f5f5` fill;
-  - applied: black fill, white text, the chosen value after the title, and × to clear;
-  - a `toggle` variant has no chevron ("Только со скидкой").
-  - **FilterChips** lays the chips out in a wrap with 8px gaps, plus a "Очистить фильтры" link.
-- **FilterDropdown** (Base UI `Popover`): white, 4px radius, popover shadow, 246px minimum width,
-  340px maximum height with scrolling inside.
+  - applied: black fill, white text, the chosen value after the title, and × to clear (a button
+    of its own next to the trigger);
+  - `FilterChip` has no chevron ("Только со скидкой").
+  - **FilterChips** lays the chips out in a wrap with 8px gaps, plus "Очистить фильтры": a button
+    that looks like a link, since it acts on the page and goes nowhere (D7h).
+- **FilterDropdown** (Base UI `Popover`): white, 4px radius, popover shadow, 292px minimum width
+  (D7g), 340px maximum height with scrolling inside.
   - `CheckboxFilter`: checkbox rows with counts (grey, right-aligned) and an optional search (8px
     radius, `#f5f5f5`, 12px/44px padding, search and reset icons). The footer holds a full-width
     "Применить" in 16px padding.
-  - `SortFilter`: radio rows that apply on click.
+  - `SortFilter`: radio rows that apply on click; the arrow keys apply without closing (D7f).
   - `PriceFilter`: Base UI `Slider` with two thumbs (white 20px thumb with a `#e5e5e5` border and
     a shadow; rail `#e5e5e5`, range `#888`), two underlined inputs "Мин. цена" and "Макс. цена"
     (11px grey label), and "Применить", disabled until the range changes.

@@ -3,6 +3,7 @@ import type { ComponentType } from 'react';
 import { ButtonsSection } from './buttons-section';
 import { ChoiceSection } from './choice-section';
 import { FieldsSection } from './fields-section';
+import { FiltersSection } from './filters-section';
 import { IconsSection } from './icons-section';
 import { LinksSection } from './links-section';
 import { SpinnerSection } from './spinner-section';
@@ -26,4 +27,5 @@ export const sections: UiKitSection[] = [
   { id: 'spinner', title: 'Спиннер', Content: SpinnerSection },
   { id: 'fields', title: 'Поля ввода', Content: FieldsSection },
   { id: 'choice', title: 'Чекбоксы, радиокнопки, переключатели', Content: ChoiceSection },
+  { id: 'filters', title: 'Фильтры', Content: FiltersSection },
 ];

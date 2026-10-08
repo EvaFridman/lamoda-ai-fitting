@@ -82,6 +82,10 @@
   // Motion
   --duration-fast: 0.2s;
   --duration-slow: 0.3s;
+
+  // Layers: Base UI portals render into <body>, so a popup needs a z-index above the page
+  // (Lamoda's filter popover sits at 30). Added with the first component that needs one (D11c).
+  --z-popover: 30;
 }
 
 // Animations are off for visitors who ask for less motion.

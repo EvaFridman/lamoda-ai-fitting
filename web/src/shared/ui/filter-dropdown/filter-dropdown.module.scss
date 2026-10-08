@@ -1,0 +1,29 @@
+// Lamoda's filter popover: white, a 4px radius and the popover shadow, 4px under the chip and
+// aligned with its left edge. At least 292px wide (D7g); it never runs past the window, and what
+// does not fit scrolls inside. Base UI sets data-starting-style and data-ending-style while it
+// fades in and out.
+
+.positioner {
+  z-index: var(--z-popover);
+}
+
+.popup {
+  overflow-y: auto;
+
+  box-sizing: border-box;
+  min-width: min(292px, var(--available-width));
+  max-width: var(--available-width);
+  max-height: var(--available-height);
+  border-radius: var(--radius-s);
+
+  background-color: var(--color-background);
+  outline: none;
+  box-shadow: var(--shadow-popover);
+
+  transition: opacity var(--duration-fast);
+
+  &[data-starting-style],
+  &[data-ending-style] {
+    opacity: 0;
+  }
+}
