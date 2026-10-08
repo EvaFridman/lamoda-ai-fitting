@@ -46,6 +46,13 @@
   max-width: 400px;
 }
 
+// A text or search field, as wide as Lamoda's header search.
+.field {
+  justify-items: stretch;
+  width: 300px;
+  max-width: 100%;
+}
+
 .smallText {
   font-size: var(--font-size-body-s);
   line-height: var(--line-height-body-s);

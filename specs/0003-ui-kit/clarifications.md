@@ -70,6 +70,12 @@ lamoda.ru: the catalog, a product page and the order history.
 - D7b. Decided in T6. `Link`, and `Button` given `href`, render `next/link`, so links inside the
   site navigate without a full page load. A button-styled link does not use Base UI's Button: its
   docs say a link must not get button semantics. A link has no `disabled` or `loading`.
+- D7c. Decided in T7. TextField's label floats, as in Lamoda's `x-input-material` CSS: inside the
+  empty field in 16px grey, 11px above the value once the field is focused or filled. The hint and
+  the error sit under the field in 11px; the error replaces the hint.
+- D7d. Decided in T7. SearchField is a `<form role="search">`: Enter or the black button ("Найти")
+  submits the value. A reset button ("Очистить") shows while the field is filled, as on Lamoda; it
+  empties the field and puts the focus back into it.
 
 ## Page
 

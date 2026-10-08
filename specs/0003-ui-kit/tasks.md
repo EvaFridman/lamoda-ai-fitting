@@ -73,7 +73,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Check: AC3 and AC8 for the section (Tab, Enter, Space; `loading` sets `aria-busy`); tests;
       `npm run verify`.
       Commit: `feat(web): add buttons, links and the spinner`
-- [ ] **T7. TextField and SearchField.** Lamoda's material field with label, hint and error, plus
+- [x] **T7. TextField and SearchField.** Lamoda's material field with label, hint and error, plus
       the grey search field with its black button.
       Check: AC3 (empty, filled, error, disabled); AC9 (label and error are announced); tests;
       `npm run verify`.
