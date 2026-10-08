@@ -1,0 +1,133 @@
+// Lamoda's header search (x-search-input): a #f5f5f5 field 40px high with a 4px radius and 16px
+// text 16px from the edge, white with the box shadow on hover and focus; the reset icon 30px left
+// of a black 48×40 search button.
+
+.searchField {
+  position: relative;
+
+  display: flex;
+
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  border-radius: var(--radius-s);
+
+  background-color: var(--color-background-secondary);
+
+  transition:
+    background-color var(--duration-slow),
+    box-shadow var(--duration-slow);
+
+  &:focus-within {
+    background-color: var(--color-background);
+    box-shadow: var(--shadow-box);
+  }
+
+  @media (hover: hover) {
+    &:hover:not(.disabled) {
+      background-color: var(--color-background);
+      box-shadow: var(--shadow-box);
+    }
+  }
+}
+
+// The input and the search button are disabled; the field stays grey on hover.
+.disabled {
+  cursor: default;
+}
+
+.input {
+  flex: 1;
+
+  box-sizing: border-box;
+  min-width: 0;
+  height: 100%;
+  margin: 0;
+  padding: 0 var(--space-4);
+  border: none;
+
+  font-family: inherit;
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+  color: var(--color-text);
+
+  appearance: none;
+  background-color: transparent;
+  outline: none;
+
+  &::placeholder {
+    color: var(--color-text-secondary);
+  }
+
+  // The reset button replaces the browser's own clear button.
+  &::-webkit-search-cancel-button {
+    appearance: none;
+  }
+}
+
+// Room for the reset button, which shows only while the field is filled.
+.withReset {
+  padding-right: 54px;
+}
+
+.reset,
+.submit {
+  cursor: pointer;
+
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+
+  margin: 0;
+  padding: 0;
+  border: none;
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: 2px;
+  }
+}
+
+.reset {
+  position: absolute;
+  top: 50%;
+  right: 78px;
+  transform: translateY(-50%);
+
+  color: var(--color-text);
+
+  background-color: transparent;
+
+  transition: color var(--duration-fast);
+
+  @media (hover: hover) {
+    &:hover {
+      color: var(--color-text-secondary);
+    }
+  }
+}
+
+.submit {
+  width: 48px;
+  height: 100%;
+  border-radius: 0 var(--radius-s) var(--radius-s) 0;
+
+  color: var(--color-background);
+
+  background-color: var(--color-text);
+
+  transition: background-color var(--duration-fast);
+
+  &[data-disabled] {
+    cursor: default;
+    opacity: 0.4;
+  }
+
+  @media (hover: hover) {
+    &:hover:not([data-disabled]) {
+      background-color: var(--color-text-secondary);
+    }
+  }
+}

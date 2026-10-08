@@ -30,5 +30,9 @@ export type { IconButtonProps, IconButtonSize } from './icon-button/icon-button'
 export { IconButton } from './icon-button/icon-button';
 export type { LinkProps, LinkVariant } from './link/link';
 export { Link } from './link/link';
+export type { SearchFieldProps } from './search-field/search-field';
+export { SearchField } from './search-field/search-field';
 export type { SpinnerProps, SpinnerSize } from './spinner/spinner';
 export { Spinner } from './spinner/spinner';
+export type { TextFieldProps } from './text-field/text-field';
+export { TextField } from './text-field/text-field';

@@ -1,0 +1,154 @@
+// Lamoda's x-input-material: a 56px box with a bottom border (#888, black on hover and focus, red
+// with an error, #e5e5e5 disabled), a 16px value 10px above the border, and an 11px line under the
+// box for the hint or the error. Base UI sets data-filled, data-focused, data-invalid and
+// data-disabled on the field root.
+
+.textField {
+  min-width: 0;
+}
+
+.box {
+  cursor: text;
+
+  position: relative;
+
+  display: flex;
+  align-items: flex-end;
+
+  box-sizing: border-box;
+  height: 56px;
+  padding: 10px 0;
+  border-bottom: var(--border-width) solid var(--color-border-control);
+
+  transition: border-color var(--duration-fast);
+}
+
+// Inside the empty field it stands where the value goes; it floats up once the field is focused or
+// filled. A click on it focuses the input, as a native label does.
+.label {
+  cursor: text;
+
+  position: absolute;
+  top: 26px;
+  left: 0;
+
+  overflow: hidden;
+
+  max-width: 100%;
+
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+  color: var(--color-text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  transition:
+    top var(--duration-fast),
+    font-size var(--duration-fast),
+    line-height var(--duration-fast),
+    color var(--duration-fast);
+}
+
+.input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: 20px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+
+  font-family: inherit;
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+  color: var(--color-text);
+
+  background-color: transparent;
+  outline: none;
+
+  // The label stands in the placeholder's place until the field is focused.
+  &::placeholder {
+    color: transparent;
+  }
+}
+
+.message {
+  min-height: 20px;
+  padding-top: var(--space-1);
+  font-size: var(--font-size-caption);
+  line-height: var(--line-height-caption);
+}
+
+.hint,
+.error {
+  margin: 0;
+}
+
+.hint {
+  color: var(--color-text-secondary);
+}
+
+.error {
+  color: var(--color-error);
+}
+
+// States
+
+@mixin floated-label {
+  .label {
+    top: 10px;
+    font-size: var(--font-size-caption);
+    line-height: var(--line-height-caption);
+    color: var(--color-text);
+  }
+}
+
+.textField[data-filled],
+.textField[data-focused] {
+  @include floated-label;
+}
+
+// A value the browser autofills on load fires no event, so Base UI does not mark it filled. A rule
+// of its own: a browser without :has() drops only this one.
+.textField:has(.input:autofill) {
+  @include floated-label;
+}
+
+.textField[data-focused] {
+  .box {
+    border-color: var(--color-border-active);
+  }
+
+  .input::placeholder {
+    color: var(--color-text-secondary);
+  }
+}
+
+@media (hover: hover) {
+  .textField:hover:not([data-disabled]) .box {
+    border-color: var(--color-border-active);
+  }
+}
+
+// The error stays red on hover and focus.
+.textField[data-invalid] .box,
+.textField[data-invalid]:hover .box {
+  border-color: var(--color-error);
+}
+
+.textField[data-disabled] {
+  .box {
+    cursor: default;
+    border-color: var(--color-border);
+  }
+
+  .label {
+    cursor: default;
+  }
+
+  .label,
+  .input {
+    color: var(--color-text-secondary);
+  }
+}

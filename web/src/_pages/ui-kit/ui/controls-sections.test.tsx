@@ -1,4 +1,5 @@
 import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 
 import { sections } from './sections';
@@ -92,5 +93,72 @@ describe('spinner section', () => {
     expect(spinners).toHaveLength(2);
     expect(spinners[0]).toHaveClass('size24');
     expect(spinners[1]).toHaveClass('size64');
+  });
+});
+
+describe('fields section', () => {
+  it('is in the sections list', () => {
+    expect(sections.map((section) => [section.id, section.title])).toContainEqual([
+      'fields',
+      'Поля ввода',
+    ]);
+  });
+
+  it('shows the empty, filled, hint, error and disabled text fields', () => {
+    render(<UiKitPage />);
+    const region = screen.getByRole('region', { name: 'Поля ввода' });
+
+    expect(within(region).getAllByRole('textbox', { name: 'Имя' })).toHaveLength(2);
+    expect(within(region).getByRole('textbox', { name: 'Электронная почта' })).toBeInTheDocument();
+
+    const phone = within(region).getByRole('textbox', { name: 'Телефон' });
+    expect(phone).toHaveAttribute('aria-invalid', 'true');
+    expect(phone).toHaveAccessibleDescription('Неверный формат номера');
+
+    const surnames = within(region).getAllByRole('textbox', { name: 'Фамилия' });
+    expect(surnames).toHaveLength(2);
+    for (const surname of surnames) expect(surname).toBeDisabled();
+  });
+
+  it('shows three static search forms and the live one', () => {
+    render(<UiKitPage />);
+    const region = screen.getByRole('region', { name: 'Поля ввода' });
+
+    expect(within(region).getAllByRole('search')).toHaveLength(4);
+  });
+
+  it('shows a disabled filled search form', () => {
+    render(<UiKitPage />);
+    const region = screen.getByRole('region', { name: 'Поля ввода' });
+    const disabled = within(region).getAllByRole('search')[2]!;
+
+    const input = within(disabled).getByRole('searchbox');
+    expect(input).toBeDisabled();
+    expect(input).toHaveValue('Кроссовки');
+    expect(within(disabled).getByRole('button', { name: 'Найти' })).toBeDisabled();
+    expect(within(disabled).queryByRole('button', { name: 'Очистить' })).not.toBeInTheDocument();
+  });
+
+  it('shows what the live search would look for', async () => {
+    const user = userEvent.setup();
+    render(<UiKitPage />);
+    const region = screen.getByRole('region', { name: 'Поля ввода' });
+    const live = within(region).getAllByRole('search').at(-1)!;
+
+    await user.type(within(live).getByRole('searchbox'), 'платье{Enter}');
+
+    expect(within(region).getByText('Ищем: «платье»')).toBeInTheDocument();
+  });
+
+  it('renders HTML in the live query as text', async () => {
+    const user = userEvent.setup();
+    render(<UiKitPage />);
+    const region = screen.getByRole('region', { name: 'Поля ввода' });
+    const live = within(region).getAllByRole('search').at(-1)!;
+
+    await user.type(within(live).getByRole('searchbox'), '<b>x</b>{Enter}');
+
+    expect(within(region).getByText('Ищем: «<b>x</b>»')).toBeInTheDocument();
+    expect(region.querySelector('b')).toBeNull();
   });
 });

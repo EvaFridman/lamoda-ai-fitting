@@ -82,11 +82,13 @@ The values come from Lamoda's stylesheets, which are referenced by the saved pag
   - Renders `<a>` when given `href`. **IconButton**: a square outline (48, 56px) with a required
     `aria-label`.
 - **Link**: black with a grey underline (`#888`). A `secondary` variant uses grey text.
-- **TextField**: Lamoda's "material" field — 56px high, label above, bottom border `#888`, black
-  on hover and focus, `#c20000` with an error text. Built on Base UI `Field` and `Input`. The
-  underlined price inputs reuse it in a compact form.
-- **SearchField**: `#f5f5f5` field, 4px radius, 16px text, white with a shadow on hover and focus,
-  and a black square button with the search icon.
+- **TextField**: Lamoda's "material" field — 56px high, a floating label (D7c), bottom border
+  `#888`, black on hover and focus, `#c20000` with an error text, `#e5e5e5` when disabled; hint and
+  error 11px under it. Built on Base UI `Field` and `Input`. The underlined price inputs reuse it in
+  a compact form.
+- **SearchField**: a search form (D7d): `#f5f5f5` field 40px high, 4px radius, 16px text, white with
+  a shadow on hover and focus, a reset button while filled, and a black 48×40 button with the
+  search icon.
 - **Checkbox**: 14px box with a 3px radius, black when checked with a white tick, `#888` border on
   hover; label 16px. **CheckboxGroup** from Base UI.
 - **Radio**: a 20px circle, black dot. **RadioGroup** from Base UI.
