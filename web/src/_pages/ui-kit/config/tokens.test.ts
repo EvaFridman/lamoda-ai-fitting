@@ -11,12 +11,16 @@ function readDeclared(): Map<string, string> {
   const source = readFileSync(resolve(process.cwd(), 'src/shared/styles/tokens.scss'), 'utf8');
   const start = source.indexOf(':root {');
   const end = source.indexOf('\n}', start);
-  const block = source.slice(start, end);
+  // Comment lines may hold semicolons; a declaration may span lines (Prettier wraps long ones).
+  const block = source
+    .slice(start, end)
+    .split('\n')
+    .filter((line) => !line.trimStart().startsWith('//'))
+    .join('\n');
 
   const declared = new Map<string, string>();
-  for (const line of block.split('\n')) {
-    const match = /^\s*(--[\w-]+):\s*(.+?);\s*$/.exec(line);
-    const [, name, value] = match ?? [];
+  for (const [, name, raw] of block.matchAll(/(--[\w-]+):([^;]+);/g)) {
+    const value = raw?.replace(/\s+/g, ' ').trim();
     if (name && value) declared.set(name, value);
   }
   return declared;

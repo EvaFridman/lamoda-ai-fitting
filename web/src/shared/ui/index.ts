@@ -7,6 +7,10 @@ export type {
   ButtonVariant,
 } from './button/button';
 export { Button } from './button/button';
+export type { CheckboxProps } from './checkbox/checkbox';
+export { Checkbox } from './checkbox/checkbox';
+export type { CheckboxGroupProps } from './checkbox-group/checkbox-group';
+export { CheckboxGroup } from './checkbox-group/checkbox-group';
 export type { IconProps, IconSize } from './icon/icon';
 export {
   ArrowBackIcon,
@@ -30,9 +34,15 @@ export type { IconButtonProps, IconButtonSize } from './icon-button/icon-button'
 export { IconButton } from './icon-button/icon-button';
 export type { LinkProps, LinkVariant } from './link/link';
 export { Link } from './link/link';
+export type { RadioProps } from './radio/radio';
+export { Radio } from './radio/radio';
+export type { RadioGroupProps } from './radio-group/radio-group';
+export { RadioGroup } from './radio-group/radio-group';
 export type { SearchFieldProps } from './search-field/search-field';
 export { SearchField } from './search-field/search-field';
 export type { SpinnerProps, SpinnerSize } from './spinner/spinner';
 export { Spinner } from './spinner/spinner';
+export type { SwitchProps } from './switch/switch';
+export { Switch } from './switch/switch';
 export type { TextFieldProps } from './text-field/text-field';
 export { TextField } from './text-field/text-field';

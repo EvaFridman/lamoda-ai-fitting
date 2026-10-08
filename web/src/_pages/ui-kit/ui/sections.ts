@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react';
 
 import { ButtonsSection } from './buttons-section';
+import { ChoiceSection } from './choice-section';
 import { FieldsSection } from './fields-section';
 import { IconsSection } from './icons-section';
 import { LinksSection } from './links-section';
@@ -24,4 +25,5 @@ export const sections: UiKitSection[] = [
   { id: 'links', title: 'Ссылки', Content: LinksSection },
   { id: 'spinner', title: 'Спиннер', Content: SpinnerSection },
   { id: 'fields', title: 'Поля ввода', Content: FieldsSection },
+  { id: 'choice', title: 'Чекбоксы, радиокнопки, переключатели', Content: ChoiceSection },
 ];

@@ -1,0 +1,98 @@
+// Lamoda's x-checkbox: a 14px box with a 3px radius and a black border, black with a white tick
+// when checked; on hover the label and the border turn grey (#888). The tick is Lamoda's: a
+// rotated corner of 3px borders that scales in. Base UI sets data-checked and data-disabled on
+// the box and on the tick.
+
+.checkbox {
+  cursor: pointer;
+
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+  color: var(--color-text);
+
+  transition: color var(--duration-fast);
+}
+
+.box {
+  display: block;
+  flex-shrink: 0;
+
+  box-sizing: border-box;
+  width: 14px;
+  height: 14px;
+  border: var(--border-width) solid var(--color-border-active);
+  border-radius: var(--radius-xs);
+
+  background-color: var(--color-background);
+
+  transition:
+    background-color var(--duration-fast),
+    border-color var(--duration-fast);
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: 2px;
+  }
+
+  &[data-checked] {
+    border-color: var(--color-text);
+    background-color: var(--color-text);
+  }
+}
+
+// Lamoda's .x-checkbox__box:after, sized against the box's 12px inside.
+.tick {
+  transform-origin: 97% 86%;
+  transform: scale(0) rotate(45deg);
+
+  display: block;
+
+  box-sizing: content-box;
+  width: 44%;
+  height: 77%;
+  margin: -2px 0;
+  border-color: var(--color-background);
+  border-style: solid;
+  border-width: 0 3px 3px 0;
+
+  transition: transform var(--duration-fast) ease-out;
+
+  &[data-checked] {
+    transform: scale(1) rotate(45deg);
+  }
+}
+
+.label {
+  flex-grow: 1;
+  min-width: 0;
+}
+
+@media (hover: hover) {
+  .checkbox:hover:not(:has(.box[data-disabled])) {
+    color: var(--color-text-secondary);
+
+    .box {
+      border-color: var(--color-border-control);
+    }
+  }
+}
+
+// A disabled box (on its own or in a disabled group): grey border and label; when checked, a #ccc
+// fill, dark enough for the white tick to show.
+.checkbox:has(.box[data-disabled]) {
+  cursor: default;
+  color: var(--color-text-secondary);
+
+  .box {
+    border-color: var(--color-border);
+  }
+
+  .box[data-checked] {
+    border-color: var(--color-text-disabled);
+    background-color: var(--color-text-disabled);
+  }
+}

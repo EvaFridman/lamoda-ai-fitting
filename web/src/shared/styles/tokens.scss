@@ -15,10 +15,11 @@
   --color-error: #c20000;
   --color-success: #00a200;
 
-  // Colour: backgrounds
+  // Colour: backgrounds; the track of a switch that is off (Lamoda's #bababa80)
   --color-background: #fff;
   --color-background-secondary: #f5f5f5;
   --color-background-tertiary: #e5e5e5;
+  --color-switch-track: rgb(186 186 186 / 50%);
 
   // Colour: borders (thin separator and chip; neutral; select and input outline; hover, open, focus)
   --color-border: #e5e5e5;
@@ -62,10 +63,12 @@
   --radius-full: 9999px;
   --border-width: 1px;
 
-  // Shadow
+  // Shadow: popover, box, modal; the white thumb of a switch
   --shadow-popover: 0 2px 8px rgb(0 0 0 / 8%);
   --shadow-box: 0 0 8px rgb(0 0 0 / 16%);
   --shadow-modal: 0 2px 48px rgb(0 0 0 / 24%);
+  --shadow-thumb:
+    0 1px 1px rgb(0 0 0 / 14%), 0 2px 1px rgb(0 0 0 / 12%), 0 1px 3px rgb(0 0 0 / 20%);
 
   // Spacing: a 4px scale
   --space-1: 4px;
