@@ -57,7 +57,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
   - Check: AC1 for the tokens section; AC2 (`curl -s localhost:4001/ui-kit | rg noindex`); AC5 at
     375px; AC7 (`qa-tester` network log); AC11 (`npm run build` in web with no api).
   - Commit: `feat(web): add design tokens, the onest font and the ui-kit page`
-- [ ] **T5. Icons.**
+- [x] **T5. Icons.**
   - The 16 icons of plan, "Components" (Icons), fetched once from Lamoda's icon modules into the
     scratchpad.
   - Written with the Write tool as components in `web/src/shared/ui/icon/`, with `currentColor`,
