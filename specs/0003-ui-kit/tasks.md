@@ -108,7 +108,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       AC4 (favourite switches); AC9 (rating's accessible name, `aria-pressed`); tests;
       `npm run verify`.
       Commit: `feat(web): add price, badges, rating, favourite and order status`
-- [ ] **T14. Tabs, Breadcrumbs, Pagination, Accordion.**
+- [x] **T14. Tabs, Breadcrumbs, Pagination, Accordion.**
       Check: AC4 (a tab switches its panel); AC8 (arrows across tabs; Enter on an accordion row);
       pagination edges in tests; `npm run verify`.
       Commit: `feat(web): add tabs, breadcrumbs, pagination and accordion`

@@ -1,0 +1,93 @@
+// Not on the references: built from the kit's tokens (spec 0003, "In scope"). A row 16px high text
+// with 16px above and below, a #e5e5e5 line under each item; the chevron turns over when the
+// panel is open. Base UI sets data-panel-open on the trigger, data-disabled on a disabled item,
+// --accordion-panel-height on the panel and data-starting-style / data-ending-style while it
+// opens or closes.
+
+.accordion {
+  border-top: var(--border-width) solid var(--color-border);
+}
+
+.item {
+  border-bottom: var(--border-width) solid var(--color-border);
+}
+
+.header {
+  margin: 0;
+  font: inherit;
+}
+
+.trigger {
+  cursor: pointer;
+
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+  justify-content: space-between;
+
+  width: 100%;
+  margin: 0;
+  padding: var(--space-4) 0;
+  border: 0;
+
+  font-family: inherit;
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+  color: var(--color-text);
+  text-align: left;
+
+  background: none;
+
+  transition: color var(--duration-fast);
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: 2px;
+  }
+
+  &[data-disabled] {
+    cursor: default;
+    color: var(--color-text-disabled);
+  }
+
+  @media (hover: hover) {
+    &:hover:not([data-disabled]) {
+      color: var(--color-text-secondary);
+    }
+  }
+}
+
+.chevron {
+  flex: none;
+  transition: transform var(--duration-slow);
+
+  .trigger[data-panel-open] & {
+    transform: rotate(180deg);
+  }
+}
+
+.panel {
+  overflow: hidden;
+  height: var(--accordion-panel-height);
+  transition: height var(--duration-slow) ease-in-out;
+
+  &[data-starting-style],
+  &[data-ending-style] {
+    height: 0;
+  }
+}
+
+.content {
+  padding-bottom: var(--space-4);
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+
+  // The text sits 0 under the title and 16px over the line, whatever it starts and ends with.
+  > :first-child {
+    margin-top: 0;
+  }
+
+  > :last-child {
+    margin-bottom: 0;
+  }
+}

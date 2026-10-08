@@ -1,6 +1,10 @@
 // Public API of the ui segment: the rest of the app imports components only from here.
+export type { AccordionItem, AccordionProps } from './accordion/accordion';
+export { Accordion } from './accordion/accordion';
 export type { Badge, BadgeSize, BadgesProps, BadgeTone } from './badges/badges';
 export { Badges } from './badges/badges';
+export type { BreadcrumbsProps, Crumb } from './breadcrumbs/breadcrumbs';
+export { Breadcrumbs } from './breadcrumbs/breadcrumbs';
 export type {
   ButtonAsButtonProps,
   ButtonAsLinkProps,
@@ -50,6 +54,8 @@ export type { LinkProps, LinkVariant } from './link/link';
 export { Link } from './link/link';
 export type { OrderStatusProps, OrderStatusTone } from './order-status/order-status';
 export { OrderStatus } from './order-status/order-status';
+export type { PaginationProps } from './pagination/pagination';
+export { Pagination } from './pagination/pagination';
 export type { PriceProps, PriceVariant } from './price/price';
 export { Price } from './price/price';
 export type { PriceFilterProps, PriceRange } from './price-filter/price-filter';
@@ -74,5 +80,7 @@ export type { SpinnerProps, SpinnerSize } from './spinner/spinner';
 export { Spinner } from './spinner/spinner';
 export type { SwitchProps } from './switch/switch';
 export { Switch } from './switch/switch';
+export type { TabItem, TabsProps, TabsSize } from './tabs/tabs';
+export { Tabs } from './tabs/tabs';
 export type { TextFieldProps } from './text-field/text-field';
 export { TextField } from './text-field/text-field';
