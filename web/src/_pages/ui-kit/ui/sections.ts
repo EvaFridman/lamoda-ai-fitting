@@ -6,6 +6,7 @@ import { FieldsSection } from './fields-section';
 import { FiltersSection } from './filters-section';
 import { IconsSection } from './icons-section';
 import { LinksSection } from './links-section';
+import { ProductSection } from './product-section';
 import { SelectSection } from './select-section';
 import { SizesColorsSection } from './sizes-colors-section';
 import { SpinnerSection } from './spinner-section';
@@ -32,4 +33,5 @@ export const sections: UiKitSection[] = [
   { id: 'filters', title: 'Фильтры', Content: FiltersSection },
   { id: 'sizes-colors', title: 'Размеры и цвета', Content: SizesColorsSection },
   { id: 'select', title: 'Выпадающий список', Content: SelectSection },
+  { id: 'product', title: 'Товар и заказ', Content: ProductSection },
 ];

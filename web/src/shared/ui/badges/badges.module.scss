@@ -1,0 +1,81 @@
+// Lamoda's Badges CSS: a 16px (or 24px) high box that clips a strip skewed by -7deg and shifted
+// 2px (3px) left, so the strip's left edge is cut straight; each text is skewed back upright, with
+// 6px on each side. The tones follow the reference screenshots.
+
+.badges {
+  overflow: hidden;
+  display: inline-flex;
+  flex: none;
+
+  max-width: 100%;
+  height: 16px;
+
+  vertical-align: middle;
+}
+
+.strip {
+  position: relative;
+  left: -2px;
+  transform: skew(-7deg);
+
+  display: flex;
+  gap: 1px;
+}
+
+.badge {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+
+  &:first-child {
+    padding-left: 1px;
+  }
+}
+
+.text {
+  transform: skew(7deg);
+
+  padding: 0 6px;
+
+  font-size: var(--font-size-caption);
+  line-height: var(--line-height-caption);
+  white-space: nowrap;
+}
+
+.l {
+  height: 24px;
+
+  .strip {
+    left: -3px;
+  }
+
+  .badge:first-child {
+    padding-left: 2px;
+  }
+
+  .text {
+    font-size: var(--font-size-body-m);
+    line-height: var(--line-height-body-m);
+  }
+}
+
+.discount {
+  color: var(--color-background);
+  background-color: var(--color-accent);
+}
+
+.club {
+  color: var(--color-badge-club-text);
+  background-color: var(--color-badge-club);
+}
+
+.premium {
+  color: var(--color-background);
+  background-color: var(--color-badge-premium);
+}
+
+.promo {
+  color: var(--color-text);
+  background-color: var(--color-badge-promo);
+}

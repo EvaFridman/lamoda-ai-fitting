@@ -12,11 +12,22 @@ const amount = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 });
 
 /**
  * A price in rubles as shown to the visitor: "1 299 ₽", "1 299,50 ₽" (spec 0003, D13). Kopecks show
- * only when there are any; the spaces are no-break (U+00A0), so a price never wraps.
+ * only when there are any; the spaces are no-break (U+00A0), so a price never wraps. With
+ * `currency: false` the same digits come without "₽": an old, struck-out price ("10 399", D7r).
  */
-export function formatPrice(value: number): string {
+export function formatPrice(
+  value: number,
+  { currency = true }: { currency?: boolean } = {},
+): string {
   const hasKopecks = Math.round(value * 100) % 100 !== 0;
-  return (hasKopecks ? withKopecks : wholeRubles).format(value);
+  const formatter = hasKopecks ? withKopecks : wholeRubles;
+  if (currency) return formatter.format(value);
+  return formatter
+    .formatToParts(value)
+    .filter((part) => part.type !== 'currency')
+    .map((part) => part.value)
+    .join('')
+    .trimEnd();
 }
 
 /**

@@ -1,4 +1,6 @@
 // Public API of the ui segment: the rest of the app imports components only from here.
+export type { Badge, BadgeSize, BadgesProps, BadgeTone } from './badges/badges';
+export { Badges } from './badges/badges';
 export type {
   ButtonAsButtonProps,
   ButtonAsLinkProps,
@@ -15,6 +17,8 @@ export type { CheckboxGroupProps } from './checkbox-group/checkbox-group';
 export { CheckboxGroup } from './checkbox-group/checkbox-group';
 export type { ColorSwatchProps, SwatchColor } from './color-swatch/color-swatch';
 export { ColorSwatch, swatchColors } from './color-swatch/color-swatch';
+export type { FavoriteToggleProps, FavoriteToggleSize } from './favorite-toggle/favorite-toggle';
+export { FavoriteToggle } from './favorite-toggle/favorite-toggle';
 export type { FilterChipProps } from './filter-chip/filter-chip';
 export { FilterChip } from './filter-chip/filter-chip';
 export type { FilterChipsProps } from './filter-chips/filter-chips';
@@ -44,12 +48,18 @@ export type { IconButtonProps, IconButtonSize } from './icon-button/icon-button'
 export { IconButton } from './icon-button/icon-button';
 export type { LinkProps, LinkVariant } from './link/link';
 export { Link } from './link/link';
+export type { OrderStatusProps, OrderStatusTone } from './order-status/order-status';
+export { OrderStatus } from './order-status/order-status';
+export type { PriceProps, PriceVariant } from './price/price';
+export { Price } from './price/price';
 export type { PriceFilterProps, PriceRange } from './price-filter/price-filter';
 export { PriceFilter } from './price-filter/price-filter';
 export type { RadioProps } from './radio/radio';
 export { Radio } from './radio/radio';
 export type { RadioGroupProps } from './radio-group/radio-group';
 export { RadioGroup } from './radio-group/radio-group';
+export type { RatingProps } from './rating/rating';
+export { Rating } from './rating/rating';
 export type { SearchFieldProps } from './search-field/search-field';
 export { SearchField } from './search-field/search-field';
 export type { SelectOption, SelectProps } from './select/select';

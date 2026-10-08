@@ -34,6 +34,17 @@
   list-style: none;
 }
 
+// Examples one under the other, for the ones as wide as a line of text (order statuses).
+.column {
+  display: grid;
+  gap: var(--space-4);
+
+  margin: 0;
+  padding: 0;
+
+  list-style: none;
+}
+
 .example {
   display: grid;
   gap: var(--space-2);
@@ -83,6 +94,20 @@
   justify-items: stretch;
   width: 280px;
   max-width: 100%;
+}
+
+// A stand-in for a product photo under the favourite toggle that sits on one: Lamoda's grey photo
+// background, the toggle in its top right corner.
+.photo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+
+  width: 96px;
+  height: 128px;
+  padding: var(--space-2);
+
+  background-color: var(--color-background-tertiary);
 }
 
 // The visible name of a checkbox or radio group in a live example.

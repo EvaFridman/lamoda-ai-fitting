@@ -1,0 +1,12 @@
+// Lamoda's catalog and product page rating: a 16px black star, 4px, then the value in 13px black.
+
+.rating {
+  display: inline-flex;
+  gap: var(--space-1);
+  align-items: center;
+
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  color: var(--color-text);
+  white-space: nowrap;
+}

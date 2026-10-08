@@ -129,6 +129,23 @@ lamoda.ru: the catalog, a product page and the order history.
   example), not as a static example open from the start: Base UI's select moves the focus into
   its list whenever it opens and has no option to stop it, so a list open on load would take the
   focus, and maybe the scroll, as the page loads. The screenshots for AC6 show it opened.
+- D7r. Decided in T13. Price's old prices have no "₽", as on Lamoda ("10 399 4 521 ₽"), and keep
+  kopecks when there are any. Screen readers get hidden words: "Старая цена 10 399 ₽, цена 4 521 ₽"
+  (each old price so named). The discount badge is not part of Price: the page puts it next to it.
+  A change to plan, "Components" (Price): its two layouts are measured on the references, not the
+  plan's sizes 16 and 20: `catalog` (old prices 13px, the price 16px bold) and `product` (all 16px
+  regular).
+- D7s. Decided in T13, a change to plan, "Components" (Rating). Rating is one star and the value,
+  as on Lamoda, with no "(count)": the value in black with a dot ("4.7"), the star black. Its
+  accessible name is "Рейтинг 4,7 из 5". A product with no rating shows nothing.
+- D7t. Decided in T13. FavoriteToggle's name stays "В избранное" and its state comes from
+  `aria-pressed`, as the APG advises for toggle buttons. The heart beats once (0.6s) when it is
+  pressed, not when it is released, and not under `prefers-reduced-motion`. It has a disabled
+  state.
+- D7u. Decided in T13. OrderStatus takes the date as text: the page decides between "5 октября"
+  and "31 июля 2024 года" (the current year differs between server and browser around New Year,
+  and `Intl` writes "2024 г."). The `caution` tone is Lamoda's orange `#be5b04`
+  (`--color-caution`), `secondary` is `#888`.
 
 ## Page
 
