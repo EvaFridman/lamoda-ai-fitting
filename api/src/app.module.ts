@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
+import { APP_FILTER } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 
+import { AppExceptionFilter } from './common/filters/app-exception.filter.js';
 import { CoreModule } from './core/core.module.js';
 import { HealthModule } from './health/health.module.js';
 import { HelloModule } from './hello/hello.module.js';
@@ -25,5 +27,7 @@ import { ThrottlingModule } from './throttling/throttling.module.js';
     HealthModule,
     HelloModule,
   ],
+  // Every HTTP error answers one format with a code (spec 0004 E18–E22).
+  providers: [{ provide: APP_FILTER, useClass: AppExceptionFilter }],
 })
 export class AppModule {}

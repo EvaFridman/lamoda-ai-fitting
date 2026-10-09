@@ -157,6 +157,17 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
 - Configuration comes from validated environment variables (zod schemas), never hard-coded
   addresses; containers reach each other by service name.
 - Logging: `api` through the injected pino logger, never `console` (ESLint enforces it).
+- `api` errors: every HTTP error answers `{ error: { code, message, details } }` (successful
+  responses are the data itself); `details` is `[{ field, code, message }]`, `message` is English.
+  Codes are `api/src/common/errors/error-codes.ts`; throw `AppException` or its subclasses
+  (`common/errors/app.exception.ts`), and let Prisma errors through: `AppExceptionFilter`
+  (`common/filters/`) maps them, with `common/errors/constraint-fields.ts` naming the field of
+  each database constraint (a new constraint gets a row there). Path ids go through `UuidPipe`
+  (`common/pipes/`). Services write references as scalar ids (`brandId`), not nested `connect`,
+  so a missing one answers `RELATED_NOT_FOUND`. `/health/*` keep their own format (the deploy
+  reads them). e2e apps that send bodies or check errors are set up as `main.ts` does:
+  `AppExpressAdapter` (`common/http/`, else broken JSON is a plain 400) and
+  `createValidationPipe()` (`common/validation/`).
 - `web` calls the api from the server only through `apiFetch` (`web/src/shared/api`): it forwards
   the visitor's address, so the api's per-client rate limit applies to the visitor and not to the
   web container. A direct `fetch` to the api would put all visitors into one limit.

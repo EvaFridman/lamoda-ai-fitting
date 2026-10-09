@@ -13,11 +13,23 @@ expected="${2:-}"
 page="$(curl -sk --max-time 10 "$base/")"
 grep -q 'Hello, world!' <<<"$page" || { echo "smoke: the page at $base/ has no greeting" >&2; exit 1; }
 
-live="$(curl -sk --max-time 10 "$base/api/health/live")"
+live="$(curl -sk --max-time 10 --fail "$base/api/health/live")" ||
+  { echo "smoke: $base/api/health/live does not answer 200" >&2; exit 1; }
 version="$(sed -n 's/.*"version":"\([^"]*\)".*/\1/p' <<<"$live")"
 if [ -n "$expected" ] && [ "$version" != "$expected" ]; then
   echo "smoke: $base reports version '$version', expected '$expected'" >&2
   exit 1
 fi
+
+# Only liveness is public: readiness stays closed however its path is spelled. --path-as-is, or
+# curl itself would resolve the dot segments.
+for path in /api/health/ready /api/health/ready/ /api/HEALTH/ready /api/health/ready%2F \
+  /api/health//ready /api/%68ealth/ready /api/health/./ready /api/x/../health/ready; do
+  status="$(curl -sk --max-time 10 --path-as-is -o /dev/null -w '%{http_code}' "$base$path")"
+  if [ "$status" != 403 ]; then
+    echo "smoke: $base$path answers $status, expected 403" >&2
+    exit 1
+  fi
+done
 
 echo "smoke: ok ($base, version $version)"

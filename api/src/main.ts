@@ -1,18 +1,21 @@
 import 'reflect-metadata';
 
-import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Logger } from 'nestjs-pino';
 
 import { AppModule } from './app.module.js';
+import { AppExpressAdapter } from './common/http/app-express.adapter.js';
+import { createValidationPipe } from './common/validation/validation-pipe.js';
 import type { Env } from './config/env.js';
 import { SocketIoAdapter } from './realtime/socket-io.adapter.js';
 import { setupSwagger } from './swagger.js';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, new AppExpressAdapter(), {
+    bufferLogs: true,
+  });
   app.useLogger(app.get(Logger));
   const config = app.get<ConfigService<Env, true>>(ConfigService);
 
@@ -22,9 +25,7 @@ async function bootstrap(): Promise<void> {
   const webOrigin = config.get('WEB_ORIGIN', { infer: true });
   app.enableCors({ origin: webOrigin, credentials: true });
   app.useWebSocketAdapter(new SocketIoAdapter(app, webOrigin));
-  app.useGlobalPipes(
-    new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
-  );
+  app.useGlobalPipes(createValidationPipe());
   // On SIGTERM (container stop, blue-green switch) finish requests in flight before exiting.
   app.enableShutdownHooks();
 

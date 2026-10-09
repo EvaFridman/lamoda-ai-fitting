@@ -88,8 +88,15 @@ server {
   proxy_set_header X-Forwarded-Proto $scheme;
   proxy_set_header Connection "";
 
-  # Its 503 body names internal hosts and failure reasons; deploy.sh checks readiness from inside.
-  location = /api/health/ready {
+  # Of the api's health checks only liveness is public: deploy.sh, smoke-test.sh and
+  # request-loop.sh read it. Readiness names internal hosts and failure reasons, and deploy.sh
+  # checks it from inside. Everything else under /api/health is refused, in any letter case: the
+  # regex runs on the path nginx has already decoded and normalized (%2F, //, ..), and a regex
+  # location wins over the /api/ prefix below.
+  location = /api/health/live {
+    proxy_pass http://api/health/live;
+  }
+  location ~* ^/api/health {
     deny all;
   }
 
