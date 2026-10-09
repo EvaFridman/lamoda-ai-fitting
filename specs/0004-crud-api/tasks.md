@@ -30,7 +30,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## PR 1 · `feat/0004-api-foundation` · errors, access, paging, Sentry
 
-- [ ] **T2. Error handling.**
+- [x] **T2. Error handling.**
   - `common/errors/` (`AppException` and subclasses, `error-codes.ts`, `constraint-fields.ts`).
   - `common/filters/app-exception.filter.ts` as `APP_FILTER`, with pino logging (4xx warn, 5xx
     error).
