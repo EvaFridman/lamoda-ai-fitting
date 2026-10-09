@@ -114,8 +114,9 @@ Host ai-fitting
 
 ### Sentry (веб-интерфейс)
 
-1. **Проект:** Projects → Create Project → платформа **Next.js**, имя `lamoda-ai-fitting`. Из
-   настроек проекта (Client Keys) понадобится **DSN**.
+1. **Проекты:** Projects → Create Project → платформа **Next.js**, имя `lamoda-ai-fitting` (web);
+   второй — платформа **Nest.js**, имя `lamoda-ai-fitting-api` (api и Temporal worker). Из
+   настроек каждого проекта (Client Keys) понадобится его **DSN**.
 2. **Токен для загрузки source maps:** Settings → Developer Settings → **Organization Tokens** →
    Create New Token (`lamoda-ai-fitting CI`). Отдельный токен для этого репозитория, чтобы его можно
    было отозвать, не задевая другие проекты. Показывается один раз — сразу в GitHub (шаг ниже).
@@ -123,18 +124,20 @@ Host ai-fitting
 
 ### Environment `production` (GitHub)
 
-Окружение, в котором работает джоб деплоя. Деплоить из него можно только из ветки `main`: workflow
-из pull request не получит эти секреты.
+Окружение, в котором работают джоб деплоя и, при push в `main`, джоб сборки образов (ему нужен
+токен Sentry). Деплоить из него можно только из ветки `main`: workflow из pull request не получит
+эти секреты.
 
 **Переменные** (не секретные):
 
-| Имя             | Значение               |
-| --------------- | ---------------------- |
-| `DEPLOY_HOST`   | IP сервера             |
-| `DEPLOY_USER`   | `deploy`               |
-| `SITE_DOMAIN`   | `lamoda-ai-fitting.ru` |
-| `POSTGRES_USER` | `ai_fitting`           |
-| `POSTGRES_DB`   | `ai_fitting`           |
+| Имя              | Значение                              |
+| ---------------- | ------------------------------------- |
+| `DEPLOY_HOST`    | IP сервера                            |
+| `DEPLOY_USER`    | `deploy`                              |
+| `SITE_DOMAIN`    | `lamoda-ai-fitting.ru`                |
+| `POSTGRES_USER`  | `ai_fitting`                          |
+| `POSTGRES_DB`    | `ai_fitting`                          |
+| `MEDIA_BASE_URL` | `https://lamoda-ai-fitting.ru/media/` |
 
 **Секреты** — из корня репозитория:
 
@@ -151,28 +154,40 @@ ssh-keyscan -t ed25519 <IP сервера> 2>/dev/null | gh secret set DEPLOY_KN
 # Пароль базы: случайный, его не видит никто — CI сам запишет его в .env на сервере
 openssl rand -hex 32 | gh secret set POSTGRES_PASSWORD --env production
 
-# DSN проекта Sentry (gh спросит значение, ввод не отображается)
+# DSN проектов Sentry (gh спросит значение, ввод не отображается): web и api
 gh secret set SENTRY_DSN --env production
+gh secret set API_SENTRY_DSN --env production
+
+# Токен Sentry для загрузки source maps (шаг 2)
+gh secret set SENTRY_AUTH_TOKEN --env production
+# Если токен остался секретом репозитория (так было до спеки 0004): удалить после того, как лог CI
+# первой сборки из main покажет загрузку. Workflow из pull request видит секреты репозитория.
+gh secret delete SENTRY_AUTH_TOKEN
+
+# Токен админских запросов api (заголовок X-Admin-Token): случайный, 64 символа
+openssl rand -hex 32 | gh secret set ADMIN_API_TOKEN --env production
 ```
 
 ### Уровень репозитория (GitHub)
 
-Нужны джобу сборки образов, который работает до любого окружения.
+Переменные джоба сборки образов: он работает и для pull request, без окружения.
 
 ```bash
-gh secret set SENTRY_AUTH_TOKEN                   # токен из Sentry, шаг 2
 gh variable set SENTRY_ORG --body "<slug организации>"
 gh variable set SENTRY_PROJECT --body "lamoda-ai-fitting"
-gh variable set NEXT_PUBLIC_SENTRY_DSN --body "<DSN>"   # тот же DSN: он публичный, уходит в браузер
+gh variable set SENTRY_PROJECT_API --body "lamoda-ai-fitting-api"
+gh variable set NEXT_PUBLIC_SENTRY_DSN --body "<DSN>"   # DSN web: он публичный, уходит в браузер
 ```
 
 ### Проверка
 
 ```bash
-gh secret list --env production     # DEPLOY_SSH_KEY, DEPLOY_KNOWN_HOSTS, POSTGRES_PASSWORD, SENTRY_DSN
-gh variable list --env production   # DEPLOY_HOST, DEPLOY_USER, SITE_DOMAIN, POSTGRES_USER, POSTGRES_DB
-gh secret list                      # SENTRY_AUTH_TOKEN
-gh variable list                    # SENTRY_ORG, SENTRY_PROJECT, NEXT_PUBLIC_SENTRY_DSN
+gh secret list --env production     # DEPLOY_SSH_KEY, DEPLOY_KNOWN_HOSTS, POSTGRES_PASSWORD, SENTRY_DSN,
+                                    # API_SENTRY_DSN, SENTRY_AUTH_TOKEN, ADMIN_API_TOKEN
+gh variable list --env production   # DEPLOY_HOST, DEPLOY_USER, SITE_DOMAIN, POSTGRES_USER, POSTGRES_DB,
+                                    # MEDIA_BASE_URL
+gh secret list                      # пусто
+gh variable list                    # SENTRY_ORG, SENTRY_PROJECT, SENTRY_PROJECT_API, NEXT_PUBLIC_SENTRY_DSN
 ```
 
 `POSTGRES_PASSWORD` задаётся один раз, до первого деплоя: база инициализируется с ним, и смена

@@ -26,6 +26,29 @@ COPY --chown=node:node nest-cli.json tsconfig.json tsconfig.build.json ./
 COPY --chown=node:node src ./src
 RUN npm run build
 
+# Source maps go to Sentry, never into the image: with the token, `inject` writes a debug id into
+# each .js file and its map (Sentry matches stack traces by it) and `upload` sends the maps; without
+# it (local builds, pull requests) nothing is sent. The maps are deleted either way. A failed upload
+# does not fail the build, so Sentry being down cannot hold back a deploy; the log shows it.
+# Workflow code is left as it is: the worker bundles it into Temporal's sandbox, which pull request
+# builds (no token, no inject) would never test with the injected snippet, and workflow errors are
+# not sent to Sentry. A workflow that imports runtime code from outside workflows/ needs it here too.
+# The token is a BuildKit secret: it exists only during this RUN and lands in no layer and in no
+# `docker image history`. A stage of its own, so the dev image does not run it.
+FROM build AS release
+ARG SENTRY_ORG
+ARG SENTRY_PROJECT
+ARG SENTRY_RELEASE
+RUN --mount=type=secret,id=sentry_auth_token,env=SENTRY_AUTH_TOKEN \
+    if [ -n "${SENTRY_AUTH_TOKEN:-}" ]; then \
+      { npx --no-install sentry-cli sourcemaps inject --ignore '**/temporal/workflows/**' dist \
+        && npx --no-install sentry-cli sourcemaps upload --release "$SENTRY_RELEASE" dist; } \
+      || echo "Source map upload to Sentry failed; stack traces of this release stay compiled JS." >&2; \
+    else \
+      echo "No SENTRY_AUTH_TOKEN: source maps are not uploaded."; \
+    fi \
+    && find dist -name '*.map' -delete
+
 # Development (docker-compose.yml): sources are bind-mounted over src/, Nest recompiles on change.
 # Nest's watcher finds the previous process with `ps`, which slim images lack.
 FROM build AS dev
@@ -64,7 +87,7 @@ COPY package.json ./
 # Schema, migrations and config for `prisma migrate deploy`.
 COPY prisma ./prisma
 COPY prisma.config.ts ./
-COPY --from=build --chown=root:root /app/dist ./dist
+COPY --from=release --chown=root:root /app/dist ./dist
 # base gives /app to the app user; take it back, or the process could replace files in it.
 RUN chown root:root /app
 USER node

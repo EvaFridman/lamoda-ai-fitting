@@ -10,8 +10,6 @@ removes it from this list. Found by the agents' first security audit and trial r
   requests with `packages: write`, and `actions/checkout` keeps the token for later steps. Publish
   images from a separate job that runs only on a push to `main`; set `persist-credentials: false`
   on checkouts.
-- **Sentry token scope.** `SENTRY_AUTH_TOKEN` is a repository secret; move it to the `production`
-  environment with the step that uploads source maps.
 
 ## nginx and realtime
 

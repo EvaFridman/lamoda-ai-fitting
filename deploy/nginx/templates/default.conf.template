@@ -87,6 +87,13 @@ server {
   proxy_set_header X-Real-IP $remote_addr;
   proxy_set_header X-Forwarded-Proto $scheme;
   proxy_set_header Connection "";
+  # A client cannot pick the Sentry trace its request joins: the api and web start their own
+  # (spec 0004 E34). The W3C pair as well, in case the SDK continues a trace from it. An empty
+  # value makes nginx drop the header.
+  proxy_set_header sentry-trace "";
+  proxy_set_header baggage "";
+  proxy_set_header traceparent "";
+  proxy_set_header tracestate "";
 
   # Of the api's health checks only liveness is public: deploy.sh, smoke-test.sh and
   # request-loop.sh read it. Readiness names internal hosts and failure reasons, and deploy.sh
@@ -108,11 +115,15 @@ server {
   location /socket.io/ {
     proxy_pass http://api;
     # A proxy_set_header in a location drops every one inherited from the server block, so the
-    # forwarding headers are repeated here.
+    # forwarding headers and the cleared trace ones are repeated here.
     proxy_set_header Host $host;
     proxy_set_header X-Forwarded-For $remote_addr;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header sentry-trace "";
+    proxy_set_header baggage "";
+    proxy_set_header traceparent "";
+    proxy_set_header tracestate "";
     proxy_set_header Upgrade $http_upgrade;
     proxy_set_header Connection $connection_upgrade;
     # Idle sockets must survive nginx's default 60 s read timeout.

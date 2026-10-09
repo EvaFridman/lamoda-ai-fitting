@@ -60,20 +60,27 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
   - Check: unit, the filter calls capture for a 500 and not for a 404; with an empty DSN the app
     starts and sends nothing; `CLAUDE.md` stack table: Sentry in api. AC15 (code part).
   - Commit: `feat(api): report errors and traces to sentry`
-- [ ] **T5. Source maps and deploy.**
+- [x] **T5. Source maps and deploy.**
   - `@sentry/cli` at the plan's version (install script approved only if needed, reason in the
     commit).
-  - The Dockerfile `build` stage uploads maps when the secret is present and deletes them;
-    `scripts/ci-build-images.sh` passes the secret and args; `ci.yml` adds `SENTRY_PROJECT_API`;
+  - A Dockerfile `release` stage after `build` (runtime copies `dist` from it; `dev` stays on
+    `build`) uploads maps when the secret is present and deletes them; workflow code is not
+    injected (the worker bundles it into Temporal's sandbox); a failed upload does not fail the
+    build (E37); `scripts/ci-build-images.sh` passes the secret and args; `ci.yml` adds `SENTRY_PROJECT_API`;
     `cd.yml` writes `API_SENTRY_DSN`, `ADMIN_API_TOKEN`, `MEDIA_BASE_URL` to the server `.env`;
     `deploy/README.md` lists them.
-  - nginx clears incoming `sentry-trace` and `baggage` headers to the api (server level and
-    `/socket.io/`), so a client cannot set the trace id of api events.
+  - nginx clears incoming `sentry-trace`, `baggage`, `traceparent` and `tracestate` headers at the
+    server level (web too, E34) and in `/socket.io/`, so a client cannot set the trace id of api events.
+  - `SENTRY_AUTH_TOKEN` is read from the `production` environment: the `images` job takes that
+    environment only on a push to `main` (E36); `deploy/README.md` moves it there. Removes "Sentry
+    token scope" from `specs/backlog.md`.
   - 👤 Create the api's Sentry project; add `API_SENTRY_DSN` and `ADMIN_API_TOKEN` to the
     `production` environment; add the variables `SENTRY_PROJECT_API` and `MEDIA_BASE_URL`.
+  - 👤 Before the merge: `SENTRY_AUTH_TOKEN` added to the `production` environment. After the CI
+    log of the merge shows the upload: the repository secret `SENTRY_AUTH_TOKEN` deleted.
   - Check: a local `docker build --target runtime api` without the token succeeds and holds no
-    maps; with the merge to `main`, the CI log shows the upload. AC15 (maps). With a real DSN, a
-    trace of a request whose Prisma call fails carries no text of the Prisma error in its spans.
+    maps; with the merge to `main`, the CI log shows the upload. AC15 (maps). A trace of a request
+    whose Prisma call fails carries no text of the Prisma error in its spans (E35).
   - Commit: `build(api): upload source maps to sentry at build time`
 
 ## PR 2 · `feat/0004-catalog-reference` · categories, brands, attributes
