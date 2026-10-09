@@ -1,14 +1,15 @@
 # 0004 CRUD api: plan
 
-Status: accepted (2026-10-09).
+Status: accepted (2026-10-09); amended the same day: the web part moved to spec 0005 (E30), its
+design notes to the backlog entry "Web data layer".
 Implements [spec.md](spec.md); decisions are in [clarifications.md](clarifications.md) (E1, E2, …).
 
 ## Overview
 
 - **api.** It gets a shared foundation (error handling, admin guard, paging, Sentry), one Nest module
   per resource of E3, and a product listing with filter counts.
-- **web.** It gets a browser client next to the server one and an `entities` slice per table.
-- **Order.** The work goes in six phases (see `tasks.md`). Each phase is a pull request that leaves
+- **web.** Unchanged in this spec (E30).
+- **Order.** The work goes in five phases (see `tasks.md`). Each phase is a pull request that leaves
   `main` deployable.
 
 ## Versions (checked against the registry on 2026-10-09)
@@ -28,8 +29,8 @@ already there.
 - **Errors (E18–E22).**
   - `errors/app.exception.ts`: `AppException(status, code, message, details?)` and its subclasses
     `NotFoundError`, `ConflictError`, `InUseError`, `ValidationError`, `UnauthorizedError`.
-  - `errors/error-codes.ts`: the codes of E20 as a const union. web keeps its own copy (no shared
-    package, E26).
+  - `errors/error-codes.ts`: the codes of E20 as a const union. web gets its own copy in spec 0005
+    (no shared package, E26).
 - **Filter.** `filters/app-exception.filter.ts` is `@Catch()` and registered as `APP_FILTER`. It
   maps, in this order:
   - `AppException` → as is;
@@ -189,52 +190,6 @@ category{id,name,slug}, image: {url} | null, price, discount, finalPrice, rating
   resource, list filters and sorts, facet counts, and the session and generation rules.
 - **e2e without a database:** access per route group; Swagger lists every route.
 
-## web (E26–E28)
-
-### `shared`
-
-- **`shared/api` entry points.** The segment splits so that browser code never imports
-  `server-only`:
-  - `index.ts` (isomorphic): `ApiError` (now with `code` and `details`), `apiErrorSchema`,
-    `paginatedSchema(item)`, `errorMessage(error)`, `clientFetch`, `buildPath`;
-  - `server.ts`: `apiFetch`.
-
-  `entities/greeting` switches to `@/shared/api/server`. This is the one place the fsd rule of a
-  single `index.ts` gets a second, server-only entry. It is recorded in `web/README.md`.
-
-- **`build-path.ts`** (backlog "`apiFetch` paths"). `buildPath(template, params, query)` encodes
-  segments with `encodeURIComponent`, demands a leading `/`, and serializes repeated query keys.
-  `apiFetch` and `clientFetch` reject a path without a leading `/` and check that the resolved
-  origin equals the base's.
-- **`client-fetch.ts`.** The same contract as `apiFetch` (zod schema, timeout, `ApiError` built from
-  the error envelope), base `getPublicEnv().NEXT_PUBLIC_API_URL`, no header forwarding (the browser
-  is the visitor).
-- **`error-messages.ts`.** Every code of E20 maps to Russian text, with a generic text for an
-  unknown code (E22).
-- **`shared/config/public-env.ts`.** It validates `NEXT_PUBLIC_API_URL` (a URL or a path starting
-  with `/`). Next inlines the value at build: the Dockerfile and `ci-build-images.sh` get a build-arg
-  (production `/api`), and `.env.example` gets `NEXT_PUBLIC_API_URL=http://localhost:3000`.
-
-### `entities`
-
-- **Every slice:** `model/` (zod schemas and types), `api/keys.ts` (query keys) and `index.ts`.
-- **Catalog slices** (`category`, `brand`, `attribute`, `product`) also get:
-  - `api/<slice>.server.ts`: `server-only` read functions through `apiFetch`, exported from
-    `server.ts` in the slice;
-  - `api/use-<slice>.ts`: `useQuery` hooks through `clientFetch`, exported from `index.ts`.
-- **`product`.** List, detail and facets (`useProducts(filters)`, `useProduct(id)`,
-  `useProductFacets(filters)`), with a typed `ProductFilters` that serializes to the api query.
-- **`user`, `fitting-session`, `ai-generation`.** `model/` and keys only.
-- **Cross-references.** An entity that references another uses `@x` (e.g. `product/@x/brand.ts` for
-  the brand summary schema).
-
-### Tests (web)
-
-The schemas parse samples and reject wrong shapes; `buildPath` covers encoding and rejects bad
-paths; `clientFetch` covers the error envelope, the timeout and a bad body (`fetch` mocked); the
-hooks are rendered with a `QueryClient` (`renderHook`); `errorMessage` covers known and unknown
-codes.
-
 ## Files
 
 - **api.**
@@ -243,16 +198,18 @@ codes.
   - `src/app.module.ts`, `src/main.ts`, `src/temporal/worker.ts`, `worker.module.ts`;
     `src/config/env.ts`; `src/swagger.ts`.
   - `Dockerfile`, `package.json`, `test/support/test-app.ts`, `test/**`.
-- **web.** `src/shared/api/**`, `src/shared/config/public-env.ts`, `src/entities/**`,
-  `src/entities/greeting/api/get-greeting.ts`, `Dockerfile`, `README.md`.
 - **root.** `.env.example`, `scripts/init-env.sh`, `scripts/ci-build-images.sh`,
   `deploy/compose/app.yml`, `.github/workflows/{ci,cd}.yml`, `deploy/README.md`, `CLAUDE.md`
-  (stack: Sentry in api; conventions: the error format, `@/shared/api/server`), `README.md`.
+  (stack: Sentry in api; conventions: the error format), `README.md`.
 
 ## Backlog
 
-- **Closed and removed:** "Catalog API", "Auth input rules", "`apiFetch` paths".
-- **Added (E29):**
+- **Closed and removed:** "Catalog API", "Auth input rules".
+- **Added (E29, E30):**
+  - "Web data layer" for spec 0005: decisions E22 (Russian texts), E26–E28 and the web design notes
+    this plan held (a `shared/api` split into an isomorphic `index.ts` and a server-only `server.ts`,
+    a browser `clientFetch`, `buildPath`, the error dictionary, `NEXT_PUBLIC_API_URL`); it absorbs
+    the item "`apiFetch` paths";
   - remove greeting with the catalog page;
   - colour swatches;
   - a category tree;
@@ -273,8 +230,6 @@ codes.
 - **`@sentry/nestjs` on Nest 12 ESM.** The peer range covers it, but instrumentation needs
   `instrument.ts` loaded first. If auto-instrumentation fails under ESM, use the
   `--import ./dist/instrument.js` flag in the CMD and the compose commands.
-- **The `shared/api` split.** It changes an import path of the bootstrap code; the fsd reviewer
-  confirms the second entry.
 - **Seed and deletes.** A product deleted through the api comes back on the next deploy (0002 C16b).
   This is expected and documented in the api's Swagger description of DELETE /products/:id.
 
@@ -297,7 +252,4 @@ codes.
 | AC13 | unit filter per E20 row; e2e for broken JSON, a 101 KB body, an unknown route; qa-tester spot checks                                           |
 | AC14 | unit pipe and e2e: `details` per field                                                                                                         |
 | AC15 | owner: a test 500 with the DSN set shows in Sentry with the release and a TypeScript stack; unit: 4xx not captured, an empty DSN sends nothing |
-| AC16 | web tests (schemas, hooks, wrong shape → `ApiError`); fsd reviewer                                                                             |
-| AC17 | web test `errorMessage`                                                                                                                        |
-| AC18 | `npm run verify` builds web with nothing running (as in 0001)                                                                                  |
-| AC19 | `npm run verify`                                                                                                                               |
+| AC16 | `npm run verify`                                                                                                                               |
