@@ -155,9 +155,19 @@ else
     app "$target" "$tag" stop >&2 || true
     fail "$target with $tag did not become healthy; stopped it, ${active:-nothing} keeps serving"
   fi
-  # Readiness from inside: the new api reaches Postgres, Redis and Temporal.
-  app "$target" "$tag" exec -T api node -e \
-    "fetch('http://127.0.0.1:3000/health/ready').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))" \
+  # Readiness from inside: the new api reaches Postgres, Redis and Temporal. Each check is one
+  # attempt per dependency (no retries inside the api), so a dependency that blips while the new
+  # copy connects gets up to 10 attempts, 1 s apart.
+  ready=""
+  for _ in $(seq 1 10); do
+    if app "$target" "$tag" exec -T api node -e \
+      "fetch('http://127.0.0.1:3000/health/ready').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"; then
+      ready=1
+      break
+    fi
+    sleep 1
+  done
+  [ -n "$ready" ] \
     || { app "$target" "$tag" stop >&2 || true; fail "$target is not ready; stopped it, ${active:-nothing} keeps serving"; }
 fi
 

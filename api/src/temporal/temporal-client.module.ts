@@ -5,7 +5,9 @@ import { Client, Connection } from '@temporalio/client';
 import type { Env } from '../config/env.js';
 
 // Client for starting and querying workflows. `Connection.lazy` connects on the first call, so the
-// api starts even while Temporal is down; /health/ready reports it.
+// api starts even while Temporal is down (/health/ready checks Temporal on a connection of its own,
+// health/dependency-checks.ts). The SDK's default gRPC retries stay on here; a retry still pending
+// when this connection closes throws out of its timer (specs/backlog.md, "Temporal").
 @Global()
 @Module({
   providers: [
