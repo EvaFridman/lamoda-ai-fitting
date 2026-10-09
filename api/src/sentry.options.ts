@@ -8,8 +8,9 @@ import {
 // Sentry 11 collects user info, cookies, headers (X-Admin-Token among them), query parameters and
 // request/response bodies by default; reports from the api carry none of them, as web's
 // (web/sentry.options.ts). Also off here: local variables of stack frames and database query data
-// (Redis commands carry keys and values), which can hold personal data. Change a field only with a
-// reason in the commit.
+// (Redis commands carry keys and values), which can hold personal data. The Redis instrumentation
+// ignores databaseQueryData: withoutRedisCommands below. Change a field only with a reason in the
+// commit.
 const dataCollection: NonNullable<NodeOptions['dataCollection']> = {
   userInfo: false,
   cookies: false,
@@ -46,7 +47,9 @@ export function sentryOptions(env: NodeJS.ProcessEnv): NodeOptions {
     integrations: [onUnhandledRejectionIntegration({ mode: 'strict' })],
     beforeSend: (event) => withoutRequestData(withoutPrismaMessages(event)),
     beforeSendTransaction: (event) =>
-      isThrottled(event) ? null : withoutUserAgent(withoutRequestData(event)),
+      isThrottled(event) || isRedisCommand(event)
+        ? null
+        : withoutRedisCommands(withoutUserAgent(withoutRequestData(event))),
   };
 }
 
@@ -63,6 +66,38 @@ export function withoutUserAgent(event: TransactionEvent): TransactionEvent {
   delete event.contexts?.trace?.data?.['user_agent.original'];
   for (const span of event.spans ?? []) delete span.data?.['user_agent.original'];
   return event;
+}
+
+// The Redis instrumentation writes each command with its keys to the span's query text whatever
+// dataCollection says. The rate limiter's keys are hashes of strings that hold the client's
+// address, which a search over all IPv4 addresses reverses. Only the command name stays: the span's
+// name is set to `redis-<command>`, since other instrumentation paths of the SDK (older ioredis,
+// node-redis) name the span after the whole command. A command run outside a request is a
+// transaction of its own: isRedisCommand drops it.
+export function withoutRedisCommands(event: TransactionEvent): TransactionEvent {
+  for (const span of event.spans ?? []) {
+    const name = cleanRedisData(span.data);
+    if (name) span.description = name;
+  }
+  return event;
+}
+
+// A Redis command run outside a request (a health check, a background job) as a transaction of its
+// own: it tells nothing and spends the span quota, and its name, possibly the whole command with
+// its keys, is copied into the envelope header when the span starts, out of reach of this hook.
+export function isRedisCommand(event: TransactionEvent): boolean {
+  const data = event.contexts?.trace?.data;
+  return data?.['db.system.name'] === 'redis' || data?.['db.system'] === 'redis';
+}
+
+// Drops the command from the attributes of a Redis span and returns the name the span keeps;
+// undefined for a span of anything else.
+function cleanRedisData(data: Record<string, unknown> | undefined): string | undefined {
+  if (data?.['db.system.name'] !== 'redis' && data?.['db.system'] !== 'redis') return undefined;
+  delete data['db.query.text'];
+  delete data['db.statement'];
+  const operation = data['db.operation.name'];
+  return typeof operation === 'string' && /^\w+$/.test(operation) ? `redis-${operation}` : 'redis';
 }
 
 // Prisma's messages can hold a whole call with its arguments (personal data), as the error log of
