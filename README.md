@@ -19,7 +19,7 @@
 
 ```bash
 npm ci                          # зависимости корня и git-хуки
-./scripts/init-env.sh           # один раз: .env со случайным паролем базы
+./scripts/init-env.sh           # один раз: .env со случайными паролем базы и админ-токеном
 docker compose up -d --wait     # весь стек, ждёт, пока сервисы станут здоровы
 docker compose run --rm api npx prisma migrate deploy   # миграции: dev-стек сам их не применяет
 ```
@@ -31,6 +31,12 @@ docker compose run --rm api npx prisma migrate deploy   # миграции: dev-
 | Temporal UI | http://localhost:8233                                       |
 | PostgreSQL  | `localhost:5433` (логин и пароль в `.env`)                  |
 | Redis       | `localhost:6380`                                            |
+
+Запросы, которые меняют данные, и все запросы к пользователям, сессиям примерки и генерациям
+требуют админ-токен: значение `ADMIN_API_TOKEN` из `.env` в заголовке `X-Admin-Token` (в Swagger:
+кнопка Authorize). Пустое значение закрывает эти запросы. В `.env`, созданном до появления
+токена, его нет: допишите строку `ADMIN_API_TOKEN=` со значением из `openssl rand -hex 32` и
+перезапустите стек (`docker compose up -d --wait`).
 
 Исходники `api/src` и `web/{app,src}` примонтированы в контейнеры: правки подхватываются без
 пересборки. Пересобрать образ (`docker compose up -d --build <сервис>`) нужно после изменения

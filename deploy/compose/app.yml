@@ -23,6 +23,9 @@ services:
       REDIS_URL: redis://redis:6379
       TEMPORAL_ADDRESS: temporal:7233
       THROTTLE_LIMIT: ${THROTTLE_LIMIT:-100}
+      # Empty closes the admin routes (spec 0004 E1).
+      ADMIN_API_TOKEN: ${ADMIN_API_TOKEN:-}
+      MEDIA_BASE_URL: ${MEDIA_BASE_URL:?set MEDIA_BASE_URL}
     networks:
       ai-fitting:
         aliases: ['api-${COLOR:?set COLOR}']

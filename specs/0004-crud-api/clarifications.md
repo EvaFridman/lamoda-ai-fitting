@@ -19,6 +19,11 @@ personal data).
   under their owner. The products of a generation are set together with the generation.
 - E4. Updates are partial; deletes are real (no soft delete); deleting a row other rows depend on
   answers "in use" (the database's restrict rules, 0002 C8).
+- E31. The admin token is empty or at least 32 characters with no spaces; anything else stops the
+  api at startup, so a weak production value cannot go unnoticed (decided during T3).
+- E32. `qa-tester` checks AC1 live only without a token and with a wrong one: it cannot read `.env`
+  or run commands in a container, so it never holds the local token. The right token is covered by
+  the e2e specs, which use a known test token (decided during T3).
 
 ## Responses
 

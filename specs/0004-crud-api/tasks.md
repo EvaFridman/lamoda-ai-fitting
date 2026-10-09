@@ -40,7 +40,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
   - Check: unit tests, one per row of E20; e2e for broken JSON, a body over the limit, an unknown
     route; `/health/*` responses unchanged. AC13, AC14.
   - Commit: `feat(api): answer every error in one format with a code`
-- [ ] **T3. Admin access, paging, environment.**
+- [x] **T3. Admin access, paging, environment.**
   - `ADMIN_API_TOKEN` and `MEDIA_BASE_URL` in `config/env.ts`, `.env.example`, `scripts/init-env.sh`
     (generates a local token) and `deploy/compose/app.yml`.
   - `common/guards/admin.guard.ts` with `@AdminOnly()`; the Swagger `admin` key.

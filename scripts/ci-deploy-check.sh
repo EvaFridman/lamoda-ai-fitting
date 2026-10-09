@@ -57,6 +57,7 @@ POSTGRES_USER=ai_fitting
 POSTGRES_PASSWORD=$(openssl rand -hex 16)
 POSTGRES_DB=ai_fitting
 SITE_DOMAIN=localhost
+MEDIA_BASE_URL=https://localhost/media/
 THROTTLE_LIMIT=1000000
 EOF
 

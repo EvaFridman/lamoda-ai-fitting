@@ -24,6 +24,18 @@ export const envSchema = z.object({
   // At most THROTTLE_LIMIT requests per client IP within THROTTLE_TTL_MS; then 429.
   THROTTLE_LIMIT: z.coerce.number().int().positive().default(100),
   THROTTLE_TTL_MS: z.coerce.number().int().positive().default(60_000),
+
+  // Sent in the X-Admin-Token header by writes and by requests to users, fitting sessions and
+  // generations (spec 0004 E1). Empty closes those requests entirely; a set one must be long
+  // enough not to be guessed (E31).
+  ADMIN_API_TOKEN: z
+    .union([
+      z.literal(''),
+      z.string().regex(/^\S{32,}$/, 'must be at least 32 non-space characters'),
+    ])
+    .default(''),
+  // Where image keys are served: http://localhost:3001/media/ locally (spec 0004 E8).
+  MEDIA_BASE_URL: z.url({ protocol: /^https?$/ }),
 });
 
 export type Env = z.infer<typeof envSchema>;
