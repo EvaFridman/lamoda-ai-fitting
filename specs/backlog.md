@@ -75,6 +75,11 @@ removes it from this list. Found by the agents' first security audit and trial r
   endless retries.
 - **SDK version ranges.** `@temporalio/client` is `"1.24"` while the other SDK packages are
   `"^1.24.0"`; align them so all SDK packages move together.
+- **Retries of the shared connection at shutdown.** `TemporalClientModule`'s connection keeps the
+  SDK's default gRPC retries; a retry still scheduled when the app closes it fires on the closed
+  channel and throws "Channel has been shut down" out of a timer (an uncaught exception at SIGTERM
+  or in an e2e test). Nothing calls it yet; the first code that starts workflows through `Client`
+  needs bounded retries and calls finished (or cancelled) before `close()`.
 
 ## Dependencies
 
