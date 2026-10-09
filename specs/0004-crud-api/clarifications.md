@@ -110,6 +110,18 @@ personal data).
   be partial; 429 responses are not traced; traces go as whole transactions
   (`traceLifecycle: 'static'`), so they pass the same cleanup as errors. `sendDefaultPii` of the
   plan does not exist in Sentry 11: `dataCollection` turns the data off, as in web.
+- E34. nginx clears incoming `sentry-trace` and `baggage` at the server level, so for web too: a
+  browser → web server trace is no longer joined, and no client sets the trace of web or the api
+  (owner, 2026-10-10). `traceparent` and `tracestate` are cleared too.
+- E35. The check that traces carry no Prisma error text runs in T5 on a temporary local route (not
+  committed) with a local receiver of Sentry envelopes as the DSN, so all spans are visible and no
+  real DSN is needed (owner, 2026-10-10).
+- E36. T5 takes the backlog item "Sentry token scope": `SENTRY_AUTH_TOKEN` moves to the
+  `production` environment, and the `images` job uses that environment only on a push to `main`
+  (owner, 2026-10-10).
+- E37. A failed source map upload does not fail the api image build, as in web: Sentry being down
+  does not hold back a deploy; that release's stack traces stay compiled JS, and the CI log says so
+  (owner, 2026-10-10).
 
 ## web (moved to spec 0005 by E30)
 

@@ -81,6 +81,9 @@ jobs:
     name: Images
     needs: [secrets, checks]
     runs-on: ubuntu-latest
+    # The Sentry token is a secret of the production environment (it accepts protected branches
+    # only); pull requests run without an environment and so without the token.
+    environment: ${{ github.event_name == 'push' && 'production' || '' }}
     # Pushing to GHCR needs packages: write; it happens only on a push to main (last step).
     permissions:
       contents: read
@@ -108,6 +111,7 @@ jobs:
           NEXT_PUBLIC_SENTRY_ENVIRONMENT: production
           SENTRY_ORG: ${{ vars.SENTRY_ORG }}
           SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT }}
+          SENTRY_PROJECT_API: ${{ vars.SENTRY_PROJECT_API }}
           # Source maps are uploaded only for images that can be deployed (main).
           SENTRY_AUTH_TOKEN: ${{ github.event_name == 'push' && secrets.SENTRY_AUTH_TOKEN || '' }}
         run: scripts/ci-build-images.sh

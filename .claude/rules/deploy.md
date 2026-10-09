@@ -37,5 +37,5 @@ Details and commands: `deploy/README.md`.
 
 - Multi-stage, exact base-image versions, non-root user, exec-form `CMD`, dependencies installed
   before sources are copied.
-- Secrets never go into an image (`ARG`/`ENV`/`COPY`); the web build takes the Sentry token as a
-  BuildKit secret.
+- Secrets never go into an image (`ARG`/`ENV`/`COPY`); the web and api builds take the Sentry token
+  as a BuildKit secret.

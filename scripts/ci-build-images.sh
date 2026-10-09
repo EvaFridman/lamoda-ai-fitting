@@ -5,9 +5,11 @@
 #
 #   IMAGE_TAG=<tag> [IMAGE_REGISTRY=ghcr.io/owner/] scripts/ci-build-images.sh
 #
-# Optional, for web: NEXT_PUBLIC_SENTRY_DSN, NEXT_PUBLIC_SENTRY_ENVIRONMENT (baked into the browser
-# bundle), SENTRY_ORG, SENTRY_PROJECT, SENTRY_AUTH_TOKEN (source map upload; the token is passed as
-# a BuildKit secret, never as a build argument). IMAGE_SOURCE: repository URL for the OCI label.
+# Optional: SENTRY_ORG, SENTRY_AUTH_TOKEN and the projects SENTRY_PROJECT (web) and
+# SENTRY_PROJECT_API (api) for the source map upload of both images (the token is passed as a
+# BuildKit secret, never as a build argument); for web, NEXT_PUBLIC_SENTRY_DSN and
+# NEXT_PUBLIC_SENTRY_ENVIRONMENT (baked into the browser bundle). IMAGE_SOURCE: repository URL for
+# the OCI label.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -26,15 +28,20 @@ labels=()
 group() { if [ -n "${GITHUB_ACTIONS:-}" ]; then echo "::group::$*"; else echo "==> $*"; fi; }
 endgroup() { if [ -n "${GITHUB_ACTIONS:-}" ]; then echo "::endgroup::"; fi; }
 
+secret=()
+[ -n "${SENTRY_AUTH_TOKEN:-}" ] && secret=(--secret id=sentry_auth_token,env=SENTRY_AUTH_TOKEN)
+
 group "api image $tag"
 mapfile -t api_names < <(names api)
-docker build --target runtime "${api_names[@]}" "${labels[@]}" api
+docker build --target runtime "${api_names[@]}" "${labels[@]}" "${secret[@]}" \
+  --build-arg SENTRY_ORG="${SENTRY_ORG:-}" \
+  --build-arg SENTRY_PROJECT="${SENTRY_PROJECT_API:-}" \
+  --build-arg SENTRY_RELEASE="$tag" \
+  api
 endgroup
 
 group "web image $tag"
 mapfile -t web_names < <(names web)
-secret=()
-[ -n "${SENTRY_AUTH_TOKEN:-}" ] && secret=(--secret id=sentry_auth_token,env=SENTRY_AUTH_TOKEN)
 docker build --target runtime "${web_names[@]}" "${labels[@]}" "${secret[@]}" \
   --build-arg NEXT_PUBLIC_SENTRY_DSN="${NEXT_PUBLIC_SENTRY_DSN:-}" \
   --build-arg NEXT_PUBLIC_SENTRY_ENVIRONMENT="${NEXT_PUBLIC_SENTRY_ENVIRONMENT:-}" \
