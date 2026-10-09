@@ -1,6 +1,6 @@
 #!/bin/sh
-# Creates .env for docker-compose.yml from .env.example: a random database password, local
-# defaults for the rest, optional values left empty. Never overwrites an existing .env.
+# Creates .env for docker-compose.yml from .env.example: a random database password and admin
+# token, local defaults for the rest, optional values left empty. Never overwrites an existing .env.
 set -eu
 cd "$(dirname "$0")/.."
 
@@ -13,6 +13,7 @@ while IFS= read -r line || [ -n "$line" ]; do
   case "$line" in
     POSTGRES_USER= | POSTGRES_DB=) echo "${line}ai_fitting" ;;
     POSTGRES_PASSWORD=) echo "${line}$(openssl rand -hex 16)" ;;
+    ADMIN_API_TOKEN=) echo "${line}$(openssl rand -hex 32)" ;;
     *) echo "$line" ;;
   esac
 done < .env.example > .env

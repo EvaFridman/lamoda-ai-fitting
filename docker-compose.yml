@@ -17,6 +17,8 @@ x-api-env: &api-env
   REDIS_URL: redis://redis:6379
   TEMPORAL_ADDRESS: temporal:7233
   THROTTLE_LIMIT: ${THROTTLE_LIMIT:-100}
+  ADMIN_API_TOKEN: ${ADMIN_API_TOKEN:-}
+  MEDIA_BASE_URL: ${MEDIA_BASE_URL:-http://localhost:${WEB_HOST_PORT:-3001}/media/}
 
 # Sources over the image's copy. The anonymous volume keeps the Prisma client generated inside the
 # image visible under the mounted src/ (after a schema change: `docker compose up -d --build

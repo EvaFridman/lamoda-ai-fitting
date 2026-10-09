@@ -237,7 +237,7 @@ category{id,name,slug}, image: {url} | null, price, discount, finalPrice, rating
 
 | AC   | Check                                                                                                                                          |
 | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| AC1  | e2e: each route group with no token, a wrong token, the right token, an empty env token; qa-tester with curl                                   |
+| AC1  | e2e: each route group with no token, a wrong token, the right token, an empty env token; qa-tester with curl: no token, a wrong token (E32)    |
 | AC2  | database e2e per resource; e2e: the Swagger JSON lists every route                                                                             |
 | AC3  | database e2e: paging and `total`; `limit=101` → 400                                                                                            |
 | AC4  | database e2e on the list item and detail shape; unit `toMediaUrl`                                                                              |

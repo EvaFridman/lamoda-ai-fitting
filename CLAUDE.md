@@ -167,7 +167,12 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   so a missing one answers `RELATED_NOT_FOUND`. `/health/*` keep their own format (the deploy
   reads them). e2e apps that send bodies or check errors are set up as `main.ts` does:
   `AppExpressAdapter` (`common/http/`, else broken JSON is a plain 400) and
-  `createValidationPipe()` (`common/validation/`).
+  `createValidationPipe()` (`common/validation/`); database e2e get such an app from
+  `createTestApp()` (`test/support/test-app.ts`).
+- `api` admin access: writes and every route of users, fitting sessions and generations carry
+  `@AdminOnly()` (`common/guards/`), per controller or route, never global; it checks the
+  `X-Admin-Token` header against `ADMIN_API_TOKEN` (empty closes them). Lists take
+  `PaginationQueryDto` and answer `Paginated<T>` (`common/pagination/`).
 - `web` calls the api from the server only through `apiFetch` (`web/src/shared/api`): it forwards
   the visitor's address, so the api's per-client rate limit applies to the visitor and not to the
   web container. A direct `fetch` to the api would put all visitors into one limit.
