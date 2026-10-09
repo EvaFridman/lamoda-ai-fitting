@@ -36,6 +36,15 @@ RUN npm run build
 # The token is a BuildKit secret: it exists only during this RUN and lands in no layer and in no
 # `docker image history`. A stage of its own, so the dev image does not run it.
 FROM build AS release
+# sentry-cli checks TLS against the system's certificates, which slim images lack (Node carries its
+# own). This stage is not part of the runtime image, so the version is not pinned. Like the upload,
+# a failure here (Debian mirrors down) does not hold back the build.
+USER root
+RUN { apt-get update \
+      && apt-get install -y --no-install-recommends ca-certificates; } \
+    || echo "ca-certificates not installed; the source map upload will fail on TLS." >&2; \
+    rm -rf /var/lib/apt/lists/*
+USER node
 ARG SENTRY_ORG
 ARG SENTRY_PROJECT
 ARG SENTRY_RELEASE
