@@ -3,9 +3,11 @@ import type { ErrorEvent, NodeOptions } from '@sentry/nestjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  isRedisCommand,
   isThrottled,
   sentryOptions,
   withoutPrismaMessages,
+  withoutRedisCommands,
   withoutRequestData,
   withoutUserAgent,
 } from './sentry.options.js';
@@ -142,6 +144,54 @@ describe('sentryOptions', () => {
       expect(result?.spans?.[0]?.data).toEqual({ 'http.method': 'GET' });
     });
 
+    it('removes Redis query text from spans, with the other cleanup still applied', () => {
+      const event = {
+        type: 'transaction',
+        request: { url: '/a?token=abc', data: 'abc' },
+        contexts: { trace: { data: { 'user_agent.original': 'curl/8' } } },
+        spans: [
+          {
+            description: 'redis-eval',
+            data: {
+              'db.system.name': 'redis',
+              'db.query.text': 'eval script key-hash',
+              'db.operation.name': 'eval',
+            },
+          },
+        ],
+      } as unknown as TransactionEvent;
+
+      const result = hook(event);
+
+      expect(result?.request).toEqual({ url: '/a' });
+      expect(result?.contexts?.trace?.data).toEqual({});
+      expect(result?.spans?.[0]?.description).toBe('redis-eval');
+      expect(result?.spans?.[0]?.data).toEqual({
+        'db.system.name': 'redis',
+        'db.operation.name': 'eval',
+      });
+    });
+
+    it('drops a transaction whose root is a Redis command', () => {
+      const event = {
+        type: 'transaction',
+        transaction: 'evalsha abc 1 hash-of-ip:hits',
+        contexts: { trace: { data: { 'db.system.name': 'redis', 'db.query.text': 'x' } } },
+      } as unknown as TransactionEvent;
+
+      expect(hook(event)).toBeNull();
+    });
+
+    it('still drops a 429 transaction that has Redis spans', () => {
+      const event = {
+        type: 'transaction',
+        contexts: { trace: { data: { 'http.response.status_code': 429 } } },
+        spans: [{ data: { 'db.system.name': 'redis', 'db.query.text': 'x' } }],
+      } as unknown as TransactionEvent;
+
+      expect(hook(event)).toBeNull();
+    });
+
     it('handles a transaction without contexts and spans', () => {
       const event = { type: 'transaction' } as TransactionEvent;
 
@@ -200,6 +250,130 @@ describe('withoutPrismaMessages', () => {
     const event = eventWith(undefined);
 
     expect(withoutPrismaMessages(event)).toBe(event);
+  });
+});
+
+describe('withoutRedisCommands', () => {
+  const eventWith = (spans: unknown): TransactionEvent =>
+    ({ type: 'transaction', spans }) as TransactionEvent;
+
+  it.each([
+    ['db.system.name', 'db.query.text'],
+    ['db.system', 'db.statement'],
+    ['db.system.name', 'db.statement'],
+    ['db.system', 'db.query.text'],
+  ])('drops the query of a span marked %s, keeping the other fields', (systemKey, queryKey) => {
+    const event = eventWith([
+      {
+        description: 'redis-eval',
+        data: {
+          [systemKey]: 'redis',
+          [queryKey]: 'eval script hash-of-ip',
+          'db.operation.name': 'eval',
+          'server.address': 'redis',
+        },
+      },
+    ]);
+
+    const result = withoutRedisCommands(event);
+
+    expect(result).toBe(event);
+    expect(result.spans?.[0]).toEqual({
+      description: 'redis-eval',
+      data: { [systemKey]: 'redis', 'db.operation.name': 'eval', 'server.address': 'redis' },
+    });
+  });
+
+  it('drops both query fields when a span has both', () => {
+    const event = eventWith([
+      { data: { 'db.system': 'redis', 'db.query.text': 'a', 'db.statement': 'b' } },
+    ]);
+
+    expect(withoutRedisCommands(event).spans?.[0]?.data).toEqual({ 'db.system': 'redis' });
+  });
+
+  it('cleans every Redis span and leaves spans of other systems untouched', () => {
+    const postgres = {
+      data: { 'db.system.name': 'postgresql', 'db.query.text': 'SELECT 1', 'db.statement': 's' },
+    };
+    const event = eventWith([
+      { data: { 'db.system.name': 'redis', 'db.query.text': 'one' } },
+      postgres,
+      { data: { 'db.system': 'redis', 'db.statement': 'two' } },
+    ]);
+
+    const spans = withoutRedisCommands(event).spans;
+
+    expect(spans?.[0]?.data).toEqual({ 'db.system.name': 'redis' });
+    expect(spans?.[1]).toEqual({
+      data: { 'db.system.name': 'postgresql', 'db.query.text': 'SELECT 1', 'db.statement': 's' },
+    });
+    expect(spans?.[2]?.data).toEqual({ 'db.system': 'redis' });
+  });
+
+  it.each([
+    ['evalsha abc 1 hash-of-ip:hits', 'evalsha', 'redis-evalsha'],
+    ['get key', undefined, 'redis'],
+    ['eval x', 'eval x', 'redis'],
+    ['get key', '', 'redis'],
+  ])('renames the Redis span %j with operation %j to %j', (description, operation, expected) => {
+    const event = eventWith([
+      {
+        description,
+        data: { 'db.system.name': 'redis', 'db.operation.name': operation },
+      },
+    ]);
+
+    expect(withoutRedisCommands(event).spans?.[0]?.description).toBe(expected);
+  });
+
+  it('keeps description and data of spans of other systems', () => {
+    const event = eventWith([
+      { description: 'SELECT * FROM users', data: { 'db.system.name': 'postgresql' } },
+      { description: 'GET /x', data: { 'http.method': 'GET' } },
+      { description: 'no data' },
+    ]);
+
+    expect(withoutRedisCommands(event).spans).toEqual([
+      { description: 'SELECT * FROM users', data: { 'db.system.name': 'postgresql' } },
+      { description: 'GET /x', data: { 'http.method': 'GET' } },
+      { description: 'no data' },
+    ]);
+  });
+
+  it('keeps the name and data of an http root', () => {
+    const event = {
+      type: 'transaction',
+      transaction: 'GET /products',
+      contexts: { trace: { data: { 'http.method': 'GET', 'db.query.text': 'kept' } } },
+    } as unknown as TransactionEvent;
+
+    const result = withoutRedisCommands(event);
+
+    expect(result.transaction).toBe('GET /products');
+    expect(result.contexts?.trace?.data).toEqual({ 'http.method': 'GET', 'db.query.text': 'kept' });
+  });
+
+  it('does not throw on an event without spans or a span without data', () => {
+    expect(() => withoutRedisCommands({ type: 'transaction' } as TransactionEvent)).not.toThrow();
+    expect(() => withoutRedisCommands(eventWith([]))).not.toThrow();
+    expect(() => withoutRedisCommands(eventWith([{}, { data: undefined }]))).not.toThrow();
+  });
+});
+
+describe('isRedisCommand', () => {
+  const rootWith = (data: Record<string, unknown> | undefined): TransactionEvent =>
+    ({ type: 'transaction', contexts: { trace: { data } } }) as unknown as TransactionEvent;
+
+  it.each(['db.system.name', 'db.system'])('is true for a root marked %s = redis', (key) => {
+    expect(isRedisCommand(rootWith({ [key]: 'redis' }))).toBe(true);
+  });
+
+  it('is false for an http root, other databases, no data and no contexts', () => {
+    expect(isRedisCommand(rootWith({ 'http.method': 'GET' }))).toBe(false);
+    expect(isRedisCommand(rootWith({ 'db.system.name': 'postgresql' }))).toBe(false);
+    expect(isRedisCommand(rootWith(undefined))).toBe(false);
+    expect(isRedisCommand({ type: 'transaction' } as TransactionEvent)).toBe(false);
   });
 });
 
@@ -391,6 +565,76 @@ describe('the SDK with sentryOptions', () => {
       expect(sentTransactions[0]).not.toContain(userAgent);
       expect(warn).not.toHaveBeenCalledWith(expect.stringContaining('beforeSendTransaction'));
       warn.mockRestore();
+    });
+
+    it('sends a Redis span without its query text', async () => {
+      const sent = initWith({ SENTRY_DSN: DSN }, sampleAll);
+      const queryText = ['leak', 'redis', 'key'].join('-');
+
+      Sentry.startSpan({ name: 'GET /x', forceTransaction: true }, () => {
+        Sentry.startSpan(
+          {
+            name: 'redis-eval',
+            op: 'db.query',
+            attributes: {
+              'db.system.name': 'redis',
+              'db.query.text': queryText,
+              'db.operation.name': 'eval',
+            },
+          },
+          () => undefined,
+        );
+      });
+      await Sentry.flush(1000);
+
+      const sentTransactions = transactions(sent);
+      expect(sentTransactions).toHaveLength(1);
+      expect(sentTransactions[0]).toContain('redis-eval');
+      expect(sentTransactions[0]).toContain('"db.operation.name":"eval"');
+      expect(sentTransactions[0]).not.toContain(queryText);
+    });
+
+    it('sends nothing for a Redis command run without a request', async () => {
+      const sent = initWith({ SENTRY_DSN: DSN }, sampleAll);
+      const command = ['evalsha', 'abc', '1', ['leak', 'ip', 'hash'].join('-') + ':hits'].join(' ');
+
+      Sentry.startSpan(
+        {
+          name: command,
+          op: 'db.query',
+          attributes: {
+            'db.system.name': 'redis',
+            'db.query.text': command,
+            'db.operation.name': 'evalsha',
+          },
+        },
+        () => undefined,
+      );
+      await Sentry.flush(1000);
+
+      expect(transactions(sent)).toEqual([]);
+      expect(sent.join('')).not.toContain('leak-ip-hash');
+    });
+
+    it('sends a child span named after the whole command as redis-<op>', async () => {
+      const sent = initWith({ SENTRY_DSN: DSN }, sampleAll);
+      const command = `get ${['leak', 'child', 'key'].join('-')}`;
+
+      Sentry.startSpan({ name: 'GET /x', forceTransaction: true }, () => {
+        Sentry.startSpan(
+          {
+            name: command,
+            attributes: { 'db.system.name': 'redis', 'db.operation.name': 'get' },
+          },
+          () => undefined,
+        );
+      });
+      await Sentry.flush(1000);
+
+      const sentTransactions = transactions(sent);
+      expect(sentTransactions).toHaveLength(1);
+      expect(sentTransactions[0]).toContain('"description":"redis-get"');
+      expect(sentTransactions[0]).not.toContain('leak-child-key');
     });
 
     it('sends no transaction for a 429', async () => {
