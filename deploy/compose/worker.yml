@@ -23,5 +23,8 @@ services:
       TEMPORAL_ADDRESS: temporal:7233
       # The worker validates the api's environment too (config/env.ts).
       MEDIA_BASE_URL: ${MEDIA_BASE_URL:?set MEDIA_BASE_URL}
+      # The api's own Sentry project (SENTRY_DSN in .env is web's); empty turns it off.
+      SENTRY_DSN: ${API_SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
     networks:
       - ai-fitting

@@ -15,7 +15,7 @@ import { FallbackThrottlerStorage } from './fallback-throttler-storage.js';
 class ThrottlerStorageModule {}
 
 // A request limit per client IP for every HTTP route (opt out with @SkipThrottle()); over it, 429.
-// The client IP is right behind nginx thanks to `trust proxy` in main.ts.
+// The client IP is right behind nginx thanks to `trust proxy` in server.ts.
 @Module({
   imports: [
     ThrottlerModule.forRootAsync({

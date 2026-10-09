@@ -2,7 +2,7 @@ import { ValidationPipe, type ValidationError as ClassValidatorError } from '@ne
 
 import { type ErrorDetail, ValidationError } from '../errors/app.exception.js';
 
-// The global pipe (main.ts): DTOs checked by class-validator, unknown fields refused, values
+// The global pipe (server.ts): DTOs checked by class-validator, unknown fields refused, values
 // converted to their types. A failure answers VALIDATION_FAILED with one detail per broken rule
 // (spec 0004 E21, AC14).
 export function createValidationPipe(): ValidationPipe {

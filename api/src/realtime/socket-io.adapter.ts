@@ -2,7 +2,7 @@ import type { INestApplicationContext } from '@nestjs/common';
 import { IoAdapter } from '@nestjs/platform-socket.io';
 import type { Server, ServerOptions } from 'socket.io';
 
-// socket.io with the same CORS rule as HTTP (main.ts): only WEB_ORIGIN may connect from a browser.
+// socket.io with the same CORS rule as HTTP (server.ts): only WEB_ORIGIN may connect from a browser.
 // Gateway decorators cannot read configuration, so the rule is applied here.
 export class SocketIoAdapter extends IoAdapter {
   constructor(

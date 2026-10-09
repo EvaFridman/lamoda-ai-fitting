@@ -50,7 +50,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
   - Check: unit guard (right, wrong and missing token; empty env); a log line of a request with
     the token shows it redacted. AC1 (guard part).
   - Commit: `feat(api): guard writes with an admin token and page lists`
-- [ ] **T4. Sentry in the api and the worker.**
+- [x] **T4. Sentry in the api and the worker.**
   - `@sentry/nestjs` at the plan's version.
   - `src/instrument.ts` imported first in `main.ts` and `temporal/worker.ts`; `SentryModule` in
     `AppModule` and `WorkerModule`; an activity interceptor in the worker.
@@ -67,10 +67,13 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
     `scripts/ci-build-images.sh` passes the secret and args; `ci.yml` adds `SENTRY_PROJECT_API`;
     `cd.yml` writes `API_SENTRY_DSN`, `ADMIN_API_TOKEN`, `MEDIA_BASE_URL` to the server `.env`;
     `deploy/README.md` lists them.
+  - nginx clears incoming `sentry-trace` and `baggage` headers to the api (server level and
+    `/socket.io/`), so a client cannot set the trace id of api events.
   - 👤 Create the api's Sentry project; add `API_SENTRY_DSN` and `ADMIN_API_TOKEN` to the
     `production` environment; add the variables `SENTRY_PROJECT_API` and `MEDIA_BASE_URL`.
   - Check: a local `docker build --target runtime api` without the token succeeds and holds no
-    maps; with the merge to `main`, the CI log shows the upload. AC15 (maps).
+    maps; with the merge to `main`, the CI log shows the upload. AC15 (maps). With a real DSN, a
+    trace of a request whose Prisma call fails carries no text of the Prisma error in its spans.
   - Commit: `build(api): upload source maps to sentry at build time`
 
 ## PR 2 · `feat/0004-catalog-reference` · categories, brands, attributes

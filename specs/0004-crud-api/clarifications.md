@@ -101,6 +101,15 @@ personal data).
   cookies or bodies; an empty DSN turns it off. Only 5xx errors are reported.
 - E25. Source maps are uploaded at build time when the token is present, so stack traces point to the
   TypeScript source.
+- E33. Limits of Sentry's Developer plan (5k errors and 5M spans a month, shared with web) shape
+  what is sent. 503 `SERVICE_UNAVAILABLE` is a 5xx and is reported. `/health/*` requests are not
+  traced (compose polls liveness every 5 seconds); other requests keep 10%. A failed activity is
+  reported on its first attempt and on its last one (attempts used up or not retryable), not on
+  every retry. No rate limit on the api's DSN in Sentry. The 10% is fixed, not taken from an
+  incoming `sentry-trace` header (anyone could have every request traced), so a web → api trace may
+  be partial; 429 responses are not traced; traces go as whole transactions
+  (`traceLifecycle: 'static'`), so they pass the same cleanup as errors. `sendDefaultPii` of the
+  plan does not exist in Sentry 11: `dataCollection` turns the data off, as in web.
 
 ## web (moved to spec 0005 by E30)
 

@@ -89,7 +89,7 @@ Pinned on purpose; each "not newer" has a reason and a condition to move on.
 | TypeScript | 6.0                                                                                                 | 7.0 has no JS API (typescript-eslint, Nest Swagger plugin, Next need it). Move when they support 7                                                           |
 | ESLint     | 10                                                                                                  | React/a11y rules from `@eslint-react/eslint-plugin` and `eslint-plugin-jsx-a11y-x`; the classic plugins do not run on 10                                     |
 | Prisma     | 7.10                                                                                                | install as `prisma@7`: npm's `latest` tag points at an 8.0 release candidate                                                                                 |
-| api        | NestJS 12, PostgreSQL 18, Redis 8 (ioredis), Temporal (SDK 1.x), pino, socket.io, Vitest            |                                                                                                                                                              |
+| api        | NestJS 12, PostgreSQL 18, Redis 8 (ioredis), Temporal (SDK 1.x), pino, socket.io, Sentry, Vitest    |                                                                                                                                                              |
 | web        | Next 16, React 19, TanStack Query 5, Zustand 5, zod, SCSS, Base UI, Sentry, Vitest, Testing Library |                                                                                                                                                              |
 | Server     | Docker Compose, nginx + certbot, blue-green deploys                                                 | `deploy/README.md`                                                                                                                                           |
 
@@ -165,7 +165,7 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   each database constraint (a new constraint gets a row there). Path ids go through `UuidPipe`
   (`common/pipes/`). Services write references as scalar ids (`brandId`), not nested `connect`,
   so a missing one answers `RELATED_NOT_FOUND`. `/health/*` keep their own format (the deploy
-  reads them). e2e apps that send bodies or check errors are set up as `main.ts` does:
+  reads them). e2e apps that send bodies or check errors are set up as `server.ts` does:
   `AppExpressAdapter` (`common/http/`, else broken JSON is a plain 400) and
   `createValidationPipe()` (`common/validation/`); database e2e get such an app from
   `createTestApp()` (`test/support/test-app.ts`).

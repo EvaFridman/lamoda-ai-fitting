@@ -16,7 +16,7 @@ export interface TestApp {
 }
 
 // The whole api on a database of the test file's own (test-database.ts), for specs under
-// test/database/. Built like src/main.ts: the adapter keeps body-parser's errors apart, the pipe is
+// test/database/. Built like src/server.ts: the adapter keeps body-parser's errors apart, the pipe is
 // global. Redis and Temporal point at closed ports (vitest.config.ts). Call once per file in
 // `beforeAll` and `close()` in `afterAll`.
 export async function createTestApp(): Promise<TestApp> {
