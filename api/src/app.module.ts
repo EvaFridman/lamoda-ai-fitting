@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { SentryModule } from '@sentry/nestjs/setup';
 
 import { AppExceptionFilter } from './common/filters/app-exception.filter.js';
 import { CoreModule } from './core/core.module.js';
@@ -15,6 +16,9 @@ import { ThrottlingModule } from './throttling/throttling.module.js';
 // The HTTP and WebSocket server (src/main.ts).
 @Module({
   imports: [
+    // Names request traces by route. Errors are reported by AppExceptionFilter (5xx only), so
+    // Sentry's own SentryGlobalFilter is not used.
+    SentryModule.forRoot(),
     CoreModule,
     // In-process domain events, e.g. a service announcing a change that the gateway pushes to
     // browsers.

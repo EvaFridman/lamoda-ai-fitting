@@ -7,7 +7,7 @@ import { AppModule } from '../src/app.module.js';
 import { AppExpressAdapter } from '../src/common/http/app-express.adapter.js';
 import { createValidationPipe } from '../src/common/validation/validation-pipe.js';
 
-// Created like src/main.ts does: the adapter keeps body-parser's errors apart, the pipe is global.
+// Created like src/server.ts does: the adapter keeps body-parser's errors apart, the pipe is global.
 describe('error responses (e2e)', () => {
   let app: INestApplication;
 

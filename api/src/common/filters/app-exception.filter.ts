@@ -6,6 +6,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
+import * as Sentry from '@sentry/nestjs';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 import { toAppException } from './to-app-exception.js';
@@ -26,6 +27,8 @@ export class AppExceptionFilter implements ExceptionFilter {
 
     // /health/ready keeps terminus's own body: compose and deploy.sh read it (spec 0004 E22).
     if (isHealthCheckFailure(exception)) {
+      // Only deploy.sh reads /health/ready, so a failed check is a rare and useful report.
+      Sentry.captureException(exception);
       httpAdapter.reply(response, exception.getResponse(), exception.getStatus());
       return;
     }
@@ -35,6 +38,8 @@ export class AppExceptionFilter implements ExceptionFilter {
     if (status >= 500) {
       // The stack and the original error stay in the log; the body says only "internal error".
       this.logger.error({ err: loggable(exception), code: error.code }, error.message);
+      // Only 5xx go to Sentry (spec 0004 E24): a 4xx is the client's mistake, not a bug.
+      Sentry.captureException(exception, { tags: { 'error.code': error.code } });
     } else {
       this.logger.warn({ code: error.code, status }, error.message);
     }

@@ -19,6 +19,9 @@ x-api-env: &api-env
   THROTTLE_LIMIT: ${THROTTLE_LIMIT:-100}
   ADMIN_API_TOKEN: ${ADMIN_API_TOKEN:-}
   MEDIA_BASE_URL: ${MEDIA_BASE_URL:-http://localhost:${WEB_HOST_PORT:-3001}/media/}
+  # Empty turns Sentry off.
+  SENTRY_DSN: ${SENTRY_DSN:-}
+  SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-}
 
 # Sources over the image's copy. The anonymous volume keeps the Prisma client generated inside the
 # image visible under the mounted src/ (after a schema change: `docker compose up -d --build

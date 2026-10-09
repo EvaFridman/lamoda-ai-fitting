@@ -36,6 +36,12 @@ export const envSchema = z.object({
     .default(''),
   // Where image keys are served: http://localhost:3001/media/ locally (spec 0004 E8).
   MEDIA_BASE_URL: z.url({ protocol: /^https?$/ }),
+
+  // Sentry (spec 0004 E23): the api's own project, empty turns it off. Read by instrument.ts before
+  // Nest starts; validated here so a malformed DSN stops the process with its name.
+  SENTRY_DSN: z.union([z.literal(''), z.url({ protocol: /^https?$/ })]).default(''),
+  // Defaults to NODE_ENV.
+  SENTRY_ENVIRONMENT: z.string().default(''),
 });
 
 export type Env = z.infer<typeof envSchema>;
