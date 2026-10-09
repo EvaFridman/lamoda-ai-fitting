@@ -97,7 +97,9 @@ personal data).
 - E25. Source maps are uploaded at build time when the token is present, so stack traces point to the
   TypeScript source.
 
-## web
+## web (moved to spec 0005 by E30)
+
+Made for this spec and kept as the starting point of spec 0005, which may change them.
 
 - E26. A slice per entity: category, brand, product, attribute, user, fitting session, generation;
   each with its types and response checks written by hand (no code generation, no shared package).
@@ -113,3 +115,6 @@ personal data).
   catalog page spec; colour swatches for colour values (a new column and its data, added by a
   migration because the seed never changes existing rows) with the catalog page spec; a nested
   category tree.
+- E30. The web part (E22's Russian texts, E26–E28 and the backlog item "`apiFetch` paths") leaves
+  this spec for its own spec 0005, right after this one and before the catalog page; 0005 gets more
+  tasks of its own and no pages. This spec changes only the api, its deploy and its documentation.

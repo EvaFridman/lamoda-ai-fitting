@@ -1,6 +1,6 @@
 # 0004 CRUD api
 
-Status: accepted (2026-10-09).
+Status: accepted (2026-10-09); amended the same day: the web part moved to spec 0005 (E30).
 Decisions this spec relies on: [clarifications.md](clarifications.md) (referred to by their ids, e.g. E5).
 
 ## Goal
@@ -8,8 +8,8 @@ Decisions this spec relies on: [clarifications.md](clarifications.md) (referred 
 The database holds the catalog, users, fitting sessions and generations (spec 0002), but the api
 serves none of it. This spec opens every table through the api, adds the product list with the
 filters, sorting and filter counts the future catalog page needs (modelled on the lamoda.ru catalog,
-E13–E17), gives `web` typed access to that data in its `entities` layer, and connects the api to
-Sentry the way `web` already is.
+E13–E17), and connects the api to Sentry the way `web` already is. Typed access to this data from
+`web` is the next spec, 0005 (E30).
 
 ## In scope
 
@@ -27,22 +27,19 @@ Sentry the way `web` already is.
   catalog is readable by anyone (E1).
 - User input rules: phone and email are normalized, age 14 or more (E10, closes the backlog item
   "Auth input rules").
-- One error format for every error, with a machine-readable code; web shows its own Russian text for
-  each code (E18–E22).
+- One error format for every error, with a machine-readable code that a client can turn into its own
+  text (E18–E22).
 - Sentry in the api and the Temporal worker: errors and a share of request traces, readable stack
   traces, no personal data (E23–E25).
-- `web/src/entities`: a slice for each entity with its types and response checks; the catalog
-  entities also load their data on the server and in the browser (E26–E28). Paths built from input
-  are checked (closes the backlog item "`apiFetch` paths").
-- Backlog entries for what this spec leaves for the catalog page (E29).
+- Backlog entries for what this spec leaves for later specs (E29, E30).
 
 ## Non-goals
 
 - Login, user accounts and per-user access: a later auth spec. Until then the admin token is the
   only key (E1).
-- Pages and UI that use this data: the catalog and product pages are later specs. `greeting` stays
-  until then (E29).
-- Writing data from `web` (E27).
+- Any change in `web`: its `entities` layer, a browser client for the api and the Russian error texts
+  are spec 0005 (E30); the catalog and product pages come after it. `greeting` stays until then
+  (E29).
 - Colour swatches for colour values and a nested category tree (E29).
 - File upload and storage of photos (backlog "File storage").
 - Starting AI generations: the CRUD only records them (E12).
@@ -102,17 +99,9 @@ Sentry the way `web` already is.
   release, a stack trace that points to the TypeScript source, and no headers, cookies, bodies or
   user data; 4xx errors are not sent. With an empty DSN nothing is sent.
 
-### web
-
-- AC16. `web/src/entities` has a slice for each entity of E26 with its types; catalog data loads on
-  the server and through hooks in the browser, and a response of the wrong shape is reported as an
-  error, not passed on.
-- AC17. A known error code is shown with its Russian text; an unknown one with a general text.
-- AC18. The web image still builds with no api, Redis or database running.
-
 ### Checks
 
-- AC19. `npm run verify` passes, with tests for each criterion above that a test can check.
+- AC16. `npm run verify` passes, with tests for each criterion above that a test can check.
 
 ## Owner actions (Claude cannot do them)
 
