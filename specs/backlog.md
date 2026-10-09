@@ -20,6 +20,18 @@ removes it from this list. Found by the agents' first security audit and trial r
   `worker_connections`.
 - **Security headers.** Add `Content-Security-Policy: frame-ancestors 'none'` and
   `X-Content-Type-Options: nosniff` before login or photo upload land.
+- **Request rate limit at the edge.** The api's `ThrottlerGuard` is a Nest guard, so it runs only
+  on matched routes: requests to unknown routes are never counted, and each one still writes two
+  log lines (the request and the filter's warn). nginx has no `limit_req`. Add one for `/api/` and
+  `/socket.io/`; the owner decides the rate and burst per address, how visitors behind one NAT are
+  treated, a separate limit for writes, and how it sits with the api's own limit.
+
+## api
+
+- **Cap on validation details.** With `forbidNonWhitelisted`, every unknown field of a body is one
+  entry of `details`: an entry is about 12 times the size of its key, so a 100 KB body of short
+  keys answers about 1.2 MB. Cap `details` (e.g. 50 entries, with the count of the rest); it changes
+  the error contract that web's error handling (spec 0005) reads, so decide it there.
 
 ## web
 
