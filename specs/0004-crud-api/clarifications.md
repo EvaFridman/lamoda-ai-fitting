@@ -43,6 +43,13 @@ personal data).
   has chosen is not stored: web takes it from the page address by slug and highlights it there.
 - E41. Writes of every resource: create answers 201 with the record, update 200 with the record,
   delete 204 with no body.
+- E42. Attributes and their values (T8) return only their own columns: an attribute has no
+  `values[]` (they come paged from `/attributes/:id/values`; the filters take them from the filter
+  counts), a value adds `attributeId`. Attributes are listed by name, then id; values by value, then
+  id. `/attributes/:id/values` with a missing attribute answers 404 `NOT_FOUND` on list and create.
+  A value read, updated or deleted under an attribute it does not belong to answers 404
+  `NOT_FOUND`. A value never moves to another attribute: an update takes only `value`, so
+  `attributeId` in the body is 400. `null` and an empty body follow E40.
 
 ## Validation
 

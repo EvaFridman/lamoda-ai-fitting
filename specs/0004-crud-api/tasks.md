@@ -95,7 +95,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Check: database e2e; deleting a category or brand with products → 409 `IN_USE`; duplicate
       slug or name → 409 `ALREADY_EXISTS`. AC1, AC2, AC3, AC6 (part).
       Commit: `feat(api): serve categories and brands`
-- [ ] **T8. Attributes and their values.** `/attributes` and `/attributes/:id/values`.
+- [x] **T8. Attributes and their values.** `/attributes` and `/attributes/:id/values`.
       Check: database e2e; a value in use → 409; a duplicate value of one attribute → 409.
       AC2, AC6 (part).
       Commit: `feat(api): serve attributes and their values`
