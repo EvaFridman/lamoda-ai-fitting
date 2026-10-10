@@ -126,6 +126,18 @@ name}, value{id, value}, createdAt}`. Their lists are paged (E5) in the order of
     rating last. No other tie keys.
   - An empty scalar parameter (`?q=`, `?minPrice=`, `?sort=`) is 400, as `isActive` in E39; an
     unknown `sort` or parameter is 400.
+- E46. The filter counts (T12):
+  - The query takes the list's filters only (E45); `limit`, `offset` and `sort` are 400.
+  - The answer: `total`, `discounted`, `price` (`{ min, max }` or `null`), `categories` and `brands`
+    (`[{ id, name, count }]`), `sizes` (`[{ size, count }]`), `attributes`
+    (`[{ id, name, values: [{ id, value, count }] }]`).
+  - As E16, each count drops its own filter: `price` is counted without `minPrice` and `maxPrice`
+    (the slider keeps its bounds), `discounted` without `hasDiscount`; `total` uses all filters and
+    equals the list's `total`. `price` is `null` when no product matches.
+  - A value is listed when its count is above 0 or it is chosen (a chosen value stays, with 0); an
+    attribute with no listed value is left out. Inactive categories count like the others.
+  - Order: categories by `sortOrder`, name, id; brands and attributes by name, id; values by value,
+    id (E39, E42); sizes by the size text (no size order exists yet: backlog).
 
 ## Errors
 

@@ -1,4 +1,4 @@
-import type { Prisma } from '../../generated/prisma/client.js';
+import { Prisma } from '../../generated/prisma/client.js';
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import type { ProductFilterQueryDto } from '../dto/product-filter-query.dto.js';
 
@@ -42,13 +42,12 @@ export function toProductFilter(
   query: ProductFilterQueryDto,
   valueAttributes: ReadonlyMap<string, string>,
 ): ProductFilter {
+  const valueIds = uniqueIds(query.attributeValueId);
   return {
-    categoryIds: unique(query.categoryId),
-    brandIds: unique(query.brandId),
+    categoryIds: uniqueIds(query.categoryId),
+    brandIds: uniqueIds(query.brandId),
     sizes: unique(query.size),
-    attributeGroups:
-      query.attributeValueId &&
-      groupByAttribute([...new Set(query.attributeValueId)], valueAttributes),
+    attributeGroups: valueIds && groupByAttribute(valueIds, valueAttributes),
     q: query.q,
     minPrice: query.minPrice,
     maxPrice: query.maxPrice,
@@ -80,6 +79,12 @@ function groupByAttribute(
 
 function unique(values: string[] | undefined): string[] | undefined {
   return values && [...new Set(values)];
+}
+
+// A uuid in any letter case is one value; the database returns ids in lower case, so the lookup of
+// `valueAttributes` needs them so too.
+function uniqueIds(values: string[] | undefined): string[] | undefined {
+  return unique(values?.map((value) => value.toLowerCase()));
 }
 
 // `contains` becomes ILIKE with the text as is, so `%` and `_` would be wildcards. PostgreSQL's
@@ -116,4 +121,54 @@ export function toProductWhere(filter: ProductFilter): Prisma.ProductWhereInput 
     and.push({ discount: filter.hasDiscount ? { gt: 0 } : { equals: 0 } });
   }
   return { AND: and };
+}
+
+// The same filters as `toProductWhere`, as a condition on `products p` for the filter counts. Every
+// value is a parameter; lists go through `Prisma.join` (plan "Facets").
+export function toProductSql(filter: ProductFilter): Prisma.Sql {
+  const and: Prisma.Sql[] = [];
+  if (filter.categoryIds) {
+    and.push(Prisma.sql`p.category_id IN (${joinOrNull(filter.categoryIds)})`);
+  }
+  if (filter.brandIds) {
+    and.push(Prisma.sql`p.brand_id IN (${joinOrNull(filter.brandIds)})`);
+  }
+  if (filter.sizes) {
+    and.push(Prisma.sql`EXISTS (
+      SELECT 1 FROM product_variations v
+      WHERE v.product_id = p.id AND v.stock > 0 AND v.size IN (${joinOrNull(filter.sizes)}))`);
+  }
+  for (const group of filter.attributeGroups ?? []) {
+    and.push(attributeGroupSql(group));
+  }
+  if (filter.q !== undefined) {
+    and.push(Prisma.sql`p.name ILIKE '%' || ${escapeLike(filter.q)} || '%'`);
+  }
+  // As text, so the comparison stays exact in numeric.
+  if (filter.minPrice !== undefined) {
+    and.push(Prisma.sql`p.price >= ${String(filter.minPrice)}::numeric`);
+  }
+  if (filter.maxPrice !== undefined) {
+    and.push(Prisma.sql`p.price <= ${String(filter.maxPrice)}::numeric`);
+  }
+  if (filter.hasDiscount !== undefined) {
+    and.push(filter.hasDiscount ? Prisma.sql`p.discount > 0` : Prisma.sql`p.discount = 0`);
+  }
+  return and.length === 0 ? Prisma.sql`TRUE` : Prisma.join(and, ' AND ');
+}
+
+// A product with one of the group's values. A group of an unknown value matches none (E45): FALSE,
+// so 50 unknown ids do not add 50 subqueries to every count.
+export function attributeGroupSql(group: AttributeGroup): Prisma.Sql {
+  if (group.attributeId === null) {
+    return Prisma.sql`FALSE`;
+  }
+  return Prisma.sql`EXISTS (
+    SELECT 1 FROM product_attribute_values pav
+    WHERE pav.product_id = p.id AND pav.attribute_value_id IN (${joinOrNull(group.valueIds)}))`;
+}
+
+// `Prisma.join` throws on an empty list; `IN (NULL)` matches nothing, as Prisma's `in: []`.
+export function joinOrNull(values: readonly string[]): Prisma.Sql {
+  return values.length === 0 ? Prisma.sql`NULL` : Prisma.join(values);
 }

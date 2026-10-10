@@ -6,10 +6,13 @@ import type { Paginated } from '../common/pagination/paginated.js';
 import type { Env } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { CreateProductDto } from './dto/create-product.dto.js';
+import type { ProductFacetsDto } from './dto/product-facets-response.dto.js';
+import type { ProductFilterQueryDto } from './dto/product-filter-query.dto.js';
 import type { ProductListQueryDto } from './dto/product-list-query.dto.js';
 import type { ProductDetailDto, ProductListItemDto } from './dto/product-response.dto.js';
 import type { UpdateProductDto } from './dto/update-product.dto.js';
 import { loadValueAttributes, toProductFilter, toProductWhere } from './listing/product-filter.js';
+import { countFacets } from './listing/product-facets.js';
 import { PRODUCT_ORDER } from './listing/product-sort.js';
 import { DETAIL_INCLUDE, LIST_ITEM_INCLUDE, toDetail, toListItem } from './product-mapper.js';
 
@@ -42,6 +45,11 @@ export class ProductsService {
       this.prisma.product.count({ where }),
     ]);
     return { items: rows.map((row) => toListItem(row, this.mediaBaseUrl)), total };
+  }
+
+  async facets(query: ProductFilterQueryDto): Promise<ProductFacetsDto> {
+    const valueAttributes = await loadValueAttributes(this.prisma, query.attributeValueId);
+    return countFacets(this.prisma, toProductFilter(query, valueAttributes));
   }
 
   async get(id: string): Promise<ProductDetailDto> {

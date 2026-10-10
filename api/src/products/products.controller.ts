@@ -21,6 +21,8 @@ import { AdminOnly } from '../common/guards/admin.guard.js';
 import { ApiPaginatedResponse, type Paginated } from '../common/pagination/paginated.js';
 import { UuidParam } from '../common/pipes/uuid.pipe.js';
 import { CreateProductDto } from './dto/create-product.dto.js';
+import { ProductFacetsDto } from './dto/product-facets-response.dto.js';
+import { ProductFilterQueryDto } from './dto/product-filter-query.dto.js';
 import { ProductListQueryDto } from './dto/product-list-query.dto.js';
 import { ProductDetailDto, ProductListItemDto } from './dto/product-response.dto.js';
 import { UpdateProductDto } from './dto/update-product.dto.js';
@@ -36,6 +38,18 @@ export class ProductsController {
   @ApiPaginatedResponse(ProductListItemDto)
   list(@Query() query: ProductListQueryDto): Promise<Paginated<ProductListItemDto>> {
     return this.products.list(query);
+  }
+
+  // Declared before `:id`, which would take `facets` for an id.
+  @Get('facets')
+  @ApiOperation({
+    description:
+      'Filter counts: for each category, brand, size in stock and attribute value, the number of ' +
+      'products the list would return with that value chosen as well. Takes the list filters only.',
+  })
+  @ApiOkResponse({ type: ProductFacetsDto })
+  facets(@Query() query: ProductFilterQueryDto): Promise<ProductFacetsDto> {
+    return this.products.facets(query);
   }
 
   @Get(':id')

@@ -90,6 +90,9 @@ removes it from this list. Found by the agents' first security audit and trial r
 
 - **`npm audit` highs.** The `braces` chain in the root lint tooling (stylelint, Next's ESLint
   plugin) and `deepmerge-ts` / `mysql2` through Prisma in `api`. Check for fixed releases.
+- **pg 9 and Prisma transactions.** `@prisma/adapter-pg` sends parallel queries of one transaction
+  to one `pg` client; pg 8 queues them with a DeprecationWarning, pg 9 drops the queue. Before
+  moving to pg 9, check that the adapter runs them in turn (the list's e2e would fail otherwise).
 
 ## Data and media
 
@@ -107,8 +110,13 @@ Left for later specs by `0002-database-schema` (its `clarifications.md` has the 
   spec; the data goes in a migration, because the seed never changes existing rows (0004 E29).
 - **Category tree.** Categories are a flat list (0002 C4); the catalog's left-hand tree is nested
   (0004 E29).
+- **Size order.** Sizes are free text, so the filter counts list them by text (`L, M, S, XL`; 0004
+  E46); the catalog's size filter needs the clothing order.
 - **Cache for filter counts.** Spec 0004 computes the product filter counts on every request, which
-  holds for the small demo catalog; cache them (Redis) if the catalog grows.
+  holds for the small demo catalog; cache them (Redis) if the catalog grows. One request runs 7
+  queries in parallel, and the api's pg pool has the default 10 connections with no
+  `statement_timeout`, so a few slow public requests could hold the whole pool, `/health` included
+  (0004 T12 security review): with the cache, set a pool size and a statement timeout from env.
 - **Product list cost.** The sorts of 0004 E14 and the name search scan the whole table: `price`,
   `discount`, `rating` and `created_at` have no indexes, `q` is `ILIKE '%…%'`, and `offset` goes up
   to 2^31, so a deep page sorts everything. Free on the demo catalog; if the catalog grows, cap the

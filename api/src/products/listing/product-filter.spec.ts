@@ -3,9 +3,12 @@ import { describe, expect, it, vi } from 'vitest';
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import { ProductListQueryDto } from '../dto/product-list-query.dto.js';
 import {
+  attributeGroupSql,
   escapeLike,
+  joinOrNull,
   loadValueAttributes,
   toProductFilter,
+  toProductSql,
   toProductWhere,
 } from './product-filter.js';
 
@@ -68,6 +71,28 @@ describe('toProductFilter: attribute groups', () => {
     ]);
   });
 
+  // The database ids are lower case; @IsUUID accepts any case, and a uuid is one value in either.
+  it('groups an existing value given in upper case under its attribute', () => {
+    const id = '0a1b2c3d-0000-4000-8000-00000000000a';
+    const filter = toProductFilter(
+      query({ attributeValueId: [id.toUpperCase()] }),
+      new Map([[id, 'a1']]),
+    );
+
+    expect(filter.attributeGroups).toHaveLength(1);
+    expect(filter.attributeGroups?.[0]?.attributeId).toBe('a1');
+  });
+
+  it('takes one value id in lower and upper case as one value', () => {
+    const id = '0a1b2c3d-0000-4000-8000-00000000000a';
+    const filter = toProductFilter(
+      query({ attributeValueId: [id, id.toUpperCase()] }),
+      new Map([[id, 'a1']]),
+    );
+
+    expect(filter.attributeGroups).toEqual([{ attributeId: 'a1', valueIds: [id] }]);
+  });
+
   it('leaves the groups out without the parameter', () => {
     expect(toProductFilter(query(), valueAttributes).attributeGroups).toBeUndefined();
   });
@@ -85,6 +110,18 @@ describe('toProductFilter: other filters', () => {
       brandIds: ['b', 'd'],
       sizes: ['M'],
     });
+  });
+
+  it('takes a category or brand uuid in lower and upper case as one value', () => {
+    const c = '0a1b2c3d-0000-4000-8000-00000000000c';
+    const b = '0a1b2c3d-0000-4000-8000-00000000000b';
+    const filter = toProductFilter(
+      query({ categoryId: [c, c.toUpperCase()], brandId: [b.toUpperCase(), b] }),
+      new Map(),
+    );
+
+    expect(filter.categoryIds).toHaveLength(1);
+    expect(filter.brandIds).toHaveLength(1);
   });
 
   it('copies the scalar filters', () => {
@@ -132,6 +169,100 @@ describe('escapeLike', () => {
     ['', ''],
   ])('turns %j into %j', (text, expected) => {
     expect(escapeLike(text)).toBe(expected);
+  });
+});
+
+describe('joinOrNull', () => {
+  it('is NULL for an empty list, which matches nothing in IN', () => {
+    const sql = joinOrNull([]);
+
+    expect(sql.sql).toBe('NULL');
+    expect(sql.values).toEqual([]);
+  });
+
+  it('turns every value into a parameter', () => {
+    const sql = joinOrNull(['a', 'b']);
+
+    expect(sql.sql).toBe('?,?');
+    expect(sql.values).toEqual(['a', 'b']);
+  });
+});
+
+describe('toProductSql', () => {
+  it('is TRUE without filters, also when every field is undefined', () => {
+    expect(toProductSql({}).sql).toBe('TRUE');
+    expect(toProductSql({ q: undefined, hasDiscount: undefined }).sql).toBe('TRUE');
+  });
+
+  it('keeps the values out of the text of the query', () => {
+    const sql = toProductSql({
+      categoryIds: ['c1'],
+      brandIds: ['b1', 'b2'],
+      sizes: ["M'; DROP TABLE products; --"],
+      attributeGroups: [{ attributeId: 'a1', valueIds: ['v1'] }],
+      q: '50%',
+      minPrice: 10.5,
+      maxPrice: 20,
+    });
+
+    expect(sql.values).toEqual([
+      'c1',
+      'b1',
+      'b2',
+      "M'; DROP TABLE products; --",
+      'v1',
+      '50\\%',
+      '10.5',
+      '20',
+    ]);
+    expect(sql.sql).not.toContain('DROP');
+    expect(sql.sql).not.toContain('c1');
+    expect(sql.sql).not.toContain('50');
+  });
+
+  it('matches nothing for an empty list, as Prisma does with in: []', () => {
+    const sql = toProductSql({ categoryIds: [], sizes: [] });
+
+    expect(sql.sql).toContain('IN (NULL)');
+    expect(sql.values).toEqual([]);
+  });
+
+  it('writes a discount filter without a parameter', () => {
+    expect(toProductSql({ hasDiscount: true }).sql).toBe('p.discount > 0');
+    expect(toProductSql({ hasDiscount: false }).sql).toBe('p.discount = 0');
+  });
+
+  it('makes one condition per attribute group, ANDed', () => {
+    const sql = toProductSql({
+      attributeGroups: [
+        { attributeId: 'a1', valueIds: ['v1', 'v2'] },
+        { attributeId: null, valueIds: ['x'] },
+      ],
+    });
+
+    expect(sql.values).toEqual(['v1', 'v2']);
+    expect(sql.sql.match(/EXISTS/g)).toHaveLength(1);
+    expect(sql.sql).toContain(' AND FALSE');
+  });
+
+  it('skips a filter that is undefined', () => {
+    expect(toProductSql({ categoryIds: undefined, minPrice: undefined }).sql).toBe('TRUE');
+  });
+});
+
+describe('attributeGroupSql', () => {
+  it('passes the value ids as parameters', () => {
+    const sql = attributeGroupSql({ attributeId: 'a1', valueIds: ['v1', 'v2'] });
+
+    expect(sql.values).toEqual(['v1', 'v2']);
+    expect(sql.sql).not.toContain('v1');
+  });
+
+  it('is FALSE without parameters for the group of an unknown value', () => {
+    const sql = attributeGroupSql({ attributeId: null, valueIds: ['x'] });
+
+    expect(sql.sql).toBe('FALSE');
+    expect(sql.values).toEqual([]);
   });
 });
 

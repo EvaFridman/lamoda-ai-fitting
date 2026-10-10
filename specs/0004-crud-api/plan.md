@@ -172,7 +172,8 @@ category{id,name,slug}, image: {url} | null, price, discount, finalPrice, rating
   group:
   - `categories`, `brands`, `sizes` (in stock);
   - one query for all attributes, which excludes, per attribute, only that attribute's group;
-  - `price {min,max}`, `discounted`, `total` with all filters.
+  - `price {min,max}` without the price filters, `discounted` without `hasDiscount`, `total` with
+    all filters (E46).
 
   Every query is a `$queryRaw` tagged template with `Prisma.join` for lists. No string building.
   Counts are `count(DISTINCT p.id)` and come back as numbers.
