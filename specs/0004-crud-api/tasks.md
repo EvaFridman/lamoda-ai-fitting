@@ -102,7 +102,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## PR 3 · `feat/0004-products` · products and their parts
 
-- [ ] **T9. Products.** CRUD with the list item and detail of plan "Resources"; `image.url` and
+- [x] **T9. Products.** CRUD with the list item and detail of plan "Resources"; `image.url` and
       `finalPrice`; the Swagger note on DELETE and the seed. Removes "Catalog API" from the backlog.
       Check: database e2e on shapes, Decimal as numbers, cascade on delete, 409 for a product in a
       generation. AC2, AC4, AC6.

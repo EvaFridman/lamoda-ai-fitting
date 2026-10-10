@@ -11,6 +11,7 @@ import { CoreModule } from './core/core.module.js';
 import { HealthModule } from './health/health.module.js';
 import { HelloModule } from './hello/hello.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
+import { ProductsModule } from './products/products.module.js';
 import { RealtimeModule } from './realtime/realtime.module.js';
 import { RedisModule } from './redis/redis.module.js';
 import { TemporalClientModule } from './temporal/temporal-client.module.js';
@@ -36,6 +37,7 @@ import { ThrottlingModule } from './throttling/throttling.module.js';
     CategoriesModule,
     BrandsModule,
     AttributesModule,
+    ProductsModule,
   ],
   // Every HTTP error answers one format with a code (spec 0004 E18–E22).
   providers: [{ provide: APP_FILTER, useClass: AppExceptionFilter }],
