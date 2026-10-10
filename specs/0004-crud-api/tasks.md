@@ -85,7 +85,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## PR 2 · `feat/0004-catalog-reference` · categories, brands, attributes
 
-- [ ] **T6. Shared catalog pieces.** `common/validation/rules.ts` (the CHECK rules of
+- [x] **T6. Shared catalog pieces.** `common/validation/rules.ts` (the CHECK rules of
       `migration.sql`), `common/media/media-url.ts`, `common/price/final-price.ts`, the Decimal
       mapping helper.
       Check: unit `toMediaUrl` (base with and without `/`, a key escaping the base) and
