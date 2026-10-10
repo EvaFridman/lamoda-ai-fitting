@@ -162,8 +162,8 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   Codes are `api/src/common/errors/error-codes.ts`; throw `AppException` or its subclasses
   (`common/errors/app.exception.ts`), and let Prisma errors through: `AppExceptionFilter`
   (`common/filters/`) maps them, with `common/errors/constraint-fields.ts` naming the field of
-  each database constraint (a new constraint gets a row there). Path ids go through `UuidPipe`
-  (`common/pipes/`). Services write references as scalar ids (`brandId`), not nested `connect`,
+  each database constraint (a new constraint gets a row there). Path ids use `@UuidParam('id')`
+  (`common/pipes/`): `UuidPipe` plus the uuid format in Swagger. Services write references as scalar ids (`brandId`), not nested `connect`,
   so a missing one answers `RELATED_NOT_FOUND`. `/health/*` keep their own format (the deploy
   reads them). e2e apps that send bodies or check errors are set up as `server.ts` does:
   `AppExpressAdapter` (`common/http/`, else broken JSON is a plain 400) and

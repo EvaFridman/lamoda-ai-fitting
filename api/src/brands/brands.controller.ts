@@ -5,7 +5,6 @@ import {
   Get,
   HttpCode,
   HttpStatus,
-  Param,
   Patch,
   Post,
   Query,
@@ -15,7 +14,7 @@ import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiTags } from
 import { AdminOnly } from '../common/guards/admin.guard.js';
 import { ApiPaginatedResponse, type Paginated } from '../common/pagination/paginated.js';
 import { PaginationQueryDto } from '../common/pagination/pagination-query.dto.js';
-import { UuidPipe } from '../common/pipes/uuid.pipe.js';
+import { UuidParam } from '../common/pipes/uuid.pipe.js';
 import { BrandsService } from './brands.service.js';
 import { BrandResponseDto } from './dto/brand-response.dto.js';
 import { CreateBrandDto } from './dto/create-brand.dto.js';
@@ -35,7 +34,7 @@ export class BrandsController {
 
   @Get(':id')
   @ApiOkResponse({ type: BrandResponseDto })
-  get(@Param('id', UuidPipe) id: string): Promise<BrandResponseDto> {
+  get(@UuidParam('id') id: string): Promise<BrandResponseDto> {
     return this.brands.get(id);
   }
 
@@ -49,10 +48,7 @@ export class BrandsController {
   @Patch(':id')
   @AdminOnly()
   @ApiOkResponse({ type: BrandResponseDto })
-  update(
-    @Param('id', UuidPipe) id: string,
-    @Body() dto: UpdateBrandDto,
-  ): Promise<BrandResponseDto> {
+  update(@UuidParam('id') id: string, @Body() dto: UpdateBrandDto): Promise<BrandResponseDto> {
     return this.brands.update(id, dto);
   }
 
@@ -60,7 +56,7 @@ export class BrandsController {
   @AdminOnly()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiNoContentResponse()
-  delete(@Param('id', UuidPipe) id: string): Promise<void> {
+  delete(@UuidParam('id') id: string): Promise<void> {
     return this.brands.delete(id);
   }
 }

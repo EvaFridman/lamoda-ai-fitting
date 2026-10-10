@@ -5,7 +5,6 @@ import {
   Get,
   HttpCode,
   HttpStatus,
-  Param,
   Patch,
   Post,
   Query,
@@ -15,7 +14,7 @@ import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiTags } from
 import { AdminOnly } from '../common/guards/admin.guard.js';
 import { ApiPaginatedResponse, type Paginated } from '../common/pagination/paginated.js';
 import { PaginationQueryDto } from '../common/pagination/pagination-query.dto.js';
-import { UuidPipe } from '../common/pipes/uuid.pipe.js';
+import { UuidParam } from '../common/pipes/uuid.pipe.js';
 import { AttributeValuesService } from './attribute-values.service.js';
 import { AttributeValueResponseDto } from './dto/attribute-value-response.dto.js';
 import { CreateAttributeValueDto } from './dto/create-attribute-value.dto.js';
@@ -31,7 +30,7 @@ export class AttributeValuesController {
   @Get()
   @ApiPaginatedResponse(AttributeValueResponseDto)
   list(
-    @Param('id', UuidPipe) attributeId: string,
+    @UuidParam('id') attributeId: string,
     @Query() query: PaginationQueryDto,
   ): Promise<Paginated<AttributeValueResponseDto>> {
     return this.values.list(attributeId, query);
@@ -40,8 +39,8 @@ export class AttributeValuesController {
   @Get(':valueId')
   @ApiOkResponse({ type: AttributeValueResponseDto })
   get(
-    @Param('id', UuidPipe) attributeId: string,
-    @Param('valueId', UuidPipe) id: string,
+    @UuidParam('id') attributeId: string,
+    @UuidParam('valueId') id: string,
   ): Promise<AttributeValueResponseDto> {
     return this.values.get(attributeId, id);
   }
@@ -50,7 +49,7 @@ export class AttributeValuesController {
   @AdminOnly()
   @ApiCreatedResponse({ type: AttributeValueResponseDto })
   create(
-    @Param('id', UuidPipe) attributeId: string,
+    @UuidParam('id') attributeId: string,
     @Body() dto: CreateAttributeValueDto,
   ): Promise<AttributeValueResponseDto> {
     return this.values.create(attributeId, dto);
@@ -60,8 +59,8 @@ export class AttributeValuesController {
   @AdminOnly()
   @ApiOkResponse({ type: AttributeValueResponseDto })
   update(
-    @Param('id', UuidPipe) attributeId: string,
-    @Param('valueId', UuidPipe) id: string,
+    @UuidParam('id') attributeId: string,
+    @UuidParam('valueId') id: string,
     @Body() dto: UpdateAttributeValueDto,
   ): Promise<AttributeValueResponseDto> {
     return this.values.update(attributeId, id, dto);
@@ -71,10 +70,7 @@ export class AttributeValuesController {
   @AdminOnly()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiNoContentResponse()
-  delete(
-    @Param('id', UuidPipe) attributeId: string,
-    @Param('valueId', UuidPipe) id: string,
-  ): Promise<void> {
+  delete(@UuidParam('id') attributeId: string, @UuidParam('valueId') id: string): Promise<void> {
     return this.values.delete(attributeId, id);
   }
 }
