@@ -30,11 +30,19 @@ personal data).
 - E5. Lists are paged by limit and offset and return the items and the total. Default page 60
   (as on lamoda), maximum 100.
 - E6. Money and rating are JSON numbers.
-- E7. Product in a list: its own fields, brand and category (id, name, slug), the first image, price,
-  discount, price after the discount, rating. One product adds all images, sizes with stock and
-  attribute values. Other resources return their own fields and the ids of related rows.
+- E7. Product in a list: its own fields, brand (id, name; brands have no slug) and category (id,
+  name, slug), the first image, price, discount, price after the discount, rating. One product adds
+  all images, sizes with stock and attribute values. Other resources return their own fields and the ids of related rows.
 - E8. Responses carry full image addresses built from `MEDIA_BASE_URL` and the key (backlog "Catalog
   API"), and the price after the discount, rounded down to whole rubles.
+- E39. Categories and brands (T7) return only their own columns: no product count or product ids
+  (a category's products come from the product list, counts from the filter counts). Categories are
+  listed by `sortOrder`, then name, then id; brands by name, then id. `?isActive` takes only `true`
+  or `false` (anything else is 400); without it the list has every category. `isActive` means the
+  category is shown on the site (web builds its menu from `?isActive=true`). The category a visitor
+  has chosen is not stored: web takes it from the page address by slug and highlights it there.
+- E41. Writes of every resource: create answers 201 with the record, update 200 with the record,
+  delete 204 with no body.
 
 ## Validation
 
@@ -46,6 +54,10 @@ personal data).
   same time (0002 C15).
 - E12. Generations: full CRUD for the admin; status, result and error must agree (0002 C12). Writing
   a generation does not start an AI workflow.
+- E40. Categories: `isActive` is required on create (no default, as in the database). `description`
+  is any text up to 5000 characters with no NUL (line breaks and outer spaces allowed); `null` on
+  create means no description, in an update it clears it; `null` in any other field is 400. An update with an empty body answers 200 with
+  the record unchanged.
 
 ## Product list
 

@@ -91,7 +91,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Check: unit `toMediaUrl` (base with and without `/`, a key escaping the base) and
       `finalPrice` (1999.99 / 15 → 1699; 0 and 100). AC5.
       Commit: `feat(api): build media urls and the price after the discount`
-- [ ] **T7. Categories and brands.** Both resources; `?isActive` on categories.
+- [x] **T7. Categories and brands.** Both resources; `?isActive` on categories.
       Check: database e2e; deleting a category or brand with products → 409 `IN_USE`; duplicate
       slug or name → 409 `ALREADY_EXISTS`. AC1, AC2, AC3, AC6 (part).
       Commit: `feat(api): serve categories and brands`

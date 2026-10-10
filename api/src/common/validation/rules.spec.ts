@@ -1,10 +1,15 @@
+import { IsOptional } from 'class-validator';
 import { describe, expect, it } from 'vitest';
 
 import { ValidationError } from '../errors/app.exception.js';
 import {
+  DESCRIPTION_MAX_LENGTH,
+  IsBooleanQuery,
+  IsDescription,
   IsDiscount,
   IsImageKey,
   IsNonNegativeInt,
+  IsOmittable,
   IsPrice,
   IsRating,
   IsSlug,
@@ -47,10 +52,29 @@ class IntDto {
   value!: number;
 }
 
+class DescriptionDto {
+  @IsDescription()
+  value!: string;
+}
+class OmittableDto {
+  @IsOmittable()
+  @IsNonNegativeInt()
+  value?: number;
+}
+class QueryDto {
+  @IsOptional()
+  @IsBooleanQuery()
+  value?: boolean;
+}
+
 const pipe = createValidationPipe();
 
-function parse(metatype: new () => object, body: unknown): Promise<unknown> {
-  return pipe.transform(body, { type: 'body', metatype });
+function parse(
+  metatype: new () => object,
+  body: unknown,
+  type: 'body' | 'query' = 'body',
+): Promise<unknown> {
+  return pipe.transform(body, { type, metatype });
 }
 
 async function codesOf(metatype: new () => object, body: unknown): Promise<string[]> {
@@ -288,4 +312,81 @@ describe('IsNonNegativeInt', () => {
   it.each(['1', null, Number.NaN])('refuses %j with IS_INT', async (value) => {
     expect(await codesOf(IntDto, { value })).toContain('value:IS_INT');
   });
+});
+
+describe('IsDescription', () => {
+  it('has the maximum 5000', () => {
+    expect(DESCRIPTION_MAX_LENGTH).toBe(5000);
+  });
+
+  it.each(['', ' a ', 'line one\nline two\r\n', '\ttabbed', 'Плать'])(
+    'accepts %j',
+    async (value) => {
+      await expect(parse(DescriptionDto, { value })).resolves.toMatchObject({ value });
+    },
+  );
+
+  it('accepts 5000 code points and refuses 5001 with MAX_LENGTH', async () => {
+    const wide = (n: number): string => String.fromCodePoint(0x1f600).repeat(n);
+
+    await expect(parse(DescriptionDto, { value: wide(5000) })).resolves.toBeDefined();
+    expect(await codesOf(DescriptionDto, { value: wide(5001) })).toEqual(['value:MAX_LENGTH']);
+  });
+
+  it('refuses NUL anywhere with MATCHES', async () => {
+    expect(await codesOf(DescriptionDto, { value: 'a\x00b' })).toEqual(['value:MATCHES']);
+  });
+
+  it.each([5, null, undefined])('refuses %j with IS_STRING', async (value) => {
+    expect(await codesOf(DescriptionDto, { value })).toContain('value:IS_STRING');
+  });
+});
+
+describe('IsOmittable', () => {
+  it('accepts a missing field', async () => {
+    await expect(parse(OmittableDto, {})).resolves.toBeDefined();
+  });
+
+  it('accepts undefined', async () => {
+    await expect(parse(OmittableDto, { value: undefined })).resolves.toBeDefined();
+  });
+
+  it('validates a value that is present', async () => {
+    await expect(parse(OmittableDto, { value: 3 })).resolves.toMatchObject({ value: 3 });
+    expect(await codesOf(OmittableDto, { value: -1 })).toEqual(['value:MIN']);
+  });
+
+  it('refuses null, which IsOptional would let through', async () => {
+    expect(await codesOf(OmittableDto, { value: null })).toContain('value:IS_INT');
+  });
+});
+
+describe('IsBooleanQuery', () => {
+  it('turns "true" and "false" into booleans', async () => {
+    await expect(parse(QueryDto, { value: 'true' }, 'query')).resolves.toMatchObject({
+      value: true,
+    });
+    await expect(parse(QueryDto, { value: 'false' }, 'query')).resolves.toMatchObject({
+      value: false,
+    });
+  });
+
+  it('accepts a missing parameter', async () => {
+    await expect(parse(QueryDto, {}, 'query')).resolves.toBeDefined();
+  });
+
+  it.each(['yes', '1', '0', '', 'TRUE', ' true', ['true', 'false'], ['true']])(
+    'refuses %j with IS_BOOLEAN',
+    async (value) => {
+      const error: unknown = await parse(QueryDto, { value }, 'query').then(
+        () => undefined,
+        (reason: unknown) => reason,
+      );
+      expect(error).toBeInstanceOf(ValidationError);
+      const details = (error as ValidationError).body.error.details;
+      expect(details.map((detail) => `${detail.field}:${detail.code}`)).toEqual([
+        'value:IS_BOOLEAN',
+      ]);
+    },
+  );
 });
