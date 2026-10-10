@@ -21,6 +21,7 @@ import {
 // Column lengths (schema.prisma).
 export const NAME_MAX_LENGTH = 255;
 export const ATTRIBUTE_NAME_MAX_LENGTH = 100;
+export const ATTRIBUTE_VALUE_MAX_LENGTH = 255;
 export const SIZE_MAX_LENGTH = 20;
 export const SLUG_MAX_LENGTH = 255;
 export const IMAGE_KEY_MAX_LENGTH = 255;
