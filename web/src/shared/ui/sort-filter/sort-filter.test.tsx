@@ -11,6 +11,16 @@ const options = [
   { value: 'price-desc', label: 'Сначала дороже' },
 ];
 
+// Tab to the chip and open it with Enter. Base UI moves the focus into the popup after the open
+// renders, not within the key press, so wait for it: under load the next key would reach the chip.
+async function openWithKeyboard(user: ReturnType<typeof userEvent.setup>) {
+  await user.tab();
+  await user.keyboard('{Enter}');
+  await vi.waitFor(() =>
+    expect(screen.getByRole('radio', { name: 'Подобрали для вас' })).toHaveFocus(),
+  );
+}
+
 function Harness({ onValueChange }: { onValueChange?: (value: string) => void }) {
   const [sort, setSort] = useState('popularity');
   const title = options.find((option) => option.value === sort)!.label;
@@ -95,10 +105,8 @@ describe('SortFilter', () => {
     const onValueChange = vi.fn();
     render(<Harness onValueChange={onValueChange} />);
 
-    await user.tab();
-    await user.keyboard('{Enter}');
+    await openWithKeyboard(user);
     expect(screen.getByRole('dialog', { name: 'Сортировка' })).toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: 'Подобрали для вас' })).toHaveFocus();
 
     await user.keyboard('{ArrowDown}');
     expect(onValueChange).toHaveBeenLastCalledWith('new');
@@ -122,8 +130,7 @@ describe('SortFilter', () => {
     const onValueChange = vi.fn();
     render(<Harness onValueChange={onValueChange} />);
 
-    await user.tab();
-    await user.keyboard('{Enter}');
+    await openWithKeyboard(user);
     await user.keyboard('{ArrowUp}');
 
     expect(onValueChange).toHaveBeenLastCalledWith('price-desc');
@@ -135,9 +142,7 @@ describe('SortFilter', () => {
     const user = userEvent.setup();
     render(<Harness />);
 
-    await user.tab();
-    await user.keyboard('{Enter}');
-    expect(screen.getByRole('radio', { name: 'Подобрали для вас' })).toHaveFocus();
+    await openWithKeyboard(user);
     await user.keyboard(' ');
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -170,8 +175,7 @@ describe('SortFilter', () => {
     const user = userEvent.setup();
     render(<Harness />);
 
-    await user.tab();
-    await user.keyboard('{Enter}');
+    await openWithKeyboard(user);
     await user.keyboard('{ArrowDown}{Enter}');
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
