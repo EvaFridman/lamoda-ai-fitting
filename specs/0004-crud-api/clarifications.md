@@ -50,6 +50,15 @@ personal data).
   A value read, updated or deleted under an attribute it does not belong to answers 404
   `NOT_FOUND`. A value never moves to another attribute: an update takes only `value`, so
   `attributeId` in the body is 400. `null` and an empty body follow E40.
+- E43. Products (T9): until the sorts of T11, the list is newest first (`createdAt` desc, then id
+  desc, the future default `new`). A product's first image and the order of its `images[]` are
+  `sortOrder`, then id. The detail's parts: `images[{id, url, sortOrder}]`, `variations[{id, size,
+stock}]` in the order they were added (id), `attributes[]` by attribute name, their `values[]` by
+  value; neither the list item nor the detail has `updatedAt`. Create, update and read of one
+  product answer the detail (a new product has empty arrays). In the body, `article`, `name`,
+  `price`, `brandId` and `categoryId` are required; `discount` may be left out (0); `rating` and
+  `description` may be left out or `null` (no rating, no description), and `null` in an update
+  clears them; `null` in any other field is 400. An empty update follows E40.
 
 ## Validation
 
