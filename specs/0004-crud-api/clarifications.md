@@ -122,6 +122,13 @@ personal data).
 - E37. A failed source map upload does not fail the api image build, as in web: Sentry being down
   does not hold back a deploy; that release's stack traces stay compiled JS, and the CI log says so
   (owner, 2026-10-10).
+- E38. nginx serves HTTP/1.1 only. With HTTP/2, every reload (two per deploy, and the 6-hour one
+  for certificates) dropped a few requests: old workers close HTTP/2 connections that carry no
+  request yet. Measured in CI over 60 reloads under a request loop (curl, a new connection per
+  request): 19 failed of ~25k requests with HTTP/2, none with HTTP/1.1; `accept_mutex on` did not
+  help. The cost: browsers load over up to 6 connections instead of one multiplexed one. The deploy
+  check stays strict (no failed request). Bringing HTTP/2 back needs deploys without reloads:
+  backlog (owner, 2026-10-10).
 
 ## web (moved to spec 0005 by E30)
 

@@ -16,6 +16,13 @@ removes it from this list. Found by the agents' first security audit and trial r
 - **WebSocket connections per client.** `/socket.io/` holds connections for an hour and nothing
   limits how many one client opens. Add a per-address connection limit (`limit_conn`) and review
   `worker_connections`.
+- **HTTP/2.** nginx serves HTTP/1.1 only: with HTTP/2 every reload drops a few requests (spec 0004
+  E38). Bringing it back needs nginx to stop reloading in normal work: blue-green switching through
+  a DNS name nginx re-resolves (`resolve`) instead of a rewritten upstream and a reload, the
+  certificate through a variable in `ssl_certificate` instead of the 6-hour reload, and a template
+  reload only when the rendered config changed. The owner weighs the costs: both copies serve for
+  up to ~10 s during a switch, and if the name moves by disconnecting the old copy from a network,
+  its WebSocket connections break.
 - **Security headers.** Add `Content-Security-Policy: frame-ancestors 'none'` and
   `X-Content-Type-Options: nosniff` before login or photo upload land.
 - **Request rate limit at the edge.** The api's `ThrottlerGuard` is a Nest guard, so it runs only

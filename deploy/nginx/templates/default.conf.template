@@ -38,16 +38,19 @@ server {
   }
 }
 
+# HTTP/1.1 only, no `http2 on`: on a reload (every deploy, and every 6 hours for certificates) the
+# old workers close HTTP/2 connections that carry no request yet, so a client that has just opened
+# one loses its request. With HTTP/1.1 a request on a new connection is not lost; an idle keep-alive
+# connection a reload closes is retried by browsers (spec 0004 E38).
+
 # HTTPS for any other name (a bare IP, a stranger's domain): refuse the TLS handshake.
 server {
   listen 443 ssl default_server;
-  http2 on;
   ssl_reject_handshake on;
 }
 
 server {
   listen 443 ssl;
-  http2 on;
   server_name www.${SITE_DOMAIN};
   ssl_certificate /etc/letsencrypt/live/${SITE_DOMAIN}/fullchain.pem;
   ssl_certificate_key /etc/letsencrypt/live/${SITE_DOMAIN}/privkey.pem;
@@ -57,7 +60,6 @@ server {
 
 server {
   listen 443 ssl;
-  http2 on;
   server_name ${SITE_DOMAIN};
 
   # Mozilla "intermediate" TLS settings. No OCSP stapling: Let's Encrypt no longer runs OCSP.
