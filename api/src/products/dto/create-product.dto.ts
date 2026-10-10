@@ -9,6 +9,7 @@ import {
   IsPrice,
   IsRating,
   IsTrimmedText,
+  LEFT_OUT_IS_ZERO,
   MAX_PRICE,
   NAME_MAX_LENGTH,
 } from '../../common/validation/rules.js';
@@ -39,7 +40,7 @@ export class CreateProductDto {
   @IsPrice()
   price: number;
 
-  @ApiPropertyOptional({ minimum: 0, maximum: 100, default: 0 })
+  @ApiPropertyOptional({ minimum: 0, maximum: 100, description: LEFT_OUT_IS_ZERO })
   @IsOmittable()
   @IsDiscount()
   discount?: number;

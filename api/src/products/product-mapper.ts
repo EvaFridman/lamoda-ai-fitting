@@ -8,10 +8,22 @@ import type {
   ProductListItemDto,
 } from './dto/product-response.dto.js';
 
-// The first image and the order of `images[]`: `sortOrder`, then id (spec 0004 E43).
-const IMAGE_ORDER: Prisma.ProductImageOrderByWithRelationInput[] = [
+// The orders of the detail's parts, shared with their own lists (spec 0004 E43, E44).
+
+// The first image and the order of `images[]`: `sortOrder`, then id.
+export const IMAGE_ORDER: Prisma.ProductImageOrderByWithRelationInput[] = [
   { sortOrder: 'asc' },
   { id: 'asc' },
+];
+
+// Sizes in the order they were added.
+export const VARIATION_ORDER: Prisma.ProductVariationOrderByWithRelationInput = { id: 'asc' };
+
+// Attribute links by attribute name, then value. Names are unique, and so are values within an
+// attribute, so the order is fixed.
+export const ATTRIBUTE_LINK_ORDER: Prisma.ProductAttributeValueOrderByWithRelationInput[] = [
+  { attributeValue: { attribute: { name: 'asc' } } },
+  { attributeValue: { value: 'asc' } },
 ];
 
 export const LIST_ITEM_INCLUDE = {
@@ -20,23 +32,18 @@ export const LIST_ITEM_INCLUDE = {
   images: { select: { imageKey: true }, orderBy: IMAGE_ORDER, take: 1 },
 } satisfies Prisma.ProductInclude;
 
-// Sizes in the order they were added; attribute links by attribute name, then value (E43). Names
-// are unique, and so are values within an attribute, so the order is fixed.
 export const DETAIL_INCLUDE = {
   brand: { select: { id: true, name: true } },
   category: { select: { id: true, name: true, slug: true } },
   images: { select: { id: true, imageKey: true, sortOrder: true }, orderBy: IMAGE_ORDER },
-  variations: { select: { id: true, size: true, stock: true }, orderBy: { id: 'asc' } },
+  variations: { select: { id: true, size: true, stock: true }, orderBy: VARIATION_ORDER },
   attributeValues: {
     select: {
       attributeValue: {
         select: { id: true, value: true, attribute: { select: { id: true, name: true } } },
       },
     },
-    orderBy: [
-      { attributeValue: { attribute: { name: 'asc' } } },
-      { attributeValue: { value: 'asc' } },
-    ],
+    orderBy: ATTRIBUTE_LINK_ORDER,
   },
 } satisfies Prisma.ProductInclude;
 

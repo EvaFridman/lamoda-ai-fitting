@@ -107,7 +107,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Check: database e2e on shapes, Decimal as numbers, cascade on delete, 409 for a product in a
       generation. AC2, AC4, AC6.
       Commit: `feat(api): serve products with image urls and final prices`
-- [ ] **T10. Product images, sizes and attribute values.** The nested routes of plan "Resources".
+- [x] **T10. Product images, sizes and attribute values.** The nested routes of plan "Resources".
       Check: database e2e; a duplicate size → 409; a missing attribute value → 400
       `RELATED_NOT_FOUND`; negative stock → 400. AC2.
       Commit: `feat(api): edit product images, sizes and attribute values`
