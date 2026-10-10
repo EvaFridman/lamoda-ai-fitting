@@ -89,6 +89,28 @@ name}, value{id, value}, createdAt}`. Their lists are paged (E5) in the order of
   is any text up to 5000 characters with no NUL (line breaks and outer spaces allowed); `null` on
   create means no description, in an update it clears it; `null` in any other field is 400. An update with an empty body answers 200 with
   the record unchanged.
+- E47. Users (T13):
+  - Phone: digits, spaces, brackets and hyphens, with an optional leading `+`. 11 digits starting
+    with `7` (or `8` without the `+`), or 10 digits starting with `9` without the `+`, become
+    `+7` and the last 10 digits; the result must be `+79XXXXXXXXX`. Anything else is 400 on `phone`.
+  - Email: trimmed, lower-cased and brought to NFC, then the database rule: `something@domain.zone`
+    with no spaces, at most 254 characters (not class-validator's stricter `IsEmail`). Control
+    and invisible formatting characters (zero-width, direction marks) are 400, so two addresses
+    that look the same cannot both exist; a migration adds the same rule (NFC, Cc and Cf listed by
+    code point) to `users_email_check`. Look-alike letters of other scripts are not refused
+    (backlog "Email look-alikes").
+  - `dateOfBirth` is optional (left out or `null`; `null` in an update clears it). Sent, it is
+    `YYYY-MM-DD`, from 1900-01-01 to today (UTC) minus 14 years inclusive; a 14th birthday today
+    passes. Anything else, a future date included, is 400 `VALIDATION_FAILED` on `dateOfBirth`.
+  - `phone`, `email` and `firstName` are required, `null` in them is 400. `lastName`,
+    `patronymic`, `gender` and `fittingProfileImageKey` may be left out or `null`; `null` in an
+    update clears them. Names follow the database rule, so outer spaces are 400. An empty update
+    body follows E40.
+  - A user returns its own columns, `createdAt` and `updatedAt` included, with no session ids
+    (they come from `/fitting-sessions?userId`). `fittingProfileImageKey` has no `url`: personal
+    photos are not public catalog media; their address comes with the storage spec (backlog "File
+    storage").
+  - The list is newest first (`createdAt` desc, then id desc), with no filters.
 
 ## Product list
 

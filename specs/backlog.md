@@ -37,6 +37,21 @@ removes it from this list. Found by the agents' first security audit and trial r
   entry of `details`: an entry is about 12 times the size of its key, so a 100 KB body of short
   keys answers about 1.2 MB. Cap `details` (e.g. 50 entries, with the count of the rest); it changes
   the error contract that web's error handling (spec 0005) reads, so decide it there.
+- **Body errors before the admin check.** The body parser runs before the guards, so an admin route
+  answers broken JSON with 400 `BAD_JSON` and a body over the limit with 413 `PAYLOAD_TOO_LARGE`
+  even with no token or a wrong one, instead of 401 (found by `qa-tester` in 0004 T13). Nothing
+  leaks, but the route shows it exists, and an anonymous caller makes the api parse up to the body
+  limit. Decide whether the token is checked before the body (e.g. a middleware on admin routes)
+  and test it on every admin route group.
+- **Email look-alikes.** Users' emails are NFC with no control or format characters (0004 E47),
+  but two accounts can still have addresses that look the same: mixed scripts (`ivаn@mail.ru` with
+  a Cyrillic `а`), invisible characters outside Cf (variation selectors U+FE00–FE0F, combining
+  U+034F, Hangul fillers, U+2800) and full-width or ligature forms that only NFKC folds. Decide
+  before sign-up lands: one script per part or a UTS #39 skeleton check, and NFKC; the api rule
+  and `users_email_check` change together.
+- **401 in Swagger.** The admin-only operations list only their success responses; add the 401
+  `UNAUTHORIZED` response (e.g. inside `@AdminOnly()`), so the docs show which routes need the
+  token.
 
 ## web
 
@@ -98,13 +113,12 @@ removes it from this list. Found by the agents' first security audit and trial r
 
 Left for later specs by `0002-database-schema` (its `clarifications.md` has the decisions).
 
-- **Auth input rules (`0003-auth`).** Normalize phone input (`8 …`, `+7 …`, spaces, brackets,
-  hyphens) to `+79XXXXXXXXX`; trim and lower-case email; require age 14 or more at sign-up. The
-  database rejects anything else (C12), so without these rules valid users get database errors.
 - **File storage.** Placeholders are static files of web (C9a). Photo upload and generation results
   need real storage (object storage or a server folder), with backups and limits on size and type.
   Deleting a user or a generation deletes its files too (the database cascade of C8 does not reach
-  storage), and old photo snapshots of C14 get a retention period.
+  storage), and old photo snapshots of C14 get a retention period. The server names a photo's key
+  (e.g. `users/<id>/…`) and writes `users.fitting_profile_image_key` itself; a key from the client
+  could point at another user's photo (0004 T13 security review).
 - **Colour swatches.** The catalog's colour filter shows a swatch per value; attribute values have no
   colour. Add a nullable `attribute_values.color_hex` (`#RRGGBB`) and its data with the catalog page
   spec; the data goes in a migration, because the seed never changes existing rows (0004 E29).
