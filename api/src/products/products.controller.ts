@@ -5,7 +5,6 @@ import {
   Get,
   HttpCode,
   HttpStatus,
-  Param,
   Patch,
   Post,
   Query,
@@ -21,7 +20,7 @@ import {
 import { AdminOnly } from '../common/guards/admin.guard.js';
 import { ApiPaginatedResponse, type Paginated } from '../common/pagination/paginated.js';
 import { PaginationQueryDto } from '../common/pagination/pagination-query.dto.js';
-import { UuidPipe } from '../common/pipes/uuid.pipe.js';
+import { UuidParam } from '../common/pipes/uuid.pipe.js';
 import { CreateProductDto } from './dto/create-product.dto.js';
 import { ProductDetailDto, ProductListItemDto } from './dto/product-response.dto.js';
 import { UpdateProductDto } from './dto/update-product.dto.js';
@@ -41,7 +40,7 @@ export class ProductsController {
 
   @Get(':id')
   @ApiOkResponse({ type: ProductDetailDto })
-  get(@Param('id', UuidPipe) id: string): Promise<ProductDetailDto> {
+  get(@UuidParam('id') id: string): Promise<ProductDetailDto> {
     return this.products.get(id);
   }
 
@@ -55,10 +54,7 @@ export class ProductsController {
   @Patch(':id')
   @AdminOnly()
   @ApiOkResponse({ type: ProductDetailDto })
-  update(
-    @Param('id', UuidPipe) id: string,
-    @Body() dto: UpdateProductDto,
-  ): Promise<ProductDetailDto> {
+  update(@UuidParam('id') id: string, @Body() dto: UpdateProductDto): Promise<ProductDetailDto> {
     return this.products.update(id, dto);
   }
 
@@ -74,7 +70,7 @@ export class ProductsController {
       'attribute links.',
   })
   @ApiNoContentResponse()
-  delete(@Param('id', UuidPipe) id: string): Promise<void> {
+  delete(@UuidParam('id') id: string): Promise<void> {
     return this.products.delete(id);
   }
 }

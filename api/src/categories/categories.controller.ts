@@ -5,7 +5,6 @@ import {
   Get,
   HttpCode,
   HttpStatus,
-  Param,
   Patch,
   Post,
   Query,
@@ -14,7 +13,7 @@ import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiTags } from
 
 import { AdminOnly } from '../common/guards/admin.guard.js';
 import { ApiPaginatedResponse, type Paginated } from '../common/pagination/paginated.js';
-import { UuidPipe } from '../common/pipes/uuid.pipe.js';
+import { UuidParam } from '../common/pipes/uuid.pipe.js';
 import { CategoriesService } from './categories.service.js';
 import { CategoryResponseDto } from './dto/category-response.dto.js';
 import { CreateCategoryDto } from './dto/create-category.dto.js';
@@ -35,7 +34,7 @@ export class CategoriesController {
 
   @Get(':id')
   @ApiOkResponse({ type: CategoryResponseDto })
-  get(@Param('id', UuidPipe) id: string): Promise<CategoryResponseDto> {
+  get(@UuidParam('id') id: string): Promise<CategoryResponseDto> {
     return this.categories.get(id);
   }
 
@@ -50,7 +49,7 @@ export class CategoriesController {
   @AdminOnly()
   @ApiOkResponse({ type: CategoryResponseDto })
   update(
-    @Param('id', UuidPipe) id: string,
+    @UuidParam('id') id: string,
     @Body() dto: UpdateCategoryDto,
   ): Promise<CategoryResponseDto> {
     return this.categories.update(id, dto);
@@ -60,7 +59,7 @@ export class CategoriesController {
   @AdminOnly()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiNoContentResponse()
-  delete(@Param('id', UuidPipe) id: string): Promise<void> {
+  delete(@UuidParam('id') id: string): Promise<void> {
     return this.categories.delete(id);
   }
 }

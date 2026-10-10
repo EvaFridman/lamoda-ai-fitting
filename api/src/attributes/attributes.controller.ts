@@ -5,7 +5,6 @@ import {
   Get,
   HttpCode,
   HttpStatus,
-  Param,
   Patch,
   Post,
   Query,
@@ -15,7 +14,7 @@ import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiTags } from
 import { AdminOnly } from '../common/guards/admin.guard.js';
 import { ApiPaginatedResponse, type Paginated } from '../common/pagination/paginated.js';
 import { PaginationQueryDto } from '../common/pagination/pagination-query.dto.js';
-import { UuidPipe } from '../common/pipes/uuid.pipe.js';
+import { UuidParam } from '../common/pipes/uuid.pipe.js';
 import { AttributesService } from './attributes.service.js';
 import { AttributeResponseDto } from './dto/attribute-response.dto.js';
 import { CreateAttributeDto } from './dto/create-attribute.dto.js';
@@ -35,7 +34,7 @@ export class AttributesController {
 
   @Get(':id')
   @ApiOkResponse({ type: AttributeResponseDto })
-  get(@Param('id', UuidPipe) id: string): Promise<AttributeResponseDto> {
+  get(@UuidParam('id') id: string): Promise<AttributeResponseDto> {
     return this.attributes.get(id);
   }
 
@@ -50,7 +49,7 @@ export class AttributesController {
   @AdminOnly()
   @ApiOkResponse({ type: AttributeResponseDto })
   update(
-    @Param('id', UuidPipe) id: string,
+    @UuidParam('id') id: string,
     @Body() dto: UpdateAttributeDto,
   ): Promise<AttributeResponseDto> {
     return this.attributes.update(id, dto);
@@ -60,7 +59,7 @@ export class AttributesController {
   @AdminOnly()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiNoContentResponse()
-  delete(@Param('id', UuidPipe) id: string): Promise<void> {
+  delete(@UuidParam('id') id: string): Promise<void> {
     return this.attributes.delete(id);
   }
 }
