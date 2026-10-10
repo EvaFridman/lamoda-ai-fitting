@@ -105,6 +105,27 @@ name}, value{id, value}, createdAt}`. Their lists are paged (E5) in the order of
   is counted without its own chosen values. Also the price range, the number of discounted products
   and the total.
 - E17. Counts are public and use the same filters as the list.
+- E45. The list's query (T11):
+  - Array filters (`categoryId`, `brandId`, `size`, `attributeValueId`) take repeated keys, comma
+    lists or both mixed (`?brandId=a,b&brandId=c`). An empty item (`?brandId=`, `a,,b`) is 400;
+    duplicates filter once; over 50 values after splitting, duplicates included, is 400.
+  - `categoryId`, `brandId` and `attributeValueId` must be uuids (else 400 `VALIDATION_FAILED`); a
+    well-formed id that does not exist matches no product, not an error (an unknown attribute value
+    is a group of its own, so with E13a's AND it empties the list).
+  - Values of one filter widen it (OR); different filters narrow (AND); attribute values follow
+    E13a. A category matches only itself, no subcategories (the categories are flat).
+  - `size` matches exactly, case included, with the rule of a size in a body.
+  - `q` is a case-insensitive substring of `name` only; `%` and `_` are plain characters. It
+    follows the trimmed-text rule (1–100 characters, no outer spaces: 400; web trims).
+  - `minPrice` and `maxPrice` are numbers from 0 to the largest price, at most two decimals,
+    inclusive, each usable alone; `minPrice` above `maxPrice` is 400 on `maxPrice`.
+  - `hasDiscount=true` keeps products with a discount (`discount > 0`), `false` those without
+    (`discount = 0`); left out, no filter.
+  - Sorts, each ending with id desc: `new` is `createdAt` desc; `price_asc` and `price_desc` by
+    the price before the discount; `discount` by the discount percent, desc; `rating` desc with no
+    rating last. No other tie keys.
+  - An empty scalar parameter (`?q=`, `?minPrice=`, `?sort=`) is 400, as `isActive` in E39; an
+    unknown `sort` or parameter is 400.
 
 ## Errors
 

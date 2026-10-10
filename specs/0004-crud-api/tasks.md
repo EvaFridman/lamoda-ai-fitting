@@ -114,7 +114,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## PR 4 · `feat/0004-product-listing` · filters, sorting, counts
 
-- [ ] **T11. Filters and sorting.** `ProductListQueryDto`, `listing/product-filter.ts` (the Prisma
+- [x] **T11. Filters and sorting.** `ProductListQueryDto`, `listing/product-filter.ts` (the Prisma
       part), the sorts of E14.
       Check: database e2e per filter; attribute AND across and OR inside; out-of-stock size skipped;
       each sort and its stable order; array over 50 values → 400. AC10, AC11.

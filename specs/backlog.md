@@ -109,6 +109,11 @@ Left for later specs by `0002-database-schema` (its `clarifications.md` has the 
   (0004 E29).
 - **Cache for filter counts.** Spec 0004 computes the product filter counts on every request, which
   holds for the small demo catalog; cache them (Redis) if the catalog grows.
+- **Product list cost.** The sorts of 0004 E14 and the name search scan the whole table: `price`,
+  `discount`, `rating` and `created_at` have no indexes, `q` is `ILIKE '%…%'`, and `offset` goes up
+  to 2^31, so a deep page sorts everything. Free on the demo catalog; if the catalog grows, cap the
+  list's `offset` (e.g. 10 000) and add indexes `(price, id)`, `(created_at, id)`, `(discount, id)`
+  and a trigram index on `name` (0004 T11 security review).
 
 ## Tests
 

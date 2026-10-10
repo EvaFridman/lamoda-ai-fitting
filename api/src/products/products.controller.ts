@@ -19,9 +19,9 @@ import {
 
 import { AdminOnly } from '../common/guards/admin.guard.js';
 import { ApiPaginatedResponse, type Paginated } from '../common/pagination/paginated.js';
-import { PaginationQueryDto } from '../common/pagination/pagination-query.dto.js';
 import { UuidParam } from '../common/pipes/uuid.pipe.js';
 import { CreateProductDto } from './dto/create-product.dto.js';
+import { ProductListQueryDto } from './dto/product-list-query.dto.js';
 import { ProductDetailDto, ProductListItemDto } from './dto/product-response.dto.js';
 import { UpdateProductDto } from './dto/update-product.dto.js';
 import { ProductsService } from './products.service.js';
@@ -34,7 +34,7 @@ export class ProductsController {
 
   @Get()
   @ApiPaginatedResponse(ProductListItemDto)
-  list(@Query() query: PaginationQueryDto): Promise<Paginated<ProductListItemDto>> {
+  list(@Query() query: ProductListQueryDto): Promise<Paginated<ProductListItemDto>> {
     return this.products.list(query);
   }
 

@@ -1,6 +1,8 @@
 import { applyDecorators } from '@nestjs/common';
 import { Transform } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  IsArray,
   IsBoolean,
   IsInt,
   IsNumber,
@@ -23,6 +25,8 @@ export const NAME_MAX_LENGTH = 255;
 export const ATTRIBUTE_NAME_MAX_LENGTH = 100;
 export const ATTRIBUTE_VALUE_MAX_LENGTH = 255;
 export const SIZE_MAX_LENGTH = 20;
+// The product list's name search (spec 0004 plan, "Product listing").
+export const SEARCH_MAX_LENGTH = 100;
 export const SLUG_MAX_LENGTH = 255;
 export const IMAGE_KEY_MAX_LENGTH = 255;
 // `text` has no limit; the api sets one (spec 0004 E40).
@@ -45,12 +49,13 @@ export const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 // `/`, each starting with a letter or digit, and no `..` anywhere.
 export const IMAGE_KEY = /^(?!.*\.\.)[A-Za-z0-9][A-Za-z0-9._-]*(?:\/[A-Za-z0-9][A-Za-z0-9._-]*)*$/;
 
-// A name, article, size or attribute value.
-export function IsTrimmedText(maxLength: number): PropertyDecorator {
+// A name, article, size or attribute value; with `each`, every item of an array.
+export function IsTrimmedText(maxLength: number, { each = false } = {}): PropertyDecorator {
   return applyDecorators(
-    IsString(),
-    HasMaxCharacters(maxLength),
+    IsString({ each }),
+    HasMaxCharacters(maxLength, each),
     Matches(TRIMMED_TEXT, {
+      each,
       message: '$property must not be empty, start or end with a space or contain NUL',
     }),
   );
@@ -68,15 +73,18 @@ export function IsDescription(): PropertyDecorator {
 // `varchar(n)` counts code points. Not MaxLength: it counts UTF-16 units and skips the variation
 // selectors U+FE0E/U+FE0F, so 255 emoji with U+FE0F pass it as 255 but are 510 for PostgreSQL.
 // Same code as MaxLength (MAX_LENGTH).
-function HasMaxCharacters(max: number): PropertyDecorator {
-  return ValidateBy({
-    name: 'maxLength',
-    constraints: [max],
-    validator: {
-      validate: (value: unknown) => typeof value === 'string' && [...value].length <= max,
-      defaultMessage: () => `$property must be at most ${max} characters`,
+function HasMaxCharacters(max: number, each = false): PropertyDecorator {
+  return ValidateBy(
+    {
+      name: 'maxLength',
+      constraints: [max],
+      validator: {
+        validate: (value: unknown) => typeof value === 'string' && [...value].length <= max,
+        defaultMessage: () => `$property must be at most ${max} characters`,
+      },
     },
-  });
+    { each },
+  );
 }
 
 export function IsSlug(): PropertyDecorator {
@@ -166,4 +174,58 @@ export function IsBooleanQuery(): PropertyDecorator {
     ),
     IsBoolean(),
   );
+}
+
+// Values of one list filter (spec 0004 E45).
+export const MAX_QUERY_LIST_VALUES = 50;
+
+// A list in the query string: repeated keys, comma lists or both (`?id=a,b&id=c` is `[a, b, c]`).
+// An empty item stays an empty string and fails the item rules. A value that is not a string, or an
+// array holding one, stays as sent and fails IsArray or the item rules. The cap counts the values after splitting, duplicates included.
+// The item rules are the caller's, with `each: true`.
+export function IsListQuery(): PropertyDecorator {
+  return applyDecorators(
+    Transform(({ value }: { value: unknown }) => {
+      const parts = typeof value === 'string' ? [value] : value;
+      return Array.isArray(parts) && parts.every((part) => typeof part === 'string')
+        ? parts.flatMap((part) => part.split(','))
+        : value;
+    }),
+    IsArray(),
+    ArrayMaxSize(MAX_QUERY_LIST_VALUES),
+  );
+}
+
+// Digits with an optional fraction. Not `@Type(() => Number)`: it reads `''` as 0, and `0x10`,
+// `1e2` or ` 5` as numbers.
+const DECIMAL_QUERY = /^\d+(?:\.\d+)?$/;
+
+// A price bound in the query string: rubles from 0, at most 2 decimals (spec 0004 E45). Anything
+// but plain digits stays a string and fails IsNumber.
+export function IsPriceQuery(): PropertyDecorator {
+  return applyDecorators(
+    Transform(({ value }: { value: unknown }) =>
+      typeof value === 'string' && DECIMAL_QUERY.test(value) ? Number(value) : value,
+    ),
+    IsNumber({ allowNaN: false, allowInfinity: false }),
+    HasMaxDecimalPlaces(2),
+    Min(0),
+    Max(MAX_PRICE),
+  );
+}
+
+// A number not below another field of the same object (`maxPrice` and `minPrice`). Passes while
+// either is not a number: their own rules report that.
+export function IsNotBelow(property: string): PropertyDecorator {
+  return ValidateBy({
+    name: 'isNotBelow',
+    constraints: [property],
+    validator: {
+      validate: (value: unknown, args) => {
+        const other = (args?.object as Record<string, unknown> | undefined)?.[property];
+        return typeof value !== 'number' || typeof other !== 'number' || value >= other;
+      },
+      defaultMessage: () => `$property must not be below ${property}`,
+    },
+  });
 }

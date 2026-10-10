@@ -8,14 +8,18 @@ import {
   IsDescription,
   IsDiscount,
   IsImageKey,
+  IsListQuery,
   IsNonNegativeInt,
+  IsNotBelow,
   IsOmittable,
   IsPrice,
+  IsPriceQuery,
   IsRating,
   IsSlug,
   IsTrimmedText,
   MAX_INT,
   MAX_PRICE,
+  MAX_QUERY_LIST_VALUES,
 } from './rules.js';
 import { createValidationPipe } from './validation-pipe.js';
 
@@ -65,6 +69,23 @@ class QueryDto {
   @IsOptional()
   @IsBooleanQuery()
   value?: boolean;
+}
+
+class ListDto {
+  @IsOptional()
+  @IsListQuery()
+  @IsTrimmedText(5, { each: true })
+  value?: string[];
+}
+class PriceQueryDto {
+  @IsOptional()
+  @IsPriceQuery()
+  minPrice?: number;
+
+  @IsOptional()
+  @IsPriceQuery()
+  @IsNotBelow('minPrice')
+  maxPrice?: number;
 }
 
 const pipe = createValidationPipe();
@@ -358,6 +379,144 @@ describe('IsOmittable', () => {
 
   it('refuses null, which IsOptional would let through', async () => {
     expect(await codesOf(OmittableDto, { value: null })).toContain('value:IS_INT');
+  });
+});
+
+describe('IsListQuery', () => {
+  const values = (n: number): string[] => Array.from({ length: n }, (_, i) => `v${i}`);
+
+  it('makes one string a list of one', async () => {
+    await expect(parse(ListDto, { value: 'a' }, 'query')).resolves.toMatchObject({ value: ['a'] });
+  });
+
+  it('keeps repeated keys', async () => {
+    await expect(parse(ListDto, { value: ['a', 'b'] }, 'query')).resolves.toMatchObject({
+      value: ['a', 'b'],
+    });
+  });
+
+  it('splits a comma list', async () => {
+    await expect(parse(ListDto, { value: 'a,b,c' }, 'query')).resolves.toMatchObject({
+      value: ['a', 'b', 'c'],
+    });
+  });
+
+  it('splits commas inside repeated keys', async () => {
+    await expect(parse(ListDto, { value: ['a,b', 'c'] }, 'query')).resolves.toMatchObject({
+      value: ['a', 'b', 'c'],
+    });
+  });
+
+  it.each(['', 'a,,b', ',a', 'a,', ['a', '']])(
+    'refuses the empty item of %j with MATCHES',
+    async (value) => {
+      const error: unknown = await parse(ListDto, { value }, 'query').then(
+        () => undefined,
+        (reason: unknown) => reason,
+      );
+      expect(error).toBeInstanceOf(ValidationError);
+      const codes = (error as ValidationError).body.error.details.map(
+        (detail) => `${detail.field}:${detail.code}`,
+      );
+      expect(codes).toContain('value:MATCHES');
+    },
+  );
+
+  it('accepts the maximum number of values', async () => {
+    expect(MAX_QUERY_LIST_VALUES).toBe(50);
+    await expect(parse(ListDto, { value: values(50) }, 'query')).resolves.toBeDefined();
+    await expect(parse(ListDto, { value: values(50).join(',') }, 'query')).resolves.toBeDefined();
+  });
+
+  it('refuses one value more with ARRAY_MAX_SIZE, counted after splitting', async () => {
+    expect(await codesOf(ListDto, { value: values(51) })).toContain('value:ARRAY_MAX_SIZE');
+    expect(await codesOf(ListDto, { value: values(51).join(',') })).toContain(
+      'value:ARRAY_MAX_SIZE',
+    );
+    expect(
+      await codesOf(ListDto, { value: [values(26).join(','), values(25).join(',')] }),
+    ).toContain('value:ARRAY_MAX_SIZE');
+  });
+
+  it.each([5, true, { a: 'b' }])('refuses the non-string %j with IS_ARRAY', async (value) => {
+    expect(await codesOf(ListDto, { value })).toContain('value:IS_ARRAY');
+  });
+
+  it('refuses a non-string inside an array with IS_STRING', async () => {
+    expect(await codesOf(ListDto, { value: ['a', 5] })).toContain('value:IS_STRING');
+  });
+
+  it('accepts a missing parameter', async () => {
+    await expect(parse(ListDto, {}, 'query')).resolves.toBeDefined();
+  });
+});
+
+describe('IsPriceQuery', () => {
+  it.each([
+    ['0', 0],
+    ['10.5', 10.5],
+    ['1999.99', 1999.99],
+    ['99999999.99', MAX_PRICE],
+  ])('turns %j into %s', async (minPrice, expected) => {
+    await expect(parse(PriceQueryDto, { minPrice }, 'query')).resolves.toMatchObject({
+      minPrice: expected,
+    });
+  });
+
+  it.each(['', '0x10', '1e2', ' 5', '5 ', '-1', '+1', '.5', '5.', 'abc', ['1', '2']])(
+    'refuses %j with IS_NUMBER',
+    async (minPrice) => {
+      expect(await codesOf(PriceQueryDto, { minPrice })).toContain('minPrice:IS_NUMBER');
+    },
+  );
+
+  it('refuses more than 2 decimals with MAX_DECIMAL_PLACES', async () => {
+    expect(await codesOf(PriceQueryDto, { minPrice: '1.234' })).toEqual([
+      'minPrice:MAX_DECIMAL_PLACES',
+    ]);
+  });
+
+  it('refuses a price above the maximum with MAX', async () => {
+    expect(await codesOf(PriceQueryDto, { minPrice: '100000000' })).toEqual(['minPrice:MAX']);
+  });
+
+  it('accepts a missing parameter', async () => {
+    await expect(parse(PriceQueryDto, {}, 'query')).resolves.toBeDefined();
+  });
+});
+
+describe('IsNotBelow', () => {
+  it('accepts a larger or equal value', async () => {
+    await expect(
+      parse(PriceQueryDto, { minPrice: '5', maxPrice: '10' }, 'query'),
+    ).resolves.toBeDefined();
+    await expect(
+      parse(PriceQueryDto, { minPrice: '5', maxPrice: '5' }, 'query'),
+    ).resolves.toBeDefined();
+  });
+
+  it('refuses a smaller value with IS_NOT_BELOW on the checked field', async () => {
+    expect(await codesOf(PriceQueryDto, { minPrice: '10', maxPrice: '5' })).toEqual([
+      'maxPrice:IS_NOT_BELOW',
+    ]);
+  });
+
+  it('passes while the other field is missing', async () => {
+    await expect(parse(PriceQueryDto, { maxPrice: '5' }, 'query')).resolves.toBeDefined();
+  });
+
+  it('passes while the other field is not a number, which reports itself', async () => {
+    const codes = await codesOf(PriceQueryDto, { minPrice: 'x', maxPrice: '5' });
+
+    expect(codes).toContain('minPrice:IS_NUMBER');
+    expect(codes.filter((code) => code.startsWith('maxPrice:'))).toEqual([]);
+  });
+
+  it('passes while the checked value is not a number', async () => {
+    const codes = await codesOf(PriceQueryDto, { minPrice: '5', maxPrice: 'x' });
+
+    expect(codes).toContain('maxPrice:IS_NUMBER');
+    expect(codes).not.toContain('maxPrice:IS_NOT_BELOW');
   });
 });
 
