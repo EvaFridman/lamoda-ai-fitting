@@ -119,7 +119,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Check: database e2e per filter; attribute AND across and OR inside; out-of-stock size skipped;
       each sort and its stable order; array over 50 values → 400. AC10, AC11.
       Commit: `feat(api): filter and sort the product list`
-- [ ] **T12. Filter counts.** `GET /products/facets`; the SQL part of the filter builder.
+- [x] **T12. Filter counts.** `GET /products/facets`; the SQL part of the filter builder.
       Check: database e2e comparing each count with the list `total` for the filters plus that
       value; choosing a colour keeps the other colours' counts; price range and discounted count
       match the list; `security-reviewer` on the raw SQL. AC12.
