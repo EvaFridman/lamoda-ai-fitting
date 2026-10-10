@@ -3,6 +3,8 @@ import { APP_FILTER } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { SentryModule } from '@sentry/nestjs/setup';
 
+import { BrandsModule } from './brands/brands.module.js';
+import { CategoriesModule } from './categories/categories.module.js';
 import { AppExceptionFilter } from './common/filters/app-exception.filter.js';
 import { CoreModule } from './core/core.module.js';
 import { HealthModule } from './health/health.module.js';
@@ -30,6 +32,8 @@ import { ThrottlingModule } from './throttling/throttling.module.js';
     RealtimeModule,
     HealthModule,
     HelloModule,
+    CategoriesModule,
+    BrandsModule,
   ],
   // Every HTTP error answers one format with a code (spec 0004 E18–E22).
   providers: [{ provide: APP_FILTER, useClass: AppExceptionFilter }],

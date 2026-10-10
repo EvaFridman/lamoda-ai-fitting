@@ -1,5 +1,7 @@
 import { applyDecorators } from '@nestjs/common';
+import { Transform } from 'class-transformer';
 import {
+  IsBoolean,
   IsInt,
   IsNumber,
   IsPositive,
@@ -9,6 +11,7 @@ import {
   MaxLength,
   Min,
   ValidateBy,
+  ValidateIf,
 } from 'class-validator';
 
 // Field rules of the catalog DTOs. They repeat the CHECK constraints of the init migration and
@@ -21,6 +24,8 @@ export const ATTRIBUTE_NAME_MAX_LENGTH = 100;
 export const SIZE_MAX_LENGTH = 20;
 export const SLUG_MAX_LENGTH = 255;
 export const IMAGE_KEY_MAX_LENGTH = 255;
+// `text` has no limit; the api sets one (spec 0004 E40).
+export const DESCRIPTION_MAX_LENGTH = 5000;
 
 // `Decimal(10, 2)` holds less than 10^8; `Int` columns are 32-bit.
 export const MAX_PRICE = 99_999_999.99;
@@ -30,6 +35,9 @@ export const MAX_INT = 2_147_483_647;
 // of any kind at either end. No NUL anywhere: PostgreSQL text refuses it.
 // eslint-disable-next-line no-control-regex -- the NUL is the point of the lookahead
 export const TRIMMED_TEXT = /^(?!.*\x00)\S(?:.*\S)?$/su;
+// Free text: anything but NUL, line breaks and outer spaces included.
+// eslint-disable-next-line no-control-regex -- the NUL is the point of the class
+export const FREE_TEXT = /^[^\x00]*$/u;
 // Lower-case Latin letters and digits in groups joined by single hyphens.
 export const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 // Relative object key (spec 0002 C22): segments of ASCII letters, digits, `.`, `_`, `-` joined by
@@ -44,6 +52,15 @@ export function IsTrimmedText(maxLength: number): PropertyDecorator {
     Matches(TRIMMED_TEXT, {
       message: '$property must not be empty, start or end with a space or contain NUL',
     }),
+  );
+}
+
+// A description: free text up to DESCRIPTION_MAX_LENGTH characters (spec 0004 E40).
+export function IsDescription(): PropertyDecorator {
+  return applyDecorators(
+    IsString(),
+    HasMaxCharacters(DESCRIPTION_MAX_LENGTH),
+    Matches(FREE_TEXT, { message: '$property must not contain NUL' }),
   );
 }
 
@@ -126,4 +143,22 @@ export function IsRating(): PropertyDecorator {
 // Sort order and stock: 0 or more.
 export function IsNonNegativeInt(): PropertyDecorator {
   return applyDecorators(IsInt(), Min(0), Max(MAX_INT));
+}
+
+// A field that may be left out but not sent as null (spec 0004 E40). IsOptional skips the rules
+// for null too, and null would reach a NOT NULL column as a database error.
+export function IsOmittable(): PropertyDecorator {
+  return ValidateIf((_object: object, value: unknown) => value !== undefined);
+}
+
+// A boolean in the query string: only `true` or `false` (spec 0004 E39). Not `@Type(() => Boolean)`:
+// it turns any non-empty string, `false` included, into true. Anything else stays as sent and
+// fails IsBoolean; a repeated parameter comes as an array and fails too.
+export function IsBooleanQuery(): PropertyDecorator {
+  return applyDecorators(
+    Transform(({ value }: { value: unknown }) =>
+      value === 'true' ? true : value === 'false' ? false : value,
+    ),
+    IsBoolean(),
+  );
 }

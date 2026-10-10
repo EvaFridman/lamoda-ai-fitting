@@ -141,7 +141,7 @@ copy.
   - A class-level validator checks the status, result and error triple for create, and for update
     on the merged row (the service reads the row, merges, validates, writes).
   - `productIds` replace the links in the same transaction (`deleteMany` + `createMany`).
-- **products (E7, E8).** The list item has `{ id, article, name, brand{id,name,slug},
+- **products (E7, E8).** The list item has `{ id, article, name, brand{id,name},
 category{id,name,slug}, image: {url} | null, price, discount, finalPrice, rating, createdAt }`.
   The detail adds `description`, `images[]`, `variations[]` (size, stock), and `attributes[]`
   grouped as `{ attribute{id,name}, values[{id,value}] }`.
