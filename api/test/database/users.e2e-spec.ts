@@ -133,6 +133,50 @@ describe('users: email (users_email_check)', () => {
     await expectViolation(db.user.create({ data: validUser({ email }) }), 'users_email_check');
   });
 
+  // Both ends of every range of the character class, so the multi-digit \x escapes are proven to
+  // parse as intended (a wrong parse would leave an end, or an astral character, unrefused).
+  const hidden = [
+    0x01, 0x1f, 0x7f, 0x85, 0x9f, 0xad, 0x600, 0x605, 0x61c, 0x6dd, 0x70f, 0x890, 0x891, 0x8e2,
+    0x180e, 0x200b, 0x200f, 0x202a, 0x202e, 0x2060, 0x2064, 0x2066, 0x206f, 0xfeff, 0xfff9, 0xfffb,
+    0x110bd, 0x110cd, 0x13430, 0x1343f, 0x1bca0, 0x1bca3, 0x1d173, 0x1d17a, 0xe0001, 0xe0020,
+    0xe007f,
+  ].map((code) => [code.toString(16).toUpperCase().padStart(4, '0'), code] as const);
+
+  // Ordinary letters, marks and symbols just outside the ranges: the class must not be wider.
+  const visibleNeighbours = [
+    0x5f4, 0x606, 0x61b, 0x61e, 0x6dc, 0x6de, 0x70d, 0x710, 0x88e, 0x8e1, 0x180d, 0x180f, 0x2010,
+    0x2030, 0x2070, 0xfe0f, 0xff01, 0xfffc, 0x110bc, 0x110be, 0x1342e, 0x13441, 0x1bc9f, 0x1d172,
+    0x1d17b, 0xe0100,
+  ].map((code) => [code.toString(16).toUpperCase().padStart(4, '0'), code] as const);
+
+  it.each(hidden)('rejects U+%s in the local part', async (_hex, code) => {
+    const email = `iv${String.fromCodePoint(code)}an@mail.ru`;
+    await expectViolation(db.user.create({ data: validUser({ email }) }), 'users_email_check');
+  });
+
+  it.each(hidden)('rejects U+%s in the domain', async (_hex, code) => {
+    const email = `ivan@ma${String.fromCodePoint(code)}il.ru`;
+    await expectViolation(db.user.create({ data: validUser({ email }) }), 'users_email_check');
+  });
+
+  it.each(visibleNeighbours)(
+    'accepts the visible U+%s next to a refused range',
+    async (_hex, code) => {
+      const email = `iv${String.fromCodePoint(code)}an${(counter += 1)}@mail.ru`;
+      await expect(db.user.create({ data: validUser({ email }) })).resolves.toBeDefined();
+    },
+  );
+
+  it('rejects an address that is not NFC', async () => {
+    const email = `${String.fromCodePoint(0x438, 0x306)}ван${counter}@mail.ru`;
+    await expectViolation(db.user.create({ data: validUser({ email }) }), 'users_email_check');
+  });
+
+  it('accepts an NFC Cyrillic address', async () => {
+    const email = `${String.fromCodePoint(0x439)}ван${(counter += 1)}@почта.рф`;
+    await expect(db.user.create({ data: validUser({ email }) })).resolves.toBeDefined();
+  });
+
   it('accepts 254 characters and rejects 255 (column type)', async () => {
     const at254 = `${'a'.repeat(249)}@b.ru`;
     const at255 = `${'a'.repeat(250)}@b.ru`;

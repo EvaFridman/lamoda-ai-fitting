@@ -12,6 +12,7 @@ import {
   Max,
   MaxLength,
   Min,
+  MinLength,
   ValidateBy,
   ValidateIf,
 } from 'class-validator';
@@ -212,6 +213,109 @@ export function IsPriceQuery(): PropertyDecorator {
     Min(0),
     Max(MAX_PRICE),
   );
+}
+
+// Users (spec 0004 E10, E47). Lengths and regexes of the `users_*` CHECK constraints.
+export const EMAIL_MAX_LENGTH = 254;
+export const PERSON_NAME_MIN_LENGTH = 2;
+export const PERSON_NAME_MAX_LENGTH = 50;
+export const MIN_AGE = 14;
+export const MIN_DATE_OF_BIRTH = '1900-01-01';
+
+// A Russian mobile number, the only stored form.
+export const PHONE = /^\+79\d{9}$/;
+// Phone input: digits, spaces, brackets and hyphens, with an optional leading `+`.
+const PHONE_INPUT = /^\+?[\d ()-]+$/;
+// `something@domain.zone` with no whitespace (`[^@[:space:]]` in the database), no control
+// characters (Cc, NUL included: PostgreSQL text refuses it) and no invisible formatting characters
+// (Cf: zero-width, direction marks), so an address cannot look like another one (E47).
+export const EMAIL = /^[^@\s\p{Cc}\p{Cf}]+@[^@\s\p{Cc}\p{Cf}]+\.[^@\s\p{Cc}\p{Cf}]+$/u;
+// Cyrillic or Latin letters; a space, apostrophe or hyphen only between letters.
+export const PERSON_NAME = /^[A-Za-zА-ЯЁа-яё]+(?:[ '-][A-Za-zА-ЯЁа-яё]+)*$/;
+const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+// `8 (999) 123-45-67`, `+7 999 123 45 67` or `999 123-45-67` → `+79991234567` (E47). Input that
+// does not normalize stays as sent and fails PHONE.
+export function normalizePhone(value: unknown): unknown {
+  if (typeof value !== 'string') return value;
+  const input = value.trim();
+  if (!PHONE_INPUT.test(input)) return value;
+  const plus = input.startsWith('+');
+  const digits = input.replace(/\D/g, '');
+  if (digits.length === 11 && (digits.startsWith('7') || (!plus && digits.startsWith('8')))) {
+    return `+7${digits.slice(1)}`;
+  }
+  if (digits.length === 10 && !plus) return `+7${digits}`;
+  return value;
+}
+
+// Trimmed, lower-cased and in NFC, so a decomposed `й` is the same address as a composed one (E47).
+export function normalizeEmail(value: unknown): unknown {
+  return typeof value === 'string' ? value.trim().toLowerCase().normalize('NFC') : value;
+}
+
+// A real calendar date `YYYY-MM-DD` from MIN_DATE_OF_BIRTH to today (UTC) minus MIN_AGE years,
+// inclusive. The bound is compared as text: on 2026-02-28 someone born 2012-02-29 is still 13.
+export function isDateOfBirth(value: unknown, now: Date = new Date()): boolean {
+  if (typeof value !== 'string') return false;
+  const match = ISO_DATE.exec(value);
+  if (match === null) return false;
+  const [year, month, day] = match.slice(1).map(Number) as [number, number, number];
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1) return false;
+  const latest = `${String(now.getUTCFullYear() - MIN_AGE).padStart(4, '0')}-${now
+    .toISOString()
+    .slice(5, 10)}`;
+  return value >= MIN_DATE_OF_BIRTH && value <= latest;
+}
+
+export function IsPhone(): PropertyDecorator {
+  return applyDecorators(
+    Transform(({ value }: { value: unknown }) => normalizePhone(value)),
+    IsString(),
+    Matches(PHONE, { message: '$property must be a Russian mobile number, e.g. +79991234567' }),
+  );
+}
+
+// One validator, the length first: EMAIL backtracks quadratically (the domain class includes `.`),
+// and class-validator runs every rule of a field, so a separate Matches would still scan a long
+// string.
+export function IsUserEmail(): PropertyDecorator {
+  return applyDecorators(
+    Transform(({ value }: { value: unknown }) => normalizeEmail(value)),
+    ValidateBy({
+      name: 'isUserEmail',
+      validator: {
+        validate: (value: unknown) =>
+          typeof value === 'string' && [...value].length <= EMAIL_MAX_LENGTH && EMAIL.test(value),
+        defaultMessage: () =>
+          `$property must be an email address of at most ${EMAIL_MAX_LENGTH} characters`,
+      },
+    }),
+  );
+}
+
+export function IsPersonName(): PropertyDecorator {
+  return applyDecorators(
+    IsString(),
+    MinLength(PERSON_NAME_MIN_LENGTH),
+    MaxLength(PERSON_NAME_MAX_LENGTH),
+    Matches(PERSON_NAME, {
+      message:
+        '$property must be Cyrillic or Latin letters, with a space, apostrophe or hyphen only between letters',
+    }),
+  );
+}
+
+export function IsDateOfBirth(): PropertyDecorator {
+  return ValidateBy({
+    name: 'isDateOfBirth',
+    validator: {
+      validate: (value: unknown) => isDateOfBirth(value),
+      defaultMessage: () =>
+        `$property must be a date YYYY-MM-DD from ${MIN_DATE_OF_BIRTH}, at least ${MIN_AGE} years ago`,
+    },
+  });
 }
 
 // A number not below another field of the same object (`maxPrice` and `minPrice`). Passes while

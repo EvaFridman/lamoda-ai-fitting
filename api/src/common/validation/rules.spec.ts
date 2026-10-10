@@ -17,6 +17,10 @@ import {
   IsRating,
   IsSlug,
   IsTrimmedText,
+  IsUserEmail,
+  isDateOfBirth,
+  normalizeEmail,
+  normalizePhone,
   MAX_INT,
   MAX_PRICE,
   MAX_QUERY_LIST_VALUES,
@@ -517,6 +521,233 @@ describe('IsNotBelow', () => {
 
     expect(codes).toContain('maxPrice:IS_NUMBER');
     expect(codes).not.toContain('maxPrice:IS_NOT_BELOW');
+  });
+});
+
+describe('normalizePhone (E47)', () => {
+  it.each([
+    '8 (999) 123-45-67',
+    '8(999)123-45-67',
+    '89991234567',
+    '+7 999 123 45 67',
+    '+7(999)123-45-67',
+    '+79991234567',
+    '79991234567',
+    '7 999 123 45 67',
+    '999 123-45-67',
+    '9991234567',
+    '  8 999 123 45 67  ',
+  ])('turns %j into +79991234567', (input) => {
+    expect(normalizePhone(input)).toBe('+79991234567');
+  });
+
+  it.each([
+    '+8 999 123 45 67',
+    '+89991234567',
+    '+9991234567',
+    '+7999123456',
+    '+799912345678',
+    '899912345678',
+    '123',
+    '',
+    '+',
+    '8 999 abc 45 67',
+    '+7 999 123 45 6a',
+    '8.999.123.45.67',
+    '8 999 123\n45 67',
+    '++79991234567',
+    '7+9991234567',
+  ])('leaves %j as sent', (input) => {
+    expect(normalizePhone(input)).toBe(input);
+  });
+
+  it('normalizes a number whose second digit is wrong, for PHONE to refuse', () => {
+    expect(normalizePhone('+7 899 123 45 67')).toBe('+78991234567');
+    expect(normalizePhone('899 912 34 56')).toBe('+78999123456');
+  });
+
+  it.each([null, undefined, 79991234567, {}, ['+79991234567']])(
+    'returns the non-string %j as it is',
+    (input) => {
+      expect(normalizePhone(input)).toBe(input);
+    },
+  );
+});
+
+describe('normalizeEmail (E47)', () => {
+  it('trims and lower-cases', () => {
+    expect(normalizeEmail('  Anna@Mail.RU ')).toBe('anna@mail.ru');
+    expect(normalizeEmail('ПОЧТА@Пример.РФ')).toBe('почта@пример.рф');
+  });
+
+  it('keeps the inner characters', () => {
+    expect(normalizeEmail('a b@mail.ru')).toBe('a b@mail.ru');
+  });
+
+  it('turns a decomposed address into NFC', () => {
+    const decomposedCyrillic = `${String.fromCodePoint(0x438, 0x306)}ван@mail.ru`;
+    const decomposedLatin = `${String.fromCodePoint(0x65, 0x301)}mile@mail.ru`;
+
+    expect(normalizeEmail(decomposedCyrillic)).toBe(`${String.fromCodePoint(0x439)}ван@mail.ru`);
+    expect(normalizeEmail(decomposedLatin)).toBe(`${String.fromCodePoint(0xe9)}mile@mail.ru`);
+  });
+
+  it('lower-cases and composes together', () => {
+    const upper = `${String.fromCodePoint(0x418, 0x306)}@MAIL.RU`;
+
+    expect(normalizeEmail(upper)).toBe(`${String.fromCodePoint(0x439)}@mail.ru`);
+  });
+
+  it.each([null, undefined, 5, {}])('returns the non-string %j as it is', (input) => {
+    expect(normalizeEmail(input)).toBe(input);
+  });
+});
+
+describe('isDateOfBirth (E47)', () => {
+  const now = new Date('2026-10-10T12:00:00Z');
+
+  it('accepts the 14th birthday today and any earlier date', () => {
+    expect(isDateOfBirth('2012-10-10', now)).toBe(true);
+    expect(isDateOfBirth('2012-10-09', now)).toBe(true);
+    expect(isDateOfBirth('1990-05-17', now)).toBe(true);
+  });
+
+  it('refuses the day after the 14th birthday and later dates', () => {
+    expect(isDateOfBirth('2012-10-11', now)).toBe(false);
+    expect(isDateOfBirth('2026-10-10', now)).toBe(false);
+    expect(isDateOfBirth('2999-01-01', now)).toBe(false);
+  });
+
+  it('counts the day in UTC', () => {
+    expect(isDateOfBirth('2012-10-10', new Date('2026-10-10T00:00:00Z'))).toBe(true);
+    expect(isDateOfBirth('2012-10-10', new Date('2026-10-09T23:59:59Z'))).toBe(false);
+  });
+
+  it('starts at 1900-01-01', () => {
+    expect(isDateOfBirth('1900-01-01', now)).toBe(true);
+    expect(isDateOfBirth('1899-12-31', now)).toBe(false);
+  });
+
+  it('lets a 29 February birth in on a leap year', () => {
+    expect(isDateOfBirth('2000-02-29', now)).toBe(true);
+    expect(isDateOfBirth('2012-02-29', now)).toBe(true);
+  });
+
+  it('turns 14 on 1 March when the 14th year has no 29 February', () => {
+    expect(isDateOfBirth('2012-02-29', new Date('2026-02-28T10:00:00Z'))).toBe(false);
+    expect(isDateOfBirth('2012-02-29', new Date('2026-03-01T10:00:00Z'))).toBe(true);
+    expect(isDateOfBirth('2012-02-28', new Date('2026-02-28T10:00:00Z'))).toBe(true);
+  });
+
+  it('works when today is 29 February', () => {
+    const leapDay = new Date('2028-02-29T10:00:00Z');
+
+    expect(isDateOfBirth('2014-02-28', leapDay)).toBe(true);
+    expect(isDateOfBirth('2014-03-01', leapDay)).toBe(false);
+  });
+
+  it.each(['2013-02-29', '2010-02-30', '2010-04-31', '2010-13-01', '2010-00-10', '2010-01-00'])(
+    'refuses the impossible date %s',
+    (value) => {
+      expect(isDateOfBirth(value, now)).toBe(false);
+    },
+  );
+
+  it.each([
+    '2000-1-1',
+    '00-01-01',
+    '2000/01/01',
+    '01.01.2000',
+    '20000101',
+    '2000-01-01T00:00:00Z',
+    ' 2000-01-01',
+    '2000-01-01 ',
+    '2000-01-01\n',
+    '0000-01-01',
+    '',
+    'yesterday',
+  ])('refuses the format %j', (value) => {
+    expect(isDateOfBirth(value, now)).toBe(false);
+  });
+
+  it.each([null, undefined, 20000101, true, {}, new Date('2000-01-01'), ['2000-01-01']])(
+    'refuses the non-string %j',
+    (value) => {
+      expect(isDateOfBirth(value, now)).toBe(false);
+    },
+  );
+});
+
+describe('IsUserEmail', () => {
+  class EmailDto {
+    @IsUserEmail()
+    email!: string;
+  }
+
+  const email = (length: number): string => `${'a'.repeat(length - 8)}@mail.ru`;
+
+  it('accepts and lower-cases an email', async () => {
+    await expect(parse(EmailDto, { email: ' Anna@Mail.RU ' })).resolves.toMatchObject({
+      email: 'anna@mail.ru',
+    });
+  });
+
+  it('accepts 254 characters and refuses 255', async () => {
+    expect(email(254)).toHaveLength(254);
+    await expect(parse(EmailDto, { email: email(254) })).resolves.toBeDefined();
+    expect(await codesOf(EmailDto, { email: email(255) })).toEqual(['email:IS_USER_EMAIL']);
+  });
+
+  it('refuses a string that is not an email', async () => {
+    expect(await codesOf(EmailDto, { email: 'nope' })).toEqual(['email:IS_USER_EMAIL']);
+    expect(await codesOf(EmailDto, { email: 5 })).toEqual(['email:IS_USER_EMAIL']);
+  });
+
+  const invisible: [string, number][] = [
+    ['U+200B', 0x200b],
+    ['U+202E', 0x202e],
+    ['U+00AD', 0xad],
+    ['U+FEFF', 0xfeff],
+    ['U+2060', 0x2060],
+    ['U+0001', 0x01],
+    ['U+001B', 0x1b],
+    ['U+007F', 0x7f],
+    ['U+0085', 0x85],
+  ];
+
+  it.each(invisible)('refuses %s in the local part with IS_USER_EMAIL', async (_name, code) => {
+    const email = `anna${String.fromCodePoint(code)}x@mail.ru`;
+
+    expect(await codesOf(EmailDto, { email })).toEqual(['email:IS_USER_EMAIL']);
+  });
+
+  it.each(invisible)('refuses %s in the domain with IS_USER_EMAIL', async (_name, code) => {
+    const email = `anna@ma${String.fromCodePoint(code)}il.ru`;
+
+    expect(await codesOf(EmailDto, { email })).toEqual(['email:IS_USER_EMAIL']);
+  });
+
+  it('accepts a Cyrillic address and stores it composed', async () => {
+    await expect(parse(EmailDto, { email: ' Почта@Пример.РФ ' })).resolves.toMatchObject({
+      email: 'почта@пример.рф',
+    });
+  });
+
+  it('composes a decomposed address before checking it', async () => {
+    const email = `${String.fromCodePoint(0x438, 0x306)}ван@mail.ru`;
+
+    await expect(parse(EmailDto, { email })).resolves.toMatchObject({
+      email: `${String.fromCodePoint(0x439)}ван@mail.ru`,
+    });
+  });
+
+  it('refuses a 100 000-character backtracking string fast', async () => {
+    const hostile = `a@${'.'.repeat(100_000)}@`;
+    const started = performance.now();
+    const codes = await codesOf(EmailDto, { email: hostile });
+
+    expect(performance.now() - started).toBeLessThan(100);
+    expect(codes).toEqual(['email:IS_USER_EMAIL']);
   });
 });
 

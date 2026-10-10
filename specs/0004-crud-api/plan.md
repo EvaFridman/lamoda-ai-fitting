@@ -128,9 +128,12 @@ copy.
 
 **Module-specific rules.**
 
-- **users (E10).** The phone is normalized by a `@Transform` (digits only; a leading `8` or `7`
-  becomes `+7`), then `^\+79\d{9}$`. The email is trimmed and lower-cased. `dateOfBirth` must be at
-  least 14 years before today (UTC date) and not before 1900-01-01.
+- **users (E10, E47).** The phone is normalized by a `@Transform` (digits only; a leading `7`, or
+  `8` without `+`, becomes `+7`; 10 digits without `+` get `+7` in front), then `^\+79\d{9}$`. The email is trimmed,
+  lower-cased and brought to NFC, then checked by the database regex with no control or invisible
+  formatting characters; migration `users_email_visible` adds that rule to `users_email_check`.
+  `dateOfBirth` is optional; sent, it must be at least 14 years before today (UTC date) and not
+  before 1900-01-01.
 - **fitting-sessions (E11).**
   - Every query that looks up the active session adds `isActive: true` (schema note).
   - Create, or a PATCH that sets `isActive: true`, runs in one `$transaction`: archive the user's
@@ -178,7 +181,8 @@ category{id,name,slug}, image: {url} | null, price, discount, finalPrice, rating
   Every query is a `$queryRaw` tagged template with `Prisma.join` for lists. No string building.
   Counts are `count(DISTINCT p.id)` and come back as numbers.
 
-- **Indexes.** The existing FK indexes cover the joins. No migration in this spec.
+- **Indexes.** The existing FK indexes cover the joins. The spec's one migration replaces
+  `users_email_check` (users, E47); it adds no index.
 
 ### Tests (api)
 

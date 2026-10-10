@@ -127,7 +127,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## PR 5 · `feat/0004-users-fittings` · users, fitting sessions, generations
 
-- [ ] **T13. Users.** Phone and email normalization, the age rule. Removes "Auth input rules" from
+- [x] **T13. Users.** Phone and email normalization, the age rule. Removes "Auth input rules" from
       the backlog.
       Check: unit normalization; database e2e with the AC7 inputs; under 14 → 400; deleting a user
       removes their sessions and generations. AC1, AC2, AC6, AC7.

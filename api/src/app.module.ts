@@ -16,6 +16,7 @@ import { RealtimeModule } from './realtime/realtime.module.js';
 import { RedisModule } from './redis/redis.module.js';
 import { TemporalClientModule } from './temporal/temporal-client.module.js';
 import { ThrottlingModule } from './throttling/throttling.module.js';
+import { UsersModule } from './users/users.module.js';
 
 // The HTTP and WebSocket server (src/main.ts).
 @Module({
@@ -38,6 +39,7 @@ import { ThrottlingModule } from './throttling/throttling.module.js';
     BrandsModule,
     AttributesModule,
     ProductsModule,
+    UsersModule,
   ],
   // Every HTTP error answers one format with a code (spec 0004 E18–E22).
   providers: [{ provide: APP_FILTER, useClass: AppExceptionFilter }],
