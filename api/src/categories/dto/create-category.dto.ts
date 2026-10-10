@@ -8,6 +8,7 @@ import {
   IsOmittable,
   IsSlug,
   IsTrimmedText,
+  LEFT_OUT_IS_ZERO,
   MAX_INT,
   NAME_MAX_LENGTH,
   SLUG,
@@ -33,7 +34,7 @@ export class CreateCategoryDto {
   @IsDescription()
   description?: string | null;
 
-  @ApiPropertyOptional({ minimum: 0, maximum: MAX_INT, default: 0 })
+  @ApiPropertyOptional({ minimum: 0, maximum: MAX_INT, description: LEFT_OUT_IS_ZERO })
   @IsOmittable()
   @IsNonNegativeInt()
   sortOrder?: number;

@@ -38,6 +38,8 @@ export const CONSTRAINT_FIELDS: Readonly<Record<string, readonly string[]>> = {
   categories_name_key: ['name'],
   categories_slug_key: ['slug'],
   fitting_sessions_user_id_key: ['userId'],
+  // A composite primary key a write can repeat: the value already linked to the product.
+  product_attribute_values_pkey: ['attributeValueId'],
   product_variations_product_id_size_key: ['size'],
   products_article_key: ['article'],
   users_email_key: ['email'],

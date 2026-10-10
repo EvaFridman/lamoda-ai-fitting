@@ -23,7 +23,7 @@ describe('CONSTRAINT_FIELDS', () => {
     const names = migrationConstraintNames();
     expect(names.length).toBeGreaterThan(0);
 
-    // Primary keys are generated ids; a write cannot break them.
+    // Generated ids cannot clash; a composite primary key a write can repeat gets a row anyway.
     const missing = names.filter(
       (name) => !name.endsWith('_pkey') && !Object.hasOwn(CONSTRAINT_FIELDS, name),
     );

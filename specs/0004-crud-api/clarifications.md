@@ -59,6 +59,21 @@ stock}]` in the order they were added (id), `attributes[]` by attribute name, th
   `price`, `brandId` and `categoryId` are required; `discount` may be left out (0); `rating` and
   `description` may be left out or `null` (no rating, no description), and `null` in an update
   clears them; `null` in any other field is 400. An empty update follows E40.
+- E44. The parts of a product (T10) return their own columns plus `productId`: an image
+  `{id, productId, imageKey, url, sortOrder, createdAt, updatedAt}`, a size `{id, productId, size,
+stock, createdAt, updatedAt}`, an attribute link `{productId, attributeValueId, attribute{id,
+name}, value{id, value}, createdAt}`. Their lists are paged (E5) in the order of the detail (E43):
+  images by `sortOrder`, then id; sizes by id; links by attribute name, then value. Images and sizes
+  have list, read, create, update and delete; every field may change (`imageKey`, `sortOrder`;
+  `size`, `stock`). `sortOrder` may be left out on create (0); other images do not shift, and a
+  repeated `sortOrder` or `imageKey` is allowed. `size` and `stock` are required on create; a size
+  taken by another size of the product is 409 `ALREADY_EXISTS`. Attribute links have list, read
+  (`/attribute-values/:attributeValueId`), add (`{attributeValueId}`) and remove; no update. Adding
+  a missing value is 400 `RELATED_NOT_FOUND`, adding a linked one 409 `ALREADY_EXISTS`; reading or
+  removing a value not linked to the product is 404. The product comes only from the path: a
+  missing product is 404 `NOT_FOUND`, a part of another product is 404, `productId` in the body is 400. `null` and an empty body follow E40. A product (or, under E42,
+  an attribute) deleted while a part is being created is 404 too, not 400 `RELATED_NOT_FOUND`.
+  Swagger shows no `default` on update bodies: a field left out of an update keeps its value.
 
 ## Validation
 

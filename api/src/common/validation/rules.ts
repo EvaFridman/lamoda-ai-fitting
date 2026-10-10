@@ -152,6 +152,10 @@ export function IsOmittable(): PropertyDecorator {
   return ValidateIf((_object: object, value: unknown) => value !== undefined);
 }
 
+// Swagger text for an omittable field whose column defaults to 0. Not `default: 0`: PartialType
+// copies it into the update DTO, where a field left out keeps its value.
+export const LEFT_OUT_IS_ZERO = '0 when left out on create; an update without it keeps the value.';
+
 // A boolean in the query string: only `true` or `false` (spec 0004 E39). Not `@Type(() => Boolean)`:
 // it turns any non-empty string, `false` included, into true. Anything else stays as sent and
 // fails IsBoolean; a repeated parameter comes as an array and fails too.

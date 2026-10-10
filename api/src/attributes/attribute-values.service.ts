@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { NotFoundError } from '../common/errors/app.exception.js';
+import { createUnderParent } from '../common/errors/create-under-parent.js';
 import type { Paginated } from '../common/pagination/paginated.js';
 import type { PaginationQueryDto } from '../common/pagination/pagination-query.dto.js';
 import type { AttributeValue, Prisma } from '../generated/prisma/client.js';
@@ -46,15 +47,16 @@ export class AttributeValuesService {
   }
 
   // A missing attribute is 404, not RELATED_NOT_FOUND: it is part of the address (spec 0004 E42).
-  async create(attributeId: string, dto: CreateAttributeValueDto): Promise<AttributeValue> {
-    const attribute = await this.prisma.attribute.findUnique({
-      where: { id: attributeId },
-      select: { id: true },
-    });
-    if (attribute === null) {
-      throw attributeNotFound();
-    }
-    return this.prisma.attributeValue.create({ data: { attributeId, value: dto.value } });
+  create(attributeId: string, dto: CreateAttributeValueDto): Promise<AttributeValue> {
+    return createUnderParent(
+      async () =>
+        (await this.prisma.attribute.findUnique({
+          where: { id: attributeId },
+          select: { id: true },
+        })) !== null,
+      attributeNotFound,
+      () => this.prisma.attributeValue.create({ data: { attributeId, value: dto.value } }),
+    );
   }
 
   // An empty body changes nothing, `updatedAt` included (spec 0004 E40).
