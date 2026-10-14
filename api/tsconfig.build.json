@@ -2,7 +2,10 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "rootDir": "./src",
-    "outDir": "./dist"
+    "outDir": "./dist",
+    // The TypeScript text goes into each .map, so Sentry shows the source lines of a frame, not
+    // only its file and line. The image deletes the maps once they are uploaded.
+    "inlineSources": true
   },
   "include": ["src"],
   "exclude": ["**/*.spec.ts", "**/*.e2e-spec.ts"]
