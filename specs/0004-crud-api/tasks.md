@@ -139,7 +139,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Check: unit validator; database e2e, a bad triple → 400 with no write, links replaced on
       update; `temporal-reviewer` confirms nothing starts a workflow. AC2, AC9.
       Commit: `feat(api): serve ai generations and their products`
-- [ ] **T16. Error responses in Swagger.** `ErrorResponseDto`; the answers a route's shape implies
+- [x] **T16. Error responses in Swagger.** `ErrorResponseDto`; the answers a route's shape implies
       added in `swagger.ts`; `ApiErrors(...)` on the routes with 409, `IN_USE`,
       `RELATED_NOT_FOUND` or `CONSTRAINT_VIOLATION`, every resource (E50). Removes "401 in
       Swagger" from the backlog.

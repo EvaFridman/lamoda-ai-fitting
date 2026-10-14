@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 
+import { ApiErrors } from '../common/errors/api-errors.decorator.js';
 import { AdminOnly } from '../common/guards/admin.guard.js';
 import { ApiPaginatedResponse, type Paginated } from '../common/pagination/paginated.js';
 import { UuidParam } from '../common/pipes/uuid.pipe.js';
@@ -41,12 +42,14 @@ export class FittingSessionsController {
 
   @Post()
   @ApiCreatedResponse({ type: FittingSessionResponseDto })
+  @ApiErrors('ALREADY_EXISTS', 'RELATED_NOT_FOUND')
   create(@Body() dto: CreateFittingSessionDto): Promise<FittingSessionResponseDto> {
     return this.sessions.create(dto);
   }
 
   @Patch(':id')
   @ApiOkResponse({ type: FittingSessionResponseDto })
+  @ApiErrors('ALREADY_EXISTS')
   update(
     @UuidParam('id') id: string,
     @Body() dto: UpdateFittingSessionDto,

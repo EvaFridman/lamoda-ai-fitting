@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 
+import { ApiErrors } from '../common/errors/api-errors.decorator.js';
 import { AdminOnly } from '../common/guards/admin.guard.js';
 import { ApiPaginatedResponse, type Paginated } from '../common/pagination/paginated.js';
 import { PaginationQueryDto } from '../common/pagination/pagination-query.dto.js';
@@ -41,6 +42,7 @@ export class AttributesController {
   @Post()
   @AdminOnly()
   @ApiCreatedResponse({ type: AttributeResponseDto })
+  @ApiErrors('ALREADY_EXISTS')
   create(@Body() dto: CreateAttributeDto): Promise<AttributeResponseDto> {
     return this.attributes.create(dto);
   }
@@ -48,6 +50,7 @@ export class AttributesController {
   @Patch(':id')
   @AdminOnly()
   @ApiOkResponse({ type: AttributeResponseDto })
+  @ApiErrors('ALREADY_EXISTS')
   update(
     @UuidParam('id') id: string,
     @Body() dto: UpdateAttributeDto,
@@ -59,6 +62,7 @@ export class AttributesController {
   @AdminOnly()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiNoContentResponse()
+  @ApiErrors('IN_USE')
   delete(@UuidParam('id') id: string): Promise<void> {
     return this.attributes.delete(id);
   }

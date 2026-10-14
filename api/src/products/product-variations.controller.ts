@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 
+import { ApiErrors } from '../common/errors/api-errors.decorator.js';
 import { AdminOnly } from '../common/guards/admin.guard.js';
 import { ApiPaginatedResponse, type Paginated } from '../common/pagination/paginated.js';
 import { PaginationQueryDto } from '../common/pagination/pagination-query.dto.js';
@@ -48,6 +49,7 @@ export class ProductVariationsController {
   @Post()
   @AdminOnly()
   @ApiCreatedResponse({ type: ProductVariationResponseDto })
+  @ApiErrors('ALREADY_EXISTS')
   create(
     @UuidParam('id') productId: string,
     @Body() dto: CreateProductVariationDto,
@@ -58,6 +60,7 @@ export class ProductVariationsController {
   @Patch(':variationId')
   @AdminOnly()
   @ApiOkResponse({ type: ProductVariationResponseDto })
+  @ApiErrors('ALREADY_EXISTS')
   update(
     @UuidParam('id') productId: string,
     @UuidParam('variationId') id: string,

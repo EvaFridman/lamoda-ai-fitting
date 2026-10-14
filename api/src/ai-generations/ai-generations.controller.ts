@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 
+import { ApiErrors } from '../common/errors/api-errors.decorator.js';
 import { AdminOnly } from '../common/guards/admin.guard.js';
 import { ApiPaginatedResponse, type Paginated } from '../common/pagination/paginated.js';
 import { UuidParam } from '../common/pipes/uuid.pipe.js';
@@ -41,12 +42,14 @@ export class AiGenerationsController {
 
   @Post()
   @ApiCreatedResponse({ type: AiGenerationResponseDto })
+  @ApiErrors('RELATED_NOT_FOUND')
   create(@Body() dto: CreateAiGenerationDto): Promise<AiGenerationResponseDto> {
     return this.generations.create(dto);
   }
 
   @Patch(':id')
   @ApiOkResponse({ type: AiGenerationResponseDto })
+  @ApiErrors('RELATED_NOT_FOUND', 'CONSTRAINT_VIOLATION')
   update(
     @UuidParam('id') id: string,
     @Body() dto: UpdateAiGenerationDto,

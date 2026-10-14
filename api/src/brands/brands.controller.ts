@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 
+import { ApiErrors } from '../common/errors/api-errors.decorator.js';
 import { AdminOnly } from '../common/guards/admin.guard.js';
 import { ApiPaginatedResponse, type Paginated } from '../common/pagination/paginated.js';
 import { PaginationQueryDto } from '../common/pagination/pagination-query.dto.js';
@@ -41,6 +42,7 @@ export class BrandsController {
   @Post()
   @AdminOnly()
   @ApiCreatedResponse({ type: BrandResponseDto })
+  @ApiErrors('ALREADY_EXISTS')
   create(@Body() dto: CreateBrandDto): Promise<BrandResponseDto> {
     return this.brands.create(dto);
   }
@@ -48,6 +50,7 @@ export class BrandsController {
   @Patch(':id')
   @AdminOnly()
   @ApiOkResponse({ type: BrandResponseDto })
+  @ApiErrors('ALREADY_EXISTS')
   update(@UuidParam('id') id: string, @Body() dto: UpdateBrandDto): Promise<BrandResponseDto> {
     return this.brands.update(id, dto);
   }
@@ -56,6 +59,7 @@ export class BrandsController {
   @AdminOnly()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiNoContentResponse()
+  @ApiErrors('IN_USE')
   delete(@UuidParam('id') id: string): Promise<void> {
     return this.brands.delete(id);
   }

@@ -12,12 +12,7 @@ import type { PinoLogger } from 'nestjs-pino';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Prisma } from '../../generated/prisma/client.js';
-import {
-  AppException,
-  NotFoundError,
-  UnauthorizedError,
-  ValidationError,
-} from '../errors/app.exception.js';
+import { NotFoundError, UnauthorizedError, ValidationError } from '../errors/app.exception.js';
 import { AppExceptionFilter, loggable } from './app-exception.filter.js';
 
 vi.mock('@sentry/nestjs', () => ({ captureException: vi.fn() }));
@@ -157,7 +152,6 @@ describe('AppExceptionFilter', () => {
       ['404 unknown route', () => new NotFoundException('Cannot GET /x')],
       ['400 validation', () => new ValidationError([{ field: 'a', code: 'x', message: 'bad' }])],
       ['401 admin token', () => new UnauthorizedError()],
-      ['403', () => new AppException(HttpStatus.FORBIDDEN, 'UNAUTHORIZED', 'Forbidden')],
       ['429 throttled', () => new ThrottlerException()],
     ])('does not report %s', (_name, make) => {
       filter.catch(make(), host);

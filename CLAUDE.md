@@ -159,8 +159,9 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
 - Logging: `api` through the injected pino logger, never `console` (ESLint enforces it).
 - `api` errors: every HTTP error answers `{ error: { code, message, details } }` (successful
   responses are the data itself); `details` is `[{ field, code, message }]`, `message` is English.
-  Codes are `api/src/common/errors/error-codes.ts`; throw `AppException` or its subclasses
-  (`common/errors/app.exception.ts`), and let Prisma errors through: `AppExceptionFilter`
+  Codes and their statuses (`ERROR_STATUS`) are `api/src/common/errors/error-codes.ts`; throw
+  `AppException` or its subclasses (`common/errors/app.exception.ts`, the status follows from the
+  code), and let Prisma errors through: `AppExceptionFilter`
   (`common/filters/`) maps them, with `common/errors/constraint-fields.ts` naming the field of
   each database constraint (a new constraint gets a row there). Path ids use `@UuidParam('id')`
   (`common/pipes/`): `UuidPipe` plus the uuid format in Swagger. Services write references as scalar ids (`brandId`), not nested `connect`,
@@ -168,7 +169,10 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   reads them). e2e apps that send bodies or check errors are set up as `server.ts` does:
   `AppExpressAdapter` (`common/http/`, else broken JSON is a plain 400) and
   `createValidationPipe()` (`common/validation/`); database e2e get such an app from
-  `createTestApp()` (`test/support/test-app.ts`).
+  `createTestApp()` (`test/support/test-app.ts`). Swagger error responses: `swagger.ts` adds the
+  ones a route's shape implies (body, query, `@UuidParam`, admin, 429/500/503); a route that can
+  answer 409 `ALREADY_EXISTS`/`IN_USE` or 400 `RELATED_NOT_FOUND`/`CONSTRAINT_VIOLATION` declares
+  them with `@ApiErrors(...)` (`common/errors/`).
 - `api` admin access: writes and every route of users, fitting sessions and generations carry
   `@AdminOnly()` (`common/guards/`), per controller or route, never global; it checks the
   `X-Admin-Token` header against `ADMIN_API_TOKEN` (empty closes them). Lists take

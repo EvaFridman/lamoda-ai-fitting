@@ -240,6 +240,12 @@ name}, value{id, value}, createdAt}`. Their lists are paged (E5) in the order of
   covers them.
 - E50. Swagger lists the error responses of every operation, not only its success: each answer of
   E20 the route can give, with the error envelope as its schema (401 on admin operations).
+- E56. Swagger lists no error responses for `/health/*`: they keep their own format (E22) and skip
+  the rate limit.
+- E57. Public catalog reads get the same shape-implied answers as other routes (400 on a query,
+  `INVALID_ID` and 404 on an id, 429, 500, 503), with no 401.
+- E58. Error responses in Swagger carry no examples: the `code` enum from `error-codes.ts` and the
+  codes named in the description are enough.
 
 ## Sentry
 

@@ -199,8 +199,10 @@ category{id,name,slug}, image: {url} | null, price, discount, finalPrice, rating
   - with the `admin` security: 401 `UNAUTHORIZED`.
 - Answers that depend on the logic come from a decorator on the route, `ApiErrors(...)` in
   `common/errors/`: 409 `ALREADY_EXISTS` or `IN_USE`, 400 `RELATED_NOT_FOUND` or
-  `CONSTRAINT_VIOLATION`, 404 of a parent on a nested create. One status with several codes is one
-  response whose description names the codes.
+  `CONSTRAINT_VIOLATION` (the 404 of a parent on a nested create comes from its uuid path
+  parameter, above). The status of each code is set once, in `ERROR_STATUS` (`error-codes.ts`):
+  `AppException` takes it from there. One status with several codes is one response whose
+  description names the codes.
 - e2e without a database: every operation of the Swagger JSON lists the answers its shape implies,
   each with the `ErrorResponseDto` schema; spot checks of the decorated ones (409 on
   `POST /users`, `IN_USE` on `DELETE /brands/{id}`).
