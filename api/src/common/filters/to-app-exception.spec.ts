@@ -250,6 +250,26 @@ describe('toAppException, one case per row of E20', () => {
     expect(toAppException(error).body.error.code).toBe('SERVICE_UNAVAILABLE');
   });
 
+  // A stopped container leaves the Docker network, so its name gives a temporary DNS failure.
+  // Prisma's pg adapter does not map EAI_AGAIN, so it arrives as the Prisma error code itself.
+  it('database unreachable by a temporary DNS failure (Prisma code EAI_AGAIN, AC13/E20): 503 SERVICE_UNAVAILABLE', () => {
+    const result = toAppException(prismaError('EAI_AGAIN'));
+    expect(result.getStatus()).toBe(503);
+    expect(result.body.error.code).toBe('SERVICE_UNAVAILABLE');
+  });
+
+  it('a socket error from getaddrinfo (EAI_AGAIN, AC13/E20): 503 SERVICE_UNAVAILABLE', () => {
+    const error = Object.assign(new Error('getaddrinfo EAI_AGAIN temporal'), {
+      code: 'EAI_AGAIN',
+      syscall: 'getaddrinfo',
+      errno: -3001,
+      hostname: 'temporal',
+    });
+    const result = toAppException(error);
+    expect(result.getStatus()).toBe(503);
+    expect(result.body.error.code).toBe('SERVICE_UNAVAILABLE');
+  });
+
   it('a bare Nest ServiceUnavailableException: 503 SERVICE_UNAVAILABLE', () => {
     expect(toAppException(new ServiceUnavailableException()).getStatus()).toBe(503);
   });
