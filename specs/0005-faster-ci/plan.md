@@ -87,8 +87,11 @@ image=moby/buildkit:v0.33.1 --use`) and builds with `docker buildx build --load`
 
 - `deploy/compose/app.yml` (api, web) and `deploy/compose/infra.yml` (postgres, redis, temporal,
   nginx): `start_interval: 1s` next to the existing `start_period`. During `start_period` Docker
-  checks every second; after the first success, or after `start_period`, every `interval` (5 s), as
-  before (0004 E33 counts on the 5 s poll).
+  checks every second; after the first success, or after `start_period`, every `interval` (5 s;
+  nginx 10 s), as before (0004 E33 counts on the 5 s poll).
+- The changed health checks recreate the infrastructure services once, at the first deploy after
+  the merge (G5): `deploy/README.md` ("Как идёт деплой") and `.claude/rules/deploy.md` say that a
+  change to `infra.yml` is not blue-green.
 - Both places that wait on health use these files: `deploy.sh` on the server and
   `scripts/ci-deploy-check.sh` on the runner (twice per run).
 - The dev `docker-compose.yml` is out of scope.
