@@ -19,6 +19,13 @@ removes it from this list. Found by the agents' first security audit and trial r
   images from a separate job that runs only on a push to `main`; set `persist-credentials: false`
   on checkouts.
 
+## Images
+
+- **api image size.** The api runtime image is 801 MB (web: 296 MB): it costs about 35 s of the push
+  to GHCR in CI and about 20 s of the pull on the server at every deploy (0005 G4). The only
+  reduction so far is the Temporal native module trimmed to the image's own platform (0001 T17).
+  Find what the production `node_modules` holds and what the runtime does not need.
+
 ## nginx and realtime
 
 - **WebSocket connections per client.** `/socket.io/` holds connections for an hour and nothing
@@ -46,7 +53,7 @@ removes it from this list. Found by the agents' first security audit and trial r
 - **Cap on validation details.** With `forbidNonWhitelisted`, every unknown field of a body is one
   entry of `details`: an entry is about 12 times the size of its key, so a 100 KB body of short
   keys answers about 1.2 MB. Cap `details` (e.g. 50 entries, with the count of the rest); it changes
-  the error contract that web's error handling (spec 0005) reads, so decide it there.
+  the error contract that web's error handling (spec 0007) reads, so decide it there.
 - **Email look-alikes.** Users' emails are NFC with no control or format characters (0004 E47),
   but two accounts can still have addresses that look the same: mixed scripts (`ivаn@mail.ru` with
   a Cyrillic `а`), invisible characters outside Cf (variation selectors U+FE00–FE0F, combining
@@ -56,9 +63,9 @@ removes it from this list. Found by the agents' first security audit and trial r
 
 ## web
 
-- **Web data layer (spec 0005, next after 0004).** Typed access to the api of spec 0004, with no
-  pages; 0005 adds tasks of its own. Starting point, from 0004 E22, E26–E28 (open to change in
-  0005):
+- **Web data layer (spec 0007, next after 0006; 0005 G2).** Typed access to the api of spec 0004,
+  with no pages; 0007 adds tasks of its own. Starting point, from 0004 E22, E26–E28 (open to change
+  in 0007):
   - a slice in `web/src/entities` per entity (category, brand, product, attribute, user, fitting
     session, generation), with zod schemas written by hand (no code generation, no shared package);
   - catalog entities load data on the server (`apiFetch`) and in the browser (`useQuery` hooks over a

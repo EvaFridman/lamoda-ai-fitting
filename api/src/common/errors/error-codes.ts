@@ -1,7 +1,7 @@
 import { HttpStatus } from '@nestjs/common';
 
 // The `code` of every error response (spec 0004 E20). Clients tell errors apart by it, not by the
-// status or the message; web keeps its own copy with a Russian text per code (spec 0005).
+// status or the message; web keeps its own copy with a Russian text per code (spec 0007).
 export const ERROR_CODES = [
   'VALIDATION_FAILED',
   'BAD_JSON',
