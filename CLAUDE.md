@@ -99,12 +99,15 @@ Pinned on purpose; each "not newer" has a reason and a condition to move on.
 - `npm ci`: install; also sets git hooks (`core.hooksPath .githooks`).
 - `npm run format` / `format:check`: Prettier on the whole repo.
 - `npm run lint`: ESLint for root, `api` and `web` (one config, `eslint.config.mjs`).
-- `npm run typecheck`, `npm test`, `npm run build`: for every package that has them.
+- `npm run typecheck`, `npm test`, `npm run build`: for every package that has them. `npm test`
+  runs the api and web tests at the same time (`scripts/run-parallel.mjs`), each Vitest with half
+  the CPUs (two full pools at once were slower than one after the other); each one's output prints
+  as one block when it ends, and the run fails if either does.
 - `npm run verify`: format check, lint, typecheck, tests and build in one command. The pre-push
   hook and CI run exactly this, so the list of checks lives in one place (root `package.json`).
 
 `verify` covers `api` (lint, typecheck, tests, build), `web` (lint, Stylelint, typecheck, tests,
-`next build`) and the agents' guard hooks (lint, tests). Docker must be running for `verify` and
+`next build`), the agents' guard hooks and root `scripts/*.mjs` (lint, `node --test`). Docker must be running for `verify` and
 `npm test`: the Vitest project `database` (`api/test/database/`) starts a throwaway PostgreSQL with
 Testcontainers (`api/test/support/`), never the development database; without Docker it fails
 with a message to start it. The project `unit` (everything else) needs no Docker. `web` tests

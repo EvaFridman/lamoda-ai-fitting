@@ -43,7 +43,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       deploy under the request loop: the infrastructure is recreated once, the outage is measured
       (G5), the old copy is ready afterwards. AC9, AC11.
       Commit: `perf(deploy): check health every second while a container starts`
-- [ ] **T4. api and web tests at the same time.** `scripts/run-parallel.mjs` and its
+- [x] **T4. api and web tests at the same time.** `scripts/run-parallel.mjs` and its
       `scripts/run-parallel.test.mjs`; root `test` uses it (plan §3); `CLAUDE.md`, "Commands".
       Check: `npm test` before and after (time, locally); a test made to fail in api, then in web:
       `npm test` exits 1 and the output names the test, then removed. AC10, AC12.
