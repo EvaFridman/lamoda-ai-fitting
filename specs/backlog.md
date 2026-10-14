@@ -4,6 +4,14 @@ Known problems that have no spec of their own yet. When a new spec touches an it
 item goes into that spec (its `spec.md` or `plan.md` names it), and the commit that closes it
 removes it from this list. Found by the agents' first security audit and trial runs (2026-10-07).
 
+## Specs
+
+- **AC15 repeat of spec 0004.** The first step of the next spec, whatever its area (0004, E62): add
+  the result of the E59 repeat on the release that closed 0004 (503 `SERVICE_UNAVAILABLE` with
+  Postgres stopped; TypeScript source under the `final-price.ts` frame in Sentry) to the AC15 row
+  of `specs/0004-crud-api/tasks.md`, "Acceptance record". The owner allowed this one edit of a
+  closed folder, an exception to `specs/principles.md`, "Closing a spec".
+
 ## CI
 
 - **Image job permissions.** The `images` job in `.github/workflows/ci.yml` also runs for pull

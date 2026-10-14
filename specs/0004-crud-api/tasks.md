@@ -1,6 +1,6 @@
 # 0004 CRUD api: tasks
 
-Status: accepted (2026-10-09).
+Status: done (2026-10-15). History, not instructions.
 Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## How the work flows
@@ -153,7 +153,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       TypeScript stack. "Acceptance record" filled in.
       Check: every AC has evidence.
       Commit: `docs(specs): record the acceptance of spec 0004`
-- [ ] **T18. Close.** All files `Status: done`; `CLAUDE.md` (spec 0004 in the opening paragraph)
+- [x] **T18. Close.** All files `Status: done`; `CLAUDE.md` (spec 0004 in the opening paragraph)
       and `README.md` in line with what was built.
       Check: `npm run format:check`.
       Commit: `docs(specs): close spec 0004`

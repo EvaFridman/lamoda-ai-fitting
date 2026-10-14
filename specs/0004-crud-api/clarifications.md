@@ -1,6 +1,6 @@
 # 0004 CRUD api: clarifications
 
-Status: in progress (2026-10-09).
+Status: done (2026-10-15). History, not instructions; E62 allows one later edit.
 
 Decisions made by the owner on 2026-10-09. Each line is final unless the owner changes it here. The
 model for the product list is the lamoda.ru catalog: the owner's screenshots and a page saved from
@@ -304,6 +304,10 @@ name}, value{id, value}, createdAt}`. Their lists are paged (E5) in the order of
   - the frame pointed to `final-price.ts` at the right line, but Sentry showed the compiled JS under
     it (`missing_source_content`): the maps carried no source text. `tsconfig.build.json` now sets
     `inlineSources`; the image still deletes the maps after the upload.
+- E62. The repeat of E59 after the E60 fixes runs on the release that closes this spec (T18), after
+  the folder is `done`. Its result is added to the AC15 row of `tasks.md`, "Acceptance record", as
+  the first step of the next spec, the one edit of this folder after it is closed; the backlog item
+  "AC15 repeat of spec 0004" carries it until then (owner, 2026-10-15).
 
 ## web (moved to spec 0005 by E30)
 
