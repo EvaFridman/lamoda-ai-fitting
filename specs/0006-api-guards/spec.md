@@ -28,7 +28,7 @@ and every request carries one id through nginx, web, the api's logs and Sentry.
 - Security headers in nginx (F9).
 - Request id from nginx through web and the api to logs, Sentry and the response (F10).
 - Request timeout in the api, and Node and nginx timeouts that agree (F11).
-- Trusted client address: subnets from the environment and a secret header from web (F13).
+- Trusted client address: a secret header from nginx and web (F13).
 - Cap on validation details (F14).
 - Backlog: the four items of F2 leave it; an IDOR item for the auth spec is added (F4).
 - Issue #29 is closed by the last pull request (F15).
@@ -68,9 +68,9 @@ and every request carries one id through nginx, web, the api's logs and Sentry.
 
 - AC8. Through nginx, and through web's server-side calls, two visitors with different addresses get
   separate quotas (0001 B12d).
-- AC9. A request to the api from inside the docker network that sends `X-Forwarded-For` without web's
-  secret, or from an address outside the trusted subnets, is counted by its connection address:
-  changing `X-Forwarded-For` does not give it a fresh quota (F13).
+- AC9. A request to the api from inside the docker network that sends `X-Forwarded-For` without the
+  shared secret is counted by its connection address: changing `X-Forwarded-For` does not give it a
+  fresh quota (F13).
 
 ### Edge
 
@@ -105,7 +105,7 @@ and every request carries one id through nginx, web, the api's logs and Sentry.
 
 ## Owner actions (Claude cannot do them)
 
-- Add web's secret for the api (F13) to GitHub Environment `production`.
+- Add the proxy secret (F13) to GitHub Environment `production`.
 - Review and merge the pull requests; the last one closes issue #29 (F15).
 - After the deploy, check AC10–AC14 against the public domain where Claude has no access.
 
@@ -113,8 +113,7 @@ and every request carries one id through nginx, web, the api's logs and Sentry.
 
 - nginx is the only proxy in front of the app: no CDN or load balancer before it, so its view of the
   client address is the real one.
-- The docker network's subnets are fixed by the compose files, so they can be listed in the
-  environment.
+- The api publishes no ports: only containers on the docker network reach it (F13).
 - Visitors behind one NAT share one edge limit; at a threshold above the api's quotas this is
   acceptable (F7).
 - The limits' values are chosen in the plan; they are not part of this spec.
