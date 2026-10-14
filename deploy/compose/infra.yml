@@ -29,6 +29,8 @@ services:
       timeout: 3s
       retries: 10
       start_period: 10s
+      # Every second while starting, at most for start_period; then every `interval`.
+      start_interval: 1s
 
   redis:
     <<: *restart
@@ -41,6 +43,7 @@ services:
       timeout: 3s
       retries: 10
       start_period: 5s
+      start_interval: 1s
 
   temporal:
     <<: *restart
@@ -61,6 +64,7 @@ services:
       timeout: 5s
       retries: 20
       start_period: 15s
+      start_interval: 1s
 
   # One-shot: a temporary self-signed certificate if none exists, so nginx can start before the
   # real one is issued (deploy/scripts/init-cert.sh).
@@ -97,6 +101,7 @@ services:
       timeout: 5s
       retries: 3
       start_period: 5s
+      start_interval: 1s
     depends_on:
       cert-init:
         condition: service_completed_successfully

@@ -33,12 +33,15 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## PR 1 · `ci/0005-faster-ci` · parallel jobs, cache, parallel tests, health checks
 
-- [ ] **T3. Health checks report sooner.** `start_interval: 1s` for api and web in
+- [x] **T3. Health checks report sooner.** `start_interval: 1s` for api and web in
       `deploy/compose/app.yml` and for postgres, redis, temporal and nginx in
-      `deploy/compose/infra.yml` (plan §4).
+      `deploy/compose/infra.yml` (plan §4); `deploy/README.md` and `.claude/rules/deploy.md`: an
+      `infra.yml` change recreates the service in place (G5); `CLAUDE.md`, "Production and deploys".
       Check: `scripts/ci-deploy-check.sh` locally passes (no failed request); `docker inspect` of a
       fresh api and web container shows health entries 1 s apart until the first success, 5 s after
-      it. AC9, AC11.
+      it; a deploy with the old `deploy/`, then `deploy/` updated in place as CD does and a second
+      deploy under the request loop: the infrastructure is recreated once, the outage is measured
+      (G5), the old copy is ready afterwards. AC9, AC11.
       Commit: `perf(deploy): check health every second while a container starts`
 - [ ] **T4. api and web tests at the same time.** `scripts/run-parallel.mjs` and its
       `scripts/run-parallel.test.mjs`; root `test` uses it (plan §3); `CLAUDE.md`, "Commands".

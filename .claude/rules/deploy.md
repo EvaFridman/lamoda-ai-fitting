@@ -19,6 +19,10 @@ Details and commands: `deploy/README.md`.
   `deploy/scripts/deploy.sh <commit hash>`. Rollback: run CD by hand with an earlier hash.
 - Blue-green: the new copy of api and web starts next to the running one, nginx switches only when
   it is healthy; the previous copy stays as the rollback. The Temporal worker is replaced in place.
+- Infrastructure (`deploy/compose/infra.yml`) is not blue-green: a deploy that changes a service's
+  definition there recreates it in place, before the migrations; for postgres, redis, temporal or
+  nginx that is an outage (seconds for a config change, longer for an image upgrade). Such a change
+  is the owner's decision and is merged at a quiet time.
 - Every change to deploy files is tested the way it reaches production: on a copy of `deploy/`
   updated as CD updates the server, and in CI by `scripts/ci-deploy-check.sh`. nginx config changes
   are applied by `deploy.sh` without restarting nginx.

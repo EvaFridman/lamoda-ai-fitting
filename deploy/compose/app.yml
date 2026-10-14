@@ -42,6 +42,8 @@ services:
       timeout: 3s
       retries: 6
       start_period: 20s
+      # Every second until the first success, so the deploy switches to a ready copy at once.
+      start_interval: 1s
 
   web:
     <<: *restart
@@ -67,6 +69,7 @@ services:
       timeout: 5s
       retries: 6
       start_period: 20s
+      start_interval: 1s
     depends_on:
       api:
         condition: service_healthy
