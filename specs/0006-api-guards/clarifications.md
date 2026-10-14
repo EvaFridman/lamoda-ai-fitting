@@ -69,11 +69,14 @@ code comments.
   larger body with the api's error format, 413 `PAYLOAD_TOO_LARGE`, not nginx's HTML page. The
   photo upload spec opens a larger limit for its own route. This replaces 0001 AC22's "a 10 MB
   upload is not rejected by nginx", which prepared for uploads that do not exist yet.
-- **F13. Client address.** The api takes the client address from `X-Forwarded-For` only from
-  addresses in a list of subnets from the environment, and, for web's calls, only with a shared
-  secret header that web sends. Without it the api counts the connection's own address. The secret
-  is a new environment variable: GitHub Environment `production`, the server's `.env` and
-  `scripts/init-env.sh`. Today anything on the docker network can name any client address.
+- **F13. Client address.** The api takes the client address (and the request id, F10) from its
+  headers only when the request carries a shared secret header; nginx and web's `apiFetch` both
+  send it. Without it the api counts the connection's own address. The secret is a new environment
+  variable: GitHub Environment `production`, the server's `.env` and `scripts/init-env.sh`. Today
+  anything on the docker network can name any client address. Revised while writing the plan: a
+  list of trusted subnets was dropped. The docker network's subnet is assigned by Docker, fixing it
+  means recreating the network with the whole site down, and the api publishes no ports, so only
+  the docker network reaches it anyway: the subnet check would add nothing to the secret.
 
 ## Validation
 
@@ -91,4 +94,5 @@ code comments.
 ## Later
 
 - The values of the quota tiers, the edge rate and burst, the connection limit, the timeouts and N
-  are chosen while writing the plan.
+  were chosen with the plan (plan.md, "Values"); they are environment defaults, changed without a
+  new decision.
