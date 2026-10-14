@@ -27,9 +27,11 @@ removes it from this list. Found by the agents' first security audit and trial r
   `X-Content-Type-Options: nosniff` before login or photo upload land.
 - **Request rate limit at the edge.** The api's `ThrottlerGuard` is a Nest guard, so it runs only
   on matched routes: requests to unknown routes are never counted, and each one still writes two
-  log lines (the request and the filter's warn). nginx has no `limit_req`. Add one for `/api/` and
-  `/socket.io/`; the owner decides the rate and burst per address, how visitors behind one NAT are
-  treated, a separate limit for writes, and how it sits with the api's own limit.
+  log lines (the request and the filter's warn). Nor are bodies the parser refuses (broken JSON,
+  over the limit), which it reads before any guard, admin routes included (0004 E49). nginx has no
+  `limit_req`. Add one for `/api/` and `/socket.io/`; the owner decides the rate and burst per
+  address, how visitors behind one NAT are treated, a separate limit for writes, and how it sits
+  with the api's own limit.
 
 ## api
 
@@ -37,12 +39,6 @@ removes it from this list. Found by the agents' first security audit and trial r
   entry of `details`: an entry is about 12 times the size of its key, so a 100 KB body of short
   keys answers about 1.2 MB. Cap `details` (e.g. 50 entries, with the count of the rest); it changes
   the error contract that web's error handling (spec 0005) reads, so decide it there.
-- **Body errors before the admin check.** The body parser runs before the guards, so an admin route
-  answers broken JSON with 400 `BAD_JSON` and a body over the limit with 413 `PAYLOAD_TOO_LARGE`
-  even with no token or a wrong one, instead of 401 (found by `qa-tester` in 0004 T13). Nothing
-  leaks, but the route shows it exists, and an anonymous caller makes the api parse up to the body
-  limit. Decide whether the token is checked before the body (e.g. a middleware on admin routes)
-  and test it on every admin route group.
 - **Email look-alikes.** Users' emails are NFC with no control or format characters (0004 E47),
   but two accounts can still have addresses that look the same: mixed scripts (`ivаn@mail.ru` with
   a Cyrillic `а`), invisible characters outside Cf (variation selectors U+FE00–FE0F, combining

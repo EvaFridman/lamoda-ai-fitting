@@ -125,7 +125,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       match the list; `security-reviewer` on the raw SQL. AC12.
       Commit: `feat(api): count products per filter value`
 
-## PR 5 · `feat/0004-users-fittings` · users, fitting sessions, generations
+## PR 5 · `feat/0004-users-fittings` · users, fitting sessions, generations, error docs
 
 - [x] **T13. Users.** Phone and email normalization, the age rule. Removes "Auth input rules" from
       the backlog.
@@ -139,22 +139,28 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Check: unit validator; database e2e, a bad triple → 400 with no write, links replaced on
       update; `temporal-reviewer` confirms nothing starts a workflow. AC2, AC9.
       Commit: `feat(api): serve ai generations and their products`
+- [ ] **T16. Error responses in Swagger.** `ErrorResponseDto`; the answers a route's shape implies
+      added in `swagger.ts`; `ApiErrors(...)` on the routes with 409, `IN_USE`,
+      `RELATED_NOT_FOUND` or `CONSTRAINT_VIOLATION`, every resource (E50). Removes "401 in
+      Swagger" from the backlog.
+      Check: e2e on the Swagger JSON, every operation and the decorated spot checks. AC2.
+      Commit: `feat(api): list error responses in swagger`
 
 ## PR 6 · `docs/0004-close` · acceptance
 
-- [ ] **T16. Acceptance.** `qa-tester` on the local stack through every criterion; 👤 a test 500
+- [ ] **T17. Acceptance.** `qa-tester` on the local stack through every criterion; 👤 a test 500
       on production after the deploy shows in the api's Sentry project with the release and a
       TypeScript stack. "Acceptance record" filled in.
       Check: every AC has evidence.
       Commit: `docs(specs): record the acceptance of spec 0004`
-- [ ] **T17. Close.** All files `Status: done`; `CLAUDE.md` (spec 0004 in the opening paragraph)
+- [ ] **T18. Close.** All files `Status: done`; `CLAUDE.md` (spec 0004 in the opening paragraph)
       and `README.md` in line with what was built.
       Check: `npm run format:check`.
       Commit: `docs(specs): close spec 0004`
 
 ## Acceptance record
 
-Filled in by T16.
+Filled in by T17.
 
 | AC   | Result | Evidence |
 | ---- | ------ | -------- |
