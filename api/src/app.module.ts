@@ -3,6 +3,7 @@ import { APP_FILTER } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { SentryModule } from '@sentry/nestjs/setup';
 
+import { AiGenerationsModule } from './ai-generations/ai-generations.module.js';
 import { AttributesModule } from './attributes/attributes.module.js';
 import { BrandsModule } from './brands/brands.module.js';
 import { CategoriesModule } from './categories/categories.module.js';
@@ -42,6 +43,7 @@ import { UsersModule } from './users/users.module.js';
     ProductsModule,
     UsersModule,
     FittingSessionsModule,
+    AiGenerationsModule,
   ],
   // Every HTTP error answers one format with a code (spec 0004 E18–E22).
   providers: [{ provide: APP_FILTER, useClass: AppExceptionFilter }],
