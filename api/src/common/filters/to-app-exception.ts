@@ -103,6 +103,10 @@ const SOCKET_ERROR_CODES = new Set([
   'ECONNREFUSED',
   'ECONNRESET',
   'ENOTFOUND',
+  // A temporary DNS failure: a stopped container leaves the compose network, and on the server
+  // its name answers EAI_AGAIN, not ENOTFOUND. Prisma's pg adapter passes this code through as is
+  // (seen in production, spec 0004 E60).
+  'EAI_AGAIN',
   'ETIMEDOUT',
   'EHOSTUNREACH',
 ]);
