@@ -148,7 +148,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## PR 6 · `docs/0004-close` · acceptance
 
-- [ ] **T17. Acceptance.** `qa-tester` on the local stack through every criterion; 👤 a test 500
+- [x] **T17. Acceptance.** `qa-tester` on the local stack through every criterion; 👤 a test 500
       on production after the deploy shows in the api's Sentry project with the release and a
       TypeScript stack. "Acceptance record" filled in.
       Check: every AC has evidence.
@@ -162,21 +162,21 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 Filled in by T17.
 
-| AC   | Result | Evidence |
-| ---- | ------ | -------- |
-| AC1  |        |          |
-| AC2  |        |          |
-| AC3  |        |          |
-| AC4  |        |          |
-| AC5  |        |          |
-| AC6  |        |          |
-| AC7  |        |          |
-| AC8  |        |          |
-| AC9  |        |          |
-| AC10 |        |          |
-| AC11 |        |          |
-| AC12 |        |          |
-| AC13 |        |          |
-| AC14 |        |          |
-| AC15 |        |          |
-| AC16 |        |          |
+| AC   | Result | Evidence                                                                                                                                                                                                                                                                                                                                                    |
+| ---- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AC1  | pass   | T17 `qa-tester`: catalog `GET`s (categories, brands, attributes, products, facets) 200 with no token; every write (nested routes too) and every users, fitting-sessions, ai-generations request 401 `UNAUTHORIZED` with no, a wrong or an empty token. Right token, empty env token: `admin.guard.spec.ts`, `test/admin-only.e2e-spec.ts` (E32)             |
+| AC2  | pass   | T17 `qa-tester`: `/docs-json` lists every route of E3 with its methods and error responses. Create, read, list, update, delete: `test/database/{categories,brands,attributes,products,product-parts,users-api,fitting-sessions,ai-generations}.e2e-spec.ts`; `test/swagger.e2e-spec.ts`                                                                     |
+| AC3  | pass   | T17 `qa-tester`: products in pages of 10 concatenate to the `limit=100` list (30, no repeats); `limit=101` → 400 `MAX`. `paginated.spec.ts`, `pagination-query.dto.spec.ts` and the list cases of the database e2e                                                                                                                                          |
+| AC4  | pass   | T17 `qa-tester`: list item and detail carry the fields of AC4; `image.url` is `http://localhost:3001/media/seed/…` and loads (200 `image/webp`). `product-mapper.spec.ts`, `media-url.spec.ts`, `test/database/products.e2e-spec.ts`                                                                                                                        |
+| AC5  | pass   | `final-price.spec.ts` (1999.99 / 15 → 1699, discounts 0 and 100). T17 `qa-tester`: `finalPrice` of all 30 demo products equals the floor, half-ruble cases included                                                                                                                                                                                         |
+| AC6  | pass   | `test/database/{categories,brands,attributes,products,product-parts,users-api,ai-generations}.e2e-spec.ts`: 409 `IN_USE` on a used record, cascades on product and user deletes                                                                                                                                                                             |
+| AC7  | pass   | `test/database/users-api.e2e-spec.ts`: `8 (999) 123-45-67` and `Anna@Mail.RU` stored as `+79991234567`, `anna@mail.ru`; under 14 → 400. `rules.spec.ts`                                                                                                                                                                                                     |
+| AC8  | pass   | `test/database/fitting-sessions.e2e-spec.ts`: activating archives the previous session; parallel activations leave one active                                                                                                                                                                                                                               |
+| AC9  | pass   | `generation-triple.spec.ts`, `ai-generation.dto.spec.ts`; `test/database/ai-generations.e2e-spec.ts`: a bad triple → 400, no row written                                                                                                                                                                                                                    |
+| AC10 | pass   | T17 `qa-tester`: each filter narrows; black 6, white 5, black or white 11; black and cotton 1; `size=42` skips the product whose size 42 has stock 0. `product-filter.spec.ts`, `test/database/product-listing.e2e-spec.ts`                                                                                                                                 |
+| AC11 | pass   | T17 `qa-tester`: each sort orders the list (prices before the discount, E45); the same request twice and paged in tens gives the same ids. `test/database/product-listing.e2e-spec.ts`                                                                                                                                                                      |
+| AC12 | pass   | T17 `qa-tester`: sampled counts equal the list `total` for the filters plus that value; with black chosen, white stays 5; facet `total` equals the list's. `test/database/product-facets.e2e-spec.ts`                                                                                                                                                       |
+| AC13 | pass   | T17 `qa-tester`: `VALIDATION_FAILED`, `BAD_JSON`, `INVALID_ID`, `UNAUTHORIZED`, `ROUTE_NOT_FOUND`, `NOT_FOUND`, `TOO_MANY_REQUESTS` live, no internal details. Every E20 row: `to-app-exception.spec.ts`, `app-exception.filter.spec.ts`, `test/errors.e2e-spec.ts`. Production with Postgres stopped answered 500, not 503: fixed in T17 (E60)             |
+| AC14 | pass   | T17 `qa-tester`: one bad query gives a detail per invalid field (8 fields). `validation-pipe.spec.ts`, `test/errors.e2e-spec.ts`; one detail for a value of the wrong type: E61                                                                                                                                                                             |
+| AC15 | pass   | 👤 T17, production release `75ab653` (E59): Sentry event of a request with Postgres stopped (release, `production`, message removed, no headers, body or user); event of a script error with frame `src/common/price/final-price.ts:7:6`; a 400 sent no event. Source lines in Sentry: E60. `sentry.options.spec.ts`, `sentry-activity.interceptor.spec.ts` |
+| AC16 | pass   | T17: `npm run verify` → exit 0; api 45 files, 1781 tests; web 52 files, 516 tests; guard hooks 402                                                                                                                                                                                                                                                          |
