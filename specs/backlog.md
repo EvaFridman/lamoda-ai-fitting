@@ -52,6 +52,10 @@ removes it from this list. Found by the agents' first security audit and trial r
   U+034F, Hangul fillers, U+2800) and full-width or ligature forms that only NFKC folds. Decide
   before sign-up lands: one script per part or a UTS #39 skeleton check, and NFKC; the api rule
   and `users_email_check` change together.
+- **IDOR checks with auth (0006 F4).** Once users sign in, every route that reads or changes a
+  user's data (users, fitting sessions, generations, photos) checks that the resource belongs to
+  the principal (the owner decides the answer for someone else's: 404 or 403). Today these routes
+  are admin-only and the admin sees everything; the auth spec owes the checks and their tests.
 
 ## web
 
