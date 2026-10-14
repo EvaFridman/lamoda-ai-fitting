@@ -132,7 +132,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Check: unit normalization; database e2e with the AC7 inputs; under 14 → 400; deleting a user
       removes their sessions and generations. AC1, AC2, AC6, AC7.
       Commit: `feat(api): serve users with normalized phone and email`
-- [ ] **T14. Fitting sessions.** `?userId`; activation archives the previous active session.
+- [x] **T14. Fitting sessions.** `?userId`; activation archives the previous active session.
       Check: database e2e; two parallel activations leave one active. AC2, AC8.
       Commit: `feat(api): serve fitting sessions with one active per user`
 - [ ] **T15. Generations.** `?sessionId`; the status, result and error check; `productIds`.

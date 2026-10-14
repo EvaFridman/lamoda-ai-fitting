@@ -111,6 +111,24 @@ name}, value{id, value}, createdAt}`. Their lists are paged (E5) in the order of
     photos are not public catalog media; their address comes with the storage spec (backlog "File
     storage").
   - The list is newest first (`createdAt` desc, then id desc), with no filters.
+- E48. Fitting sessions (T14):
+  - Activation is the `isActive` field of create and update, no route of its own. Left out on
+    create it is true: the new session is active and archives the user's active one; `false`
+    creates an archived session. `null` in `isActive` is 400.
+  - An update changes `title` and `isActive`; `userId` in its body is 400 (a session stays with its
+    user). `isActive: false` is allowed, so a user may have no active session; `isActive: true` on
+    the active session keeps it active and archives nothing. An empty body follows E40.
+  - Two parallel activations for one user: one wins, the other answers 409 `ALREADY_EXISTS` on
+    `userId` (the partial unique index), with no retry.
+  - Deleting a session is a real delete (E4), active or not; its generations go with it, and no
+    other session becomes active.
+  - `title` is optional: trimmed text up to 255 characters with no NUL, not empty; `null` on create
+    means no title, in an update it clears it.
+  - A session returns its own columns, `createdAt` and `updatedAt` included, with no generation
+    ids.
+  - The list is newest first (`createdAt` desc, then id desc). `?userId` is optional; a non-uuid or
+    empty value is 400 `VALIDATION_FAILED`, a well-formed id of no user matches nothing, an
+    unknown parameter is 400. No other filters.
 
 ## Product list
 
