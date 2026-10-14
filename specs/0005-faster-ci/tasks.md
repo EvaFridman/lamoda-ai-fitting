@@ -25,7 +25,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       reduction so far).
       Check: `npm run format:check`; the owner has accepted spec, plan and tasks.
       Commit: `docs(specs): add spec 0005`
-- [ ] **T2. AC15 repeat of spec 0004.** The result of the E59 repeat on `e1ec071` (0004, E62) goes
+- [x] **T2. AC15 repeat of spec 0004.** The result of the E59 repeat on `e1ec071` (0004, E62) goes
       into the AC15 row of `specs/0004-crud-api/tasks.md`, "Acceptance record" (the one edit of a
       closed folder the owner allowed); the item leaves `specs/backlog.md`.
       Check: `npm run format:check`.
