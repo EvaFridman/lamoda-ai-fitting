@@ -467,12 +467,41 @@ describe('IsPriceQuery', () => {
     });
   });
 
-  it.each(['', '0x10', '1e2', ' 5', '5 ', '-1', '+1', '.5', '5.', 'abc', ['1', '2']])(
-    'refuses %j with IS_NUMBER',
-    async (minPrice) => {
-      expect(await codesOf(PriceQueryDto, { minPrice })).toContain('minPrice:IS_NUMBER');
-    },
-  );
+  it.each([
+    '',
+    '0x10',
+    '1e2',
+    '1e3',
+    ' 5',
+    '5 ',
+    '+1',
+    '.5',
+    '5.',
+    '-',
+    '--1',
+    '-.5',
+    'abc',
+    ['1', '2'],
+  ])('refuses %j with IS_NUMBER only (E61)', async (minPrice) => {
+    expect(await codesOf(PriceQueryDto, { minPrice })).toEqual(['minPrice:IS_NUMBER']);
+  });
+
+  it.each(['-1', '-0.5'])('refuses %j with MIN only (E61)', async (minPrice) => {
+    expect(await codesOf(PriceQueryDto, { minPrice })).toEqual(['minPrice:MIN']);
+  });
+
+  it('turns "-0" into a number the minimum accepts', async () => {
+    const result = (await parse(PriceQueryDto, { minPrice: '-0' }, 'query')) as PriceQueryDto;
+
+    // -0 is not Object.is-equal to 0, but it is the zero the Min rule accepts
+    expect(result.minPrice === 0).toBe(true);
+  });
+
+  it('lists both broken rules of a negative maxPrice below minPrice', async () => {
+    const codes = await codesOf(PriceQueryDto, { minPrice: '5', maxPrice: '-1' });
+
+    expect([...codes].sort()).toEqual(['maxPrice:IS_NOT_BELOW', 'maxPrice:MIN']);
+  });
 
   it('refuses more than 2 decimals with MAX_DECIMAL_PLACES', async () => {
     expect(await codesOf(PriceQueryDto, { minPrice: '1.234' })).toEqual([

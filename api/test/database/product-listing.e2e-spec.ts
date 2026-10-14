@@ -713,6 +713,39 @@ describe('product list: 400 VALIDATION_FAILED', () => {
     expectInvalid(await http().get('/products?color=red'), undefined);
   });
 
+  describe('one detail for a wrong type, a detail per rule otherwise (E61)', () => {
+    async function details(path: string): Promise<{ field: string; code: string }[]> {
+      const response = await http().get(path);
+      expect(response.status).toBe(400);
+      const { error } = response.body as {
+        error: { code: string; details: { field: string; code: string; message: string }[] };
+      };
+      expect(error.code).toBe('VALIDATION_FAILED');
+      return error.details;
+    }
+
+    it.each(['/products', '/products/facets'])('%s: minPrice=-1 is MIN only', async (path) => {
+      expect(await details(`${path}?minPrice=-1`)).toEqual([
+        { field: 'minPrice', code: 'MIN', message: expect.any(String) as string },
+      ]);
+    });
+
+    it.each(['/products', '/products/facets'])(
+      '%s: maxPrice=abc is IS_NUMBER only',
+      async (path) => {
+        expect(await details(`${path}?maxPrice=abc`)).toEqual([
+          { field: 'maxPrice', code: 'IS_NUMBER', message: expect.any(String) as string },
+        ]);
+      },
+    );
+
+    it('limit=abc is IS_INT only', async () => {
+      expect(await details('/products?limit=abc')).toEqual([
+        { field: 'limit', code: 'IS_INT', message: expect.any(String) as string },
+      ]);
+    });
+  });
+
   it('refuses hasDiscount other than true or false', async () => {
     expectInvalid(await http().get('/products?hasDiscount=yes'), 'hasDiscount', 'IS_BOOLEAN');
     expectInvalid(await http().get('/products?hasDiscount=1'), 'hasDiscount', 'IS_BOOLEAN');

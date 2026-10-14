@@ -200,12 +200,12 @@ export function IsListQuery(): PropertyDecorator {
   );
 }
 
-// Digits with an optional fraction. Not `@Type(() => Number)`: it reads `''` as 0, and `0x10`,
-// `1e2` or ` 5` as numbers.
-const DECIMAL_QUERY = /^\d+(?:\.\d+)?$/;
+// Digits with an optional sign and fraction. Not `@Type(() => Number)`: it reads `''` as 0, and
+// `0x10`, `1e2` or ` 5` as numbers.
+const DECIMAL_QUERY = /^-?\d+(?:\.\d+)?$/;
 
 // A price bound in the query string: rubles from 0, at most 2 decimals (spec 0004 E45). Anything
-// but plain digits stays a string and fails IsNumber.
+// but plain digits stays a string and fails IsNumber; `-1` is a number and fails Min (E61).
 export function IsPriceQuery(): PropertyDecorator {
   return applyDecorators(
     Transform(({ value }: { value: unknown }) =>
