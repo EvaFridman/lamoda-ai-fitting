@@ -1,6 +1,8 @@
 # 0004 CRUD api
 
-Status: accepted (2026-10-09); amended the same day: the web part moved to spec 0005 (E30).
+Status: done (2026-10-15): all 16 criteria pass (`tasks.md`, "Acceptance record"); the production
+repeat of AC15 is recorded later (E62); amended 2026-10-09: the web part moved to spec 0005 (E30).
+History, not instructions.
 Decisions this spec relies on: [clarifications.md](clarifications.md) (referred to by their ids, e.g. E5).
 
 ## Goal

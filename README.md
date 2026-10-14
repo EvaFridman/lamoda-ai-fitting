@@ -5,8 +5,10 @@
 Каждый merge в `main` проверяется и выкатывается на сервер автоматически, без простоя
 (blue-green). Как устроены CI, CD и сервер, как откатиться: [deploy/README.md](deploy/README.md).
 
-Работа идёт по спекам (`specs/`, порядок в [specs/principles.md](specs/principles.md)); первая —
-[0001-bootstrap](specs/0001-bootstrap/) — завершена: решения, план и результаты приёмки.
+Работа идёт по спекам (`specs/`, порядок в [specs/principles.md](specs/principles.md)).
+Завершены (в папке каждой — решения, план и результаты приёмки):
+[0001-bootstrap](specs/0001-bootstrap/), [0002-database-schema](specs/0002-database-schema/),
+[0003-ui-kit](specs/0003-ui-kit/), [0004-crud-api](specs/0004-crud-api/).
 
 ## Требования
 

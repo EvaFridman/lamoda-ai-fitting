@@ -1,7 +1,7 @@
 # 0004 CRUD api: plan
 
-Status: accepted (2026-10-09); amended the same day: the web part moved to spec 0005 (E30), its
-design notes to the backlog entry "Web data layer".
+Status: done (2026-10-15); amended 2026-10-09: the web part moved to spec 0005 (E30), its design
+notes to the backlog entry "Web data layer". History, not instructions.
 Implements [spec.md](spec.md); decisions are in [clarifications.md](clarifications.md) (E1, E2, …).
 
 ## Overview
