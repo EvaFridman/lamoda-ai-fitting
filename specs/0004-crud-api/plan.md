@@ -184,6 +184,26 @@ category{id,name,slug}, image: {url} | null, price, discount, finalPrice, rating
 - **Indexes.** The existing FK indexes cover the joins. The spec's one migration replaces
   `users_email_check` (users, E47); it adds no index.
 
+### Error responses in Swagger (E50)
+
+- `common/errors/error-response.dto.ts`: `ErrorResponseDto` for the envelope of E19 (`error` with
+  `code` from the E20 union, `message`, `details: [{ field, code, message }]`), the schema of every
+  error response.
+- Answers a route gives by its shape are added in one place, `swagger.ts`, after the document is
+  built, so no controller can forget them:
+  - every operation: 429 `TOO_MANY_REQUESTS`, 500 `INTERNAL_ERROR`, 503 `SERVICE_UNAVAILABLE`;
+  - with a request body: 400 (`VALIDATION_FAILED`, `BAD_JSON`), 413 `PAYLOAD_TOO_LARGE`;
+  - with query parameters: 400 `VALIDATION_FAILED`;
+  - with a uuid path parameter: 400 `INVALID_ID`, 404 `NOT_FOUND`;
+  - with the `admin` security: 401 `UNAUTHORIZED`.
+- Answers that depend on the logic come from a decorator on the route, `ApiErrors(...)` in
+  `common/errors/`: 409 `ALREADY_EXISTS` or `IN_USE`, 400 `RELATED_NOT_FOUND` or
+  `CONSTRAINT_VIOLATION`, 404 of a parent on a nested create. One status with several codes is one
+  response whose description names the codes.
+- e2e without a database: every operation of the Swagger JSON lists the answers its shape implies,
+  each with the `ErrorResponseDto` schema; spot checks of the decorated ones (409 on
+  `POST /users`, `IN_USE` on `DELETE /brands/{id}`).
+
 ### Tests (api)
 
 - **Unit** (`*.spec.ts` next to the code): the filter, one case per row of E20; the guard; the
@@ -209,7 +229,8 @@ category{id,name,slug}, image: {url} | null, price, discount, finalPrice, rating
 
 ## Backlog
 
-- **Closed and removed:** "Catalog API", "Auth input rules".
+- **Closed and removed:** "Catalog API", "Auth input rules", "Body errors before the admin check"
+  (E49), "401 in Swagger" (E50).
 - **Added (E29, E30):**
   - "Web data layer" for spec 0005: decisions E22 (Russian texts), E26–E28 and the web design notes
     this plan held (a `shared/api` split into an isomorphic `index.ts` and a server-only `server.ts`,
@@ -243,7 +264,7 @@ category{id,name,slug}, image: {url} | null, price, discount, finalPrice, rating
 | AC   | Check                                                                                                                                          |
 | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | AC1  | e2e: each route group with no token, a wrong token, the right token, an empty env token; qa-tester with curl: no token, a wrong token (E32)    |
-| AC2  | database e2e per resource; e2e: the Swagger JSON lists every route                                                                             |
+| AC2  | database e2e per resource; e2e: the Swagger JSON lists every route and its error responses (E50)                                               |
 | AC3  | database e2e: paging and `total`; `limit=101` → 400                                                                                            |
 | AC4  | database e2e on the list item and detail shape; unit `toMediaUrl`                                                                              |
 | AC5  | unit `finalPrice` (1999.99 / 15 → 1699; edge cases 0 and 100)                                                                                  |

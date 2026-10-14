@@ -209,6 +209,14 @@ name}, value{id, value}, createdAt}`. Their lists are paged (E5) in the order of
 - E21. `details` lists errors per field: field, code, message.
 - E22. `message` is English, for developers; web shows Russian text chosen by `code`, and a general
   text for an unknown code. Health check responses keep their format (the deploy reads them).
+- E49. The body is read before the admin check: on an admin route, broken JSON answers 400
+  `BAD_JSON` and a body over the limit 413 `PAYLOAD_TOO_LARGE` even with no token or a wrong one
+  (AC1's "any request" means any well-formed one). These answers tell the caller only about its own
+  bytes; moving the check before the body would need a middleware that knows the admin routes.
+  Such requests are not counted by the api's rate limit either; the limit at the edge (backlog)
+  covers them.
+- E50. Swagger lists the error responses of every operation, not only its success: each answer of
+  E20 the route can give, with the error envelope as its schema (401 on admin operations).
 
 ## Sentry
 
