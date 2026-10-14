@@ -10,6 +10,9 @@
 # BuildKit secret, never as a build argument); for web, NEXT_PUBLIC_SENTRY_DSN and
 # NEXT_PUBLIC_SENTRY_ENVIRONMENT (baked into the browser bundle). IMAGE_SOURCE: repository URL for
 # the OCI label.
+#
+# Fails if the api image holds source maps: the Dockerfile deletes them after the upload, and they
+# carry the TypeScript source (inlineSources).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -38,6 +41,13 @@ docker build --target runtime "${api_names[@]}" "${labels[@]}" "${secret[@]}" \
   --build-arg SENTRY_PROJECT="${SENTRY_PROJECT_API:-}" \
   --build-arg SENTRY_RELEASE="$tag" \
   api
+# The api's source maps carry the TypeScript source (inlineSources): the image must not ship them.
+maps="$(docker run --rm --entrypoint find "ai-fitting-api:$tag" dist -name '*.map')"
+if [ -n "$maps" ]; then
+  echo "The api image holds source maps:" >&2
+  echo "$maps" >&2
+  exit 1
+fi
 endgroup
 
 group "web image $tag"
