@@ -129,6 +129,29 @@ name}, value{id, value}, createdAt}`. Their lists are paged (E5) in the order of
   - The list is newest first (`createdAt` desc, then id desc). `?userId` is optional; a non-uuid or
     empty value is 400 `VALIDATION_FAILED`, a well-formed id of no user matches nothing, an
     unknown parameter is 400. No other filters.
+- E51. Generations, list and response (T15): the list is newest first (`createdAt` desc, then id
+  desc); `?sessionId` follows `?userId` of E48, with no other filters. A generation returns its own
+  columns, `createdAt` and `updatedAt` included, and `productIds` sorted by id. Image keys have no
+  `url`, as `fittingProfileImageKey` in E47.
+- E52. Generations, owner and references: `sessionId` is required on create; in an update body it
+  is 400 (a generation stays with its session). A `sessionId` or a product id of no row is 400
+  `RELATED_NOT_FOUND` on `sessionId` or `productIds`.
+- E53. Generations, `productIds`: required on create, 1 to 20 uuids. In an update, left out keeps
+  the links and sent replaces them all; `[]` and `null` are 400. A duplicate (ids compared in any
+  letter case) is 400 `VALIDATION_FAILED`, not dropped.
+- E54. Generations, fields and the triple: `status` is required on create, with no default (as in
+  the database). `userImageKey` (required) and `resultImageKey` follow the image key rule (C22) up
+  to 255 characters; `aiProvider` and `aiModel` are required trimmed text up to 50 characters;
+  `errorMessage` is trimmed text up to 1000 characters with no NUL. The triple of `status`,
+  `resultImageKey` and `errorMessage` follows the database check, no stricter: `pending` and
+  `processing` have neither, `completed` has a result and no error, `failed` has an error and may
+  have a result. A bad triple is 400 `VALIDATION_FAILED` before the database, on the field that
+  breaks the rule (`resultImageKey` or `errorMessage`); an update is checked on the stored row with
+  the body merged in. `null` in `resultImageKey` or `errorMessage` clears it (and means none on
+  create); `null` in any other field is 400. An empty update body follows E40.
+- E55. Generations, delete and races: delete answers 204 and removes the product links. The
+  triple is read before the row lock: if two parallel updates together break it, the database
+  check answers 400 `CONSTRAINT_VIOLATION`.
 
 ## Product list
 

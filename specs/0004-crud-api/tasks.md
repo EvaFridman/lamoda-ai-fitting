@@ -135,7 +135,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 - [x] **T14. Fitting sessions.** `?userId`; activation archives the previous active session.
       Check: database e2e; two parallel activations leave one active. AC2, AC8.
       Commit: `feat(api): serve fitting sessions with one active per user`
-- [ ] **T15. Generations.** `?sessionId`; the status, result and error check; `productIds`.
+- [x] **T15. Generations.** `?sessionId`; the status, result and error check; `productIds`.
       Check: unit validator; database e2e, a bad triple → 400 with no write, links replaced on
       update; `temporal-reviewer` confirms nothing starts a workflow. AC2, AC9.
       Commit: `feat(api): serve ai generations and their products`

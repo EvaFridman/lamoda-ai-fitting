@@ -38,6 +38,8 @@ export const CONSTRAINT_FIELDS: Readonly<Record<string, readonly string[]>> = {
   categories_name_key: ['name'],
   categories_slug_key: ['slug'],
   fitting_sessions_user_id_key: ['userId'],
+  // The api refuses a repeated product id first (spec 0004 E53); this covers a write that skips it.
+  generation_products_pkey: ['productIds'],
   // A composite primary key a write can repeat: the value already linked to the product.
   product_attribute_values_pkey: ['attributeValueId'],
   product_variations_product_id_size_key: ['size'],
@@ -50,7 +52,8 @@ export const CONSTRAINT_FIELDS: Readonly<Record<string, readonly string[]>> = {
   attribute_values_attribute_id_fkey: ['attributeId'],
   fitting_sessions_user_id_fkey: ['userId'],
   generation_products_generation_id_fkey: ['generationId'],
-  generation_products_product_id_fkey: ['productId'],
+  // A generation's products are sent as one list (spec 0004 E52).
+  generation_products_product_id_fkey: ['productIds'],
   product_attribute_values_attribute_value_id_fkey: ['attributeValueId'],
   product_attribute_values_product_id_fkey: ['productId'],
   product_images_product_id_fkey: ['productId'],

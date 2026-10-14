@@ -36,6 +36,11 @@ describe('CONSTRAINT_FIELDS', () => {
     expect(stale).toEqual([]);
   });
 
+  it('names productIds for the generation product key and foreign key (spec 0004 E52, E53)', () => {
+    expect(constraintFields('generation_products_pkey')).toEqual(['productIds']);
+    expect(constraintFields('generation_products_product_id_fkey')).toEqual(['productIds']);
+  });
+
   it('constraintFields gives the fields of a known name and nothing for an unknown one', () => {
     expect(constraintFields('products_brand_id_fkey')).toEqual(['brandId']);
     expect(constraintFields('no_such_constraint')).toEqual([]);

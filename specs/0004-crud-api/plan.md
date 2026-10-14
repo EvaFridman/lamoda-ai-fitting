@@ -141,9 +141,10 @@ copy.
   - Two parallel activations: the partial unique index rejects the second with `P2002`, which
     becomes 409.
 - **ai-generations (E12).**
-  - A class-level validator checks the status, result and error triple for create, and for update
-    on the merged row (the service reads the row, merges, validates, writes).
-  - `productIds` replace the links in the same transaction (`deleteMany` + `createMany`).
+  - The service checks the status, result and error triple with a pure function: on create before
+    any query, on update on the stored row with the body merged in.
+  - An update writes the generation row first; its lock keeps parallel link replacements from
+    mixing. `productIds` replace the links in the same transaction (`deleteMany` + `createMany`).
 - **products (E7, E8).** The list item has `{ id, article, name, brand{id,name},
 category{id,name,slug}, image: {url} | null, price, discount, finalPrice, rating, createdAt }`.
   The detail adds `description`, `images[]`, `variations[]` (size, stock), and `attributes[]`

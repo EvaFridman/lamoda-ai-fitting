@@ -30,6 +30,9 @@ export const SIZE_MAX_LENGTH = 20;
 export const SEARCH_MAX_LENGTH = 100;
 export const SLUG_MAX_LENGTH = 255;
 export const IMAGE_KEY_MAX_LENGTH = 255;
+// `ai_provider`, `ai_model` and `error_message` of `ai_generations`.
+export const AI_NAME_MAX_LENGTH = 50;
+export const ERROR_MESSAGE_MAX_LENGTH = 1000;
 // `text` has no limit; the api sets one (spec 0004 E40).
 export const DESCRIPTION_MAX_LENGTH = 5000;
 
