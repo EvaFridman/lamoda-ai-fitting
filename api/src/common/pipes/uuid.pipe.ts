@@ -1,10 +1,4 @@
-import {
-  type ArgumentMetadata,
-  HttpStatus,
-  Injectable,
-  Param,
-  ParseUUIDPipe,
-} from '@nestjs/common';
+import { type ArgumentMetadata, Injectable, Param, ParseUUIDPipe } from '@nestjs/common';
 import { ApiParam } from '@nestjs/swagger';
 
 import { AppException } from '../errors/app.exception.js';
@@ -31,7 +25,7 @@ export class UuidPipe extends ParseUUIDPipe {
       return value;
     } catch {
       const field = metadata.data ?? 'id';
-      throw new AppException(HttpStatus.BAD_REQUEST, 'INVALID_ID', `${field} must be a UUID`, [
+      throw new AppException('INVALID_ID', `${field} must be a UUID`, [
         { field, code: 'INVALID_ID', message: `${field} must be a UUID` },
       ]);
     }

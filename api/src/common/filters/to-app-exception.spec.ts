@@ -2,7 +2,6 @@ import {
   BadRequestException,
   ForbiddenException,
   HttpException,
-  HttpStatus,
   NotFoundException,
   PayloadTooLargeException,
   ServiceUnavailableException,
@@ -55,7 +54,7 @@ describe('toAppException, one case per row of E20', () => {
   });
 
   it('bad id in the path: 400 INVALID_ID passes through with its details', () => {
-    const original = new AppException(HttpStatus.BAD_REQUEST, 'INVALID_ID', 'id must be a UUID', [
+    const original = new AppException('INVALID_ID', 'id must be a UUID', [
       { field: 'id', code: 'INVALID_ID', message: 'id must be a UUID' },
     ]);
     const result = toAppException(original);

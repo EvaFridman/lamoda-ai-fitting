@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 
+import { ApiErrors } from '../common/errors/api-errors.decorator.js';
 import { AdminOnly } from '../common/guards/admin.guard.js';
 import { ApiPaginatedResponse, type Paginated } from '../common/pagination/paginated.js';
 import { PaginationQueryDto } from '../common/pagination/pagination-query.dto.js';
@@ -48,6 +49,7 @@ export class AttributeValuesController {
   @Post()
   @AdminOnly()
   @ApiCreatedResponse({ type: AttributeValueResponseDto })
+  @ApiErrors('ALREADY_EXISTS')
   create(
     @UuidParam('id') attributeId: string,
     @Body() dto: CreateAttributeValueDto,
@@ -58,6 +60,7 @@ export class AttributeValuesController {
   @Patch(':valueId')
   @AdminOnly()
   @ApiOkResponse({ type: AttributeValueResponseDto })
+  @ApiErrors('ALREADY_EXISTS')
   update(
     @UuidParam('id') attributeId: string,
     @UuidParam('valueId') id: string,
@@ -70,6 +73,7 @@ export class AttributeValuesController {
   @AdminOnly()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiNoContentResponse()
+  @ApiErrors('IN_USE')
   delete(@UuidParam('id') attributeId: string, @UuidParam('valueId') id: string): Promise<void> {
     return this.values.delete(attributeId, id);
   }

@@ -73,7 +73,6 @@ function fromDatabase(error: Prisma.PrismaClientKnownRequestError): AppException
         return new InUseError();
       }
       return new AppException(
-        HttpStatus.BAD_REQUEST,
         'RELATED_NOT_FOUND',
         'A referenced record does not exist',
         fieldDetails(cause, 'RELATED_NOT_FOUND', 'No record with this id'),
@@ -84,7 +83,6 @@ function fromDatabase(error: Prisma.PrismaClientKnownRequestError): AppException
   // validation should have caught.
   if (cause.originalCode === '23514' || DATA_RULE_CODES.has(error.code)) {
     return new AppException(
-      HttpStatus.BAD_REQUEST,
       'CONSTRAINT_VIOLATION',
       'The data breaks a database rule',
       fieldDetails(cause, 'CONSTRAINT_VIOLATION', 'This value breaks a database rule'),
@@ -147,33 +145,29 @@ function fromBodyParser(exception: unknown): AppException | undefined {
   };
   switch (type) {
     case 'entity.parse.failed':
-      return new AppException(HttpStatus.BAD_REQUEST, 'BAD_JSON', 'The body is not valid JSON');
+      return new AppException('BAD_JSON', 'The body is not valid JSON');
     case 'entity.too.large':
       return payloadTooLarge();
   }
   const clientError = typeof status === 'number' && status >= 400 && status < 500;
   if (clientError && (typeof type === 'string' || expose === true)) {
-    return new AppException(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'The body cannot be read');
+    return new AppException('VALIDATION_FAILED', 'The body cannot be read');
   }
   return undefined;
 }
 
 function fromHttpException(exception: HttpException): AppException {
   if (exception instanceof ThrottlerException) {
-    return new AppException(
-      HttpStatus.TOO_MANY_REQUESTS,
-      'TOO_MANY_REQUESTS',
-      'Too many requests, try again later',
-    );
+    return new AppException('TOO_MANY_REQUESTS', 'Too many requests, try again later');
   }
   // Our code throws NotFoundError; a bare NotFoundException comes from Nest's router.
   if (exception instanceof NotFoundException) {
     // Not Nest's "Cannot GET /path?query": the url (with any token in its query) is not echoed.
-    return new AppException(HttpStatus.NOT_FOUND, 'ROUTE_NOT_FOUND', 'Route not found');
+    return new AppException('ROUTE_NOT_FOUND', 'Route not found');
   }
   switch (exception.getStatus()) {
     case HttpStatus.BAD_REQUEST:
-      return new AppException(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', exception.message);
+      return new AppException('VALIDATION_FAILED', exception.message);
     case HttpStatus.UNAUTHORIZED:
       return new UnauthorizedError();
     case HttpStatus.PAYLOAD_TOO_LARGE:
@@ -185,16 +179,11 @@ function fromHttpException(exception: HttpException): AppException {
 }
 
 function payloadTooLarge(): AppException {
-  return new AppException(
-    HttpStatus.PAYLOAD_TOO_LARGE,
-    'PAYLOAD_TOO_LARGE',
-    'The body is too large',
-  );
+  return new AppException('PAYLOAD_TOO_LARGE', 'The body is too large');
 }
 
 function serviceUnavailable(): AppException {
   return new AppException(
-    HttpStatus.SERVICE_UNAVAILABLE,
     'SERVICE_UNAVAILABLE',
     'A service the api depends on is unavailable, try again later',
   );
@@ -202,9 +191,5 @@ function serviceUnavailable(): AppException {
 
 // The real error goes to the log only: a 500 carries no internal details (spec 0004 AC13).
 function internalError(): AppException {
-  return new AppException(
-    HttpStatus.INTERNAL_SERVER_ERROR,
-    'INTERNAL_ERROR',
-    'Internal server error',
-  );
+  return new AppException('INTERNAL_ERROR', 'Internal server error');
 }

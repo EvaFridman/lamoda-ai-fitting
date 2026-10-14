@@ -45,9 +45,6 @@ removes it from this list. Found by the agents' first security audit and trial r
   U+034F, Hangul fillers, U+2800) and full-width or ligature forms that only NFKC folds. Decide
   before sign-up lands: one script per part or a UTS #39 skeleton check, and NFKC; the api rule
   and `users_email_check` change together.
-- **401 in Swagger.** The admin-only operations list only their success responses; add the 401
-  `UNAUTHORIZED` response (e.g. inside `@AdminOnly()`), so the docs show which routes need the
-  token.
 
 ## web
 

@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 
+import { ApiErrors } from '../common/errors/api-errors.decorator.js';
 import { AdminOnly } from '../common/guards/admin.guard.js';
 import { ApiPaginatedResponse, type Paginated } from '../common/pagination/paginated.js';
 import { UuidParam } from '../common/pipes/uuid.pipe.js';
@@ -41,6 +42,7 @@ export class CategoriesController {
   @Post()
   @AdminOnly()
   @ApiCreatedResponse({ type: CategoryResponseDto })
+  @ApiErrors('ALREADY_EXISTS')
   create(@Body() dto: CreateCategoryDto): Promise<CategoryResponseDto> {
     return this.categories.create(dto);
   }
@@ -48,6 +50,7 @@ export class CategoriesController {
   @Patch(':id')
   @AdminOnly()
   @ApiOkResponse({ type: CategoryResponseDto })
+  @ApiErrors('ALREADY_EXISTS')
   update(
     @UuidParam('id') id: string,
     @Body() dto: UpdateCategoryDto,
@@ -59,6 +62,7 @@ export class CategoriesController {
   @AdminOnly()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiNoContentResponse()
+  @ApiErrors('IN_USE')
   delete(@UuidParam('id') id: string): Promise<void> {
     return this.categories.delete(id);
   }

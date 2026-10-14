@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 
+import { ApiErrors } from '../common/errors/api-errors.decorator.js';
 import { AdminOnly } from '../common/guards/admin.guard.js';
 import { ApiPaginatedResponse, type Paginated } from '../common/pagination/paginated.js';
 import { PaginationQueryDto } from '../common/pagination/pagination-query.dto.js';
@@ -41,12 +42,14 @@ export class UsersController {
 
   @Post()
   @ApiCreatedResponse({ type: UserResponseDto })
+  @ApiErrors('ALREADY_EXISTS')
   create(@Body() dto: CreateUserDto): Promise<UserResponseDto> {
     return this.users.create(dto);
   }
 
   @Patch(':id')
   @ApiOkResponse({ type: UserResponseDto })
+  @ApiErrors('ALREADY_EXISTS')
   update(@UuidParam('id') id: string, @Body() dto: UpdateUserDto): Promise<UserResponseDto> {
     return this.users.update(id, dto);
   }
