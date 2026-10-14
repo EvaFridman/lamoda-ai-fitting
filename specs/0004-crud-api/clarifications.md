@@ -246,6 +246,12 @@ name}, value{id, value}, createdAt}`. Their lists are paged (E5) in the order of
   `INVALID_ID` and 404 on an id, 429, 500, 503), with no 401.
 - E58. Error responses in Swagger carry no examples: the `code` enum from `error-codes.ts` and the
   codes named in the description are enough.
+- E61. A value of the wrong type (not a number, a whole number, a string, a boolean or a list) gets
+  one detail, the type's (a missing field too: `IS_STRING`, `IS_NUMBER`, ...); the field's other
+  rules are not listed, for a list (`each`) those of all its items. A value of the right type still
+  gets a detail per broken rule. A price bound of `-1` in the query is a number and answers `MIN`.
+  Found in T17: `minPrice=-1` answered `IS_NUMBER`, `MAX_DECIMAL_PLACES`, `MIN` and `MAX`
+  (owner, 2026-10-15).
 
 ## Sentry
 
@@ -282,6 +288,22 @@ name}, value{id, value}, createdAt}`. Their lists are paged (E5) in the order of
   help. The cost: browsers load over up to 6 connections instead of one multiplexed one. The deploy
   check stays strict (no failed request). Bringing HTTP/2 back needs deploys without reloads:
   backlog (owner, 2026-10-10).
+- E59. The production check of AC15 (T17, the "test 500" of the plan and tasks) adds no route to
+  the api; it takes two events (owner, 2026-10-15):
+  - the request path: Postgres is stopped for a few seconds, a catalog request answers 503
+    `SERVICE_UNAVAILABLE` (a 5xx, reported by E33), Postgres is started again (the site is down
+    for those seconds). A Prisma error carries no frames of the api's code, so this event shows
+    the release and the cleanup, not the source maps;
+  - the source maps: a script run in the production api container (`docker exec`) loads
+    `dist/instrument.js` and reports an error thrown inside `dist/common/price/final-price.js`.
+- E60. The first run of E59 (release `75ab653`, 2026-10-15) found two bugs, fixed in the T17 branch
+  with a commit each, and both events are repeated after that deploy (owner, 2026-10-15):
+  - the request answered 500 `INTERNAL_ERROR`: on the server a stopped container's name answers
+    `EAI_AGAIN` (a temporary DNS failure; Docker Desktop answers `ENOTFOUND`), which Prisma's pg
+    adapter passes through unmapped. `EAI_AGAIN` is now a connection failure (503);
+  - the frame pointed to `final-price.ts` at the right line, but Sentry showed the compiled JS under
+    it (`missing_source_content`): the maps carried no source text. `tsconfig.build.json` now sets
+    `inlineSources`; the image still deletes the maps after the upload.
 
 ## web (moved to spec 0005 by E30)
 

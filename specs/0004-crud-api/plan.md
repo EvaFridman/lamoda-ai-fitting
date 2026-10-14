@@ -98,7 +98,8 @@ The server `.env` already holds `SENTRY_DSN` for web. The api's DSN therefore en
   capture, so `SentryGlobalFilter` is not used.
 - **Worker.** A failed activity is captured in an activity interceptor. Workflow code does not
   import Sentry (determinism); workflow failures surface as activity or client errors.
-- **Source maps.** `tsconfig` already emits them.
+- **Source maps.** `tsconfig` already emits them; `tsconfig.build.json` puts the source text in
+  them (`inlineSources`, E60).
   - The Dockerfile `build` stage runs, behind
     `RUN --mount=type=secret,id=sentry_auth_token,env=SENTRY_AUTH_TOKEN`:
     `sentry-cli sourcemaps inject dist && sentry-cli sourcemaps upload --release $SENTRY_RELEASE dist`,
