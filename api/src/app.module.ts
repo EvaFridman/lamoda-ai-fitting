@@ -8,6 +8,7 @@ import { BrandsModule } from './brands/brands.module.js';
 import { CategoriesModule } from './categories/categories.module.js';
 import { AppExceptionFilter } from './common/filters/app-exception.filter.js';
 import { CoreModule } from './core/core.module.js';
+import { FittingSessionsModule } from './fitting-sessions/fitting-sessions.module.js';
 import { HealthModule } from './health/health.module.js';
 import { HelloModule } from './hello/hello.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
@@ -40,6 +41,7 @@ import { UsersModule } from './users/users.module.js';
     AttributesModule,
     ProductsModule,
     UsersModule,
+    FittingSessionsModule,
   ],
   // Every HTTP error answers one format with a code (spec 0004 E18–E22).
   providers: [{ provide: APP_FILTER, useClass: AppExceptionFilter }],
