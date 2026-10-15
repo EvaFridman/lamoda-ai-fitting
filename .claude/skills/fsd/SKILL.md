@@ -31,7 +31,7 @@ FSD layers carry an underscore here.
   entities may reference each other through an explicit cross-import API, `entities/a/@x/b.ts`,
   imported as `@/entities/a/@x/b` only by entity `b`.
 - **Through the public API only:** other layers import a slice from its `index.ts`
-  (`@/entities/greeting`), never from inside it (`@/entities/greeting/api/get-greeting`). `shared`
+  (`@/widgets/greeting`), never from inside it (`@/widgets/greeting/ui/greeting`). `shared`
   segments have their own `index.ts` (`@/shared/api`).
 - **Server-only exports go through `server.ts`:** a slice or `shared` segment may have a
   `server.ts` next to its `index.ts`, a second public entry that starts with `import 'server-only'`
@@ -57,8 +57,9 @@ Name segments by purpose, not by kind of file: no `components/`, `hooks/`, `type
 
 ## Project conventions that shape where code goes
 
-- Data from the api is fetched on the server through `apiFetch` (`@/shared/api`) with a zod schema,
-  in an entity's `api/` segment, marked `import 'server-only'` (see `entities/greeting`). A direct
+- Data from the api is fetched on the server through `apiFetch` (`@/shared/api/server`) with a
+  path from `buildPath` (`@/shared/api`) and a zod schema, in an entity's `api/` segment, marked
+  `import 'server-only'` and exported from the slice's `server.ts` (see `entities/greeting`). A direct
   `fetch` to the api would put all visitors into one rate limit (CLAUDE.md, "Conventions").
 - A widget that renders api data per request calls `connection()` and sits inside `<Suspense>` in
   the page, so `next build` needs no api (see `widgets/greeting`, `_pages/home`).

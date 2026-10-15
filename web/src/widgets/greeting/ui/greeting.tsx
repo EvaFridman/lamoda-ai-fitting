@@ -1,6 +1,6 @@
 import { connection } from 'next/server';
 
-import { getGreeting } from '@/entities/greeting';
+import { getGreeting } from '@/entities/greeting/server';
 
 import styles from './greeting.module.scss';
 

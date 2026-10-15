@@ -1,7 +1,7 @@
 import { connection } from 'next/server';
 import { Suspense } from 'react';
 
-import { getServerEnv } from '@/shared/config';
+import { getServerEnv } from '@/shared/config/server';
 
 import styles from './footer.module.scss';
 
