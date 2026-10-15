@@ -1,6 +1,6 @@
 import * as Sentry from '@sentry/nextjs';
 
-import { dataCollection } from './sentry.options';
+import { beforeSend, dataCollection } from './sentry.options';
 
 // Server-side Sentry, configured at request-serving time from the container's environment. An
 // empty SENTRY_DSN turns it off (development, CI).
@@ -12,6 +12,7 @@ export function register(): void {
     release: process.env.APP_VERSION,
     tracesSampleRate: 0.1,
     dataCollection,
+    beforeSend,
   });
 }
 

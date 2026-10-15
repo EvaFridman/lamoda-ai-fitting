@@ -75,8 +75,9 @@ code comments. All decisions below: owner, 2026-10-15.
 - **H17. A refused path.** A path refused before any request is an `ApiError` with a fifth `kind`,
   `path`: a `buildPath` param that is empty, `.` or `..` (`encodeURIComponent` leaves dots alone and
   URL parsing treats `%2E%2E` as `..` too) or not well-formed unicode, a template param left without
-  a value, a malformed template, and a path whose origin is not the api's. It gets the general text (T9); whether it reaches Sentry is settled in
-  T10. (Added in T5.)
+  a value, a malformed template, and a path whose origin is not the api's. It gets the general text
+  (T9) and is not reported to Sentry (T10): a refused param comes from the visitor's input, like a
+  4xx, and the other causes are literals in the code that tests catch. (Added in T5.)
 - **H23. 401 on a public route.** Catalog reads are `@Public()` (0006 F3), and a wrong token on a
   public route is served as anonymous (0006 F16), so a 401 there means a route lost its marker: an
   api bug that `test/access-markers.e2e-spec.ts` should already stop. It gets the general text and,
@@ -104,6 +105,13 @@ code comments. All decisions below: owner, 2026-10-15.
 - **H28. `details` codes not checked against the api.** The OpenAPI document types a detail's
   `code` as a plain string, so a new api validation rule gets the general detail text and no check
   notices. Accepted while web has no forms; the check is in the backlog. (Added in T9.)
+- **H29. A failure that is not an `ApiError`.** Web's own env refused (0006 F20) or a bug in web's
+  code is caught by the same component as an api failure, before any request reaches the response
+  step. The component reports it to Sentry, always, once per error name per 60 s, and renders the
+  general text; the page still answers 200. (Added in T10.)
+- **H30. An error answer whose body is cut short.** The status has arrived, so it stays an `http`
+  error without a code: its text and its retry follow the status (a cut 4xx is not retried, H10)
+  and only a 5xx or 401 is reported. Rare, as error bodies are small. (Added in T10.)
 
 ## Contract
 

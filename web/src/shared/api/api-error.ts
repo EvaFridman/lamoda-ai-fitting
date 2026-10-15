@@ -46,6 +46,9 @@ interface ApiErrorInit {
   kind: ApiErrorKind;
   // The path template (`/products/:id`): groups failures by route, whatever the ids in the path.
   template: string;
+  // `GET`, `POST`: with the template, the route Sentry groups by. Absent on a `path` error, refused
+  // before the request was built.
+  method?: string;
   status?: number;
   // From the envelope of an `http` answer; absent when the answer had none (an nginx page).
   code?: string;
@@ -56,18 +59,20 @@ interface ApiErrorInit {
 export class ApiError extends Error {
   readonly kind: ApiErrorKind;
   readonly template: string;
+  readonly method?: string;
   readonly status?: number;
   readonly code?: string;
   readonly details: ApiErrorDetail[];
 
   constructor(
     message: string,
-    { kind, template, status, code, details = [], cause }: ApiErrorInit,
+    { kind, template, method, status, code, details = [], cause }: ApiErrorInit,
   ) {
     super(message, { cause });
     this.name = 'ApiError';
     this.kind = kind;
     this.template = template;
+    this.method = method;
     this.status = status;
     this.code = code;
     this.details = details;

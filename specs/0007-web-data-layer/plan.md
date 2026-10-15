@@ -45,15 +45,25 @@ the dictionary lacks.
 `shared/api/report.ts`, called by the shared response step:
 
 - reports `network`, `timeout`, `schema`, `http` with status ≥ 500 and a 401 (H23: on a public
-  route it means a lost marker, an api bug); no other 4xx, never 429;
-- `fingerprint: ['api-failure', kind, method, template]`, so one cause is one issue whatever the
-  ids in the path;
+  route it means a lost marker, an api bug); no other 4xx, never 429, never `path` (H17); a cut
+  error body stays `http` (H30);
+- `fingerprint: ['api-failure', kind, method, template]`, and for `http` its status too (a 401
+  is not held back by a 500 on the same route; owner, T10 review), so one cause is one issue
+  whatever the ids in the path;
 - at most one event per fingerprint per 60 s per process (server) or per tab (browser), to keep
   web's share of the Sentry quota (5k errors a month with the api, 0004) when the api is down;
 - tags: `api_status`, `api_code`, and on the server the request id; no bodies or query values (as
-  `sentry.options.ts`).
+  `sentry.options.ts`). The error's `cause` (fetch's own error, with the api's address in the
+  docker network) goes along on purpose: it tells a stopped api from a broken network, and that
+  network is not reachable from outside (owner, T10 review);
+- `beforeSend` in `sentry.options.ts` drops an `ApiError` event without that fingerprint, so a
+  page that does not catch one (`onRequestError`, or `global-error` for a browser error) bypasses
+  neither the rules nor the limit; `global-error` does not report an error with a `digest`, thrown
+  on the server and already seen there (owner, T10 review).
 
-Components only render `errorText(error)`; the greeting's `console.error` goes.
+Components only render `errorText(error)`; the greeting's `console.error` goes. A caught error
+that is not an `ApiError` (H29) the component passes to `reportFailure`: `fingerprint:
+['web-failure', name]`, the same limit.
 
 ## 4. Browser client and handoff (H5, H6, H7, H10)
 

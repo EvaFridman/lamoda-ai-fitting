@@ -10,3 +10,15 @@ export const dataCollection: NonNullable<BrowserOptions['dataCollection']> = {
   httpBodies: [],
   urlQueryParams: false,
 };
+
+// An api failure reaches Sentry only through src/shared/api/report.ts, which sets its fingerprint
+// (with `api-failure`) and sends one event per cause per minute (spec 0007 plan §3). The same error
+// reaching onRequestError or global-error, from a page that did not catch it, is dropped here: a
+// down api would be an event per page view, and a 404 an event at all. By name, not instanceof: the
+// instrumentation bundle may hold its own copy of the class.
+export const beforeSend: NonNullable<BrowserOptions['beforeSend']> = (event, hint) => {
+  const error = hint.originalException;
+  const apiError = error instanceof Error && error.name === 'ApiError';
+  // `includes`, not the first entry: a fingerprint set on a scope would come before report.ts's.
+  return apiError && !event.fingerprint?.includes('api-failure') ? null : event;
+};

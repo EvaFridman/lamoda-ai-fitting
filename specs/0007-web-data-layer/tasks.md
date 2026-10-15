@@ -72,11 +72,13 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       from the dictionary fails the contract test. AC3 (unit part), AC9 (unknown enum shows the
       general text).
       Commit: `feat(web): read api errors and show them in russian`
-- [ ] **T10. Sentry.** `report.ts`: which failures, fingerprint, one event per cause per 60 s,
+- [x] **T10. Sentry.** `report.ts`: which failures, fingerprint, one event per cause per 60 s,
       tags; the greeting renders `errorText` and drops `console.error`. Removes the backlog item
       "api call failures in Sentry" (plan §3, §8).
       Check: unit tests (5xx, network, timeout, schema and 401 reported (H23); other 4xx and 429
-      not; ten failures → one event; two templates → two fingerprints); `/` with the api stopped
+      not, nor `path` (H17); a cut error body stays `http` (H30); an error that is not an
+      `ApiError` reported by the component (H29); ten failures → one event; two templates → two
+      fingerprints); `/` with the api stopped
       answers 200 with the Russian text. AC8 (unit part), AC13 (local part).
       Commit: `feat(web): report api failures to sentry once per cause`
 - 👤 merges PR 2.
