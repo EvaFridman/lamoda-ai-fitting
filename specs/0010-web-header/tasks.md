@@ -44,7 +44,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Check: `header.test.tsx` (no "15 лет", the logo links to `/`, buttons `aria-disabled`);
       `qa-tester` screenshots at 1440, 900 and 375 px for the owner (AC1, AC2, AC6, AC7).
       Commit: `feat(web): add lamoda's header`
-- [ ] **T7. Categories in the header.** `HeaderCategories` in `<Suspense>` with `connection()`,
+- [x] **T7. Categories in the header.** `HeaderCategories` in `<Suspense>` with `connection()`,
       active categories in the api's order, plain text, an empty row on failure (plan §2).
       Check: `header-categories.test.tsx` (order and query, no links, loader failure renders
       nothing and reports a non-`ApiError`); `qa-tester`: six categories, a category deactivated

@@ -4,7 +4,17 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { Header } from './header';
 
+// An async server component, rendered on the server only; the header's own parts are tested here.
+vi.mock('./header-categories', () => ({ HeaderCategories: () => null }));
+
 describe('Header', () => {
+  it('still renders its other parts when the categories render nothing', () => {
+    render(<Header />);
+    expect(screen.getByRole('banner')).toBeInTheDocument();
+    expect(screen.getByRole('searchbox', { name: 'Поиск' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Lamoda, на главную' })).toBeInTheDocument();
+  });
+
   it('has no announcement bar', () => {
     render(<Header />);
     expect(screen.getByRole('banner')).not.toHaveTextContent(/15 лет/);

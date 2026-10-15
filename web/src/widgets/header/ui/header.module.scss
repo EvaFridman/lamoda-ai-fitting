@@ -141,7 +141,8 @@
   }
 }
 
-// Stays empty without categories: the search field sets the row's height (plan §2).
+// Keeps its height without categories, so the header does not jump when they arrive (plan §2):
+// next to the search field that field sets it, but below 1024px the row is a row of its own.
 .categories {
   scrollbar-width: none;
 
@@ -150,10 +151,21 @@
   align-self: stretch;
 
   min-width: 0;
+  min-height: 50px;
 
   font-size: var(--font-size-body-m);
   line-height: 50px;
   white-space: nowrap;
+}
+
+.categoryList {
+  display: flex;
+  gap: var(--space-6);
+
+  margin: 0;
+  padding: 0;
+
+  list-style: none;
 }
 
 .search {

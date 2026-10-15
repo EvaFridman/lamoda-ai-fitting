@@ -1,4 +1,5 @@
 import NextLink from 'next/link';
+import { Suspense } from 'react';
 
 import {
   BagIcon,
@@ -10,6 +11,7 @@ import {
 } from '@/shared/ui';
 
 import styles from './header.module.scss';
+import { HeaderCategories } from './header-categories';
 import { Logo } from './logo';
 
 const userNav = [
@@ -61,8 +63,11 @@ export function Header() {
           ))}
         </div>
 
-        {/* The category row (plan §2) goes here. */}
-        <div className={styles.categories} />
+        <div className={styles.categories}>
+          <Suspense fallback={null}>
+            <HeaderCategories />
+          </Suspense>
+        </div>
 
         <div className={styles.search}>
           <SearchField />
