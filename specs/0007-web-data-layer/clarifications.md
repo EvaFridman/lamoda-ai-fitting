@@ -12,11 +12,13 @@ code comments. All decisions below: owner, 2026-10-15.
   the error dictionary) start after 0006 PR 2 merges; the browser client's acceptance in production
   waits for 0006 PR 3 (nginx on `/api/`). Shared files are rebased by 0006 F1: the branch that
   merges later rebases onto `main`.
-- **H2. Three pull requests.** PR 1: these documents, with the two backlog commits already on the
+- **H2. Four pull requests.** PR 1: these documents, with the two backlog commits already on the
   branch. PR 2: the server side: the `shared/api` split, `buildPath`, `ApiError` with `code` and
   `details`, the error dictionary, Sentry reporting, the entity schemas, the contract test, and the
   greeting moved onto it. PR 3: the browser client, the query hooks, the server-to-browser handoff
-  and the dev page. PR 3 closes issue #28.
+  and the dev page. PR 4: acceptance in production after PR 3 is deployed, the acceptance record and
+  `Status: done`; it closes issue #28. (Revised while writing the plan: the production criteria can
+  only be checked after PR 3 is deployed, as in 0006.)
 
 ## Scope
 
@@ -26,6 +28,11 @@ code comments. All decisions below: owner, 2026-10-15.
   the product filter counts) load on the server and in the browser. Users, fitting sessions and
   generations get schemas and types only, with no loaders: their routes are admin-only and the admin
   token never reaches web (0006 F19). Their loaders come with the auth spec. web writes no data.
+- **H16. A second public entry for server-only code.** Any slice, and any `shared` segment, may
+  have a `server.ts` next to its `index.ts`: a second public entry that holds only server-only
+  exports (`@/shared/api/server`, `@/entities/product/server`). `index.ts` stays safe to import from
+  the browser. The FSD rules (the `fsd` skill, `fsd-reviewer`, `.claude/README.md`) and `CLAUDE.md`
+  change with it. (Added while writing the plan; the backlog item said the rules must allow it.)
 - **H4. Backlog items taken.** "Web data layer" (including its sub-point on `apiFetch` paths) and
   "api call failures in Sentry". The commit that closes each removes it from `specs/backlog.md`.
 
