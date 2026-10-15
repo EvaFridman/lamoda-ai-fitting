@@ -83,6 +83,18 @@ code comments. All decisions below: owner, 2026-10-15.
 - **H13. Strictness.** A field web does not know is dropped, so a newer api next to an older web
   during a deploy keeps pages working. An enum value web does not know fails the schema (and is
   reported, H9).
+- **H18. Where the contract helper lives.** A `shared` segment of its own, `shared/contract`
+  (`@/shared/contract`), used only by tests: a segment keeps the two public entries of H16, and
+  `shared/api` keeps no test code. ESLint refuses an import of it outside `*.test.ts(x)`. (Added
+  in T6.)
+- **H19. Which side of a schema is compared.** The input side: the api's JSON is what web's schema
+  parses. Response schemas hold no `.catch()` (it hides what the check and H13 must see), no
+  `.default()` (an optional input against a required field) and no transforms (data stays plain
+  JSON for the handoff, plan §4); dates are ISO strings (`z.iso.datetime()`), never
+  `z.coerce.date()`, which the check cannot compare. The contract check reports `.catch()`,
+  `.default()`, `.transform()` and `z.coerce.date()`; `z.preprocess` and codecs it does not see. A
+  list is checked against its route's response, so the `{ items, total }` wrapper is covered too.
+  (Added in T6.)
 
 ## Verification
 

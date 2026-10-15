@@ -87,6 +87,32 @@ export default tseslint.config(
       ...eslintReactCopiesOfHookRules,
     },
   },
+  // The contract check reads the api's OpenAPI snapshot from disk: tests only (spec 0007 H18).
+  {
+    files: webFiles,
+    ignores: ['web/**/*.test.{ts,tsx}', 'web/src/shared/contract/**'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              // Relative paths too: the group matches the import string, not the resolved file.
+              group: [
+                '@/shared/contract',
+                '@/shared/contract/**',
+                '**/shared/contract',
+                '**/shared/contract/**',
+                '../contract',
+                '../contract/**',
+              ],
+              message: 'The contract check is test-only: import it from *.test.ts(x) files.',
+            },
+          ],
+        },
+      ],
+    },
+  },
 
   // Last: turns off every rule that would fight Prettier.
   prettier,

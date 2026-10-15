@@ -74,7 +74,9 @@ One slice each: `category`, `brand`, `product`, `attribute`, `user`, `fitting-se
 `generation`.
 
 - `model/schemas.ts`: zod objects mirroring the response DTOs. `z.object` drops unknown keys;
-  enums are `z.enum` (unknown value fails). Types via `z.infer`.
+  enums are `z.enum` (unknown value fails). Types via `z.infer`. No `.catch()` (it would hide an
+  unknown value, H13), no `.default()`, no transforms (§4); dates are `z.iso.datetime()` /
+  `z.iso.date()`, never `z.coerce.date()` (H19).
 - Catalog slices, `api/queries.ts` (in `index.ts`): query keys and options with `clientFetch`, and
   hooks (`useProducts(filters)`, `useProduct(id)`, `useProductFacets(filters)`, `useCategories`,
   `useBrands`, `useAttributes`, and the product's images, variations and attribute values).
@@ -89,12 +91,14 @@ One slice each: `category`, `brand`, `product`, `attribute`, `user`, `fitting-se
   (no database) and checks it with Vitest's `toMatchFileSnapshot('../openapi.json')`. A DTO change
   without the snapshot fails it; `npm --prefix api test -- -u` rewrites it. `api/openapi.json` is
   committed and listed in `.prettierignore`.
-- web: a helper in `shared/api` test support compares a zod schema (`z.toJSONSchema`, output side)
-  with an OpenAPI component, following `$ref`s: the same property names both ways, required set,
+- web: a helper in `shared/contract` (H18), used only by tests, compares a zod schema (`z.toJSONSchema`, input side,
+  H19) with an OpenAPI component or a route's response, following `$ref`s: the same property names both ways, required set,
   types and formats, nullable and enum values. Each entity's `model/schemas.contract.test.ts` pairs
-  its schemas with component names (`ProductListItemDto`, …); paginated responses are checked
-  through their item. The error dictionary is checked against the `code` enum of
-  `ErrorResponseDto`. A failure names the schema, the component and the field.
+  its schemas with component names (`ProductListItemDto`, …); a list is checked against its
+  route's response (`{ method: 'get', path: '/products', status: '200' }`), wrapper and item, since
+  the `{ items, total }` wrapper is not a component. The error dictionary's codes (`z.enum` of its keys)
+  are checked against the `ErrorCode` component, the enum of `ErrorResponseDto`'s `code`; `details`
+  codes are a plain string in the document, so only unit tests cover their texts. A failure names the schema, the component and the field.
 
 ## 7. FSD rule (H16)
 
@@ -153,7 +157,8 @@ removed by the Sentry task.
 - **0006 not merged yet.** Tasks that read errors start after 0006 PR 2 (H1); the dictionary
   includes 0006's codes. Shared files rebase by 0006 F1.
 - **Snapshot churn.** Every response DTO change rewrites `api/openapi.json`; that is the point
-  (AC11). `test-writer`'s "only test files changed" check treats it as expected after `-u`.
+  (AC11). The main session runs `-u` before `test-writer` (whose hook does not allow it), so the
+  "only test files changed" check already counts the rewritten file as the task's change.
 - **Hydration mismatch.** Server and browser options share keys and schemas from one module; a
   test renders a hydrated hook and asserts no request.
 - **Dev quota.** Through the dev rewrite all browser calls share one quota (H6).
