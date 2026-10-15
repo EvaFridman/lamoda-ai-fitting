@@ -46,9 +46,12 @@ jobs:
       - name: Build api and web images
         env:
           IMAGE_SOURCE: ${{ github.server_url }}/${{ github.repository }}
-          # Browser-side Sentry is baked in at build time; empty values turn it off.
+          # Browser-side Sentry and analytics are baked in at build time; empty values turn them off.
           NEXT_PUBLIC_SENTRY_DSN: ${{ vars.NEXT_PUBLIC_SENTRY_DSN }}
           NEXT_PUBLIC_SENTRY_ENVIRONMENT: production
+          # Only images that can be deployed send analytics: a pull request's image, run anywhere,
+          # must not reach the production project (spec 0008 J24).
+          NEXT_PUBLIC_MIXPANEL_TOKEN: ${{ inputs.publish && vars.NEXT_PUBLIC_MIXPANEL_TOKEN || '' }}
           SENTRY_ORG: ${{ vars.SENTRY_ORG }}
           SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT }}
           SENTRY_PROJECT_API: ${{ vars.SENTRY_PROJECT_API }}

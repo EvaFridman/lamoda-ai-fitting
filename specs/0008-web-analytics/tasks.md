@@ -31,13 +31,13 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Check: 👤 restarts Claude Code, approves the server, signs in with `/mcp`; the main session
       lists the project 4073843 through MCP (AC12, first half).
       Commit: `chore(tooling): add the mixpanel mcp server`
-- [ ] **T5. Token variable.** `NEXT_PUBLIC_MIXPANEL_TOKEN` in `web/Dockerfile`,
+- [x] **T5. Token variable.** `NEXT_PUBLIC_MIXPANEL_TOKEN` in `web/Dockerfile`,
       `scripts/ci-build-images.sh`, `images.yml`, `docker-compose.yml`, `.env.example`,
       `deploy/README.md`; `shared/config/public-env.ts` and the barrel `shared/config/index.ts`
       (plan §2).
       Check: `npm run verify`; `docker compose config web` shows the variable, empty.
       Commit: `build(web): pass the mixpanel token to the web build`
-- [ ] 👤 Creates the repository variable `NEXT_PUBLIC_MIXPANEL_TOKEN` (deploy/README.md), any time
+- [x] 👤 Creates the repository variable `NEXT_PUBLIC_MIXPANEL_TOKEN` (deploy/README.md), any time
       before PR 2 merges; Claude reminds the owner at T5 with the command.
       Check (Claude): `gh variable list` shows it, and its value equals the project token in
       Mixpanel's project settings.

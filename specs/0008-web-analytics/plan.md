@@ -16,14 +16,16 @@ dependency in web: `mixpanel-browser`.
   1.2 MB before minification; it is imported dynamically, after consent, so it is its own chunk and
   a visitor who declines never downloads it.
 
-## 2. Configuration (J4, J11, J17)
+## 2. Configuration (J4, J11, J17, J24)
 
 - `NEXT_PUBLIC_MIXPANEL_TOKEN`, inlined at build time as `NEXT_PUBLIC_SENTRY_DSN` is:
   - `web/Dockerfile`: an `ARG` next to the Sentry ones;
   - `scripts/ci-build-images.sh`: `--build-arg NEXT_PUBLIC_MIXPANEL_TOKEN="${…:-}"`, and its header
     comment;
-  - `.github/workflows/images.yml`: `NEXT_PUBLIC_MIXPANEL_TOKEN: ${{ vars.NEXT_PUBLIC_MIXPANEL_TOKEN }}`
-    (a repository variable, as the builds of pull requests run with no environment);
+  - `.github/workflows/images.yml`:
+    `NEXT_PUBLIC_MIXPANEL_TOKEN: ${{ inputs.publish && vars.NEXT_PUBLIC_MIXPANEL_TOKEN || '' }}`
+    (a repository variable, as the image job runs with no environment for pull requests; only
+    published images get it, J24);
   - `docker-compose.yml`, service `web`: `NEXT_PUBLIC_MIXPANEL_TOKEN: ${NEXT_PUBLIC_MIXPANEL_TOKEN:-}`,
     so a local run can be given a dummy token for checks ("How each criterion is verified"); empty by default;
   - `.env.example`: the variable, empty, with a comment (public by design, empty turns analytics
