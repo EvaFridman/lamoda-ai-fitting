@@ -50,7 +50,8 @@ interface ApiErrorInit {
   // before the request was built.
   method?: string;
   status?: number;
-  // From the envelope of an `http` answer; absent when the answer had none (an nginx page).
+  // From the envelope of an `http` answer; absent when the answer had none (an HTML page,
+  // H27).
   code?: string;
   details?: ApiErrorDetail[];
   cause?: unknown;

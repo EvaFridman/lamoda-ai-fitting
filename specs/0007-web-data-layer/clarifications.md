@@ -87,21 +87,27 @@ code comments. All decisions below: owner, 2026-10-15.
   503 from another one (both are `SERVICE_UNAVAILABLE`), and the api does not cancel a handler that
   timed out (0006 F11), so a slow read retried twice can run three times at once for one visitor.
   Accepted for reads; the risk to the filter counts is in the backlog ("Cache for filter counts").
-  Revisit after 0006 PR 3: nginx's own 502/504 (a blue-green switch, its proxy timeout) are not
-  retried by H10. (Added after 0006 PR 2 merged.)
-- **H25. `Retry-After`.** web does not read it: the 429 text stays "wait a little" (H11). Revisit
-  after 0006 PR 3, whose nginx limit answers 429 too, maybe without the header; the idea is in the
-  backlog. (Added after 0006 PR 2 merged.)
+  On `/api/` nginx answers its own 502 and 504 (a blue-green switch, no copy of the api) as 503
+  `SERVICE_UNAVAILABLE` in the api's format (0006 F33), so the browser retries them too: a short
+  switch passes on a retry. Its 504 does not reach the browser, which gives up at 15 s, before
+  nginx's 60 s. (Added after 0006 PR 2 merged; revised after 0006 PR 3.)
+- **H25. `Retry-After`.** web does not read it: the 429 text stays "wait a little" (H11). Only the
+  api's own 429 carries it; nginx's 429 does not (0006 F32). Showing the wait when the header is
+  there is in the backlog. (Added after 0006 PR 2 merged; revised after 0006 PR 3.)
 - **H26. Where a 503 shows.** The server's `apiFetch` gives up at 5 s, before the api's 10 s
   timeout, so a slow api reaches a server-rendered page as a timeout, never as a 503. AC3's 503 is
-  shown from the browser (`clientFetch` waits 15 s) once `/api/` goes through nginx (0006 PR 3), and
-  before that with a stubbed answer. (Added after 0006 PR 2 merged.)
-- **H27. An answer without the envelope.** nginx answers some failures itself, without the api's
-  envelope: 413 (`client_max_body_size`), 429 (its own limit), 502 and 504 (a blue-green switch,
-  its proxy timeout). Such an answer gets the text of the api code its status stands for: 413 →
-  `PAYLOAD_TOO_LARGE`, 429 → `TOO_MANY_REQUESTS`, 502/503/504 → `SERVICE_UNAVAILABLE`; any other
-  status gets the general text. An answer with the envelope keeps its code's text, except 429,
-  which always gets its own (H11). (Added in T9.)
+  shown from the browser (`clientFetch` waits 15 s, nginx 60 s), in production, or locally with a
+  stubbed answer. Locally there is no nginx: with the api stopped, the dev rewrite answers instead
+  of the api, likely with a 500 page, so the browser shows the general text and does not retry,
+  where production gets a 503. T11 checks what the rewrite answers and T13's check follows it.
+  (Added after 0006 PR 2 merged; revised after 0006 PR 3.)
+- **H27. An answer without the envelope.** On `/api/` nginx answers its own 413, 429 and 502/504
+  (as 503) in the api's format (0006 F12, F17, F33). Any other answer without the envelope (another
+  nginx page, the local dev rewrite) gets the text of the api code its status stands for, as a
+  fallback: 413 → `PAYLOAD_TOO_LARGE`, 429 → `TOO_MANY_REQUESTS`, 502/503/504 →
+  `SERVICE_UNAVAILABLE`; any other status gets the general text. An answer with the envelope keeps
+  its code's text, except 429, which always gets its own (H11). (Added in T9; revised after 0006
+  PR 3.)
 - **H28. `details` codes not checked against the api.** The OpenAPI document types a detail's
   `code` as a plain string, so a new api validation rule gets the general detail text and no check
   notices. Accepted while web has no forms; the check is in the backlog. (Added in T9.)

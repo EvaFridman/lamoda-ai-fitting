@@ -31,7 +31,8 @@ export const ERROR_TEXTS = {
   INTERNAL_ERROR: 'Ошибка на сервере, попробуйте позже',
 } as const satisfies Record<string, string>;
 
-// The api code an answer without the envelope stands for: nginx answers these itself (H27).
+// The api code an answer without the envelope stands for, a fallback: on `/api/` nginx answers
+// these in the api's format, but another nginx page or the local dev rewrite may not (H27).
 const STATUS_CODES = new Map<number, keyof typeof ERROR_TEXTS>([
   [413, 'PAYLOAD_TOO_LARGE'],
   [502, 'SERVICE_UNAVAILABLE'],
@@ -52,8 +53,8 @@ export function errorText(error: unknown): string {
     case 'timeout':
       return TIMEOUT_TEXT;
     case 'http': {
-      // By status, envelope or not: nginx's own limit answers 429 too. `Retry-After` is not read
-      // (H25).
+      // By status, envelope or not: nginx's own limit answers 429 too, without `Retry-After`,
+      // which is not read anyway (H25).
       if (error.status === 429) return TOO_MANY_REQUESTS_TEXT;
       const code = error.code ?? STATUS_CODES.get(error.status ?? 0);
       return textOf(ERROR_TEXTS, code) ?? GENERAL_TEXT;

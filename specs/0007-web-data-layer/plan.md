@@ -18,7 +18,7 @@ dependencies: zod 4 (`z.toJSONSchema`), TanStack Query 5 (`HydrationBoundary`, `
   - `ApiError`: `kind` (`http`, `network`, `timeout`, `schema`, and `path` for a path refused
     before any request, H17), `status`, `code`, `details`,
     `template`. A non-2xx answer is parsed as the api's error envelope (zod); one that is not (an
-    nginx HTML page) keeps `code` empty.
+    HTML page of nginx or the dev rewrite, H27) keeps `code` empty.
   - `paginatedSchema(item)` for `{ items, total }`.
   - `errorText(error)` and `detailText(detail)`: the Russian texts (§2).
   - `clientFetch` (§4).
@@ -37,7 +37,7 @@ dependencies: zod 4 (`z.toJSONSchema`), TanStack Query 5 (`HydrationBoundary`, `
 `details` codes (`TOO_MANY_ERRORS` included), a general text for anything else, and texts for
 `network`, `timeout` and `schema` failures. 429 gets "Слишком много запросов, подождите немного".
 An answer without the envelope gets the text of the code its status stands for (413, 502–504;
-H27). The code list is a copy (no shared package); the contract check (§6) fails when the api has a code
+a fallback, as nginx answers these on `/api/` in the api's format, H27). The code list is a copy (no shared package); the contract check (§6) fails when the api has a code
 the dictionary lacks.
 
 ## 3. Sentry (H9)

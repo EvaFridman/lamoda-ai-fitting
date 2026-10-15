@@ -15,8 +15,8 @@ function failureKind(error: unknown): ApiErrorKind {
   return error instanceof Error && error.name === 'TimeoutError' ? 'timeout' : 'network';
 }
 
-// The api's envelope of an error answer, or undefined for anything else (an nginx HTML page, a body
-// cut short): the answer stays an `http` error with its status, only without a code. A cut body is
+// The api's envelope of an error answer, or undefined for anything else (an HTML page of nginx or
+// the dev rewrite, H27; a body cut short): the answer stays an `http` error with its status, only without a code. A cut body is
 // not a `timeout` or `network` error, since the status has arrived and its text and retry follow it
 // (H30). An envelope whose `details` do not parse keeps its code, with no details.
 async function errorEnvelope(
@@ -86,7 +86,7 @@ async function request<Schema extends z.ZodType>(
   try {
     body = await response.json();
   } catch (error) {
-    // A body that is not JSON (an nginx page) is a wrong answer; one cut short is a lost answer.
+    // A body that is not JSON (an HTML page) is a wrong answer; one cut short is a lost answer.
     const kind = error instanceof SyntaxError ? 'schema' : failureKind(error);
     throw new ApiError(`unreadable api response: ${template}: ${String(error)}`, {
       kind,
