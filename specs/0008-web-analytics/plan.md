@@ -1,6 +1,7 @@
 # 0008 web analytics: plan
 
-Status: accepted (2026-10-15); §6 (the footer, J22) added at the owner's request the same day.
+Status: accepted (2026-10-15); §6 (the footer, J22) added at the owner's request the same day;
+its bottom row amended at T9 (J36).
 
 Implements [spec.md](spec.md); decisions in [clarifications.md](clarifications.md). One new
 dependency in web: `mixpanel-browser`.
@@ -95,7 +96,7 @@ A new segment of `shared`, browser only (`'use client'` where it holds hooks).
 - `_pages/privacy`: a heading, the placeholder text (the real text comes from the owner later; the
   placeholder says so), and the `CookieSettingsButton`. Static: it builds into the shell.
 
-## 6. Footer (J22)
+## 6. Footer (J22, J36)
 
 - `widgets/footer` is rebuilt after the owner's screenshot of Lamoda's footer:
   - **Columns.** A dark band with four columns, each a heading and a list:
@@ -111,15 +112,15 @@ A new segment of `shared`, browser only (`'use client'` where it holds hooks).
     - "Правовая информация": Публичная оферта, Пользовательское соглашение, Сотрудничество,
       Политика по работе с персональными данными, Конфиденциальная информация, Комплаенс,
       Устойчивое развитие.
-  - **Bottom row**, under a divider: the Russian flag and "Россия"; the VK icon; the Mastercard, МИР
-    and Visa marks over "Доступны другие способы оплаты" (the last three words underlined, as on
-    Lamoda, but not a link); a phone icon and "Мобильная версия" on the right.
+  - **Bottom row**, under a divider: the VK icon; the Mastercard and Visa marks over "Доступны
+    другие способы оплаты" (the last three words underlined, as on Lamoda, but not a link); a phone
+    icon and "Мобильная версия" on the right. No flag, "Россия" or МИР mark (J36).
 - The items live in one list in `widgets/footer/config/items.ts`, each `{ label, href? }`; only the
   policy has `href: '/privacy'` (a `Link` from the UI kit). The others render as text, not as links
   to nowhere.
 - Colours, font sizes and spacing come from Lamoda's CSS (the a.lmcdn.ru chunks used by 0003);
-  new values become tokens in `shared/styles/tokens.scss`. The icons (VK, flag, payment marks,
-  phone) are inline SVG components in `shared/ui/icon`, as the UI kit's icons are.
+  new values become tokens in `shared/styles/tokens.scss`. The icons (VK, payment marks, phone)
+  are inline SVG components in `shared/ui/icon`, as the UI kit's icons are.
 - Narrow screens: two columns under 1024 px, one under 600 px; the bottom row wraps.
 - The deployed version ("версия …", read at request time) stays, small and muted, at the end of the
   bottom row: it is how the owner sees which release is live.

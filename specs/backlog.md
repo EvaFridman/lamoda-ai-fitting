@@ -79,6 +79,9 @@ removes it from this list. Found by the agents' first security audit and trial r
   (`experimental_taintUniqueValue`, Next's `experimental.taint`), so such a render fails. Take it
   with the first real page, when server components start passing props to client ones; check first
   that the flag works on the Next version then in use.
+- **Footer links.** The footer copies Lamoda's items, but only the personal data policy has a page
+  (0008 J22): each other item becomes a link when its page appears. The list is
+  `widgets/footer/config/items.ts`.
 - **Remove `greeting`.** The home page widget, `entities/greeting`, the api's `/hello` and their
   tests are a bootstrap demo; remove them with the catalog page spec (0004 E29).
 - **Page cache in a read-only image.** The web runtime user writes only to `.next/cache`. Next keeps

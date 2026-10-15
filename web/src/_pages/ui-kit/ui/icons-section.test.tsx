@@ -9,15 +9,15 @@ describe('icons section', () => {
     expect(sections.map(({ id, title }) => [id, title])).toContainEqual(['icons', 'Иконки']);
   });
 
-  it('shows 16 icons, each with a name and one 16px and one 24px drawing', () => {
+  it('shows 18 icons, each with a name and one 16px and one 24px drawing', () => {
     render(<UiKitPage />);
 
     const region = screen.getByRole('region', { name: 'Иконки' });
     const items = within(region).getAllByRole('listitem');
 
-    expect(items).toHaveLength(16);
+    expect(items).toHaveLength(18);
     const names = items.map((item) => item.querySelector('code')?.textContent);
-    expect(new Set(names).size).toBe(16);
+    expect(new Set(names).size).toBe(18);
     for (const item of items) {
       expect(item.querySelector('code')?.textContent).toMatch(/^\w+Icon$/);
       const svgs = [...item.querySelectorAll('svg')];

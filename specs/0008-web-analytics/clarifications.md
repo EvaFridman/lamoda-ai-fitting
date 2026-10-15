@@ -168,5 +168,9 @@ code comments (`I` is skipped: it reads as `1`). All decisions below: owner, 202
   (Owner, 2026-10-15, at T8.)
 - **J35. A decline right after an accept** lets the SDK send its last session-replay flush, recorded
   while consent held; nothing is sent after it. Accepted as is. (Owner, 2026-10-15, at T8.)
+- **J36. The footer's bottom row without the flag, "Россия" and МИР** (amends J22): Lamoda's CDN
+  has the VK, phone, Visa and Mastercard drawings but not the flag or the МИР mark, so the bottom row
+  holds the VK icon, the Mastercard and Visa marks over "Доступны другие способы оплаты", "Мобильная
+  версия" and the version. (Owner, 2026-10-15, at T9.)
 - **AC3 is checked in production only** (T11): no local tool intercepts the SDK's requests, and a
   dummy token would still send to Mixpanel. (Owner, 2026-10-15, at T7.)

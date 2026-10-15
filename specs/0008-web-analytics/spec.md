@@ -1,8 +1,8 @@
 # 0008 web analytics
 
-Status: accepted (2026-10-15); amended the same day: the footer (J22).
+Status: accepted (2026-10-15); amended the same day: the footer (J22), its bottom row (J36).
 
-Issue #40. Decisions: `clarifications.md` (J1–J22).
+Issue #40. Decisions: `clarifications.md` (J1–J36).
 
 ## Goal
 
@@ -78,7 +78,7 @@ main Claude session can query through MCP, and it is collected only from visitor
 ### Footer
 
 - **AC15.** On every page the footer matches the owner's screenshot of Lamoda's footer in columns,
-  items and bottom row; only "Политика по работе с персональными данными" is a link, and it opens
+  items and bottom row (without the flag, "Россия" and the МИР mark, J36); only "Политика по работе с персональными данными" is a link, and it opens
   `/privacy`.
 
 ## Owner actions (Claude cannot do them)
