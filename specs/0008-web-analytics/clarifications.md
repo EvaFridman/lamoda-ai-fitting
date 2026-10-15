@@ -123,3 +123,25 @@ code comments (`I` is skipped: it reads as `1`). All decisions below: owner, 202
   only when the image is published (from `main`); images of pull requests build with an empty token,
   so they send nothing even when run locally (J11, AC13). `NEXT_PUBLIC_SENTRY_DSN` stays in every
   build: errors from a pull request's image spoil no data. (Owner, 2026-10-15, after T5's review.)
+
+## Analytics client
+
+- **J25. A failed SDK load is not reported.** When the SDK's chunk does not load or `init` throws
+  (an ad blocker, a network error), analytics stays off for that page and nothing goes to Sentry:
+  broken analytics costs heatmaps, not the site, and blocked visitors would flood Sentry. (Owner,
+  2026-10-15, at T6.)
+- **J26. Accepting again after a decline sends again.** The SDK keeps its own opt-out in
+  `localStorage`; our consent store (§4 of the plan) is the only source of truth, so starting
+  analytics opts the SDK back in, after a reload or in the same tab. (Owner, 2026-10-15, at T6.)
+- **J27. The `README.md` line on analytics lands with T6,** next to the `CLAUDE.md` changes.
+  (Owner, 2026-10-15, at T6.)
+- **J28. The SDK's own heatmap events carry no attributes.** `record_heatmap_data` makes the SDK
+  send `$mp_click`, `$mp_dead_click`, `$mp_rage_click` and `$mp_page_leave` with the attributes of
+  the clicked element and its ancestors, which recording masks do not cover. An `on_track` hook
+  drops attributes, ids, links and text; tag, classes and position stay. (Owner, 2026-10-15, after
+  T6's security review.)
+- **J29. Recordings block images in any form:** `img`, `picture`, `svg image`, inline `url(...)`
+  styles, image preloads, `input type="image"`, `og:image`, embedded frames and objects, as well as
+  video, audio and canvas. Attributes and stylesheets are recorded as they are, so personal data
+  stays out of them (`CLAUDE.md`). (Owner, 2026-10-15, after T6's
+  security review.)
