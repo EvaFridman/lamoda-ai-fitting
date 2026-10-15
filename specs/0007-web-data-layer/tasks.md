@@ -97,7 +97,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Check: a test renders a hook under a hydrated cache and asserts no request; the same key on
       server and browser. AC4 (unit part).
       Commit: `feat(web): load catalog data in the browser after the server`
-- [ ] **T13. Dev page.** `web/app/dev/catalog`, `_pages/dev-catalog`, `noindex` (plan §9).
+- [x] **T13. Dev page.** `web/app/dev/catalog`, `_pages/dev-catalog`, `noindex` (plan §9).
       Check: qa-tester: data in the HTML, no catalog request on load, brand filter and next page
       request `/api/...`, 404 and 400 cases show their texts; 503: a stubbed `/api/` answer (503
       `SERVICE_UNAVAILABLE` in the api's format) shows its text after two retries; with the api
