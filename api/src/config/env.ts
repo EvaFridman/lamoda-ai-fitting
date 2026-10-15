@@ -42,8 +42,14 @@ export const envSchema = z
     // enough not to be guessed (E31).
     ADMIN_API_TOKEN: secret(),
     // Sent in the X-Proxy-Secret header by nginx and web (spec 0006 F13): only such a request names
-    // the client's address (X-Forwarded-For) and the request id. Empty trusts no request.
-    PROXY_SECRET: secret(),
+    // the client's address (X-Forwarded-For) and the request id. Empty trusts no request. Letters
+    // and digits only: nginx's config and the server's sourced .env would break on `$`, `"` or `;`.
+    PROXY_SECRET: z
+      .union([
+        z.literal(''),
+        z.string().regex(/^[A-Za-z0-9]{32,}$/, 'must be at least 32 letters or digits'),
+      ])
+      .default(''),
     // Where image keys are served: http://localhost:3001/media/ locally (spec 0004 E8).
     MEDIA_BASE_URL: z.url({ protocol: /^https?$/ }),
 
@@ -71,4 +77,13 @@ export function validateEnv(raw: Record<string, unknown>): Env {
     throw new Error(`Invalid environment: ${problems}`);
   }
   return result.data;
+}
+
+// What the HTTP server needs on top of the schema, checked by server.ts at start. Not in the schema:
+// the temporal-worker validates it too and neither sends nor receives requests (spec 0006 F18).
+// Without the proxy secret production would count every visitor as nginx's or web's address.
+export function assertServerEnv(env: Pick<Env, 'NODE_ENV' | 'PROXY_SECRET'>): void {
+  if (env.NODE_ENV === 'production' && env.PROXY_SECRET === '') {
+    throw new Error('Invalid environment: PROXY_SECRET: must be set in production');
+  }
 }

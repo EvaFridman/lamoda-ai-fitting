@@ -1,0 +1,24 @@
+# Headers sent to api and web, included by default.conf wherever headers are set: a
+# proxy_set_header in a location drops every one inherited from the server block, so a location
+# that sets its own must include this file again. Rendered to conf.d/proxy-headers.inc: not *.conf,
+# so nginx.conf does not load it on its own.
+
+proxy_set_header Host $host;
+# nginx is the edge: the client address replaces whatever X-Forwarded-For the client sent. The api
+# believes it only next to the proxy secret below (spec 0006 F13); web believes it and forwards it
+# to the api with the same secret.
+proxy_set_header X-Forwarded-For $remote_addr;
+proxy_set_header X-Real-IP $remote_addr;
+proxy_set_header X-Forwarded-Proto $scheme;
+# nginx's own id replaces one the client sent; the api logs it and web forwards it (spec 0006 F10).
+proxy_set_header X-Request-Id $request_id;
+# Proves to the api that the headers above come from nginx. $proxy_secret is set per server and
+# emptied for web, which never needs it (an empty value drops the header, a client's one too).
+proxy_set_header X-Proxy-Secret $proxy_secret;
+# A client cannot pick the Sentry trace its request joins: the api and web start their own
+# (spec 0004 E34). The W3C pair as well, in case the SDK continues a trace from it. An empty value
+# makes nginx drop the header.
+proxy_set_header sentry-trace "";
+proxy_set_header baggage "";
+proxy_set_header traceparent "";
+proxy_set_header tracestate "";

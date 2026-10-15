@@ -18,7 +18,7 @@ export default defineConfig({
       TEMPORAL_ADDRESS: '127.0.0.1:1',
       THROTTLE_LIMIT: '5',
       ADMIN_API_TOKEN: 'test-admin-token-0123456789abcdef',
-      PROXY_SECRET: 'test-proxy-secret-0123456789abcdef',
+      PROXY_SECRET: 'testproxysecret0123456789abcdef0',
       MEDIA_BASE_URL: 'http://localhost:3001/media/',
     },
     projects: [

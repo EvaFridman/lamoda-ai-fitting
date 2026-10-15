@@ -42,9 +42,25 @@ jobs:
     env:
       IMAGE_TAG: ${{ inputs.image_tag }}
     steps:
-      - name: Check the image tag
+      - name: Check the image tag and the proxy secret
+        env:
+          PROXY_SECRET: ${{ secrets.PROXY_SECRET }}
+          ADMIN_API_TOKEN: ${{ secrets.ADMIN_API_TOKEN }}
+        # Before anything reaches the server: the synced nginx template needs the secret too, and an
+        # nginx restarted without it would not start (spec 0006 F18).
         run: |
           [[ "$IMAGE_TAG" =~ ^[0-9a-f]{7}$ ]] || { echo "not a 7-character commit hash: '$IMAGE_TAG'" >&2; exit 1; }
+          # Letters and digits only, as the api and web require: it goes into nginx's config and
+          # the sourced .env. The message never shows the value.
+          if ! [[ "$PROXY_SECRET" =~ ^[A-Za-z0-9]{32,}$ ]]; then
+            echo "::error::secret PROXY_SECRET in GitHub Environment production is missing or not 32+ letters or digits (deploy/README.md)"
+            exit 1
+          fi
+          # The api would refuse it only after nginx was recreated with it (F19).
+          if [ "$PROXY_SECRET" = "$ADMIN_API_TOKEN" ]; then
+            echo "::error::secrets PROXY_SECRET and ADMIN_API_TOKEN must differ (spec 0006 F19)"
+            exit 1
+          fi
 
       # By hand only: CI calls CD after every check of the push passed. Images of main are published
       # before the checks end, so GHCR holds tags that never went live; a tag is deployed by hand only
@@ -109,6 +125,7 @@ jobs:
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
           API_SENTRY_DSN: ${{ secrets.API_SENTRY_DSN }}
           ADMIN_API_TOKEN: ${{ secrets.ADMIN_API_TOKEN }}
+          PROXY_SECRET: ${{ secrets.PROXY_SECRET }}
           MEDIA_BASE_URL: ${{ vars.MEDIA_BASE_URL }}
           IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}/
         run: |
@@ -120,6 +137,7 @@ jobs:
             echo "SENTRY_DSN=$SENTRY_DSN"
             echo "API_SENTRY_DSN=$API_SENTRY_DSN"
             echo "ADMIN_API_TOKEN=$ADMIN_API_TOKEN"
+            echo "PROXY_SECRET=$PROXY_SECRET"
             echo "MEDIA_BASE_URL=$MEDIA_BASE_URL"
             echo "SENTRY_ENVIRONMENT=production"
             echo "IMAGE_REGISTRY=${IMAGE_REGISTRY,,}"
