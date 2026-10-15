@@ -33,7 +33,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Check: kit tests — typed text and a `defaultValue` appear in no attribute of the form; the
       existing `SearchField` tests pass; `/ui-kit` search section works as before (AC8).
       Commit: `fix(web): keep the search field's text out of attributes`
-- [ ] **T5. Profile and bag icons.** `ProfileIcon` and `BagIcon` from Lamoda's icon modules,
+- [x] **T5. Profile and bag icons.** `ProfileIcon` and `BagIcon` from Lamoda's icon modules,
       written with the Write tool into `shared/ui/icon/icons.tsx`, exported from `shared/ui`, shown
       on `/ui-kit` (plan §5).
       Check: the icon tests cover them; `/ui-kit` shows both at 16 and 24px.

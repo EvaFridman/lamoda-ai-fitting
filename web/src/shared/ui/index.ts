@@ -37,6 +37,7 @@ export type { IconProps, IconSize } from './icon/icon';
 export {
   ArrowBackIcon,
   ArrowForwardIcon,
+  BagIcon,
   CartIcon,
   CheckIcon,
   ChevronDownIcon,
@@ -50,6 +51,7 @@ export {
   MinusIcon,
   PhoneIcon,
   PlusIcon,
+  ProfileIcon,
   SearchIcon,
   StarIcon,
   VkIcon,
