@@ -12,6 +12,9 @@ export {
   useProducts,
   useProductVariations,
 } from './api/queries';
+export { chipValue, splitFacetAttributes } from './lib/facets';
+export { compareSizes, sortSizes } from './lib/sizes';
+export { PRODUCT_SORT_ORDER, productSortLabels } from './lib/sorts';
 export {
   PRODUCT_SORTS,
   type ProductFilters,

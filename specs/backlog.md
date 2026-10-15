@@ -163,8 +163,9 @@ Left for later specs by `0002-database-schema` (its `clarifications.md` has the 
   could point at another user's photo (0004 T13 security review).
 - **Category tree.** Categories are a flat list (0002 C4); the catalog's left-hand tree is nested
   (0004 E29).
-- **Size order.** Sizes are free text, so the filter counts list them by text (`L, M, S, XL`; 0004
-  E46); the catalog's size filter needs the clothing order.
+- **Sizes off the scale.** The size filter's order (0009 K13) knows `XXS … 3XL` (`XXXL` = `3XL`)
+  and plain numbers; `2XL`, `4XL` and up, ranges (`44-46`, `42/44`) and jeans sizes (`W28 L32`) go
+  after all numbers, by text. Rank them once the catalog has such sizes.
 - **Cache for filter counts.** Spec 0004 computes the product filter counts on every request, which
   holds for the small demo catalog; cache them (Redis) if the catalog grows. One request runs 7
   queries in parallel, and the api's pg pool has the default 10 connections with no

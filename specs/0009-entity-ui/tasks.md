@@ -55,7 +55,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Check: the existing `CheckboxFilter` tests pass; new ones cover swatch rows, search and
       "Применить".
       Commit: `feat(web): show colour swatches in the checkbox filter`
-- [ ] **T7. Product lib.** `sortSizes`, `splitFacetAttributes`, `chipValue`, `productSortLabels`
+- [x] **T7. Product lib.** `sortSizes`, `splitFacetAttributes`, `chipValue`, `productSortLabels`
       (plan §3). Removes the backlog item "Size order".
       Check: unit tests: shuffled `XL, S, XS, M, L` and `34, 26, 30` sort as AC8; `XXXL` equals
       `3XL`; unknown sizes go last by text; an attribute with one coloured value counts as a colour
