@@ -110,7 +110,10 @@ Pinned on purpose; each "not newer" has a reason and a condition to move on.
   hook and CI run exactly this, so the list of checks lives in one place (root `package.json`).
 
 `verify` covers `api` (lint, typecheck, tests, build), `web` (lint, Stylelint, typecheck, tests,
-`next build`), the agents' guard hooks and root `scripts/*.mjs` (lint, `node --test`). Docker must be running for `verify` and
+`next build`), the agents' guard hooks and root `scripts/*.mjs` (lint, `node --test`). Last, after
+`build`, `check:web-bundle` (`scripts/check-web-bundle.mjs`) fails when a file under
+`web/.next/static` (the browser bundle) contains `x-proxy-secret` (any case) or `PROXY_SECRET`, or
+when that directory is missing or empty. Docker must be running for `verify` and
 `npm test`: the Vitest project `database` (`api/test/database/`) starts a throwaway PostgreSQL with
 Testcontainers (`api/test/support/`), never the development database; without Docker it fails
 with a message to start it. The project `unit` (everything else) needs no Docker. `web` tests
