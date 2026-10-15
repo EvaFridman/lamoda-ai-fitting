@@ -10,6 +10,11 @@ removes it from this list. Found by the agents' first security audit and trial r
   to GHCR in CI and about 20 s of the pull on the server at every deploy (0005 G4). The only
   reduction so far is the Temporal native module trimmed to the image's own platform (0001 T17).
   Find what the production `node_modules` holds and what the runtime does not need.
+- **Image tags are rewritten by a re-run.** A re-run of a `main` CI run builds the images again and
+  pushes them to GHCR under the same commit tag; CD by hand checks only that the commit was live, not
+  which build the tag holds now (0005 G8). A re-run whose Checks or CD fail leaves a never-live
+  build under a live tag; a push that stops after api mixes api and web of different attempts. Do
+  not publish over an existing tag, or deploy by digest.
 
 ## nginx and realtime
 

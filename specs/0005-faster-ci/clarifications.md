@@ -27,7 +27,8 @@ code comments.
   tests do not, and `verify` stays the one list for the pre-push hook and CI. Once Checks and Images
   run in parallel, Images on `main` is about as long as Checks, so dropping `build` from CI would
   save about 25 seconds on pull requests only. To be looked at again if Checks is still the longest
-  job after this spec.
+  job after this spec. Looked at in T7: Checks is the longest job on pull requests and on `main`,
+  and `build` stays; the run times are acceptable. Owner, 2026-10-15.
 
 ## Deploy
 
@@ -69,6 +70,13 @@ code comments.
   If AC8 fails on `main` after the merge, the cache comes back as its own task with a cacheable
   certificate stage in `api/Dockerfile` and a containerd image store on the runner instead of
   `--load`. Owner, 2026-10-15, over making `apt-get` cacheable and measuring again.
+- **G8. A re-run that failed to publish.** Of the merge run's re-runs for AC8, attempt 3 failed at
+  `docker push` of the api image to GHCR ("unknown blob"), before CD; nothing was deployed. It says
+  nothing about run times, so AC8 counts attempts 1, 2 and 4 instead of three in a row. A re-run
+  builds the images again and pushes them under the same tag, while CD by hand checks only that
+  the commit was live (G6), not which build: a re-run whose Checks or CD then fail leaves a build
+  under that tag that was never live, and a push that stops after api leaves api and web of
+  different attempts. A backlog item ("Image tags are rewritten by a re-run"). Owner, 2026-10-15.
 
 ## Later
 
