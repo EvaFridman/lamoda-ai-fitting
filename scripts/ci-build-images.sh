@@ -11,11 +11,6 @@
 # NEXT_PUBLIC_SENTRY_ENVIRONMENT (baked into the browser bundle). IMAGE_SOURCE: repository URL for
 # the OCI label.
 #
-# BUILD_CACHE=gha (CI): builds with a Buildx builder and the GitHub Actions cache, one scope per
-# image, and loads the images into the local Docker. It needs ACTIONS_RUNTIME_TOKEN and
-# ACTIONS_RESULTS_URL, which GitHub gives only to actions (images.yml exports them). Without it the
-# images build with the local Docker's builder and no shared cache.
-#
 # Fails if the api image holds source maps: the Dockerfile deletes them after the upload, and they
 # carry the TypeScript source (inlineSources).
 set -euo pipefail
@@ -39,41 +34,9 @@ endgroup() { if [ -n "${GITHUB_ACTIONS:-}" ]; then echo "::endgroup::"; fi; }
 secret=()
 [ -n "${SENTRY_AUTH_TOKEN:-}" ] && secret=(--secret id=sentry_auth_token,env=SENTRY_AUTH_TOKEN)
 
-# build <app> <docker build arguments...>
-case "${BUILD_CACHE:-}" in
-  '')
-    build() { shift; docker build "$@"; }
-    ;;
-  gha)
-    # BuildKit pinned by version and digest (plan of spec 0005): it sees the Sentry secret and
-    # builds what main publishes. A builder left by an earlier call is reused; the version in its
-    # name keeps a new pin from reusing an old builder.
-    buildkit=v0.33.1
-    buildkit_digest=sha256:cec9f139f45e93c5c69c60f8b07cfad9f43f4ef6b6a6cd917527fea5ff2e3dea
-    builder="ai-fitting-ci-buildkit-$buildkit"
-    docker buildx inspect "$builder" > /dev/null 2>&1 ||
-      docker buildx create --name "$builder" --driver docker-container \
-        --driver-opt "image=moby/buildkit:$buildkit@$buildkit_digest"
-    # mode=max keeps the layers of the dependency and build stages, where the time goes; a cache
-    # that cannot be written never fails the build. version=2: the cache service GitHub runs.
-    build() {
-      local app="$1"
-      shift
-      docker buildx build --builder "$builder" --load \
-        --cache-from "type=gha,version=2,scope=$app" \
-        --cache-to "type=gha,version=2,scope=$app,mode=max,ignore-error=true" \
-        "$@"
-    }
-    ;;
-  *)
-    echo "BUILD_CACHE must be empty or gha, got: $BUILD_CACHE" >&2
-    exit 1
-    ;;
-esac
-
 group "api image $tag"
 mapfile -t api_names < <(names api)
-build api --target runtime "${api_names[@]}" "${labels[@]}" "${secret[@]}" \
+docker build --target runtime "${api_names[@]}" "${labels[@]}" "${secret[@]}" \
   --build-arg SENTRY_ORG="${SENTRY_ORG:-}" \
   --build-arg SENTRY_PROJECT="${SENTRY_PROJECT_API:-}" \
   --build-arg SENTRY_RELEASE="$tag" \
@@ -89,7 +52,7 @@ endgroup
 
 group "web image $tag"
 mapfile -t web_names < <(names web)
-build web --target runtime "${web_names[@]}" "${labels[@]}" "${secret[@]}" \
+docker build --target runtime "${web_names[@]}" "${labels[@]}" "${secret[@]}" \
   --build-arg NEXT_PUBLIC_SENTRY_DSN="${NEXT_PUBLIC_SENTRY_DSN:-}" \
   --build-arg NEXT_PUBLIC_SENTRY_ENVIRONMENT="${NEXT_PUBLIC_SENTRY_ENVIRONMENT:-}" \
   --build-arg SENTRY_ORG="${SENTRY_ORG:-}" \

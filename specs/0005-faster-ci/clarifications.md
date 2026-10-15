@@ -54,6 +54,22 @@ code comments.
   costs the scan's few seconds on `main` only; pull requests keep all three jobs starting together
   (owner, 2026-10-15, over leaving it as G1's accepted risk).
 
+## Images
+
+- **G7. No image layer cache.** T6 built the images with Buildx and the GitHub Actions cache and was
+  measured on the pull request: the build step took 363 s with an empty cache (writing it took
+  143 s for api and 64 s for web), 41 s for a re-run of the same commit, and 118 s for the next
+  commit with the same lockfiles and unchanged api and web sources, against 100–118 s with no
+  cache. Only `npm ci` came from the cache; the api's `apt-get` in the `release` stage, `next build`
+  (after `ARG SENTRY_RELEASE`), copying the images into the runner's Docker (`--load`, 22 s for
+  api) and fetching cached layers took the rest, and a pull request that changes code rebuilds
+  more. On pull requests Checks takes longer than Images anyway, so the cache shortens no run.
+  T6 is reverted (T6a); AC6 and the scope line are dropped. This also drops the BuildKit container
+  that saw the Sentry secret and the cache token with write access to the cache `main` builds from.
+  If AC8 fails on `main` after the merge, the cache comes back as its own task with a cacheable
+  certificate stage in `api/Dockerfile` and a containerd image store on the runner instead of
+  `--load`. Owner, 2026-10-15, over making `apt-get` cacheable and measuring again.
+
 ## Later
 
 - **G4. api image size.** 801 MB (web: 296 MB); it costs the push to GHCR and the pull on the server.

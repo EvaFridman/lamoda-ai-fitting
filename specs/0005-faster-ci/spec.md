@@ -1,14 +1,14 @@
 # 0005 Faster CI and CD
 
-Status: accepted (2026-10-15).
+Status: accepted (2026-10-15); amended 2026-10-15: no image layer cache, AC6 dropped (G7).
 Decisions this spec relies on: [clarifications.md](clarifications.md) (referred to by their ids, e.g. G1).
 
 ## Goal
 
 A pull request waits about 6.5 minutes for CI, and a merge into `main` takes about 8.5 minutes to
 reach the site. Most of it is waiting: the image build and deploy check wait for the checks, though
-they need nothing from them, and every image build starts from nothing. Measured on the last three
-runs (2026-10-14):
+they need nothing from them, and every image build starts from nothing (left as it is, G7).
+Measured on the last three runs (2026-10-14):
 
 | Job                   | Pull request | `main` | What takes the time                                                       |
 | --------------------- | ------------ | ------ | ------------------------------------------------------------------------- |
@@ -29,7 +29,6 @@ job permissions").
 - CD starts only when every check of the push succeeded: Secret scan, Checks and Images.
 - On `main`, images are published only after Secret scan passed; a deploy by hand deploys only a tag
   that was live, any other is refused before the server is touched (G6).
-- Image builds in CI reuse layers of earlier runs that did not change (dependencies above all).
 - api and web tests in `npm test` run at the same time; `verify` stays the one list of checks (G3).
 - A new api or web copy reports healthy soon after it is ready, in CI and on the server; the regular
   health poll stays as it is.
@@ -62,8 +61,7 @@ job permissions").
 
 ### Speed
 
-- AC6. A second image build with unchanged lockfiles reuses the dependency layers (the build log
-  shows them `CACHED`) and is faster than a build from nothing.
+- AC6. Dropped (G7): image builds in CI start from nothing, as before this spec.
 - AC7. Three pull request CI runs in a row each take at most 4.5 minutes from start to the last job's
   end.
 - AC8. Three pushes to `main` in a row each take at most 5.5 minutes from the start of CI to the end of
@@ -89,7 +87,5 @@ job permissions").
 
 - GitHub-hosted `ubuntu-latest` runners with 4 CPUs (public repository); every job gets its own
   runner, so parallel jobs do not slow each other.
-- The GitHub Actions cache (10 GB per repository) holds the image layers of at least the last few
-  runs.
 - Docker on the server and on the runners supports `start_interval` in health checks (Engine 25 or
   newer); the plan checks the versions.

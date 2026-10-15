@@ -1,6 +1,6 @@
 # 0005 Faster CI and CD: tasks
 
-Status: accepted (2026-10-15).
+Status: accepted (2026-10-15); amended 2026-10-15: T6 reverted by T6a (G7).
 Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## How the work flows
@@ -31,7 +31,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Check: `npm run format:check`.
       Commit: `docs(specs): record the production repeat of 0004 ac15`
 
-## PR 1 · `ci/0005-faster-ci` · parallel jobs, cache, parallel tests, health checks
+## PR 1 · `ci/0005-faster-ci` · parallel jobs, parallel tests, health checks
 
 - [x] **T3. Health checks report sooner.** `start_interval: 1s` for api and web in
       `deploy/compose/app.yml` and for postgres, redis, temporal and nginx in
@@ -60,15 +60,21 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       `Contents: read` only and publishes nothing. AC1, AC2, AC3. `images-main` first runs at the
       merge: a failure there deploys nothing and is fixed forward.
       Commit: `ci(ci): build images alongside the checks and publish from a main-only job`
-- [x] **T6. Image layer cache.** `scripts/ci-build-images.sh` with `BUILD_CACHE=gha` (Buildx
-      builder on BuildKit v0.33.1, `--load`, `gha` cache per image, `mode=max`,
-      `ignore-error=true`); `images.yml` sets `BUILD_CACHE` and exports the cache variables with
-      `actions/github-script` (plan §2).
+- [x] **T6. Image layer cache** (reverted by T6a, G7). `scripts/ci-build-images.sh` with
+      `BUILD_CACHE=gha` (Buildx builder on BuildKit v0.33.1, `--load`, `gha` cache per image,
+      `mode=max`, `ignore-error=true`); `images.yml` sets `BUILD_CACHE` and exports the cache
+      variables with `actions/github-script` (plan §2).
       Check: two pull request runs with the same lockfiles: the second shows the `npm ci` steps
       `CACHED` and a shorter build step than 100–118 s; if it is not shorter, stop and change the
       plan with the owner. AC6, AC11. Three pull request runs in a row (re-runs allowed) ≤ 4.5 min.
       AC7.
       Commit: `perf(ci): reuse image layers between ci runs`
+- [x] **T6a. No image layer cache.** T6's changes to `scripts/ci-build-images.sh`, `images.yml`
+      and `.claude/rules/deploy.md` reverted; spec (AC6 and the scope line dropped), plan (§2,
+      versions, risks) and G7 record why.
+      Check: `actionlint`; the build step logs plain `docker build` again. Three pull request runs
+      in a row (re-runs allowed) ≤ 4.5 min. AC7, AC11.
+      Commit: `revert(ci): build images without the layer cache`
 
 After the merge of PR 1:
 
@@ -93,17 +99,17 @@ After the merge of PR 1:
 
 Filled in by T7.
 
-| AC   | Result | Evidence |
-| ---- | ------ | -------- |
-| AC1  |        |          |
-| AC2  |        |          |
-| AC3  |        |          |
-| AC4  |        |          |
-| AC5  |        |          |
-| AC6  |        |          |
-| AC7  |        |          |
-| AC8  |        |          |
-| AC9  |        |          |
-| AC10 |        |          |
-| AC11 |        |          |
-| AC12 |        |          |
+| AC   | Result       | Evidence |
+| ---- | ------------ | -------- |
+| AC1  |              |          |
+| AC2  |              |          |
+| AC3  |              |          |
+| AC4  |              |          |
+| AC5  |              |          |
+| AC6  | dropped (G7) | —        |
+| AC7  |              |          |
+| AC8  |              |          |
+| AC9  |              |          |
+| AC10 |              |          |
+| AC11 |              |          |
+| AC12 |              |          |
