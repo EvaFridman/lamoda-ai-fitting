@@ -85,8 +85,8 @@ code comments (`I` is skipped: it reads as `1`). All decisions below: owner, 202
 ## Consent details
 
 - **J16. Changing one's mind.** The policy page has a "Cookie settings" link that shows the banner
-  again. After a new "decline", Mixpanel stops sending in that tab. A link in the site footer comes
-  with the footer, in a later spec.
+  again. After a new "decline", Mixpanel stops sending in that tab. The footer links to the policy
+  page (J22). (Revised while writing the plan: the footer already exists.)
 - **J17. No banner without analytics.** With an empty token (J11) the banner is not shown: there is
   nothing to ask about.
 - **J18. Geolocation kept.** Mixpanel derives country and city from the visitor's address, as it does
@@ -96,3 +96,14 @@ code comments (`I` is skipped: it reads as `1`). All decisions below: owner, 202
   site data also brings it back.
 - **J21. The banner.** A bar at the bottom of the screen with two equally prominent buttons,
   "Принять" and "Отказаться", so declining is as easy as accepting.
+
+## Footer
+
+- **J22. The footer as Lamoda's.** The footer is rebuilt now, copying Lamoda's site footer (the
+  owner's screenshot of 2026-10-15): four columns "Помощь", "О нас", "Партнерам", "Правовая
+  информация" with Lamoda's items, and a bottom row with "Россия", the VK icon, the payment marks
+  (Mastercard, МИР, Visa) with "Доступны другие способы оплаты", and "Мобильная версия". Items are
+  plain text, not links, since the pages do not exist; only "Политика по работе с персональными
+  данными" links to `/privacy`. An item becomes a link when its page appears (a backlog item lists
+  them). The floating support chat button of the screenshot is not part of the footer and is left
+  out.
