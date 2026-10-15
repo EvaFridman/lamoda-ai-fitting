@@ -4,7 +4,8 @@ Monorepo: `api` (NestJS) and `web` (Next.js), delivered to https://lamoda-ai-fit
 merge into `main` is checked and deployed automatically. Set up by spec `0001-bootstrap`; database
 schema and demo catalog by `0002-database-schema`; the UI kit (`web/src/shared/ui`, page `/ui-kit`)
 by `0003-ui-kit`; the api's CRUD routes, product filters, admin access, pagination, error format,
-Swagger and Sentry by `0004-crud-api` (all closed).
+Swagger and Sentry by `0004-crud-api`; parallel CI jobs and tests, publishing images only from
+`main` and faster health checks by `0005-faster-ci` (all closed).
 
 Keep this file true: update it in the same commit that changes what a section describes.
 

@@ -8,7 +8,8 @@
 Работа идёт по спекам (`specs/`, порядок в [specs/principles.md](specs/principles.md)).
 Завершены (в папке каждой — решения, план и результаты приёмки):
 [0001-bootstrap](specs/0001-bootstrap/), [0002-database-schema](specs/0002-database-schema/),
-[0003-ui-kit](specs/0003-ui-kit/), [0004-crud-api](specs/0004-crud-api/).
+[0003-ui-kit](specs/0003-ui-kit/), [0004-crud-api](specs/0004-crud-api/),
+[0005-faster-ci](specs/0005-faster-ci/).
 
 ## Требования
 

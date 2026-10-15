@@ -1,6 +1,6 @@
 # 0005 Faster CI and CD: clarifications
 
-Status: open (2026-10-15).
+Status: done (2026-10-15). History, not instructions.
 
 The owner's decisions for this spec. Ids `G1`, `G2`, … are referred to by the spec, the plan and
 code comments.

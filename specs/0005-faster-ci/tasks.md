@@ -1,6 +1,6 @@
 # 0005 Faster CI and CD: tasks
 
-Status: accepted (2026-10-15); amended 2026-10-15: T6 reverted by T6a (G7).
+Status: done (2026-10-15); amended 2026-10-15: T6 reverted by T6a (G7). History, not instructions.
 Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## How the work flows
@@ -90,7 +90,7 @@ After the merge of PR 1:
       filled in.
       Check: every AC has evidence.
       Commit: `docs(specs): record the acceptance of spec 0005`
-- [ ] **T8. Close.** All files `Status: done`; `CLAUDE.md` (spec 0005 in the opening paragraph)
+- [x] **T8. Close.** All files `Status: done`; `CLAUDE.md` (spec 0005 in the opening paragraph)
       and `README.md` in line with what was built.
       Check: `npm run format:check`.
       Commit: `docs(specs): close spec 0005`

@@ -1,6 +1,7 @@
 # 0005 Faster CI and CD
 
-Status: accepted (2026-10-15); amended 2026-10-15: no image layer cache, AC6 dropped (G7).
+Status: done (2026-10-15): 11 of 12 criteria pass, AC6 dropped (`tasks.md`, "Acceptance record");
+amended 2026-10-15: no image layer cache (G7). History, not instructions.
 Decisions this spec relies on: [clarifications.md](clarifications.md) (referred to by their ids, e.g. G1).
 
 ## Goal
