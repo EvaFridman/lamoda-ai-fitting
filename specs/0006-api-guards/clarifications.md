@@ -50,6 +50,17 @@ code comments.
 - **F8. WebSockets.** nginx `limit_conn` per client address on `/socket.io/`, and a maximum message
   size in socket.io. Limits on socket messages still wait for the first real socket feature
   (0001 B12c).
+- **F30. An upper bound on `SOCKET_MAX_MESSAGE_BYTES`.** Added in T11 (owner, 2026-10-15): the
+  default is 64 KB (65 536 bytes); the api refuses to start with a value over 1 MB. nginx does not
+  limit the size of WebSocket frames, so the api's limit is the only one and a typo must not lift it.
+  Over long-polling a bigger message's request answers 413 and the session stays open (engine.io's
+  behavior); the gateway does not see the message either way.
+- **F31. No binary messages from clients.** Added in T11's review (owner, 2026-10-15): each binary
+  attachment of a socket.io message passes the size limit on its own, and the parser holds them
+  with no timeout until the last one arrives (up to 10), so one socket could hold about ten limits.
+  The api's parser takes no attachments: a client message that announces one closes the
+  connection. The server's own messages (pushes) may still carry binary data. A feature that needs
+  binary data from clients allows one attachment (`maxAttachments: 1`) and decides its budget.
 - **F22. A wrong token counts per route.** Added in T7's review (owner, 2026-10-15): the api's
   limit keeps a counter per route and client address (as `@nestjs/throttler` keys it), so F5's
   "guessing the token runs into the limit" holds per route; guessing across many admin routes is

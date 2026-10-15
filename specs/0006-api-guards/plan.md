@@ -93,10 +93,12 @@ strict-origin-when-cross-origin`, `X-Request-Id $request_id`; `proxy_hide_header
   `/` (web) gets `X-Request-Id` but not the secret.
 - `log_format` with `$request_id`, used by `access_log`.
 
-## 6. socket.io (F8)
+## 6. socket.io (F8, F30, F31)
 
-`SocketIoAdapter`: `maxHttpBufferSize` from `SOCKET_MAX_MESSAGE_BYTES`; a bigger message closes the
-connection before the gateway sees it.
+`SocketIoAdapter`: `maxHttpBufferSize` from `SOCKET_MAX_MESSAGE_BYTES` (at most 1 MB); a bigger
+message never reaches the gateway: it closes a WebSocket connection, and over long-polling its
+request answers 413 (F30). Its parser takes no binary attachments from clients: a message that
+announces one closes the connection (F31).
 
 ## 7. web
 

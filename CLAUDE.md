@@ -202,6 +202,14 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   throttler first, so a wrong token is counted against that route's limit before it is refused
   (counters are per route, spec 0006 F22). Lists take `PaginationQueryDto` and answer
   `Paginated<T>` (`common/pagination/`).
+- `api` socket.io is set up by `SocketIoAdapter` (`realtime/`, used by `server.ts` and the socket
+  e2e): CORS for `WEB_ORIGIN` and `maxHttpBufferSize` from `SOCKET_MAX_MESSAGE_BYTES` (64 KB, at
+  most 1 MB, spec 0006 F30). A bigger message never reaches the gateway: over WebSocket the server
+  closes the connection, over long-polling the request answers 413. nginx does not limit WebSocket
+  frames, so this is the only size limit. Clients may not send binary attachments (F31): the
+  adapter's parser (`NoAttachmentsDecoder`) takes none and closes the connection; the server's own
+  emits may carry binary data. `socket.io-parser` is a direct dependency for that parser; its range
+  stays in socket.io's minor line, so `npm ls socket.io-parser` shows one copy.
 - `api` rate limit (`throttling/`): `TieredThrottlerGuard` counts a request in one quota tier, each
   with a 1-second and a 60-second limit from `THROTTLE_*` env: `expensive` for a route marked
   `@Expensive()` (a route that starts an AI generation or a photo upload gets it), else `read` for
