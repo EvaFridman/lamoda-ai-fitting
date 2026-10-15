@@ -94,6 +94,15 @@ removes it from this list. Found by the agents' first security audit and trial r
   regenerated ISR pages and `'use cache'` results with revalidation under `.next/server/app/`, so
   the first such page fails to write them (a warning, cache only in memory, per blue-green copy).
   Before it lands, choose a `cacheHandler` (Redis is already there) or a writable cache path.
+- **Cache warm-up on deploy (issue #41).** Before nginx switches to the new copy, `deploy.sh` checks
+  only health (`up --wait`, the api's `/health/ready`): no page or catalog route is requested, so the
+  first visitors pay for the cold copy (Next loads a page's modules on its first request, the api
+  opens its database connections), and a page that fails to render is first seen by a visitor. Add
+  a step between readiness and the switch that requests the main pages and the catalog's GET routes
+  from the new copy and stops the deploy unless they answer 200. Owner, 2026-10-15: done together
+  with the catalog page spec, which brings the caches to warm ("Page cache in a read-only image"
+  above, "Cache for filter counts" in "Data and media"); there is nothing to warm in Next's cache or
+  Redis before it. Measure the first request to `/` after a deploy against later ones first.
 
 ## Server
 
