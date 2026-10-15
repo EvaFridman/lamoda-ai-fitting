@@ -43,19 +43,8 @@ jobs:
           echo "IMAGE_REGISTRY=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/" >> "$GITHUB_ENV"
           echo "image_tag=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
-      # The layer cache (BUILD_CACHE=gha) needs two values GitHub gives only to actions, not to run
-      # steps. The token reaches only this run's cache and artifacts; a pull request reads the cache
-      # of main and of its branch and writes only to its branch's.
-      - name: Expose the cache service to the build
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        with:
-          script: |
-            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN);
-            core.exportVariable('ACTIONS_RESULTS_URL', process.env.ACTIONS_RESULTS_URL);
-
       - name: Build api and web images
         env:
-          BUILD_CACHE: gha
           IMAGE_SOURCE: ${{ github.server_url }}/${{ github.repository }}
           # Browser-side Sentry is baked in at build time; empty values turn it off.
           NEXT_PUBLIC_SENTRY_DSN: ${{ vars.NEXT_PUBLIC_SENTRY_DSN }}
@@ -66,15 +55,6 @@ jobs:
           # Source maps are uploaded only for images that can be deployed (published from main).
           SENTRY_AUTH_TOKEN: ${{ inputs.publish && secrets.SENTRY_AUTH_TOKEN || '' }}
         run: scripts/ci-build-images.sh
-
-      # The later steps need no cache access: with the token they could write to the cache main
-      # builds from. Keep this step right after the build; always(), so a later step that runs
-      # after a failed build does not get the token either.
-      - name: Hide the cache service from later steps
-        if: always()
-        run: |
-          echo "ACTIONS_RUNTIME_TOKEN=" >> "$GITHUB_ENV"
-          echo "ACTIONS_RESULTS_URL=" >> "$GITHUB_ENV"
 
       # The production setup on the runner with the same deploy.sh the server runs: a first deploy,
       # then a blue-green switch under a request loop that must see no failed request (AC26).

@@ -1,19 +1,16 @@
 # 0005 Faster CI and CD: plan
 
-Status: accepted (2026-10-15).
+Status: accepted (2026-10-15); amended 2026-10-15: §2 dropped, no image layer cache (G7).
 Spec: [spec.md](spec.md); decisions: [clarifications.md](clarifications.md).
 
 ## Versions (checked 2026-10-15)
 
-| What                       | Version                                                             | Where it comes from                                                |
-| -------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| `actions/github-script`    | v9.0.0, pinned by commit `3a2844b7e9c422d3c10d287c895573f7108da1b3` | GitHub's own action, released 2026-04-09                           |
-| BuildKit (`moby/buildkit`) | v0.33.1 (2026-09-30)                                                | the builder container in CI; v0.34.0 is eight days old, too fresh  |
-| Docker on the server       | Engine 29.1.3, Compose 2.40.3                                       | `ssh ai-fitting docker version`; `start_interval` needs Engine 25+ |
-| Buildx on the runners      | ships with Docker on `ubuntu-latest`                                | no action needed to create a builder                               |
+| What                 | Version                       | Where it comes from                                                |
+| -------------------- | ----------------------------- | ------------------------------------------------------------------ |
+| Docker on the server | Engine 29.1.3, Compose 2.40.3 | `ssh ai-fitting docker version`; `start_interval` needs Engine 25+ |
 
-No new npm package. The only new third-party code is the BuildKit image, which the runner already
-uses for every `docker build` today (the default builder is BuildKit inside the Docker Engine).
+No new npm package and no new third-party code (the BuildKit image and `actions/github-script` of
+the dropped §2 went with it, G7).
 
 ## 1. Jobs and permissions (G1, AC1–AC5)
 
@@ -50,36 +47,12 @@ uses for every `docker build` today (the default builder is BuildKit inside the 
   job gets `checks: read`, and so does the `cd` caller in `ci.yml` (a called job cannot ask for
   more than its caller).
 
-## 2. Image layer cache (AC6)
+## 2. Image layer cache: dropped (G7)
 
-`scripts/ci-build-images.sh` builds with Buildx and the GitHub Actions cache when it runs in CI:
-
-- When `BUILD_CACHE=gha` is set, the script creates a builder once
-  (`docker buildx create --name ai-fitting-ci-buildkit-v0.33.1 --driver docker-container
---driver-opt image=moby/buildkit:v0.33.1@sha256:<digest>`; the version in the name keeps a new pin
-  from reusing an old builder, the digest pins the one component that sees the Sentry secret) and
-  builds with `docker buildx build --builder <it> --load`,
-  `--cache-from type=gha,version=2,scope=<app>` and
-  `--cache-to type=gha,version=2,scope=<app>,mode=max,ignore-error=true`. `--builder` per build
-  leaves the default builder alone. `version=2`: without it the backend picks the version from
-  `ACTIONS_CACHE_SERVICE_V2`, and v1 is shut down. `mode=max` keeps the layers of the `deps`,
-  `prod-deps` and `build` stages too, where the time goes. `ignore-error`: a cache that cannot be
-  written never fails a build.
-- Without `BUILD_CACHE` (a local run) the script builds as today. Everything else stays: tags,
-  labels, the Sentry secret, the check that the api image holds no source maps, the size lines.
-- The `gha` backend reads `ACTIONS_RUNTIME_TOKEN` and `ACTIONS_RESULTS_URL` from the environment,
-  which GitHub gives only to actions, not to `run` steps (Docker's docs, "GitHub Actions cache",
-  "Authentication"). One `actions/github-script` step exports both before the build. The token
-  allows only this run's cache and artifacts. A step right after the build (`if: always()`) blanks
-  both, so the deploy check and the publish step cannot write to the cache `main` builds from.
-- Cache isolation: a pull request reads the cache of `main` and its own branch and writes only to
-  its own (GitHub's cache rules), so a pull request cannot change what `main` builds from.
-- The Sentry token is a BuildKit secret: not part of any layer, so not part of the cache. The
-  `release` stage (source map upload) is cached only for the same `dist` and the same build
-  arguments; `SENTRY_RELEASE` is the commit hash, so it runs on every `main` build, as today.
-- `--load` copies each image from the builder into the runner's Docker (~10–20 s for the api's
-  801 MB), which the deploy check and the push need. Part of the saving goes there; AC6 is measured
-  on the whole build step.
+Built and measured in T6 (Buildx with the GitHub Actions cache), then reverted in T6a: the build
+step was no shorter than with no cache, and on pull requests Images ends before Checks anyway. The
+numbers, and what would bring the cache back, are in G7. `scripts/ci-build-images.sh` and
+`images.yml` build as they did after T5.
 
 ## 3. Parallel tests (G3, AC10)
 
@@ -121,12 +94,7 @@ uses for every `docker build` today (the default builder is BuildKit inside the 
 ## Risks
 
 - **The deploy check flake (0001, AC26 observation).** It runs on its own runner as before; the
-  load on it does not change. The cache shortens only the build before it.
-- **Cache eviction.** The repository cache holds 10 GB, evicting the oldest. Two images with
-  `mode=max` take a few hundred MB per scope and branch; many open pull requests could evict
-  `main`'s cache, and a build then runs from nothing (slower, still correct).
-- **`--load` slower than the saving.** If the build step is not faster with the cache (AC6), the
-  task stops and the plan changes (e.g. a containerd image store on the runner instead of `--load`).
+  load on it does not change.
 - **Two Vitest runs at once on a developer's Mac** use more memory; `verify` on the pre-push hook
   runs it too. Checked in §3's task.
 
@@ -139,7 +107,7 @@ uses for every `docker build` today (the default builder is BuildKit inside the 
 | AC3  | The pull request's run has no publish step that ran; `gh api` of the GHCR package versions lists only `main` hashes.                                                                                                                                                   |
 | AC4  | The `main` run's graph: CD needs Secret scan, Checks and Images. Not checked by breaking `main` on purpose; `needs` with a failed job skips the job by GitHub's rules.                                                                                                 |
 | AC5  | After the merge: CD by hand with the previous hash (rollback), then with the current one; both green, the site reports each version. CD by hand with the hash of a commit CI never deployed (one inside a merged pull request) fails at "Check that the tag was live". |
-| AC6  | Two runs of the pull request with the same lockfiles: the second one's build log shows the `npm ci` steps `CACHED`, and its build step is shorter than today's 100–118 s.                                                                                              |
+| AC6  | Dropped (G7).                                                                                                                                                                                                                                                          |
 | AC7  | `gh run list` timings of three pull request runs in a row, each ≤ 4.5 min.                                                                                                                                                                                             |
 | AC8  | Three `main` runs: the merge of PR 1 and two re-runs of its CI, before the acceptance task (the owner confirms each re-run: it redeploys); each ≤ 5.5 min.                                                                                                             |
 | AC9  | `docker inspect` of a fresh api and web container: `State.Health.Log` entries 1 s apart until the first success, 5 s apart after it.                                                                                                                                   |
