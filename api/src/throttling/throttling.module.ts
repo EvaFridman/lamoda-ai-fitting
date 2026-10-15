@@ -2,8 +2,7 @@ import type { IncomingMessage } from 'node:http';
 
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
-import { normalizeIp, ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { normalizeIp, ThrottlerModule } from '@nestjs/throttler';
 
 import { requestContextOf } from '../common/http/request-context.js';
 import type { Env } from '../config/env.js';
@@ -20,6 +19,7 @@ class ThrottlerStorageModule {}
 // A request limit per client address for every HTTP route (opt out with @SkipThrottle()); over it,
 // 429. The address is the request context's (spec 0006 F13): X-Forwarded-For counts only on a
 // request that carries the proxy secret. IPv6 addresses count per /64, the throttler's default.
+// The guard itself is registered in AppModule, next to the access guard it must run before.
 @Module({
   imports: [
     ThrottlerModule.forRootAsync({
@@ -37,6 +37,5 @@ class ThrottlerStorageModule {}
       }),
     }),
   ],
-  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class ThrottlingModule {}

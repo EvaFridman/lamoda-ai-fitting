@@ -4,10 +4,12 @@ import { ApiTags } from '@nestjs/swagger';
 import { HealthCheck, type HealthCheckResult, HealthCheckService } from '@nestjs/terminus';
 import { SkipThrottle } from '@nestjs/throttler';
 
+import { Public } from '../common/auth/access.decorators.js';
 import type { Env } from '../config/env.js';
 import { DependencyChecks } from './dependency-checks.js';
 
 // Polled by compose, deploy.sh and nginx checks from a single address: never rate limited.
+@Public()
 @SkipThrottle()
 @ApiTags('health')
 @Controller('health')

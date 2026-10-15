@@ -50,6 +50,11 @@ code comments.
 - **F8. WebSockets.** nginx `limit_conn` per client address on `/socket.io/`, and a maximum message
   size in socket.io. Limits on socket messages still wait for the first real socket feature
   (0001 B12c).
+- **F22. A wrong token counts per route.** Added in T7's review (owner, 2026-10-15): the api's
+  limit keeps a counter per route and client address (as `@nestjs/throttler` keys it), so F5's
+  "guessing the token runs into the limit" holds per route; guessing across many admin routes is
+  capped by the edge limit (F7). No separate counter of failed admin tokens: the token has at least
+  32 characters and goes away with auth (F5).
 
 ## Requests
 

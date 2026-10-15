@@ -12,7 +12,7 @@ import {
 import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 
 import { ApiErrors } from '../common/errors/api-errors.decorator.js';
-import { AdminOnly } from '../common/guards/admin.guard.js';
+import { AdminOnly, Public } from '../common/auth/access.decorators.js';
 import { ApiPaginatedResponse, type Paginated } from '../common/pagination/paginated.js';
 import { PaginationQueryDto } from '../common/pagination/pagination-query.dto.js';
 import { UuidParam } from '../common/pipes/uuid.pipe.js';
@@ -29,6 +29,7 @@ export class ProductVariationsController {
   constructor(private readonly variations: ProductVariationsService) {}
 
   @Get()
+  @Public()
   @ApiPaginatedResponse(ProductVariationResponseDto)
   list(
     @UuidParam('id') productId: string,
@@ -38,6 +39,7 @@ export class ProductVariationsController {
   }
 
   @Get(':variationId')
+  @Public()
   @ApiOkResponse({ type: ProductVariationResponseDto })
   get(
     @UuidParam('id') productId: string,

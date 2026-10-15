@@ -12,7 +12,7 @@ import {
 import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 
 import { ApiErrors } from '../common/errors/api-errors.decorator.js';
-import { AdminOnly } from '../common/guards/admin.guard.js';
+import { AdminOnly, Public } from '../common/auth/access.decorators.js';
 import { ApiPaginatedResponse, type Paginated } from '../common/pagination/paginated.js';
 import { PaginationQueryDto } from '../common/pagination/pagination-query.dto.js';
 import { UuidParam } from '../common/pipes/uuid.pipe.js';
@@ -29,6 +29,7 @@ export class AttributeValuesController {
   constructor(private readonly values: AttributeValuesService) {}
 
   @Get()
+  @Public()
   @ApiPaginatedResponse(AttributeValueResponseDto)
   list(
     @UuidParam('id') attributeId: string,
@@ -38,6 +39,7 @@ export class AttributeValuesController {
   }
 
   @Get(':valueId')
+  @Public()
   @ApiOkResponse({ type: AttributeValueResponseDto })
   get(
     @UuidParam('id') attributeId: string,

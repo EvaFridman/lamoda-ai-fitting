@@ -35,6 +35,18 @@ describe('throttling and websockets (e2e)', () => {
     expect(statuses).toEqual([200, 200, 200, 200, 200, 429]);
   });
 
+  // The rate limit runs before the access guard (spec 0006 F5, AC6), so guessing the admin token
+  // runs into the limit like any other request.
+  it('counts requests with a wrong admin token and answers 429 over the limit', async () => {
+    const statuses: number[] = [];
+    for (let i = 0; i < 6; i += 1) {
+      statuses.push(
+        (await request(app.getHttpServer()).get('/users').set('X-Admin-Token', 'wrong')).status,
+      );
+    }
+    expect(statuses).toEqual([401, 401, 401, 401, 401, 429]);
+  });
+
   it('never limits health checks', async () => {
     for (let i = 0; i < 8; i += 1) {
       await request(app.getHttpServer()).get('/health/live').expect(200);
