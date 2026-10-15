@@ -12,7 +12,7 @@ import {
 import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 
 import { ApiErrors } from '../common/errors/api-errors.decorator.js';
-import { AdminOnly } from '../common/guards/admin.guard.js';
+import { AdminOnly, Public } from '../common/auth/access.decorators.js';
 import { ApiPaginatedResponse, type Paginated } from '../common/pagination/paginated.js';
 import { PaginationQueryDto } from '../common/pagination/pagination-query.dto.js';
 import { UuidParam } from '../common/pipes/uuid.pipe.js';
@@ -28,12 +28,14 @@ export class BrandsController {
   constructor(private readonly brands: BrandsService) {}
 
   @Get()
+  @Public()
   @ApiPaginatedResponse(BrandResponseDto)
   list(@Query() query: PaginationQueryDto): Promise<Paginated<BrandResponseDto>> {
     return this.brands.list(query);
   }
 
   @Get(':id')
+  @Public()
   @ApiOkResponse({ type: BrandResponseDto })
   get(@UuidParam('id') id: string): Promise<BrandResponseDto> {
     return this.brands.get(id);

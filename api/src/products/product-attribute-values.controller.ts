@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Post, Query } from
 import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 
 import { ApiErrors } from '../common/errors/api-errors.decorator.js';
-import { AdminOnly } from '../common/guards/admin.guard.js';
+import { AdminOnly, Public } from '../common/auth/access.decorators.js';
 import { ApiPaginatedResponse, type Paginated } from '../common/pagination/paginated.js';
 import { PaginationQueryDto } from '../common/pagination/pagination-query.dto.js';
 import { UuidParam } from '../common/pipes/uuid.pipe.js';
@@ -18,6 +18,7 @@ export class ProductAttributeValuesController {
   constructor(private readonly links: ProductAttributeValuesService) {}
 
   @Get()
+  @Public()
   @ApiPaginatedResponse(ProductAttributeValueResponseDto)
   list(
     @UuidParam('id') productId: string,
@@ -27,6 +28,7 @@ export class ProductAttributeValuesController {
   }
 
   @Get(':attributeValueId')
+  @Public()
   @ApiOkResponse({ type: ProductAttributeValueResponseDto })
   get(
     @UuidParam('id') productId: string,

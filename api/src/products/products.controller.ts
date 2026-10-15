@@ -18,7 +18,7 @@ import {
 } from '@nestjs/swagger';
 
 import { ApiErrors } from '../common/errors/api-errors.decorator.js';
-import { AdminOnly } from '../common/guards/admin.guard.js';
+import { AdminOnly, Public } from '../common/auth/access.decorators.js';
 import { ApiPaginatedResponse, type Paginated } from '../common/pagination/paginated.js';
 import { UuidParam } from '../common/pipes/uuid.pipe.js';
 import { CreateProductDto } from './dto/create-product.dto.js';
@@ -36,6 +36,7 @@ export class ProductsController {
   constructor(private readonly products: ProductsService) {}
 
   @Get()
+  @Public()
   @ApiPaginatedResponse(ProductListItemDto)
   list(@Query() query: ProductListQueryDto): Promise<Paginated<ProductListItemDto>> {
     return this.products.list(query);
@@ -43,6 +44,7 @@ export class ProductsController {
 
   // Declared before `:id`, which would take `facets` for an id.
   @Get('facets')
+  @Public()
   @ApiOperation({
     description:
       'Filter counts: for each category, brand, size in stock and attribute value, the number of ' +
@@ -54,6 +56,7 @@ export class ProductsController {
   }
 
   @Get(':id')
+  @Public()
   @ApiOkResponse({ type: ProductDetailDto })
   get(@UuidParam('id') id: string): Promise<ProductDetailDto> {
     return this.products.get(id);

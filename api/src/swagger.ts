@@ -7,10 +7,10 @@ import {
   SwaggerModule,
 } from '@nestjs/swagger';
 
+import { ADMIN_SECURITY, ADMIN_TOKEN_HEADER } from './common/auth/access.decorators.js';
 import { ERROR_CODES_EXTENSION } from './common/errors/api-errors.decorator.js';
 import { ERROR_CODES, ERROR_STATUS, type ErrorCode } from './common/errors/error-codes.js';
 import { ErrorResponseDto } from './common/errors/error-response.dto.js';
-import { ADMIN_SECURITY, ADMIN_TOKEN_HEADER } from './common/guards/admin.guard.js';
 
 // API documentation at /docs. Off in production: there the api is reached only through nginx,
 // and the public site has no reason to publish its internal API map.

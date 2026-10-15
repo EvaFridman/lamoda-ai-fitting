@@ -91,7 +91,7 @@ After the merge of PR 1:
 
 ## PR 2 · `feat/0006-api-guards` · access, quotas, body, details, timeouts, sockets
 
-- [ ] **T7. Access closed by default.** `AccessGuard` (global), `@Public()`, `@AdminOnly()` as
+- [x] **T7. Access closed by default.** `AccessGuard` (global), `@Public()`, `@AdminOnly()` as
       metadata (plan §2); public markers on health, hello, catalog reads and the gateway; the
       throttler guard registered before it in `AppModule`; marker test through `DiscoveryService`.
       `CLAUDE.md`: the admin access rule becomes "closed by default".

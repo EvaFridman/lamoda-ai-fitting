@@ -179,10 +179,17 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   ones a route's shape implies (body, query, `@UuidParam`, admin, 429/500/503); a route that can
   answer 409 `ALREADY_EXISTS`/`IN_USE` or 400 `RELATED_NOT_FOUND`/`CONSTRAINT_VIOLATION` declares
   them with `@ApiErrors(...)` (`common/errors/`).
-- `api` admin access: writes and every route of users, fitting sessions and generations carry
-  `@AdminOnly()` (`common/guards/`), per controller or route, never global; it lets through the
-  principal `admin`, which the request context gives when `X-Admin-Token` equals
-  `ADMIN_API_TOKEN` (empty closes them). Lists take `PaginationQueryDto` and answer
+- `api` access is closed by default: the global `AccessGuard` (`common/auth/`) answers 401
+  `UNAUTHORIZED` on a route that carries neither `@Public()` nor `@AdminOnly()` (per controller or
+  route). `test/access-markers.e2e-spec.ts` fails on such a route, on a public route missing from
+  its list `PUBLIC_HANDLERS` (a new one is added there on purpose), on `@Public()` inside an
+  `@AdminOnly()` controller and on `@AdminOnly()` on a socket handler.
+  `@Public()` serves anyone, a wrong token too (catalog reads, `/health/*`, hello, the socket
+  gateway); `@AdminOnly()` (writes and every route of users, fitting sessions and generations) lets
+  through the principal `admin`, which the request context gives when `X-Admin-Token` equals
+  `ADMIN_API_TOKEN` (empty closes them). Both global guards are registered in `AppModule`, the
+  throttler first, so a wrong token is counted against that route's limit before it is refused
+  (counters are per route, spec 0006 F22). Lists take `PaginationQueryDto` and answer
   `Paginated<T>` (`common/pagination/`).
 - `api` request context (`common/http/request-context.ts`): a middleware ahead of the body parser
   sets the client address, the request id (answered in `X-Request-Id`, on log lines and Sentry

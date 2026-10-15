@@ -1,12 +1,14 @@
 import { Module } from '@nestjs/common';
-import { APP_FILTER } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import { SentryModule } from '@sentry/nestjs/setup';
 
 import { AiGenerationsModule } from './ai-generations/ai-generations.module.js';
 import { AttributesModule } from './attributes/attributes.module.js';
 import { BrandsModule } from './brands/brands.module.js';
 import { CategoriesModule } from './categories/categories.module.js';
+import { AccessGuard } from './common/auth/access.guard.js';
 import { AppExceptionFilter } from './common/filters/app-exception.filter.js';
 import { CoreModule } from './core/core.module.js';
 import { FittingSessionsModule } from './fitting-sessions/fitting-sessions.module.js';
@@ -45,7 +47,15 @@ import { UsersModule } from './users/users.module.js';
     FittingSessionsModule,
     AiGenerationsModule,
   ],
-  // Every HTTP error answers one format with a code (spec 0004 E18–E22).
-  providers: [{ provide: APP_FILTER, useClass: AppExceptionFilter }],
+  providers: [
+    // Every HTTP error answers one format with a code (spec 0004 E18–E22).
+    { provide: APP_FILTER, useClass: AppExceptionFilter },
+    // Global guards run in the order they are registered, so both are registered here. The rate
+    // limit comes first: a request with a wrong admin token is counted before it is refused, so
+    // guessing the token runs into the limit (spec 0006 F5). Then access, closed unless a route is
+    // marked @Public() or @AdminOnly() (F3).
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: AccessGuard },
+  ],
 })
 export class AppModule {}

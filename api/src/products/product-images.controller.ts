@@ -11,7 +11,7 @@ import {
 } from '@nestjs/common';
 import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 
-import { AdminOnly } from '../common/guards/admin.guard.js';
+import { AdminOnly, Public } from '../common/auth/access.decorators.js';
 import { ApiPaginatedResponse, type Paginated } from '../common/pagination/paginated.js';
 import { PaginationQueryDto } from '../common/pagination/pagination-query.dto.js';
 import { UuidParam } from '../common/pipes/uuid.pipe.js';
@@ -28,6 +28,7 @@ export class ProductImagesController {
   constructor(private readonly images: ProductImagesService) {}
 
   @Get()
+  @Public()
   @ApiPaginatedResponse(ProductImageResponseDto)
   list(
     @UuidParam('id') productId: string,
@@ -37,6 +38,7 @@ export class ProductImagesController {
   }
 
   @Get(':imageId')
+  @Public()
   @ApiOkResponse({ type: ProductImageResponseDto })
   get(
     @UuidParam('id') productId: string,
