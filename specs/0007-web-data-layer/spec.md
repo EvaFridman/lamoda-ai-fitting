@@ -1,8 +1,8 @@
 # 0007 web data layer
 
-Status: draft (2026-10-15).
+Status: accepted (2026-10-15).
 
-Issue #28. Decisions: `clarifications.md` (H1–H15).
+Issue #28. Decisions: `clarifications.md` (H1–H16).
 
 ## Goal
 
@@ -78,8 +78,9 @@ features build on it; this spec adds no product pages.
 
 ## Owner actions (Claude cannot do them)
 
-- Merge the three pull requests (H2); confirm in web's Sentry project that AC8 and AC12 hold in
+- Merge the four pull requests (H2); confirm in web's Sentry project that AC8 and AC13 hold in
   production.
+- Restart Claude Code after the FSD rule change (H16): agent files load when a session starts.
 
 ## Assumptions
 
