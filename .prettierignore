@@ -4,6 +4,8 @@ dist
 coverage
 package-lock.json
 api/src/generated
+# Written by the api's tests (test/openapi-snapshot.e2e-spec.ts), compared byte for byte
+api/openapi.json
 
 # Third-party agent skills, kept byte-identical to upstream (.claude/skills/README.md)
 .claude/skills/prisma-*

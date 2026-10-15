@@ -43,7 +43,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Check: unit tests of `buildPath` (`../users`, `a/b`, empty, unicode) and the origin check;
       existing `apiFetch` tests pass on the new entry; `/` still shows "Hello, world!". AC2.
       Commit: `refactor(web): split the api client into browser-safe and server-only entries`
-- [ ] **T6. OpenAPI snapshot and contract helper.** `api/test/openapi-snapshot.e2e-spec.ts` with
+- [x] **T6. OpenAPI snapshot and contract helper.** `api/test/openapi-snapshot.e2e-spec.ts` with
       `toMatchFileSnapshot('../openapi.json')`, `api/openapi.json`, `.prettierignore`; the web
       helper comparing a zod schema with an OpenAPI component (plan §6).
       Check: a DTO change without `-u` fails the api tests; helper unit tests (missing, extra,
@@ -61,7 +61,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Commit: `feat(web): add schemas for users, fitting sessions and generations`
 - [ ] **T9. Errors and texts.** The response step parses the error envelope into `code` and
       `details`; `error-text.ts` with the texts of every api and `details` code, 0006's included;
-      the contract check of the dictionary against `ErrorResponseDto` (plan §1, §2). Starts after
+      the contract check of the dictionary against `ErrorCode` (plan §1, §2, §6). Starts after
       0006 PR 2.
       Check: unit tests per code, unknown code, non-envelope answer (nginx HTML); a code missing
       from the dictionary fails the contract test. AC3 (unit part), AC9 (unknown enum shows the

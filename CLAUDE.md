@@ -189,7 +189,13 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   Node's server timeouts are set only by `server.ts`, after `listen()` (`common/http/server-timeouts.ts`). Swagger error responses: `swagger.ts` adds the
   ones a route's shape implies (body, query, `@UuidParam`, admin, 429/500/503); a route that can
   answer 409 `ALREADY_EXISTS`/`IN_USE` or 400 `RELATED_NOT_FOUND`/`CONSTRAINT_VIOLATION` declares
-  them with `@ApiErrors(...)` (`common/errors/`).
+  them with `@ApiErrors(...)` (`common/errors/`). The OpenAPI document is committed as
+  `api/openapi.json`, a snapshot `test/openapi-snapshot.e2e-spec.ts` checks: a route or DTO change
+  fails it until `npm --prefix api test -- -u` rewrites it, committed with the change. web's
+  `*.contract.test.ts` compare its response schemas with that file through `@/shared/contract`
+  (test-only; ESLint refuses it outside `*.test.ts(x)`). Those schemas hold no `.catch()`,
+  `.default()` or transforms, and dates stay ISO strings: the check reports all but
+  `z.preprocess` and codecs.
 - `api` access is closed by default: the global `AccessGuard` (`common/auth/`) answers 401
   `UNAUTHORIZED` on a route that carries neither `@Public()` nor `@AdminOnly()` (per controller or
   route). `test/access-markers.e2e-spec.ts` fails on such a route, on a public route missing from
