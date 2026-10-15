@@ -67,6 +67,15 @@ export const colorGroups: ColorGroup[] = [
     ],
   },
   {
+    title: 'Подвал',
+    tokens: [
+      { token: '--color-footer', name: 'Фон', value: '#1c1c1e' },
+      { token: '--color-footer-text', name: 'Текст', value: '#fff' },
+      { token: '--color-footer-divider', name: 'Разделитель', value: '#3a3a3c' },
+      { token: '--color-vk', name: 'VK', value: '#07f' },
+    ],
+  },
+  {
     title: 'Фильтр по цвету',
     tokens: [
       { token: '--color-swatch-black', name: 'Черный', value: '#000' },
@@ -128,6 +137,7 @@ export const spacing = [
   { token: '--space-4', value: 16 },
   { token: '--space-6', value: 24 },
   { token: '--space-8', value: 32 },
+  { token: '--space-10', value: 40 },
   { token: '--space-12', value: 48 },
 ] as const;
 

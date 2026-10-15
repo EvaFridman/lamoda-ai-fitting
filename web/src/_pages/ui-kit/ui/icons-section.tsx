@@ -15,9 +15,11 @@ import {
   InfoIcon,
   MapPinIcon,
   MinusIcon,
+  PhoneIcon,
   PlusIcon,
   SearchIcon,
   StarIcon,
+  VkIcon,
 } from '@/shared/ui';
 
 import styles from './icons-section.module.scss';
@@ -39,6 +41,8 @@ const icons: { name: string; Icon: ComponentType<IconProps> }[] = [
   { name: 'InfoIcon', Icon: InfoIcon },
   { name: 'PlusIcon', Icon: PlusIcon },
   { name: 'MinusIcon', Icon: MinusIcon },
+  { name: 'VkIcon', Icon: VkIcon },
+  { name: 'PhoneIcon', Icon: PhoneIcon },
 ];
 
 // Every icon at both sizes. The icons take the colour of the text around them (currentColor).

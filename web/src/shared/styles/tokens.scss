@@ -43,6 +43,13 @@
   --color-snackbar-error: #d13100;
   --color-skeleton-pulse: #e7e7e7;
 
+  // Colour: the site footer, Lamoda's dark band (.x-footer): background, text on it, the divider
+  // over its bottom row; VK blue for its VK icon
+  --color-footer: #1c1c1e;
+  --color-footer-text: #fff;
+  --color-footer-divider: #3a3a3c;
+  --color-vk: #07f;
+
   // Colour: the swatches of the colour filter, Lamoda's FilterValue palette (ColorSwatch, D7o).
   // Multicolor is a gradient: these tokens go into `background`, not `background-color`.
   --color-swatch-black: #000;
@@ -114,6 +121,7 @@
   --space-4: 16px;
   --space-6: 24px;
   --space-8: 32px;
+  --space-10: 40px;
   --space-12: 48px;
 
   // Motion

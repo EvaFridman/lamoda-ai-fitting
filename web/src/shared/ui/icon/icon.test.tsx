@@ -113,8 +113,8 @@ const icons = Object.entries(ui).filter(([name]) => name.endsWith('Icon')) as [
 ][];
 
 describe('the icon set', () => {
-  it('exports 16 icons', () => {
-    expect(icons).toHaveLength(16);
+  it('exports 18 icons', () => {
+    expect(icons).toHaveLength(18);
   });
 
   describe.each(icons)('%s', (_name, Icon) => {

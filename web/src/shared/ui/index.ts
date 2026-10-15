@@ -48,10 +48,14 @@ export {
   InfoIcon,
   MapPinIcon,
   MinusIcon,
+  PhoneIcon,
   PlusIcon,
   SearchIcon,
   StarIcon,
+  VkIcon,
 } from './icon/icons';
+export type { PaymentMarkProps } from './icon/payment-marks';
+export { MastercardMark, VisaMark } from './icon/payment-marks';
 export type { IconButtonProps, IconButtonSize } from './icon-button/icon-button';
 export { IconButton } from './icon-button/icon-button';
 export type { LinkProps, LinkVariant } from './link/link';

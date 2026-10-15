@@ -58,7 +58,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 - [x] **T8. Policy page.** `/privacy` with the placeholder text and "Настройки cookies" (plan §5).
       Check: a page test; `qa-tester` opens it from the banner; `npm run verify`.
       Commit: `feat(web): add the personal data policy page`
-- [ ] **T9. Footer.** `widgets/footer` as Lamoda's: columns, bottom row, icons, tokens, narrow
+- [x] **T9. Footer.** `widgets/footer` as Lamoda's: columns, bottom row, icons, tokens, narrow
       layouts, the version; the backlog item "Footer links" (plan §6, §9).
       Check: a test (every item rendered, one link, to `/privacy`); `qa-tester` screenshots at
       1440, 900 and 375 px for the owner to compare with the screenshot (AC15); `npm run verify`.

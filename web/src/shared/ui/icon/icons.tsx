@@ -199,6 +199,30 @@ export const PlusIcon = createIcon('PlusIcon', {
   ),
 });
 
+// Lamoda's socials_vk_24px (drawn on a 25px-wide canvas, 0.5px right of centre here); Lamoda paints
+// it VK blue, which the footer sets as the text colour (--color-vk).
+export const VkIcon = createIcon('VkIcon', {
+  24: (
+    <path
+      fillRule="evenodd"
+      clipRule="evenodd"
+      d="M1.5 12.0342C1.5 20.2753 4.23295 23 12.5 23C20.7674 23 23.5 20.2753 23.5 12.0342C23.5 3.79271 20.7674 1 12.5 1C4.23295 1 1.5 3.79271 1.5 12.0342ZM5.21748 7.70111C5.33429 13.4206 8.34514 16.862 13.3056 16.862H13.5932V13.5898C15.3988 13.7731 16.747 15.1214 17.297 16.862H19.9009C19.1943 14.2582 17.362 12.8187 16.2238 12.2687C17.362 11.5878 18.9717 9.93883 19.3509 7.70111H16.9828C16.4846 9.51978 15.0064 11.1687 13.5932 11.3259V7.70111H11.1847V14.0486C9.71962 13.6851 7.80824 11.9021 7.72967 7.70111H5.21748Z"
+      fill="currentColor"
+    />
+  ),
+});
+
+// Lamoda's phone_24px: a handset, next to "Мобильная версия" in the footer.
+export const PhoneIcon = createIcon('PhoneIcon', {
+  24: (
+    <path
+      d="M17.5 5.5H9M17.5 5.5V20.5C17.5 21.0523 17.0523 21.5 16.5 21.5H7.5C6.94771 21.5 6.5 21.0523 6.5 20.5V3.5C6.5 2.94771 6.94772 2.5 7.5 2.5H16.5C17.0523 2.5 17.5 2.94772 17.5 3.5V5.5ZM17.5 18.5H6.5"
+      stroke="currentColor"
+      vectorEffect="non-scaling-stroke"
+    />
+  ),
+});
+
 // The 24px minus is the plus's horizontal bar at 24px.
 export const MinusIcon = createIcon('MinusIcon', {
   16: <path fillRule="evenodd" clipRule="evenodd" d="M15 8.5H1V7.5H15V8.5Z" fill="currentColor" />,

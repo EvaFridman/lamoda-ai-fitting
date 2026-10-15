@@ -1,6 +1,120 @@
+// Lamoda's .x-footer: a dark band, 13/16px white text, content at most 1200px wide with 40px on the
+// sides and 48px above; columns 24px apart, items 16px apart; a divider over the bottom row.
+// Narrow screens (plan §6): two columns under 1024px, one under 600px; the bottom row wraps.
+
 .footer {
-  padding: 1rem;
-  font-size: 0.875rem;
+  padding-bottom: var(--space-8);
+
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  color: var(--color-footer-text);
+
+  background-color: var(--color-footer);
+}
+
+.inner {
+  box-sizing: content-box;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--space-12) var(--space-10) 0;
+
+  @media (width < 600px) {
+    padding-inline: var(--space-4);
+  }
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  column-gap: var(--space-6);
+
+  @media (width < 1024px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: var(--space-4);
+  }
+
+  @media (width < 600px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.title {
+  margin: 0 0 var(--space-4);
+  font-size: var(--font-size-headline-s);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-headline-s);
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  margin-bottom: var(--space-4);
+}
+
+// The UI kit's link is black; on the dark band it is white with a grey underline, grey on hover,
+// and its black focus ring turns white.
+.item .link {
+  color: var(--color-footer-text);
+
+  &:focus-visible {
+    outline-color: var(--color-footer-text);
+  }
+
+  @media (hover: hover) {
+    &:hover {
+      color: var(--color-text-secondary);
+    }
+  }
+}
+
+.bottom {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4) var(--space-6);
+  align-items: center;
+
+  padding-top: var(--space-6);
+  border-top: var(--border-width) solid var(--color-footer-divider);
+}
+
+.vk {
+  color: var(--color-vk);
+}
+
+.marks {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  margin-bottom: var(--space-2);
+}
+
+.payment {
+  margin: 0;
+}
+
+.underline {
+  border-bottom: var(--border-width) solid var(--color-text-secondary);
+}
+
+// "Мобильная версия" and the version keep to the right; on a phone the row wraps and everything
+// starts at the left edge.
+.mobile {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+  margin-left: auto;
+
+  @media (width < 600px) {
+    margin-left: 0;
+  }
+}
+
+.version {
+  font-size: var(--font-size-caption);
+  line-height: var(--line-height-caption);
   color: var(--color-text-secondary);
-  text-align: center;
 }
