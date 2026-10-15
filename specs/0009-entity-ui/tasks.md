@@ -61,7 +61,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       `3XL`; unknown sizes go last by text; an attribute with one coloured value counts as a colour
       attribute.
       Commit: `feat(web): order sizes and sort labels for the catalog`
-- [ ] **T8. `CatalogProductCard`.** The card and its skeleton in `entities/product/ui` (plan §3,
+- [x] **T8. `CatalogProductCard`.** The card and its skeleton in `entities/product/ui` (plan §3,
       K9–K11, K15).
       Check: tests for discounted, full price, no photo, no rating; the link points at `href`; a
       click on the action calls its handler and does not navigate. AC4 (component), AC5.

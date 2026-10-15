@@ -38,6 +38,13 @@ describe('entities/product public entry', () => {
     expect(entry.PRODUCT_SORTS).toContain('rating');
   });
 
+  it('exports the catalog card and its skeleton', async () => {
+    const entry = await import('./index');
+    for (const name of ['CatalogProductCard', 'CatalogProductCardSkeleton']) {
+      expect(typeof (entry as Record<string, unknown>)[name], name).toBe('function');
+    }
+  });
+
   it('exports nothing built on apiFetch', async () => {
     const entry = await import('./index');
     for (const name of [

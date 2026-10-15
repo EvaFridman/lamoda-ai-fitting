@@ -1,0 +1,109 @@
+// Lamoda's x-product-card: it stretches to its column (0009 K16); the photo keeps the catalog
+// image's 236:341; under it the price, the brand in black, the name in grey (two lines, then an
+// ellipsis) and the rating, 13px text, 4px apart. The name and rating rows keep their height when
+// empty, so the cards of a row and the skeleton are one size (0009 K11).
+
+.card {
+  position: relative;
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+
+  min-width: 0;
+}
+
+.link {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+
+  color: inherit;
+  text-decoration: none;
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: 2px;
+  }
+}
+
+.photo {
+  position: relative;
+
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  aspect-ratio: 236 / 341;
+  width: 100%;
+
+  background-color: var(--color-background-secondary);
+}
+
+.image {
+  object-fit: cover;
+}
+
+.noPhoto {
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  color: var(--color-text-secondary);
+}
+
+.badge {
+  position: absolute;
+  bottom: var(--space-2);
+  left: 0;
+}
+
+.description {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  align-items: flex-start;
+
+  min-width: 0;
+
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+}
+
+.brand {
+  overflow: hidden;
+
+  max-width: 100%;
+
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.name {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  align-self: stretch;
+
+  // Two lines even for a short name, so every card in a row, and its skeleton, is as tall. As
+  // wide as the column, so the skeleton's line inside it has a width to take 80% of.
+  min-height: calc(2 * var(--line-height-body-s));
+
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+// Kept when there is no rating, for the same reason.
+.ratingRow {
+  display: flex;
+  min-height: var(--line-height-body-s);
+  margin-top: var(--space-1);
+}
+
+.action {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+}
