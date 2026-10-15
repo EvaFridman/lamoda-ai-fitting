@@ -119,6 +119,12 @@ code comments. All decisions below: owner, 2026-10-15.
 - **H30. An error answer whose body is cut short.** The status has arrived, so it stays an `http`
   error without a code: its text and its retry follow the status (a cut 4xx is not retried, H10)
   and only a 5xx or 401 is reported. Rare, as error bodies are small. (Added in T10.)
+- **H31. Browser options on the server.** A slice's browser options and its server options keep
+  the same names (plan §5), so a server component can import the browser ones by mistake.
+  `clientFetch` called where there is no page origin (`location`) throws a plain `Error` named
+  `ClientFetchOnServer` that names the fix, before any request: a bug in web, so the page reports
+  it like any other (H29), in a Sentry group of its own, not as an `ApiError` (a `path` error is
+  not reported, H17). (Added in T12.)
 
 ## Contract
 

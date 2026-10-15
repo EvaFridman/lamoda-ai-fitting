@@ -11,7 +11,7 @@ export function categoryListQuery({ limit, offset, isActive }: CategoryListQuery
   return { limit, offset, isActive };
 }
 
-// Query keys shared by the server options and, later, the browser hooks (plan §4): the same key on
+// Query keys shared by the server options and the browser's (`queries.ts`, plan §4): the same key on
 // both sides is what makes the handoff hit.
 export const categoryKeys = {
   all: ['categories'] as const,

@@ -1,4 +1,5 @@
 export type { CategoryListQuery } from './api/keys';
+export { categoryListOptions, categoryOptions, useCategories, useCategory } from './api/queries';
 export {
   categoryListSchema,
   categorySchema,
