@@ -88,6 +88,19 @@ removes it from this list. Found by the agents' first security audit and trial r
   - paths: `web/src/shared/api/api-fetch.ts` accepts any path. Before a path segment comes from user
     input, require one leading `/`, check the resolved origin equals the base and build segments with
     `encodeURIComponent` (a `buildPath` helper for both clients).
+  - overlap with 0006 (checked 2026-10-15, while 0006 PR 2 was in progress): 0006 PR 1 is merged
+    (`apiFetch` sends `X-Proxy-Secret` and forwards `x-request-id`; web refuses an empty secret in
+    production), so 0007 starts from it. Still to land in 0006, already decided there and written
+    against by 0007: 401 for a route with neither `@Public()` nor `@AdminOnly()`, catalog reads
+    public (T7); quota tiers per visitor, read 10/s and 300/min, shared by the browser client and
+    `apiFetch` (T8); 413 `PAYLOAD_TOO_LARGE` and the last `details` entry `TOO_MANY_ERRORS`, one more
+    code for the error dictionary (T9); 503 `SERVICE_UNAVAILABLE` after 10 s, above `apiFetch`'s
+    5 s (T10); nginx on `/api/` 20 r/s, burst 40 per address, 1 MB bodies, 429 and 413 in the api's
+    format (T12, PR 3). CORS for `WEB_ORIGIN` is on already (`api/src/server.ts`); 0006 does not
+    touch it. 0007's documents need nothing from 0006; its tasks that read api errors (`ApiError`,
+    the error dictionary) start after 0006 PR 2 merges, and the browser client's acceptance in
+    production after PR 3. Shared files, rebased by the 0006 F1 rule (the later branch rebases):
+    `CLAUDE.md`, `specs/backlog.md`, `.env.example`, `docker-compose.yml`, `deploy/compose/app.yml`.
 - **Remove `greeting`.** The home page widget, `entities/greeting`, the api's `/hello` and their
   tests are a bootstrap demo; remove them with the catalog page spec (0004 E29).
 - **Page cache in a read-only image.** The web runtime user writes only to `.next/cache`. Next keeps
