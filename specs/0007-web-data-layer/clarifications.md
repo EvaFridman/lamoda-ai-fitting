@@ -164,3 +164,14 @@ code comments. All decisions below: owner, 2026-10-15.
   public catalog. It is removed with the catalog page spec.
 - **H15. Greeting.** The greeting moves onto the new layer (Russian error text, Sentry instead of a
   console log). Its removal stays with the catalog page (backlog "Remove `greeting`").
+- **H32. AC6 checks names, not the value.** `check:web-bundle` searches `.next/static` for
+  `x-proxy-secret` and `PROXY_SECRET`. The value of `PROXY_SECRET` reaches no build (`verify` and
+  CI build without it, images take no secrets, Next inlines only `NEXT_PUBLIC_`), so AC6's "value"
+  holds by that, not by a search. A value a server component passes to a client one reaches the
+  browser at request time, which no bundle check sees: guarding it with React's taint is a backlog
+  item ("Taint the proxy secret"), not part of 0007. (Owner, 2026-10-15, after T14's review.)
+- **H33. The bundle check runs only in `verify`.** Not again in `web/Dockerfile`: the names it
+  searches come from the sources, the same in both builds, and the image's own difference (inlined
+  `NEXT_PUBLIC_*` values) is not what it searches. A secret under a `NEXT_PUBLIC_` name needs
+  changes to the Dockerfile and `images.yml`, seen in review, and CLAUDE.md keeps `PROXY_SECRET`
+  off `NEXT_PUBLIC_`. (Owner, 2026-10-15, after T14's review.)

@@ -104,10 +104,17 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       stopped the dev rewrite answers a plain 500 (T11, H26), so the general text, no retry; 429
       with the api limited, no retry; `curl` shows `noindex`. AC1, AC3, AC4, AC5 and AC7 (local), AC12 (local part).
       Commit: `feat(web): add a hidden page that shows the catalog data layer`
-- [ ] **T14. Bundle check.** `scripts/check-web-bundle.mjs` in `verify` after `build`, with a
+- [x] **T14. Bundle check.** `scripts/check-web-bundle.mjs` in `verify` after `build`, with a
       `node --test` case. Removes the backlog item "Web data layer" (plan §10).
       Check: `npm run verify`; a planted `x-proxy-secret` string in a client file turns it red
       (recorded here). AC6.
+      Recorded 2026-10-15: `h.set('x-proxy-secret', …)` planted in `shared/api/client-fetch.ts`,
+      `next build` passed and `npm run check:web-bundle` exited 1 naming
+      `web/.next/static/chunks/1oajra54t-oyj.js`; reverted, it exits 0. As plan §10 lists, it
+      searches the names, not the secret's value: no build holds the value (`verify` and CI build
+      without it, images take no secrets, Next inlines only `NEXT_PUBLIC_`). A value a server
+      component passes to a client one would reach the browser at request time, which no bundle
+      check sees (H32, H33).
       Commit: `build(tooling): fail the build when server secrets reach the browser bundle`
 - 👤 merges PR 3; it deploys.
 
@@ -122,18 +129,18 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## Acceptance record
 
-| AC   | Result | Evidence |
-| ---- | ------ | -------- |
-| AC1  |        |          |
-| AC2  |        |          |
-| AC3  |        |          |
-| AC4  |        |          |
-| AC5  |        |          |
-| AC6  |        |          |
-| AC7  |        |          |
-| AC8  |        |          |
-| AC9  |        |          |
-| AC10 |        |          |
-| AC11 |        |          |
-| AC12 |        |          |
-| AC13 |        |          |
+| AC   | Result | Evidence                                                                           |
+| ---- | ------ | ---------------------------------------------------------------------------------- |
+| AC1  |        |                                                                                    |
+| AC2  |        |                                                                                    |
+| AC3  |        |                                                                                    |
+| AC4  |        |                                                                                    |
+| AC5  |        |                                                                                    |
+| AC6  | pass   | `check:web-bundle` in `verify` searches the names; a planted header fails it (T14) |
+| AC7  |        |                                                                                    |
+| AC8  |        |                                                                                    |
+| AC9  |        |                                                                                    |
+| AC10 |        |                                                                                    |
+| AC11 |        |                                                                                    |
+| AC12 |        |                                                                                    |
+| AC13 |        |                                                                                    |

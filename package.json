@@ -14,7 +14,8 @@
     "typecheck": "npm --prefix api run typecheck && npm --prefix web run typecheck",
     "test": "node --test \".claude/hooks/*.test.mjs\" \"scripts/*.test.mjs\" && node scripts/run-parallel.mjs \"npm --prefix api run test -- --maxWorkers=50%\" \"npm --prefix web run test -- --maxWorkers=50%\"",
     "build": "npm --prefix api run build && npm --prefix web run build",
-    "verify": "npm run format:check && npm run lint && npm run lint:css && npm run typecheck && npm test && npm run build"
+    "check:web-bundle": "node scripts/check-web-bundle.mjs",
+    "verify": "npm run format:check && npm run lint && npm run lint:css && npm run typecheck && npm test && npm run build && npm run check:web-bundle"
   },
   "allowScripts": {},
   "devDependencies": {
