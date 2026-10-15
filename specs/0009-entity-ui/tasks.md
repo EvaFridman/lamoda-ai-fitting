@@ -50,7 +50,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Check: `ColorSwatch` tests for a dark and a light hex, white, no colour, and the unchanged
       token sets.
       Commit: `feat(web): accept attribute value colours in swatches`
-- [ ] **T6. Colour rows in `CheckboxFilter`.** The `swatches` prop and the option's `color`; the
+- [x] **T6. Colour rows in `CheckboxFilter`.** The `swatches` prop and the option's `color`; the
       kit's filter section shows a colour filter with search (plan §2).
       Check: the existing `CheckboxFilter` tests pass; new ones cover swatch rows, search and
       "Применить".

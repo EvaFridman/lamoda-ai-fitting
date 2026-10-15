@@ -332,3 +332,196 @@ describe('CheckboxFilter search', () => {
     expect(screen.queryByRole('button', { name: 'Очистить' })).not.toBeInTheDocument();
   });
 });
+
+describe('CheckboxFilter with swatches', () => {
+  const colors: CheckboxFilterOption[] = [
+    { value: 'black', label: 'Черный', color: '#000000', count: 5 },
+    { value: 'blue', label: 'Синий', color: '#3972FC', count: 7 },
+    { value: 'print', label: 'С принтом', count: 3 },
+    { value: 'gold', label: 'Золотой', color: '#FFD700', disabled: true },
+  ];
+
+  function SwatchHarness({
+    swatches = true,
+    onApply,
+  }: {
+    swatches?: boolean;
+    onApply?: (value: string[]) => void;
+  }) {
+    return (
+      <FilterDropdown title="Цвет">
+        <CheckboxFilter
+          options={colors}
+          value={[]}
+          swatches={swatches}
+          searchable
+          onApply={(next) => onApply?.(next)}
+        />
+      </FilterDropdown>
+    );
+  }
+
+  async function open(props: Parameters<typeof SwatchHarness>[0] = {}) {
+    const user = userEvent.setup();
+    render(<SwatchHarness {...props} />);
+    await user.click(screen.getByRole('button', { name: 'Цвет' }));
+    return user;
+  }
+
+  it('renders each option as a swatch checkbox named by label and count', async () => {
+    await open();
+
+    expect(screen.getByRole('checkbox', { name: 'Черный 5' })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'Синий 7' })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'С принтом 3' })).toBeInTheDocument();
+    expect(screen.getByText('7')).toBeInTheDocument();
+  });
+
+  it('paints a hex option and leaves an option with no colour as an empty bordered circle', async () => {
+    await open();
+
+    expect(screen.getByRole('checkbox', { name: 'Синий 7' })).toHaveStyle({
+      background: '#3972FC',
+    });
+    const empty = screen.getByRole('checkbox', { name: 'С принтом 3' });
+    expect(empty).toHaveAttribute('data-bordered');
+    expect(empty.style.background).toBe('');
+  });
+
+  it('disables a disabled option: it cannot be ticked', async () => {
+    const user = await open();
+    const gold = screen.getByRole('checkbox', { name: 'Золотой' });
+
+    expect(gold).toHaveAttribute('aria-disabled', 'true');
+    await user.click(gold);
+    expect(gold).not.toBeChecked();
+  });
+
+  it('applies two picks in the order of the options and closes', async () => {
+    const onApply = vi.fn();
+    const user = await open({ onApply });
+
+    await user.click(screen.getByRole('checkbox', { name: 'С принтом 3' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Черный 5' }));
+    expect(screen.getByRole('checkbox', { name: 'Черный 5' })).toBeChecked();
+    await user.click(screen.getByRole('button', { name: 'Применить' }));
+
+    expect(onApply).toHaveBeenCalledWith(['black', 'print']);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('drops the draft when closed without applying', async () => {
+    const onApply = vi.fn();
+    const user = await open({ onApply });
+
+    await user.click(screen.getByRole('checkbox', { name: 'Синий 7' }));
+    await user.keyboard('{Escape}');
+    await user.click(screen.getByRole('button', { name: 'Цвет' }));
+
+    expect(screen.getByRole('checkbox', { name: 'Синий 7' })).not.toBeChecked();
+    expect(onApply).not.toHaveBeenCalled();
+  });
+
+  it('narrows the swatch rows by search and says when nothing matches', async () => {
+    const user = await open();
+
+    await user.type(screen.getByRole('searchbox'), 'син');
+    expect(screen.getAllByRole('checkbox')).toHaveLength(1);
+    expect(screen.getByRole('checkbox', { name: 'Синий 7' })).toBeInTheDocument();
+
+    await user.clear(screen.getByRole('searchbox'));
+    await user.type(screen.getByRole('searchbox'), 'яяя');
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Ничего не найдено');
+  });
+
+  it('keeps a tick hidden by the search after "Очистить", and applies it', async () => {
+    const onApply = vi.fn();
+    const user = await open({ onApply });
+
+    await user.click(screen.getByRole('checkbox', { name: 'Черный 5' }));
+    await user.type(screen.getByRole('searchbox'), 'син');
+    expect(screen.queryByRole('checkbox', { name: 'Черный 5' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Очистить' }));
+
+    expect(screen.getByRole('checkbox', { name: 'Черный 5' })).toBeChecked();
+    await user.click(screen.getByRole('button', { name: 'Применить' }));
+    expect(onApply).toHaveBeenCalledWith(['black']);
+  });
+
+  it('keeps the focus in the search field after "Очистить"', async () => {
+    const user = await open();
+    const input = screen.getByRole('searchbox');
+
+    await user.type(input, 'син');
+    await user.click(screen.getByRole('button', { name: 'Очистить' }));
+
+    expect(input).toHaveValue('');
+    expect(input).toHaveFocus();
+  });
+
+  it('reaches the first swatch with Tab from the search field and ticks it with Space', async () => {
+    const user = await open();
+    screen.getByRole('searchbox').focus();
+
+    await user.tab();
+    const black = screen.getByRole('checkbox', { name: 'Черный 5' });
+    expect(black).toHaveFocus();
+    expect(black).toHaveAttribute('aria-checked', 'false');
+    await user.keyboard(' ');
+
+    expect(black).toHaveAttribute('aria-checked', 'true');
+  });
+
+  describe('applied state', () => {
+    function StatefulHarness() {
+      const [value, setValue] = useState<string[]>([]);
+      const names = colors.filter((color) => value.includes(color.value));
+      return (
+        <FilterDropdown
+          title="Цвет"
+          value={
+            names.length > 0
+              ? names.map((color) => color.label.toLowerCase()).join(', ')
+              : undefined
+          }
+          onClear={() => setValue([])}
+        >
+          <CheckboxFilter options={colors} value={value} swatches onApply={setValue} />
+        </FilterDropdown>
+      );
+    }
+
+    it('reopens with the applied swatches ticked, and after × with none', async () => {
+      const user = userEvent.setup();
+      render(<StatefulHarness />);
+
+      await user.click(screen.getByRole('button', { name: 'Цвет' }));
+      await user.click(screen.getByRole('checkbox', { name: 'Черный 5' }));
+      await user.click(screen.getByRole('checkbox', { name: 'Синий 7' }));
+      await user.click(screen.getByRole('button', { name: 'Применить' }));
+
+      await user.click(screen.getByRole('button', { name: 'Цвет черный, синий' }));
+      expect(screen.getByRole('checkbox', { name: 'Черный 5' })).toBeChecked();
+      expect(screen.getByRole('checkbox', { name: 'Синий 7' })).toBeChecked();
+      expect(screen.getByRole('checkbox', { name: 'С принтом 3' })).not.toBeChecked();
+      await user.keyboard('{Escape}');
+
+      await user.click(screen.getByRole('button', { name: 'Сбросить «Цвет»' }));
+      await user.click(screen.getByRole('button', { name: 'Цвет' }));
+      expect(
+        screen
+          .getAllByRole('checkbox')
+          .filter((box) => box.getAttribute('aria-checked') === 'true'),
+      ).toEqual([]);
+    });
+  });
+
+  it('ignores the colour without swatches: a plain checkbox, no swatch look', async () => {
+    await open({ swatches: false });
+
+    const box = screen.getByRole('checkbox', { name: 'Синий 7' });
+    expect(box).not.toHaveAttribute('data-bordered');
+    expect(box.style.background).toBe('');
+  });
+});

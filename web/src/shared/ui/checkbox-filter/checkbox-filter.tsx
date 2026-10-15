@@ -7,6 +7,7 @@ import { useRef, useState } from 'react';
 import { Button } from '../button/button';
 import { Checkbox } from '../checkbox/checkbox';
 import { CheckboxGroup } from '../checkbox-group/checkbox-group';
+import { ColorSwatch, type HexColor, type SwatchColor } from '../color-swatch/color-swatch';
 import { useFilterDropdown } from '../filter-dropdown/filter-dropdown';
 import { CloseIcon, SearchIcon } from '../icon/icons';
 
@@ -18,6 +19,8 @@ export interface CheckboxFilterOption {
   // The number of products with this value, grey on the right.
   count?: number;
   disabled?: boolean;
+  // The swatch of the row when the filter has `swatches`; none is an empty bordered circle.
+  color?: SwatchColor | HexColor;
 }
 
 export interface CheckboxFilterProps {
@@ -29,16 +32,20 @@ export interface CheckboxFilterProps {
   // A search field over the list, for long lists.
   searchable?: boolean;
   searchPlaceholder?: string;
+  // Rows of the colour filter: a ColorSwatch with the option's `color` in place of each checkbox.
+  swatches?: boolean;
 }
 
-// The content of a FilterDropdown: a list of checkboxes with counts, an optional search that
-// narrows it, and "Применить". Ticks are a draft until applied; the list is named after the chip.
+// The content of a FilterDropdown: a list of checkboxes (or colour swatches) with counts, an
+// optional search that narrows it, and "Применить". Ticks are a draft until applied; the list is
+// named after the chip.
 export function CheckboxFilter({
   options,
   value,
   onApply,
   searchable = false,
   searchPlaceholder = 'Поиск',
+  swatches = false,
 }: CheckboxFilterProps) {
   const { label, close } = useFilterDropdown('CheckboxFilter');
   const [draft, setDraft] = useState(value);
@@ -100,21 +107,34 @@ export function CheckboxFilter({
             value={draft}
             onValueChange={setDraft}
           >
-            {shown.map((option) => (
-              <Checkbox
-                key={option.value}
-                value={option.value}
-                disabled={option.disabled}
-                className={styles.row}
-              >
-                <span className={styles.option}>
-                  <span>{option.label}</span>{' '}
-                  {option.count === undefined ? null : (
-                    <span className={styles.count}>{option.count}</span>
-                  )}
-                </span>
-              </Checkbox>
-            ))}
+            {shown.map((option) =>
+              swatches ? (
+                <ColorSwatch
+                  key={option.value}
+                  value={option.value}
+                  color={option.color}
+                  count={option.count}
+                  disabled={option.disabled}
+                  className={styles.row}
+                >
+                  {option.label}
+                </ColorSwatch>
+              ) : (
+                <Checkbox
+                  key={option.value}
+                  value={option.value}
+                  disabled={option.disabled}
+                  className={styles.row}
+                >
+                  <span className={styles.option}>
+                    <span>{option.label}</span>{' '}
+                    {option.count === undefined ? null : (
+                      <span className={styles.count}>{option.count}</span>
+                    )}
+                  </span>
+                </Checkbox>
+              ),
+            )}
           </CheckboxGroup>
         ) : null}
       </div>
