@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
-import { colorHexSchema } from '@/shared/lib';
+import { COLOR_HEX, colorHexSchema } from '@/shared/lib';
+
+describe('COLOR_HEX', () => {
+  it.each(['#000000', '#FFFFFF', '#ffffff', '#a1B2c3'])('accepts %s', (hex) => {
+    expect(COLOR_HEX.test(hex)).toBe(true);
+  });
+
+  it.each(['#fff', '#1234567', '#GGGGGG', '123456', ''])('refuses %j', (value) => {
+    expect(COLOR_HEX.test(value)).toBe(false);
+  });
+});
 
 describe('colorHexSchema', () => {
   it.each(['#000000', '#FFFFFF', '#a1B2c3'])('accepts %s', (hex) => {

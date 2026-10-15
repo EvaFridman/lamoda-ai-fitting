@@ -93,6 +93,121 @@ describe('ColorSwatch', () => {
     );
   });
 
+  describe('hex colour', () => {
+    function renderHex(color: `#${string}`) {
+      render(<ColorSwatch color={color}>Цвет</ColorSwatch>);
+      return screen.getByRole('checkbox', { name: 'Цвет' });
+    }
+
+    it.each(['#0000FF', '#000000', '#743D02'])('%s: white tick, no border', (hex) => {
+      const swatch = renderHex(hex as `#${string}`);
+
+      expect(swatch.style.background).not.toBe('');
+      expect(swatch).not.toHaveAttribute('data-light');
+      expect(swatch).not.toHaveAttribute('data-bordered');
+    });
+
+    it.each(['#FFEC1C', '#8BCDFF', '#DFBD93', '#B6B6B6', '#3972FC'])(
+      '%s: black tick, no border',
+      (hex) => {
+        const swatch = renderHex(hex as `#${string}`);
+
+        expect(swatch).toHaveAttribute('data-light');
+        expect(swatch).not.toHaveAttribute('data-bordered');
+      },
+    );
+
+    it.each(['#FFFFFF', '#ffffff'])('%s: black tick and a border', (hex) => {
+      const swatch = renderHex(hex as `#${string}`);
+
+      expect(swatch).toHaveAttribute('data-light');
+      expect(swatch).toHaveAttribute('data-bordered');
+    });
+
+    // Black and white contrast equally at luminance about 0.179: #767676 is 0.181, #757575 is 0.178.
+    it('flips the tick to black just above the equal-contrast luminance', () => {
+      const { unmount } = render(<ColorSwatch color="#767676">Выше</ColorSwatch>);
+      expect(screen.getByRole('checkbox', { name: 'Выше' })).toHaveAttribute('data-light');
+      unmount();
+
+      render(<ColorSwatch color="#757575">Ниже</ColorSwatch>);
+      expect(screen.getByRole('checkbox', { name: 'Ниже' })).not.toHaveAttribute('data-light');
+    });
+
+    it('paints the swatch with the hex itself', () => {
+      const swatch = renderHex('#3972FC');
+
+      expect(swatch.style.background).toBe('rgb(57, 114, 252)');
+    });
+
+    it('borders a near-white hex above luminance 0.9, not one below', () => {
+      const { unmount } = render(<ColorSwatch color="#F5F5F5">Светлый</ColorSwatch>);
+      expect(screen.getByRole('checkbox', { name: 'Светлый' })).toHaveAttribute('data-bordered');
+      unmount();
+
+      render(<ColorSwatch color="#E0E0E0">Серый</ColorSwatch>);
+      expect(screen.getByRole('checkbox', { name: 'Серый' })).not.toHaveAttribute('data-bordered');
+    });
+
+    it('treats the hex case alike', () => {
+      const swatch = renderHex('#ffEC1c');
+
+      expect(swatch).toHaveAttribute('data-light');
+      expect(swatch).not.toHaveAttribute('data-bordered');
+      expect(swatch.style.background).toBe('rgb(255, 236, 28)');
+    });
+  });
+
+  describe('no colour', () => {
+    it('is an empty bordered circle with a black tick', () => {
+      render(<ColorSwatch>Без цвета</ColorSwatch>);
+      const swatch = screen.getByRole('checkbox', { name: 'Без цвета' });
+
+      expect(swatch.style.background).toBe('');
+      expect(swatch).toHaveAttribute('data-bordered');
+      expect(swatch).toHaveAttribute('data-light');
+    });
+
+    it('keeps the black tick and the border when checked', () => {
+      render(<ColorSwatch defaultChecked>Без цвета</ColorSwatch>);
+      const swatch = screen.getByRole('checkbox', { name: 'Без цвета' });
+
+      expect(swatch).toBeChecked();
+      expect(swatch).toHaveAttribute('data-bordered');
+      expect(swatch).toHaveAttribute('data-light');
+    });
+
+    it('still toggles', async () => {
+      const user = userEvent.setup();
+      render(<ColorSwatch>Без цвета</ColorSwatch>);
+
+      await user.click(screen.getByText('Без цвета'));
+
+      expect(screen.getByRole('checkbox', { name: 'Без цвета' })).toBeChecked();
+    });
+
+    it.each(['#fff', '#GGGGGG', '#1234567'])('%s is treated as no colour', (hex) => {
+      render(<ColorSwatch color={hex as `#${string}`}>Цвет</ColorSwatch>);
+      const swatch = screen.getByRole('checkbox', { name: 'Цвет' });
+
+      expect(swatch.style.background).toBe('');
+      expect(swatch).toHaveAttribute('data-bordered');
+      expect(swatch).toHaveAttribute('data-light');
+    });
+
+    it.each(['red);position:fixed', 'no-such-token', ''])(
+      'the string %j, neither a hex nor a token, is treated as no colour',
+      (value) => {
+        render(<ColorSwatch color={value as SwatchColor}>Цвет</ColorSwatch>);
+        const swatch = screen.getByRole('checkbox', { name: 'Цвет' });
+
+        expect(swatch.style.background).toBe('');
+        expect(swatch).toHaveAttribute('data-bordered');
+        expect(swatch).toHaveAttribute('data-light');
+      },
+    );
+  });
+
   it('picks several colours inside a CheckboxGroup', async () => {
     const user = userEvent.setup();
     const onValueChange = vi.fn();
