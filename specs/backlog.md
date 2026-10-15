@@ -15,6 +15,17 @@ removes it from this list. Found by the agents' first security audit and trial r
   which build the tag holds now (0005 G8). A re-run whose Checks or CD fail leaves a never-live
   build under a live tag; a push that stops after api mixes api and web of different attempts. Do
   not publish over an existing tag, or deploy by digest.
+- **Every deploy pulls `node_modules` again.** `images.yml` builds with no layer cache, so every
+  build makes new layers from `RUN npm install -g npm` on, even when nothing in them changed: 95459a3
+  (docs only) and 614761d share only the node base layers, and the server pulls the 158.5 MB
+  `node_modules` layer of api at every deploy. On 2026-10-15 the pull from GHCR ran at about
+  0.25 MB/s: api took 12 min of a 12.5 min deploy step (16:38 deploy: 9 min). A layer cache
+  (`cache-from`/`cache-to`, e.g. `type=gha`) keeps unchanged layers' digests, so a deploy pulls
+  only `dist`. Check that a cached layer still gets the base image's security updates (a base image
+  bump changes its digest).
+- **No time limit on the deploy step.** `cd.yml` sets no `timeout-minutes`, so a deploy stuck in a
+  pull or in `up --wait` holds the run, and the deploys queued behind it, for GitHub's 6 hours. Set
+  a limit above the slowest normal deploy; the running copy keeps serving when it stops.
 
 ## nginx and realtime
 
