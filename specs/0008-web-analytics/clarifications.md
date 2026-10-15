@@ -1,6 +1,6 @@
 # 0008 web analytics: clarifications
 
-Status: open (2026-10-15).
+Status: done (2026-10-16). History, not instructions.
 
 The owner's decisions for this spec. Ids `J1`, `J2`, … are referred to by the spec, the plan and
 code comments (`I` is skipped: it reads as `1`). All decisions below: owner, 2026-10-15.

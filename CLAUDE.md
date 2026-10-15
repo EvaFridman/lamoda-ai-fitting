@@ -9,7 +9,8 @@ Swagger and Sentry by `0004-crud-api`; parallel CI jobs and tests, publishing im
 client address and request id, body, timeout and socket limits, and nginx's limits and security
 headers by `0006-api-guards`; web's data layer (server and browser api clients, typed catalog
 entities, Russian error texts, Sentry reports, the OpenAPI contract check, the browser bundle check,
-page `/dev/catalog`) by `0007-web-data-layer` (all closed).
+page `/dev/catalog`) by `0007-web-data-layer`; Mixpanel analytics behind a cookie consent banner,
+the page `/privacy` and Lamoda's footer by `0008-web-analytics` (all closed).
 
 Keep this file true: update it in the same commit that changes what a section describes.
 

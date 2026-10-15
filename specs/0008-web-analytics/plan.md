@@ -1,7 +1,7 @@
 # 0008 web analytics: plan
 
-Status: accepted (2026-10-15); §6 (the footer, J22) added at the owner's request the same day;
-its bottom row amended at T9 (J36).
+Status: done (2026-10-16); amended 2026-10-15: §6 (the footer, J22) at the owner's request, its
+bottom row at T9 (J36). History, not instructions.
 
 Implements [spec.md](spec.md); decisions in [clarifications.md](clarifications.md). One new
 dependency in web: `mixpanel-browser`.
