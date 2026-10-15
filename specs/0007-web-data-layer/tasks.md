@@ -1,6 +1,7 @@
 # 0007 web data layer: tasks
 
-Status: accepted (2026-10-15).
+Status: done (2026-10-15); amended 2026-10-15 in T4, T6 and T9–T11: the descriptions of T5 and T9
+and the checks of T10 and T13 follow decisions H16–H30. History, not instructions.
 Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## How the work flows
@@ -120,27 +121,39 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## PR 4 · `docs/0007-close` · acceptance
 
-- [ ] **T15. Acceptance.** After PR 3 is deployed and 0006 PR 3 is merged: AC5, AC8, AC12, AC13 in
+- [x] **T15. Acceptance.** After PR 3 is deployed and 0006 PR 3 is merged: AC5, AC8, AC12, AC13 in
       production; every AC recorded below; all files `Status: done`; `CLAUDE.md` and `README.md`
       in line with what was built.
       Check: the acceptance record is complete.
+      Recorded 2026-10-15 on `66c9da2` (blue). With the api up: `/dev/catalog` answers 200 with the
+      30 products in its HTML and `noindex, nofollow`; `/` and `/ui-kit` do not link to it; the
+      page's browser chunks hold `/api` and no api address or secret. Owner's network panel: no
+      catalog request on load; a brand or page change requests
+      `https://lamoda-ai-fitting.ru/api/products?brandId=…&limit=12&offset=0` and shows the new
+      data; the unknown product id case answers 404 with its text and creates no Sentry issue.
+      With the owner's OK, `ai-fitting-blue-api-1` was stopped 10:12:47–10:13:53 UTC: ten `curl` loads of
+      `/dev/catalog` and three of `/` answered 200 with "Нет связи с сервером, попробуйте позже",
+      `/api/products` 503 `SERVICE_UNAVAILABLE`. web's Sentry project got three issues, one per
+      cause: `/products` (1 event), `/products/facets` (1 event, same trace as `/products`) and
+      `/hello` (2 events: web's health check fetches `/` every 5 s and the outage outlasted the 60 s
+      window). After the start `/` shows "Hello, world!" again.
       Commit: `docs(specs): record the acceptance of spec 0007`
 - 👤 merges PR 4, which closes #28.
 
 ## Acceptance record
 
-| AC   | Result | Evidence                                                                           |
-| ---- | ------ | ---------------------------------------------------------------------------------- |
-| AC1  |        |                                                                                    |
-| AC2  |        |                                                                                    |
-| AC3  |        |                                                                                    |
-| AC4  |        |                                                                                    |
-| AC5  |        |                                                                                    |
-| AC6  | pass   | `check:web-bundle` in `verify` searches the names; a planted header fails it (T14) |
-| AC7  |        |                                                                                    |
-| AC8  |        |                                                                                    |
-| AC9  |        |                                                                                    |
-| AC10 |        |                                                                                    |
-| AC11 |        |                                                                                    |
-| AC12 |        |                                                                                    |
-| AC13 |        |                                                                                    |
+| AC   | Result | Evidence                                                                                                                                                                                                                                                                                                               |
+| ---- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AC1  | pass   | a loader test per route against a stubbed `fetch` (T7); the dev page has the product list in its HTML locally (T13) and in production (T15)                                                                                                                                                                            |
+| AC2  | pass   | `buildPath` unit tests: `../users`, `a/b`, empty, `.`/`..`, unicode, a path off the origin refused before any request (T5)                                                                                                                                                                                             |
+| AC3  | pass   | unit tests per code, an unknown code and a non-envelope answer (T9); on the dev page locally the 404, 400 and stubbed 503 show their texts (T13's check, passed at the owner's review, results not written down); in production with the api stopped the dev page shows "Нет связи с сервером, попробуйте позже" (T15) |
+| AC4  | pass   | a hook under a hydrated cache makes no request (T12); no catalog request on load in production (T15, owner's network panel); locally T13's check (results not written down)                                                                                                                                            |
+| AC5  | pass   | in production a brand or page change requests `/api/products?…` and shows the new data (T15, owner's network panel)                                                                                                                                                                                                    |
+| AC6  | pass   | `check:web-bundle` in `verify` searches the names; a planted header fails it (T14); the value: no build holds it (H32)                                                                                                                                                                                                 |
+| AC7  | pass   | retry unit tests: 503 and network retried twice, 4xx and 429 never (T11); locally a stubbed 503 shows its text after two retries, a 429 its own text without a retry (T13's check, passed at the owner's review, results not written down)                                                                             |
+| AC8  | pass   | unit: ten failures → one event, two routes → two fingerprints (T10); in production ten server-side (`curl`) loads with the api stopped made one issue per route, one event each (the window is per server process; in a browser, per tab); a 404 made none (T15)                                                       |
+| AC9  | pass   | an unknown enum value fails the schema, is reported and shows the general text (T8–T10); an extra field is dropped (T7)                                                                                                                                                                                                |
+| AC10 | pass   | a required field added to `ProductListItemDto`: `verify` red with 4 tests naming schema, target and field (recorded in T7)                                                                                                                                                                                             |
+| AC11 | pass   | a DTO change without `-u` fails `openapi-snapshot.e2e-spec.ts` (T6, again in T7)                                                                                                                                                                                                                                       |
+| AC12 | pass   | production: data in the HTML, `noindex, nofollow`, no link from `/` or `/ui-kit` (curl), browser calls to `/api` only (owner's network panel, chunks) (T15)                                                                                                                                                            |
+| AC13 | pass   | production: "Hello, world!" with the api up; with it stopped `/` answers 200 with the Russian text and the failure is a Sentry issue (T15)                                                                                                                                                                             |

@@ -1,8 +1,11 @@
 # 0007 web data layer
 
-Status: accepted (2026-10-15).
+Status: done (2026-10-15): all 13 criteria pass, AC6's "value" by reasoning, not a search (H32),
+AC8 read as one issue per route (H9);
+acceptance record in `tasks.md`. Amended 2026-10-15 after 0006 PR 2: AC3's 503 from the browser
+(H26). History, not instructions.
 
-Issue #28. Decisions: `clarifications.md` (H1–H16).
+Issue #28. Decisions: `clarifications.md` (H1–H33).
 
 ## Goal
 

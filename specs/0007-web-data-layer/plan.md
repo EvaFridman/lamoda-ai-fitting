@@ -1,6 +1,7 @@
 # 0007 web data layer: plan
 
-Status: accepted (2026-10-15).
+Status: done (2026-10-15); amended 2026-10-15 in T4–T6, T9, T10 and after 0006 PR 3 by
+decisions H16–H30 and the owner's T10 review. History, not instructions.
 
 Implements [spec.md](spec.md); decisions in [clarifications.md](clarifications.md). No new
 dependencies: zod 4 (`z.toJSONSchema`), TanStack Query 5 (`HydrationBoundary`, `dehydrate`),

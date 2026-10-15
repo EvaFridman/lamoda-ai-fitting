@@ -7,7 +7,9 @@ by `0003-ui-kit`; the api's CRUD routes, product filters, admin access, paginati
 Swagger and Sentry by `0004-crud-api`; parallel CI jobs and tests, publishing images only from
 `main` and faster health checks by `0005-faster-ci`; access closed by default, quota tiers, the
 client address and request id, body, timeout and socket limits, and nginx's limits and security
-headers by `0006-api-guards` (all closed).
+headers by `0006-api-guards`; web's data layer (server and browser api clients, typed catalog
+entities, Russian error texts, Sentry reports, the OpenAPI contract check, the browser bundle check,
+page `/dev/catalog`) by `0007-web-data-layer` (all closed).
 
 Keep this file true: update it in the same commit that changes what a section describes.
 
@@ -134,7 +136,9 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
 - `api/src/seed/`: the demo catalog. Its image columns hold keys, not URLs; the files are in
   `web/public/media/<key>` and web serves them at `/media/<key>`.
 - `web/`: `app/` holds routing only and re-exports pages from `src/_pages`. FSD layers in `web/src/`,
-  imports only downward: `_app → _pages → widgets → features → entities → shared`.
+  imports only downward: `_app → _pages → widgets → features → entities → shared`. A slice or a
+  `shared` segment exposes `index.ts` (browser-safe) and/or `server.ts`, which starts with
+  `import 'server-only'`; one with only server-only exports has only `server.ts` (the `fsd` skill).
 - `deploy/`: production compose files, nginx, deploy scripts, Ansible (server setup).
 
 ## Docker (local development)
@@ -250,6 +254,20 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   quota. With the api stopped that rewrite answers a plain 500, not nginx's 503: the local 503 text
   is checked with a stubbed answer. Queries retry only a network error or a 503, at most twice
   (`shouldRetry`, `_app/providers.tsx`); a request cancelled by its caller is not an error.
+- `web` reads every api answer through a zod schema of its entity slice (an extra field is dropped,
+  an unknown enum value is an `ApiError` of kind `schema`). Errors show Russian text only through
+  `errorText` / `detailText` (`@/shared/api`, `error-text.ts`: one text per api code, a general one
+  for the rest; a contract test fails on an `ErrorCode` missing there). Both clients report a
+  network error, a timeout, a schema failure, a 5xx or a 401 to Sentry (`report.ts`), one event per
+  cause (kind, method, route template, and an `http` answer's status) per 60 s, counted per server
+  process or browser tab; other 4xx, 429 and refused paths are not reported. A component that
+  catches an error renders it with `errorText` and passes it to `reportFailure` (an `ApiError` is
+  already reported, anything else is sent then). A page loads data on the server with `prefetch`
+  (`@/shared/api/server`, which returns a failure instead of throwing) into a `HydrationBoundary`,
+  and the browser's hooks start from it with the same query key, without a request.
+- `/dev/catalog` (`_pages/dev-catalog`) shows the data layer at work; like `/ui-kit` it is
+  `noindex`, linked from nowhere and shows only the public catalog. The catalog page spec removes
+  it.
 - `web` data from the api renders at request time inside `<Suspense>`: the web image must build with
   no api, Redis or database running.
 - Every new environment variable goes into `.env.example` with a comment.
