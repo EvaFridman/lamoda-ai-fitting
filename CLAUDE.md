@@ -239,6 +239,14 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   from `buildPath('/products/:id', { id }, query)` (`@/shared/api`): each param is encoded into one
   segment, and an empty, `.` or `..` param, like a path off the api's origin, is an `ApiError` of
   kind `path` before any request.
+- `web` calls the api from the browser only through `clientFetch` (`@/shared/api`): the site's own
+  `/api` (no public api address, no cross-origin calls), no secret, a 15 s timeout, the same
+  response step and errors as `apiFetch`. In production nginx serves `/api/`; locally `next dev`
+  forwards it to `API_URL` (`rewrites()` in `next.config.ts`, development only; the config is in
+  the image, so rebuild web after changing it), and all browser calls share the web container's
+  quota. With the api stopped that rewrite answers a plain 500, not nginx's 503: the local 503 text
+  is checked with a stubbed answer. Queries retry only a network error or a 503, at most twice
+  (`shouldRetry`, `_app/providers.tsx`); a request cancelled by its caller is not an error.
 - `web` data from the api renders at request time inside `<Suspense>`: the web image must build with
   no api, Redis or database running.
 - Every new environment variable goes into `.env.example` with a comment.
