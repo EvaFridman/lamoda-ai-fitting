@@ -3,7 +3,25 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { type ReactNode, useState } from 'react';
 
+import { retryDelay, shouldRetry } from '@/shared/api';
 import { ToastProvider } from '@/shared/ui';
+
+// Catalog data counts as fresh for 60 s (H7). No refetch when the window regains focus: the catalog
+// changes rarely and each refetch counts against the read quota; a refetch when the network comes
+// back, so an error or old data does not stay on screen (H22). Retries: `shouldRetry` (H10).
+export function createBrowserQueryClient(): QueryClient {
+  return new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: 60_000,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: true,
+        retry: shouldRetry,
+        retryDelay,
+      },
+    },
+  });
+}
 
 // Client-side providers for the whole app. TanStack Query holds server data fetched in the browser
 // (hooks live in entities/*/api). UI-only state goes to Zustand stores in the slice that owns it
@@ -11,9 +29,7 @@ import { ToastProvider } from '@/shared/ui';
 // showToast adds from anywhere in the app.
 export function Providers({ children }: { children: ReactNode }) {
   // One client per browser session, not per render.
-  const [queryClient] = useState(
-    () => new QueryClient({ defaultOptions: { queries: { staleTime: 60_000 } } }),
-  );
+  const [queryClient] = useState(createBrowserQueryClient);
   return (
     <QueryClientProvider client={queryClient}>
       <ToastProvider>{children}</ToastProvider>

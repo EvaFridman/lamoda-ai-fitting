@@ -85,7 +85,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## PR 3 · `feat/0007-browser-data` · browser client, handoff, dev page
 
-- [ ] **T11. Browser client.** `clientFetch` on `/api` (15 s timeout); the dev rewrite in
+- [x] **T11. Browser client.** `clientFetch` on `/api` (15 s timeout); the dev rewrite in
       `next.config.ts`; QueryClient retry defaults in `_app/providers.tsx`. `CLAUDE.md`
       "Conventions": the browser calls the api only through `clientFetch` (plan §4).
       Check: unit tests of `clientFetch` and the retry policy (503 and network retried twice, 4xx
@@ -99,8 +99,10 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Commit: `feat(web): load catalog data in the browser after the server`
 - [ ] **T13. Dev page.** `web/app/dev/catalog`, `_pages/dev-catalog`, `noindex` (plan §9).
       Check: qa-tester: data in the HTML, no catalog request on load, brand filter and next page
-      request `/api/...`, 404 and 400 cases show their texts, 503 and 429 with the api stopped or
-      limited; `curl` shows `noindex`. AC1, AC3, AC4, AC5 and AC7 (local), AC12 (local part).
+      request `/api/...`, 404 and 400 cases show their texts; 503: a stubbed `/api/` answer (503
+      `SERVICE_UNAVAILABLE` in the api's format) shows its text after two retries; with the api
+      stopped the dev rewrite answers a plain 500 (T11, H26), so the general text, no retry; 429
+      with the api limited, no retry; `curl` shows `noindex`. AC1, AC3, AC4, AC5 and AC7 (local), AC12 (local part).
       Commit: `feat(web): add a hidden page that shows the catalog data layer`
 - [ ] **T14. Bundle check.** `scripts/check-web-bundle.mjs` in `verify` after `build`, with a
       `node --test` case. Removes the backlog item "Web data layer" (plan §10).

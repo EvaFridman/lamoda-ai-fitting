@@ -15,6 +15,12 @@ function failureKind(error: unknown): ApiErrorKind {
   return error instanceof Error && error.name === 'TimeoutError' ? 'timeout' : 'network';
 }
 
+// The caller's own signal stopped the request (TanStack Query cancels a query nobody waits for):
+// not a failure, so it is thrown as it is, neither an `ApiError` nor reported.
+function isCancelled(error: unknown): boolean {
+  return error instanceof Error && error.name === 'AbortError';
+}
+
 // The api's envelope of an error answer, or undefined for anything else (an HTML page of nginx or
 // the dev rewrite, H27; a body cut short): the answer stays an `http` error with its status, only without a code. A cut body is
 // not a `timeout` or `network` error, since the status has arrived and its text and retry follow it
@@ -25,7 +31,8 @@ async function errorEnvelope(
   let body: unknown;
   try {
     body = await response.json();
-  } catch {
+  } catch (error) {
+    if (isCancelled(error)) throw error;
     return undefined;
   }
   const full = errorEnvelopeSchema.safeParse(body);
@@ -66,6 +73,7 @@ async function request<Schema extends z.ZodType>(
   try {
     response = await fetch(url, init);
   } catch (error) {
+    if (isCancelled(error)) throw error;
     const kind = failureKind(error);
     const message =
       kind === 'timeout' ? `api timed out: ${template}` : `api unreachable: ${template}`;
@@ -86,6 +94,7 @@ async function request<Schema extends z.ZodType>(
   try {
     body = await response.json();
   } catch (error) {
+    if (isCancelled(error)) throw error;
     // A body that is not JSON (an HTML page) is a wrong answer; one cut short is a lost answer.
     const kind = error instanceof SyntaxError ? 'schema' : failureKind(error);
     throw new ApiError(`unreadable api response: ${template}: ${String(error)}`, {

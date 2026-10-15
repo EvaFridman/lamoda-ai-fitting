@@ -100,7 +100,8 @@ code comments. All decisions below: owner, 2026-10-15.
   stubbed answer. Locally there is no nginx: with the api stopped, the dev rewrite answers instead
   of the api, likely with a 500 page, so the browser shows the general text and does not retry,
   where production gets a 503. T11 checks what the rewrite answers and T13's check follows it.
-  (Added after 0006 PR 2 merged; revised after 0006 PR 3.)
+  (Added after 0006 PR 2 merged; revised after 0006 PR 3. Checked in T11: with the api container
+  stopped the rewrite answers at once 500 `text/plain` "Internal Server Error".)
 - **H27. An answer without the envelope.** On `/api/` nginx answers its own 413, 429 and 502/504
   (as 503) in the api's format (0006 F12, F17, F33). Any other answer without the envelope (another
   nginx page, the local dev rewrite) gets the text of the api code its status stands for, as a

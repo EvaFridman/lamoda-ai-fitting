@@ -9,6 +9,13 @@ describe('shared/api public entry', () => {
     expect('apiFetch' in api).toBe(false);
   });
 
+  it('exports the browser client and the retry policy', async () => {
+    const api = await import('./index');
+    expect(typeof api.clientFetch).toBe('function');
+    expect(typeof api.shouldRetry).toBe('function');
+    expect(typeof api.retryDelay).toBe('function');
+  });
+
   it('exports the error texts', async () => {
     const api = await import('./index');
     expect(typeof api.errorText).toBe('function');

@@ -25,6 +25,14 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  // The browser calls the site's own /api (spec 0007 H6). In production nginx serves /api/ before
+  // Next and strips the prefix; locally there is no nginx, so `next dev` forwards it the same way.
+  // The production image has no rewrite: built without API_URL, it must not proxy anything.
+  async rewrites() {
+    const apiUrl = process.env.API_URL;
+    if (process.env.NODE_ENV !== 'development' || !apiUrl) return [];
+    return [{ source: '/api/:path*', destination: `${apiUrl}/:path*` }];
+  },
 };
 
 // Source maps are generated, uploaded to Sentry and deleted from the build only when an auth token
