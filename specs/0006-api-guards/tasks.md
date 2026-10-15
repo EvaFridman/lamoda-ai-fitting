@@ -136,7 +136,7 @@ After the merge of PR 1:
       JSON; the 11th socket from one address is refused; `ci-deploy-check.sh` passes (its request
       loop hits `/api/health/live`, outside the limit). AC10, AC11, AC12, AC15.
       Commit: `feat(deploy): limit requests and sockets per address at nginx`
-- [ ] **T13. Security headers.** Server-level `add_header … always`: `nosniff`,
+- [x] **T13. Security headers.** Server-level `add_header … always`: `nosniff`,
       `frame-ancestors 'none'`, `Referrer-Policy` (plan §5). Backlog: "Security headers" leaves.
       Check: `curl -I` through the CI nginx on an api route, a web page and an nginx 429. AC13.
       Commit: `feat(deploy): send security headers on every response`

@@ -33,8 +33,6 @@ removes it from this list. Found by the agents' first security audit and trial r
   reload only when the rendered config changed. The owner weighs the costs: both copies serve for
   up to ~10 s during a switch, and if the name moves by disconnecting the old copy from a network,
   its WebSocket connections break.
-- **Security headers.** Add `Content-Security-Policy: frame-ancestors 'none'` and
-  `X-Content-Type-Options: nosniff` before login or photo upload land.
 
 ## api
 

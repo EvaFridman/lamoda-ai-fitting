@@ -3,6 +3,7 @@
 # blue-green deploy end to end, with the same deploy.sh the server runs:
 #   1. deploy <tag> (blue), smoke test through nginx; the seed loaded the demo catalog; nginx's
 #      request id is on the response and on nginx's and the api's log lines (spec 0006 AC14);
+#      nginx's security headers on api and web and on nginx's own errors (AC13);
 #      nginx's limits per address: a flood, a 2 MB body, an 11th socket (AC10–AC12), a 51st request
 #      in progress and an unfinished header (F36);
 #   2. deploy the same images as a second version (green) while scripts/request-loop.sh runs:
@@ -88,6 +89,29 @@ check_request_id() {
   return 1
 }
 
+# AC13 (spec 0006 F9): nginx's security headers, as curl's -w prints them with $security_w (a
+# repeated header prints as "a, b" and fails the match). check_security_headers reads the whole
+# header instead and wants each exactly once; not for /_next/image or Swagger's static files, which
+# add a CSP of their own.
+security_w='%header{x-content-type-options}|%header{content-security-policy}|%header{referrer-policy}'
+security="nosniff|frame-ancestors 'none'|strict-origin-when-cross-origin"
+check_security_headers() {
+  local path="$1" headers name expected got
+  headers="$(curl -sk --max-time 10 -o /dev/null -D - "https://localhost$path" | tr -d '\r')" \
+    || { echo "ci-deploy-check: $path: the request failed" >&2; return 1; }
+  for name in x-content-type-options content-security-policy referrer-policy; do
+    case "$name" in
+      x-content-type-options) expected=nosniff ;;
+      content-security-policy) expected="frame-ancestors 'none'" ;;
+      referrer-policy) expected=strict-origin-when-cross-origin ;;
+    esac
+    got="$(awk -F': ' -v n="$name" 'tolower($1) == n { print $2 }' <<< "$headers")"
+    [ "$got" = "$expected" ] \
+      || { echo "ci-deploy-check: $path answers $name '$got', expected one '$expected'" >&2; return 1; }
+  done
+  echo "$path carries the security headers once"
+}
+
 # Runs a command in the nginx container. Its curl reaches nginx from 127.0.0.1, another address
 # than this machine's, so one address can be over nginx's limits while this machine is served.
 in_nginx() { docker compose -f deploy/compose/infra.yml --env-file "$env_file" exec -T nginx "$@"; }
@@ -117,26 +141,28 @@ nginx_log_count() {
     | grep -c "$1" || true
 }
 check_flood() {
-  local what="$1" request="$2" zone="$3" total="${4:-100}" out n429 json429 bodies before after conns
+  local what="$1" request="$2" zone="$3" total="${4:-100}" out n429 json429 bodies bare before after conns
   before="$(nginx_log_count "limiting requests.* by zone \"$zone\"")"
   conns="$(nginx_log_count 'limiting connections by zone "edge_conns"')"
   # A transfer that fails shows in the counts, so curl's exit code is ignored.
   out="$(in_nginx sh -c "rm -rf /tmp/flood && $inner --parallel --parallel-immediate \
-    --parallel-max 40 --create-dirs -o '/tmp/flood/#1' -w '%{http_code} %{content_type}\n' \
-    $request; true")"
+    --parallel-max 40 --create-dirs -o '/tmp/flood/#1' \
+    -w '%{http_code} %{content_type} $security_w\n' $request; true")"
   after="$(nginx_log_count "limiting requests.* by zone \"$zone\"")"
   [ "$after" -gt "$before" ] \
     && [ "$(nginx_log_count 'limiting connections by zone "edge_conns"')" -eq "$conns" ] \
     || { echo "ci-deploy-check: a flood of $what was not refused by the zone $zone alone" >&2; return 1; }
   n429="$(grep -c '^429 ' <<< "$out" || true)"
-  json429="$(grep -c '^429 application/json$' <<< "$out" || true)"
+  json429="$(grep -c '^429 application/json ' <<< "$out" || true)"
   bodies="$(in_nginx sh -c "grep -lF '{\"error\":{\"code\":\"TOO_MANY_REQUESTS\"' /tmp/flood/* | wc -l")"
-  [ "$n429" -gt 0 ] && [ "$json429" -eq "$n429" ] && [ "$bodies" -eq "$n429" ] || {
-    printf 'ci-deploy-check: a flood of %s: %s of %s answered 429, %s as JSON, %s with the code:\n%s\n' \
-      "$what" "$n429" "$total" "$json429" "$bodies" "$(sort <<< "$out" | uniq -c)" >&2
+  # AC13: the api's answers and nginx's 429 alike (a failed transfer, 000, has no headers).
+  bare="$(grep -v '^000 ' <<< "$out" | grep -vcF " $security" || true)"
+  [ "$n429" -gt 0 ] && [ "$json429" -eq "$n429" ] && [ "$bodies" -eq "$n429" ] && [ "$bare" -eq 0 ] || {
+    printf 'ci-deploy-check: a flood of %s: %s of %s answered 429, %s as JSON, %s with the code, %s without the security headers:\n%s\n' \
+      "$what" "$n429" "$total" "$json429" "$bodies" "$bare" "$(sort <<< "$out" | uniq -c)" >&2
     return 1
   }
-  echo "a flood of $what: $n429 of $total answered nginx's 429 in the api's format"
+  echo "a flood of $what: $n429 of $total answered nginx's 429 in the api's format, all with the security headers"
 }
 
 check_edge_limits() {
@@ -158,9 +184,10 @@ check_edge_limits() {
 
   # AC11: a body over 1 MB answers nginx's 413 in the api's format.
   got="$(head -c 2097152 /dev/zero | tr '\0' a | curl -sk --max-time 10 -o "$work/413.json" \
-    -w '%{http_code} %{content_type}' -H 'Content-Type: application/json' --data-binary @- \
-    https://localhost/api/products || true)"
-  expect_error "a 2 MB body" "$got" "413 application/json" "$(cat "$work/413.json")" PAYLOAD_TOO_LARGE
+    -w "%{http_code} %{content_type} $security_w" -H 'Content-Type: application/json' \
+    --data-binary @- https://localhost/api/products || true)"
+  expect_error "a 2 MB body" "$got" "413 application/json $security" "$(cat "$work/413.json")" \
+    PAYLOAD_TOO_LARGE
 
   # AC12: one address holds 10 sockets; the 11th is refused with 429 in the api's format while
   # another address still connects. curl waits for a body that never comes after 101, so a holder
@@ -178,8 +205,8 @@ check_edge_limits() {
   [ "$held" -eq 10 ] \
     || { echo "ci-deploy-check: only $held of 10 sockets from one address connected" >&2; return 1; }
   got="$(in_nginx sh -c "$inner $socket_headers --max-time 2 -o /tmp/socket-11 \
-    -w '%{http_code} %{content_type}' '$socket_url'; true")"
-  expect_error "an 11th socket from one address" "$got" "429 application/json" \
+    -w '%{http_code} %{content_type} $security_w' '$socket_url'; true")"
+  expect_error "an 11th socket from one address" "$got" "429 application/json $security" \
     "$(in_nginx cat /tmp/socket-11)" TOO_MANY_REQUESTS
   status="$(eval "curl -sk $socket_headers --max-time 2 -o /dev/null -w '%{http_code}' '$socket_url'" || true)"
   [ "$status" = 101 ] \
@@ -189,10 +216,10 @@ check_edge_limits() {
   in_nginx pkill curl || true
   wait "$holders" || true
   # /api/ strips its prefix: socket.io behind it would escape the socket limits.
-  got="$(curl -sk --max-time 10 -o "$work/404.json" -w '%{http_code} %{content_type}' \
+  got="$(curl -sk --max-time 10 -o "$work/404.json" -w "%{http_code} %{content_type} $security_w" \
     'https://localhost/api/socket.io/?EIO=4&transport=polling' || true)"
-  expect_error "socket.io under /api/" "$got" "404 application/json" "$(cat "$work/404.json")" \
-    ROUTE_NOT_FOUND
+  expect_error "socket.io under /api/" "$got" "404 application/json $security" \
+    "$(cat "$work/404.json")" ROUTE_NOT_FOUND
 
   # F36: one address has at most 50 requests in progress anywhere. 50 uploads whose body never
   # comes (curl reads it from a `sleep`) hold their slots through `/`, which has no rate limit,
@@ -209,13 +236,14 @@ check_edge_limits() {
     done
     sleep 1
     echo \$(pgrep -f '^curl .* -T - -X POST' | wc -l)
-    $inner --max-time 5 -o /tmp/request-51 -w '%{http_code} %{content_type}\n' https://localhost/
+    $inner --max-time 5 -o /tmp/request-51 -w '%{http_code} %{content_type} $security_w\n' \
+      https://localhost/
     pkill curl; pkill -f '^sleep 29'; true")"
   held="$(sed -n 1p <<< "$out")"
   got="$(sed -n 2p <<< "$out")"
   [ "$held" = 50 ] \
     || { echo "ci-deploy-check: only $held of 50 uploads from one address were running" >&2; return 1; }
-  expect_error "a 51st request in progress from one address" "$got" "429 application/json" \
+  expect_error "a 51st request in progress from one address" "$got" "429 application/json $security" \
     "$(in_nginx cat /tmp/request-51)" TOO_MANY_REQUESTS
 
   # F36: a client that never finishes its header is dropped after client_header_timeout (10 s).
@@ -242,12 +270,12 @@ check_api_unavailable() {
   # Until nginx resolves the name again (`valid=10s`) a request may wait for the gone address up to
   # the connect timeout, so it is retried for up to a minute until nginx answers.
   for i in $(seq 6); do
-    got="$(curl -sk --max-time 10 -o "$work/503.json" -w '%{http_code} %{content_type}' \
+    got="$(curl -sk --max-time 10 -o "$work/503.json" -w "%{http_code} %{content_type} $security_w" \
       https://localhost/api/hello || true)"
     [ "${got%% *}" != 000 ] && break
   done
-  expect_error "/api/ with the api stopped" "$got" "503 application/json" "$(cat "$work/503.json")" \
-    SERVICE_UNAVAILABLE
+  expect_error "/api/ with the api stopped" "$got" "503 application/json $security" \
+    "$(cat "$work/503.json")" SERVICE_UNAVAILABLE
 }
 
 # A throwaway environment. The request loop comes from one address, so the per-client limit is
@@ -316,6 +344,11 @@ echo "$first_counts"
 # /api/hello, not /api/health/live: the api does not log health checks.
 check_request_id /api/hello blue
 check_request_id / blue
+check_security_headers /api/hello
+check_security_headers /
+# The socket location and nginx's 403 for readiness: a location's own add_header would drop them.
+check_security_headers '/socket.io/?EIO=4&transport=polling'
+check_security_headers /api/health/ready
 endgroup
 
 group "nginx's limits per address"
