@@ -192,8 +192,17 @@ Left for later specs by `0002-database-schema` (its `clarifications.md` has the 
   (api and web tests at once) can miss. Find what moves the focus late, or wait on the list's focus
   instead of a timeout.
 - **Flaky handoff test.** `web/src/_pages/dev-catalog/ui/catalog-handoff.test.tsx`, "shows a failed
-  facets prefetch", failed once in `npm run verify` (2026-10-15, 0007 T15: "Found multiple elements
-  with the role alert") and passed alone 5 times of 5. The failed prefetch leaves the browser part
+  facets prefetch", failed in `npm run verify` (2026-10-15, 0007 T15; again 2026-10-16, 0009 T5:
+  "Found multiple elements with the role alert") and passed alone 5 times of 5 each time. The
+  failed prefetch leaves the browser part
   to request facets itself; the stub answers it with the same 404, and when that lands before the
   check a second alert is on the page while the test expects one. Assert on the server's alert by
   its text (or wait for both) instead of `getByRole('alert')`.
+- **Database specs time out under load.** During 0009 T5 (2026-10-16), two `npm run verify` runs
+  of an unchanged api failed on time limits alone, then passed: once the `beforeAll` of several
+  `api/test/database/` specs (access, brands, categories, …) missed Vitest's 10 s hook timeout,
+  once `ai-generations.e2e-spec.ts`, "leaves exactly one of the sent sets after parallel PATCHes
+  of productIds" (8 rounds), missed the 5 s test timeout while a browser QA run shared the
+  machine (the api run took 53 s instead of about 25 s). Like the facets test above: find what
+  makes the app start and the race test slow under load, and give them a time budget that holds
+  on a loaded machine, or fewer rounds.
