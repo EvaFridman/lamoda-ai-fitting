@@ -69,6 +69,9 @@ removes it from this list. Found by the agents' first security audit and trial r
   timeout, an invalid response, web's own env refused, 0006 F20) are caught by the component, logged
   with `console.error` and replaced by a fallback; nothing reaches Sentry and the page answers 200.
   Report them (once per cause, not per page view) when pages with real data land.
+- **How long to wait after a 429.** The api's limit sets `Retry-After` (0006 F23), but web's 429
+  text only says "wait a little" (0007 H25), while the minute window can mean up to 60 s. Show the
+  wait, or retry after it, once nginx's own 429 (0006 PR 3) is known to carry the header too.
 - **Web data layer (spec 0007, next after 0006; 0005 G2).** Typed access to the api of spec 0004,
   with no pages; 0007 adds tasks of its own. Starting point, from 0004 E22, E26–E28 (open to change
   in 0007):
@@ -167,6 +170,8 @@ Left for later specs by `0002-database-schema` (its `clarifications.md` has the 
   queries in parallel, and the api's pg pool has the default 10 connections with no
   `statement_timeout`, so a few slow public requests could hold the whole pool, `/health` included
   (0004 T12 security review): with the cache, set a pool size and a statement timeout from env.
+  The browser retries a 503 twice (0007 H24) while the timed-out handler keeps running, so one
+  slow visitor can hold three requests' worth of queries.
 - **Product list cost.** The sorts of 0004 E14 and the name search scan the whole table: `price`,
   `discount`, `rating` and `created_at` have no indexes, `q` is `ILIKE '%…%'`, and `offset` goes up
   to 2^31, so a deep page sorts everything. Free on the demo catalog; if the catalog grows, cap the
