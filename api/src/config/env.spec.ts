@@ -97,6 +97,74 @@ describe('validateEnv', () => {
     expect(env.ADMIN_API_TOKEN).toBe(admin);
   });
 
+  it('defaults PROXY_SECRET_NEXT to an empty string', () => {
+    expect(validateEnv(valid).PROXY_SECRET_NEXT).toBe('');
+  });
+
+  it.each(['', 'a'.repeat(32), 'ab12'.repeat(16)])('accepts PROXY_SECRET_NEXT %j', (secret) => {
+    expect(validateEnv({ ...valid, PROXY_SECRET_NEXT: secret }).PROXY_SECRET_NEXT).toBe(secret);
+  });
+
+  it.each([
+    ['31 characters', 'a'.repeat(31)],
+    ['a space inside', `${'a'.repeat(20)} ${'a'.repeat(19)}`],
+    ['a trailing space', `${'a'.repeat(39)} `],
+    ['a dollar sign', `${'a'.repeat(39)}$`],
+    ['a double quote', `${'a'.repeat(39)}"`],
+    ['a semicolon', `${'a'.repeat(39)};`],
+    ['a hyphen', `${'a'.repeat(20)}-${'a'.repeat(19)}`],
+  ])(
+    'refuses PROXY_SECRET_NEXT with %s, naming the variable but not the value',
+    (_name, secret) => {
+      const message = thrownMessage(() => validateEnv({ ...valid, PROXY_SECRET_NEXT: secret }));
+
+      expect(message).toMatch(/PROXY_SECRET_NEXT/);
+      expect(message).not.toContain(secret);
+    },
+  );
+
+  it('refuses PROXY_SECRET_NEXT equal to ADMIN_API_TOKEN, naming both but not the value', () => {
+    const shared = 'sharedvalue0123456789abcdefxyz01';
+
+    const message = thrownMessage(() =>
+      validateEnv({ ...valid, PROXY_SECRET_NEXT: shared, ADMIN_API_TOKEN: shared }),
+    );
+
+    expect(message).toMatch(/PROXY_SECRET_NEXT: must differ from ADMIN_API_TOKEN/);
+    expect(message).not.toContain(shared);
+  });
+
+  it('refuses PROXY_SECRET_NEXT equal to ADMIN_API_TOKEN even when PROXY_SECRET differs', () => {
+    const shared = 'sharedvalue0123456789abcdefxyz01';
+
+    expect(() =>
+      validateEnv({
+        ...valid,
+        PROXY_SECRET: 'p'.repeat(32),
+        PROXY_SECRET_NEXT: shared,
+        ADMIN_API_TOKEN: shared,
+      }),
+    ).toThrow(/PROXY_SECRET_NEXT/);
+  });
+
+  it.each([
+    ['PROXY_SECRET empty', '', 'n'.repeat(32), 'a'.repeat(32)],
+    ['both set and different', 'p'.repeat(32), 'n'.repeat(32), 'a'.repeat(32)],
+    ['both equal', 'p'.repeat(32), 'p'.repeat(32), 'a'.repeat(32)],
+    ['NEXT set and the admin token empty', 'p'.repeat(32), 'n'.repeat(32), ''],
+    ['NEXT empty', 'p'.repeat(32), '', 'a'.repeat(32)],
+  ])('accepts PROXY_SECRET_NEXT with %s', (_name, proxy, next, admin) => {
+    const env = validateEnv({
+      ...valid,
+      PROXY_SECRET: proxy,
+      PROXY_SECRET_NEXT: next,
+      ADMIN_API_TOKEN: admin,
+    });
+
+    expect(env.PROXY_SECRET).toBe(proxy);
+    expect(env.PROXY_SECRET_NEXT).toBe(next);
+  });
+
   it('accepts production with an empty PROXY_SECRET (the temporal-worker has none)', () => {
     const env = validateEnv({ ...valid, NODE_ENV: 'production', PROXY_SECRET: '' });
 
@@ -133,6 +201,19 @@ describe('assertServerEnv', () => {
     expect(() =>
       assertServerEnv({ NODE_ENV: 'production', PROXY_SECRET: 'p'.repeat(32) }),
     ).not.toThrow();
+  });
+
+  it('still refuses production with an empty PROXY_SECRET when PROXY_SECRET_NEXT is set', () => {
+    const env = validateEnv({
+      ...valid,
+      NODE_ENV: 'production',
+      PROXY_SECRET: '',
+      PROXY_SECRET_NEXT: 'n'.repeat(32),
+    });
+
+    expect(() => assertServerEnv(env)).toThrow(
+      'Invalid environment: PROXY_SECRET: must be set in production',
+    );
   });
 
   it.each(['development', 'test'] as const)('accepts %s with an empty PROXY_SECRET', (nodeEnv) => {

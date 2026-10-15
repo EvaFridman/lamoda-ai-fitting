@@ -125,6 +125,41 @@ else
   done
 fi
 
+# 1b. A changed PROXY_SECRET recreates nginx below, before anything can fail. The running api must
+#     already accept it (as PROXY_SECRET_NEXT, spec 0006 F21), or a deploy failing after that leaves
+#     every visitor of /api/ in one quota. Skipped, with a log line, when nginx is not running or
+#     has no secret yet (the first deploy with it) and when the serving copy is not healthy (the
+#     site is down: the deploy is the way back). A running nginx whose secret cannot be read stops
+#     the deploy. The secret goes over stdin, never into a command line or log.
+if [ -z "$(infra ps --status running -q nginx 2>/dev/null)" ]; then
+  log "nginx is not running: PROXY_SECRET not checked"
+else
+  nginx_secret="$(infra exec -T nginx sh -c 'printf %s "${PROXY_SECRET-}"')" \
+    || fail "cannot read the running nginx's PROXY_SECRET; nothing was changed"
+  if [ -n "$nginx_secret" ] && [ "$nginx_secret" != "${PROXY_SECRET:-}" ]; then
+    if [ -z "$active" ] || ! is_healthy "$active" api; then
+      log "PROXY_SECRET changed, not checked: no healthy copy serves the site"
+    else
+      log "PROXY_SECRET changed: checking that $active accepts the new one"
+      secret_status=0
+      printf '%s' "${PROXY_SECRET:-}" | app "$active" "$active_tag" exec -T api node -e "
+        const id = require('node:crypto').randomBytes(16).toString('hex');
+        const secret = require('node:fs').readFileSync(0, 'utf8');
+        fetch('http://127.0.0.1:3000/health/live', {
+          headers: { 'X-Proxy-Secret': secret, 'X-Request-Id': id },
+          signal: AbortSignal.timeout(5000),
+        }).then((r) => process.exit(r.headers.get('x-request-id') === id ? 0 : 10), () => process.exit(1));
+      " || secret_status=$?
+      case "$secret_status" in
+        0) ;;
+        10) fail "$active does not accept the new PROXY_SECRET: set it as PROXY_SECRET_NEXT and deploy first (deploy/README.md); nothing was changed" ;;
+        *) fail "cannot check that $active accepts the new PROXY_SECRET (exit $secret_status); nothing was changed" ;;
+      esac
+    fi
+  fi
+  unset nginx_secret
+fi
+
 # 2. Data stores, Temporal, nginx: a no-op when nothing changed.
 profile_args=()
 [ "${DEPLOY_PROFILE:-}" = server ] && profile_args=(--profile server)

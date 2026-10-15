@@ -27,6 +27,9 @@ export interface RequestContext {
 export interface RequestContextOptions {
   // PROXY_SECRET: a request is trusted when its X-Proxy-Secret equals it; empty trusts nothing.
   proxySecret: string;
+  // PROXY_SECRET_NEXT: trusted the same way while the secret is rotated (spec 0006 F21); empty or
+  // left out trusts nothing more.
+  proxySecretNext?: string;
   // ADMIN_API_TOKEN: X-Admin-Token equal to it makes the principal admin; empty makes no admin.
   adminToken: string;
 }
@@ -42,10 +45,12 @@ export function requestContextMiddleware(
   options: RequestContextOptions,
 ): (req: Request, res: Response, next: NextFunction) => void {
   const proxySecret = secretDigest(options.proxySecret);
+  const proxySecretNext = secretDigest(options.proxySecretNext ?? '');
   const adminToken = secretDigest(options.adminToken);
 
   return (req, res, next) => {
-    const trusted = matches(req.get(PROXY_SECRET_HEADER), proxySecret);
+    const sentSecret = req.get(PROXY_SECRET_HEADER);
+    const trusted = matches(sentSecret, proxySecret) || matches(sentSecret, proxySecretNext);
     const context: RequestContext = {
       clientAddress:
         (trusted && forwardedAddress(req.get('X-Forwarded-For'))) || socketAddress(req),
@@ -66,6 +71,7 @@ export function useRequestContext(app: INestApplication): void {
   app.use(
     requestContextMiddleware({
       proxySecret: config.get('PROXY_SECRET', { infer: true }),
+      proxySecretNext: config.get('PROXY_SECRET_NEXT', { infer: true }),
       adminToken: config.get('ADMIN_API_TOKEN', { infer: true }),
     }),
   );

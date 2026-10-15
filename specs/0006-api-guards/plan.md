@@ -138,8 +138,9 @@ connections per client", "Cap on validation details". Added: "IDOR checks with a
   pino-http, so the error filter writes the request id on its own line. The first task proves it
   with a test that reads the request id from a BAD_JSON response's log line.
 - **The secret in nginx.** It sits in the rendered config inside the nginx container; it only
-  proves "came through our proxy", grants no data access, and is rotated by changing `.env` and
-  restarting nginx, api and web.
+  proves "came through our proxy", grants no data access, and is rotated in two deploys through
+  `PROXY_SECRET_NEXT` (F21, `deploy/README.md`); `deploy.sh` refuses a new secret the serving api
+  does not trust yet.
 - **NAT.** An office behind one address shares the edge limit and the api's quotas; the values above
   leave room for a few people.
 - **Rename of `@AdminOnly()` internals.** 0004's admin tests must still pass unchanged (AC2).

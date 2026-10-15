@@ -110,6 +110,13 @@ code comments.
   value and deploy; then make it `PROXY_SECRET`, clear `PROXY_SECRET_NEXT` and deploy. Done in
   T6b. Each `PROXY_SECRET` change and the first deploy with it recreate nginx: a few seconds
   down, accepted by the owner; PR 1 is merged at a quiet time (`.claude/rules/deploy.md`).
+  Added in T6b's review (owner, 2026-10-15): `deploy.sh` enforces the order. When `.env`'s
+  `PROXY_SECRET` differs from the running nginx's, it asks the serving api, before recreating
+  nginx, whether it trusts the new secret (the secret over stdin, never printed); if not, the
+  deploy stops with nothing changed. Skipped, with a log line, when nginx is not running or has no
+  secret yet (the first deploy with 0006) or the serving copy (`.deploy-state`) is not healthy, so
+  a down site can still be deployed; a running nginx whose secret cannot be read stops the deploy.
+  A serving copy from before 0006 trusts no secret, so a rotation then waits until the site is back on 0006 (F18).
 
 ## Validation
 

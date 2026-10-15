@@ -9,6 +9,16 @@ const secret = () =>
     ])
     .default('');
 
+// The proxy secret: as above, but letters and digits only, as nginx's config and the server's
+// sourced .env would break on `$`, `"` or `;`.
+const proxySecret = () =>
+  z
+    .union([
+      z.literal(''),
+      z.string().regex(/^[A-Za-z0-9]{32,}$/, 'must be at least 32 letters or digits'),
+    ])
+    .default('');
+
 // Every environment variable the api reads. Validated once at startup: a missing or malformed
 // value stops the process with the variable's name, instead of failing later at first use.
 export const envSchema = z
@@ -42,14 +52,12 @@ export const envSchema = z
     // enough not to be guessed (E31).
     ADMIN_API_TOKEN: secret(),
     // Sent in the X-Proxy-Secret header by nginx and web (spec 0006 F13): only such a request names
-    // the client's address (X-Forwarded-For) and the request id. Empty trusts no request. Letters
-    // and digits only: nginx's config and the server's sourced .env would break on `$`, `"` or `;`.
-    PROXY_SECRET: z
-      .union([
-        z.literal(''),
-        z.string().regex(/^[A-Za-z0-9]{32,}$/, 'must be at least 32 letters or digits'),
-      ])
-      .default(''),
+    // the client's address (X-Forwarded-For) and the request id. Empty trusts no request.
+    PROXY_SECRET: proxySecret(),
+    // Trusted as well, set only while the proxy secret is rotated (spec 0006 F21): the running copy
+    // already accepts the new value when a deploy recreates nginx with it and then fails. nginx and
+    // web never send it.
+    PROXY_SECRET_NEXT: proxySecret(),
     // Where image keys are served: http://localhost:3001/media/ locally (spec 0004 E8).
     MEDIA_BASE_URL: z.url({ protocol: /^https?$/ }),
 
@@ -63,6 +71,10 @@ export const envSchema = z
   // the admin routes (spec 0006 F19). The message names the variables, never the values.
   .refine((env) => env.PROXY_SECRET === '' || env.PROXY_SECRET !== env.ADMIN_API_TOKEN, {
     path: ['PROXY_SECRET'],
+    message: 'must differ from ADMIN_API_TOKEN',
+  })
+  .refine((env) => env.PROXY_SECRET_NEXT === '' || env.PROXY_SECRET_NEXT !== env.ADMIN_API_TOKEN, {
+    path: ['PROXY_SECRET_NEXT'],
     message: 'must differ from ADMIN_API_TOKEN',
   });
 

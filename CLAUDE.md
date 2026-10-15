@@ -188,7 +188,8 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   sets the client address, the request id (answered in `X-Request-Id`, on log lines and Sentry
   events) and the principal (`@CurrentPrincipal()`, `common/auth/`). Code reads them with
   `requestContextOf(req)`, never `req.ip` or the headers: `X-Forwarded-For` and `X-Request-Id`
-  count only on requests that carry `X-Proxy-Secret` equal to `PROXY_SECRET` (nginx, web).
+  count only on requests that carry `X-Proxy-Secret` equal to `PROXY_SECRET` (nginx, web) or, while
+  it is rotated, to `PROXY_SECRET_NEXT` (api only; rotation in two deploys: `deploy/README.md`).
 - `web` calls the api from the server only through `apiFetch` (`web/src/shared/api`): it forwards
   the visitor's address and the request id with `X-Proxy-Secret` (server env `PROXY_SECRET`, never
   `NEXT_PUBLIC_`), so the api's per-client rate limit applies to the visitor and not to the web
