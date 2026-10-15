@@ -158,6 +158,8 @@ services:
       APP_VERSION: dev
       # Locally there is no nginx: web is the only one that sends the secret to the api.
       PROXY_SECRET: ${PROXY_SECRET?add PROXY_SECRET to .env (openssl rand -hex 32), see README}
+      # Empty turns analytics off; a dummy token in .env is for local checks only.
+      NEXT_PUBLIC_MIXPANEL_TOKEN: ${NEXT_PUBLIC_MIXPANEL_TOKEN:-}
     volumes:
       - ./web/app:/app/app
       - ./web/src:/app/src

@@ -270,12 +270,17 @@ PROXY_SECRET»), ничего не меняя. Пока сайт на верси
 ### Уровень репозитория (GitHub)
 
 Переменные джоба сборки образов: он работает и для pull request, без окружения.
+`NEXT_PUBLIC_SENTRY_DSN` (DSN проекта web) и `NEXT_PUBLIC_MIXPANEL_TOKEN` (токен проекта Mixpanel)
+публичные: они уходят в браузер. Пустое значение выключает Sentry в браузере или аналитику. Токен
+Mixpanel попадает только в образы, опубликованные из `main`: образы pull request собираются без
+него.
 
 ```bash
 gh variable set SENTRY_ORG --body "<slug организации>"
 gh variable set SENTRY_PROJECT --body "lamoda-ai-fitting"
 gh variable set SENTRY_PROJECT_API --body "lamoda-ai-fitting-api"
-gh variable set NEXT_PUBLIC_SENTRY_DSN --body "<DSN>"   # DSN web: он публичный, уходит в браузер
+gh variable set NEXT_PUBLIC_SENTRY_DSN --body "<DSN>"
+gh variable set NEXT_PUBLIC_MIXPANEL_TOKEN --body "<токен проекта>"
 ```
 
 ### Проверка
@@ -287,7 +292,8 @@ gh secret list --env production     # DEPLOY_SSH_KEY, DEPLOY_KNOWN_HOSTS, POSTGR
 gh variable list --env production   # DEPLOY_HOST, DEPLOY_USER, SITE_DOMAIN, POSTGRES_USER, POSTGRES_DB,
                                     # MEDIA_BASE_URL
 gh secret list                      # пусто
-gh variable list                    # SENTRY_ORG, SENTRY_PROJECT, SENTRY_PROJECT_API, NEXT_PUBLIC_SENTRY_DSN
+gh variable list                    # SENTRY_ORG, SENTRY_PROJECT, SENTRY_PROJECT_API, NEXT_PUBLIC_SENTRY_DSN,
+                                    # NEXT_PUBLIC_MIXPANEL_TOKEN
 ```
 
 `POSTGRES_PASSWORD` задаётся один раз, до первого деплоя: база инициализируется с ним, и смена

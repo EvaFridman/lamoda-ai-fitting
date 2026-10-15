@@ -34,6 +34,8 @@ FROM source AS build
 # NEXT_PUBLIC_* are inlined into the browser bundle at build time, so one image per environment.
 ARG NEXT_PUBLIC_SENTRY_DSN
 ARG NEXT_PUBLIC_SENTRY_ENVIRONMENT
+# Mixpanel's project token, public by design; empty turns analytics off.
+ARG NEXT_PUBLIC_MIXPANEL_TOKEN
 # Source map upload (only when the token secret is given; see next.config.ts).
 ARG SENTRY_ORG
 ARG SENTRY_PROJECT

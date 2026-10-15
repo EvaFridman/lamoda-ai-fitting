@@ -7,9 +7,9 @@
 #
 # Optional: SENTRY_ORG, SENTRY_AUTH_TOKEN and the projects SENTRY_PROJECT (web) and
 # SENTRY_PROJECT_API (api) for the source map upload of both images (the token is passed as a
-# BuildKit secret, never as a build argument); for web, NEXT_PUBLIC_SENTRY_DSN and
-# NEXT_PUBLIC_SENTRY_ENVIRONMENT (baked into the browser bundle). IMAGE_SOURCE: repository URL for
-# the OCI label.
+# BuildKit secret, never as a build argument); for web, NEXT_PUBLIC_SENTRY_DSN,
+# NEXT_PUBLIC_SENTRY_ENVIRONMENT and NEXT_PUBLIC_MIXPANEL_TOKEN (baked into the browser bundle;
+# empty turns Sentry or analytics off). IMAGE_SOURCE: repository URL for the OCI label.
 #
 # Fails if the api image holds source maps: the Dockerfile deletes them after the upload, and they
 # carry the TypeScript source (inlineSources).
@@ -55,6 +55,7 @@ mapfile -t web_names < <(names web)
 docker build --target runtime "${web_names[@]}" "${labels[@]}" "${secret[@]}" \
   --build-arg NEXT_PUBLIC_SENTRY_DSN="${NEXT_PUBLIC_SENTRY_DSN:-}" \
   --build-arg NEXT_PUBLIC_SENTRY_ENVIRONMENT="${NEXT_PUBLIC_SENTRY_ENVIRONMENT:-}" \
+  --build-arg NEXT_PUBLIC_MIXPANEL_TOKEN="${NEXT_PUBLIC_MIXPANEL_TOKEN:-}" \
   --build-arg SENTRY_ORG="${SENTRY_ORG:-}" \
   --build-arg SENTRY_PROJECT="${SENTRY_PROJECT:-}" \
   --build-arg SENTRY_RELEASE="$tag" \

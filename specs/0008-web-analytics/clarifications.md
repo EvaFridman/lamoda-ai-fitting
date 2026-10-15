@@ -116,3 +116,10 @@ code comments (`I` is skipped: it reads as `1`). All decisions below: owner, 202
   данными" links to `/privacy`. An item becomes a link when its page appears (a backlog item lists
   them). The floating support chat button of the screenshot is not part of the footer and is left
   out.
+
+## Build
+
+- **J24. The token only in published images.** CI passes the repository variable to the web build
+  only when the image is published (from `main`); images of pull requests build with an empty token,
+  so they send nothing even when run locally (J11, AC13). `NEXT_PUBLIC_SENTRY_DSN` stays in every
+  build: errors from a pull request's image spoil no data. (Owner, 2026-10-15, after T5's review.)
