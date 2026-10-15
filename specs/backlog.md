@@ -94,6 +94,12 @@ removes it from this list. Found by the agents' first security audit and trial r
   with the catalog page spec, which brings the caches to warm ("Page cache in a read-only image"
   above, "Cache for filter counts" in "Data and media"); there is nothing to warm in Next's cache or
   Redis before it. Measure the first request to `/` after a deploy against later ones first.
+- **Product card link.** `CatalogProductCard` (0009 K15) takes its link address as a prop: no
+  product page exists yet. The spec that places the card on a page passes the address; once the
+  product page exists, its spec decides whether the card builds the address itself.
+- **Mobile filters.** The kit's filters and the catalog filters of 0009 are desktop dropdowns only
+  (0003 D9, 0009 K16); on a phone Lamoda shows them in a bottom sheet. Build it with the catalog
+  page spec.
 
 ## Server
 
