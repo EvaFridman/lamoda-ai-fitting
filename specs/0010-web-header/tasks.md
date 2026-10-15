@@ -27,7 +27,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## PR 2 · `feat/0010-web-header` · the header
 
-- [ ] **T4. `SearchField` keeps text out of attributes.** The uncontrolled form of plan §4: no
+- [x] **T4. `SearchField` keeps text out of attributes.** The uncontrolled form of plan §4: no
       `value`/`defaultValue` on the input, `defaultValue` set through the ref, reset and submit
       through the DOM value; the doc comment on the controlled form (L9).
       Check: kit tests — typed text and a `defaultValue` appear in no attribute of the form; the
