@@ -163,7 +163,12 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   addresses; containers reach each other by service name.
 - Logging: `api` through the injected pino logger, never `console` (ESLint enforces it).
 - `api` errors: every HTTP error answers `{ error: { code, message, details } }` (successful
-  responses are the data itself); `details` is `[{ field, code, message }]`, `message` is English.
+  responses are the data itself); `details` is `[{ field, code, message }]`, `message` is English,
+  at most 50 entries (`MAX_DETAILS`, `common/validation/`) and then one `TOO_MANY_ERRORS` entry that
+  counts the rest; a detail's `field` keeps at most 100 characters and its `message` 200. A JSON
+  body over `BODY_LIMIT` (at most 1 MB) answers 413 `PAYLOAD_TOO_LARGE`. Only JSON bodies are read
+  (Nest's default parsers off, `bodyParser: false`): a route that needs form bodies turns the
+  urlencoded parser on with the same limit (spec 0006 F26).
   Codes and their statuses (`ERROR_STATUS`) are `api/src/common/errors/error-codes.ts`; throw
   `AppException` or its subclasses (`common/errors/app.exception.ts`, the status follows from the
   code), and let Prisma errors through: `AppExceptionFilter`
@@ -172,9 +177,9 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   (`common/pipes/`): `UuidPipe` plus the uuid format in Swagger. Services write references as scalar ids (`brandId`), not nested `connect`,
   so a missing one answers `RELATED_NOT_FOUND`. `/health/*` keep their own format (the deploy
   reads them). e2e apps that send bodies, check errors or pass the throttler or admin routes are
-  set up as `server.ts` does: `AppExpressAdapter` (`common/http/`, else broken JSON is a plain
-  400), `useRequestContext(app)` before `init()` (else those routes answer 500) and
-  `createValidationPipe()` (`common/validation/`); database e2e get such an app from
+  set up as `server.ts` does: `AppExpressAdapter` (`common/http/`, else broken JSON is a plain 400) with `bodyParser: false`, `useRequestContext(app)` before `init()` (else those routes
+  answer 500), then `useBodyParser('json', { limit: BODY_LIMIT })`, and `createValidationPipe()`
+  (`common/validation/`); database e2e get such an app from
   `createTestApp()` (`test/support/test-app.ts`). Swagger error responses: `swagger.ts` adds the
   ones a route's shape implies (body, query, `@UuidParam`, admin, 429/500/503); a route that can
   answer 409 `ALREADY_EXISTS`/`IN_USE` or 400 `RELATED_NOT_FOUND`/`CONSTRAINT_VIOLATION` declares

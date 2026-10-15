@@ -82,6 +82,16 @@ code comments.
   larger body with the api's error format, 413 `PAYLOAD_TOO_LARGE`, not nginx's HTML page. The
   photo upload spec opens a larger limit for its own route. This replaces 0001 AC22's "a 10 MB
   upload is not rejected by nginx", which prepared for uploads that do not exist yet.
+- **F24. An upper bound on `BODY_LIMIT`.** Added in T9's review (owner, 2026-10-15): the api
+  refuses to start with a `BODY_LIMIT` over 1 MB (nginx's limit, F12), so a typo in the variable
+  cannot lift the api's own limit.
+- **F26. No form bodies.** Added in T9's review (owner, 2026-10-15): the api reads JSON bodies only;
+  Nest's default parsers are off and only the JSON one with `BODY_LIMIT` is registered. Nothing in
+  api or web sends `application/x-www-form-urlencoded`, and its parser (nested `a[b]=` keys, its
+  own 100 KB limit outside `BODY_LIMIT`) was surface no route used. A form body is not read: the
+  route sees an empty body. When a route needs form bodies, turn the urlencoded parser on for that
+  route (or the api) with the same limit, and update this rule in `CLAUDE.md`. Photo upload is
+  multipart, a parser of its own (F12).
 - **F13. Client address.** The api takes the client address (and the request id, F10) from its
   headers only when the request carries a shared secret header; nginx and web's `apiFetch` both
   send it. Without it the api counts the connection's own address. The secret is a new environment
@@ -137,6 +147,10 @@ code comments.
   reason for another value). When more errors exist, the last entry is
   `{ field: '', code: 'TOO_MANY_ERRORS', message: '<k> more errors' }`. The shape of `details` stays;
   web gets one more code to know.
+- **F25. Long field names are cut.** Added in T9's review (owner, 2026-10-15): an unknown field's
+  name is echoed in its detail's `field` and `message`, and a body of one long key still answered a
+  few times its size. A detail's `field` keeps at most 100 characters and its `message` at most 200;
+  a cut one ends in `…`. The shape of `details` stays.
 
 ## Closing
 

@@ -104,11 +104,19 @@ After the merge of PR 1:
       Check: e2e with low values: writes 429 while reads answer; burst and minute each give 429;
       admin requests are counted; the Redis-down test per tier. AC4–AC7.
       Commit: `feat(api): limit reads, writes and expensive routes separately`
-- [ ] **T9. Body limit and details cap.** `BODY_LIMIT` through `useBodyParser`; the validation pipe
+- [x] **T9. Body limit and details cap.** `BODY_LIMIT` through `useBodyParser`; the validation pipe
       keeps N details plus `TOO_MANY_ERRORS` (plan §4). Backlog: "Cap on validation details" leaves.
       Check: e2e: 150 KB of JSON → 413 `PAYLOAD_TOO_LARGE`; unit: 60 unknown fields → 51 details.
       AC11 (api part), AC16.
       Commit: `feat(api): cap the body size and the validation details`
+- [ ] **T9b. One HTTP setup for the server and the tests.** Added in T9's review (owner,
+      2026-10-15): the steps `server.ts` takes (no default parsers, request context, CORS, the
+      JSON parser with `BODY_LIMIT`, the global pipe) were copied by hand into `createTestApp()`
+      and the e2e specs, and five of them lacked the body limit. One function in `common/http/`
+      takes them; `server.ts`, `createTestApp()` and every e2e that builds the app call it, and
+      T10's timeout interceptor goes there. `CLAUDE.md`: the e2e setup rule names the function.
+      Check: `npm run verify`; no e2e spec calls `useRequestContext` or `useBodyParser` itself.
+      Commit: `refactor(api): set up the http app in one place`
 - [ ] **T10. Timeouts.** Timeout interceptor → 503; Node `keepAliveTimeout`, `headersTimeout`,
       `requestTimeout` (plan §4); `REQUEST_TIMEOUT_MS` in env.
       Check: e2e: a test route slower than a low timeout → 503 in the api's format; unit: the

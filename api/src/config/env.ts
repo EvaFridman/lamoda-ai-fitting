@@ -52,6 +52,9 @@ export const envSchema = z
     THROTTLE_WRITE_MINUTE: z.coerce.number().int().positive().default(60),
     THROTTLE_EXPENSIVE_BURST: z.coerce.number().int().positive().default(1),
     THROTTLE_EXPENSIVE_MINUTE: z.coerce.number().int().positive().default(10),
+    // Largest JSON body in bytes, then 413 PAYLOAD_TOO_LARGE (spec 0006 F12). nginx has a limit of
+    // its own (client_max_body_size); at most 1 MB, so a typo cannot lift the api's (F24).
+    BODY_LIMIT: z.coerce.number().int().positive().max(1_048_576).default(102_400),
 
     // Sent in the X-Admin-Token header by writes and by requests to users, fitting sessions and
     // generations (spec 0004 E1). Empty closes those requests entirely; a set one must be long

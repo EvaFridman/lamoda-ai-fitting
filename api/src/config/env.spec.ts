@@ -190,6 +190,24 @@ describe('validateEnv', () => {
   });
 });
 
+describe('validateEnv BODY_LIMIT', () => {
+  it('defaults to 102400', () => {
+    expect(validateEnv(valid).BODY_LIMIT).toBe(102_400);
+  });
+
+  it('coerces a string to a number', () => {
+    expect(validateEnv({ ...valid, BODY_LIMIT: '2048' }).BODY_LIMIT).toBe(2048);
+  });
+
+  it('accepts the maximum, 1048576', () => {
+    expect(validateEnv({ ...valid, BODY_LIMIT: '1048576' }).BODY_LIMIT).toBe(1_048_576);
+  });
+
+  it.each(['0', '-1', '1.5', 'abc', '1048577'])('refuses %j, naming the variable', (value) => {
+    expect(() => validateEnv({ ...valid, BODY_LIMIT: value })).toThrow(/BODY_LIMIT/);
+  });
+});
+
 describe('assertServerEnv', () => {
   it('refuses production with an empty PROXY_SECRET, naming the variable', () => {
     expect(() => assertServerEnv({ NODE_ENV: 'production', PROXY_SECRET: '' })).toThrow(
