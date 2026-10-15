@@ -20,6 +20,8 @@ x-api-env: &api-env
   ADMIN_API_TOKEN: ${ADMIN_API_TOKEN:-}
   # Required in .env (may be empty): a .env made before spec 0006 lacks it, see README.
   PROXY_SECRET: ${PROXY_SECRET?add PROXY_SECRET to .env (openssl rand -hex 32), see README}
+  # Optional: trusted as well while PROXY_SECRET is rotated (spec 0006 F21).
+  PROXY_SECRET_NEXT: ${PROXY_SECRET_NEXT:-}
   MEDIA_BASE_URL: ${MEDIA_BASE_URL:-http://localhost:${WEB_HOST_PORT:-3001}/media/}
   # Empty turns Sentry off.
   SENTRY_DSN: ${SENTRY_DSN:-}

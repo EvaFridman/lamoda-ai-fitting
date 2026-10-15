@@ -72,13 +72,15 @@ Before the merge:
       through `/` (web forwards it to the api); after a rotated secret and a rollback to the
       running copy, it is trusted again. AC8, AC14.
       Commit: `feat(deploy): pass the proxy secret and the request id through nginx`
-- [ ] **T6b. Rotation without a gap (F21).** The api accepts `PROXY_SECRET_NEXT` as well
+- [x] **T6b. Rotation without a gap (F21).** The api accepts `PROXY_SECRET_NEXT` as well
       (`request-context.ts`, env schema: same format, refused equal to `ADMIN_API_TOKEN`, may be
       empty); `app.yml` passes it to the api only; `cd.yml` writes it and checks its format when
       set; `.env.example`; `deploy/README.md` describes rotation in two deploys and drops T6's
-      interim note.
+      interim note. `deploy.sh` refuses a new `PROXY_SECRET` the serving api does not trust,
+      before nginx is recreated (F21, added in review).
       Check: unit and e2e tests of both secrets; `ci-deploy-check.sh`'s rotation step goes
-      through `PROXY_SECRET_NEXT` and also passes with a failed deploy in between. AC8.
+      through `PROXY_SECRET_NEXT` and also passes with a failed deploy in between; a secret the
+      serving copy does not trust is refused with nginx unchanged. AC8.
       Commit: `feat(api): accept the next proxy secret while it is rotated`
 
 After the merge of PR 1:

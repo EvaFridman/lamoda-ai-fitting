@@ -98,6 +98,119 @@ describe('requestContextMiddleware: trust', () => {
   });
 });
 
+describe('requestContextMiddleware: PROXY_SECRET_NEXT', () => {
+  const NEXT = 'next-secret-0123456789abcdef-xyz';
+  const both: RequestContextOptions = { ...options, proxySecretNext: NEXT };
+  const forwarded = { 'X-Forwarded-For': '203.0.113.7', 'X-Request-Id': REQUEST_ID };
+
+  it('trusts the next secret for X-Forwarded-For and X-Request-Id', async () => {
+    const seen = await send({ 'X-Proxy-Secret': NEXT, ...forwarded }, both);
+
+    expect(seen.clientAddress).toBe('203.0.113.7');
+    expect(seen.requestId).toBe(REQUEST_ID);
+    expect(seen.header).toBe(REQUEST_ID);
+  });
+
+  it('still trusts the old secret while the next one is set', async () => {
+    const seen = await send({ 'X-Proxy-Secret': PROXY_SECRET, ...forwarded }, both);
+
+    expect(seen.clientAddress).toBe('203.0.113.7');
+    expect(seen.requestId).toBe(REQUEST_ID);
+  });
+
+  it.each([
+    ['wrong', 'wrong-secret'],
+    ['of another length', 'x'],
+    ['the next one with more', `${NEXT}-and-more`],
+    ['empty', ''],
+  ])('does not trust a %s secret when both are set', async (_name, secret) => {
+    const seen = await send({ 'X-Proxy-Secret': secret, ...forwarded }, both);
+
+    expect(seen.clientAddress).toBe(seen.socket);
+    expect(seen.requestId).toMatch(UUID);
+  });
+
+  it('does not trust a request without the header when both are set', async () => {
+    const seen = await send(forwarded, both);
+
+    expect(seen.clientAddress).toBe(seen.socket);
+    expect(seen.requestId).toMatch(UUID);
+  });
+
+  it.each([
+    ['an empty next secret', { ...options, proxySecretNext: '' }],
+    ['an omitted next secret', options],
+  ])('with %s trusts nothing more than the old secret', async (_name, opts) => {
+    for (const secret of ['', NEXT, 'anything']) {
+      const seen = await send({ 'X-Proxy-Secret': secret, ...forwarded }, opts);
+
+      expect(seen.clientAddress).toBe(seen.socket);
+      expect(seen.requestId).toMatch(UUID);
+    }
+    const missing = await send(forwarded, opts);
+    expect(missing.clientAddress).toBe(missing.socket);
+
+    const old = await send({ 'X-Proxy-Secret': PROXY_SECRET, ...forwarded }, opts);
+    expect(old.clientAddress).toBe('203.0.113.7');
+  });
+
+  describe('with PROXY_SECRET empty', () => {
+    const onlyNext: RequestContextOptions = { ...both, proxySecret: '' };
+
+    it('trusts the next secret', async () => {
+      const seen = await send({ 'X-Proxy-Secret': NEXT, ...forwarded }, onlyNext);
+
+      expect(seen.clientAddress).toBe('203.0.113.7');
+      expect(seen.requestId).toBe(REQUEST_ID);
+    });
+
+    it.each([
+      ['empty', { 'X-Proxy-Secret': '' }],
+      ['missing', {}],
+      ['the old one', { 'X-Proxy-Secret': PROXY_SECRET }],
+      ['wrong', { 'X-Proxy-Secret': 'wrong' }],
+    ])('does not trust a %s secret', async (_name, headers) => {
+      const seen = await send({ ...headers, ...forwarded }, onlyNext);
+
+      expect(seen.clientAddress).toBe(seen.socket);
+      expect(seen.requestId).toMatch(UUID);
+    });
+  });
+
+  it('does not trust two X-Proxy-Secret headers, even both the next secret', async () => {
+    const server = serverWith(both);
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    try {
+      const { port } = server.address() as AddressInfo;
+      const seen = await new Promise<Seen>((resolve, reject) => {
+        const req = httpRequest(
+          {
+            host: '127.0.0.1',
+            port,
+            path: '/',
+            headers: { 'X-Proxy-Secret': [NEXT, NEXT], ...forwarded },
+          },
+          (res) => {
+            let body = '';
+            res.on('data', (chunk: Buffer) => (body += chunk.toString()));
+            res.on('end', () => resolve(JSON.parse(body) as Seen));
+          },
+        );
+        req.on('error', reject);
+        req.end();
+      });
+
+      expect(seen.clientAddress).toBe(seen.socket);
+    } finally {
+      server.close();
+    }
+  });
+
+  it('does not make the next secret an admin token', async () => {
+    expect((await send({ 'X-Admin-Token': NEXT }, both)).principal.kind).toBe('anonymous');
+  });
+});
+
 describe('requestContextMiddleware: client address', () => {
   const trusted = { 'X-Proxy-Secret': PROXY_SECRET };
 

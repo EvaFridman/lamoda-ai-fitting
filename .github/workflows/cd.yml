@@ -45,6 +45,7 @@ jobs:
       - name: Check the image tag and the proxy secret
         env:
           PROXY_SECRET: ${{ secrets.PROXY_SECRET }}
+          PROXY_SECRET_NEXT: ${{ secrets.PROXY_SECRET_NEXT }}
           ADMIN_API_TOKEN: ${{ secrets.ADMIN_API_TOKEN }}
         # Before anything reaches the server: the synced nginx template needs the secret too, and an
         # nginx restarted without it would not start (spec 0006 F18).
@@ -60,6 +61,18 @@ jobs:
           if [ "$PROXY_SECRET" = "$ADMIN_API_TOKEN" ]; then
             echo "::error::secrets PROXY_SECRET and ADMIN_API_TOKEN must differ (spec 0006 F19)"
             exit 1
+          fi
+          # Set only while the secret is rotated (F21); checked here so a bad one fails before
+          # anything reaches the server, not at the new copy's start.
+          if [ -n "$PROXY_SECRET_NEXT" ]; then
+            if ! [[ "$PROXY_SECRET_NEXT" =~ ^[A-Za-z0-9]{32,}$ ]]; then
+              echo "::error::secret PROXY_SECRET_NEXT in GitHub Environment production is not 32+ letters or digits (deploy/README.md)"
+              exit 1
+            fi
+            if [ "$PROXY_SECRET_NEXT" = "$ADMIN_API_TOKEN" ]; then
+              echo "::error::secrets PROXY_SECRET_NEXT and ADMIN_API_TOKEN must differ (spec 0006 F19)"
+              exit 1
+            fi
           fi
 
       # By hand only: CI calls CD after every check of the push passed. Images of main are published
@@ -126,6 +139,7 @@ jobs:
           API_SENTRY_DSN: ${{ secrets.API_SENTRY_DSN }}
           ADMIN_API_TOKEN: ${{ secrets.ADMIN_API_TOKEN }}
           PROXY_SECRET: ${{ secrets.PROXY_SECRET }}
+          PROXY_SECRET_NEXT: ${{ secrets.PROXY_SECRET_NEXT }}
           MEDIA_BASE_URL: ${{ vars.MEDIA_BASE_URL }}
           IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}/
         run: |
@@ -138,6 +152,7 @@ jobs:
             echo "API_SENTRY_DSN=$API_SENTRY_DSN"
             echo "ADMIN_API_TOKEN=$ADMIN_API_TOKEN"
             echo "PROXY_SECRET=$PROXY_SECRET"
+            echo "PROXY_SECRET_NEXT=$PROXY_SECRET_NEXT"
             echo "MEDIA_BASE_URL=$MEDIA_BASE_URL"
             echo "SENTRY_ENVIRONMENT=production"
             echo "IMAGE_REGISTRY=${IMAGE_REGISTRY,,}"

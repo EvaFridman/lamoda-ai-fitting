@@ -28,6 +28,9 @@ services:
       # Only requests with it (nginx, web) name the client address and request id (spec 0006 F13);
       # the api refuses to start without it in production (F18).
       PROXY_SECRET: ${PROXY_SECRET:?set PROXY_SECRET}
+      # Trusted as well while the secret is rotated, empty otherwise (F21); nginx and web never send
+      # it, so only the api gets it.
+      PROXY_SECRET_NEXT: ${PROXY_SECRET_NEXT:-}
       MEDIA_BASE_URL: ${MEDIA_BASE_URL:?set MEDIA_BASE_URL}
       # The api's own Sentry project (SENTRY_DSN in .env is web's); empty turns it off.
       SENTRY_DSN: ${API_SENTRY_DSN:-}
