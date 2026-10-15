@@ -1,6 +1,7 @@
 # 0006 api guards, limiters, pipes and middleware
 
-Status: accepted (2026-10-15).
+Status: done (2026-10-15): all 17 criteria pass, three with evidence that stops short (F39;
+`tasks.md`, "Acceptance record"). History, not instructions.
 Decisions this spec relies on: [clarifications.md](clarifications.md) (referred to by their ids, e.g. F1).
 
 ## Goal
