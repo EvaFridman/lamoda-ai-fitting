@@ -49,6 +49,11 @@ removes it from this list. Found by the agents' first security audit and trial r
   user's data (users, fitting sessions, generations, photos) checks that the resource belongs to
   the principal (the owner decides the answer for someone else's: 404 or 403). Today these routes
   are admin-only and the admin sees everything; the auth spec owes the checks and their tests.
+- **Flaky facets test.** `test/database/product-facets.e2e-spec.ts`, "holds for every listed value,
+  and every value with products is listed", takes about 1 s alone but timed out at Vitest's 5 s
+  twice in a row in `npm run verify` on the development machine while other work loaded it
+  (2026-10-15, spec 0005); the same tests passed before and after. Find what makes it slow under
+  load (requests one after another for every value) and give it a time budget or fewer requests.
 
 ## web
 
