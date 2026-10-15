@@ -49,7 +49,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       again after stop or a stored opt-out, hover 499/500 ms, once per page, reset on path change);
       the `@ts-expect-error` test (AC9); `npm run verify`.
       Commit: `feat(web): add the analytics client`
-- [ ] **T7. Consent.** `features/cookie-consent`: the store, the banner, the gate, the settings
+- [x] **T7. Consent.** `features/cookie-consent`: the store, the banner, the gate, the settings
       button; `--z-banner`; `_app/providers.tsx` (plan §4); the gate calls `useHoverReset()`.
       Check: unit tests (no answer, granted, denied, 366 days old, storage error, reopen, empty
       token, the gate resets hovers on a path change); `qa-tester` on the local stack with an empty token (AC13) and with a dummy token and

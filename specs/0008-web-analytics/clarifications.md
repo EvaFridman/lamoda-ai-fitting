@@ -145,3 +145,20 @@ code comments (`I` is skipped: it reads as `1`). All decisions below: owner, 202
   video, audio and canvas. Attributes and stylesheets are recorded as they are, so personal data
   stays out of them (`CLAUDE.md`). (Owner, 2026-10-15, after T6's
   security review.)
+- **J30. The banner's sentence:** "Мы используем cookies для аналитики, чтобы улучшать сайт.
+  Аналитика включится, только если вы согласитесь." (Owner, 2026-10-15, at T7.)
+- **J31. An answer reaches every open tab.** The consent store listens to the `storage` event, so
+  an answer given in one tab hides the banner and starts or stops analytics in the others at once.
+  (Owner, 2026-10-15, at T7.)
+- **J32. No answer or a decline clears what the SDK left.** When the answer expired after 365 days,
+  or the SDK never loaded in the tab that declined, `opt_out_tracking()` never ran, and the SDK's
+  keys would join the next visitor of that browser to the earlier one. So without consent the
+  SDK's storage is cleared without loading it: `localStorage` and `sessionStorage` keys starting
+  with `mp_` or `__mp`, and its IndexedDB databases. Its opt-out (`__mp_opt_in_out_*`) stays: it
+  names no visitor, and an SDK running in another tab needs it to stop sending. (Owner, 2026-10-15,
+  after T7's security review.)
+- **J33. Storage blocked:** an answer the browser will not store hides the banner and sends nothing
+  until the page reloads; navigation inside the site does not ask again. (Owner, 2026-10-15, at
+  T7.)
+- **AC3 is checked in production only** (T11): no local tool intercepts the SDK's requests, and a
+  dummy token would still send to Mixpanel. (Owner, 2026-10-15, at T7.)

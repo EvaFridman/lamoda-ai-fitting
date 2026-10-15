@@ -283,8 +283,12 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   through `import()`, so nothing loads before consent: `startAnalytics()` loads and inits the SDK
   once per tab and opts it back in after a decline (a no-op with an empty
   `NEXT_PUBLIC_MIXPANEL_TOKEN`, which only images published from `main` have); `stopAnalytics()`
-  stops sending and clears the SDK's storage. A failed SDK load leaves analytics off until the page
-  reloads and is not reported to Sentry.
+  stops sending and clears the SDK's storage, and with no SDK started in the tab removes the keys
+  and IndexedDB databases an earlier one left (`client.ts` lists them; check on an SDK update). A failed SDK load leaves analytics off until the page
+  reloads and is not reported to Sentry. Only `AnalyticsGate` (`features/cookie-consent`, mounted
+  in `_app/providers.tsx`) calls them, following the visitor's answer in `localStorage`
+  (`cookie-consent`, kept 365 days, shared by open tabs; an answer the browser will not store counts
+  as a decline until the page reloads); the banner and "Настройки cookies" render only with a token.
 - `web` data from the api renders at request time inside `<Suspense>`: the web image must build with
   no api, Redis or database running.
 - Every new environment variable goes into `.env.example` with a comment.
