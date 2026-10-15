@@ -254,7 +254,9 @@ describe('catalog filters section', () => {
     lastCall('FilterChips onClearAll');
   });
 
-  it('clears every applied filter back to its bare chip and an unfiltered dropdown', async () => {
+  // "Очистить фильтры" for a checkbox filter (the others share the colour's component) and for the
+  // price, one test each: a dropdown costs up to 2 s on CI and a test has 5 s.
+  it('clears applied colours back to a bare chip and an unticked dropdown', async () => {
     const user = userEvent.setup();
     const { region, open } = renderLive();
 
@@ -262,41 +264,26 @@ describe('catalog filters section', () => {
     await user.click(colours.getByRole('checkbox', { name: /^синий/ }));
     await user.click(colours.getByRole('checkbox', { name: /^белый/ }));
     await user.click(colours.getByRole('button', { name: 'Применить' }));
+    expect(within(region).queryByRole('button', { name: 'Цвет' })).not.toBeInTheDocument();
 
-    const material = await open(user, 'Материал');
-    await user.click(material.getByRole('checkbox', { name: /лён/ }));
-    await user.click(material.getByRole('button', { name: 'Применить' }));
+    await user.click(within(region).getByRole('button', { name: 'Очистить фильтры' }));
+    expect(within(region).getByRole('button', { name: 'Цвет' })).toBeInTheDocument();
 
-    const sizes = await open(user, 'Размер');
-    await user.click(sizes.getByRole('checkbox', { name: /^M\b/ }));
-    await user.click(sizes.getByRole('button', { name: 'Применить' }));
+    const coloursAgain = await open(user, 'Цвет');
+    for (const box of coloursAgain.getAllByRole('checkbox')) expect(box).not.toBeChecked();
+  });
+
+  it('clears an applied price back to a bare chip and the data bounds', async () => {
+    const user = userEvent.setup();
+    const { region, open } = renderLive();
 
     const price = await open(user, 'Цена');
     await user.type(price.getByRole('textbox', { name: 'Мин. цена' }), '1500');
     await user.click(price.getByRole('button', { name: 'Применить' }));
-
-    for (const title of ['Цвет', 'Материал', 'Размер', 'Цена']) {
-      expect(within(region).queryByRole('button', { name: title })).not.toBeInTheDocument();
-      expect(within(region).getByRole('button', { name: new RegExp(`^${title}`) })).toBeVisible();
-    }
+    expect(within(region).queryByRole('button', { name: 'Цена' })).not.toBeInTheDocument();
 
     await user.click(within(region).getByRole('button', { name: 'Очистить фильтры' }));
-
-    for (const title of ['Цвет', 'Материал', 'Размер', 'Цена']) {
-      expect(within(region).getByRole('button', { name: title })).toBeInTheDocument();
-    }
-
-    const coloursAgain = await open(user, 'Цвет');
-    for (const box of coloursAgain.getAllByRole('checkbox')) expect(box).not.toBeChecked();
-    await user.keyboard('{Escape}');
-
-    const materialAgain = await open(user, 'Материал');
-    for (const box of materialAgain.getAllByRole('checkbox')) expect(box).not.toBeChecked();
-    await user.keyboard('{Escape}');
-
-    const sizesAgain = await open(user, 'Размер');
-    for (const box of sizesAgain.getAllByRole('checkbox')) expect(box).not.toBeChecked();
-    await user.keyboard('{Escape}');
+    expect(within(region).getByRole('button', { name: 'Цена' })).toBeInTheDocument();
 
     const priceAgain = await open(user, 'Цена');
     const min = priceAgain.getByRole('textbox', { name: 'Мин. цена' });
