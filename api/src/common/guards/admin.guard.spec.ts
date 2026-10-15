@@ -1,22 +1,25 @@
 import 'reflect-metadata';
 
 import type { ExecutionContext } from '@nestjs/common';
-import type { ConfigService } from '@nestjs/config';
+import type { Request, Response } from 'express';
 import { describe, expect, it } from 'vitest';
 
-import type { Env } from '../../config/env.js';
 import { UnauthorizedError } from '../errors/app.exception.js';
+import { requestContextMiddleware } from '../http/request-context.js';
 import { AdminGuard, AdminOnly } from './admin.guard.js';
 
-function makeGuard(token: string): AdminGuard {
-  const config = { get: () => token } as unknown as ConfigService<Env, true>;
-  return new AdminGuard(config);
+function makeGuard(): AdminGuard {
+  return new AdminGuard();
 }
 
-function contextWith(headers: Record<string, string>): ExecutionContext {
+// Runs the real middleware on a fake request, as the app does before any guard.
+function contextWith(headers: Record<string, string>, adminToken = 'secret'): ExecutionContext {
   const request = {
     get: (name: string) => headers[name] ?? headers[name.toLowerCase()],
-  };
+    socket: { remoteAddress: '127.0.0.1' },
+  } as unknown as Request;
+  const response = { setHeader: () => undefined } as unknown as Response;
+  requestContextMiddleware({ proxySecret: '', adminToken })(request, response, () => undefined);
   return {
     switchToHttp: () => ({ getRequest: () => request }),
   } as unknown as ExecutionContext;
@@ -42,42 +45,53 @@ function expectUnauthorized(run: () => unknown): void {
 
 describe('AdminGuard', () => {
   it('lets a request with the right token through', () => {
-    const guard = makeGuard('secret');
+    const guard = makeGuard();
 
     expect(guard.canActivate(contextWith({ 'X-Admin-Token': 'secret' }))).toBe(true);
   });
 
   it('refuses a wrong token of the same length', () => {
-    const guard = makeGuard('secret');
+    const guard = makeGuard();
 
     expectUnauthorized(() => guard.canActivate(contextWith({ 'X-Admin-Token': 'secreT' })));
   });
 
   it('refuses a wrong token of another length', () => {
-    const guard = makeGuard('secret');
+    const guard = makeGuard();
 
     expectUnauthorized(() => guard.canActivate(contextWith({ 'X-Admin-Token': 'secret-longer' })));
     expectUnauthorized(() => guard.canActivate(contextWith({ 'X-Admin-Token': 's' })));
   });
 
   it('refuses a request without the header', () => {
-    const guard = makeGuard('secret');
+    const guard = makeGuard();
 
     expectUnauthorized(() => guard.canActivate(contextWith({})));
   });
 
   it('refuses an empty header', () => {
-    const guard = makeGuard('secret');
+    const guard = makeGuard();
 
     expectUnauthorized(() => guard.canActivate(contextWith({ 'X-Admin-Token': '' })));
   });
 
   it('refuses every request when ADMIN_API_TOKEN is empty, even with an empty token sent', () => {
-    const guard = makeGuard('');
+    const guard = makeGuard();
 
-    expectUnauthorized(() => guard.canActivate(contextWith({ 'X-Admin-Token': '' })));
-    expectUnauthorized(() => guard.canActivate(contextWith({ 'X-Admin-Token': 'anything' })));
-    expectUnauthorized(() => guard.canActivate(contextWith({})));
+    expectUnauthorized(() => guard.canActivate(contextWith({ 'X-Admin-Token': '' }, '')));
+    expectUnauthorized(() => guard.canActivate(contextWith({ 'X-Admin-Token': 'anything' }, '')));
+    expectUnauthorized(() => guard.canActivate(contextWith({}, '')));
+  });
+
+  it('throws a plain error, not a 401, when the request middleware did not run', () => {
+    const context = {
+      switchToHttp: () => ({ getRequest: () => ({}) }),
+    } as unknown as ExecutionContext;
+
+    const error = thrownBy(() => makeGuard().canActivate(context));
+
+    expect(error).toBeInstanceOf(Error);
+    expect(error).not.toBeInstanceOf(UnauthorizedError);
   });
 });
 

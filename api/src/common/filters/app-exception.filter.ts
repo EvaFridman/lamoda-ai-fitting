@@ -1,3 +1,5 @@
+import type { IncomingMessage } from 'node:http';
+
 import {
   type ArgumentsHost,
   Catch,
@@ -9,6 +11,7 @@ import { HttpAdapterHost } from '@nestjs/core';
 import * as Sentry from '@sentry/nestjs';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
+import { findRequestContext } from '../http/request-context.js';
 import { toAppException } from './to-app-exception.js';
 
 // The one handler of every HTTP error (spec 0004 E18): each answers `{ error: { code, message,
@@ -35,13 +38,18 @@ export class AppExceptionFilter implements ExceptionFilter {
 
     const error = toAppException(exception);
     const status = error.getStatus();
+    // On its own line too: a body the parser refuses (BAD_JSON) fails before pino-http's
+    // middleware, so this line is the only one of the request (spec 0006 plan, Risks).
+    const requestId = findRequestContext(
+      host.switchToHttp().getRequest<IncomingMessage>(),
+    )?.requestId;
     if (status >= 500) {
       // The stack and the original error stay in the log; the body says only "internal error".
-      this.logger.error({ err: loggable(exception), code: error.code }, error.message);
+      this.logger.error({ err: loggable(exception), code: error.code, requestId }, error.message);
       // Only 5xx go to Sentry (spec 0004 E24): a 4xx is the client's mistake, not a bug.
       Sentry.captureException(exception, { tags: { 'error.code': error.code } });
     } else {
-      this.logger.warn({ code: error.code, status }, error.message);
+      this.logger.warn({ code: error.code, status, requestId }, error.message);
     }
     httpAdapter.reply(response, error.body, status);
   }

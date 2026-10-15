@@ -4,6 +4,7 @@ import type { ThrottlerStorage } from '@nestjs/throttler';
 
 import { AppModule } from '../../src/app.module.js';
 import { AppExpressAdapter } from '../../src/common/http/app-express.adapter.js';
+import { useRequestContext } from '../../src/common/http/request-context.js';
 import { createValidationPipe } from '../../src/common/validation/validation-pipe.js';
 import type { PrismaClient } from '../../src/generated/prisma/client.js';
 import { PrismaService } from '../../src/prisma/prisma.service.js';
@@ -25,8 +26,8 @@ const unlimited: Pick<ThrottlerStorage, 'increment'> = {
 };
 
 // The whole api on a database of the test file's own (test-database.ts), for specs under
-// test/database/. Built like src/server.ts: the adapter keeps body-parser's errors apart, the pipe is
-// global. Redis and Temporal point at closed ports (vitest.config.ts); there is no rate limit.
+// test/database/. Built like src/server.ts: the adapter keeps body-parser's errors apart, the request
+// context comes before the body parser, the pipe is global. Redis and Temporal point at closed ports (vitest.config.ts); there is no rate limit.
 // Call once per file in `beforeAll` and `close()` in `afterAll`.
 export async function createTestApp(): Promise<TestApp> {
   const prisma = await createTestDatabase();
@@ -38,6 +39,7 @@ export async function createTestApp(): Promise<TestApp> {
       .useValue(unlimited)
       .compile();
     const app = moduleRef.createNestApplication(new AppExpressAdapter(), { logger: false });
+    useRequestContext(app);
     app.useGlobalPipes(createValidationPipe());
     await app.init();
     return {

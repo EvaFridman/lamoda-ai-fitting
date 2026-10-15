@@ -5,15 +5,18 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { AppModule } from '../src/app.module.js';
 import { AppExpressAdapter } from '../src/common/http/app-express.adapter.js';
+import { useRequestContext } from '../src/common/http/request-context.js';
 import { createValidationPipe } from '../src/common/validation/validation-pipe.js';
 
-// Created like src/server.ts does: the adapter keeps body-parser's errors apart, the pipe is global.
+// Created like src/server.ts does: the adapter keeps body-parser's errors apart, the request context
+// comes before the body parser, the pipe is global.
 describe('error responses (e2e)', () => {
   let app: INestApplication;
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication(new AppExpressAdapter(), { logger: false });
+    useRequestContext(app);
     app.useGlobalPipes(createValidationPipe());
     await app.init();
   });
@@ -80,6 +83,7 @@ describe('error responses for odd bodies and paths (e2e)', () => {
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication(new AppExpressAdapter(), { logger: false });
+    useRequestContext(app);
     app.useGlobalPipes(createValidationPipe());
     await app.init();
   });

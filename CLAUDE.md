@@ -171,17 +171,24 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   each database constraint (a new constraint gets a row there). Path ids use `@UuidParam('id')`
   (`common/pipes/`): `UuidPipe` plus the uuid format in Swagger. Services write references as scalar ids (`brandId`), not nested `connect`,
   so a missing one answers `RELATED_NOT_FOUND`. `/health/*` keep their own format (the deploy
-  reads them). e2e apps that send bodies or check errors are set up as `server.ts` does:
-  `AppExpressAdapter` (`common/http/`, else broken JSON is a plain 400) and
+  reads them). e2e apps that send bodies, check errors or pass the throttler or admin routes are
+  set up as `server.ts` does: `AppExpressAdapter` (`common/http/`, else broken JSON is a plain
+  400), `useRequestContext(app)` before `init()` (else those routes answer 500) and
   `createValidationPipe()` (`common/validation/`); database e2e get such an app from
   `createTestApp()` (`test/support/test-app.ts`). Swagger error responses: `swagger.ts` adds the
   ones a route's shape implies (body, query, `@UuidParam`, admin, 429/500/503); a route that can
   answer 409 `ALREADY_EXISTS`/`IN_USE` or 400 `RELATED_NOT_FOUND`/`CONSTRAINT_VIOLATION` declares
   them with `@ApiErrors(...)` (`common/errors/`).
 - `api` admin access: writes and every route of users, fitting sessions and generations carry
-  `@AdminOnly()` (`common/guards/`), per controller or route, never global; it checks the
-  `X-Admin-Token` header against `ADMIN_API_TOKEN` (empty closes them). Lists take
-  `PaginationQueryDto` and answer `Paginated<T>` (`common/pagination/`).
+  `@AdminOnly()` (`common/guards/`), per controller or route, never global; it lets through the
+  principal `admin`, which the request context gives when `X-Admin-Token` equals
+  `ADMIN_API_TOKEN` (empty closes them). Lists take `PaginationQueryDto` and answer
+  `Paginated<T>` (`common/pagination/`).
+- `api` request context (`common/http/request-context.ts`): a middleware ahead of the body parser
+  sets the client address, the request id (answered in `X-Request-Id`, on log lines and Sentry
+  events) and the principal (`@CurrentPrincipal()`, `common/auth/`). Code reads them with
+  `requestContextOf(req)`, never `req.ip` or the headers: `X-Forwarded-For` and `X-Request-Id`
+  count only on requests that carry `X-Proxy-Secret` equal to `PROXY_SECRET` (nginx, web).
 - `web` calls the api from the server only through `apiFetch` (`web/src/shared/api`): it forwards
   the visitor's address, so the api's per-client rate limit applies to the visitor and not to the
   web container. A direct `fetch` to the api would put all visitors into one limit.

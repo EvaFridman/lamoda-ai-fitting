@@ -8,8 +8,9 @@ How spec 0006 is built. Decisions: [clarifications.md](clarifications.md); crite
 ## 1. Request context (F4, F10, F13)
 
 One Express middleware, `common/http/request-context.ts`, registered in `server.ts` before Nest's
-own middleware, so pino, Sentry, the throttler, the guards and the filter all read its result from
-`req.context`:
+own middleware, so pino, Sentry, the throttler, the guards and the filter all read its result with
+`requestContextOf(req)` (kept in a `WeakMap` keyed by the request, so Express's `Request` type
+needs no extension):
 
 - **Trusted source.** A request is trusted when its `X-Proxy-Secret` header equals `PROXY_SECRET`
   (compared like the admin token: SHA-256 digests and `timingSafeEqual`). nginx sends the header
@@ -43,7 +44,7 @@ own middleware, so pino, Sentry, the throttler, the guards and the filter all re
   `write-minute`, `expensive-burst`, `expensive-minute` (burst window 1 s, minute window 60 s).
 - `throttling/tiered-throttler.guard.ts` extends `ThrottlerGuard`: `handleRequest` skips the
   throttlers of other tiers; the tier is `expensive` with `@Expensive()`, else `read` for
-  GET/HEAD, else `write`. `getTracker` returns `req.context.clientAddress`.
+  GET/HEAD, else `write`. `getTracker` returns `requestContextOf(req).clientAddress`.
 - `FallbackThrottlerStorage` stays as it is (0001 B12b). `@SkipThrottle()` on health and the gateway
   stays.
 - `@Expensive()` is applied to no route now: AI generations and photo upload do not start work
@@ -129,9 +130,11 @@ connections per client", "Cap on validation details". Added: "IDOR checks with a
 
 ## Risks
 
-- **Middleware order.** Body parser, the request-context middleware, pino-http and Nest's guards
-  must run in that order; the first task proves it with a test that reads the request id from a
-  BAD_JSON response's log line.
+- **Middleware order.** The request-context middleware, the body parser, pino-http and Nest's
+  guards must run in that order: `useRequestContext(app)` comes before `init()` and before any
+  `useBodyParser()`. A body the parser refuses (BAD_JSON, PAYLOAD_TOO_LARGE) never reaches
+  pino-http, so the error filter writes the request id on its own line. The first task proves it
+  with a test that reads the request id from a BAD_JSON response's log line.
 - **The secret in nginx.** It sits in the rendered config inside the nginx container; it only
   proves "came through our proxy", grants no data access, and is rotated by changing `.env` and
   restarting nginx, api and web.

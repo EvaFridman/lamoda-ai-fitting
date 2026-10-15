@@ -8,26 +8,43 @@ import {
 import type { HttpAdapterHost } from '@nestjs/core';
 import { ThrottlerException } from '@nestjs/throttler';
 import * as Sentry from '@sentry/nestjs';
+import type { Request, Response } from 'express';
 import type { PinoLogger } from 'nestjs-pino';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Prisma } from '../../generated/prisma/client.js';
 import { NotFoundError, UnauthorizedError, ValidationError } from '../errors/app.exception.js';
+import { requestContextMiddleware, requestContextOf } from '../http/request-context.js';
 import { AppExceptionFilter, loggable } from './app-exception.filter.js';
 
-vi.mock('@sentry/nestjs', () => ({ captureException: vi.fn() }));
+// getIsolationScope: the request-context middleware tags the scope with the request id.
+vi.mock('@sentry/nestjs', () => ({
+  captureException: vi.fn(),
+  getIsolationScope: () => ({ setTag: () => undefined }),
+}));
 
 describe('AppExceptionFilter', () => {
   const response = { marker: 'response' };
   const reply = vi.fn();
   const logger = { error: vi.fn(), warn: vi.fn() };
+  const request = {
+    get: () => undefined,
+    socket: { remoteAddress: '127.0.0.1' },
+  } as unknown as Request;
   const host = {
-    switchToHttp: () => ({ getResponse: () => response }),
+    switchToHttp: () => ({ getResponse: () => response, getRequest: () => request }),
   } as unknown as ArgumentsHost;
+  let requestId: string;
   let filter: AppExceptionFilter;
 
   beforeEach(() => {
     vi.resetAllMocks();
+    requestContextMiddleware({ proxySecret: '', adminToken: '' })(
+      request,
+      { setHeader: vi.fn() } as unknown as Response,
+      () => undefined,
+    );
+    requestId = requestContextOf(request).requestId;
     filter = new AppExceptionFilter(
       { httpAdapter: { reply } } as unknown as HttpAdapterHost,
       logger as unknown as PinoLogger,
@@ -43,9 +60,10 @@ describe('AppExceptionFilter', () => {
       404,
     );
     expect(logger.warn).toHaveBeenCalledWith(
-      { code: 'NOT_FOUND', status: 404 },
+      { code: 'NOT_FOUND', status: 404, requestId },
       'Record not found',
     );
+    expect(requestId).toMatch(/^[\da-f-]{36}$/);
     expect(logger.error).not.toHaveBeenCalled();
   });
 
@@ -67,6 +85,7 @@ describe('AppExceptionFilter', () => {
           stack: original.stack,
         }),
         code: 'INTERNAL_ERROR',
+        requestId,
       },
       'Internal server error',
     );
@@ -95,6 +114,20 @@ describe('AppExceptionFilter', () => {
       503,
     );
     expect(logger.error).toHaveBeenCalled();
+  });
+
+  it('still replies and logs when the request has no context (requestId is undefined)', () => {
+    const bare = {
+      switchToHttp: () => ({ getResponse: () => response, getRequest: () => ({}) }),
+    } as unknown as ArgumentsHost;
+
+    filter.catch(new NotFoundError(), bare);
+
+    expect(reply).toHaveBeenCalledWith(response, expect.anything(), 404);
+    expect(logger.warn).toHaveBeenCalledWith(
+      { code: 'NOT_FOUND', status: 404, requestId: undefined },
+      'Record not found',
+    );
   });
 
   describe('Sentry', () => {
@@ -167,7 +200,7 @@ describe('AppExceptionFilter', () => {
     filter.catch(original, host);
 
     expect(logger.error).toHaveBeenCalledWith(
-      { err: loggable(original), code: 'INTERNAL_ERROR' },
+      { err: loggable(original), code: 'INTERNAL_ERROR', requestId },
       'Internal server error',
     );
     expect(logger.error.mock.calls[0]?.[0].err).toMatchObject({

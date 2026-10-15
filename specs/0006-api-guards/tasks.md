@@ -33,12 +33,13 @@ Before the merge:
 
 - 👤 Add `PROXY_SECRET` to GitHub Environment `production` (`openssl rand -hex 32`).
 
-- [ ] **T4. Request context in the api.** `common/http/request-context.ts` (plan §1): trusted source
+- [x] **T4. Request context in the api.** `common/http/request-context.ts` (plan §1): trusted source
       by `X-Proxy-Secret`, client address, request id, principal; `@CurrentPrincipal()`;
       `trust proxy` off; pino-http `genReqId`; Sentry tag `request_id`; `X-Request-Id` on every
       response. `AdminGuard` reads the principal instead of comparing the token itself. `PROXY_SECRET`
-      in the env schema, `.env.example`, `docker-compose.yml`, `scripts/init-env.sh`. The throttler's
-      `getTracker` reads the context's address.
+      in the env schema (refused when equal to a set `ADMIN_API_TOKEN`, F19), `.env.example`,
+      `docker-compose.yml`, `scripts/init-env.sh`. The throttler's `getTracker` reads the context's
+      address.
       Check: unit tests of the middleware (secret right, wrong, empty; id valid, invalid, missing);
       e2e: without the secret a changed `X-Forwarded-For` keeps one quota (AC9); a `BAD_JSON`
       response carries an `X-Request-Id` that is on its log line (plan, Risks); 0004's admin
@@ -55,7 +56,9 @@ Before the merge:
       `X-Request-Id $request_id` (everywhere); `add_header X-Request-Id … always`,
       `proxy_hide_header X-Request-Id`; `log_format` with `$request_id`. `PROXY_SECRET` reaches
       nginx (`infra.yml`), api and web (`app.yml`) and the server's `.env` (`cd.yml`);
-      `deploy/README.md` lists it.
+      `deploy/README.md` lists it. F18: the api's env schema refuses an empty `PROXY_SECRET` with
+      `NODE_ENV=production`; `cd.yml` stops before writing `.env` when the secret is missing;
+      `ci-deploy-check.sh` sets one.
       Check: `scripts/ci-deploy-check.sh` passes; through the CI nginx a response's
       `X-Request-Id` is on nginx's and the api's log lines; a client-sent one is replaced. AC8,
       AC14.

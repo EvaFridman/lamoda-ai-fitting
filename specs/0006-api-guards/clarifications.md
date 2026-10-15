@@ -77,6 +77,14 @@ code comments.
   list of trusted subnets was dropped. The docker network's subnet is assigned by Docker, fixing it
   means recreating the network with the whole site down, and the api publishes no ports, so only
   the docker network reaches it anyway: the subnet check would add nothing to the secret.
+- **F18. No production without the proxy secret.** Added in T4's review: an empty `PROXY_SECRET`
+  trusts no request, so in production every visitor would share nginx's or web's quota while the
+  deploy still looks healthy. The api refuses to start with `NODE_ENV=production` and an empty
+  `PROXY_SECRET`, and CD stops before writing `.env` when the secret is missing. Done in T6, with
+  CD and `scripts/ci-deploy-check.sh`, so no release runs the check without the secret in place.
+- **F19. Two different secrets.** Added in T4's review: `PROXY_SECRET` reaches web, which does not
+  need the admin token; if the two were equal, a leak from web would open the admin routes. The
+  api refuses to start when both are set and equal, without printing either value.
 
 ## Validation
 
