@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
-import { ThrottlerGuard } from '@nestjs/throttler';
 import { SentryModule } from '@sentry/nestjs/setup';
 
 import { AiGenerationsModule } from './ai-generations/ai-generations.module.js';
@@ -19,6 +18,7 @@ import { ProductsModule } from './products/products.module.js';
 import { RealtimeModule } from './realtime/realtime.module.js';
 import { RedisModule } from './redis/redis.module.js';
 import { TemporalClientModule } from './temporal/temporal-client.module.js';
+import { TieredThrottlerGuard } from './throttling/tiered-throttler.guard.js';
 import { ThrottlingModule } from './throttling/throttling.module.js';
 import { UsersModule } from './users/users.module.js';
 
@@ -54,7 +54,7 @@ import { UsersModule } from './users/users.module.js';
     // limit comes first: a request with a wrong admin token is counted before it is refused, so
     // guessing the token runs into the limit (spec 0006 F5). Then access, closed unless a route is
     // marked @Public() or @AdminOnly() (F3).
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: TieredThrottlerGuard },
     { provide: APP_GUARD, useClass: AccessGuard },
   ],
 })

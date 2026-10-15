@@ -55,6 +55,14 @@ code comments.
   "guessing the token runs into the limit" holds per route; guessing across many admin routes is
   capped by the edge limit (F7). No separate counter of failed admin tokens: the token has at least
   32 characters and goes away with auth (F5).
+- **F23. The minute window is checked first.** Added in T8's review (owner, 2026-10-15): a tier's
+  minute window is checked before its burst window, so a client already over its minute quota is
+  told the minute's wait in `Retry-After` (else, sending faster than its burst limit, it was told
+  1 s). A request refused by the burst window counts against the minute quota too; when that request
+  is the one that uses the quota up, it is still told 1 s and the next one gets the minute's wait. The guard
+  also sets the standard `Retry-After`, as named throttlers set only `Retry-After-<name>`. A
+  per-route `@Throttle()` names one of its tier's two throttlers, and `@SkipThrottle()` is allowed
+  only on a listed class (health, the gateway); a test fails otherwise.
 
 ## Requests
 

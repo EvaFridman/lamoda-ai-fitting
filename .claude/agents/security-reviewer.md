@@ -31,8 +31,9 @@ per call, patterns in single quotes; a hook allows only ls, grep, rg, find and r
   URL from input (SSRF), no unbounded sizes (body, arrays, strings, uploads).
 - **Access.** Who may call a new endpoint or socket event; a resource loaded by id belongs to the
   caller (IDOR); nothing private reachable without a check.
-- **Abuse.** The rate limit applies (not skipped by mistake; per-client through `trust proxy` and
-  `apiFetch`); socket messages are not rate limited yet (decision B12c in spec 0001), so a new
+- **Abuse.** The rate limit applies (not skipped by mistake; per-client through the request
+  context's address and `apiFetch`); a route that starts costly work (an AI generation, a photo
+  upload) is marked `@Expensive()`, else it gets the read (GET, HEAD) or write quota of its method; socket messages are not rate limited yet (decision B12c in spec 0001), so a new
   costly socket handler needs its own limit; expensive work (AI calls, Temporal workflows) cannot
   be triggered without bound.
 - **Personal data.** Users' names, photos and measurements are personal data: not in logs, URLs,

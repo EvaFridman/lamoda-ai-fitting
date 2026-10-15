@@ -70,7 +70,7 @@ describe('error responses (e2e)', () => {
   });
 });
 
-// Its own app, so the throttler counts (THROTTLE_LIMIT=5) of the describe above do not matter.
+// Its own app, so the throttler counts (five per route and tier) of the describe above do not matter.
 describe('error responses for odd bodies and paths (e2e)', () => {
   let app: INestApplication;
   const limit = 100 * 1024;

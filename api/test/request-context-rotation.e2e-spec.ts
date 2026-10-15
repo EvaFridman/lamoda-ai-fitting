@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // PROXY_SECRET_NEXT (spec 0006 F21) goes through the real configuration: ConfigModule validates the
 // process environment when the module is imported, so each app is booted from freshly imported
-// modules after the variables are stubbed. THROTTLE_LIMIT=5 comes from vitest.config.ts.
+// modules after the variables are stubbed. Five reads per route come from vitest.config.ts.
 const OLD = 'testproxysecret0123456789abcdef0';
 const NEXT = 'nextproxysecret0123456789abcdef1';
 const SENT_ID = 'a1b2c3d4e5f60718293a4b5c6d7e8f90';

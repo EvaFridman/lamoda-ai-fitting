@@ -18,8 +18,8 @@ export interface TestApp {
   close: () => Promise<void>;
 }
 
-// Every request of a spec comes from one address and THROTTLE_LIMIT is 5 in tests, so the rate
-// limit is off here; test/throttling-realtime.e2e-spec.ts checks it.
+// Every request of a spec comes from one address and the tiers allow five per route in tests, so the
+// rate limit is off here; test/throttling-tiers.e2e-spec.ts checks it.
 const unlimited: Pick<ThrottlerStorage, 'increment'> = {
   increment: () =>
     Promise.resolve({ totalHits: 1, timeToExpire: 0, isBlocked: false, timeToBlockExpire: 0 }),

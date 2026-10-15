@@ -191,6 +191,14 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   throttler first, so a wrong token is counted against that route's limit before it is refused
   (counters are per route, spec 0006 F22). Lists take `PaginationQueryDto` and answer
   `Paginated<T>` (`common/pagination/`).
+- `api` rate limit (`throttling/`): `TieredThrottlerGuard` counts a request in one quota tier, each
+  with a 1-second and a 60-second limit from `THROTTLE_*` env: `expensive` for a route marked
+  `@Expensive()` (a route that starts an AI generation or a photo upload gets it), else `read` for
+  GET/HEAD, else `write`. The minute window is checked first, so a client over its minute quota is
+  told that wait in `Retry-After` (spec 0006 F23). `@SkipThrottle()` (any form; with no argument it skips every tier) is allowed
+  only on the classes in `SKIPPED` of `test/throttle-markers.e2e-spec.ts` (health, the gateway; a new one is
+  added there on purpose). A per-route `@Throttle()` names one of its tier's two throttlers
+  (`expensive-minute`), not `default`; that test fails on any other name.
 - `api` request context (`common/http/request-context.ts`): a middleware ahead of the body parser
   sets the client address, the request id (answered in `X-Request-Id`, on log lines and Sentry
   events) and the principal (`@CurrentPrincipal()`, `common/auth/`). Code reads them with

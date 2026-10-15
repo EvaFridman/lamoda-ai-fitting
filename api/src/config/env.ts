@@ -43,9 +43,15 @@ export const envSchema = z
     // Queue shared by the api (starts workflows) and the temporal-worker (runs them).
     TEMPORAL_TASK_QUEUE: z.string().min(1).default('main'),
 
-    // At most THROTTLE_LIMIT requests per client IP within THROTTLE_TTL_MS; then 429.
-    THROTTLE_LIMIT: z.coerce.number().int().positive().default(100),
-    THROTTLE_TTL_MS: z.coerce.number().int().positive().default(60_000),
+    // Requests per client address and route within 1 s (BURST) and 60 s (MINUTE), then 429; one
+    // pair per quota tier (spec 0006 F6): read (GET, HEAD), write (the other methods) and expensive
+    // (routes marked @Expensive()).
+    THROTTLE_READ_BURST: z.coerce.number().int().positive().default(10),
+    THROTTLE_READ_MINUTE: z.coerce.number().int().positive().default(300),
+    THROTTLE_WRITE_BURST: z.coerce.number().int().positive().default(3),
+    THROTTLE_WRITE_MINUTE: z.coerce.number().int().positive().default(60),
+    THROTTLE_EXPENSIVE_BURST: z.coerce.number().int().positive().default(1),
+    THROTTLE_EXPENSIVE_MINUTE: z.coerce.number().int().positive().default(10),
 
     // Sent in the X-Admin-Token header by writes and by requests to users, fitting sessions and
     // generations (spec 0004 E1). Empty closes those requests entirely; a set one must be long

@@ -7,8 +7,9 @@ import { Public } from '../common/auth/access.decorators.js';
 // The place where server events (@nestjs/event-emitter) will reach browsers. For now only `ping`,
 // which proves the connection works end to end: the reply is the acknowledgement `pong`.
 //
-// The global ThrottlerGuard reads the HTTP request; a socket.io message has none, so the guard
-// would fail every message. Rate limiting for socket messages needs its own tracker (the client's
+// The global TieredThrottlerGuard reads the HTTP request; a socket.io message has none, so the
+// guard would fail every message. Its shouldSkip turns this plain @SkipThrottle() into a skip of
+// every tier. Rate limiting for socket messages needs its own tracker (the client's
 // handshake address) and comes with the first real socket feature.
 //
 // Global guards run for gateway handlers too: without @Public() the access guard would refuse
