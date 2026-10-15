@@ -46,7 +46,10 @@ A new segment of `shared`, browser only (`'use client'` where it holds hooks).
 - `client.ts`: the only module that imports `mixpanel-browser`, always through `import()`.
   - `startAnalytics()`: once per tab (a module-level promise, so React's double effects in
     development do not init twice), when `analyticsEnabled`, imports the SDK and calls
-    `mixpanel.init(token, options)`.
+    `mixpanel.init(token, options)`. When the SDK is opted out (a stored opt-out of an earlier
+    decline, or `stopAnalytics()` in this tab), it calls `opt_in_tracking()` without the `$opt_in`
+    event and `start_session_recording()` (J26). A failed import or `init` leaves analytics off and
+    is not reported (J25).
   - `stopAnalytics()`: if started, `stop_session_recording()` and `opt_out_tracking()` (clears the
     SDK's storage); the next page load starts nothing (§4).
   - `track(name, props)`: typed by `events.ts`; a no-op until started, so callers need no checks.
@@ -54,13 +57,16 @@ A new segment of `shared`, browser only (`'use client'` where it holds hooks).
   `track_pageview: 'url-with-path'` (one page view per path, including App Router navigations, with
   UTM tags from the URL, J9); `autocapture: false` (only listed events, J7); session recording on
   for heatmaps (`record_sessions_percent`, `record_heatmap_data: true`, J6); masking: all text, all
-  inputs, `img, video, audio, canvas` blocked, console and network not recorded; `ip: true` (J18);
-  Do Not Track respected (the SDK's default).
+  inputs, images in any form blocked (J29), console and network not recorded; `ip: true` (J18);
+  Do Not Track respected (the SDK's default); an `on_track` hook (`strip-attributes.ts`) drops
+  element attributes, ids, links and text from the SDK's own heatmap events (J28).
 - `use-tracked-element.ts`: `useTrackedElement(element)` returns props to spread on the element:
   `onClick` sends `Element Clicked`; `onPointerEnter` with `pointerType === 'mouse'` starts a
   500 ms timer, `onPointerLeave` clears it; when it fires, `Element Hovered` is sent unless that
-  element was already sent on this page view. The set of hovered elements is cleared when
-  `usePathname()` changes (J8).
+  element was already sent on this page view. The set of hovered elements is shared by every copy
+  of an element and cleared when `usePathname()` changes (J8): by `useHoverReset()`, mounted once
+  in the gate (§4), so a return to a path after a page with no tracked element is a new page view;
+  a path check when a hover fires covers a page without the gate.
 
 ## 4. Consent: `features/cookie-consent` (J10, J16, J17, J20, J21)
 
@@ -77,7 +83,7 @@ A new segment of `shared`, browser only (`'use client'` where it holds hooks).
   the same variant and size, "Принять" and "Отказаться" (J21). Rendered only when `analyticsEnabled` and the state is `asking` (J17). A new
   z-index token `--z-banner: 10`: under modals, drawers, tooltips and toasts.
 - `ui/analytics-gate.tsx`: no markup; `startAnalytics()` when the state becomes `granted`,
-  `stopAnalytics()` when it changes from `granted` to `denied` (J16).
+  `stopAnalytics()` when it changes from `granted` to `denied` (J16); calls `useHoverReset()` (§3).
 - `ui/cookie-settings-button.tsx`: "Настройки cookies", calls `reopen()`; rendered only when
   `analyticsEnabled`.
 - `_app/providers.tsx` renders `<AnalyticsGate />` and `<ConsentBanner />` next to `{children}`.
@@ -146,7 +152,7 @@ A new segment of `shared`, browser only (`'use client'` where it holds hooks).
   `useTrackedElement`); each event and element is listed in `events.ts`; nothing loads before
   consent; `mixpanel-browser` is imported only by `client.ts`. The opening paragraph names 0008. The
   web row of "Stack and versions" gets Mixpanel.
-- `README.md`: one line on analytics and the token variable.
+- `README.md`: one line on analytics and the token variable (T6, J27).
 - `specs/backlog.md`, "web": **Footer links.** Each footer item without a page (J22) becomes a link
   when its page appears; the list is `widgets/footer/config/items.ts`.
 - `specs/backlog.md`, "web": **Full CSP for web.** When it comes (0006 F9), allow `connect-src
@@ -154,17 +160,17 @@ https://api-eu.mixpanel.com` and check whether the recorder needs `worker-src bl
 
 ## Values
 
-| What                  | Value                             | Why                                    |
-| --------------------- | --------------------------------- | -------------------------------------- |
-| API host              | `https://api-eu.mixpanel.com`     | EU residency (J4)                      |
-| Sessions recorded     | 100 %                             | demo traffic is far below 10 k a month |
-| Hover threshold       | 500 ms, once per element per page | J8                                     |
-| Consent kept          | 365 days                          | J20                                    |
-| Storage               | `localStorage` (`persistence`)    | no cookies of ours or Mixpanel's       |
-| Blocked in recordings | `img, video, audio, canvas`       | fitting photos (J6)                    |
-| Masked in recordings  | all text, all inputs              | J6                                     |
-| Console, network      | not recorded                      | they may carry data                    |
-| Banner z-index        | 10                                | under modal 20, popover 30, toast 50   |
+| What                  | Value                                                                                                                                                      | Why                                    |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| API host              | `https://api-eu.mixpanel.com`                                                                                                                              | EU residency (J4)                      |
+| Sessions recorded     | 100 %                                                                                                                                                      | demo traffic is far below 10 k a month |
+| Hover threshold       | 500 ms, once per element per page                                                                                                                          | J8                                     |
+| Consent kept          | 365 days                                                                                                                                                   | J20                                    |
+| Storage               | `localStorage` (`persistence`)                                                                                                                             | no cookies of ours or Mixpanel's       |
+| Blocked in recordings | `img, picture, video, audio, canvas, svg image, iframe, object, embed, [style*="url("], link[as="image"], input[type="image"], meta[property^="og:image"]` | fitting photos (J6, J29)               |
+| Masked in recordings  | all text, all inputs                                                                                                                                       | J6                                     |
+| Console, network      | not recorded                                                                                                                                               | they may carry data                    |
+| Banner z-index        | 10                                                                                                                                                         | under modal 20, popover 30, toast 50   |
 
 ## Environment
 

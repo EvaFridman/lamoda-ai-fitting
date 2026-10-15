@@ -89,15 +89,15 @@ What each agent may do, how the guard hooks work, the owner's decisions and the 
 
 Pinned on purpose; each "not newer" has a reason and a condition to move on.
 
-| What       | Version                                                                                             | Why                                                                                                                                                          |
-| ---------- | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Node / npm | 26 / 12                                                                                             | Node 26 is LTS from 2026-10-28. npm 12 runs install scripts only from `allowScripts` in `package.json`; Node images ship npm 11, so images and CI install 12 |
-| TypeScript | 6.0                                                                                                 | 7.0 has no JS API (typescript-eslint, Nest Swagger plugin, Next need it). Move when they support 7                                                           |
-| ESLint     | 10                                                                                                  | React/a11y rules from `@eslint-react/eslint-plugin` and `eslint-plugin-jsx-a11y-x`; the classic plugins do not run on 10                                     |
-| Prisma     | 7.10                                                                                                | install as `prisma@7`: npm's `latest` tag points at an 8.0 release candidate                                                                                 |
-| api        | NestJS 12, PostgreSQL 18, Redis 8 (ioredis), Temporal (SDK 1.x), pino, socket.io, Sentry, Vitest    |                                                                                                                                                              |
-| web        | Next 16, React 19, TanStack Query 5, Zustand 5, zod, SCSS, Base UI, Sentry, Vitest, Testing Library |                                                                                                                                                              |
-| Server     | Docker Compose, nginx + certbot, blue-green deploys                                                 | `deploy/README.md`                                                                                                                                           |
+| What       | Version                                                                                                       | Why                                                                                                                                                          |
+| ---------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Node / npm | 26 / 12                                                                                                       | Node 26 is LTS from 2026-10-28. npm 12 runs install scripts only from `allowScripts` in `package.json`; Node images ship npm 11, so images and CI install 12 |
+| TypeScript | 6.0                                                                                                           | 7.0 has no JS API (typescript-eslint, Nest Swagger plugin, Next need it). Move when they support 7                                                           |
+| ESLint     | 10                                                                                                            | React/a11y rules from `@eslint-react/eslint-plugin` and `eslint-plugin-jsx-a11y-x`; the classic plugins do not run on 10                                     |
+| Prisma     | 7.10                                                                                                          | install as `prisma@7`: npm's `latest` tag points at an 8.0 release candidate                                                                                 |
+| api        | NestJS 12, PostgreSQL 18, Redis 8 (ioredis), Temporal (SDK 1.x), pino, socket.io, Sentry, Vitest              |                                                                                                                                                              |
+| web        | Next 16, React 19, TanStack Query 5, Zustand 5, zod, SCSS, Base UI, Sentry, Mixpanel, Vitest, Testing Library |                                                                                                                                                              |
+| Server     | Docker Compose, nginx + certbot, blue-green deploys                                                           | `deploy/README.md`                                                                                                                                           |
 
 ## Commands (from the root)
 
@@ -269,6 +269,22 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
 - `/dev/catalog` (`_pages/dev-catalog`) shows the data layer at work; like `/ui-kit` it is
   `noindex`, linked from nowhere and shows only the public catalog. The catalog page spec removes
   it.
+- `web` analytics (Mixpanel, spec 0008) go only through `@/shared/analytics`: `track` and
+  `useTrackedElement` (a click, and a hover of 500 ms once per element per page view; a page view
+  for hovers ends on a path change, seen by `useHoverReset()`, mounted once in the consent gate). Every event,
+  its properties and every tracked element are listed in `events.ts`; anything else fails
+  `typecheck`. The SDK sends its own page views and, for heatmaps, `$mp_click`-style events, from
+  which `strip-attributes.ts` drops element attributes, ids, links and text. Recordings mask all
+  text and inputs and block image elements and inline `url(...)` styles, but keep attributes and
+  stylesheets as they are: personal data never goes into attributes (`title`, `aria-*`, `alt`,
+  `href`, `data-*`) or stylesheets, a fitting photo renders only through `<img>`/`next/image`
+  without `priority`/`preload`, and a container of personal data gets the class `mp-block` (not
+  recorded). `mixpanel-browser` is imported only by `client.ts`,
+  through `import()`, so nothing loads before consent: `startAnalytics()` loads and inits the SDK
+  once per tab and opts it back in after a decline (a no-op with an empty
+  `NEXT_PUBLIC_MIXPANEL_TOKEN`, which only images published from `main` have); `stopAnalytics()`
+  stops sending and clears the SDK's storage. A failed SDK load leaves analytics off until the page
+  reloads and is not reported to Sentry.
 - `web` data from the api renders at request time inside `<Suspense>`: the web image must build with
   no api, Redis or database running.
 - Every new environment variable goes into `.env.example` with a comment.

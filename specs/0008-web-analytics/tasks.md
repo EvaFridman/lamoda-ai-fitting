@@ -41,16 +41,18 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       before PR 2 merges; Claude reminds the owner at T5 with the command.
       Check (Claude): `gh variable list` shows it, and its value equals the project token in
       Mixpanel's project settings.
-- [ ] **T6. Analytics client.** `mixpanel-browser` (plan §1, checked by `CONTRIBUTING.md`);
+- [x] **T6. Analytics client.** `mixpanel-browser` (plan §1, checked by `CONTRIBUTING.md`);
       `shared/analytics`: `events.ts`, `client.ts`, `use-tracked-element.ts` and their tests;
-      `CLAUDE.md` "Conventions" and the web row of "Stack and versions" (plan §3, §9).
-      Check: unit tests (start once, no-op before start, stop, hover 499/500 ms, once per page,
-      reset on path change); the `@ts-expect-error` test (AC9); `npm run verify`.
+      `CLAUDE.md` "Conventions" and the web row of "Stack and versions", the `README.md` line
+      (plan §3, §9, J27).
+      Check: unit tests (start once, no-op before start, empty token, failed load, stop, start
+      again after stop or a stored opt-out, hover 499/500 ms, once per page, reset on path change);
+      the `@ts-expect-error` test (AC9); `npm run verify`.
       Commit: `feat(web): add the analytics client`
 - [ ] **T7. Consent.** `features/cookie-consent`: the store, the banner, the gate, the settings
-      button; `--z-banner`; `_app/providers.tsx` (plan §4).
+      button; `--z-banner`; `_app/providers.tsx` (plan §4); the gate calls `useHoverReset()`.
       Check: unit tests (no answer, granted, denied, 366 days old, storage error, reopen, empty
-      token); `qa-tester` on the local stack with an empty token (AC13) and with a dummy token and
+      token, the gate resets hovers on a path change); `qa-tester` on the local stack with an empty token (AC13) and with a dummy token and
       Mixpanel requests intercepted (AC1–AC6); `npm run verify`.
       Commit: `feat(web): ask for analytics consent`
 - [ ] **T8. Policy page.** `/privacy` with the placeholder text and "Настройки cookies" (plan §5).
