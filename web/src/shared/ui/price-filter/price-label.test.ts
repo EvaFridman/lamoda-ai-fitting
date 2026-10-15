@@ -26,6 +26,10 @@ describe('priceLabel', () => {
     expect(priceLabel(bounds, [288900, 288900])).toBe('288 900 ₽');
   });
 
+  it('is undefined for bounds that are one price, with the range on it', () => {
+    expect(priceLabel([3000, 3000], [3000, 3000])).toBeUndefined();
+  });
+
   it('is undefined for the whole bounds', () => {
     expect(priceLabel(bounds, [60, 288900])).toBeUndefined();
   });

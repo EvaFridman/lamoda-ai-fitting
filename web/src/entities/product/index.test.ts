@@ -45,6 +45,21 @@ describe('entities/product public entry', () => {
     }
   });
 
+  it('exports the catalog filters', async () => {
+    const entry = await import('./index');
+    for (const name of [
+      'ColorFilter',
+      'AttributeFilter',
+      'BrandFilter',
+      'SizeFilter',
+      'PriceRangeFilter',
+      'DiscountFilter',
+      'ProductSortFilter',
+    ]) {
+      expect(typeof (entry as Record<string, unknown>)[name], name).toBe('function');
+    }
+  });
+
   it('exports nothing built on apiFetch', async () => {
     const entry = await import('./index');
     for (const name of [
