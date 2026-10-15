@@ -49,11 +49,16 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Check: a DTO change without `-u` fails the api tests; helper unit tests (missing, extra,
       wrong type, nullable, enum). AC11.
       Commit: `test(api): keep a snapshot of the openapi document`
-- [ ] **T7. Catalog entities.** Slices `category`, `brand`, `attribute`, `product`: schemas, server
+- [x] **T7. Catalog entities.** Slices `category`, `brand`, `attribute`, `product`: schemas, server
       query options in `server.ts`, contract tests per schema (plan §5).
       Check: a loader per route against a stubbed `fetch`; an extra field is dropped; adding a
       field to a DTO locally turns `verify` red, naming it (recorded here). AC1, AC9 (extra
       field), AC10.
+      Recorded 2026-10-15: a required `colorName` added to `ProductListItemDto` (optional in TS,
+      so the api still compiles) fails the snapshot test until `-u`; after `-u`, `npm run verify`
+      exits 1 with 4 failed tests, each naming the schema, the target and the field, e.g.
+      "productListItemSchema ↔ ProductListItemDto: colorName: in api, missing in web" and
+      "productListSchema ↔ GET /products 200: items[].colorName: …". Reverted.
       Commit: `feat(web): add typed catalog entities`
 - [ ] **T8. Admin-only entities.** Slices `user`, `fitting-session`, `generation`: schemas and
       types only, contract tests (H3).

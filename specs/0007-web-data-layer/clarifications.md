@@ -95,6 +95,13 @@ code comments. All decisions below: owner, 2026-10-15.
   `.default()`, `.transform()` and `z.coerce.date()`; `z.preprocess` and codecs it does not see. A
   list is checked against its route's response, so the `{ items, total }` wrapper is covered too.
   (Added in T6.)
+- **H20. Enums web sends.** A request value web copies from the api, so far the product list's
+  `sort` options, is checked too: the contract test compares the copy with the enum of that query
+  parameter in the OpenAPI document, so an option the api renames or drops turns `verify` red
+  instead of a 400 in production. (Added in T7.)
+- **H21. One row by id.** Categories, brands and attributes also load one by id
+  (`/categories/:id`, `/brands/:id`, `/attributes/:id`), beyond plan §5's list, so a later page
+  does not need a change of the entities. (Added in T7.)
 
 ## Verification
 
