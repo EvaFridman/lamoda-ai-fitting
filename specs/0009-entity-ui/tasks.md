@@ -75,7 +75,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 - [x] **T10. `CatalogCategoryList`.** In `entities/category/ui` (plan §3, K8).
       Check: rows link via `getHref` with their counts; the chosen one is marked. AC10 (component).
       Commit: `feat(web): add the catalog category list`
-- [ ] **T11. `/ui-kit` sections.** Fixtures `config/catalog.ts` with their schema test; sections
+- [x] **T11. `/ui-kit` sections.** Fixtures `config/catalog.ts` with their schema test; sections
       "Карточка товара в каталоге" and "Фильтры каталога" (plan §4).
       Check: the fixture test fails on a broken fixture and passes on the real one; section tests;
       qa-tester on `/ui-kit` (desktop and 375 px); `npm run verify` builds the page with no api.
