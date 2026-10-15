@@ -1,6 +1,7 @@
 import { Controller, Get, type INestApplication } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import { LoggerModule } from 'nestjs-pino';
 import request from 'supertest';
@@ -9,9 +10,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AdminOnly, Public } from '../src/common/auth/access.decorators.js';
 import { AccessGuard } from '../src/common/auth/access.guard.js';
 import { AppExceptionFilter } from '../src/common/filters/app-exception.filter.js';
-import { AppExpressAdapter } from '../src/common/http/app-express.adapter.js';
-import { useRequestContext } from '../src/common/http/request-context.js';
-import { createValidationPipe } from '../src/common/validation/validation-pipe.js';
+import { createHttpApp } from '../src/common/http/http-app.js';
 import { validateEnv } from '../src/config/env.js';
 
 @Controller('secured')
@@ -58,9 +57,11 @@ describe('access over HTTP', () => {
         { provide: APP_GUARD, useClass: AccessGuard },
       ],
     }).compile();
-    app = moduleRef.createNestApplication(new AppExpressAdapter(), { logger: false });
-    useRequestContext(app);
-    app.useGlobalPipes(createValidationPipe());
+    app = await createHttpApp(
+      (adapter, options) =>
+        moduleRef.createNestApplication<NestExpressApplication>(adapter, options),
+      { logger: false },
+    );
     await app.init();
   });
 

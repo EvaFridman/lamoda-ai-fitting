@@ -1,10 +1,12 @@
 import { Controller, Get, type INestApplication, type Type } from '@nestjs/common';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import { ApiQuery, ApiResponse, type OpenAPIObject, type OperationObject } from '@nestjs/swagger';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { AppModule } from '../src/app.module.js';
 import { ERROR_CODES, ERROR_STATUS, type ErrorCode } from '../src/common/errors/error-codes.js';
+import { createHttpApp } from '../src/common/http/http-app.js';
 import { createOpenApiDocument } from '../src/swagger.js';
 
 const METHODS = ['get', 'put', 'post', 'delete', 'patch'] as const;
@@ -160,7 +162,11 @@ describe('OpenAPI document (e2e)', () => {
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
-    app = moduleRef.createNestApplication({ logger: false });
+    app = await createHttpApp(
+      (adapter, options) =>
+        moduleRef.createNestApplication<NestExpressApplication>(adapter, options),
+      { logger: false },
+    );
     await app.init();
     document = createOpenApiDocument(app, 'test');
     ops = operationsOf(document);

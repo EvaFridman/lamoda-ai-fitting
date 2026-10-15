@@ -1,4 +1,5 @@
 import type { INestApplication } from '@nestjs/common';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import { getLoggerToken } from 'nestjs-pino';
 import request from 'supertest';
@@ -6,9 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AppModule } from '../src/app.module.js';
 import { AppExceptionFilter } from '../src/common/filters/app-exception.filter.js';
-import { AppExpressAdapter } from '../src/common/http/app-express.adapter.js';
-import { useRequestContext } from '../src/common/http/request-context.js';
-import { createValidationPipe } from '../src/common/validation/validation-pipe.js';
+import { createHttpApp } from '../src/common/http/http-app.js';
 
 // vitest.config.ts: PROXY_SECRET and five reads per route. Each test boots its own app, so the
 // in-memory request counters (Redis is down) start empty. Set up like src/server.ts.
@@ -24,9 +23,11 @@ describe('request context (e2e)', () => {
       .overrideProvider(getLoggerToken(AppExceptionFilter.name))
       .useValue(logger)
       .compile();
-    app = moduleRef.createNestApplication(new AppExpressAdapter(), { logger: false });
-    useRequestContext(app);
-    app.useGlobalPipes(createValidationPipe());
+    app = await createHttpApp(
+      (adapter, options) =>
+        moduleRef.createNestApplication<NestExpressApplication>(adapter, options),
+      { logger: false },
+    );
     await app.init();
   });
 

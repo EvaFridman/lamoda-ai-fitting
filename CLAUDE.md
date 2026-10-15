@@ -176,11 +176,12 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   each database constraint (a new constraint gets a row there). Path ids use `@UuidParam('id')`
   (`common/pipes/`): `UuidPipe` plus the uuid format in Swagger. Services write references as scalar ids (`brandId`), not nested `connect`,
   so a missing one answers `RELATED_NOT_FOUND`. `/health/*` keep their own format (the deploy
-  reads them). e2e apps that send bodies, check errors or pass the throttler or admin routes are
-  set up as `server.ts` does: `AppExpressAdapter` (`common/http/`, else broken JSON is a plain 400) with `bodyParser: false`, `useRequestContext(app)` before `init()` (else those routes
-  answer 500), then `useBodyParser('json', { limit: BODY_LIMIT })`, and `createValidationPipe()`
-  (`common/validation/`); database e2e get such an app from
-  `createTestApp()` (`test/support/test-app.ts`). Swagger error responses: `swagger.ts` adds the
+  reads them). `server.ts` and every e2e app whose module provides `ConfigService` are created by
+  `createHttpApp()` (`common/http/http-app.ts`): `AppExpressAdapter` (else broken JSON is a plain 400) with `bodyParser: false`, `useRequestContext(app)` (else every route behind the global
+  guards answers 500), CORS, the JSON parser with `BODY_LIMIT` and `createValidationPipe()`
+  (`common/validation/`). A step the server and the tests share goes there, and no e2e spec repeats
+  one; a unit spec of a single piece (the middleware, Swagger metadata) may build a bare app.
+  Database e2e get such an app from `createTestApp()` (`test/support/test-app.ts`). Swagger error responses: `swagger.ts` adds the
   ones a route's shape implies (body, query, `@UuidParam`, admin, 429/500/503); a route that can
   answer 409 `ALREADY_EXISTS`/`IN_USE` or 400 `RELATED_NOT_FOUND`/`CONSTRAINT_VIOLATION` declares
   them with `@ApiErrors(...)` (`common/errors/`).

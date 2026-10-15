@@ -109,7 +109,7 @@ After the merge of PR 1:
       Check: e2e: 150 KB of JSON → 413 `PAYLOAD_TOO_LARGE`; unit: 60 unknown fields → 51 details.
       AC11 (api part), AC16.
       Commit: `feat(api): cap the body size and the validation details`
-- [ ] **T9b. One HTTP setup for the server and the tests.** Added in T9's review (owner,
+- [x] **T9b. One HTTP setup for the server and the tests.** Added in T9's review (owner,
       2026-10-15): the steps `server.ts` takes (no default parsers, request context, CORS, the
       JSON parser with `BODY_LIMIT`, the global pipe) were copied by hand into `createTestApp()`
       and the e2e specs, and five of them lacked the body limit. One function in `common/http/`

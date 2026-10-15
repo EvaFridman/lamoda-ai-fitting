@@ -65,7 +65,7 @@ export function requestContextMiddleware(
 }
 
 // Registers the middleware on an app that is not initialised yet, with the values from its
-// configuration. server.ts and every e2e app that goes through guards call it before `init()`.
+// configuration. createHttpApp (http-app.ts) calls it before `init()`.
 export function useRequestContext(app: INestApplication): void {
   const config = app.get<ConfigService<Env, true>>(ConfigService);
   app.use(
