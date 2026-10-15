@@ -82,13 +82,58 @@ export async function startAnalytics(): Promise<void> {
   active = mixpanel;
 }
 
-/** Stops sending in this tab and clears the SDK's storage (J16). */
+// What the SDK keeps in the browser: its storage keys and IndexedDB databases (the names in
+// mixpanel-browser 2.84's source; check them when the SDK is updated).
+const SDK_KEY_PREFIXES = ['mp_', '__mp'];
+// The opt-out stays: it names no visitor, and an SDK still running in another tab reads it to stop
+// sending after a decline there.
+const SDK_OPT_OUT_PREFIX = '__mp_opt_in_out_';
+const SDK_DATABASES = ['mixpanelBrowserDb', 'mixpanelFlagsDb'];
+
+// Removes what an earlier start left when no SDK runs in this tab to opt out: an answer that
+// expired, or a decline in a tab where the SDK never loaded (J32). Best effort: blocked storage
+// holds nothing to clear. Deleting a database that does not exist costs nothing.
+function clearSdkStorage(): void {
+  for (const storage of [window.localStorage, window.sessionStorage]) {
+    try {
+      const keys = Array.from({ length: storage.length }, (_, i) => storage.key(i) ?? '');
+      for (const key of keys) {
+        if (
+          SDK_KEY_PREFIXES.some((prefix) => key.startsWith(prefix)) &&
+          !key.startsWith(SDK_OPT_OUT_PREFIX)
+        ) {
+          storage.removeItem(key);
+        }
+      }
+    } catch {
+      // storage blocked
+    }
+  }
+  if (typeof indexedDB === 'undefined') return;
+  for (const name of SDK_DATABASES) {
+    try {
+      indexedDB.deleteDatabase(name);
+    } catch {
+      // IndexedDB blocked
+    }
+  }
+}
+
+/**
+ * Stops sending in this tab and clears the SDK's storage (J16); call it whenever there is no
+ * consent. Without an SDK initialized in this tab, it clears what an earlier one left (J32).
+ */
 export function stopAnalytics(): void {
   wanted = false;
-  if (active === undefined) return;
-  active.stop_session_recording();
-  active.opt_out_tracking();
-  active = undefined;
+  if (active !== undefined) {
+    active.stop_session_recording();
+    active.opt_out_tracking();
+    active = undefined;
+    return;
+  }
+  // An SDK initialized here and stopped already opted out; its opt-out must stay, or a later start
+  // in this tab would not opt it back in (J26).
+  if (!initialized) clearSdkStorage();
 }
 
 /** Sends a listed event; a no-op until analytics has started, so callers need no checks. */

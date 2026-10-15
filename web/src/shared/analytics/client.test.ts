@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const sdk = {
   init: vi.fn(),
@@ -166,6 +166,94 @@ describe('analytics client', () => {
     client.stopAnalytics();
     expect(sdk.stop_session_recording).not.toHaveBeenCalled();
     expect(sdk.opt_out_tracking).not.toHaveBeenCalled();
+  });
+
+  describe('clearing the SDK storage (J32)', () => {
+    const deleteDatabase = vi.fn();
+
+    beforeEach(() => {
+      window.localStorage.clear();
+      window.sessionStorage.clear();
+      vi.stubGlobal('indexedDB', { deleteDatabase });
+    });
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      vi.restoreAllMocks();
+      window.localStorage.clear();
+      window.sessionStorage.clear();
+    });
+
+    it('with no SDK initialized, removes mp_ and __mp keys from both storages and deletes both databases', async () => {
+      window.localStorage.setItem('mp_abc_mixpanel', '1');
+      window.localStorage.setItem('__mpq_abc', '1');
+      window.localStorage.setItem('cookie-consent', 'keep');
+      window.sessionStorage.setItem('mp_session', '1');
+      window.sessionStorage.setItem('__mps', '1');
+      window.sessionStorage.setItem('other', 'keep');
+      const client = await load('tok');
+      client.stopAnalytics();
+      expect(window.localStorage.length).toBe(1);
+      expect(window.localStorage.getItem('cookie-consent')).toBe('keep');
+      expect(window.sessionStorage.length).toBe(1);
+      expect(window.sessionStorage.getItem('other')).toBe('keep');
+      expect(deleteDatabase).toHaveBeenCalledTimes(2);
+      expect(deleteDatabase).toHaveBeenCalledWith('mixpanelBrowserDb');
+      expect(deleteDatabase).toHaveBeenCalledWith('mixpanelFlagsDb');
+      expect(sdk.opt_out_tracking).not.toHaveBeenCalled();
+    });
+
+    it('deletes both databases even when no SDK key was found', async () => {
+      window.localStorage.setItem('other', 'keep');
+      const client = await load('tok');
+      client.stopAnalytics();
+      expect(window.localStorage.getItem('other')).toBe('keep');
+      expect(deleteDatabase).toHaveBeenCalledTimes(2);
+      expect(deleteDatabase).toHaveBeenCalledWith('mixpanelBrowserDb');
+      expect(deleteDatabase).toHaveBeenCalledWith('mixpanelFlagsDb');
+    });
+
+    it('keeps the SDK opt-in/out key while removing its other keys', async () => {
+      window.localStorage.setItem('__mp_opt_in_out_x', '0');
+      window.localStorage.setItem('mp_x', '1');
+      window.localStorage.setItem('__mpq_x', '1');
+      const client = await load('tok');
+      client.stopAnalytics();
+      expect(window.localStorage.getItem('__mp_opt_in_out_x')).toBe('0');
+      expect(window.localStorage.getItem('mp_x')).toBeNull();
+      expect(window.localStorage.getItem('__mpq_x')).toBeNull();
+    });
+
+    it('after start and stop opts out and leaves the storage alone, also on a second stop', async () => {
+      const client = await load('tok');
+      await client.startAnalytics();
+      window.localStorage.setItem('mp_abc_mixpanel', 'opt-out');
+      client.stopAnalytics();
+      expect(sdk.opt_out_tracking).toHaveBeenCalledTimes(1);
+      client.stopAnalytics();
+      expect(window.localStorage.getItem('mp_abc_mixpanel')).toBe('opt-out');
+      expect(deleteDatabase).not.toHaveBeenCalled();
+    });
+
+    it('does not throw when the storage throws', async () => {
+      window.localStorage.setItem('mp_abc_mixpanel', '1');
+      vi.spyOn(Storage.prototype, 'key').mockImplementation(() => {
+        throw new Error('blocked');
+      });
+      const client = await load('tok');
+      expect(() => client.stopAnalytics()).not.toThrow();
+    });
+
+    it('does not throw when removing a key or deleting a database throws', async () => {
+      window.localStorage.setItem('mp_abc_mixpanel', '1');
+      vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+        throw new Error('blocked');
+      });
+      deleteDatabase.mockImplementation(() => {
+        throw new Error('blocked');
+      });
+      const client = await load('tok');
+      expect(() => client.stopAnalytics()).not.toThrow();
+    });
   });
 
   it('starts again after stop without a second init, opting back in', async () => {

@@ -123,7 +123,8 @@
   // Layers: Base UI portals render into <body>, so a popup needs a z-index above the page
   // (Lamoda's filter popover sits at 30). Added with the first component that needs one (D11c).
   // Modals and drawers sit under popovers and tooltips, so a select or a hint inside a modal
-  // shows over it, as on Lamoda.
+  // shows over it, as on Lamoda. The cookie banner sits over the page and under all of them.
+  --z-banner: 10;
   --z-modal: 20;
   --z-popover: 30;
   --z-tooltip: 40;
