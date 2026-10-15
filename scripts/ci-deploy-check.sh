@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 # Runs the production setup on this machine with images built by ci-build-images.sh and checks a
 # blue-green deploy end to end, with the same deploy.sh the server runs:
-#   1. deploy <tag> (blue), smoke test through nginx; the seed loaded the demo catalog;
+#   1. deploy <tag> (blue), smoke test through nginx; the seed loaded the demo catalog; nginx's
+#      request id is on the response and on nginx's and the api's log lines (spec 0006 AC14);
 #   2. deploy the same images as a second version (green) while scripts/request-loop.sh runs:
 #      no request may fail (AC26); smoke test of the new version; the second seed changed no
-#      counts (spec 0002, AC11).
+#      counts (spec 0002, AC11);
+#   3. rotate PROXY_SECRET and roll back to <tag>, still running in blue: deploy.sh recreates it
+#      with the new secret, so it trusts nginx's request id again (spec 0006 F18).
 # nginx runs on its temporary self-signed certificate, SITE_DOMAIN is localhost, ports 80 and 443
 # must be free. Used by the `images` job in CI; runs locally the same way. Outside CI it removes, on
 # exit, the stacks it started with their volumes, and refuses to start next to an existing one
@@ -50,6 +53,30 @@ counts() {
 }
 count_of() { sed -n "s/^$1=//p" <<< "$2"; }
 
+# AC14 (spec 0006 F10): a request to <path> that sends its own X-Request-Id gets exactly one back,
+# nginx's (32 hex characters), and that id is on nginx's and the api's log lines. Through `/` the
+# api's line is web's call to the api, so it checks the proxy secret web sends as well.
+check_request_id() {
+  local path="$1" color="$2" ids id i nginx_log api_log
+  ids="$(curl -sk --max-time 10 -o /dev/null -D - -H 'X-Request-Id: chosen-by-the-client' \
+    "https://localhost$path" | tr -d '\r' | awk -F': ' 'tolower($1) == "x-request-id" { print $2 }')" \
+    || { echo "ci-deploy-check: $path: the request failed" >&2; return 1; }
+  [ "$(wc -l <<< "$ids")" -eq 1 ] && [[ "$ids" =~ ^[0-9a-f]{32}$ ]] \
+    || { echo "ci-deploy-check: $path answers X-Request-Id '$ids', expected one from nginx" >&2; return 1; }
+  id="$ids"
+  # Log lines are written after the response. Read whole, not piped into grep -q: under pipefail
+  # the writer's SIGPIPE would fail the check.
+  for i in 1 2 3 4 5; do
+    nginx_log="$(docker compose -f deploy/compose/infra.yml --env-file "$env_file" logs nginx 2>&1)"
+    api_log="$(docker logs "ai-fitting-$color-api-1" 2>&1)"
+    grep -qF "request_id=$id" <<< "$nginx_log" && grep -qF "\"$id\"" <<< "$api_log" \
+      && { echo "request id $id of $path is on nginx's and the api's log lines"; return 0; }
+    sleep 1
+  done
+  echo "ci-deploy-check: request id $id of $path is missing from nginx's or the api's log" >&2
+  return 1
+}
+
 # A throwaway environment. The request loop comes from one address, so the per-client limit is
 # raised: this checks switching, not rate limiting.
 cat > "$env_file" <<EOF
@@ -59,6 +86,7 @@ POSTGRES_DB=ai_fitting
 SITE_DOMAIN=localhost
 MEDIA_BASE_URL=https://localhost/media/
 THROTTLE_LIMIT=1000000
+PROXY_SECRET=$(openssl rand -hex 32)
 EOF
 
 # Outside CI: remove what this run starts, so the next run gets a fresh database. Only what it
@@ -110,6 +138,9 @@ echo "$first_counts"
   && [ "$(count_of products "$first_counts")" -ge 30 ] && [ "$(count_of users "$first_counts")" -eq 0 ] \
   && [ "$(count_of products_incomplete "$first_counts")" -eq 0 ] \
   || { echo "ci-deploy-check: the seed did not load the demo catalog" >&2; exit 1; }
+# /api/hello, not /api/health/live: the api does not log health checks.
+check_request_id /api/hello blue
+check_request_id / blue
 endgroup
 
 group "deploy $second (green) under a request loop"
@@ -130,4 +161,16 @@ endgroup
   printf 'ci-deploy-check: the second seed changed the counts:\n%s\n' "$second_counts" >&2
   exit 1
 }
+
+group "rotate PROXY_SECRET, roll back to $tag (blue, still running)"
+grep -v '^PROXY_SECRET=' "$env_file" > "$work/rotated.env"
+echo "PROXY_SECRET=$(openssl rand -hex 32)" >> "$work/rotated.env"
+cp "$work/rotated.env" "$env_file"
+ENV_FILE="$env_file" deploy/scripts/deploy.sh "$tag"
+scripts/smoke-test.sh https://localhost "$tag"
+# The rolled-back copy takes nginx's new secret: it trusts nginx's request id again.
+check_request_id /api/hello blue
+check_request_id / blue
+endgroup
+
 echo "ci-deploy-check: ok"

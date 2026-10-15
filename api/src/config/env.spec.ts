@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { validateEnv } from './env.js';
+import { assertServerEnv, validateEnv } from './env.js';
 
 const valid = {
   WEB_ORIGIN: 'http://localhost:3001',
@@ -41,6 +41,12 @@ describe('validateEnv', () => {
     expect(message).not.toContain(token);
   });
 
+  it('still accepts ADMIN_API_TOKEN with punctuation', () => {
+    const token = 'a-b_'.repeat(10);
+
+    expect(validateEnv({ ...valid, ADMIN_API_TOKEN: token }).ADMIN_API_TOKEN).toBe(token);
+  });
+
   it('defaults PROXY_SECRET to an empty string', () => {
     expect(validateEnv(valid).PROXY_SECRET).toBe('');
   });
@@ -55,6 +61,11 @@ describe('validateEnv', () => {
     ['a leading space', ` ${'a'.repeat(39)}`],
     ['a trailing space', `${'a'.repeat(39)} `],
     ['a tab', `${'a'.repeat(39)}\t`],
+    ['a dollar sign', `${'a'.repeat(39)}$`],
+    ['a double quote', `${'a'.repeat(39)}"`],
+    ['a semicolon', `${'a'.repeat(39)};`],
+    ['a hyphen', `${'a'.repeat(20)}-${'a'.repeat(19)}`],
+    ['a backtick', `${'a'.repeat(39)}\``],
   ])('refuses PROXY_SECRET with %s, naming the variable but not the value', (_name, secret) => {
     const message = thrownMessage(() => validateEnv({ ...valid, PROXY_SECRET: secret }));
 
@@ -63,7 +74,7 @@ describe('validateEnv', () => {
   });
 
   it('refuses an equal PROXY_SECRET and ADMIN_API_TOKEN, naming both but not the value', () => {
-    const shared = 'shared-value-0123456789abcdef-xyz';
+    const shared = 'sharedvalue0123456789abcdefxyz01';
 
     const message = thrownMessage(() =>
       validateEnv({ ...valid, PROXY_SECRET: shared, ADMIN_API_TOKEN: shared }),
@@ -86,6 +97,13 @@ describe('validateEnv', () => {
     expect(env.ADMIN_API_TOKEN).toBe(admin);
   });
 
+  it('accepts production with an empty PROXY_SECRET (the temporal-worker has none)', () => {
+    const env = validateEnv({ ...valid, NODE_ENV: 'production', PROXY_SECRET: '' });
+
+    expect(env.NODE_ENV).toBe('production');
+    expect(env.PROXY_SECRET).toBe('');
+  });
+
   it.each(['http://localhost:3001/media/', 'https://example.ru/media/'])(
     'accepts MEDIA_BASE_URL %s',
     (url) => {
@@ -101,5 +119,23 @@ describe('validateEnv', () => {
 
   it.each(['ftp://example.ru/media/', 'not a url', ''])('refuses MEDIA_BASE_URL %j', (url) => {
     expect(() => validateEnv({ ...valid, MEDIA_BASE_URL: url })).toThrow(/MEDIA_BASE_URL/);
+  });
+});
+
+describe('assertServerEnv', () => {
+  it('refuses production with an empty PROXY_SECRET, naming the variable', () => {
+    expect(() => assertServerEnv({ NODE_ENV: 'production', PROXY_SECRET: '' })).toThrow(
+      'Invalid environment: PROXY_SECRET: must be set in production',
+    );
+  });
+
+  it('accepts production with a PROXY_SECRET', () => {
+    expect(() =>
+      assertServerEnv({ NODE_ENV: 'production', PROXY_SECRET: 'p'.repeat(32) }),
+    ).not.toThrow();
+  });
+
+  it.each(['development', 'test'] as const)('accepts %s with an empty PROXY_SECRET', (nodeEnv) => {
+    expect(() => assertServerEnv({ NODE_ENV: nodeEnv, PROXY_SECRET: '' })).not.toThrow();
   });
 });

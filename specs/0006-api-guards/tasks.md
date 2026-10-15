@@ -32,6 +32,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 Before the merge:
 
 - 👤 Add `PROXY_SECRET` to GitHub Environment `production` (`openssl rand -hex 32`).
+- 👤 Merge at a quiet time: the deploy recreates nginx, a few seconds down (F21).
 
 - [x] **T4. Request context in the api.** `common/http/request-context.ts` (plan §1): trusted source
       by `X-Proxy-Secret`, client address, request id, principal; `@CurrentPrincipal()`;
@@ -51,27 +52,40 @@ Before the merge:
       Check: unit test of `apiFetch` headers; locally, two page loads with different
       `X-Real-IP` through web count as two clients in the api's log. AC8 (web part).
       Commit: `feat(web): send the proxy secret and the request id to the api`
-- [ ] **T6. nginx and CD send them too.** Proxy headers move into one included snippet with
+- [x] **T6. nginx and CD send them too.** Proxy headers move into one included snippet with
       `X-Proxy-Secret ${PROXY_SECRET}` (on `/api/` and `/socket.io/`, not on `/`) and
       `X-Request-Id $request_id` (everywhere); `add_header X-Request-Id … always`,
       `proxy_hide_header X-Request-Id`; `log_format` with `$request_id`. `PROXY_SECRET` reaches
       nginx (`infra.yml`), api and web (`app.yml`) and the server's `.env` (`cd.yml`);
-      `deploy/README.md` lists it. F18: the api's env schema refuses an empty `PROXY_SECRET` with
-      `NODE_ENV=production`; `cd.yml` stops before writing `.env` when the secret is missing;
+      `deploy/README.md` lists it. F18: the api's HTTP server refuses to start with an empty
+      `PROXY_SECRET` and `NODE_ENV=production` (not the env schema the worker shares); `cd.yml` stops before writing `.env` when the secret is missing;
       `ci-deploy-check.sh` sets one. F20: `app.yml` gives web `${PROXY_SECRET:?…}`; web's
       `getServerEnv` refuses an empty one with `NODE_ENV=production`. From T5's security review:
       `/` keeps overwriting `X-Real-IP` and `X-Forwarded-For` (web trusts them and forwards them
       with the secret), sets `X-Proxy-Secret ""`, and `/socket.io/` gets the snippet too (its own
-      `proxy_set_header` lines do not inherit); web's port stays unpublished.
+      `proxy_set_header` lines do not inherit); web's port stays unpublished. From T6's review
+      (F18): the secret is 32+ letters or digits (api, web, and `cd.yml`'s first step, which also
+      refuses it equal to `ADMIN_API_TOKEN`); `apply_nginx_config` rolls back all of `conf.d`; a
+      rollback to the running copy recreates it when its config changed and checks readiness.
       Check: `scripts/ci-deploy-check.sh` passes; through the CI nginx a response's
       `X-Request-Id` is on nginx's and the api's log lines; a client-sent one is replaced, also
-      through `/` (web forwards it to the api). AC8, AC14.
+      through `/` (web forwards it to the api); after a rotated secret and a rollback to the
+      running copy, it is trusted again. AC8, AC14.
       Commit: `feat(deploy): pass the proxy secret and the request id through nginx`
+- [ ] **T6b. Rotation without a gap (F21).** The api accepts `PROXY_SECRET_NEXT` as well
+      (`request-context.ts`, env schema: same format, refused equal to `ADMIN_API_TOKEN`, may be
+      empty); `app.yml` passes it to the api only; `cd.yml` writes it and checks its format when
+      set; `.env.example`; `deploy/README.md` describes rotation in two deploys and drops T6's
+      interim note.
+      Check: unit and e2e tests of both secrets; `ci-deploy-check.sh`'s rotation step goes
+      through `PROXY_SECRET_NEXT` and also passes with a failed deploy in between. AC8.
+      Commit: `feat(api): accept the next proxy secret while it is rotated`
 
 After the merge of PR 1:
 
 - 👤 On the public domain: two addresses get separate quotas; `X-Request-Id` is on the response
-  (AC8, AC14).
+  (AC8, AC14). The deploy recreates nginx once (its new `PROXY_SECRET`): a few seconds down.
+- 👤 Rotate `PROXY_SECRET` and deploy again: until the switch the old copy logged it (F18).
 
 ## PR 2 · `feat/0006-api-guards` · access, quotas, body, details, timeouts, sockets
 

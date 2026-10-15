@@ -82,6 +82,14 @@ code comments.
   deploy still looks healthy. The api refuses to start with `NODE_ENV=production` and an empty
   `PROXY_SECRET`, and CD stops before writing `.env` when the secret is missing. Done in T6, with
   CD and `scripts/ci-deploy-check.sh`, so no release runs the check without the secret in place.
+  Settled in T6 (owner, 2026-10-15): the refusal is made by the HTTP server at start, not by the
+  env schema the temporal-worker shares; the worker sends no HTTP and does not get the secret.
+  Also settled in T6's review (owner, 2026-10-15): the secret is 32+ letters or digits only (api,
+  web, CD), as it goes into nginx's config and the sourced `.env`; and since a copy from before
+  0006 logs request headers in full, the secret is rotated after the first deploy with it and
+  after any rollback to such a copy, once the site is back on a 0006 version (`deploy/README.md`).
+  A rollback to the copy that still runs recreates it first when `.env` changed since it started,
+  so a rotated secret reaches it (changes 0001 D6a's switch-only rollback in that case).
 - **F19. Two different secrets.** Added in T4's review: `PROXY_SECRET` reaches web, which does not
   need the admin token; if the two were equal, a leak from web would open the admin routes. The
   api refuses to start when both are set and equal, without printing either value.
@@ -91,7 +99,17 @@ code comments.
   `app.yml` passes it to web as `${PROXY_SECRET:?…}`, so compose refuses to start web without
   it and the running copy keeps serving; web's `getServerEnv` refuses an empty one with
   `NODE_ENV=production` (a backstop: env is read at request time, so this shows in logs and
-  Sentry, and web's health check on `/` may not catch it).
+  Sentry, and web's health check on `/` may not catch it). Revised in T6's review (owner,
+  2026-10-15): it shows in web's logs only, as the greeting catches the error and renders its
+  fallback; api call failures in web reaching Sentry is a backlog item.
+- **F21. Secret rotation in two deploys.** Added in T6's review (owner, 2026-10-15): nginx is
+  recreated with a new `PROXY_SECRET` before the migrations, so a deploy that then fails left the
+  running copy on the old secret and every visitor of `/api/` in one quota until the next good
+  deploy. The api also accepts an optional `PROXY_SECRET_NEXT` (same format, not equal to
+  `ADMIN_API_TOKEN`; nginx and web never send it). Rotation: set `PROXY_SECRET_NEXT` to the new
+  value and deploy; then make it `PROXY_SECRET`, clear `PROXY_SECRET_NEXT` and deploy. Done in
+  T6b. Each `PROXY_SECRET` change and the first deploy with it recreate nginx: a few seconds
+  down, accepted by the owner; PR 1 is merged at a quiet time (`.claude/rules/deploy.md`).
 
 ## Validation
 

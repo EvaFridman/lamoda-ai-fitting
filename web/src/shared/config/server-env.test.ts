@@ -61,8 +61,52 @@ describe('getServerEnv PROXY_SECRET', () => {
     expect(() => getServerEnv()).toThrow(/PROXY_SECRET/);
   });
 
+  it.each([
+    ['a dollar sign', '$'],
+    ['a double quote', '"'],
+    ['a semicolon', ';'],
+    ['a hyphen', '-'],
+    ['a backtick', '`'],
+    ['a tab', '\t'],
+  ])('rejects a secret with %s, without printing it', async (_name, char) => {
+    const secret = `${'k'.repeat(20)}${char}${'k'.repeat(20)}`;
+    const getServerEnv = await load({ PROXY_SECRET: secret });
+    expect(() => getServerEnv()).toThrow(/PROXY_SECRET/);
+    expect(() => getServerEnv()).not.toThrow(secret);
+  });
+
   it('rejects a blank value', async () => {
     const getServerEnv = await load({ PROXY_SECRET: ' '.repeat(40) });
     expect(() => getServerEnv()).toThrow(/PROXY_SECRET/);
+  });
+});
+
+describe('getServerEnv PROXY_SECRET in production', () => {
+  it('rejects an absent secret', async () => {
+    const getServerEnv = await load({ NODE_ENV: 'production' });
+    expect(() => getServerEnv()).toThrow(/PROXY_SECRET: must be set in production/);
+  });
+
+  it('rejects an empty secret', async () => {
+    const getServerEnv = await load({ NODE_ENV: 'production', PROXY_SECRET: '' });
+    expect(() => getServerEnv()).toThrow(/PROXY_SECRET: must be set in production/);
+  });
+
+  it('accepts a valid secret', async () => {
+    const secret = 'k'.repeat(40);
+    const getServerEnv = await load({ NODE_ENV: 'production', PROXY_SECRET: secret });
+    expect(getServerEnv().PROXY_SECRET).toBe(secret);
+  });
+
+  it.each(['development', 'test'])('accepts an empty secret in %s', async (nodeEnv) => {
+    const getServerEnv = await load({ NODE_ENV: nodeEnv, PROXY_SECRET: '' });
+    expect(getServerEnv().PROXY_SECRET).toBe('');
+  });
+
+  it('never puts a secret value into the error message', async () => {
+    const secret = 'k'.repeat(20) + ' ' + 'k'.repeat(20);
+    const getServerEnv = await load({ NODE_ENV: 'production', PROXY_SECRET: secret });
+    expect(() => getServerEnv()).toThrow(/PROXY_SECRET/);
+    expect(() => getServerEnv()).not.toThrow(secret);
   });
 });

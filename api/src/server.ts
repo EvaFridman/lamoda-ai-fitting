@@ -9,7 +9,7 @@ import { AppModule } from './app.module.js';
 import { AppExpressAdapter } from './common/http/app-express.adapter.js';
 import { useRequestContext } from './common/http/request-context.js';
 import { createValidationPipe } from './common/validation/validation-pipe.js';
-import type { Env } from './config/env.js';
+import { assertServerEnv, type Env } from './config/env.js';
 import { SocketIoAdapter } from './realtime/socket-io.adapter.js';
 import { setupSwagger } from './swagger.js';
 
@@ -20,6 +20,10 @@ async function bootstrap(): Promise<void> {
   });
   app.useLogger(app.get(Logger));
   const config = app.get<ConfigService<Env, true>>(ConfigService);
+  assertServerEnv({
+    NODE_ENV: config.get('NODE_ENV', { infer: true }),
+    PROXY_SECRET: config.get('PROXY_SECRET', { infer: true }),
+  });
 
   // X-Forwarded-For counts only on a request with the proxy secret (spec 0006 F13): the
   // request-context middleware reads it, so Express must not (req.ip stays the connection's).

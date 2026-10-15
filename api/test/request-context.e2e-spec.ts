@@ -12,7 +12,7 @@ import { createValidationPipe } from '../src/common/validation/validation-pipe.j
 
 // vitest.config.ts: PROXY_SECRET and THROTTLE_LIMIT=5. Each test boots its own app, so the
 // in-memory request counters (Redis is down) start empty. Set up like src/server.ts.
-const PROXY_SECRET = 'test-proxy-secret-0123456789abcdef';
+const PROXY_SECRET = 'testproxysecret0123456789abcdef0';
 
 describe('request context (e2e)', () => {
   const logger = { warn: vi.fn(), error: vi.fn() };

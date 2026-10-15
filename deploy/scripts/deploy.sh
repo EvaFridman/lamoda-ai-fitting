@@ -89,10 +89,17 @@ apply_nginx_config() {
       echo "nginx sees no template: its mount of deploy/nginx/templates is stale; recreate nginx" >&2
       exit 1
     fi
-    cp /etc/nginx/conf.d/default.conf /tmp/default.conf.prev
+    # Every rendered file (default.conf and the snippets it includes) is rolled back together.
+    rm -rf /tmp/conf.d.prev
+    cp -a /etc/nginx/conf.d /tmp/conf.d.prev
     . /docker-entrypoint.d/15-local-resolvers.envsh
     /docker-entrypoint.d/20-envsubst-on-templates.sh >/dev/null
-    if ! nginx -t -q; then cp /tmp/default.conf.prev /etc/nginx/conf.d/default.conf; exit 1; fi
+    if ! nginx -t -q; then
+      # Emptied first: a file only the new templates render would stay and load on the next reload.
+      find /etc/nginx/conf.d -mindepth 1 -delete
+      cp -a /tmp/conf.d.prev/. /etc/nginx/conf.d/
+      exit 1
+    fi
     nginx -s reload
   '
 }
@@ -126,7 +133,14 @@ apply_nginx_config || fail "the deployed nginx config was not applied (see above
 
 if [ "$(image_tag_of "$target")" = "$tag" ] && is_healthy "$target" api && is_healthy "$target" web; then
   # 3a. Rollback to the version that ran before: it is still running, only the switch is left.
-  log "$target already runs $tag and is healthy: switching only"
+  #     `up` is a no-op unless .env or app.yml changed since it started (a rotated PROXY_SECRET or
+  #     ADMIN_API_TOKEN, a new variable): then compose recreates it, or nginx's new secret would
+  #     not match its old one and every visitor of /api/ would share one quota (spec 0006 F18).
+  log "$target already runs $tag and is healthy: switching only, recreated if its config changed"
+  if ! app "$target" "$tag" up -d --wait --remove-orphans; then
+    app "$target" "$tag" stop >&2 || true
+    fail "$target with $tag did not become healthy; stopped it, ${active:-nothing} keeps serving"
+  fi
 else
   # 3b. Migrations first, from the new image. They must stay compatible with the running version
   #     (specs/principles.md), which keeps serving until the switch.
@@ -155,21 +169,22 @@ else
     app "$target" "$tag" stop >&2 || true
     fail "$target with $tag did not become healthy; stopped it, ${active:-nothing} keeps serving"
   fi
-  # Readiness from inside: the new api reaches Postgres, Redis and Temporal. Each check is one
-  # attempt per dependency (no retries inside the api), so a dependency that blips while the new
-  # copy connects gets up to 10 attempts, 1 s apart.
-  ready=""
-  for _ in $(seq 1 10); do
-    if app "$target" "$tag" exec -T api node -e \
-      "fetch('http://127.0.0.1:3000/health/ready').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"; then
-      ready=1
-      break
-    fi
-    sleep 1
-  done
-  [ -n "$ready" ] \
-    || { app "$target" "$tag" stop >&2 || true; fail "$target is not ready; stopped it, ${active:-nothing} keeps serving"; }
 fi
+
+# Readiness from inside, for a new copy and a rollback alike (3a may have recreated it): the api
+# reaches Postgres, Redis and Temporal. Each check is one attempt per dependency (no retries inside
+# the api), so a dependency that blips while the copy connects gets up to 10 attempts, 1 s apart.
+ready=""
+for _ in $(seq 1 10); do
+  if app "$target" "$tag" exec -T api node -e \
+    "fetch('http://127.0.0.1:3000/health/ready').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"; then
+    ready=1
+    break
+  fi
+  sleep 1
+done
+[ -n "$ready" ] \
+  || { app "$target" "$tag" stop >&2 || true; fail "$target is not ready; stopped it, ${active:-nothing} keeps serving"; }
 
 # 4. Switch, then confirm from outside that the new version answers.
 log "switching nginx to $target"

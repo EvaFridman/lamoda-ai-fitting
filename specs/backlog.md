@@ -68,6 +68,10 @@ removes it from this list. Found by the agents' first security audit and trial r
 
 ## web
 
+- **api call failures in Sentry.** web's server-side calls to the api that fail (api down, a
+  timeout, an invalid response, web's own env refused, 0006 F20) are caught by the component, logged
+  with `console.error` and replaced by a fallback; nothing reaches Sentry and the page answers 200.
+  Report them (once per cause, not per page view) when pages with real data land.
 - **Web data layer (spec 0007, next after 0006; 0005 G2).** Typed access to the api of spec 0004,
   with no pages; 0007 adds tasks of its own. Starting point, from 0004 E22, E26–E28 (open to change
   in 0007):

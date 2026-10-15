@@ -82,6 +82,8 @@ services:
     image: nginx:1.30.5-alpine
     environment:
       SITE_DOMAIN: ${SITE_DOMAIN:?set SITE_DOMAIN}
+      # Sent to the api as X-Proxy-Secret (spec 0006 F13); without it nginx does not start.
+      PROXY_SECRET: ${PROXY_SECRET:?set PROXY_SECRET}
       # The image fills NGINX_LOCAL_RESOLVERS (Docker's DNS) for the `resolver` directive.
       NGINX_ENTRYPOINT_LOCAL_RESOLVERS: '1'
     ports:

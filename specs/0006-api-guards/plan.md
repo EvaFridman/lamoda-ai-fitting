@@ -15,7 +15,8 @@ needs no extension):
 - **Trusted source.** A request is trusted when its `X-Proxy-Secret` header equals `PROXY_SECRET`
   (compared like the admin token: SHA-256 digests and `timingSafeEqual`). nginx sends the header
   on `/api/` and `/socket.io/`, web's `apiFetch` sends it on every call. An empty `PROXY_SECRET`
-  trusts nothing.
+  trusts nothing. A set `PROXY_SECRET_NEXT` is accepted too, compared the same way (rotation in
+  two deploys, F21).
 - **Client address.** Trusted: the single address in `X-Forwarded-For` (nginx and web both send
   exactly one). Otherwise: the socket's address. `trust proxy` is turned off; `req.ip` is no longer
   read anywhere.
@@ -116,6 +117,7 @@ forwards the incoming `x-request-id`. Its 5 s timeout stays below the api's 10 s
 | Variable                                                       | Package         | Default               | Production                                                        |
 | -------------------------------------------------------------- | --------------- | --------------------- | ----------------------------------------------------------------- |
 | `PROXY_SECRET`                                                 | api, web, nginx | `''` (trusts nothing) | GitHub secret → server `.env`; `init-env.sh` generates it locally |
+| `PROXY_SECRET_NEXT`                                            | api             | `''`                  | GitHub secret → server `.env`, set only while rotating (F21)      |
 | `THROTTLE_{READ,WRITE,EXPENSIVE}_{BURST,MINUTE}`               | api             | the values above      | compose defaults                                                  |
 | `BODY_LIMIT`, `REQUEST_TIMEOUT_MS`, `SOCKET_MAX_MESSAGE_BYTES` | api             | the values above      | compose defaults                                                  |
 

@@ -25,6 +25,9 @@ services:
       THROTTLE_LIMIT: ${THROTTLE_LIMIT:-100}
       # Empty closes the admin routes (spec 0004 E1).
       ADMIN_API_TOKEN: ${ADMIN_API_TOKEN:-}
+      # Only requests with it (nginx, web) name the client address and request id (spec 0006 F13);
+      # the api refuses to start without it in production (F18).
+      PROXY_SECRET: ${PROXY_SECRET:?set PROXY_SECRET}
       MEDIA_BASE_URL: ${MEDIA_BASE_URL:?set MEDIA_BASE_URL}
       # The api's own Sentry project (SENTRY_DSN in .env is web's); empty turns it off.
       SENTRY_DSN: ${API_SENTRY_DSN:-}
@@ -53,6 +56,9 @@ services:
       API_URL: http://api-${COLOR:?set COLOR}:3000
       REDIS_URL: redis://redis:6379
       APP_VERSION: ${IMAGE_TAG}
+      # Sent with the visitor's address to the api (spec 0006 F13). Without it web would not start
+      # and the running copy keeps serving (F20).
+      PROXY_SECRET: ${PROXY_SECRET:?set PROXY_SECRET}
       # Server-side Sentry; empty turns it off. The browser's DSN is baked in at build time.
       SENTRY_DSN: ${SENTRY_DSN:-}
       SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
