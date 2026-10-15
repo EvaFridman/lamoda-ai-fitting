@@ -72,7 +72,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Also: brand search by part of a name, size order, nothing rendered for `price: null`, the
       sort's five labels. AC6–AC9 (component).
       Commit: `feat(web): add the catalog filters built from the filter counts`
-- [ ] **T10. `CategoryList`.** In `entities/category/ui` (plan §3, K8).
+- [x] **T10. `CatalogCategoryList`.** In `entities/category/ui` (plan §3, K8).
       Check: rows link via `getHref` with their counts; the chosen one is marked. AC10 (component).
       Commit: `feat(web): add the catalog category list`
 - [ ] **T11. `/ui-kit` sections.** Fixtures `config/catalog.ts` with their schema test; sections

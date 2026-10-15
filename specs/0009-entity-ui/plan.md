@@ -132,9 +132,9 @@ and callbacks, and import only `@/shared/ui` and their own slice (K7). Each slic
 
 ### `entities/category/ui`
 
-- **`CategoryList({ categories, value, getHref })`**: `categories: { id; name; count }[]`, a type
-  of its own, so the slice does not import `product` (FSD). The page passes
-  `facets.categories`.
+- **`CatalogCategoryList({ categories, value, getHref })`**: `categories: { id; name; count }[]`,
+  a type of its own, so the slice does not import `product` (FSD). The page passes
+  `facets.categories`. Not `CategoryList`: that is the slice's paginated type, like `BrandList`.
   - Each row is a link (`getHref(id)`): name and a grey count.
   - The chosen one is the black block of Lamoda's tree.
 
@@ -203,7 +203,7 @@ At close, `CLAUDE.md`:
 | AC7  | `AttributeFilter` with material and season; `BrandFilter` search by part of a name            |
 | AC8  | `sortSizes` unit test and `SizeFilter` test with shuffled input                               |
 | AC9  | `PriceRangeFilter`, `DiscountFilter`, `ProductSortFilter` tests                               |
-| AC10 | `CategoryList` test                                                                           |
+| AC10 | `CatalogCategoryList` test                                                                    |
 | AC11 | `ui-kit-page.test.tsx`; qa-tester at 375 px; `next build` in `npm run verify` with no api     |
 | AC12 | `config/catalog.test.ts` fails on a fixture that breaks a schema                              |
 | AC13 | `npm run verify`; `rg "Colour swatches\|Size order" specs/backlog.md` finds nothing           |
