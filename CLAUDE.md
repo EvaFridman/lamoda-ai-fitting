@@ -280,7 +280,7 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   `href`, `data-*`) or stylesheets, a fitting photo renders only through `<img>`/`next/image`
   without `priority`/`preload`, and a container of personal data gets the class `mp-block` (not
   recorded). `mixpanel-browser` is imported only by `client.ts`,
-  through `import()`, so nothing loads before consent: `startAnalytics()` loads and inits the SDK
+  through `import()` (`eslint.config.mjs` fails any other import of the package or its files, except type imports), so nothing loads before consent: `startAnalytics()` loads and inits the SDK
   once per tab and opts it back in after a decline (a no-op with an empty
   `NEXT_PUBLIC_MIXPANEL_TOKEN`, which only images published from `main` have); `stopAnalytics()`
   stops sending and clears the SDK's storage, and with no SDK started in the tab removes the keys
