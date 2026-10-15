@@ -36,6 +36,17 @@ export async function clientFetch<Schema extends z.ZodType>(
   schema: Schema,
   init?: RequestInit,
 ): Promise<z.infer<Schema>> {
+  // A slice's browser options and its server options share their names (`@/entities/x` and
+  // `@/entities/x/server`), so a server component can take the wrong ones. A bug in web, not an api
+  // failure: a plain `Error` that names the fix, which the page reports (H29, H31). Its own name
+  // keeps its Sentry group apart from other bugs.
+  if (typeof globalThis.location === 'undefined') {
+    const error = new Error(
+      `clientFetch runs only in the browser: ${path.template}; server code uses the options of the slice's server.ts (apiFetch)`,
+    );
+    error.name = 'ClientFetchOnServer';
+    throw error;
+  }
   const origin = globalThis.location.origin;
   const url = new URL(API_PREFIX + path.path, origin);
   // `buildPath` makes only relative paths; the prefix keeps even a forged `//host` path on this

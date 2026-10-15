@@ -92,7 +92,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       and 429 never); locally `curl localhost:3001/api/products` answers the api's list. AC7 (unit
       part).
       Commit: `feat(web): add the browser api client`
-- [ ] **T12. Hooks and handoff.** Query options and hooks in the catalog slices' `index.ts`;
+- [x] **T12. Hooks and handoff.** Query options and hooks in the catalog slices' `index.ts`;
       `prefetch` and `HydrationBoundary` (plan §4, §5).
       Check: a test renders a hook under a hydrated cache and asserts no request; the same key on
       server and browser. AC4 (unit part).

@@ -6,7 +6,7 @@ export function brandListQuery({ limit, offset }: PageQuery = {}) {
   return { limit, offset };
 }
 
-// Query keys shared by the server options and, later, the browser hooks (plan §4).
+// Query keys shared by the server options and the browser's (`queries.ts`, plan §4).
 export const brandKeys = {
   all: ['brands'] as const,
   list: (query: PageQuery = {}) => [...brandKeys.all, 'list', brandListQuery(query)] as const,

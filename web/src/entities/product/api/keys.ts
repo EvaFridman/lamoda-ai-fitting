@@ -12,7 +12,7 @@ export function productPageQuery({ limit, offset }: PageQuery = {}) {
   return { limit, offset };
 }
 
-// Query keys shared by the server options and, later, the browser hooks (plan §4).
+// Query keys shared by the server options and the browser's (`queries.ts`, plan §4).
 export const productKeys = {
   all: ['products'] as const,
   list: (query: ProductListQuery = {}) =>
