@@ -61,6 +61,11 @@ removes it from this list. Found by the agents' first security audit and trial r
   data nobody reads (cookies are redacted, other headers are not). Log only chosen headers
   (`user-agent`, `content-type`, `content-length`, `referer`) through pino-http's `req`
   serializer, keeping the redaction of secrets for the headers that stay.
+- **Long writes after a timeout.** A request over `REQUEST_TIMEOUT_MS` answers 503, which tells the
+  client to retry, but its handler is not cancelled and may still commit (0006 F11, F29). Today's
+  writes are admin writes and fast. The photo upload and generation specs make their expensive
+  routes answer at once (start a workflow, 202) or take an idempotency key, so a retry does not run
+  the work twice.
 
 ## web
 

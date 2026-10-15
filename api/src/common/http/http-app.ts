@@ -6,6 +6,7 @@ import type { Env } from '../../config/env.js';
 import { createValidationPipe } from '../validation/validation-pipe.js';
 import { AppExpressAdapter } from './app-express.adapter.js';
 import { useRequestContext } from './request-context.js';
+import { TimeoutInterceptor } from './timeout.interceptor.js';
 
 // Creates the app (NestFactory.create in server.ts, a testing module's createNestApplication in
 // tests) with the adapter and options this function sets.
@@ -15,7 +16,7 @@ export type CreateApp = (
 ) => NestExpressApplication | Promise<NestExpressApplication>;
 
 // The HTTP setup server.ts and every e2e app share, so a test runs the parsers, the request
-// context and the pipe production runs. The app is not initialised: the caller adds what is its
+// context, the pipe and the request timeout production runs. The app is not initialised: the caller adds what is its
 // own (logger, socket adapter, Swagger) and calls init() or listen().
 export async function createHttpApp(
   create: CreateApp,
@@ -36,5 +37,8 @@ export async function createHttpApp(
   // After CORS, so a refused body still answers with the CORS headers the browser needs to read it.
   app.useBodyParser('json', { limit: config.get('BODY_LIMIT', { infer: true }) });
   app.useGlobalPipes(createValidationPipe());
+  app.useGlobalInterceptors(
+    new TimeoutInterceptor(config.get('REQUEST_TIMEOUT_MS', { infer: true })),
+  );
   return app;
 }

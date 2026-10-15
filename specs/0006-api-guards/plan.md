@@ -58,13 +58,19 @@ needs no extension):
 - **Details cap.** `createValidationPipe`'s `exceptionFactory` keeps the first `N` details and adds
   `{ field: '', code: 'TOO_MANY_ERRORS', message: '<k> more errors' }`.
 - **Timeout.** A global interceptor (`common/http/timeout.interceptor.ts`, HTTP context only):
-  rxjs `timeout(REQUEST_TIMEOUT_MS)` → `AppException('SERVICE_UNAVAILABLE')`. The handler's work
-  is not cancelled (no cancellation through Prisma); the timeout only answers the client. Reported
-  to Sentry like every 5xx.
+  after `REQUEST_TIMEOUT_MS` → `RequestTimeoutError` (an `AppException('SERVICE_UNAVAILABLE')`;
+  its own Observable, not rxjs `timeout`, so the handler is still listened to). The handler's work
+  is not cancelled (no cancellation through Prisma); the timeout only answers the client. Changed
+  in T10's review (owner, 2026-10-15; the plan had "reported to Sentry like every 5xx"): the first
+  timeout of a route within a minute goes to Sentry, repeats only to the log; the handler is
+  listened to after the timeout and its end is logged as a warning with the request id (F29). The
+  shared Redis client gets `commandTimeout` 1 s, and after a failed command the throttler counts in
+  memory for 10 s before one request tries Redis again (F28).
 - **Node server.** After `listen`: `keepAliveTimeout` 65 s, above nginx's upstream keep-alive
   (60 s, `keepalive 16` in `active.conf`), so nginx never reuses a socket Node has just closed
-  (today Node's 5 s default allows that race); `headersTimeout` 66 s (must exceed it);
-  `requestTimeout` 30 s.
+  (today Node's 5 s default allows that race); `requestTimeout` 30 s and `headersTimeout` 30 s
+  (Node requires it to be at most `requestTimeout`; changed in T10's review, owner, 2026-10-15:
+  the plan had 66 s, from the rule of Node before 18 that it exceed `keepAliveTimeout`).
 
 ## 5. nginx (F7, F8, F9, F10, F12, F13, F17)
 

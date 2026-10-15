@@ -7,6 +7,7 @@ import { Logger } from 'nestjs-pino';
 
 import { AppModule } from './app.module.js';
 import { createHttpApp } from './common/http/http-app.js';
+import { setServerTimeouts } from './common/http/server-timeouts.js';
 import { assertServerEnv, type Env } from './config/env.js';
 import { SocketIoAdapter } from './realtime/socket-io.adapter.js';
 import { setupSwagger } from './swagger.js';
@@ -33,6 +34,7 @@ async function bootstrap(): Promise<void> {
   }
 
   await app.listen(config.get('PORT', { infer: true }), '0.0.0.0');
+  setServerTimeouts(app.getHttpServer());
 }
 
 void bootstrap();
