@@ -103,6 +103,62 @@ describe('filters demo', () => {
     expect(dropdown.queryByRole('checkbox', { name: /Lime/ })).not.toBeInTheDocument();
   });
 
+  it('opens the colour dropdown with its search, and lists the colourless value', async () => {
+    const user = userEvent.setup();
+    const { live, popup } = renderLive();
+
+    const chip = live.getByRole('button', { name: 'Цвет' });
+    await user.click(chip);
+    const dropdown = popup(chip);
+
+    expect(dropdown.getByRole('searchbox', { name: 'Поиск: Цвет' })).toHaveAttribute(
+      'placeholder',
+      'Найдите цвет',
+    );
+    expect(dropdown.getByRole('checkbox', { name: /С принтом/ })).toBeInTheDocument();
+
+    await user.type(dropdown.getByRole('searchbox'), 'син');
+    expect(dropdown.getByRole('checkbox', { name: /Синий/ })).toBeInTheDocument();
+    expect(dropdown.queryByRole('checkbox', { name: /Черный/ })).not.toBeInTheDocument();
+  });
+
+  it('applies two colours, and × clears them', async () => {
+    const user = userEvent.setup();
+    const { live, popup } = renderLive();
+
+    const chip = live.getByRole('button', { name: 'Цвет' });
+    await user.click(chip);
+    const dropdown = popup(chip);
+    await user.click(dropdown.getByRole('checkbox', { name: /Синий/ }));
+    await user.click(dropdown.getByRole('checkbox', { name: /Белый/ }));
+    await user.click(dropdown.getByRole('button', { name: 'Применить' }));
+
+    expect(live.getByRole('button', { name: 'Цвет белый, синий' })).toBeInTheDocument();
+    expect(
+      live.getByText('Применено: сортировка «Подобрали для вас»; цвет: белый, синий'),
+    ).toBeInTheDocument();
+
+    await user.click(live.getByRole('button', { name: 'Сбросить «Цвет»' }));
+    expect(live.getByRole('button', { name: 'Цвет' })).toBeInTheDocument();
+    expect(live.getByText('Применено: сортировка «Подобрали для вас»')).toBeInTheDocument();
+  });
+
+  it('"Очистить фильтры" resets the colours too', async () => {
+    const user = userEvent.setup();
+    const { live, popup } = renderLive();
+
+    const chip = live.getByRole('button', { name: 'Цвет' });
+    await user.click(chip);
+    await user.click(popup(chip).getByRole('checkbox', { name: /Черный/ }));
+    await user.click(popup(chip).getByRole('button', { name: 'Применить' }));
+    expect(live.getByText(/цвет: черный/)).toBeInTheDocument();
+
+    await user.click(live.getByRole('button', { name: 'Очистить фильтры' }));
+
+    expect(live.getByRole('button', { name: 'Цвет' })).toBeInTheDocument();
+    expect(live.getByText('Применено: сортировка «Подобрали для вас»')).toBeInTheDocument();
+  });
+
   it('a non-default sort alone shows "Очистить фильтры"; it resets and focuses the first chip', async () => {
     const user = userEvent.setup();
     const { live, popup } = renderLive();

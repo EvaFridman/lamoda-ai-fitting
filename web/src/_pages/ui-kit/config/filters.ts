@@ -36,3 +36,19 @@ export const brandOptions: CheckboxFilterOption[] = [
   { value: 'sandrine', label: 'Sandrine', count: 3045 },
   { value: 'zarina', label: 'Zarina', count: 5532, disabled: true },
 ];
+
+// The colour filter's rows: hex colours as the api gives them, example counts, and a value with
+// no colour (an empty circle).
+export const colorOptions: CheckboxFilterOption[] = [
+  { value: 'black', label: 'Черный', color: '#000000', count: 48210 },
+  { value: 'white', label: 'Белый', color: '#FFFFFF', count: 27935 },
+  { value: 'gray', label: 'Серый', color: '#B6B6B6', count: 15402 },
+  { value: 'beige', label: 'Бежевый', color: '#DFBD93', count: 11876 },
+  { value: 'brown', label: 'Коричневый', color: '#743D02', count: 8640 },
+  { value: 'blue', label: 'Синий', color: '#3972FC', count: 9318 },
+  { value: 'light-blue', label: 'Голубой', color: '#8BCDFF', count: 4127 },
+  { value: 'green', label: 'Зеленый', color: '#3DB801', count: 5263 },
+  { value: 'yellow', label: 'Желтый', color: '#FFEC1C', count: 2954 },
+  { value: 'orange', label: 'Оранжевый', color: '#FF7A01', count: 1788 },
+  { value: 'print', label: 'С принтом', count: 3410 },
+];

@@ -15,6 +15,7 @@ import {
 
 import {
   brandOptions,
+  colorOptions,
   defaultSort,
   priceBounds,
   sortOptions,
@@ -39,6 +40,7 @@ export function FiltersDemo() {
   const [sort, setSort] = useState(defaultSort);
   const [style, setStyle] = useState<string[]>([]);
   const [brands, setBrands] = useState<string[]>([]);
+  const [colors, setColors] = useState<string[]>([]);
   const [price, setPrice] = useState<PriceRange>(priceBounds);
   const [saleOnly, setSaleOnly] = useState(false);
 
@@ -48,12 +50,14 @@ export function FiltersDemo() {
     sort !== defaultSort ||
     style.length > 0 ||
     brands.length > 0 ||
+    colors.length > 0 ||
     priceText !== undefined ||
     saleOnly;
   const applied = [
     `сортировка «${sortLabel}»`,
     style.length > 0 && `стиль: ${labels(styleOptions, style, true)}`,
     brands.length > 0 && `бренд: ${labels(brandOptions, brands)}`,
+    colors.length > 0 && `цвет: ${labels(colorOptions, colors, true)}`,
     priceText && `цена ${priceText}`,
     saleOnly && 'только со скидкой',
   ].filter(Boolean);
@@ -67,6 +71,7 @@ export function FiltersDemo() {
                 setSort(defaultSort);
                 setStyle([]);
                 setBrands([]);
+                setColors([]);
                 setPrice(priceBounds);
                 setSaleOnly(false);
               }
@@ -94,6 +99,20 @@ export function FiltersDemo() {
             onApply={setBrands}
             searchable
             searchPlaceholder="Найти бренд"
+          />
+        </FilterDropdown>
+        <FilterDropdown
+          title="Цвет"
+          value={labels(colorOptions, colors, true)}
+          onClear={() => setColors([])}
+        >
+          <CheckboxFilter
+            options={colorOptions}
+            value={colors}
+            onApply={setColors}
+            searchable
+            searchPlaceholder="Найдите цвет"
+            swatches
           />
         </FilterDropdown>
         <FilterDropdown title="Цена" value={priceText} onClear={() => setPrice(priceBounds)}>
