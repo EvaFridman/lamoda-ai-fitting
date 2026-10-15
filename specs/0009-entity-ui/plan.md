@@ -1,6 +1,8 @@
 # 0009 entity UI: plan
 
-Status: accepted (2026-10-15).
+Status: done (2026-10-16); amended 2026-10-15 in T4 and 2026-10-16 in T10: web's `colorHex` schemas ship with
+the api change (§1 "web's schemas", §2, Risks), the category list is `CatalogCategoryList` (§3,
+AC10). History, not instructions.
 
 Implements [spec.md](spec.md). Decisions: [clarifications.md](clarifications.md) (K1–K16).
 

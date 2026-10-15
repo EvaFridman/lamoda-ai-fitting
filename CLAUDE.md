@@ -10,7 +10,9 @@ client address and request id, body, timeout and socket limits, and nginx's limi
 headers by `0006-api-guards`; web's data layer (server and browser api clients, typed catalog
 entities, Russian error texts, Sentry reports, the OpenAPI contract check, the browser bundle check,
 page `/dev/catalog`) by `0007-web-data-layer`; Mixpanel analytics behind a cookie consent banner,
-the page `/privacy` and Lamoda's footer by `0008-web-analytics` (all closed).
+the page `/privacy` and Lamoda's footer by `0008-web-analytics`; attribute values' swatch colour,
+the catalog product card, filters and category list, and their sections on `/ui-kit` by
+`0009-entity-ui` (all closed).
 
 Keep this file true: update it in the same commit that changes what a section describes.
 
@@ -141,6 +143,12 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   imports only downward: `_app → _pages → widgets → features → entities → shared`. A slice or a
   `shared` segment exposes `index.ts` (browser-safe) and/or `server.ts`, which starts with
   `import 'server-only'`; one with only server-only exports has only `server.ts` (the `fsd` skill).
+  An entity slice's `ui` segment only displays: its components take entity data, the current
+  choice (`value`, `checked`), if any, and either callbacks (`onApply`, `onValueChange`,
+  `onCheckedChange`) or the links the page builds (`href`,
+  `getHref`); they keep no state beyond their own open dropdown, search or unapplied choice, read
+  no URL and make no requests (spec 0009 K7). The page that places them owns the filter state, the
+  URL and the requests.
 - `deploy/`: production compose files, nginx, deploy scripts, Ansible (server setup).
 
 ## Docker (local development)
@@ -267,6 +275,11 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   already reported, anything else is sent then). A page loads data on the server with `prefetch`
   (`@/shared/api/server`, which returns a failure instead of throwing) into a `HydrationBoundary`,
   and the browser's hooks start from it with the same query key, without a request.
+- An attribute value's `colorHex` is its swatch colour, `#RRGGBB` (either case) or `null` (an
+  empty bordered circle); the DTOs and a CHECK in the migration refuse anything else. web draws it with
+  `ColorSwatch`, and an attribute with at least one coloured value is a colour filter
+  (`splitFacetAttributes`). The seed never changes existing rows, so a colour of an existing seed
+  value is changed by a migration.
 - `/dev/catalog` (`_pages/dev-catalog`) shows the data layer at work; like `/ui-kit` it is
   `noindex`, linked from nowhere and shows only the public catalog. The catalog page spec removes
   it.

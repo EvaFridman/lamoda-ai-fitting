@@ -1,6 +1,6 @@
 # 0009 entity UI
 
-Status: accepted (2026-10-15).
+Status: done (2026-10-16): all 13 criteria pass (record in `tasks.md`). History, not instructions.
 
 Issue #27. Decisions: `clarifications.md` (K1–K16).
 
