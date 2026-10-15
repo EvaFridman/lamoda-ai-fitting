@@ -66,7 +66,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Check: tests for discounted, full price, no photo, no rating; the link points at `href`; a
       click on the action calls its handler and does not navigate. AC4 (component), AC5.
       Commit: `feat(web): add the catalog product card`
-- [ ] **T9. Product filters.** `ColorFilter`, `AttributeFilter`, `BrandFilter`, `SizeFilter`,
+- [x] **T9. Product filters.** `ColorFilter`, `AttributeFilter`, `BrandFilter`, `SizeFilter`,
       `PriceRangeFilter`, `DiscountFilter`, `ProductSortFilter` (plan §3).
       Check: a test per filter. Each reports the chosen ids on "Применить" and clears via the chip.
       Also: brand search by part of a name, size order, nothing rendered for `price: null`, the

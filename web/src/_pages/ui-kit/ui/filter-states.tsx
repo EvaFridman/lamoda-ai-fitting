@@ -5,12 +5,12 @@ import {
   FilterChip,
   FilterDropdown,
   PriceFilter,
+  priceLabel,
   type PriceRange,
   SortFilter,
 } from '@/shared/ui';
 
 import { priceBounds, sortOptions, styleOptions } from '../config/filters';
-import { priceLabel } from '../lib/price-label';
 
 import styles from './examples.module.scss';
 

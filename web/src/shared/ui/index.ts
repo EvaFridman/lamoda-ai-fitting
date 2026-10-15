@@ -70,6 +70,7 @@ export type { PriceProps, PriceVariant } from './price/price';
 export { Price } from './price/price';
 export type { PriceFilterProps, PriceRange } from './price-filter/price-filter';
 export { PriceFilter } from './price-filter/price-filter';
+export { priceLabel } from './price-filter/price-label';
 export type { RadioProps } from './radio/radio';
 export { Radio } from './radio/radio';
 export type { RadioGroupProps } from './radio-group/radio-group';
