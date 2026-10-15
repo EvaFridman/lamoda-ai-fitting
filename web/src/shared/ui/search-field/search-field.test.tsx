@@ -1,7 +1,9 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { createRef } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { createRef, type ReactElement } from 'react';
+import { type Root, hydrateRoot } from 'react-dom/client';
+import { renderToString } from 'react-dom/server';
+import { describe, expect, it, onTestFinished, vi } from 'vitest';
 
 import { SearchField } from '@/shared/ui';
 
@@ -155,5 +157,128 @@ describe('SearchField', () => {
     const input = screen.getByRole('searchbox');
     expect(input).toHaveValue('');
     expect(input).toHaveFocus();
+  });
+
+  describe('uncontrolled text stays out of attributes (L9)', () => {
+    function attributeValues(root: Element): string[] {
+      return [root, ...root.querySelectorAll('*')].flatMap((element) =>
+        element.getAttributeNames().map((name) => `${name}=${element.getAttribute(name)}`),
+      );
+    }
+
+    it('keeps typed text out of every attribute', async () => {
+      const user = userEvent.setup();
+      render(<SearchField />);
+
+      await user.type(screen.getByRole('searchbox'), 'zxqv-typed-9271');
+
+      expect(screen.getByRole('searchbox')).toHaveValue('zxqv-typed-9271');
+      expect(attributeValues(screen.getByRole('search')).join('\n')).not.toContain('zxqv');
+    });
+
+    it('shows a defaultValue as the value, not as an attribute, with the reset button', () => {
+      render(<SearchField defaultValue="zxqv-default-4410" />);
+
+      expect(screen.getByRole('searchbox')).toHaveValue('zxqv-default-4410');
+      expect(attributeValues(screen.getByRole('search')).join('\n')).not.toContain('zxqv');
+      expect(screen.getByRole('button', { name: 'Очистить' })).toBeInTheDocument();
+    });
+  });
+
+  describe('hydration (L9)', () => {
+    function attributeValues(root: Element): string[] {
+      return [root, ...root.querySelectorAll('*')].flatMap((element) =>
+        element.getAttributeNames().map((name) => `${name}=${element.getAttribute(name)}`),
+      );
+    }
+
+    // Server markup in a container; `typed` plays text entered before hydration. RTL's cleanup does
+    // not know this root, so it is removed when the test ends, failed or not.
+    async function hydrate(element: ReactElement, typed?: string) {
+      const container = document.createElement('div');
+      container.innerHTML = renderToString(element);
+      document.body.append(container);
+      if (typed !== undefined) container.querySelector('input')!.value = typed;
+      let root!: Root;
+      await act(async () => {
+        root = hydrateRoot(container, element);
+      });
+      onTestFinished(async () => {
+        await act(async () => root.unmount());
+        container.remove();
+      });
+      return container;
+    }
+
+    it('renders no text into the server HTML for a defaultValue', () => {
+      const html = renderToString(<SearchField defaultValue="zxqv-server-5521" />);
+
+      expect(html).not.toContain('zxqv');
+    });
+
+    it('keeps text typed before hydration and searches it trimmed', async () => {
+      const onSearch = vi.fn();
+      const container = await hydrate(<SearchField onSearch={onSearch} />, '  zxqv-typed-1 ');
+
+      expect(within(container).getByRole('searchbox')).toHaveValue('  zxqv-typed-1 ');
+      expect(within(container).getByRole('button', { name: 'Очистить' })).toBeInTheDocument();
+
+      fireEvent.submit(within(container).getByRole('search'));
+
+      expect(onSearch).toHaveBeenCalledExactlyOnceWith('zxqv-typed-1');
+    });
+
+    it('keeps text typed before hydration over the defaultValue', async () => {
+      const container = await hydrate(
+        <SearchField defaultValue="zxqv-default-2" />,
+        'zxqv-typed-2',
+      );
+
+      expect(within(container).getByRole('searchbox')).toHaveValue('zxqv-typed-2');
+      expect(within(container).getByRole('button', { name: 'Очистить' })).toBeInTheDocument();
+    });
+
+    it('fills an empty hydrated input with the defaultValue, outside attributes', async () => {
+      const container = await hydrate(<SearchField defaultValue="zxqv-default-3" />);
+
+      expect(within(container).getByRole('searchbox')).toHaveValue('zxqv-default-3');
+      expect(within(container).getByRole('button', { name: 'Очистить' })).toBeInTheDocument();
+      expect(attributeValues(container).join('\n')).not.toContain('zxqv');
+    });
+
+    it('keeps no attribute with emoji text typed after a prefilled value', async () => {
+      const user = userEvent.setup();
+      render(<SearchField defaultValue="zxqv-base" />);
+
+      await user.type(screen.getByRole('searchbox'), ' 👗 mixed Ёлка');
+
+      expect(screen.getByRole('searchbox')).toHaveValue('zxqv-base 👗 mixed Ёлка');
+      const attributes = attributeValues(screen.getByRole('search')).join('\n');
+      expect(attributes).not.toContain('zxqv');
+      expect(attributes).not.toContain('👗');
+      expect(attributes).not.toContain('Ёлка');
+    });
+  });
+
+  it('searches the new trimmed text typed after a reset', async () => {
+    const user = userEvent.setup();
+    const onSearch = vi.fn();
+    render(<SearchField defaultValue="старое" onSearch={onSearch} />);
+
+    await user.click(screen.getByRole('button', { name: 'Очистить' }));
+    await user.type(screen.getByRole('searchbox'), '  новое {Enter}');
+
+    expect(onSearch).toHaveBeenCalledExactlyOnceWith('новое');
+  });
+
+  it('applies defaultValue on mount only; a new key applies the new one', () => {
+    const { rerender } = render(<SearchField key="a" defaultValue="первое" />);
+    expect(screen.getByRole('searchbox')).toHaveValue('первое');
+
+    rerender(<SearchField key="a" defaultValue="второе" />);
+    expect(screen.getByRole('searchbox')).toHaveValue('первое');
+
+    rerender(<SearchField key="b" defaultValue="второе" />);
+    expect(screen.getByRole('searchbox')).toHaveValue('второе');
   });
 });
