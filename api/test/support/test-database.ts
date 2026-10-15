@@ -9,6 +9,12 @@ import { PrismaClient } from '../../src/generated/prisma/client.js';
 // client for it built the way PrismaService builds it (pg driver adapter). Call once per file in
 // `beforeAll` and `$disconnect()` in `afterAll`; the container goes away with the run.
 export async function createTestDatabase(): Promise<PrismaClient> {
+  const url = await createTestDatabaseUrl();
+  return new PrismaClient({ adapter: new PrismaPg({ connectionString: url }) });
+}
+
+// The copy alone, by its URL: for a test that also hands it to the Prisma CLI.
+export async function createTestDatabaseUrl(): Promise<string> {
   const name = `test_${randomUUID().replaceAll('-', '')}`;
   const adminUrl = inject('adminDatabaseUrl');
 
@@ -24,5 +30,5 @@ export async function createTestDatabase(): Promise<PrismaClient> {
 
   const url = new URL(adminUrl);
   url.pathname = `/${name}`;
-  return new PrismaClient({ adapter: new PrismaPg({ connectionString: url.toString() }) });
+  return url.toString();
 }

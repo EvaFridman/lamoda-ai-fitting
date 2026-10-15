@@ -48,6 +48,9 @@ export class FacetAttributeValueDto {
   @ApiProperty({ example: 'Чёрный' })
   value: string;
 
+  @ApiProperty({ type: String, nullable: true, example: '#000000' })
+  colorHex: string | null;
+
   @ApiProperty({ minimum: 0 })
   count: number;
 }

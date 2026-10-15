@@ -52,6 +52,8 @@ export const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 // Relative object key (spec 0002 C22): segments of ASCII letters, digits, `.`, `_`, `-` joined by
 // `/`, each starting with a letter or digit, and no `..` anywhere.
 export const IMAGE_KEY = /^(?!.*\.\.)[A-Za-z0-9][A-Za-z0-9._-]*(?:\/[A-Za-z0-9][A-Za-z0-9._-]*)*$/;
+// A swatch colour `#RRGGBB`, either case (spec 0009, K12).
+export const COLOR_HEX = /^#[0-9A-Fa-f]{6}$/;
 
 // A name, article, size or attribute value; with `each`, every item of an array.
 export function IsTrimmedText(maxLength: number, { each = false } = {}): PropertyDecorator {
@@ -108,6 +110,13 @@ export function IsImageKey(): PropertyDecorator {
     Matches(IMAGE_KEY, {
       message: '$property must be a relative key of letters, digits, ".", "_", "-" and "/"',
     }),
+  );
+}
+
+export function IsColorHex(): PropertyDecorator {
+  return applyDecorators(
+    IsString(),
+    Matches(COLOR_HEX, { message: '$property must be a colour in the form #RRGGBB' }),
   );
 }
 

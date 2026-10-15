@@ -4,6 +4,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { createTestApp, type TestApp } from '../support/test-app.js';
+import { expectViolation } from '../support/violation.js';
 
 const ADMIN_TOKEN = 'test-admin-token-0123456789abcdef';
 
@@ -18,6 +19,7 @@ interface ValueBody {
   id: string;
   attributeId: string;
   value: string;
+  colorHex: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -352,12 +354,13 @@ describe('attribute values: create, read, update, delete', () => {
     expect(response.status).toBe(201);
     expect(Object.keys(response.body as object).sort()).toEqual([
       'attributeId',
+      'colorHex',
       'createdAt',
       'id',
       'updatedAt',
       'value',
     ]);
-    expect(response.body).toMatchObject({ attributeId: attribute.id, value });
+    expect(response.body).toMatchObject({ attributeId: attribute.id, value, colorHex: null });
   });
 
   it('reads one by id', async () => {
@@ -651,5 +654,127 @@ describe('attribute values: errors', () => {
 
     const stored = await testApp.prisma.attributeValue.findUnique({ where: { id: value.id } });
     expect(stored).toMatchObject({ attributeId: owner.id, value: value.value });
+  });
+});
+
+describe('attribute values: colorHex (spec 0009)', () => {
+  const create = (attributeId: string, body: Record<string, unknown>) =>
+    http()
+      .post(`/attributes/${attributeId}/values`)
+      .set(admin)
+      .send({ value: `Value ${randomUUID()}`, ...body });
+
+  it.each(['#A1b2C3', '#a1b2c3', '#000000', '#FFFFFF'])(
+    'stores the colour %s as sent on create and returns it from get and list',
+    async (colorHex) => {
+      const attribute = await createAttribute();
+      const created = await create(attribute.id, { colorHex });
+
+      expect(created.status).toBe(201);
+      expect((created.body as ValueBody).colorHex).toBe(colorHex);
+      const one = await http().get(
+        `/attributes/${attribute.id}/values/${(created.body as ValueBody).id}`,
+      );
+      expect((one.body as ValueBody).colorHex).toBe(colorHex);
+      const listed = await http().get(`/attributes/${attribute.id}/values`);
+      expect((listed.body as Page<ValueBody>).items.map((item) => item.colorHex)).toEqual([
+        colorHex,
+      ]);
+      const stored = await testApp.prisma.attributeValue.findUniqueOrThrow({
+        where: { id: (created.body as ValueBody).id },
+      });
+      expect(stored.colorHex).toBe(colorHex);
+    },
+  );
+
+  it('answers null without a colour, and for an explicit null, on create and list', async () => {
+    const attribute = await createAttribute();
+    const without = await create(attribute.id, {});
+    const explicit = await create(attribute.id, { colorHex: null });
+
+    expect(without.status).toBe(201);
+    expect((without.body as ValueBody).colorHex).toBeNull();
+    expect(explicit.status).toBe(201);
+    expect((explicit.body as ValueBody).colorHex).toBeNull();
+    const listed = await http().get(`/attributes/${attribute.id}/values`);
+    expect((listed.body as Page<ValueBody>).items.map((item) => item.colorHex)).toEqual([
+      null,
+      null,
+    ]);
+  });
+
+  it('sets, keeps and clears the colour on update', async () => {
+    const attribute = await createAttribute();
+    const value = await createValue(attribute.id);
+    const path = `/attributes/${attribute.id}/values/${value.id}`;
+    const patch = (body: Record<string, unknown>) => http().patch(path).set(admin).send(body);
+
+    const set = await patch({ colorHex: '#12ab34' });
+    expect(set.status).toBe(200);
+    expect((set.body as ValueBody).colorHex).toBe('#12ab34');
+
+    const renamed = await patch({ value: `Renamed ${randomUUID()}` });
+    expect(renamed.status).toBe(200);
+    expect((renamed.body as ValueBody).colorHex).toBe('#12ab34');
+    expect((await patch({})).body).toMatchObject({ colorHex: '#12ab34' });
+
+    const cleared = await patch({ colorHex: null });
+    expect(cleared.status).toBe(200);
+    expect((cleared.body as ValueBody).colorHex).toBeNull();
+    expect(((await http().get(path)).body as ValueBody).colorHex).toBeNull();
+  });
+
+  it.each([
+    ['#12345'],
+    ['123456'],
+    ['#GGGGGG'],
+    ['#1234567'],
+    [123456],
+    [''],
+    [' #123456'],
+    [true],
+  ])('refuses the colour %j on create and update with 400 on colorHex', async (colorHex) => {
+    const attribute = await createAttribute();
+    const existing = await createValue(attribute.id);
+
+    expectError(await create(attribute.id, { colorHex }), 400, 'VALIDATION_FAILED', 'colorHex');
+    expectError(
+      await http()
+        .patch(`/attributes/${attribute.id}/values/${existing.id}`)
+        .set(admin)
+        .send({ colorHex }),
+      400,
+      'VALIDATION_FAILED',
+      'colorHex',
+    );
+    const stored = await testApp.prisma.attributeValue.findMany({
+      where: { attributeId: attribute.id },
+    });
+    expect(stored).toHaveLength(1);
+    expect(stored[0]?.colorHex).toBeNull();
+  });
+
+  it('refuses a raw insert and update of a bad colour with the CHECK', async () => {
+    const attribute = await createAttribute();
+    const value = await createValue(attribute.id);
+    const { prisma } = testApp;
+
+    for (const bad of ['#12345', '123456', '#GGGGGG', '#12345g', '']) {
+      await expectViolation(
+        prisma.$executeRaw`INSERT INTO attribute_values (id, attribute_id, value, color_hex, updated_at)
+          VALUES (${randomUUID()}::uuid, ${attribute.id}::uuid, ${`Raw ${randomUUID()}`}, ${bad}, now())`,
+        'attribute_values_color_hex_check',
+      );
+      await expectViolation(
+        prisma.$executeRaw`UPDATE attribute_values SET color_hex = ${bad} WHERE id = ${value.id}::uuid`,
+        'attribute_values_color_hex_check',
+      );
+    }
+    await expectViolation(
+      prisma.attributeValue.update({ where: { id: value.id }, data: { colorHex: 'red' } }),
+      'attribute_values_color_hex_check',
+    );
+    const stored = await prisma.attributeValue.findUniqueOrThrow({ where: { id: value.id } });
+    expect(stored.colorHex).toBeNull();
   });
 });

@@ -332,6 +332,26 @@ describe('products: detail', () => {
     ]);
   });
 
+  it('does not carry colorHex on the attribute values, even when a value has one (spec 0009)', async () => {
+    const product = await createProduct();
+    const attribute = await testApp.prisma.attribute.create({
+      data: { name: `Color ${randomUUID()}` },
+    });
+    const red = await testApp.prisma.attributeValue.create({
+      data: { attributeId: attribute.id, value: 'red', colorHex: '#ff0000' },
+    });
+    await testApp.prisma.productAttributeValue.create({
+      data: { productId: product.id, attributeValueId: red.id },
+    });
+
+    const response = await http().get(`/products/${product.id}`);
+
+    expect(response.status).toBe(200);
+    const body = response.body as Detail;
+    expect(body.attributes[0]?.values).toEqual([{ id: red.id, value: 'red' }]);
+    expect(Object.keys(body.attributes[0]?.values[0] ?? {}).sort()).toEqual(['id', 'value']);
+  });
+
   it('orders several values of one attribute by value, whatever the insert order', async () => {
     const product = await createProduct();
     const attribute = await testApp.prisma.attribute.create({

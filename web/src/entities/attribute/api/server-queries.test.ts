@@ -21,7 +21,14 @@ const ID = '3f2b8c1e-5a4d-4e6f-8a9b-0c1d2e3f4a5b';
 const ID2 = '7c9e6679-7425-40de-944b-e07fc1f90ae7';
 const DATE = '2026-10-01T12:00:00.000Z';
 const attribute = { id: ID, name: 'Color', createdAt: DATE, updatedAt: DATE };
-const value = { id: ID2, attributeId: ID, value: 'Red', createdAt: DATE, updatedAt: DATE };
+const value = {
+  id: ID2,
+  attributeId: ID,
+  value: 'Red',
+  colorHex: '#FF0000',
+  createdAt: DATE,
+  updatedAt: DATE,
+};
 
 const fetchMock = vi.fn();
 
@@ -176,7 +183,22 @@ describe('getAttributeValues', () => {
     await expect(getAttributeValues(ID)).resolves.toEqual({ items: [value], total: 1 });
   });
 
+  it('accepts a null colorHex and keeps a hex of either case', async () => {
+    const page = {
+      items: [
+        { ...value, colorHex: null },
+        { ...value, colorHex: '#a1B2c3' },
+      ],
+      total: 2,
+    };
+    respondWith(page);
+    await expect(getAttributeValues(ID)).resolves.toEqual(page);
+  });
+
   it.each([
+    ['a colour name', { items: [{ ...value, colorHex: 'red' }], total: 1 }],
+    ['a short hex', { items: [{ ...value, colorHex: '#FFF' }], total: 1 }],
+    ['a missing colorHex', { items: [{ ...value, colorHex: undefined }], total: 1 }],
     ['a bad uuid', { items: [{ ...value, attributeId: 'x' }], total: 1 }],
     ['a missing field', { items: [{ ...value, value: undefined }], total: 1 }],
     ['a non-ISO date', { items: [{ ...value, updatedAt: 'x' }], total: 1 }],

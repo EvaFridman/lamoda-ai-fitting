@@ -142,9 +142,6 @@ Left for later specs by `0002-database-schema` (its `clarifications.md` has the 
   storage), and old photo snapshots of C14 get a retention period. The server names a photo's key
   (e.g. `users/<id>/…`) and writes `users.fitting_profile_image_key` itself; a key from the client
   could point at another user's photo (0004 T13 security review).
-- **Colour swatches.** The catalog's colour filter shows a swatch per value; attribute values have no
-  colour. Add a nullable `attribute_values.color_hex` (`#RRGGBB`) and its data with the catalog page
-  spec; the data goes in a migration, because the seed never changes existing rows (0004 E29).
 - **Category tree.** Categories are a flat list (0002 C4); the catalog's left-hand tree is nested
   (0004 E29).
 - **Size order.** Sizes are free text, so the filter counts list them by text (`L, M, S, XL`; 0004

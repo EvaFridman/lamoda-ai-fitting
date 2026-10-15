@@ -15,7 +15,7 @@ interface Facets {
   attributes: {
     id: string;
     name: string;
-    values: { id: string; value: string; count: number }[];
+    values: { id: string; value: string; colorHex: string | null; count: number }[];
   }[];
 }
 
@@ -262,18 +262,64 @@ describe('GET /products/facets: the answer', () => {
         id: f.attributes.color,
         name: `Color ${f.token}`,
         values: [
-          { id: f.values.black, value: 'black', count: 3 },
-          { id: f.values.white, value: 'white', count: 1 },
+          { id: f.values.black, value: 'black', colorHex: null, count: 3 },
+          { id: f.values.white, value: 'white', colorHex: null, count: 1 },
         ],
       },
       {
         id: f.attributes.material,
         name: `Material ${f.token}`,
         values: [
-          { id: f.values.cotton, value: 'cotton', count: 2 },
-          { id: f.values.silk, value: 'silk', count: 2 },
+          { id: f.values.cotton, value: 'cotton', colorHex: null, count: 2 },
+          { id: f.values.silk, value: 'silk', colorHex: null, count: 2 },
         ],
       },
+    ]);
+  });
+
+  it('carries the swatch colour of each attribute value, null when it has none (spec 0009 AC1)', async () => {
+    const f = await arrange();
+    await testApp.prisma.attributeValue.update({
+      where: { id: f.values.black },
+      data: { colorHex: '#0a0B0c' },
+    });
+
+    const body = await facets(`q=${f.token}`);
+
+    const color = body.attributes.find((a) => a.id === f.attributes.color);
+    expect(color?.values.map(({ value, colorHex }) => [value, colorHex])).toEqual([
+      ['black', '#0a0B0c'],
+      ['white', null],
+    ]);
+    const material = body.attributes.find((a) => a.id === f.attributes.material);
+    expect(material?.values.map((v) => v.colorHex)).toEqual([null, null]);
+  });
+
+  it('keeps the colour of a chosen value that matches no product (count 0), also beside an unknown id (spec 0009)', async () => {
+    const f = await arrange();
+    await testApp.prisma.attributeValue.update({
+      where: { id: f.values.red },
+      data: { colorHex: '#ff0000' },
+    });
+
+    const alone = await facets(`q=${f.token}&attributeValueId=${f.values.red}`);
+    const beside = await facets(`q=${f.token}&attributeValueId=${f.values.red},${randomUUID()}`);
+
+    // A colour's own choice does not narrow its counts, so black and white are listed beside it.
+    const expected = [
+      { id: f.values.black, value: 'black', colorHex: null, count: 3 },
+      { id: f.values.red, value: 'red', colorHex: '#ff0000', count: 0 },
+      { id: f.values.white, value: 'white', colorHex: null, count: 1 },
+    ];
+    expect(alone.total).toBe(0);
+    expect(alone.attributes.map((a) => a.id)).toEqual([f.attributes.color]);
+    expect(alone.attributes[0]?.values).toEqual(expected);
+    expect(beside.total).toBe(0);
+    expect(beside.attributes.map((a) => a.id)).toEqual([f.attributes.color]);
+    // An unknown id empties the other values (as in "an unknown well-formed attribute value"); the
+    // chosen known one stays listed with its colour.
+    expect(beside.attributes[0]?.values).toEqual([
+      { id: f.values.red, value: 'red', colorHex: '#ff0000', count: 0 },
     ]);
   });
 
@@ -452,7 +498,9 @@ describe('GET /products/facets: which values are listed', () => {
     expect(body.brands.map(({ id, count }) => [id, count])).toEqual([[f.brands.unused, 0]]);
     expect(body.sizes).toEqual([]);
     expect(body.attributes.map(({ id }) => id)).toEqual([f.attributes.color]);
-    expect(body.attributes[0]?.values).toEqual([{ id: f.values.red, value: 'red', count: 0 }]);
+    expect(body.attributes[0]?.values).toEqual([
+      { id: f.values.red, value: 'red', colorHex: null, count: 0 },
+    ]);
   });
 
   it('lists a chosen category and brand with 0 next to those with products', async () => {
@@ -531,7 +579,7 @@ describe('GET /products/facets: which values are listed', () => {
         {
           id: f.attributes.color,
           name: `Color ${f.token}`,
-          values: [{ id: f.values.black, value: 'black', count: 0 }],
+          values: [{ id: f.values.black, value: 'black', colorHex: null, count: 0 }],
         },
       ],
     });

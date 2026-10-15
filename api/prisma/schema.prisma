@@ -144,10 +144,13 @@ model Attribute {
   @@map("attributes")
 }
 
+// `colorHex` is a swatch colour, `#RRGGBB` (either case) or null (spec 0009, K12; CHECK in the
+// migration).
 model AttributeValue {
   id          String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
   attributeId String   @map("attribute_id") @db.Uuid
   value       String   @db.VarChar(255)
+  colorHex    String?  @map("color_hex") @db.VarChar(7)
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 

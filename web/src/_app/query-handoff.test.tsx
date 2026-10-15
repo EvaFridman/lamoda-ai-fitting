@@ -65,7 +65,16 @@ const facets = {
   categories: [{ id: ID, name: 'Dresses', count: 4 }],
   brands: [{ id: ID2, name: 'Brand', count: 4 }],
   sizes: [{ size: 'M', count: 3 }],
-  attributes: [{ id: ID, name: 'Color', values: [{ id: ID2, value: 'Red', count: 1 }] }],
+  attributes: [
+    {
+      id: ID,
+      name: 'Color',
+      values: [
+        { id: ID2, value: 'Red', colorHex: '#FF0000', count: 1 },
+        { id: ID, value: 'Striped', colorHex: null, count: 2 },
+      ],
+    },
+  ],
 };
 const image = {
   id: ID,
@@ -100,6 +109,7 @@ const attributeValue = {
   id: ID2,
   attributeId: ID,
   value: 'Red',
+  colorHex: null,
   createdAt: DATE,
   updatedAt: DATE,
 };
