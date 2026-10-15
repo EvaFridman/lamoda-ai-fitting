@@ -5,8 +5,8 @@ import { Type } from 'class-transformer';
 import { IsInt, IsNotEmpty, IsString, Min, ValidateNested } from 'class-validator';
 import { describe, expect, it } from 'vitest';
 
-import { ValidationError } from '../errors/app.exception.js';
-import { createValidationPipe, toDetails } from './validation-pipe.js';
+import { type ErrorDetail, ValidationError } from '../errors/app.exception.js';
+import { capDetails, createValidationPipe, toDetails } from './validation-pipe.js';
 
 interface ValidationErrorShape {
   property: string;
@@ -135,6 +135,106 @@ describe('createValidationPipe', () => {
     const error = await failure({ ...valid, name: 5 });
 
     expect(error.body.error.details.map((d) => `${d.field}:${d.code}`)).toEqual(['name:IS_STRING']);
+  });
+
+  it('caps 60 unknown fields at 50 details plus one TOO_MANY_ERRORS entry (AC16)', async () => {
+    const unknown = Object.fromEntries(Array.from({ length: 60 }, (_, i) => [`extra${i}`, i]));
+    const error = await failure({ ...valid, ...unknown });
+    const details = error.body.error.details;
+
+    expect(error.body.error.code).toBe('VALIDATION_FAILED');
+    expect(details).toHaveLength(51);
+    expect(details.slice(0, 50).every((d) => d.code === 'WHITELIST_VALIDATION')).toBe(true);
+    expect(details[50]).toEqual({ field: '', code: 'TOO_MANY_ERRORS', message: '10 more errors' });
+  });
+});
+
+describe('clipping of field and message (F25)', () => {
+  const valid = { name: 'Shirt', address: { city: 'Moscow' }, sizes: [{ size: 'M', stock: 3 }] };
+
+  async function unknownKeyDetail(key: string): Promise<{ field: string; message: string }> {
+    const error = await failure({ ...valid, [key]: 1 });
+    expect(error.body.error.details).toHaveLength(1);
+    return error.body.error.details[0] as { field: string; message: string };
+  }
+
+  it('cuts a 5000-character key to 100 code points in field and 200 in message, each ending in …', async () => {
+    const { field, message } = await unknownKeyDetail('k'.repeat(5000));
+
+    expect(Array.from(field)).toHaveLength(100);
+    expect(field.endsWith('…')).toBe(true);
+    expect(field).toBe(`${'k'.repeat(99)}…`);
+    expect(Array.from(message)).toHaveLength(200);
+    expect(message.endsWith('…')).toBe(true);
+  });
+
+  it('does not clip a field of exactly 100 characters, and clips one of 101', async () => {
+    const exact = await unknownKeyDetail('k'.repeat(100));
+    const over = await unknownKeyDetail('k'.repeat(101));
+
+    expect(exact.field).toBe('k'.repeat(100));
+    expect(over.field).toBe(`${'k'.repeat(99)}…`);
+  });
+
+  it('cuts astral characters on a code point boundary, leaving no lone surrogate', async () => {
+    const { field, message } = await unknownKeyDetail('😀'.repeat(300));
+
+    expect(Array.from(field)).toHaveLength(100);
+    expect(field).toBe(`${'😀'.repeat(99)}…`);
+    expect(Array.from(message)).toHaveLength(200);
+    for (const text of [field, message]) {
+      expect(text.isWellFormed()).toBe(true);
+    }
+  });
+
+  it('clips a nested path longer than 100', () => {
+    const [detail] = toDetails([
+      {
+        property: 'address',
+        children: [{ property: 'z'.repeat(120), constraints: { whitelistValidation: 'x' } }],
+      },
+    ] as ClassValidatorError[]);
+
+    expect(detail?.field).toBe(`address.${'z'.repeat(91)}…`);
+    expect(Array.from(detail?.field ?? '')).toHaveLength(100);
+  });
+
+  it('leaves short fields and messages unchanged', async () => {
+    expect(await unknownKeyDetail('admin')).toMatchObject({
+      field: 'admin',
+      message: 'property admin should not exist',
+    });
+  });
+});
+
+describe('capDetails', () => {
+  function details(count: number): ErrorDetail[] {
+    return Array.from({ length: count }, (_, i) => ({
+      field: `f${i}`,
+      code: 'X',
+      message: `m${i}`,
+    }));
+  }
+
+  it('leaves exactly 50 details unchanged', () => {
+    const input = details(50);
+    const result = capDetails(input);
+
+    expect(result).toEqual(input);
+    expect(result.some((d) => d.code === 'TOO_MANY_ERRORS')).toBe(false);
+  });
+
+  it('keeps 50 of 51 and counts the one dropped', () => {
+    const input = details(51);
+
+    expect(capDetails(input)).toEqual([
+      ...input.slice(0, 50),
+      { field: '', code: 'TOO_MANY_ERRORS', message: '1 more errors' },
+    ]);
+  });
+
+  it('leaves an empty list unchanged', () => {
+    expect(capDetails([])).toEqual([]);
   });
 });
 

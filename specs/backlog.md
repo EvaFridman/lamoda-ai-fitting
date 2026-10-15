@@ -40,10 +40,6 @@ removes it from this list. Found by the agents' first security audit and trial r
 
 ## api
 
-- **Cap on validation details.** With `forbidNonWhitelisted`, every unknown field of a body is one
-  entry of `details`: an entry is about 12 times the size of its key, so a 100 KB body of short
-  keys answers about 1.2 MB. Cap `details` (e.g. 50 entries, with the count of the rest); it changes
-  the error contract that web's error handling (spec 0007) reads, so decide it there.
 - **Email look-alikes.** Users' emails are NFC with no control or format characters (0004 E47),
   but two accounts can still have addresses that look the same: mixed scripts (`ivаn@mail.ru` with
   a Cyrillic `а`), invisible characters outside Cf (variation selectors U+FE00–FE0F, combining
