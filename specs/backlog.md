@@ -179,3 +179,8 @@ Left for later specs by `0002-database-schema` (its `clarifications.md` has the 
   `process.env`, `node:fs` and `node:child_process` in specs, so a spec reaches the database only
   through `createTestDatabase()` and cannot point a client at the development database; a bypass
   of the rule gets a test case.
+- **Flaky Select test.** `web/src/shared/ui/select/select.test.tsx`, "opens with a click", failed
+  once in `npm run verify` (2026-10-15, during 0006 T9) and passed alone 3 times of 3: its helper
+  waits for the focus to leave the trigger with `vi.waitFor`'s default 1 s, which a loaded machine
+  (api and web tests at once) can miss. Find what moves the focus late, or wait on the list's focus
+  instead of a timeout.
