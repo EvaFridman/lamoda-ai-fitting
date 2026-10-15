@@ -9,6 +9,20 @@ describe('shared/api public entry', () => {
     expect('apiFetch' in api).toBe(false);
   });
 
+  it('exports the error texts', async () => {
+    const api = await import('./index');
+    expect(typeof api.errorText).toBe('function');
+    expect(typeof api.detailText).toBe('function');
+    expect(api.errorText(undefined)).toBeTruthy();
+  });
+
+  it('defaults code to undefined and details to an empty list', async () => {
+    const { ApiError } = await import('./index');
+    const error = new ApiError('m', { kind: 'network', template: '/t' });
+    expect(error.code).toBeUndefined();
+    expect(error.details).toEqual([]);
+  });
+
   it('builds an ApiError with kind, template, status and cause', async () => {
     const { ApiError } = await import('./index');
     const cause = new Error('x');

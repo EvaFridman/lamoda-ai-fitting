@@ -95,6 +95,15 @@ code comments. All decisions below: owner, 2026-10-15.
   timeout, so a slow api reaches a server-rendered page as a timeout, never as a 503. AC3's 503 is
   shown from the browser (`clientFetch` waits 15 s) once `/api/` goes through nginx (0006 PR 3), and
   before that with a stubbed answer. (Added after 0006 PR 2 merged.)
+- **H27. An answer without the envelope.** nginx answers some failures itself, without the api's
+  envelope: 413 (`client_max_body_size`), 429 (its own limit), 502 and 504 (a blue-green switch,
+  its proxy timeout). Such an answer gets the text of the api code its status stands for: 413 →
+  `PAYLOAD_TOO_LARGE`, 429 → `TOO_MANY_REQUESTS`, 502/503/504 → `SERVICE_UNAVAILABLE`; any other
+  status gets the general text. An answer with the envelope keeps its code's text, except 429,
+  which always gets its own (H11). (Added in T9.)
+- **H28. `details` codes not checked against the api.** The OpenAPI document types a detail's
+  `code` as a plain string, so a new api validation rule gets the general detail text and no check
+  notices. Accepted while web has no forms; the check is in the backlog. (Added in T9.)
 
 ## Contract
 
