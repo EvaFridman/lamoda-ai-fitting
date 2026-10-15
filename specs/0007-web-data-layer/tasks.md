@@ -60,7 +60,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       "productListItemSchema ↔ ProductListItemDto: colorName: in api, missing in web" and
       "productListSchema ↔ GET /products 200: items[].colorName: …". Reverted.
       Commit: `feat(web): add typed catalog entities`
-- [ ] **T8. Admin-only entities.** Slices `user`, `fitting-session`, `generation`: schemas and
+- [x] **T8. Admin-only entities.** Slices `user`, `fitting-session`, `generation`: schemas and
       types only, contract tests (H3).
       Check: contract tests; an unknown `GenerationStatus` fails the schema.
       Commit: `feat(web): add schemas for users, fitting sessions and generations`
