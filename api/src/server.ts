@@ -25,7 +25,13 @@ async function bootstrap(): Promise<void> {
     PROXY_SECRET: config.get('PROXY_SECRET', { infer: true }),
   });
 
-  app.useWebSocketAdapter(new SocketIoAdapter(app, config.get('WEB_ORIGIN', { infer: true })));
+  app.useWebSocketAdapter(
+    new SocketIoAdapter(
+      app,
+      config.get('WEB_ORIGIN', { infer: true }),
+      config.get('SOCKET_MAX_MESSAGE_BYTES', { infer: true }),
+    ),
+  );
   // On SIGTERM (container stop, blue-green switch) finish requests in flight before exiting.
   app.enableShutdownHooks();
 

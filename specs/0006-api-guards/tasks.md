@@ -122,7 +122,7 @@ After the merge of PR 1:
       Check: e2e: a test route slower than a low timeout → 503 in the api's format; unit: the
       server's timeouts are set. AC15 (api part).
       Commit: `feat(api): answer 503 when a request runs too long`
-- [ ] **T11. Socket message size.** `maxHttpBufferSize` from `SOCKET_MAX_MESSAGE_BYTES` (plan §6).
+- [x] **T11. Socket message size.** `maxHttpBufferSize` from `SOCKET_MAX_MESSAGE_BYTES` (plan §6).
       Check: e2e: a message over the limit closes the socket, `ping` still answers. AC12 (api part).
       Commit: `feat(api): limit the size of socket messages`
 

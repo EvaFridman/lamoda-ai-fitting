@@ -228,6 +228,27 @@ describe('validateEnv BODY_LIMIT', () => {
   });
 });
 
+describe('validateEnv SOCKET_MAX_MESSAGE_BYTES', () => {
+  it('defaults to 65536', () => {
+    expect(validateEnv(valid).SOCKET_MAX_MESSAGE_BYTES).toBe(65_536);
+  });
+
+  it.each([
+    ['1024', 1024],
+    ['1048576', 1_048_576],
+  ])('accepts %s', (value, expected) => {
+    expect(
+      validateEnv({ ...valid, SOCKET_MAX_MESSAGE_BYTES: value }).SOCKET_MAX_MESSAGE_BYTES,
+    ).toBe(expected);
+  });
+
+  it.each(['0', '-1', '1.5', 'abc', '1048577'])('refuses %j, naming the variable', (value) => {
+    expect(() => validateEnv({ ...valid, SOCKET_MAX_MESSAGE_BYTES: value })).toThrow(
+      /SOCKET_MAX_MESSAGE_BYTES/,
+    );
+  });
+});
+
 describe('assertServerEnv', () => {
   it('refuses production with an empty PROXY_SECRET, naming the variable', () => {
     expect(() => assertServerEnv({ NODE_ENV: 'production', PROXY_SECRET: '' })).toThrow(
