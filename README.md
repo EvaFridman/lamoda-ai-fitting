@@ -21,11 +21,17 @@
 
 ## Быстрый старт
 
+1. `npm ci`: зависимости корня и git-хуки.
+2. `./scripts/init-env.sh`, один раз: `.env` со случайными паролем базы, админ-токеном и секретом
+   прокси.
+3. `docker compose up -d --wait`: весь стек; команда ждёт, пока сервисы станут здоровы.
+4. Миграции: dev-стек сам их не применяет.
+
 ```bash
-npm ci                          # зависимости корня и git-хуки
-./scripts/init-env.sh           # один раз: .env со случайными паролем базы, админ-токеном и секретом прокси
-docker compose up -d --wait     # весь стек, ждёт, пока сервисы станут здоровы
-docker compose run --rm api npx prisma migrate deploy   # миграции: dev-стек сам их не применяет
+npm ci
+./scripts/init-env.sh
+docker compose up -d --wait
+docker compose run --rm api npx prisma migrate deploy
 ```
 
 | Что         | Адрес                                                       |
@@ -78,10 +84,22 @@ git worktree add ../lamoda-ai-fitting-ui-kit -b feat/ui-kit
 cd ../lamoda-ai-fitting-ui-kit
 npm ci
 ./scripts/init-env.sh
-# в .env заполнить уже существующие пустые строки:
-#   COMPOSE_PROJECT_NAME=ai-fitting-ui-kit
-#   API_HOST_PORT=4000  WEB_HOST_PORT=4001  POSTGRES_HOST_PORT=5434
-#   REDIS_HOST_PORT=6381  TEMPORAL_UI_HOST_PORT=8234
+```
+
+Затем в `.env` копии заполнить уже существующие пустые строки:
+
+```
+COMPOSE_PROJECT_NAME=ai-fitting-ui-kit
+API_HOST_PORT=4000
+WEB_HOST_PORT=4001
+POSTGRES_HOST_PORT=5434
+REDIS_HOST_PORT=6381
+TEMPORAL_UI_HOST_PORT=8234
+```
+
+И только после этого запустить стек:
+
+```bash
 docker compose up -d --wait
 docker compose run --rm api npx prisma migrate deploy
 ```
@@ -95,11 +113,12 @@ docker compose run --rm api npx prisma migrate deploy
 
 ## Команды
 
-Из корня репозитория:
+Из корня репозитория: `npm run verify` запускает всё, что проверяет CI (формат, линтеры, типы,
+тесты, сборки); `npm run format` форматирует всё Prettier.
 
 ```bash
-npm run verify         # всё, что проверяет CI: формат, линтеры, типы, тесты, сборки
-npm run format         # отформатировать всё Prettier
+npm run verify
+npm run format
 ```
 
 `verify` и `npm test` требуют запущенного Docker: тесты в `api/test/database/` проверяют ограничения

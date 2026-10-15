@@ -100,16 +100,22 @@ CD, запущенный вручную, сам проверяет это (ша�
 
 ## На сервере
 
+Какой цвет и тег сейчас обслуживают сайт, какие проекты compose запущены (`ai-fitting-infra`,
+`-blue`, `-green`, `-worker`), последние 50 строк лога api копии blue (для green —
+`ai-fitting-green-api-1`):
+
 ```bash
-ssh ai-fitting 'cat /opt/ai-fitting/.deploy-state'      # какой цвет и тег сейчас обслуживают сайт
-ssh ai-fitting 'docker compose ls'                       # ai-fitting-infra, -blue, -green, -worker
+ssh ai-fitting 'cat /opt/ai-fitting/.deploy-state'
+ssh ai-fitting 'docker compose ls'
 ssh ai-fitting 'docker logs --tail 50 ai-fitting-blue-api-1'
 ```
 
 ## Подготовка Mac (один раз)
 
+`deploy.sh` нужен bash 4+:
+
 ```bash
-brew install ansible bash     # bash 4+ нужен deploy.sh
+brew install ansible bash
 ```
 
 В `~/.ssh/config` — алиас сервера (адрес и ключ только здесь, не в репозитории):
@@ -138,11 +144,12 @@ Host ai-fitting
 
 2. **Плейбук.** Имя сервера `ai-fitting`, Docker и Compose, ротация логов Docker, firewall (входящие
    только 22, 80, 443/tcp), swap 2 ГБ, пользователь `deploy` (группа `docker`, без пароля и без sudo,
-   вход только по ключу CI), каталог `/opt/ai-fitting`:
+   вход только по ключу CI), каталог `/opt/ai-fitting`. Запуск с `--check --diff` показывает, что
+   изменится, ничего не меняя; затем запуск без флагов:
 
    ```bash
    cd deploy/ansible
-   ansible-playbook base.yml --check --diff   # что изменится, без изменений
+   ansible-playbook base.yml --check --diff
    ansible-playbook base.yml
    ```
 
@@ -191,43 +198,70 @@ Host ai-fitting
 | `POSTGRES_DB`    | `ai_fitting`                          |
 | `MEDIA_BASE_URL` | `https://lamoda-ai-fitting.ru/media/` |
 
-**Секреты** — из корня репозитория:
+**Секреты** — из корня репозитория, по одному блоку.
+
+Закрытый ключ CI (открытая часть уже на сервере, `ansible/base.yml`):
 
 ```bash
-# Закрытый ключ CI (открытая часть уже на сервере, ansible/base.yml)
 gh secret set DEPLOY_SSH_KEY --env production < ~/.ssh/ai-fitting-ci
+```
 
-# Ключ сервера для known_hosts CI: сверить отпечаток с тем, что знает ваш Mac
+Ключ сервера для known_hosts CI. Сначала сверить отпечаток сервера с тем, что знает ваш Mac:
+
+```bash
 ssh-keyscan -t ed25519 <IP сервера> 2>/dev/null | ssh-keygen -lf -
 ssh-keygen -F <IP сервера> -l | grep ED25519
-# Если отпечатки совпали:
+```
+
+Только если отпечатки совпали:
+
+```bash
 ssh-keyscan -t ed25519 <IP сервера> 2>/dev/null | gh secret set DEPLOY_KNOWN_HOSTS --env production
+```
 
-# Пароль базы: случайный, его не видит никто — CI сам запишет его в .env на сервере
+Пароль базы: случайный, его не видит никто — CI сам запишет его в `.env` на сервере:
+
+```bash
 openssl rand -hex 32 | gh secret set POSTGRES_PASSWORD --env production
+```
 
-# DSN проектов Sentry (gh спросит значение, ввод не отображается): web и api
+DSN проектов Sentry, web и api (gh спросит значение, ввод не отображается):
+
+```bash
 gh secret set SENTRY_DSN --env production
 gh secret set API_SENTRY_DSN --env production
+```
 
-# Токен Sentry для загрузки source maps (шаг 2)
+Токен Sentry для загрузки source maps (шаг 2):
+
+```bash
 gh secret set SENTRY_AUTH_TOKEN --env production
-# Если токен остался секретом репозитория (так было до спеки 0004): удалить после того, как лог CI
-# первой сборки из main покажет загрузку. Workflow из pull request видит секреты репозитория.
+```
+
+Удалить секрет уровня репозитория `SENTRY_AUTH_TOKEN` (workflow из pull request видит секреты
+репозитория), только если он там остался (так было до спеки 0004), и только после того, как лог CI
+первой сборки из `main` покажет загрузку:
+
+```bash
 gh secret delete SENTRY_AUTH_TOKEN
+```
 
-# Токен админских запросов api (заголовок X-Admin-Token): случайный, 64 символа
+Токен админских запросов api (заголовок `X-Admin-Token`), случайный, 64 символа:
+
+```bash
 openssl rand -hex 32 | gh secret set ADMIN_API_TOKEN --env production
+```
 
-# Общий секрет nginx, web и api (заголовок X-Proxy-Secret): только с ним api верит адресу клиента и
-# request id из заголовков. Случайный, не равен ADMIN_API_TOKEN; без него CD останавливается.
-# Только буквы и цифры, от 32 символов: секрет попадает в конфиг nginx и в .env, который читает
-# shell; иначе CD остановится.
-# Первый деплой с ним (спека 0006) пересоздаёт nginx: у контейнера новая переменная, несколько
-# секунд сайт не отвечает. Копия до 0006 пишет заголовки запросов в лог целиком, с секретом. Секрет
-# сменить (см. ниже) после первого деплоя с 0006 и после отката на версию старше 0006, но только
-# когда сайт снова на версии с 0006: пока старая копия работает, она запишет и новый.
-# Эта команда — только для первой установки; смена — в два шага ниже.
+Общий секрет nginx, web и api (заголовок `X-Proxy-Secret`): только с ним api верит адресу клиента и
+request id из заголовков. Случайный, не равен `ADMIN_API_TOKEN`; без него CD останавливается.
+Только буквы и цифры, от 32 символов: секрет попадает в конфиг nginx и в `.env`, который читает
+shell; иначе CD остановится. Первый деплой с ним (спека 0006) пересоздаёт nginx: у контейнера новая
+переменная, несколько секунд сайт не отвечает. Копия до 0006 пишет заголовки запросов в лог
+целиком, с секретом. Секрет сменить (см. ниже) после первого деплоя с 0006 и после отката на версию
+старше 0006, но только когда сайт снова на версии с 0006: пока старая копия работает, она запишет и
+новый. Эта команда — только для первой установки; смена — в два шага ниже.
+
+```bash
 openssl rand -hex 32 | gh secret set PROXY_SECRET --env production
 ```
 
@@ -286,15 +320,21 @@ gh variable set NEXT_PUBLIC_MIXPANEL_TOKEN --body "<токен проекта>"
 ### Проверка
 
 ```bash
-gh secret list --env production     # DEPLOY_SSH_KEY, DEPLOY_KNOWN_HOSTS, POSTGRES_PASSWORD, SENTRY_DSN,
-                                    # API_SENTRY_DSN, SENTRY_AUTH_TOKEN, ADMIN_API_TOKEN,
-                                    # PROXY_SECRET (и PROXY_SECRET_NEXT, только во время смены)
-gh variable list --env production   # DEPLOY_HOST, DEPLOY_USER, SITE_DOMAIN, POSTGRES_USER, POSTGRES_DB,
-                                    # MEDIA_BASE_URL
-gh secret list                      # пусто
-gh variable list                    # SENTRY_ORG, SENTRY_PROJECT, SENTRY_PROJECT_API, NEXT_PUBLIC_SENTRY_DSN,
-                                    # NEXT_PUBLIC_MIXPANEL_TOKEN
+gh secret list --env production
+gh variable list --env production
+gh secret list
+gh variable list
 ```
+
+Что должна показать каждая команда, по порядку:
+
+1. `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS`, `POSTGRES_PASSWORD`, `SENTRY_DSN`, `API_SENTRY_DSN`,
+   `SENTRY_AUTH_TOKEN`, `ADMIN_API_TOKEN`, `PROXY_SECRET` (и `PROXY_SECRET_NEXT`, только во время
+   смены).
+2. `DEPLOY_HOST`, `DEPLOY_USER`, `SITE_DOMAIN`, `POSTGRES_USER`, `POSTGRES_DB`, `MEDIA_BASE_URL`.
+3. Пусто.
+4. `SENTRY_ORG`, `SENTRY_PROJECT`, `SENTRY_PROJECT_API`, `NEXT_PUBLIC_SENTRY_DSN`,
+   `NEXT_PUBLIC_MIXPANEL_TOKEN`.
 
 `POSTGRES_PASSWORD` задаётся один раз, до первого деплоя: база инициализируется с ним, и смена
 секрета потом сломает подключение api к уже созданной базе.
@@ -303,13 +343,15 @@ gh variable list                    # SENTRY_ORG, SENTRY_PROJECT, SENTRY_PROJECT
 
 До первого выпуска nginx работает на временном самоподписанном сертификате (`nginx/cert-init.sh`),
 браузеры показывают предупреждение. Настоящий сертификат Let's Encrypt выпускается **один раз**, на
-сервере, после первого деплоя (nginx должен отвечать на проверку домена):
+сервере, после первого деплоя (nginx должен отвечать на проверку домена). `init-cert.sh --staging`
+обращается к тестовому серверу Let's Encrypt (лимиты мягкие), `init-cert.sh` без флага — к
+настоящему (на email придут предупреждения):
 
 ```bash
 ssh ai-fitting
 cd /opt/ai-fitting
-deploy/scripts/init-cert.sh --staging <email>   # тестовый сервер Let's Encrypt: лимиты мягкие
-deploy/scripts/init-cert.sh <email>             # настоящий; на email придут предупреждения
+deploy/scripts/init-cert.sh --staging <email>
+deploy/scripts/init-cert.sh <email>
 ```
 
 Сначала всегда `--staging`: у настоящего сервера жёсткий лимит (5 одинаковых сертификатов в неделю).
