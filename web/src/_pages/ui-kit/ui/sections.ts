@@ -1,6 +1,8 @@
 import type { ComponentType } from 'react';
 
 import { ButtonsSection } from './buttons-section';
+import { CatalogCardSection } from './catalog-card-section';
+import { CatalogFiltersSection } from './catalog-filters-section';
 import { ChoiceSection } from './choice-section';
 import { FeedbackSection } from './feedback-section';
 import { FieldsSection } from './fields-section';
@@ -37,6 +39,8 @@ export const sections: UiKitSection[] = [
   { id: 'sizes-colors', title: 'Размеры и цвета', Content: SizesColorsSection },
   { id: 'select', title: 'Выпадающий список', Content: SelectSection },
   { id: 'product', title: 'Товар и заказ', Content: ProductSection },
+  { id: 'catalog-card', title: 'Карточка товара в каталоге', Content: CatalogCardSection },
+  { id: 'catalog-filters', title: 'Фильтры каталога', Content: CatalogFiltersSection },
   { id: 'navigation', title: 'Навигация', Content: NavigationSection },
   { id: 'overlays', title: 'Окна и подсказки', Content: OverlaysSection },
   { id: 'feedback', title: 'Уведомления и загрузка', Content: FeedbackSection },
