@@ -1,6 +1,8 @@
 # 0009 entity UI: tasks
 
-Status: accepted (2026-10-15).
+Status: done (2026-10-16): all 13 criteria pass (record below); amended 2026-10-15 in T4 and 2026-10-16 in T10:
+T4 carries web's `colorHex` schemas, so T5 only changes the swatches and PR 2 carries both sides;
+T10 names the list `CatalogCategoryList`. History, not instructions.
 Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## How the work flows
@@ -85,7 +87,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## PR 4 · `docs/0009-close` · acceptance
 
-- [ ] **T12. Acceptance.** Every AC recorded below, AC11 on production `/ui-kit`. All files get
+- [x] **T12. Acceptance.** Every AC recorded below, AC11 on production `/ui-kit`. All files get
       `Status: done`. `CLAUDE.md` in line with what was built: 0009 in the spec list, the entity
       `ui` segment, `colorHex` (plan, Docs).
       Check: the acceptance record is complete.
@@ -94,18 +96,22 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## Acceptance record
 
-| AC   | Result | Evidence |
-| ---- | ------ | -------- |
-| AC1  |        |          |
-| AC2  |        |          |
-| AC3  |        |          |
-| AC4  |        |          |
-| AC5  |        |          |
-| AC6  |        |          |
-| AC7  |        |          |
-| AC8  |        |          |
-| AC9  |        |          |
-| AC10 |        |          |
-| AC11 |        |          |
-| AC12 |        |          |
-| AC13 |        |          |
+Checks on 2026-10-16 with main at `1f2f4a9` (PR 3 deployed: CI run 38823061552, "Deploy to
+production" green); `npm run verify` on that commit passed (api 2117 tests, web 1601, guards and
+scripts 420).
+
+| AC   | Result | Evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ---- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AC1  | pass   | production: `curl https://lamoda-ai-fitting.ru/api/products/facets` gives the ten colours their hex (бежевый `#DFBD93` … чёрный `#000000`) and `null` to the material and season values; api e2e: `product-facets` "carries the swatch colour of each attribute value", `attributes` "colorHex (spec 0009)" (create, list, update, clear), `seed` (the seed's colours have their hex), `migration-color-hex` "gives the ten seed colours their hex and leaves every other value null" |
+| AC2  | pass   | api e2e `attributes`: a bad colour on create and update answers 400 `VALIDATION_FAILED` on `colorHex`; "refuses a raw insert and update of a bad colour with the CHECK"                                                                                                                                                                                                                                                                                                               |
+| AC3  | pass   | `entities/attribute/model/schemas.contract.test.ts` and `entities/product/model/schemas.contract.test.ts`                                                                                                                                                                                                                                                                                                                                                                             |
+| AC4  | pass   | `catalog-product-card.test.tsx` (discounted: badge, struck-out old price, new price; full price; "Нет фото"; no rating; long name; skeleton); `ui-kit/ui/catalog-card-section.test.tsx` (five cards and the skeleton, the favourite toggle in the slot)                                                                                                                                                                                                                               |
+| AC5  | pass   | `catalog-product-card.test.tsx`: "is one link to href", "puts the action outside the link and a click on it does not reach the link"; `catalog-card-section.test.tsx`: "presses and releases the toggle on clicks"                                                                                                                                                                                                                                                                    |
+| AC6  | pass   | `catalog-filters.test.tsx` `ColorFilter`: name and count per row, a value without a colour as an empty circle, two picks reported on "Применить"; `catalog-filters-section.test.tsx`: "applies two colours and reports both ids", "разноцветный" with no swatch                                                                                                                                                                                                                       |
+| AC7  | pass   | `catalog-filters.test.tsx`: `AttributeFilter` "works for any attribute: "Материал" and "Сезон" with counts" and reports the ids; `BrandFilter` "finds a brand by part of its name, ignoring case" and reports the ids                                                                                                                                                                                                                                                                 |
+| AC8  | pass   | `entities/product/lib/sizes.test.ts` (`sortSizes`: letters from XS up, numbers ascending, the rest by text); `SizeFilter` test with shuffled input; `catalog-filters-section.test.tsx` "lists the sizes in clothing order"                                                                                                                                                                                                                                                            |
+| AC9  | pass   | `catalog-filters.test.tsx`: `PriceRangeFilter` (bounds as placeholders, a moved range reported), `DiscountFilter` (toggles, reports), `ProductSortFilter` (five sorts in order in Russian, reports the key)                                                                                                                                                                                                                                                                           |
+| AC10 | pass   | `catalog-category-list.test.tsx`: each category a link with its count, only the chosen one marked `aria-current="page"`                                                                                                                                                                                                                                                                                                                                                               |
+| AC11 | pass   | `ui-kit-page.test.tsx`: every section in the table of contents, every link to an existing section; production `/ui-kit`: the table of contents links `#catalog-card` and `#catalog-filters`, both sections rendered, `x-nextjs-prerender: 1` (curl); `next build` in `verify` and the CI image build (no api) mark `/ui-kit` prerendered (◐); production at 375 px (DevTools device mode, whole page): no sideways scroll (owner)                                                     |
+| AC12 | pass   | `ui-kit/config/catalog.test.ts`: the fixtures match the schemas, "is refused when broken, so the checks above can fail"                                                                                                                                                                                                                                                                                                                                                               |
+| AC13 | pass   | `npm run verify` above, exit 0; `rg "Colour swatches\|Size order" specs/backlog.md` finds nothing                                                                                                                                                                                                                                                                                                                                                                                     |
