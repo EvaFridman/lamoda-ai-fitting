@@ -18,9 +18,10 @@ the search feature (§3).
     `IconButton` with an `aria-label` ("Профиль", "Избранное", "Корзина").
 - **Second row**: the category row on the left (§2), the search field on the right at Lamoda's
   width (§3).
-- **Inert elements (L5)**: the gender switch, the city and the icons are buttons rendered
-  `disabled` with `focusableWhenDisabled` (Base UI), so they carry `aria-disabled="true"`, stay in
-  the tab order and do nothing.
+- **Inert elements (L5)**: the gender switch, the city and the icons are `type="button"` buttons
+  with `aria-disabled="true"` and no handler: they stay in the tab order and do nothing. (Amended
+  at T6, owner: not `disabled` with Base UI's `focusableWhenDisabled`, which `IconButton` does not
+  take and whose `data-disabled` would fade the icons to the kit's 0.4 opacity.)
 - **Logo (L7)**: `ui/logo.tsx` holds the SVG of the saved page (`viewBox="0 0 168 28"`), `fill`
   `currentColor`, `aria-hidden` (the link carries the name). It stays in the widget, not in the
   kit: nothing else uses it.

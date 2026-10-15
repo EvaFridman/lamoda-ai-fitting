@@ -6,6 +6,7 @@ import type { ReactNode } from 'react';
 
 import { Providers } from '@/_app';
 import { Footer } from '@/widgets/footer';
+import { Header } from '@/widgets/header';
 
 // Downloaded at build time and served from our own domain; the tokens' --font-sans reads the variable.
 const onest = Onest({ subsets: ['latin', 'cyrillic'], variable: '--font-onest' });
@@ -14,12 +15,13 @@ export const metadata: Metadata = {
   title: 'Lamoda AI Fitting',
 };
 
-// The frame shared by every page: providers and the site footer.
+// The frame shared by every page: providers, the site header and footer.
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ru" className={onest.variable}>
       <body>
         <Providers>
+          <Header />
           {children}
           <Footer />
         </Providers>

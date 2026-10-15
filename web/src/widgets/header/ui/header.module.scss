@@ -1,0 +1,170 @@
+// Lamoda's .d-header as on the owner's screenshots: a white band with a soft shadow under it
+// (--shadowPremiumHeader); a 68px top row with 16px text on the left, the 168×28 logo in the centre
+// and the 24px icons 56px apart on the right; under it the 50px category row (16px text) and the
+// search field, 300px wide. Content at most 1200px wide with the footer's side padding.
+// Narrow screens (plan §1, L6): below 1024px the gender switch and the city get a row of their own,
+// then the logo and the icons, the search field at full width, the category row scrolling sideways.
+
+.header {
+  // Positioned, so its shadow paints over the page below it; not sticky (spec non-goals).
+  position: relative;
+  color: var(--color-text);
+  background-color: var(--color-background);
+  box-shadow: var(--shadow-header);
+}
+
+.inner {
+  display: grid;
+  grid-template:
+    'place logo nav' 68px
+    'categories categories search' 50px / minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+
+  box-sizing: content-box;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 var(--space-10) var(--space-2);
+
+  @media (width < 1024px) {
+    grid-template:
+      'place place' auto
+      'logo nav' 56px
+      'search search' auto
+      'categories categories' auto / minmax(0, 1fr) auto;
+    padding-top: var(--space-3);
+  }
+
+  @media (width < 600px) {
+    padding-inline: var(--space-4);
+  }
+}
+
+.place {
+  display: flex;
+  grid-area: place;
+  gap: var(--space-6);
+  align-items: center;
+
+  min-width: 0;
+
+  @media (width < 600px) {
+    gap: var(--space-4);
+  }
+}
+
+// The gender switch and the city: plain 16px text, as on Lamoda.
+.textButton {
+  cursor: default;
+
+  display: inline-flex;
+  gap: var(--space-1);
+  align-items: center;
+
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+
+  font: inherit;
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+  color: inherit;
+  text-align: left;
+
+  background: none;
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: 2px;
+  }
+}
+
+.gender {
+  flex: none;
+}
+
+// On a phone the city does not fit beside "Женщинам": it ends in an ellipsis, so both keep one row
+// (L6); the button's name stays whole.
+.city {
+  overflow: hidden;
+  display: block;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.logo {
+  display: block;
+  grid-area: logo;
+  color: var(--color-text);
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: 4px;
+  }
+
+  svg {
+    display: block;
+  }
+
+  // Narrower than about 360px the logo shrinks to the room the icons leave it.
+  @media (width < 1024px) {
+    justify-self: start;
+    min-width: 0;
+    max-width: 168px;
+    margin-right: var(--space-4);
+
+    svg {
+      width: 100%;
+      height: auto;
+    }
+  }
+}
+
+// The kit's 48px icon button without its outline: centres 56px apart, the last icon flush with the
+// content's right edge, as Lamoda draws them.
+.userNav {
+  display: flex;
+  grid-area: nav;
+  gap: var(--space-2);
+  justify-self: end;
+
+  margin-right: calc(-1 * var(--space-3));
+}
+
+// Inert (L5): no outline and no hover change.
+.userNav .iconButton[aria-disabled] {
+  &,
+  &:hover {
+    cursor: default;
+    border-color: transparent;
+    color: var(--color-text);
+  }
+}
+
+// Stays empty without categories: the search field sets the row's height (plan §2).
+.categories {
+  scrollbar-width: none;
+
+  overflow-x: auto;
+  grid-area: categories;
+  align-self: stretch;
+
+  min-width: 0;
+
+  font-size: var(--font-size-body-m);
+  line-height: 50px;
+  white-space: nowrap;
+}
+
+.search {
+  grid-area: search;
+  justify-self: end;
+  width: 300px;
+  margin-left: var(--space-6);
+
+  @media (width < 1024px) {
+    justify-self: stretch;
+    width: auto;
+    margin: var(--space-2) 0 0;
+  }
+}
