@@ -113,6 +113,52 @@ export default tseslint.config(
       ],
     },
   },
+  // Nothing loads before consent (spec 0008): the Mixpanel SDK is loaded only by `import()` in
+  // `shared/analytics/client.ts`; anywhere else, go through `@/shared/analytics`. Its own rule name,
+  // so it does not replace the contract block's `no-restricted-imports`.
+  {
+    files: webFiles,
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'mixpanel-browser',
+              allowTypeImports: true,
+              message: 'Use @/shared/analytics: only its client.ts loads the SDK, after consent.',
+            },
+          ],
+          // The package has no `exports`, so its files can be imported by path too.
+          patterns: [
+            {
+              group: ['mixpanel-browser/**'],
+              allowTypeImports: true,
+              message: 'Use @/shared/analytics: only its client.ts loads the SDK, after consent.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: webFiles,
+    ignores: ['web/src/shared/analytics/client.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'ImportExpression[source.value=/^mixpanel-browser($|\\x2F)/]',
+          message: 'Use @/shared/analytics: only its client.ts loads the SDK, after consent.',
+        },
+        {
+          selector:
+            "ImportExpression[source.type='TemplateLiteral'][source.quasis.0.value.cooked=/^mixpanel-browser($|\\x2F)/]",
+          message: 'Use @/shared/analytics: only its client.ts loads the SDK, after consent.',
+        },
+      ],
+    },
+  },
 
   // Last: turns off every rule that would fight Prettier.
   prettier,
