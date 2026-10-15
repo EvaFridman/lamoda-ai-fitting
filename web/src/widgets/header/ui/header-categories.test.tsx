@@ -1,0 +1,106 @@
+import { render, screen, within } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { type Category } from '@/entities/category';
+import { getCategories } from '@/entities/category/server';
+import { ApiError, reportFailure } from '@/shared/api';
+
+import { HeaderCategories } from './header-categories';
+
+vi.mock('server-only', () => ({}));
+vi.mock('next/server', () => ({ connection: vi.fn().mockResolvedValue(undefined) }));
+vi.mock('@/entities/category/server', () => ({ getCategories: vi.fn() }));
+vi.mock('@/shared/api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/shared/api')>()),
+  reportFailure: vi.fn(),
+}));
+
+const getCategoriesMock = vi.mocked(getCategories);
+const reportFailureMock = vi.mocked(reportFailure);
+
+function category(id: string, name: string, sortOrder: number): Category {
+  return {
+    id,
+    name,
+    slug: `slug-${id}`,
+    isActive: true,
+    description: null,
+    sortOrder,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  };
+}
+
+describe('HeaderCategories', () => {
+  beforeEach(() => {
+    getCategoriesMock.mockReset();
+    reportFailureMock.mockReset();
+  });
+
+  it('asks the api for the active categories, 100 at most', async () => {
+    getCategoriesMock.mockResolvedValue({ items: [], total: 0 });
+
+    await HeaderCategories();
+
+    expect(getCategoriesMock).toHaveBeenCalledTimes(1);
+    expect(getCategoriesMock).toHaveBeenCalledWith({ isActive: true, limit: 100 });
+  });
+
+  it('lists the names in the order the api returned them, and nothing else', async () => {
+    getCategoriesMock.mockResolvedValue({
+      items: [
+        category('1', 'Обувь', 1),
+        category('2', 'Одежда', 2),
+        category('3', 'Аксессуары', 3),
+      ],
+      total: 3,
+    });
+
+    render(await HeaderCategories());
+
+    const items = within(screen.getByRole('list')).getAllByRole('listitem');
+    expect(items.map((item) => item.textContent)).toEqual(['Обувь', 'Одежда', 'Аксессуары']);
+    expect(screen.getAllByRole('listitem')).toHaveLength(3);
+    expect(reportFailureMock).not.toHaveBeenCalled();
+  });
+
+  it('renders no links', async () => {
+    getCategoriesMock.mockResolvedValue({
+      items: [category('1', 'Обувь', 1), category('2', 'Одежда', 2)],
+      total: 2,
+    });
+
+    const { container } = render(await HeaderCategories());
+
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    expect(container.querySelector('[href]')).toBeNull();
+    expect(container.querySelector('a')).toBeNull();
+  });
+
+  it.each([
+    ['an ApiError', new ApiError('down', { kind: 'http', template: '/categories', status: 503 })],
+    ['a plain error', new Error('boom')],
+  ])('renders nothing and reports the failure on %s', async (_name, error) => {
+    getCategoriesMock.mockRejectedValue(error);
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    const result = await HeaderCategories();
+    const { container } = render(result);
+
+    expect(container).toBeEmptyDOMElement();
+    expect(reportFailureMock).toHaveBeenCalledTimes(1);
+    expect(reportFailureMock).toHaveBeenCalledWith(error);
+    expect(consoleError).not.toHaveBeenCalled();
+    consoleError.mockRestore();
+  });
+
+  it('renders nothing, not an empty list, when there are no categories', async () => {
+    getCategoriesMock.mockResolvedValue({ items: [], total: 0 });
+
+    const { container } = render(await HeaderCategories());
+
+    expect(container).toBeEmptyDOMElement();
+    expect(screen.queryByRole('list')).not.toBeInTheDocument();
+    expect(reportFailureMock).not.toHaveBeenCalled();
+  });
+});
