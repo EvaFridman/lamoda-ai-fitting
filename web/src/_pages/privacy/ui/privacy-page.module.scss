@@ -1,0 +1,23 @@
+// One text column, at most 720px wide, centred like the rest of the site's 1200px grid.
+
+.page {
+  display: grid;
+  gap: var(--space-4);
+  align-content: start;
+
+  max-width: 720px;
+  min-height: calc(100vh - 3.5rem);
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-4);
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  line-height: 1.2;
+}
+
+.text {
+  margin: 0;
+  line-height: 1.5;
+}

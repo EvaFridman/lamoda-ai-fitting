@@ -96,6 +96,16 @@ describe('AnalyticsGate', () => {
     expect(startAnalytics).not.toHaveBeenCalled();
   });
 
+  it('does not start analytics on a fresh mount with a stored decline', () => {
+    window.localStorage.setItem(
+      CONSENT_KEY,
+      JSON.stringify({ value: 'denied', at: new Date().toISOString() }),
+    );
+    render(<AnalyticsGate />);
+    expect(startAnalytics).not.toHaveBeenCalled();
+    expect(stopAnalytics).toHaveBeenCalledTimes(1);
+  });
+
   it('starts analytics when a stored answer is granted', () => {
     window.localStorage.setItem(
       CONSENT_KEY,

@@ -160,5 +160,13 @@ code comments (`I` is skipped: it reads as `1`). All decisions below: owner, 202
 - **J33. Storage blocked:** an answer the browser will not store hides the banner and sends nothing
   until the page reloads; navigation inside the site does not ask again. (Owner, 2026-10-15, at
   T7.)
+- **J34. The policy page's placeholder:** the heading "Политика по работе с персональными данными"
+  and "Здесь будет политика по работе с персональными данными. Текст готовится и появится позже.
+  Пока сайт работает как демонстрация: аналитика включается, только если вы согласились в баннере
+  о cookies, и это решение можно изменить кнопкой ниже." The text stays the same with an empty
+  token, where neither the banner nor the button renders (J17): production always has one.
+  (Owner, 2026-10-15, at T8.)
+- **J35. A decline right after an accept** lets the SDK send its last session-replay flush, recorded
+  while consent held; nothing is sent after it. Accepted as is. (Owner, 2026-10-15, at T8.)
 - **AC3 is checked in production only** (T11): no local tool intercepts the SDK's requests, and a
   dummy token would still send to Mixpanel. (Owner, 2026-10-15, at T7.)
