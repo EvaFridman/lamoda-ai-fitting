@@ -1,6 +1,7 @@
 # 0005 Faster CI and CD: plan
 
-Status: accepted (2026-10-15); amended 2026-10-15: §2 dropped, no image layer cache (G7).
+Status: done (2026-10-15); amended 2026-10-15: §2 dropped, no image layer cache (G7); §3 records
+that the test pools were halved. History, not instructions.
 Spec: [spec.md](spec.md); decisions: [clarifications.md](clarifications.md).
 
 ## Versions (checked 2026-10-15)
@@ -65,7 +66,10 @@ numbers, and what would bring the cache back, are in G7. `scripts/ci-build-image
   of checks does not change (G3).
 - Both Vitest runs size their worker pools from the CPU count, so together they ask for about twice
   the CPUs; on 4-CPU runners the gain is expected to be ~30–40 s, not the full 41 s of the api. The
-  task measures it and leaves the pools alone unless the total gets slower.
+  task measures it and leaves the pools alone unless the total gets slower. Result (T4, `80a8217`):
+  it got slower. Locally (15 CPUs) one run after the other took 15–16 s, both at once with full
+  pools 18–19 s, both at once with half the pools about 14 s. So the root `test` passes
+  `--maxWorkers=50%` to each Vitest run.
 - `scripts/run-parallel.mjs` gets tests in `scripts/run-parallel.test.mjs`, run by the root `test`
   with `node --test` like the guard tests.
 
