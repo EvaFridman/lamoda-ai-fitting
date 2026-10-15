@@ -63,7 +63,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Check: a test (every item rendered, one link, to `/privacy`); `qa-tester` screenshots at
       1440, 900 and 375 px for the owner to compare with the screenshot (AC15); `npm run verify`.
       Commit: `feat(web): rebuild the footer as lamoda's`
-- [ ] **T10. Tracked element and backlog.** `'ui-kit.button-primary'` on `/ui-kit` (plan §8); the
+- [x] **T10. Tracked element and backlog.** `'ui-kit.button-primary'` on `/ui-kit` (plan §8); the
       backlog item "Full CSP for web" (plan §9).
       Check: a test that the button sends both events; `npm run verify`.
       Commit: `feat(web): track the ui-kit primary button`
