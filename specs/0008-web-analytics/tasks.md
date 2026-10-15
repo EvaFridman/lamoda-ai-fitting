@@ -26,7 +26,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## PR 2 · `feat/0008-analytics` · MCP, analytics, consent, policy, footer
 
-- [ ] **T4. MCP server.** `.mcp.json` (plan §7); `.claude/README.md`: the server, why the main
+- [x] **T4. MCP server.** `.mcp.json` (plan §7); `.claude/README.md`: the server, why the main
       session only, the built-in agents' inheritance.
       Check: 👤 restarts Claude Code, approves the server, signs in with `/mcp`; the main session
       lists the project 4073843 through MCP (AC12, first half).

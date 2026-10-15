@@ -128,7 +128,8 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
 ## Structure
 
 - Root: shared tooling (Prettier, ESLint, commitlint, lint-staged, gitleaks), `.githooks/`,
-  `.claude/`, `specs/`.
+  `.claude/`, `.mcp.json` (the Mixpanel MCP server, main session only: `.claude/README.md`),
+  `specs/`.
 - `api/src/<module>/`: controller (thin) → service (logic) → Prisma. Imports go downward only.
   Generated Prisma client in `api/src/generated/` (git-ignored, never edited by hand).
 - `api/prisma/`: `schema.prisma` and migrations. CHECK constraints live only in the migrations'
