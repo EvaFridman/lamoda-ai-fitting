@@ -10,7 +10,7 @@
 [0001-bootstrap](specs/0001-bootstrap/), [0002-database-schema](specs/0002-database-schema/),
 [0003-ui-kit](specs/0003-ui-kit/), [0004-crud-api](specs/0004-crud-api/),
 [0005-faster-ci](specs/0005-faster-ci/), [0006-api-guards](specs/0006-api-guards/),
-[0007-web-data-layer](specs/0007-web-data-layer/).
+[0007-web-data-layer](specs/0007-web-data-layer/), [0008-web-analytics](specs/0008-web-analytics/).
 
 ## Требования
 

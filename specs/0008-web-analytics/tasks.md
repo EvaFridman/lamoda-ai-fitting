@@ -1,6 +1,6 @@
 # 0008 web analytics: tasks
 
-Status: accepted (2026-10-15).
+Status: done (2026-10-16). History, not instructions.
 Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## How the work flows
@@ -70,9 +70,9 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## PR 3 · `docs/0008-close` · acceptance
 
-- [ ] 👤 Sets the Mixpanel project's time zone to Europe/Moscow and names the organization and
+- [x] 👤 Sets the Mixpanel project's time zone to Europe/Moscow and names the organization and
       project (spec, owner actions).
-- [ ] **T11. Acceptance.** AC1–AC15 in production after PR 2 is deployed, each with its evidence
+- [x] **T11. Acceptance.** AC1–AC15 in production after PR 2 is deployed, each with its evidence
       below (plan, "How each criterion is verified"); 👤 checks AC10 and AC11 in the Mixpanel UI
       and AC15 against the screenshot. All files get `Status: done`; `CLAUDE.md` (opening paragraph)
       and `README.md` name the spec.
@@ -81,4 +81,23 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## Acceptance record
 
-Filled in by T11.
+Production checks on 2026-10-16 with main at `91f66b8`, in a private window with no ad blocker and
+no Do Not Track; Mixpanel data read through the MCP server (project 4073843).
+
+| AC   | Result | Evidence                                                                                                                                                                                                                                                                                       |
+| ---- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AC1  | pass   | production, new private window: banner shown, no request to a Mixpanel domain (owner's network panel); the page's initial scripts hold the SDK's settings but not the SDK (no `mp_lib`/`MixpanelLib`, curl of every script of `/`)                                                             |
+| AC2  | pass   | production: "Отказаться", reload, `/ui-kit`: no banner, no Mixpanel request (owner's network panel); `consent-store.test.ts`                                                                                                                                                                   |
+| AC3  | pass   | production: "Принять" sends to `api-eu.mixpanel.com` (owner's network panel); MCP: the page view of `/?utm_source=ac7&utm_campaign=spec-0008` with no other click, and page views of `/ui-kit` after a navigation                                                                              |
+| AC4  | pass   | production: a bar at the bottom, "Принять" and "Отказаться" of equal weight, its link opens `/privacy` with the placeholder text (owner); component tests                                                                                                                                      |
+| AC5  | pass   | production: `/privacy`, "Настройки cookies", "Отказаться": no further request (owner's network panel); MCP: that page view of `/privacy` is the project's last event; unit test of the gate                                                                                                    |
+| AC6  | pass   | `consent-store.test.ts` (another tab through the storage event, 364 days kept, 366 days asked again); production: the answer survives a reload and a new tab (owner)                                                                                                                           |
+| AC7  | pass   | MCP: 5 page views with `utm_source=ac7`, `utm_campaign=spec-0008`                                                                                                                                                                                                                              |
+| AC8  | pass   | MCP: one `Element Clicked` and one `Element Hovered`, `element=ui-kit.button-primary` on `/ui-kit#buttons`; a second hover of 500 ms and a short one sent none; unit tests of `useTrackedElement`                                                                                              |
+| AC9  | pass   | `events.test.ts`: `// @ts-expect-error` on an unknown event and property, checked by `npm run typecheck` in `verify`                                                                                                                                                                           |
+| AC10 | pass   | the heatmap of `/ui-kit` shows the clicks of AC8 (owner, Mixpanel UI); it had no data until the session's replay was processed, about an hour later                                                                                                                                            |
+| AC11 | pass   | the replay of that session: text, inputs and images masked (owner, Mixpanel UI)                                                                                                                                                                                                                |
+| AC12 | pass   | MCP queries above from the main session; `rg -i mixpanel .claude/agents` finds nothing; `.mcp.json` signs in through OAuth                                                                                                                                                                     |
+| AC13 | pass   | local stack with an empty token (`qa-tester`): `/`, `/privacy`, `/ui-kit`, a click and a hover: no banner, no "Настройки cookies", no request to a Mixpanel domain; `client.test.ts`, `consent-banner.test.tsx`. `next dev` downloads the SDK's chunk from the local server without running it |
+| AC14 | pass   | `npm run verify`; CI on main `91f66b8` green, the web image built and published                                                                                                                                                                                                                |
+| AC15 | pass   | `footer.test.tsx`: one link, to `/privacy`; production HTML of `/`: one footer link, `/privacy`; a screenshot at 1440 px (local stack, the same code) matches the owner's (owner)                                                                                                              |

@@ -1,6 +1,7 @@
 # 0008 web analytics
 
-Status: accepted (2026-10-15); amended the same day: the footer (J22), its bottom row (J36).
+Status: done (2026-10-16): all 15 criteria pass (record in `tasks.md`); amended 2026-10-15: the
+footer (J22), its bottom row (J36). History, not instructions.
 
 Issue #40. Decisions: `clarifications.md` (J1–J36).
 
