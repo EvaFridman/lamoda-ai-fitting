@@ -1,6 +1,6 @@
 # 0006 api guards, limiters, pipes and middleware: clarifications
 
-Status: open (2026-10-15).
+Status: done (2026-10-15). History, not instructions.
 
 The owner's decisions for this spec. Ids `F1`, `F2`, … are referred to by the spec, the plan and
 code comments.
@@ -234,6 +234,12 @@ code comments.
 - **F15. GitHub issue #29.** The issue "Подготовить Guards, Limiters, Pipes, Middleware" is closed
   by the last pull request of this spec: its description carries `Closes #29` on a line of its own
   under "Что сделано".
+- **F39. Evidence that stops short of the criterion.** Added in T14 (owner, 2026-10-15). AC10: the
+  CI check and the owner's flood send the other address's request right after the flood, not
+  during it. AC14: no 5xx event has reached Sentry since the request id; a unit test of the
+  middleware's `request_id` tag, added in T14, stands in for one. AC15: nginx's timeout above the
+  api's is shown by configuration (`proxy_read_timeout 60s` against at most 31 s), not by a slow
+  request; no check is added for it.
 
 ## Later
 

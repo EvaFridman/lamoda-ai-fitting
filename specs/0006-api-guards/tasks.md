@@ -1,6 +1,7 @@
 # 0006 api guards, limiters, pipes and middleware: tasks
 
-Status: accepted (2026-10-15).
+Status: done (2026-10-15); amended 2026-10-15 in T6: F20 and T5's review notes. History, not
+instructions.
 Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## How the work flows
@@ -147,7 +148,7 @@ After the merge of PR 3:
 
 ## PR 4 · `docs/0006-close` · acceptance
 
-- [ ] **T14. Acceptance record and close.** The table below filled in; `CLAUDE.md` checked against
+- [x] **T14. Acceptance record and close.** The table below filled in; `CLAUDE.md` checked against
       AC17; every file of this folder `Status: done`. The pull request carries `Closes #29`.
       Check: every AC has evidence; `npm run verify`.
       Commit: `docs(specs): close spec 0006`
@@ -156,22 +157,27 @@ After the merge of PR 3:
 
 Filled in by T14.
 
-| AC   | Result | Evidence |
-| ---- | ------ | -------- |
-| AC1  |        |          |
-| AC2  |        |          |
-| AC3  |        |          |
-| AC4  |        |          |
-| AC5  |        |          |
-| AC6  |        |          |
-| AC7  |        |          |
-| AC8  |        |          |
-| AC9  |        |          |
-| AC10 |        |          |
-| AC11 |        |          |
-| AC12 |        |          |
-| AC13 |        |          |
-| AC14 |        |          |
-| AC15 |        |          |
-| AC16 |        |          |
-| AC17 |        |          |
+CI run 38697597004 is the merge of PR #54 (`e9bdb21`): its job Images (main) ran
+`scripts/ci-deploy-check.sh` against the CI copy of nginx. 👤 marks the owner's checks on https://lamoda-ai-fitting.ru on
+2026-10-15: after PR #51 (`08fbd13`) for AC8 and AC14, after PR #54 for AC10–AC13. Test files are
+under `api/` unless named otherwise; all pass in `npm run verify`.
+
+| AC   | Result | Evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ---- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AC1  | pass   | `test/access-markers.e2e-spec.ts` walks every route of the app and fails on one with neither marker; `test/access.e2e-spec.ts`: a route with neither marker answers 401 to every request, the right token included                                                                                                                                                                                                                                                                                                                      |
+| AC2  | pass   | `test/database/access.e2e-spec.ts`: GET of the catalog reads and `/health/live` answers 200 with no token, a wrong or the right one; `/users`, `/fitting-sessions` and `/ai-generations` answer 401 with no token or a wrong one; a catalog write answers 401 without the right token, HEAD 401 on an admin route and 200 on a public one; the public routes are listed in `PUBLIC_HANDLERS` of `test/access-markers.e2e-spec.ts`                                                                                                       |
+| AC3  | pass   | `src/common/http/request-context.spec.ts`: the principal is anonymous with no token, a wrong or an empty one, admin with the right one; `test/access.e2e-spec.ts`: a public route answers 200 with a wrong token                                                                                                                                                                                                                                                                                                                        |
+| AC4  | pass   | `test/throttling-tiers.e2e-spec.ts`: a client over its write quota gets 429 on writes while its reads answer 200; each request counts in one tier only                                                                                                                                                                                                                                                                                                                                                                                  |
+| AC5  | pass   | `test/throttling-tiers.e2e-spec.ts`: 429 in the error format past the burst limit and past the minute limit, with `Retry-After`                                                                                                                                                                                                                                                                                                                                                                                                         |
+| AC6  | pass   | `test/throttling-tiers.e2e-spec.ts`, "admin requests": they count against the write quota with the right token and with a wrong one, and against the read quota with a wrong one; `test/throttling-realtime.e2e-spec.ts`: wrong-token requests reach 429                                                                                                                                                                                                                                                                                |
+| AC7  | pass   | `test/throttling-realtime.e2e-spec.ts`: 429 over the limit with Redis down; `src/throttling/fallback-throttler-storage.spec.ts` and `.redis.spec.ts`: a Redis that fails or stops answering is replaced by counting in memory. The storage is shared by every tier                                                                                                                                                                                                                                                                      |
+| AC8  | pass   | 👤 After 22 requests from the owner's machine `X-RateLimit-Remaining: 78`; from the server in the same minute `99`. web: `web/src/shared/api/api-fetch.test.ts` sends the visitor's address, and its own `X-Proxy-Secret`, dropping the caller's; `test/request-context.e2e-spec.ts` gives each forwarded address its own quota with the secret                                                                                                                                                                                         |
+| AC9  | pass   | `test/request-context.e2e-spec.ts`: without the secret, or with a wrong one, requests share one quota whatever `X-Forwarded-For` says                                                                                                                                                                                                                                                                                                                                                                                                   |
+| AC10 | pass   | CI: floods of 100 unknown routes, 100 broken JSON bodies and 200 liveness requests from one address: 59, 83 and 97 answered nginx's 429, every one `application/json` with `TOO_MANY_REQUESTS`; then 5 requests from another address answered 200. 👤 A flood of 400 unknown routes: 48 × 404 from the api, 352 × 429 `application/json` `TOO_MANY_REQUESTS`; then `/api/hello` from the server answered 200. Both send the other address's request right after the flood, not during it (F39)                                          |
+| AC11 | pass   | CI and 👤: a 2 MB body answers 413 `application/json` `PAYLOAD_TOO_LARGE`. api: `test/errors.e2e-spec.ts`, a JSON body of 101 KB or 150 KB answers 413 `PAYLOAD_TOO_LARGE`, 102400 bytes is read, a gzip body that inflates past the limit answers 413                                                                                                                                                                                                                                                                                  |
+| AC12 | pass   | CI: one address holds 10 sockets, the 11th answers 429 `TOO_MANY_REQUESTS` in JSON, another address connects. 👤 10 sockets held for 30 s, the 11th answered 429 `TOO_MANY_REQUESTS` in JSON. Message size: `test/socket-message-size.e2e-spec.ts`, a message over the limit closes the socket (413 over long-polling) and never reaches the gateway                                                                                                                                                                                    |
+| AC13 | pass   | CI: `/` and `/api/hello` carry `nosniff`, `frame-ancestors 'none'` and `strict-origin-when-cross-origin` once each, and so do nginx's 429 and 413. 👤 The same on `/` and `/api/hello`; nginx's 429 carries `nosniff`                                                                                                                                                                                                                                                                                                                   |
+| AC14 | pass   | 👤 `curl -sI -H 'X-Request-Id: mine' /api/hello`: one `X-Request-Id`, 32 hex, the client's value replaced. CI: the ids of `/` and `/api/hello` are on nginx's and the api's log lines. Sentry: `src/common/http/request-context.spec.ts` calls the isolation scope's `setTag('request_id', …)` with the id answered in `X-Request-Id`; no 5xx event has reached Sentry since the request id was added, so no real event was seen (F39). web: `web/src/shared/api/api-fetch.test.ts` replaces the caller's request id with the visitor's |
+| AC15 | pass   | `test/request-timeout.e2e-spec.ts`: a route slower than the timeout answers 503 `SERVICE_UNAVAILABLE` in the error format. nginx: by configuration, `proxy_read_timeout 60s` on `/api/` against `REQUEST_TIMEOUT_MS` of at most 30 s (env schema) plus 1 s of the throttler's Redis call; not exercised (F39)                                                                                                                                                                                                                           |
+| AC16 | pass   | `src/common/validation/validation-pipe.spec.ts`: 60 unknown fields answer 50 details and one `TOO_MANY_ERRORS`; `test/errors.e2e-spec.ts`: the same for `POST /products` with 60 unknown fields and `GET /products` with 51 unknown parameters                                                                                                                                                                                                                                                                                          |
+| AC17 | pass   | `CLAUDE.md`, "Conventions": access closed by default, the request context and request id, `PROXY_SECRET`, `PROXY_SECRET_NEXT`, `THROTTLE_*`, `BODY_LIMIT`, `REQUEST_TIMEOUT_MS`, `SOCKET_MAX_MESSAGE_BYTES`; `.env.example` lists all of them; `specs/backlog.md` has lost the four items of F2 and has "IDOR checks with auth (0006 F4)"                                                                                                                                                                                               |

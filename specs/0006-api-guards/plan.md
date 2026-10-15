@@ -1,6 +1,7 @@
 # 0006 api guards, limiters, pipes and middleware: plan
 
-Status: accepted (2026-10-15).
+Status: done (2026-10-15); amended 2026-10-15 in T4–T12 by the decisions they added to
+`clarifications.md`. History, not instructions.
 
 How spec 0006 is built. Decisions: [clarifications.md](clarifications.md); criteria:
 [spec.md](spec.md).
