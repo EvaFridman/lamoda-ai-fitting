@@ -54,6 +54,11 @@ code comments. All decisions below: owner, 2026-10-15.
   all browser calls share the web container's quota.
 - **H7. Freshness.** Catalog data in the browser counts as fresh for 60 s (the current default).
   Server-side reads happen on every request; no page cache.
+- **H22. Refetch triggers.** The browser does not refetch when the window regains focus: the
+  catalog changes rarely and each refetch counts against the read quota. It does refetch after the
+  network comes back, so an error or old data does not stay on screen. Accepted: prices and stock
+  seen in a tab left open stay as they were until the next navigation or the 60 s of H7 pass and
+  something requests them again. (Added after 0006 PR 2 merged.)
 
 ## Errors
 
@@ -72,6 +77,24 @@ code comments. All decisions below: owner, 2026-10-15.
   URL parsing treats `%2E%2E` as `..` too) or not well-formed unicode, a template param left without
   a value, a malformed template, and a path whose origin is not the api's. It gets the general text (T9); whether it reaches Sentry is settled in
   T10. (Added in T5.)
+- **H23. 401 on a public route.** Catalog reads are `@Public()` (0006 F3), and a wrong token on a
+  public route is served as anonymous (0006 F16), so a 401 there means a route lost its marker: an
+  api bug that `test/access-markers.e2e-spec.ts` should already stop. It gets the general text and,
+  unlike other 4xx (H9), is reported to Sentry. Revisit in the auth spec, where a 401 becomes an
+  ordinary answer (a session ended). (Added after 0006 PR 2 merged.)
+- **H24. Retrying a 503.** H10 stands: the browser retries a 503 too. web cannot tell a timeout's
+  503 from another one (both are `SERVICE_UNAVAILABLE`), and the api does not cancel a handler that
+  timed out (0006 F11), so a slow read retried twice can run three times at once for one visitor.
+  Accepted for reads; the risk to the filter counts is in the backlog ("Cache for filter counts").
+  Revisit after 0006 PR 3: nginx's own 502/504 (a blue-green switch, its proxy timeout) are not
+  retried by H10. (Added after 0006 PR 2 merged.)
+- **H25. `Retry-After`.** web does not read it: the 429 text stays "wait a little" (H11). Revisit
+  after 0006 PR 3, whose nginx limit answers 429 too, maybe without the header; the idea is in the
+  backlog. (Added after 0006 PR 2 merged.)
+- **H26. Where a 503 shows.** The server's `apiFetch` gives up at 5 s, before the api's 10 s
+  timeout, so a slow api reaches a server-rendered page as a timeout, never as a 503. AC3's 503 is
+  shown from the browser (`clientFetch` waits 15 s) once `/api/` goes through nginx (0006 PR 3), and
+  before that with a stubbed answer. (Added after 0006 PR 2 merged.)
 
 ## Contract
 

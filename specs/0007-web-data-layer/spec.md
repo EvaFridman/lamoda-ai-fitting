@@ -42,7 +42,7 @@ features build on it; this spec adds no product pages.
   and a path that resolves outside the api's origin is refused before any request; unit tests.
 - AC3. An api error answer becomes an error that carries its `code`, status and `details`; a 400 on
   a product list filter, a 404 on an unknown product id and a 503 each show their Russian text on
-  the dev page, and an unknown code shows the general text.
+  the dev page (the 503 from the browser, H26), and an unknown code shows the general text.
 
 ### Browser
 
