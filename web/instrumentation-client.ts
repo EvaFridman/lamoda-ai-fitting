@@ -1,6 +1,6 @@
 import * as Sentry from '@sentry/nextjs';
 
-import { dataCollection } from './sentry.options';
+import { beforeSend, dataCollection } from './sentry.options';
 
 // Browser-side Sentry. NEXT_PUBLIC_* values are inlined into the bundle at build time (one image per
 // environment); an empty DSN turns it off. The release name is injected by withSentryConfig.
@@ -9,6 +9,7 @@ Sentry.init({
   environment: process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT || 'production',
   tracesSampleRate: 0.1,
   dataCollection,
+  beforeSend,
 });
 
 // Page navigations as traces.

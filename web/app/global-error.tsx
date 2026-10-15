@@ -4,10 +4,12 @@ import * as Sentry from '@sentry/nextjs';
 import { useEffect } from 'react';
 
 // Last-resort error screen: replaces the root layout when it fails to render. Reports the error to
-// Sentry (React render errors do not reach onRequestError).
+// Sentry (React render errors do not reach onRequestError). An error with a `digest` was thrown on
+// the server, which has reported it already (onRequestError, or the api layer's limit, spec 0007
+// plan §3); here it is a redacted copy that `beforeSend` cannot recognise.
 export default function GlobalError({ error }: { error: Error & { digest?: string } }) {
   useEffect(() => {
-    Sentry.captureException(error);
+    if (!error.digest) Sentry.captureException(error);
   }, [error]);
 
   return (

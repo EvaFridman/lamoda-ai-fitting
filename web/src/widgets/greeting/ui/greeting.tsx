@@ -1,15 +1,20 @@
 import { connection } from 'next/server';
 
 import { getGreeting } from '@/entities/greeting/server';
+import { errorText, reportFailure } from '@/shared/api';
 
 import styles from './greeting.module.scss';
 
-async function loadMessage(): Promise<string | null> {
+type Loaded = { message: string } | { error: string };
+
+// A failed call shows its text and the page still answers 200 (web's health check fetches `/`); the
+// api layer has reported an api failure to Sentry, `reportFailure` reports anything else (H29).
+async function load(): Promise<Loaded> {
   try {
-    return (await getGreeting()).message;
+    return { message: (await getGreeting()).message };
   } catch (error) {
-    console.error('Greeting: the api did not answer', error);
-    return null;
+    reportFailure(error);
+    return { error: errorText(error) };
   }
 }
 
@@ -17,13 +22,13 @@ async function loadMessage(): Promise<string | null> {
 // needs no api. Wrap it in <Suspense>; the fallback is part of the prerendered shell.
 export async function Greeting() {
   await connection();
-  const message = await loadMessage();
-  if (message === null) {
+  const loaded = await load();
+  if ('error' in loaded) {
     return (
       <p className={styles.error} role="alert">
-        Не удалось получить приветствие от сервера. Попробуйте обновить страницу.
+        {loaded.error}
       </p>
     );
   }
-  return <p className={styles.message}>{message}</p>;
+  return <p className={styles.message}>{loaded.message}</p>;
 }

@@ -65,10 +65,6 @@ removes it from this list. Found by the agents' first security audit and trial r
 
 ## web
 
-- **api call failures in Sentry.** web's server-side calls to the api that fail (api down, a
-  timeout, an invalid response, web's own env refused, 0006 F20) are caught by the component, logged
-  with `console.error` and replaced by a fallback; nothing reaches Sentry and the page answers 200.
-  Report them (once per cause, not per page view) when pages with real data land.
 - **How long to wait after a 429.** The api's limit sets `Retry-After` (0006 F23), but web's 429
   text only says "wait a little" (0007 H25), while the minute window can mean up to 60 s. Show the
   wait, or retry after it, once nginx's own 429 (0006 PR 3) is known to carry the header too.

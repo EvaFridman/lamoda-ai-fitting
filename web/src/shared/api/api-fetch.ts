@@ -63,12 +63,19 @@ export async function apiFetch<Schema extends z.ZodType>(
   if (visitor) requestHeaders.set('X-Forwarded-For', visitor);
   const id = requestId(incoming);
   if (id) requestHeaders.set('X-Request-Id', id);
-  return callApi(url, path, schema, {
-    ...init,
-    headers: requestHeaders,
-    // A redirect to another host would take the secret along: fetch drops only its own
-    // credential headers.
-    redirect: 'error',
-    signal: AbortSignal.timeout(TIMEOUT_MS),
-  });
+  return callApi(
+    url,
+    path,
+    schema,
+    {
+      ...init,
+      headers: requestHeaders,
+      // A redirect to another host would take the secret along: fetch drops only its own
+      // credential headers.
+      redirect: 'error',
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    },
+    // The same id as the api's log lines and Sentry events for this call.
+    { requestId: id },
+  );
 }
