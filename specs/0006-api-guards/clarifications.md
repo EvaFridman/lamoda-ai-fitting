@@ -85,6 +85,13 @@ code comments.
 - **F19. Two different secrets.** Added in T4's review: `PROXY_SECRET` reaches web, which does not
   need the admin token; if the two were equal, a leak from web would open the admin routes. The
   api refuses to start when both are set and equal, without printing either value.
+- **F20. web without the secret does not start in production.** Added in T5's review: F18 for
+  web. With an empty `PROXY_SECRET` web's calls are not trusted and every visitor shares the web
+  container's quota (0001 B12d), while the deploy looks healthy. Two layers, done in T6:
+  `app.yml` passes it to web as `${PROXY_SECRET:?…}`, so compose refuses to start web without
+  it and the running copy keeps serving; web's `getServerEnv` refuses an empty one with
+  `NODE_ENV=production` (a backstop: env is read at request time, so this shows in logs and
+  Sentry, and web's health check on `/` may not catch it).
 
 ## Validation
 
