@@ -58,10 +58,14 @@ Before the merge:
       nginx (`infra.yml`), api and web (`app.yml`) and the server's `.env` (`cd.yml`);
       `deploy/README.md` lists it. F18: the api's env schema refuses an empty `PROXY_SECRET` with
       `NODE_ENV=production`; `cd.yml` stops before writing `.env` when the secret is missing;
-      `ci-deploy-check.sh` sets one.
+      `ci-deploy-check.sh` sets one. F20: `app.yml` gives web `${PROXY_SECRET:?…}`; web's
+      `getServerEnv` refuses an empty one with `NODE_ENV=production`. From T5's security review:
+      `/` keeps overwriting `X-Real-IP` and `X-Forwarded-For` (web trusts them and forwards them
+      with the secret), sets `X-Proxy-Secret ""`, and `/socket.io/` gets the snippet too (its own
+      `proxy_set_header` lines do not inherit); web's port stays unpublished.
       Check: `scripts/ci-deploy-check.sh` passes; through the CI nginx a response's
-      `X-Request-Id` is on nginx's and the api's log lines; a client-sent one is replaced. AC8,
-      AC14.
+      `X-Request-Id` is on nginx's and the api's log lines; a client-sent one is replaced, also
+      through `/` (web forwards it to the api). AC8, AC14.
       Commit: `feat(deploy): pass the proxy secret and the request id through nginx`
 
 After the merge of PR 1:
