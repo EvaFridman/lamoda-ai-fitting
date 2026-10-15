@@ -7,7 +7,7 @@ import { Controller, Get, Module } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import express from 'express';
 import request from 'supertest';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CurrentPrincipal } from '../auth/current-principal.decorator.js';
 import type { Principal } from '../auth/principal.js';
@@ -17,6 +17,12 @@ import {
   requestContextMiddleware,
   requestContextOf,
 } from './request-context.js';
+
+const { setTag } = vi.hoisted(() => ({ setTag: vi.fn() }));
+
+vi.mock('@sentry/nestjs', () => ({
+  getIsolationScope: () => ({ setTag }),
+}));
 
 const PROXY_SECRET = 'proxy-secret-0123456789abcdef-xyz';
 const ADMIN_TOKEN = 'admin-token-0123456789abcdef-xyz';
@@ -286,6 +292,42 @@ describe('requestContextMiddleware: request id', () => {
 
     expect(first.requestId).toMatch(UUID);
     expect(second.requestId).not.toBe(first.requestId);
+  });
+});
+
+// Spec 0006 AC14: the id is on the Sentry event of a 5xx, through the isolation scope's tag.
+describe('requestContextMiddleware: Sentry tag', () => {
+  beforeEach(() => {
+    setTag.mockClear();
+  });
+
+  it('tags the scope with the generated id, the same as the context and the header', async () => {
+    const seen = await send({});
+
+    expect(seen.requestId).toMatch(UUID);
+    expect(setTag).toHaveBeenCalledOnce();
+    expect(setTag).toHaveBeenCalledWith('request_id', seen.requestId);
+    expect(seen.header).toBe(seen.requestId);
+  });
+
+  it('tags the scope with the id of a trusted proxy request', async () => {
+    const seen = await send({ 'X-Proxy-Secret': PROXY_SECRET, 'X-Request-Id': REQUEST_ID });
+
+    expect(setTag).toHaveBeenCalledOnce();
+    expect(setTag).toHaveBeenCalledWith('request_id', REQUEST_ID);
+    expect(seen.header).toBe(REQUEST_ID);
+  });
+
+  it.each([
+    ['missing', {}],
+    ['wrong', { 'X-Proxy-Secret': 'wrong-secret' }],
+  ])('does not tag the client id when the proxy secret is %s', async (_name, secret) => {
+    const seen = await send({ ...secret, 'X-Request-Id': REQUEST_ID });
+
+    expect(seen.requestId).not.toBe(REQUEST_ID);
+    expect(setTag).toHaveBeenCalledOnce();
+    expect(setTag).toHaveBeenCalledWith('request_id', seen.requestId);
+    expect(setTag).not.toHaveBeenCalledWith('request_id', REQUEST_ID);
   });
 });
 
