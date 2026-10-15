@@ -22,6 +22,22 @@ describe('entities/product public entry', () => {
     }
   });
 
+  it('exports the filter, size and sort helpers', async () => {
+    const entry = await import('./index');
+    for (const name of ['chipValue', 'splitFacetAttributes', 'compareSizes', 'sortSizes']) {
+      expect(typeof (entry as Record<string, unknown>)[name], name).toBe('function');
+    }
+    expect(entry.PRODUCT_SORT_ORDER).toEqual([
+      'new',
+      'price_desc',
+      'price_asc',
+      'discount',
+      'rating',
+    ]);
+    expect(entry.productSortLabels.new).toBe('Новинки');
+    expect(entry.PRODUCT_SORTS).toContain('rating');
+  });
+
   it('exports nothing built on apiFetch', async () => {
     const entry = await import('./index');
     for (const name of [
