@@ -325,6 +325,14 @@ ssh ai-fitting 'cd /opt/ai-fitting && docker compose -f deploy/compose/infra.yml
 письмами Let's Encrypt. `includeSubDomains` и `preload` не включены сознательно — их последствия
 трудно отменить.
 
+**Заголовки безопасности** (спека 0006 F9, F38): основной сервер nginx отдаёт на каждый ответ api,
+web и свой собственный (413, 429, 503) `X-Content-Type-Options: nosniff`,
+`Content-Security-Policy: frame-ancestors 'none'` и `Referrer-Policy: strict-origin-when-cross-origin`.
+Редиректы (порт 80, `www`) их не отдают. У `/_next/image` (Next) и статики Swagger (Express) есть
+своя CSP. Браузер применяет обе политики, поэтому `proxy_hide_header Content-Security-Policy` не
+ставят: он убрал бы песочницу Next для картинок. Ни одна `location` не задаёт свой `add_header`: он
+отменил бы все заголовки уровня server, включая HSTS. Локально nginx нет, поэтому нет и заголовков.
+
 ## Предыдущий стек на сервере
 
 До этого проекта сервер обслуживал другой сайт (compose-проект `realty`). Его контейнеры и образы

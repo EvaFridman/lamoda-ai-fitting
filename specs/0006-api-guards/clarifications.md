@@ -119,6 +119,11 @@ code comments.
   `X-Content-Type-Options: nosniff`, `Content-Security-Policy: frame-ancestors 'none'` and a
   `Referrer-Policy`. A full Content Security Policy for web comes with its pages. Local development
   runs without nginx and so without these headers.
+- **F38. Not on the redirect servers.** Added in T13 (owner, 2026-10-15): F9's headers are set in
+  the main server only, so they cover api, web and nginx's own answers there. Port 80 and `www`
+  answer only a 301 (port 80 also the ACME challenge and its health check): a redirect has nothing
+  to frame or sniff, and its referrer goes to the same site. A scanner pointed at them reports the
+  headers missing; if `www` ever serves content, it gets them.
 - **F10. Request id.** nginx creates the id (`$request_id`), ignores one sent by the client, and
   passes it to api and web; `apiFetch` forwards it on web's calls to the api. The api writes it to
   its log lines, tags Sentry events with it and answers it in `X-Request-Id`. The error body does

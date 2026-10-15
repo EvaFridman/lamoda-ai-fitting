@@ -127,7 +127,7 @@ server {
   # nginx's own refusals answer in the api's error format, not with nginx's HTML pages (spec 0006
   # F12, F17), so web and browsers handle one format. An error_page in a location replaces these, so
   # a location that sets its own repeats them. The named locations set no add_header: one would drop
-  # the server's (HSTS, X-Request-Id), and nginx's 429 sends no Retry-After (the api's own does).
+  # the server's (HSTS, X-Request-Id, the security headers), and nginx's 429 sends no Retry-After (the api's own does).
   error_page 413 @payload_too_large;
   error_page 429 @too_many_requests;
 
@@ -147,6 +147,15 @@ server {
   # The request id on every response, the api's own copy hidden so it is not doubled (spec 0006 F10).
   add_header X-Request-Id $request_id always;
   proxy_hide_header X-Request-Id;
+
+  # Security headers on every response of api, web and nginx itself (spec 0006 F9). A few answers
+  # carry a CSP of their own (Next's on /_next/image, Express's on Swagger's static files); browsers
+  # apply both, so no proxy_hide_header: hiding Next's would drop its sandbox for images. A full
+  # Content Security Policy for web's pages comes with them. Not on the redirect servers above: a
+  # 301 has nothing to frame or sniff (F38).
+  add_header X-Content-Type-Options nosniff always;
+  add_header Content-Security-Policy "frame-ancestors 'none'" always;
+  add_header Referrer-Policy strict-origin-when-cross-origin always;
 
   # The api's shared secret (spec 0006 F13), sent by proxy-headers.inc; `location /` empties it.
   set $proxy_secret "${PROXY_SECRET}";
