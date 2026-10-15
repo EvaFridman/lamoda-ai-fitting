@@ -82,6 +82,11 @@ removes it from this list. Found by the agents' first security audit and trial r
 - **Footer links.** The footer copies Lamoda's items, but only the personal data policy has a page
   (0008 J22): each other item becomes a link when its page appears. The list is
   `widgets/footer/config/items.ts`.
+- **Full CSP for web.** nginx sends only `frame-ancestors 'none'`; a full Content Security Policy
+  comes with web's pages (0006 F9). It must allow Mixpanel: `connect-src https://api-eu.mixpanel.com`
+  (0008 J12). The SDK's recorder may start a worker from a `blob:` URL and falls back to a `data:`
+  one; with `record_canvas: false` it probably starts none. Check in a browser for CSP violations
+  before adding `worker-src blob:`, and never allow `data:` there.
 - **Remove `greeting`.** The home page widget, `entities/greeting`, the api's `/hello` and their
   tests are a bootstrap demo; remove them with the catalog page spec (0004 E29).
 - **Page cache in a read-only image.** The web runtime user writes only to `.next/cache`. Next keeps

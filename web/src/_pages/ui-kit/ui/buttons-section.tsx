@@ -1,17 +1,26 @@
+import type { TrackedElement } from '@/shared/analytics';
 import { Button, type ButtonAsButtonProps, HeartIcon, IconButton } from '@/shared/ui';
 
 import styles from './examples.module.scss';
 import { LoadingButtonDemo } from './loading-button-demo';
+import { TrackedButton } from './tracked-button';
 
 interface Example {
   // The props as the caption under the example shows them.
   props: string;
   button: Omit<ButtonAsButtonProps, 'children'>;
   label: string;
+  // Sends click and hover events to analytics (spec 0008).
+  tracked?: TrackedElement;
 }
 
 const variants: Example[] = [
-  { props: 'primary', button: { variant: 'primary' }, label: 'Добавить в корзину' },
+  {
+    props: 'primary',
+    button: { variant: 'primary' },
+    label: 'Добавить в корзину',
+    tracked: 'ui-kit.button-primary',
+  },
   { props: 'secondary', button: { variant: 'secondary' }, label: 'Применить' },
   { props: 'outline', button: { variant: 'outline' }, label: 'Оценить доставку' },
 ];
@@ -56,9 +65,15 @@ const states: Example[] = [
 function ExampleRow({ examples }: { examples: Example[] }) {
   return (
     <ul className={styles.row}>
-      {examples.map(({ props, button, label }) => (
+      {examples.map(({ props, button, label, tracked }) => (
         <li key={props} className={styles.example}>
-          <Button {...button}>{label}</Button>
+          {tracked ? (
+            <TrackedButton {...button} element={tracked}>
+              {label}
+            </TrackedButton>
+          ) : (
+            <Button {...button}>{label}</Button>
+          )}
           <code className={styles.props}>{props}</code>
         </li>
       ))}
