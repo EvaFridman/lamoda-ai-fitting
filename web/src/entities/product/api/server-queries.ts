@@ -1,0 +1,112 @@
+import 'server-only';
+
+import { queryOptions } from '@tanstack/react-query';
+
+import { buildPath, type PageQuery } from '@/shared/api';
+import { apiFetch } from '@/shared/api/server';
+
+import {
+  productFilters,
+  productListQuery,
+  type ProductFilters,
+  type ProductListQuery,
+} from '../model/filters';
+import {
+  productAttributeValueListSchema,
+  productDetailSchema,
+  productFacetsSchema,
+  productImageListSchema,
+  productListSchema,
+  productVariationListSchema,
+  type ProductAttributeValueList,
+  type ProductDetail,
+  type ProductFacets,
+  type ProductImageList,
+  type ProductList,
+  type ProductVariationList,
+} from '../model/schemas';
+import { productKeys, productPageQuery } from './keys';
+
+// GET /products.
+export async function getProducts(query: ProductListQuery = {}): Promise<ProductList> {
+  return apiFetch(buildPath('/products', {}, productListQuery(query)), productListSchema);
+}
+
+// GET /products/facets: the filter counts for the same filters, without the page and the order.
+export async function getProductFacets(filters: ProductFilters = {}): Promise<ProductFacets> {
+  return apiFetch(buildPath('/products/facets', {}, productFilters(filters)), productFacetsSchema);
+}
+
+// GET /products/:id.
+export async function getProduct(id: string): Promise<ProductDetail> {
+  return apiFetch(buildPath('/products/:id', { id }), productDetailSchema);
+}
+
+// GET /products/:id/images.
+export async function getProductImages(
+  id: string,
+  query: PageQuery = {},
+): Promise<ProductImageList> {
+  return apiFetch(
+    buildPath('/products/:id/images', { id }, productPageQuery(query)),
+    productImageListSchema,
+  );
+}
+
+// GET /products/:id/variations.
+export async function getProductVariations(
+  id: string,
+  query: PageQuery = {},
+): Promise<ProductVariationList> {
+  return apiFetch(
+    buildPath('/products/:id/variations', { id }, productPageQuery(query)),
+    productVariationListSchema,
+  );
+}
+
+// GET /products/:id/attribute-values.
+export async function getProductAttributeValues(
+  id: string,
+  query: PageQuery = {},
+): Promise<ProductAttributeValueList> {
+  return apiFetch(
+    buildPath('/products/:id/attribute-values', { id }, productPageQuery(query)),
+    productAttributeValueListSchema,
+  );
+}
+
+export function productListOptions(query: ProductListQuery = {}) {
+  return queryOptions({ queryKey: productKeys.list(query), queryFn: () => getProducts(query) });
+}
+
+export function productFacetsOptions(filters: ProductFilters = {}) {
+  return queryOptions({
+    queryKey: productKeys.facets(filters),
+    queryFn: () => getProductFacets(filters),
+  });
+}
+
+export function productOptions(id: string) {
+  return queryOptions({ queryKey: productKeys.detail(id), queryFn: () => getProduct(id) });
+}
+
+export function productImageListOptions(id: string, query: PageQuery = {}) {
+  return queryOptions({
+    queryKey: productKeys.images(id, query),
+    queryFn: () => getProductImages(id, query),
+  });
+}
+
+export function productVariationListOptions(id: string, query: PageQuery = {}) {
+  return queryOptions({
+    queryKey: productKeys.variations(id, query),
+    queryFn: () => getProductVariations(id, query),
+  });
+}
+
+export function productAttributeValueListOptions(id: string, query: PageQuery = {}) {
+  return queryOptions({
+    queryKey: productKeys.attributeValues(id, query),
+    queryFn: () => getProductAttributeValues(id, query),
+  });
+}
