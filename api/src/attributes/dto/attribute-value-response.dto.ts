@@ -11,6 +11,9 @@ export class AttributeValueResponseDto {
   @ApiProperty({ example: 'чёрный' })
   value: string;
 
+  @ApiProperty({ type: String, nullable: true, example: '#000000' })
+  colorHex: string | null;
+
   @ApiProperty()
   createdAt: Date;
 

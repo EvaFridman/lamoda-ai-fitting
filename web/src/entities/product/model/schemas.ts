@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { paginatedSchema } from '@/shared/api';
+import { colorHexSchema } from '@/shared/lib';
 
 // The brand and category a product embeds: their own DTOs, not the brand and category entities'.
 
@@ -74,6 +75,7 @@ export const facetSizeSchema = z.object({ size: z.string(), count: z.number() })
 export const facetAttributeValueSchema = z.object({
   id: z.uuid(),
   value: z.string(),
+  colorHex: colorHexSchema.nullable(),
   count: z.number(),
 });
 

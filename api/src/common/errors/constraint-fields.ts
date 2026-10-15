@@ -8,6 +8,7 @@ export const CONSTRAINT_FIELDS: Readonly<Record<string, readonly string[]>> = {
   ai_generations_result_image_key_check: ['resultImageKey'],
   ai_generations_status_check: ['status'],
   ai_generations_user_image_key_check: ['userImageKey'],
+  attribute_values_color_hex_check: ['colorHex'],
   attribute_values_value_check: ['value'],
   attributes_name_check: ['name'],
   brands_name_check: ['name'],

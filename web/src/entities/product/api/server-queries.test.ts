@@ -76,8 +76,23 @@ const facets = {
   categories: [{ id: ID, name: 'Dresses', count: 4 }],
   brands: [{ id: ID2, name: 'Brand', count: 4 }],
   sizes: [{ size: 'M', count: 3 }],
-  attributes: [{ id: ID, name: 'Color', values: [{ id: ID2, value: 'Red', count: 1 }] }],
+  attributes: [
+    {
+      id: ID,
+      name: 'Color',
+      values: [
+        { id: ID2, value: 'Red', colorHex: '#FF0000', count: 1 },
+        { id: ID, value: 'Striped', colorHex: null, count: 2 },
+      ],
+    },
+  ],
 };
+
+function facetsWithValue(patch: Record<string, unknown>) {
+  const [attribute] = facets.attributes;
+  const [first] = attribute?.values ?? [];
+  return { ...facets, attributes: [{ ...attribute, values: [{ ...first, ...patch }] }] };
+}
 
 const image = {
   id: ID,
@@ -209,6 +224,24 @@ describe('getProductFacets', () => {
   it('rejects a response failing the schema', async () => {
     respondWith({ ...facets, total: 'many' });
     await expect(getProductFacets()).rejects.toMatchObject({ kind: 'schema' });
+  });
+
+  it('keeps a colorHex of either case and a null one', async () => {
+    const mixed = facetsWithValue({ colorHex: '#a1B2c3' });
+    respondWith(mixed);
+    await expect(getProductFacets()).resolves.toEqual(mixed);
+    respondWith(facetsWithValue({ colorHex: null }));
+    const result = await getProductFacets();
+    expect(result.attributes[0]?.values[0]?.colorHex).toBeNull();
+  });
+
+  it.each([
+    ['a colour name', { colorHex: 'red' }],
+    ['a short hex', { colorHex: '#FFF' }],
+    ['a missing colorHex', { colorHex: undefined }],
+  ])('rejects a facet value with %s as a schema error', async (_name, patch) => {
+    respondWith(facetsWithValue(patch));
+    await expect(getProductFacets()).rejects.toMatchObject({ name: 'ApiError', kind: 'schema' });
   });
 
   it('propagates an http error', async () => {

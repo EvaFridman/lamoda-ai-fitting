@@ -6547,6 +6547,11 @@
             "type": "string",
             "example": "чёрный"
           },
+          "colorHex": {
+            "type": "string",
+            "nullable": true,
+            "example": "#000000"
+          },
           "createdAt": {
             "format": "date-time",
             "type": "string"
@@ -6560,6 +6565,7 @@
           "id",
           "attributeId",
           "value",
+          "colorHex",
           "createdAt",
           "updatedAt"
         ]
@@ -6571,6 +6577,13 @@
             "type": "string",
             "example": "чёрный",
             "maxLength": 255
+          },
+          "colorHex": {
+            "type": "string",
+            "nullable": true,
+            "example": "#000000",
+            "pattern": "^#[0-9A-Fa-f]{6}$",
+            "description": "Swatch colour, `#RRGGBB`."
           }
         },
         "required": [
@@ -6584,6 +6597,13 @@
             "type": "string",
             "example": "чёрный",
             "maxLength": 255
+          },
+          "colorHex": {
+            "type": "string",
+            "nullable": true,
+            "example": "#000000",
+            "pattern": "^#[0-9A-Fa-f]{6}$",
+            "description": "Swatch colour, `#RRGGBB`."
           }
         }
       },
@@ -6796,6 +6816,11 @@
             "type": "string",
             "example": "Чёрный"
           },
+          "colorHex": {
+            "type": "string",
+            "nullable": true,
+            "example": "#000000"
+          },
           "count": {
             "type": "number",
             "minimum": 0
@@ -6804,6 +6829,7 @@
         "required": [
           "id",
           "value",
+          "colorHex",
           "count"
         ]
       },

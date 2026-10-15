@@ -107,6 +107,7 @@ interface AttributeValueCountRow {
   attributeName: string;
   id: string;
   value: string;
+  colorHex: string | null;
   count: number;
 }
 
@@ -130,7 +131,7 @@ async function countAttributes(
   const chosen = groups.flatMap((group) => group.valueIds);
   const rows = await prisma.$queryRaw<AttributeValueCountRow[]>`
     SELECT a.id AS "attributeId", a.name AS "attributeName", av.id, av.value,
-      count(DISTINCT p.id)::int AS count
+      av.color_hex AS "colorHex", count(DISTINCT p.id)::int AS count
     FROM attribute_values av
     JOIN attributes a ON a.id = av.attribute_id
     LEFT JOIN product_attribute_values link ON link.attribute_value_id = av.id
@@ -145,7 +146,12 @@ async function countAttributes(
       attribute = { id: row.attributeId, name: row.attributeName, values: [] };
       attributes.push(attribute);
     }
-    attribute.values.push({ id: row.id, value: row.value, count: row.count });
+    attribute.values.push({
+      id: row.id,
+      value: row.value,
+      colorHex: row.colorHex,
+      count: row.count,
+    });
   }
   return attributes;
 }

@@ -55,7 +55,10 @@ export class AttributeValuesService {
           select: { id: true },
         })) !== null,
       attributeNotFound,
-      () => this.prisma.attributeValue.create({ data: { attributeId, value: dto.value } }),
+      () =>
+        this.prisma.attributeValue.create({
+          data: { attributeId, value: dto.value, colorHex: dto.colorHex },
+        }),
     );
   }
 

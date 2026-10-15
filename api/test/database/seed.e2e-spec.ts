@@ -124,7 +124,9 @@ describe('catalog data (C22)', () => {
   });
 
   it('gives every product a colour from the colour attribute', () => {
-    const colours = CATALOG.attributes.find((a) => a.name === COLOUR)?.values ?? [];
+    const colours = (CATALOG.attributes.find((a) => a.name === COLOUR)?.values ?? []).map(
+      (v) => v.value,
+    );
     expect(colours.length).toBeGreaterThan(0);
     for (const { article, attributes } of CATALOG.products) {
       expect(colours, article).toContain(attributes[COLOUR]);
@@ -268,6 +270,26 @@ describe('SeedService on a throwaway database', () => {
     expect(await counts()).toEqual(before);
   });
 
+  it('stores the catalog hex for colour values and null for the others (spec 0009 AC1)', async () => {
+    const rows = await db.attributeValue.findMany({
+      select: { value: true, colorHex: true, attribute: { select: { name: true } } },
+    });
+    const stored = new Map(rows.map((r) => [`${r.attribute.name}: ${r.value}`, r.colorHex]));
+
+    const withHex = CATALOG.attributes.flatMap((a) => a.values.filter((v) => v.colorHex));
+    expect(withHex).toHaveLength(10);
+    for (const attribute of CATALOG.attributes) {
+      for (const { value, colorHex } of attribute.values) {
+        expect(stored.get(`${attribute.name}: ${value}`), `${attribute.name}: ${value}`).toBe(
+          colorHex ?? null,
+        );
+      }
+    }
+    for (const colour of CATALOG.attributes.find((a) => a.name === COLOUR)?.values ?? []) {
+      expect(colour.colorHex, colour.value).toMatch(/^#[0-9A-Fa-f]{6}$/);
+    }
+  });
+
   it('keeps hand edits of a price, a category name and a stock (C16)', async () => {
     const first = pick(0);
     const second = pick(1);
@@ -335,10 +357,32 @@ describe('SeedService on a throwaway database', () => {
     expect(restored._count.attributeValues).toBe(Object.keys(target.attributes).length);
   });
 
+  it.each([
+    ['another colour', 4, '#123456'],
+    ['no colour', 5, null],
+  ])(
+    'keeps a colour set by hand to %s of a value that a recreated product uses (spec 0009)',
+    async (_name, index, edited) => {
+      const target = pick(index);
+      const colour = target.attributes[COLOUR] ?? '';
+      const row = await db.attributeValue.findFirstOrThrow({
+        where: { value: colour, attribute: { name: COLOUR } },
+      });
+      await db.attributeValue.update({ where: { id: row.id }, data: { colorHex: edited } });
+      await db.product.delete({ where: { article: target.article } });
+
+      const result = await seed.run();
+
+      expect(result).toEqual({ productsCreated: 1, productsSkipped: total - 1 });
+      const after = await db.attributeValue.findUniqueOrThrow({ where: { id: row.id } });
+      expect(after.colorHex).toBe(edited);
+    },
+  );
+
   it('does not add a brand, attribute value or category renamed by hand while all products exist (C16b)', async () => {
     const brand = CATALOG.brands[0] ?? '';
     const attribute = CATALOG.attributes[0];
-    const value = attribute?.values[0] ?? '';
+    const value = attribute?.values[0]?.value ?? '';
     const category = CATALOG.categories.at(-1);
     await db.brand.update({ where: { name: brand }, data: { name: 'Brand by hand' } });
     await db.attributeValue.updateMany({ where: { value }, data: { value: 'value by hand' } });
@@ -397,7 +441,7 @@ describe('SeedService on a throwaway database', () => {
         { name: 'Unused category', slug: 'unused-category', sortOrder: 1 },
       ],
       brands: ['Custom brand', 'Unused brand'],
-      attributes: [{ name: 'Custom attribute', values: ['used', 'unused'] }],
+      attributes: [{ name: 'Custom attribute', values: [{ value: 'used' }, { value: 'unused' }] }],
       products: [
         {
           article: 'CUSTOM-001',

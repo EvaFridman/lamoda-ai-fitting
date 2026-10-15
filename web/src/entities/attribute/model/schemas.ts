@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { paginatedSchema } from '@/shared/api';
+import { colorHexSchema } from '@/shared/lib';
 
 // AttributeResponseDto: no `values[]`, they come paged from GET /attributes/:id/values.
 export const attributeSchema = z.object({
@@ -15,6 +16,7 @@ export const attributeValueSchema = z.object({
   id: z.uuid(),
   attributeId: z.uuid(),
   value: z.string(),
+  colorHex: colorHexSchema.nullable(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 });

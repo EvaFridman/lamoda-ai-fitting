@@ -45,6 +45,11 @@ Implements [spec.md](spec.md). Decisions: [clarifications.md](clarifications.md)
   that is the migration's job.
 
 - **Snapshot.** `api/openapi.json` rewritten with `npm --prefix api test -- -u`.
+- **web's schemas, in the same pull request.** web's contract tests fail on a field the api sends
+  and web's schema lacks, so the schema part of §2 ships here: `colorHex` in
+  `attributeValueSchema` and `facetAttributeValueSchema`, with their fixtures. Safe because api and
+  web deploy as one copy that nginx switches together, after the migration (`deploy/README.md`):
+  the new web never meets the old api (found in T4).
 - **Tests.**
   - `attributes.e2e-spec.ts`: create, update, clear and a bad colour (400 `VALIDATION_FAILED`). A
     raw SQL insert of a bad colour is refused by the CHECK.
@@ -56,7 +61,8 @@ Implements [spec.md](spec.md). Decisions: [clarifications.md](clarifications.md)
 ## 2. web schemas and the kit (AC3, AC6)
 
 - **Schemas.** `colorHex: z.string().regex(HEX).nullable()` in `attributeValueSchema` and in
-  `facetAttributeValueSchema`. The contract tests compare them with the new `openapi.json`.
+  `facetAttributeValueSchema`. The contract tests compare them with the new `openapi.json`. Done
+  with the api change (§1, "web's schemas").
 - **`ColorSwatch`** (`shared/ui`) takes a hex as well as a token, and no colour:
   - `color?: SwatchColor | HexColor`, where `HexColor = \`#${string}\``.
   - A token keeps today's hand-made `light`/`bordered` sets (D7o).
@@ -181,7 +187,8 @@ At close, `CLAUDE.md`:
 - **`CheckboxFilter` grows a variant.** Its existing tests must stay green; the colour rows get
   their own.
 - **Contract break.** web's schemas require `colorHex`, so web must not reach production before the
-  api that sends it. The api change ships in its own pull request first.
+  api that sends it. Both change in one pull request: api and web deploy as one copy, after the
+  migration, and the contract tests fail on a field one side lacks (§1, "web's schemas").
 
 ## How each criterion is verified
 

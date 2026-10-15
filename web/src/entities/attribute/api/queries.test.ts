@@ -17,7 +17,14 @@ const ID = '3f2b8c1e-5a4d-4e6f-8a9b-0c1d2e3f4a5b';
 const ID2 = '7c9e6679-7425-40de-944b-e07fc1f90ae7';
 const DATE = '2026-10-01T12:00:00.000Z';
 const attribute = { id: ID, name: 'Color', createdAt: DATE, updatedAt: DATE };
-const value = { id: ID2, attributeId: ID, value: 'Red', createdAt: DATE, updatedAt: DATE };
+const value = {
+  id: ID2,
+  attributeId: ID,
+  value: 'Red',
+  colorHex: '#FF0000',
+  createdAt: DATE,
+  updatedAt: DATE,
+};
 
 const fetchMock = vi.fn();
 

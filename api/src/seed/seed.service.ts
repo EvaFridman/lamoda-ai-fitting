@@ -88,7 +88,9 @@ export class SeedService {
     await this.prisma.attributeValue.createMany({
       data: catalog.attributes.flatMap((a) => {
         const attributeId = attributeIds.get(a.name);
-        return attributeId ? a.values.map((value) => ({ attributeId, value })) : [];
+        return attributeId
+          ? a.values.map(({ value, colorHex }) => ({ attributeId, value, colorHex }))
+          : [];
       }),
       skipDuplicates: true,
     });
@@ -149,7 +151,7 @@ function referencesOf(catalog: SeedCatalog, products: SeedProduct[]): SeedCatalo
     attributes: catalog.attributes
       .map((a) => ({
         name: a.name,
-        values: a.values.filter((v) => values.has(valueKey(a.name, v))),
+        values: a.values.filter((v) => values.has(valueKey(a.name, v.value))),
       }))
       .filter((a) => a.values.length > 0),
     products,

@@ -13,9 +13,15 @@ export interface SeedCategory {
   sortOrder: number;
 }
 
+// `colorHex` is written only with a new value; an existing row keeps its own (spec 0009, K12).
+export interface SeedAttributeValue {
+  value: string;
+  colorHex?: string;
+}
+
 export interface SeedAttribute {
   name: string;
-  values: string[];
+  values: SeedAttributeValue[];
 }
 
 // The Unsplash photo a product's images are cut from (Unsplash License). Kept for the record only:
@@ -115,21 +121,25 @@ export const CATALOG: SeedCatalog = {
   attributes: [
     {
       name: COLOUR,
+      // The kit's swatch tokens; the migration attribute_values_color_hex holds the same list.
       values: [
-        'чёрный',
-        'белый',
-        'синий',
-        'голубой',
-        'бежевый',
-        'зелёный',
-        'серый',
-        'коричневый',
-        'жёлтый',
-        'оранжевый',
+        { value: 'чёрный', colorHex: '#000000' },
+        { value: 'белый', colorHex: '#FFFFFF' },
+        { value: 'синий', colorHex: '#3972FC' },
+        { value: 'голубой', colorHex: '#8BCDFF' },
+        { value: 'бежевый', colorHex: '#DFBD93' },
+        { value: 'зелёный', colorHex: '#3DB801' },
+        { value: 'серый', colorHex: '#B6B6B6' },
+        { value: 'коричневый', colorHex: '#743D02' },
+        { value: 'жёлтый', colorHex: '#FFEC1C' },
+        { value: 'оранжевый', colorHex: '#FF7A01' },
       ],
     },
-    { name: MATERIAL, values: ['хлопок', 'деним', 'лён', 'шерсть', 'полиэстер', 'кожа'] },
-    { name: SEASON, values: ['лето', 'демисезон', 'зима', 'всесезон'] },
+    {
+      name: MATERIAL,
+      values: ['хлопок', 'деним', 'лён', 'шерсть', 'полиэстер', 'кожа'].map((value) => ({ value })),
+    },
+    { name: SEASON, values: ['лето', 'демисезон', 'зима', 'всесезон'].map((value) => ({ value })) },
   ],
   products: [
     // Dresses
