@@ -10,6 +10,7 @@ import { validateEnv } from '../src/config/env.js';
 import { AppExceptionFilter } from '../src/common/filters/app-exception.filter.js';
 import { AdminOnly } from '../src/common/guards/admin.guard.js';
 import { AppExpressAdapter } from '../src/common/http/app-express.adapter.js';
+import { useRequestContext } from '../src/common/http/request-context.js';
 import { createValidationPipe } from '../src/common/validation/validation-pipe.js';
 
 @Controller('secured')
@@ -34,6 +35,7 @@ describe('@AdminOnly() over HTTP', () => {
       providers: [{ provide: APP_FILTER, useClass: AppExceptionFilter }],
     }).compile();
     app = moduleRef.createNestApplication(new AppExpressAdapter(), { logger: false });
+    useRequestContext(app);
     app.useGlobalPipes(createValidationPipe());
     await app.init();
   });

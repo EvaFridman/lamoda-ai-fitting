@@ -59,6 +59,12 @@ removes it from this list. Found by the agents' first security audit and trial r
   twice in a row in `npm run verify` on the development machine while other work loaded it
   (2026-10-15, spec 0005); the same tests passed before and after. Find what makes it slow under
   load (requests one after another for every value) and give it a time budget or fewer requests.
+- **Request headers in the log.** pino-http writes every request header in full (found in 0006
+  T4): a client's 9000-character header goes into the log line as is. Node caps a request's
+  headers at 16 KB and the throttler caps the requests, so the size is bounded, but the lines carry
+  data nobody reads (cookies are redacted, other headers are not). Log only chosen headers
+  (`user-agent`, `content-type`, `content-length`, `referer`) through pino-http's `req`
+  serializer, keeping the redaction of secrets for the headers that stay.
 
 ## web
 

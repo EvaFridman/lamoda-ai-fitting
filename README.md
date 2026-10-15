@@ -22,7 +22,7 @@
 
 ```bash
 npm ci                          # зависимости корня и git-хуки
-./scripts/init-env.sh           # один раз: .env со случайными паролем базы и админ-токеном
+./scripts/init-env.sh           # один раз: .env со случайными паролем базы, админ-токеном и секретом прокси
 docker compose up -d --wait     # весь стек, ждёт, пока сервисы станут здоровы
 docker compose run --rm api npx prisma migrate deploy   # миграции: dev-стек сам их не применяет
 ```
@@ -40,6 +40,15 @@ docker compose run --rm api npx prisma migrate deploy   # миграции: dev-
 кнопка Authorize). Пустое значение закрывает эти запросы. В `.env`, созданном до появления
 токена, его нет: допишите строку `ADMIN_API_TOKEN=` со значением из `openssl rand -hex 32` и
 перезапустите стек (`docker compose up -d --wait`).
+
+`PROXY_SECRET` — общий секрет nginx, web и api: только запрос с ним в заголовке `X-Proxy-Secret`
+может назвать api адрес клиента и id запроса. В `.env`, созданном до его появления, строки нет, и
+`docker compose` откажется запускаться с подсказкой. Допишите её и перезапустите стек:
+
+```bash
+printf 'PROXY_SECRET=%s\n' "$(openssl rand -hex 32)" >> .env
+docker compose up -d --wait
+```
 
 Исходники `api/src` и `web/{app,src}` примонтированы в контейнеры: правки подхватываются без
 пересборки. Пересобрать образ (`docker compose up -d --build <сервис>`) нужно после изменения

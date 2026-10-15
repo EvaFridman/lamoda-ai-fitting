@@ -7,6 +7,7 @@ import { Logger } from 'nestjs-pino';
 
 import { AppModule } from './app.module.js';
 import { AppExpressAdapter } from './common/http/app-express.adapter.js';
+import { useRequestContext } from './common/http/request-context.js';
 import { createValidationPipe } from './common/validation/validation-pipe.js';
 import type { Env } from './config/env.js';
 import { SocketIoAdapter } from './realtime/socket-io.adapter.js';
@@ -20,9 +21,12 @@ async function bootstrap(): Promise<void> {
   app.useLogger(app.get(Logger));
   const config = app.get<ConfigService<Env, true>>(ConfigService);
 
-  // Behind nginx every request comes from nginx's address; trust its X-Forwarded-For so the
-  // throttler and the logs see the real client.
-  app.set('trust proxy', 1);
+  // X-Forwarded-For counts only on a request with the proxy secret (spec 0006 F13): the
+  // request-context middleware reads it, so Express must not (req.ip stays the connection's).
+  app.set('trust proxy', false);
+  // Before init() and before any useBodyParser(), so it runs ahead of the body parser: a refused
+  // body (BAD_JSON, PAYLOAD_TOO_LARGE) still gets a request id.
+  useRequestContext(app);
   const webOrigin = config.get('WEB_ORIGIN', { infer: true });
   app.enableCors({ origin: webOrigin, credentials: true });
   app.useWebSocketAdapter(new SocketIoAdapter(app, webOrigin));
