@@ -1,10 +1,12 @@
 // Runs the shell commands it gets at the same time (root `npm test` runs the api and web tests so).
 // Each command's output (stdout and stderr) is kept and printed as one block with a header when
 // that command ends, in the order they end, so a failure's report is not interleaved with the other
-// command's lines. Exits 1 if any command failed, naming which. On SIGINT or SIGTERM it passes the
-// signal on, prints what each unfinished command wrote so far, and exits 128 + the signal's number.
-// Each argument is one simple command (`sh -c` then execs it, so the signal reaches it); a compound
-// one (`a && b`) would leave its processes running after the shell is stopped.
+// command's lines. Exits 1 if any command failed, naming which. On SIGINT, SIGTERM or SIGHUP it
+// passes the signal on, prints what each unfinished command wrote so far, and exits 128 + the
+// signal's number. Each command runs in its own process group (and session, so the terminal's
+// signals reach it only through this script) and the signal goes to the whole group: a shell (dash,
+// `sh` on Debian and Ubuntu, does not exec its last command) or `npm run` would otherwise leave the
+// processes under it running after it is stopped. A SIGKILL of this script leaves them running.
 //
 // Usage: node scripts/run-parallel.mjs "<command>" "<command>" ...
 
@@ -25,13 +27,20 @@ const env =
 
 /** Commands still running: their child, and how to print their block so far. */
 const running = new Set();
+/** Set by SIGINT, SIGTERM or SIGHUP: the commands are being stopped and the script exits. */
+let stopping = false;
 
 /** Runs one command; resolves with whether it passed, never rejects. */
 function run(command) {
   const started = Date.now();
   const chunks = [];
   return new Promise((resolve) => {
-    const child = spawn(command, { shell: true, env, stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(command, {
+      shell: true,
+      detached: true,
+      env,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
     const entry = { child, print };
     running.add(entry);
 
@@ -44,7 +53,8 @@ function run(command) {
     // 'close' may not follow 'error' (a spawn that never started), so either one finishes.
     let finished = false;
     function finish(passed, result) {
-      if (finished) return;
+      // Once stopping, the signal handler has printed the block and sets the exit code.
+      if (finished || stopping) return;
       finished = true;
       running.delete(entry);
       print(result);
@@ -63,10 +73,18 @@ function run(command) {
   });
 }
 
-for (const signal of ['SIGINT', 'SIGTERM']) {
+for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
   process.on(signal, () => {
+    // A second Ctrl+C while the blocks are written out changes nothing.
+    if (stopping) return;
+    stopping = true;
     for (const { child, print } of running) {
-      child.kill(signal);
+      try {
+        process.kill(-child.pid, signal);
+      } catch {
+        // Nothing to stop: the group has ended (ESRCH; EPERM on macOS when only zombies are left)
+        // or never started (no pid).
+      }
       print(`interrupted (${signal})`);
     }
     // A pipe on macOS is written asynchronously: exit once the blocks are out.

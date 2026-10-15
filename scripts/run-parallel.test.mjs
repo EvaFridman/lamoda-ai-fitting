@@ -14,6 +14,44 @@ const NODE = JSON.stringify(process.execPath);
 /** A shell command that runs a line of JavaScript in Node. */
 const js = (code) => `${NODE} -e ${JSON.stringify(code)}`;
 
+/**
+ * Whether a process is still running. A stopped command whose parent is gone waits as a zombie
+ * until PID 1 reaps it, and a container's PID 1 may never do so: a zombie counts as stopped.
+ */
+function isRunning(pid) {
+  try {
+    process.kill(pid, 0);
+  } catch (error) {
+    if (error.code === 'ESRCH') return false;
+    throw error;
+  }
+  if (process.platform !== 'linux') return true;
+  let stat;
+  try {
+    stat = fs.readFileSync(`/proc/${pid}/stat`, 'utf8');
+  } catch (error) {
+    if (error.code === 'ENOENT') return false;
+    throw error;
+  }
+  return stat.slice(stat.lastIndexOf(')') + 2)[0] !== 'Z';
+}
+
+/** Waits until a process has stopped, failing after 5 s. */
+async function waitForStop(pid, what) {
+  for (let waited = 0; isRunning(pid); waited += 50) {
+    assert.ok(waited < 5000, `${what} is still running`);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+}
+
+/** Waits until a file exists, failing after 10 s. */
+async function waitForFile(file, what) {
+  for (let waited = 0; !fs.existsSync(file); waited += 50) {
+    assert.ok(waited < 10000, `${what} did not start`);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+}
+
 function runParallel(...commands) {
   const env = { ...process.env };
   delete env.FORCE_COLOR;
@@ -89,18 +127,35 @@ describe('run-parallel', () => {
     const child = spawn(process.execPath, [SCRIPT, command], { stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '';
     child.stdout.on('data', (chunk) => (stdout += chunk));
-    for (let waited = 0; !fs.existsSync(pidFile); waited += 50) {
-      assert.ok(waited < 10000, 'the command did not start');
-      await new Promise((resolve) => setTimeout(resolve, 50));
-    }
+    await waitForFile(pidFile, 'the command');
     fs.rmSync(dir, { recursive: true });
     child.kill('SIGTERM');
     const [code] = await once(child, 'close');
     assert.equal(code, 143);
     assert.match(stdout, /: interrupted \(SIGTERM\), [\d.]+ s ===\npid \d+\n/);
-    const pid = Number(/pid (\d+)/.exec(stdout)[1]);
-    await new Promise((resolve) => setTimeout(resolve, 200));
-    assert.throws(() => process.kill(pid, 0), { code: 'ESRCH' }, 'the command is still running');
+    await waitForStop(Number(/pid (\d+)/.exec(stdout)[1]), 'the command');
+  });
+
+  it('on SIGTERM also stops the processes a command started (as `npm run` starts its script)', async () => {
+    // The command starts a second Node that writes its pid to a file (renamed into place, so it is
+    // never read half-written); the first one does not pass signals on, as a shell that forks does
+    // not.
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'run-parallel-'));
+    const pidFile = path.join(dir, 'pid');
+    const grandchild =
+      `const fs = require("fs"); fs.writeFileSync(${JSON.stringify(`${pidFile}.tmp`)}, String(process.pid));` +
+      ` fs.renameSync(${JSON.stringify(`${pidFile}.tmp`)}, ${JSON.stringify(pidFile)}); setTimeout(() => {}, 30000);`;
+    const command = js(
+      `require("child_process").spawn(process.execPath, ["-e", ${JSON.stringify(grandchild)}], { stdio: "inherit" });`,
+    );
+    const child = spawn(process.execPath, [SCRIPT, command], { stdio: 'ignore' });
+    await waitForFile(pidFile, 'the second process');
+    const pid = Number(fs.readFileSync(pidFile, 'utf8'));
+    fs.rmSync(dir, { recursive: true });
+    child.kill('SIGTERM');
+    const [code] = await once(child, 'close');
+    assert.equal(code, 143);
+    await waitForStop(pid, 'the process the command started');
   });
 
   it('exits 1 with usage when given no commands', () => {
