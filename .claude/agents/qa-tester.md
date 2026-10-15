@@ -88,7 +88,7 @@ screenshots and snapshots take no file name and land in `.playwright-mcp/`. Neve
   out in full (e.g. 51 characters) rather than skipping the boundary.
 - **Repeats and order:** the same request twice, double submit, parallel requests
   (`curl --parallel` with the URL repeated), out-of-order steps, retry after a failure.
-- **Limits:** the per-client rate limit (`THROTTLE_LIMIT`), large payloads, many items.
+- **Limits:** the per-client rate limits (`THROTTLE_{READ,WRITE,EXPENSIVE}_{BURST,MINUTE}`), large payloads, many items.
 - **Dependencies:** stop one of redis, temporal, temporal-worker or postgres (each stop asks the
   owner), check what the api and web do and that `/health/ready` says so, start it again, and check
   that the app recovers without a restart. Errors must be clear to the user, never a hang or a raw

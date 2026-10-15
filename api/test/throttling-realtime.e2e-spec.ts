@@ -9,7 +9,8 @@ import { useRequestContext } from '../src/common/http/request-context.js';
 import { SocketIoAdapter } from '../src/realtime/socket-io.adapter.js';
 
 // Redis points at a closed port (vitest.config.ts), so the request counters run on the in-memory
-// fallback: the limit must still hold. THROTTLE_LIMIT is 5 in the test environment.
+// fallback: the limit must still hold. Five requests per route and tier in the test environment;
+// test/throttling-tiers.e2e-spec.ts checks each tier on that fallback too.
 describe('throttling and websockets (e2e)', () => {
   let app: INestApplication;
   let url: string;

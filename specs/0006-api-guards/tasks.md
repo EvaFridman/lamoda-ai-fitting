@@ -98,7 +98,7 @@ After the merge of PR 1:
       Check: e2e: a test controller with no marker → 401; a public route with a wrong token → 200;
       wrong-token requests reach 429; 0004's e2e tests pass. AC1, AC2, AC3, AC6 (counting part).
       Commit: `feat(api): close every route that is not marked public or admin`
-- [ ] **T8. Quota tiers.** Six named throttlers and `TieredThrottlerGuard` (plan §3), `@Expensive()`;
+- [x] **T8. Quota tiers.** Six named throttlers and `TieredThrottlerGuard` (plan §3), `@Expensive()`;
       `THROTTLE_{READ,WRITE,EXPENSIVE}_{BURST,MINUTE}` replace `THROTTLE_LIMIT` and
       `THROTTLE_TTL_MS` in the env schema, `.env.example`, both compose files and the test setup.
       Check: e2e with low values: writes 429 while reads answer; burst and minute each give 429;

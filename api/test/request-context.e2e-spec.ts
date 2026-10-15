@@ -10,7 +10,7 @@ import { AppExpressAdapter } from '../src/common/http/app-express.adapter.js';
 import { useRequestContext } from '../src/common/http/request-context.js';
 import { createValidationPipe } from '../src/common/validation/validation-pipe.js';
 
-// vitest.config.ts: PROXY_SECRET and THROTTLE_LIMIT=5. Each test boots its own app, so the
+// vitest.config.ts: PROXY_SECRET and five reads per route. Each test boots its own app, so the
 // in-memory request counters (Redis is down) start empty. Set up like src/server.ts.
 const PROXY_SECRET = 'testproxysecret0123456789abcdef0';
 

@@ -16,7 +16,15 @@ export default defineConfig({
       DATABASE_URL: 'postgresql://test:test@127.0.0.1:1/test',
       REDIS_URL: 'redis://127.0.0.1:1',
       TEMPORAL_ADDRESS: '127.0.0.1:1',
-      THROTTLE_LIMIT: '5',
+      // Five requests per route and tier, then 429. The 1-second windows are set out of reach, so a
+      // slow run never splits a test's requests across two of them; test/throttling-tiers.e2e-spec.ts
+      // lowers them where it checks them.
+      THROTTLE_READ_BURST: '100',
+      THROTTLE_READ_MINUTE: '5',
+      THROTTLE_WRITE_BURST: '100',
+      THROTTLE_WRITE_MINUTE: '5',
+      THROTTLE_EXPENSIVE_BURST: '100',
+      THROTTLE_EXPENSIVE_MINUTE: '5',
       ADMIN_API_TOKEN: 'test-admin-token-0123456789abcdef',
       PROXY_SECRET: 'testproxysecret0123456789abcdef0',
       MEDIA_BASE_URL: 'http://localhost:3001/media/',
