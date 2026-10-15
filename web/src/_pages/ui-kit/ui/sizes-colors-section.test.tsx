@@ -69,6 +69,27 @@ describe('sizes and colors section', () => {
   });
 });
 
+describe('ColorSwatch hex and colourless examples', () => {
+  it('shows a dark hex, a white hex and no colour', () => {
+    const region = renderRegion();
+
+    const blue = within(region).getByRole('checkbox', { name: 'синий' });
+    expect(blue).toBeChecked();
+    // #3972FC has a higher WCAG contrast with black (4.99) than with white (4.21)
+    expect(blue).toHaveAttribute('data-light');
+    expect(blue).not.toHaveAttribute('data-bordered');
+
+    const white = within(region).getByRole('checkbox', { name: 'белый' });
+    expect(white).toBeChecked();
+    expect(white).toHaveAttribute('data-light');
+    expect(white).toHaveAttribute('data-bordered');
+
+    const none = within(region).getByRole('checkbox', { name: 'без цвета' });
+    expect(none).not.toBeChecked();
+    expect(none).toHaveAttribute('data-bordered');
+  });
+});
+
 describe('SizePicker demo', () => {
   it('starts with 44 and lists the picked sizes', async () => {
     const user = userEvent.setup();

@@ -19,7 +19,7 @@ export type { CheckboxFilterOption, CheckboxFilterProps } from './checkbox-filte
 export { CheckboxFilter } from './checkbox-filter/checkbox-filter';
 export type { CheckboxGroupProps } from './checkbox-group/checkbox-group';
 export { CheckboxGroup } from './checkbox-group/checkbox-group';
-export type { ColorSwatchProps, SwatchColor } from './color-swatch/color-swatch';
+export type { ColorSwatchProps, HexColor, SwatchColor } from './color-swatch/color-swatch';
 export { ColorSwatch, swatchColors } from './color-swatch/color-swatch';
 export type { DrawerProps } from './drawer/drawer';
 export { Drawer, DrawerClose } from './drawer/drawer';

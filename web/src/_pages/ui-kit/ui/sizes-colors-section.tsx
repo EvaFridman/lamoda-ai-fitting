@@ -1,4 +1,10 @@
-import { ColorSwatch, type SwatchColor, SizePicker, SizeSelector } from '@/shared/ui';
+import {
+  ColorSwatch,
+  type HexColor,
+  type SwatchColor,
+  SizePicker,
+  SizeSelector,
+} from '@/shared/ui';
 
 import { ColorSwatchDemo } from './color-swatch-demo';
 import styles from './examples.module.scss';
@@ -29,17 +35,22 @@ const selectorStates: SizeExample[] = [
 
 interface SwatchExample {
   props: string;
-  color: SwatchColor;
+  color?: SwatchColor | HexColor;
   label: string;
   checked: boolean;
   disabled?: boolean;
 }
 
+// The last three are attribute values as the api gives them: two with the seed's hexes, one with
+// no colour (colorHex: null).
 const swatchStates: SwatchExample[] = [
   { props: 'по умолчанию', color: 'black', label: 'Черный', checked: false },
   { props: 'checked', color: 'black', label: 'Черный', checked: true },
   { props: 'checked · светлый цвет', color: 'white', label: 'Белый', checked: true },
   { props: 'disabled', color: 'red', label: 'Красный', checked: false, disabled: true },
+  { props: 'hex · checked', color: '#3972FC', label: 'синий', checked: true },
+  { props: 'hex · светлый · checked', color: '#FFFFFF', label: 'белый', checked: true },
+  { props: 'без цвета', label: 'без цвета', checked: false },
 ];
 
 // The size filter, the size selector of a product and the colour filter in every state, and each

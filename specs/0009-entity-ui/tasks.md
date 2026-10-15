@@ -44,7 +44,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## PR 3 · `feat/0009-entity-ui` · entity components and `/ui-kit`
 
-- [ ] **T5. Hex swatches.** `ColorSwatch` takes a hex (contrast tick, border above luminance 0.9)
+- [x] **T5. Hex swatches.** `ColorSwatch` takes a hex (contrast tick, border above luminance 0.9)
       or no colour (an empty bordered circle); the kit's "Размеры и цвета" section shows both
       (plan §2). The schemas already carry `colorHex` (T4).
       Check: `ColorSwatch` tests for a dark and a light hex, white, no colour, and the unchanged
