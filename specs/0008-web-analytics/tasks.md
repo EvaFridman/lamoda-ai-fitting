@@ -55,7 +55,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       token, the gate resets hovers on a path change); `qa-tester` on the local stack with an empty token (AC13) and with a dummy token and
       Mixpanel requests intercepted (AC1–AC6); `npm run verify`.
       Commit: `feat(web): ask for analytics consent`
-- [ ] **T8. Policy page.** `/privacy` with the placeholder text and "Настройки cookies" (plan §5).
+- [x] **T8. Policy page.** `/privacy` with the placeholder text and "Настройки cookies" (plan §5).
       Check: a page test; `qa-tester` opens it from the banner; `npm run verify`.
       Commit: `feat(web): add the personal data policy page`
 - [ ] **T9. Footer.** `widgets/footer` as Lamoda's: columns, bottom row, icons, tokens, narrow

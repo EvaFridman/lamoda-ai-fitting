@@ -73,6 +73,15 @@ describe('ConsentBanner', () => {
     expect(screen.queryByRole('region')).not.toBeInTheDocument();
   });
 
+  it('stays hidden on a fresh mount with a stored decline', () => {
+    window.localStorage.setItem(
+      CONSENT_KEY,
+      JSON.stringify({ value: 'denied', at: new Date().toISOString() }),
+    );
+    render(<ConsentBanner />);
+    expect(screen.queryByRole('region')).not.toBeInTheDocument();
+  });
+
   it('asks again when the stored answer is 366 days old', () => {
     window.localStorage.setItem(
       CONSENT_KEY,
@@ -199,6 +208,42 @@ describe('ConsentBanner', () => {
       expect(screen.getByRole('region')).toHaveFocus();
       expect(window.localStorage.getItem(CONSENT_KEY)).toBeNull();
       await user.click(screen.getByRole('button', { name: 'Принять' }));
+      expect(settings).toHaveFocus();
+    });
+
+    it('keeps one banner and takes the focus again when settings is clicked on an open reopened banner', async () => {
+      const user = userEvent.setup();
+      answerConsent('granted');
+      render(
+        <>
+          <CookieSettingsButton />
+          <ConsentBanner />
+        </>,
+      );
+      const settings = screen.getByRole('button', { name: 'Настройки cookies' });
+      await user.click(settings);
+      expect(screen.getByRole('region')).toHaveFocus();
+      act(() => settings.focus());
+      expect(settings).toHaveFocus();
+      await user.click(settings);
+      expect(screen.getAllByRole('region')).toHaveLength(1);
+      expect(screen.getByRole('region')).toHaveFocus();
+    });
+
+    it('hides on "Принять" after a reopen and returns the focus to the settings button', async () => {
+      const user = userEvent.setup();
+      answerConsent('denied');
+      render(
+        <>
+          <CookieSettingsButton />
+          <ConsentBanner />
+        </>,
+      );
+      const settings = screen.getByRole('button', { name: 'Настройки cookies' });
+      await user.click(settings);
+      await user.click(screen.getByRole('button', { name: 'Принять' }));
+      expect(screen.queryByRole('region')).not.toBeInTheDocument();
+      expect(JSON.parse(window.localStorage.getItem(CONSENT_KEY)!).value).toBe('granted');
       expect(settings).toHaveFocus();
     });
 
