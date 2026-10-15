@@ -81,6 +81,15 @@ code comments (`I` is skipped: it reads as `1`). All decisions below: owner, 202
   it: none needs analytics data, and a server declared in an agent is not limited by its `tools:`.
   The owner enabled MCP for the organization (Settings → Org → AI Settings) on 2026-10-15.
 - **J15. Accounts.** The owner owns the Mixpanel organization and project; nobody else gets access.
+- **J23. Irreversible MCP tools denied (T4).** The server also has write tools; none is needed by 0008. The irreversible ones are denied in `.claude/settings.json` by exact name (the list
+  in plan §7), so text planted in an event cannot lead to deleting or rewriting the project's data.
+  `Edit-Event` and `Edit-Property` count as irreversible: their `dropped` flag makes Mixpanel stop
+  ingesting the event or property, and what arrives meanwhile is lost. `Get-User-Replays-Data` is
+  denied too: one visitor's session replays are not needed and would bring personal data into the
+  session. `Get-Live-Events` stays (event name, time and anonymous id; used to see events arrive).
+  Other write tools (create, update) are not denied: they ask per call in the default permission
+  mode, and the classifier decides in `auto`. No `ask` rule for the whole server: reads would ask
+  in `auto` too and gain nothing.
 
 ## Consent details
 

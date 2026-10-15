@@ -122,11 +122,15 @@ A new segment of `shared`, browser only (`'use client'` where it holds hooks).
 - `.mcp.json` at the root: `{ "mcpServers": { "mixpanel": { "type": "http", "url":
 "https://mcp-eu.mixpanel.com/mcp" } } }`. OAuth on first use (`/mcp` in Claude Code); no token in
   the repository or in `.env`.
-- Claude Code asks once to approve a project MCP server; each tool call asks for permission as any
-  MCP tool does (no allow rule added).
-- `.claude/README.md`: what the server is, why only the main session (J14), and that the built-in
-  agents (`general-purpose`, `Explore`) inherit the main session's MCP tools: the project's agents
-  list their `tools:`, so they do not.
+- Claude Code asks once to approve a project MCP server; no allow rule is added, so each tool call
+  asks for permission in the default permission mode, and the classifier decides in `auto`. The irreversible tools are denied in `.claude/settings.json`
+  by name (J23): `Delete-Cohort`, `Delete-Dashboard`, `Delete-Tag`, `Bulk-Edit-Events`,
+  `Bulk-Edit-Properties`, `Merge-Group`, `Dismiss-Duplicate-Group`, `Dismiss-Issues`, `Edit-Event`,
+  `Edit-Property` (their `dropped` flag stops ingestion), and `Get-User-Replays-Data` (one
+  visitor's session replays).
+- `.claude/README.md`: what the server is, why only the main session (J14), the denied tools (J23),
+  and that the built-in agents (`general-purpose`, `Explore`, `Plan`) inherit the main session's
+  MCP tools: the project's agents list their `tools:`, so they do not.
 
 ## 8. The element for the checks (AC8, AC10)
 

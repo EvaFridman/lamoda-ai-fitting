@@ -37,7 +37,18 @@
       "Read(**/.env.prod)",
       "Read(**/.env.development)",
       "Read(**/.env.test)",
-      "Read(**/vault.yml)"
+      "Read(**/vault.yml)",
+      "mcp__mixpanel__Delete-Cohort",
+      "mcp__mixpanel__Delete-Dashboard",
+      "mcp__mixpanel__Delete-Tag",
+      "mcp__mixpanel__Bulk-Edit-Events",
+      "mcp__mixpanel__Bulk-Edit-Properties",
+      "mcp__mixpanel__Merge-Group",
+      "mcp__mixpanel__Dismiss-Duplicate-Group",
+      "mcp__mixpanel__Dismiss-Issues",
+      "mcp__mixpanel__Edit-Event",
+      "mcp__mixpanel__Edit-Property",
+      "mcp__mixpanel__Get-User-Replays-Data"
     ]
   },
   "hooks": {
