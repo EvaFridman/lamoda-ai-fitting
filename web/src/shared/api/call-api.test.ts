@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
 import { callApi } from './call-api';
-import { ApiError, buildPath } from './index';
+import { ERROR_TEXTS, GENERAL_TEXT } from './error-text';
+import { ApiError, buildPath, errorText } from './index';
 
 const PATH = buildPath('/things/:id', { id: 'a' });
 const URL_ = new URL('http://api:3000/things/a');
@@ -43,6 +44,183 @@ describe('callApi messages', () => {
     const message = (error as ApiError).message;
     expect(message).toContain('/things/:id');
     expect(message).not.toContain(SECRET_VALUE);
+  });
+});
+
+function envelope(code: string, details: unknown[] = [], message = 'english message'): string {
+  return JSON.stringify({ error: { code, message, details } });
+}
+
+describe('callApi error envelope', () => {
+  it('keeps code, status and details of a 400 VALIDATION_FAILED', async () => {
+    const details = [
+      { field: 'name', code: 'IS_STRING', message: 'name must be a string' },
+      { field: '', code: 'TOO_MANY_ERRORS', message: '12 more errors' },
+    ];
+    fetchMock.mockResolvedValue(
+      new Response(envelope('VALIDATION_FAILED', details), { status: 400 }),
+    );
+    const error = await failure();
+    expect(error).toMatchObject({
+      kind: 'http',
+      status: 400,
+      code: 'VALIDATION_FAILED',
+      details,
+      template: '/things/:id',
+    });
+  });
+
+  it.each([
+    [404, 'NOT_FOUND'],
+    [503, 'SERVICE_UNAVAILABLE'],
+  ])('keeps code of a %s %s answer with no details', async (status, code) => {
+    fetchMock.mockResolvedValue(new Response(envelope(code), { status }));
+    const error = await failure();
+    expect(error).toMatchObject({ kind: 'http', status, code, details: [] });
+  });
+
+  it('keeps a code the web does not know', async () => {
+    fetchMock.mockResolvedValue(new Response(envelope('BRAND_NEW_CODE'), { status: 418 }));
+    expect(await failure()).toMatchObject({ kind: 'http', status: 418, code: 'BRAND_NEW_CODE' });
+  });
+
+  it.each([
+    ['nginx html', () => new Response('<html>502 Bad Gateway</html>', { status: 502 }), 502],
+    ['empty body', () => new Response(null, { status: 500 }), 500],
+    ['empty JSON object', () => new Response('{}', { status: 500 }), 500],
+    ['JSON array', () => new Response('[]', { status: 400 }), 400],
+    ['error without code', () => new Response('{"error":{"message":"m"}}', { status: 400 }), 400],
+    ['non-string code', () => new Response('{"error":{"code":5}}', { status: 400 }), 400],
+    ['code of 65 characters', () => new Response(envelope('A'.repeat(65)), { status: 400 }), 400],
+  ])('is an http error without code for %s', async (_name, response, status) => {
+    fetchMock.mockResolvedValue(response());
+    const error = await failure();
+    expect(error).toMatchObject({ kind: 'http', status, details: [] });
+    expect(error.code).toBeUndefined();
+  });
+
+  it('keeps a code of 64 characters', async () => {
+    const code = 'A'.repeat(64);
+    fetchMock.mockResolvedValue(new Response(envelope(code), { status: 400 }));
+    expect(await failure()).toMatchObject({ code });
+  });
+
+  describe('an envelope whose details do not fit', () => {
+    const detail = { field: 'f', code: 'IS_STRING', message: 'm' };
+    const arrange = (error: object, status = 400) =>
+      fetchMock.mockResolvedValue(new Response(JSON.stringify({ error }), { status }));
+
+    it('keeps the code, with no details, when details are missing', async () => {
+      arrange({ code: 'NOT_FOUND', message: 'm' }, 404);
+      const error = await failure();
+      expect(error).toMatchObject({ kind: 'http', status: 404, code: 'NOT_FOUND', details: [] });
+    });
+
+    it('keeps the code, with no details, when an entry has no message', async () => {
+      arrange({
+        code: 'VALIDATION_FAILED',
+        message: 'm',
+        details: [detail, { field: 'f', code: 'IS_STRING' }],
+      });
+      const error = await failure();
+      expect(error).toMatchObject({ code: 'VALIDATION_FAILED', details: [] });
+    });
+
+    it('passes 51 details', async () => {
+      const details = Array.from({ length: 51 }, () => detail);
+      arrange({ code: 'VALIDATION_FAILED', message: 'm', details });
+      expect((await failure()).details).toHaveLength(51);
+    });
+
+    it('keeps the code, with no details, for 52 details', async () => {
+      const details = Array.from({ length: 52 }, () => detail);
+      arrange({ code: 'VALIDATION_FAILED', message: 'm', details });
+      const error = await failure();
+      expect(error).toMatchObject({ code: 'VALIDATION_FAILED', details: [] });
+    });
+
+    it('passes a field of 100 emoji (200 UTF-16 units)', async () => {
+      const field = '😀'.repeat(100);
+      arrange({ code: 'VALIDATION_FAILED', message: 'm', details: [{ ...detail, field }] });
+      expect((await failure()).details).toEqual([{ ...detail, field }]);
+    });
+
+    it('falls back to the code alone for a field over 200 units', async () => {
+      const field = 'a'.repeat(201);
+      arrange({ code: 'VALIDATION_FAILED', message: 'm', details: [{ ...detail, field }] });
+      expect(await failure()).toMatchObject({ code: 'VALIDATION_FAILED', details: [] });
+    });
+
+    it('passes a message of 400 units and falls back over it', async () => {
+      arrange({
+        code: 'VALIDATION_FAILED',
+        message: 'm',
+        details: [{ ...detail, message: 'a'.repeat(400) }],
+      });
+      expect((await failure()).details).toHaveLength(1);
+      arrange({
+        code: 'VALIDATION_FAILED',
+        message: 'm',
+        details: [{ ...detail, message: 'a'.repeat(401) }],
+      });
+      expect(await failure()).toMatchObject({ code: 'VALIDATION_FAILED', details: [] });
+    });
+
+    it('falls back to the code alone for a detail code of 65 characters', async () => {
+      const details = [{ ...detail, code: 'A'.repeat(65) }];
+      arrange({ code: 'VALIDATION_FAILED', message: 'm', details });
+      expect(await failure()).toMatchObject({ code: 'VALIDATION_FAILED', details: [] });
+    });
+  });
+
+  it.each([
+    [502, ERROR_TEXTS.SERVICE_UNAVAILABLE],
+    [504, ERROR_TEXTS.SERVICE_UNAVAILABLE],
+    [413, ERROR_TEXTS.PAYLOAD_TOO_LARGE],
+    [500, GENERAL_TEXT],
+  ])('turns an nginx html %s into its visitor text', async (status, text) => {
+    fetchMock.mockResolvedValue(new Response('<html><body>nginx</body></html>', { status }));
+    expect(errorText(await failure())).toBe(text);
+  });
+
+  it('is an http error without code when the body cannot be read', async () => {
+    const response = new Response('{}', { status: 500 });
+    vi.spyOn(response, 'json').mockRejectedValue(new TypeError('terminated'));
+    fetchMock.mockResolvedValue(response);
+    const error = await failure();
+    expect(error).toMatchObject({ kind: 'http', status: 500, details: [] });
+    expect(error.code).toBeUndefined();
+  });
+
+  it('drops extra envelope fields', async () => {
+    const body = {
+      error: {
+        code: 'NOT_FOUND',
+        message: 'm',
+        details: [{ field: 'f', code: 'MIN', message: 'x', extra: 1 }],
+        stack: 'secret stack',
+      },
+      other: true,
+    };
+    fetchMock.mockResolvedValue(new Response(JSON.stringify(body), { status: 404 }));
+    const error = await failure();
+    expect(error.details).toEqual([{ field: 'f', code: 'MIN', message: 'x' }]);
+    expect(error).not.toHaveProperty('stack', 'secret stack');
+    expect(JSON.stringify(error)).not.toContain('secret stack');
+  });
+
+  it('keeps the field and message of details out of the error message', async () => {
+    const details = [
+      { field: 'echo-field-value', code: 'IS_STRING', message: 'echo-message-text' },
+    ];
+    fetchMock.mockResolvedValue(
+      new Response(envelope('VALIDATION_FAILED', details, 'echo-api-message'), { status: 400 }),
+    );
+    const error = await failure();
+    expect(error.message).toContain('/things/:id');
+    expect(error.message).not.toContain('echo-field-value');
+    expect(error.message).not.toContain('echo-message-text');
+    expect(error.message).not.toContain('echo-api-message');
   });
 });
 

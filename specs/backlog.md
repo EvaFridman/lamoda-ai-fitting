@@ -72,6 +72,10 @@ removes it from this list. Found by the agents' first security audit and trial r
 - **How long to wait after a 429.** The api's limit sets `Retry-After` (0006 F23), but web's 429
   text only says "wait a little" (0007 H25), while the minute window can mean up to 60 s. Show the
   wait, or retry after it, once nginx's own 429 (0006 PR 3) is known to carry the header too.
+- **Texts of new validation rules.** web has a Russian text per `details` code, but the OpenAPI
+  document types that code as a plain string, so a new api rule gets the general text unnoticed
+  (0007 H28). With the first form, add an api test comparing the rule names its DTOs use with a
+  list web's texts are checked against.
 - **Web data layer (spec 0007, next after 0006; 0005 G2).** Typed access to the api of spec 0004,
   with no pages; 0007 adds tasks of its own. Starting point, from 0004 E22, E26–E28 (open to change
   in 0007):

@@ -64,7 +64,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       types only, contract tests (H3).
       Check: contract tests; an unknown `GenerationStatus` fails the schema.
       Commit: `feat(web): add schemas for users, fitting sessions and generations`
-- [ ] **T9. Errors and texts.** The response step parses the error envelope into `code` and
+- [x] **T9. Errors and texts.** The response step parses the error envelope into `code` and
       `details`; `error-text.ts` with the texts of every api and `details` code, 0006's included;
       the contract check of the dictionary against `ErrorCode` (plan §1, §2, §6). Starts after
       0006 PR 2.
@@ -75,9 +75,9 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 - [ ] **T10. Sentry.** `report.ts`: which failures, fingerprint, one event per cause per 60 s,
       tags; the greeting renders `errorText` and drops `console.error`. Removes the backlog item
       "api call failures in Sentry" (plan §3, §8).
-      Check: unit tests (5xx, network, timeout, schema reported; 4xx and 429 not; ten failures →
-      one event; two templates → two fingerprints); `/` with the api stopped answers 200 with the
-      Russian text. AC8 (unit part), AC13 (local part).
+      Check: unit tests (5xx, network, timeout, schema and 401 reported (H23); other 4xx and 429
+      not; ten failures → one event; two templates → two fingerprints); `/` with the api stopped
+      answers 200 with the Russian text. AC8 (unit part), AC13 (local part).
       Commit: `feat(web): report api failures to sentry once per cause`
 - 👤 merges PR 2.
 

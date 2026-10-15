@@ -36,14 +36,16 @@ dependencies: zod 4 (`z.toJSONSchema`), TanStack Query 5 (`HydrationBoundary`, `
 `shared/api/error-text.ts`: a `Record` from each api error code to a Russian text, the same for
 `details` codes (`TOO_MANY_ERRORS` included), a general text for anything else, and texts for
 `network`, `timeout` and `schema` failures. 429 gets "Слишком много запросов, подождите немного".
-The code list is a copy (no shared package); the contract check (§6) fails when the api has a code
+An answer without the envelope gets the text of the code its status stands for (413, 502–504;
+H27). The code list is a copy (no shared package); the contract check (§6) fails when the api has a code
 the dictionary lacks.
 
 ## 3. Sentry (H9)
 
 `shared/api/report.ts`, called by the shared response step:
 
-- reports `network`, `timeout`, `schema` and `http` with status ≥ 500; never 4xx or 429;
+- reports `network`, `timeout`, `schema`, `http` with status ≥ 500 and a 401 (H23: on a public
+  route it means a lost marker, an api bug); no other 4xx, never 429;
 - `fingerprint: ['api-failure', kind, method, template]`, so one cause is one issue whatever the
   ids in the path;
 - at most one event per fingerprint per 60 s per process (server) or per tab (browser), to keep
