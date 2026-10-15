@@ -40,3 +40,9 @@ export {
   type ProductVariationList,
   type ProductVariationRecord,
 } from './model/schemas';
+export {
+  CatalogProductCard,
+  CatalogProductCardSkeleton,
+  type CatalogProductCardProps,
+  type CatalogProductCardSkeletonProps,
+} from './ui/catalog-product-card';
