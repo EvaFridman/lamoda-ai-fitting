@@ -33,6 +33,13 @@ code comments. All decisions below: owner, 2026-10-15.
   exports (`@/shared/api/server`, `@/entities/product/server`). `index.ts` stays safe to import from
   the browser. The FSD rules (the `fsd` skill, `fsd-reviewer`, `.claude/README.md`) and `CLAUDE.md`
   change with it. (Added while writing the plan; the backlog item said the rules must allow it.)
+  Settled in T4: server-only exports leave only through `server.ts`, so `shared/config`
+  (`getServerEnv`) and `shared/redis` (`getRedis`) move there in T5 too; a segment or slice with
+  only server-only exports has only a `server.ts`. "Safe in the browser" counts what `index.ts`
+  exports directly: no module that imports `server-only`, no re-export of `server.ts`. Server
+  components of widgets and pages stay in `index.ts`, and `next build` catches a client component
+  that imports them. `server.ts`, and what it re-exports, holds no `'use server'`: server actions
+  would be public endpoints and need their own decision.
 - **H4. Backlog items taken.** "Web data layer" (including its sub-point on `apiFetch` paths) and
   "api call failures in Sentry". The commit that closes each removes it from `specs/backlog.md`.
 

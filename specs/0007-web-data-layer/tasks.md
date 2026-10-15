@@ -28,14 +28,16 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## PR 2 · `feat/0007-server-data` · server side, schemas, errors, Sentry
 
-- [ ] **T4. Second public entry.** `.claude/skills/fsd/SKILL.md`, `.claude/agents/fsd-reviewer.md`
+- [x] **T4. Second public entry.** `.claude/skills/fsd/SKILL.md`, `.claude/agents/fsd-reviewer.md`
       and `.claude/README.md` allow `server.ts` next to `index.ts` for server-only exports
-      (plan §7, H16).
+      (plan §7, H16). H16 settled with the owner during T4; plan §1 and T5 gained the move of
+      `shared/config` and `shared/redis`.
       Check: `npm run verify`; 👤 restarts Claude Code.
       Commit: `chore(tooling): allow a server-only public entry in fsd slices`
 - [ ] **T5. `shared/api` split and paths.** `index.ts` / `server.ts`; `buildPath` and `ApiPath`;
       `query` serialization; one response step shared by both clients (status, schema →
-      `ApiError` with `kind`); `apiFetch` takes an `ApiPath`. `entities/greeting/server.ts`.
+      `ApiError` with `kind`); `apiFetch` takes an `ApiPath`. `entities/greeting/server.ts`;
+      `shared/config/server.ts` and `shared/redis/server.ts` in place of their `index.ts` (H16).
       `CLAUDE.md` "Conventions" and the `fsd` skill's example point to `@/shared/api/server`
       (plan §1, §8).
       Check: unit tests of `buildPath` (`../users`, `a/b`, empty, unicode) and the origin check;

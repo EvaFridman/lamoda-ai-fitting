@@ -26,6 +26,9 @@ dependencies: zod 4 (`z.toJSONSchema`), TanStack Query 5 (`HydrationBoundary`, `
   `prefetch(queryClient, options)`, the server half of §4.
 - The two clients share one response step (status, envelope, schema → `ApiError`), so both report
   and classify errors the same way.
+- `shared/config` and `shared/redis` follow the same rule (H16): `getServerEnv` with `ServerEnv`
+  and `getRedis` move to their segment's `server.ts`, and their `index.ts` goes, since nothing in
+  them is browser-safe. Imports become `@/shared/config/server` and `@/shared/redis/server`.
 
 ## 2. Texts (H8, H11)
 

@@ -27,7 +27,12 @@ Check:
 
 1. Imports go only downward; `web/app/` re-exports and composes, with no logic.
 2. No imports between slices of the same layer (except entities through `@x`).
-3. Other layers import a slice only through its `index.ts`; a new slice has one.
+3. Other layers import a slice or `shared` segment only through its `index.ts` or, for
+   server-only exports, its `server.ts`; a new slice has one of them. A `server.ts` starts with
+   `import 'server-only'`; neither it nor anything it re-exports holds `'use server'`. `index.ts` neither re-exports `server.ts`
+   nor exports a module that imports `server-only` (direct exports only: a widget's server
+   component in `index.ts` is fine). Browser code (a `'use client'` module or anything it imports)
+   does not import a `server.ts`.
 4. Code sits in the right layer (the skill's "Where does it go?") and segment; no `components/`,
    `hooks/` or `types/` folders.
 5. Api data goes through an entity's `api/` segment with `apiFetch`, a zod schema and
