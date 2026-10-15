@@ -117,7 +117,7 @@ After the merge of PR 1:
       T10's timeout interceptor goes there. `CLAUDE.md`: the e2e setup rule names the function.
       Check: `npm run verify`; no e2e spec calls `useRequestContext` or `useBodyParser` itself.
       Commit: `refactor(api): set up the http app in one place`
-- [ ] **T10. Timeouts.** Timeout interceptor → 503; Node `keepAliveTimeout`, `headersTimeout`,
+- [x] **T10. Timeouts.** Timeout interceptor → 503; Node `keepAliveTimeout`, `headersTimeout`,
       `requestTimeout` (plan §4); `REQUEST_TIMEOUT_MS` in env.
       Check: e2e: a test route slower than a low timeout → 503 in the api's format; unit: the
       server's timeouts are set. AC15 (api part).

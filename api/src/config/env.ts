@@ -55,6 +55,9 @@ export const envSchema = z
     // Largest JSON body in bytes, then 413 PAYLOAD_TOO_LARGE (spec 0006 F12). nginx has a limit of
     // its own (client_max_body_size); at most 1 MB, so a typo cannot lift the api's (F24).
     BODY_LIMIT: z.coerce.number().int().positive().max(1_048_576).default(102_400),
+    // Milliseconds a handler may take, then 503 SERVICE_UNAVAILABLE (spec 0006 F11); at most 30 s,
+    // so a typo cannot let nginx's proxy timeout answer 504 first (F27).
+    REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().max(30_000).default(10_000),
 
     // Sent in the X-Admin-Token header by writes and by requests to users, fitting sessions and
     // generations (spec 0004 E1). Empty closes those requests entirely; a set one must be long

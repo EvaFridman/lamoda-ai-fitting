@@ -178,10 +178,15 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   so a missing one answers `RELATED_NOT_FOUND`. `/health/*` keep their own format (the deploy
   reads them). `server.ts` and every e2e app whose module provides `ConfigService` are created by
   `createHttpApp()` (`common/http/http-app.ts`): `AppExpressAdapter` (else broken JSON is a plain 400) with `bodyParser: false`, `useRequestContext(app)` (else every route behind the global
-  guards answers 500), CORS, the JSON parser with `BODY_LIMIT` and `createValidationPipe()`
-  (`common/validation/`). A step the server and the tests share goes there, and no e2e spec repeats
-  one; a unit spec of a single piece (the middleware, Swagger metadata) may build a bare app.
-  Database e2e get such an app from `createTestApp()` (`test/support/test-app.ts`). Swagger error responses: `swagger.ts` adds the
+  guards answers 500), CORS, the JSON parser with `BODY_LIMIT`, `createValidationPipe()`
+  (`common/validation/`) and `TimeoutInterceptor` (a handler slower than `REQUEST_TIMEOUT_MS`, at
+  most 30 s, answers 503 `SERVICE_UNAVAILABLE`; its work is not cancelled, its end is logged, and
+  only a route's first timeout within a minute goes to Sentry, spec 0006 F29). The timeout starts
+  after the global guards; the shared Redis client's `commandTimeout` (1 s) keeps the throttler from
+  hanging there, and after a failed command it counts in memory for 10 s (F28). A step the server and the tests share goes into `createHttpApp()`, and no
+  e2e spec repeats one; a unit spec of a single piece (the middleware, Swagger metadata) may build
+  a bare app. Database e2e get such an app from `createTestApp()` (`test/support/test-app.ts`).
+  Node's server timeouts are set only by `server.ts`, after `listen()` (`common/http/server-timeouts.ts`). Swagger error responses: `swagger.ts` adds the
   ones a route's shape implies (body, query, `@UuidParam`, admin, 429/500/503); a route that can
   answer 409 `ALREADY_EXISTS`/`IN_USE` or 400 `RELATED_NOT_FOUND`/`CONSTRAINT_VIOLATION` declares
   them with `@ApiErrors(...)` (`common/errors/`).

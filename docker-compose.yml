@@ -25,6 +25,8 @@ x-api-env: &api-env
   THROTTLE_EXPENSIVE_MINUTE: ${THROTTLE_EXPENSIVE_MINUTE:-10}
   # JSON body limit in bytes (spec 0006 F12); the default is the api's own.
   BODY_LIMIT: ${BODY_LIMIT:-102400}
+  # Request timeout in ms, then 503 (spec 0006 F11); the default is the api's own.
+  REQUEST_TIMEOUT_MS: ${REQUEST_TIMEOUT_MS:-10000}
   ADMIN_API_TOKEN: ${ADMIN_API_TOKEN:-}
   # Required in .env (may be empty): a .env made before spec 0006 lacks it, see README.
   PROXY_SECRET: ${PROXY_SECRET?add PROXY_SECRET to .env (openssl rand -hex 32), see README}

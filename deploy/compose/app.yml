@@ -31,6 +31,8 @@ services:
       THROTTLE_EXPENSIVE_MINUTE: ${THROTTLE_EXPENSIVE_MINUTE:-10}
       # JSON body limit in bytes (spec 0006 F12); the default is the api's own.
       BODY_LIMIT: ${BODY_LIMIT:-102400}
+      # Request timeout in ms, then 503 (spec 0006 F11); the default is the api's own.
+      REQUEST_TIMEOUT_MS: ${REQUEST_TIMEOUT_MS:-10000}
       # Empty closes the admin routes (spec 0004 E1).
       ADMIN_API_TOKEN: ${ADMIN_API_TOKEN:-}
       # Only requests with it (nginx, web) name the client address and request id (spec 0006 F13);

@@ -97,6 +97,26 @@ describe('validateEnv', () => {
     expect(env.ADMIN_API_TOKEN).toBe(admin);
   });
 
+  it('defaults REQUEST_TIMEOUT_MS to 10000', () => {
+    expect(validateEnv(valid).REQUEST_TIMEOUT_MS).toBe(10_000);
+  });
+
+  it.each([
+    ['1', 1],
+    ['30000', 30_000],
+  ])('accepts REQUEST_TIMEOUT_MS %s', (value, expected) => {
+    expect(validateEnv({ ...valid, REQUEST_TIMEOUT_MS: value }).REQUEST_TIMEOUT_MS).toBe(expected);
+  });
+
+  it.each(['30001', '0', '-1', '1.5', 'abc'])(
+    'refuses REQUEST_TIMEOUT_MS %j, naming the variable',
+    (value) => {
+      const message = thrownMessage(() => validateEnv({ ...valid, REQUEST_TIMEOUT_MS: value }));
+
+      expect(message).toMatch(/REQUEST_TIMEOUT_MS/);
+    },
+  );
+
   it('defaults PROXY_SECRET_NEXT to an empty string', () => {
     expect(validateEnv(valid).PROXY_SECRET_NEXT).toBe('');
   });

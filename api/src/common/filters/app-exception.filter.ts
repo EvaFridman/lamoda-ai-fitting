@@ -11,6 +11,7 @@ import { HttpAdapterHost } from '@nestjs/core';
 import * as Sentry from '@sentry/nestjs';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
+import { RequestTimeoutError } from '../errors/app.exception.js';
 import { findRequestContext } from '../http/request-context.js';
 import { toAppException } from './to-app-exception.js';
 
@@ -43,7 +44,10 @@ export class AppExceptionFilter implements ExceptionFilter {
     const requestId = findRequestContext(
       host.switchToHttp().getRequest<IncomingMessage>(),
     )?.requestId;
-    if (status >= 500) {
+    if (exception instanceof RequestTimeoutError && !exception.report) {
+      // A repeat timeout of a route already reported this minute: the log only (spec 0006 F29).
+      this.logger.warn({ code: error.code, status, requestId }, error.message);
+    } else if (status >= 500) {
       // The stack and the original error stay in the log; the body says only "internal error".
       this.logger.error({ err: loggable(exception), code: error.code, requestId }, error.message);
       // Only 5xx go to Sentry (spec 0004 E24): a 4xx is the client's mistake, not a bug.

@@ -77,6 +77,29 @@ code comments.
 - **F11. Timeouts.** A request that runs longer than a time from the environment answers 503
   `SERVICE_UNAVAILABLE` in the api's format; no new error code. Node's server timeouts and nginx's
   proxy and keep-alive timeouts are set so the api answers first, not nginx with 504.
+- **F27. The request timeout's registration and bound.** Added in T10 (owner, 2026-10-15): the
+  timeout interceptor is registered with `useGlobalInterceptors` in `createHttpApp()`, so the server
+  and every e2e app run it. The api refuses to start with a `REQUEST_TIMEOUT_MS` over 30 s, so a
+  typo cannot let nginx's proxy timeout answer 504 first. `/health/*` are not exempt: their checks
+  have timeouts of their own, well under the request timeout. No lower bound: a value too low makes
+  `/health/ready` fail, and the deploy stops while the running copy keeps serving.
+- **F28. A Redis command times out.** Added in T10's review (owner, 2026-10-15): the request timeout
+  starts after the global guards, and the throttler's Redis call had no timeout of its own, so a
+  Redis that accepts the connection but does not answer held the request until nginx answered 504.
+  The shared client gets `commandTimeout` 1 s; the throttler then counts in memory. Its users today
+  are the throttler and `/health/ready`; a blocking command or pub/sub gets a client of its own.
+  Such a Redis keeps the client `ready`, so after a failed command the throttler counts in memory
+  for 10 s and then lets one request try Redis again; only that request's success ends the
+  fallback. The requests in flight when the outage starts wait up to 1 s; after the first failed
+  command at most one request per 10 s waits, and timed-out commands do not pile up in ioredis's
+  queue. Accepted: counters are not carried over when the storage switches, so around a switch a
+  client may get up to two quotas of one window (as before this decision).
+- **F29. Timeouts in Sentry and the log.** Added in T10's review (owner, 2026-10-15): every 5xx goes
+  to Sentry, and a slow route requested again and again would spend the quota real errors need.
+  The first timeout of a route (its handler) within 60 s in the process goes to Sentry; repeats go to
+  the log as warnings. After the 503 the handler is still listened to: when it ends, a warning
+  with the request id, the route, the duration and the outcome (succeeded, or the api's code and
+  message of its error) is logged, since a late failure was seen nowhere.
 - **F12. Body size.** The api's JSON body limit is 100 KB, set from the environment (today it is
   Express's implicit default). nginx accepts at most 1 MB on `/api/` (today 20 MB) and answers a
   larger body with the api's error format, 413 `PAYLOAD_TOO_LARGE`, not nginx's HTML page. The

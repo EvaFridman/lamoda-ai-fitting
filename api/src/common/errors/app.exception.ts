@@ -60,6 +60,18 @@ export class ValidationError extends AppException {
   }
 }
 
+// The 503 of a request that ran too long (TimeoutInterceptor, spec 0006 F11). `report` is false for
+// a repeat timeout of the same route within a minute: AppExceptionFilter then logs it as a warning
+// and skips Sentry, so a slow route cannot spend the Sentry quota real errors need (F29).
+export class RequestTimeoutError extends AppException {
+  constructor(
+    ms: number,
+    readonly report: boolean,
+  ) {
+    super('SERVICE_UNAVAILABLE', `The request took longer than ${ms} ms`);
+  }
+}
+
 export class UnauthorizedError extends AppException {
   constructor(message = 'Missing or invalid admin token') {
     super('UNAUTHORIZED', message);

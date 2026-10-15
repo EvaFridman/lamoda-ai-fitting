@@ -13,7 +13,12 @@ import type { PinoLogger } from 'nestjs-pino';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Prisma } from '../../generated/prisma/client.js';
-import { NotFoundError, UnauthorizedError, ValidationError } from '../errors/app.exception.js';
+import {
+  NotFoundError,
+  RequestTimeoutError,
+  UnauthorizedError,
+  ValidationError,
+} from '../errors/app.exception.js';
 import { requestContextMiddleware, requestContextOf } from '../http/request-context.js';
 import { AppExceptionFilter, loggable } from './app-exception.filter.js';
 
@@ -178,6 +183,52 @@ describe('AppExceptionFilter', () => {
       expect(Sentry.captureException).toHaveBeenCalledTimes(1);
       expect(Sentry.captureException).toHaveBeenCalledWith(original);
       expect(reply).toHaveBeenCalledWith(response, terminusBody, 503);
+    });
+
+    it('reports a RequestTimeoutError with report=true like any 5xx', () => {
+      const original = new RequestTimeoutError(30_000, true);
+
+      filter.catch(original, host);
+
+      expect(Sentry.captureException).toHaveBeenCalledWith(original, {
+        tags: { 'error.code': 'SERVICE_UNAVAILABLE' },
+      });
+      expect(logger.error).toHaveBeenCalledTimes(1);
+      expect(logger.warn).not.toHaveBeenCalled();
+      expect(reply).toHaveBeenCalledWith(
+        response,
+        expect.objectContaining({
+          error: expect.objectContaining({ code: 'SERVICE_UNAVAILABLE' }),
+        }),
+        503,
+      );
+    });
+
+    it('logs a RequestTimeoutError with report=false as a warning, skips Sentry and still answers 503', () => {
+      const original = new RequestTimeoutError(30_000, false);
+
+      filter.catch(original, host);
+
+      expect(Sentry.captureException).not.toHaveBeenCalled();
+      expect(logger.error).not.toHaveBeenCalled();
+      expect(logger.warn).toHaveBeenCalledWith(
+        { code: 'SERVICE_UNAVAILABLE', status: 503, requestId },
+        original.message,
+      );
+      expect(reply).toHaveBeenCalledWith(
+        response,
+        {
+          error: { code: 'SERVICE_UNAVAILABLE', message: original.message, details: [] },
+        },
+        503,
+      );
+    });
+
+    it('keeps reporting other 503s while a timeout is not reported', () => {
+      filter.catch(new RequestTimeoutError(30_000, false), host);
+      filter.catch(new HttpException('down', HttpStatus.SERVICE_UNAVAILABLE), host);
+
+      expect(Sentry.captureException).toHaveBeenCalledTimes(1);
     });
 
     it.each([
