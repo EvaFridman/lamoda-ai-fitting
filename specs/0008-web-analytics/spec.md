@@ -1,8 +1,8 @@
 # 0008 web analytics
 
-Status: accepted (2026-10-15).
+Status: accepted (2026-10-15); amended the same day: the footer (J22).
 
-Issue #40. Decisions: `clarifications.md` (J1–J21).
+Issue #40. Decisions: `clarifications.md` (J1–J22).
 
 ## Goal
 
@@ -19,6 +19,7 @@ main Claude session can query through MCP, and it is collected only from visitor
 - Hover events with a 500 ms threshold, once per element per page view (J8).
 - Heatmaps through masked session replay (J6).
 - The Mixpanel MCP server for the main session (J14).
+- The footer rebuilt as Lamoda's, with the policy link as its only link (J22).
 - The build-time token as for Sentry's DSN: Dockerfile, CI, GitHub variable, `.env.example`,
   `deploy/README.md`.
 - A backlog item for a full web CSP with Mixpanel's domains (J12).
@@ -32,6 +33,7 @@ main Claude session can query through MCP, and it is collected only from visitor
 - A tag manager (J5), a full CSP (J12), a proxy against ad blockers (J13), a development project
   in Mixpanel (J11).
 - Feature flags, experiments and surveys, even though Mixpanel has them.
+- Pages behind the footer's items, and a support chat (J22).
 
 ## Acceptance criteria
 
@@ -72,6 +74,12 @@ main Claude session can query through MCP, and it is collected only from visitor
 - **AC13.** With an empty token (development, CI pull requests) the site makes no request to a
   Mixpanel domain and shows no banner.
 - **AC14.** `npm run verify` passes, and the web image still builds with no api, Redis or database.
+
+### Footer
+
+- **AC15.** On every page the footer matches the owner's screenshot of Lamoda's footer in columns,
+  items and bottom row; only "Политика по работе с персональными данными" is a link, and it opens
+  `/privacy`.
 
 ## Owner actions (Claude cannot do them)
 
