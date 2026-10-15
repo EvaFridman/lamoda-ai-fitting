@@ -113,8 +113,17 @@ const icons = Object.entries(ui).filter(([name]) => name.endsWith('Icon')) as [
 ][];
 
 describe('the icon set', () => {
-  it('exports 18 icons', () => {
-    expect(icons).toHaveLength(18);
+  it('exports 20 icons', () => {
+    expect(icons).toHaveLength(20);
+  });
+
+  it.each([
+    ['BagIcon', ui.BagIcon],
+    ['ProfileIcon', ui.ProfileIcon],
+  ])('scales the 24px drawing of %s to 16px', (_name, Icon) => {
+    const { container } = render(<Icon size={16} />);
+
+    expect(svgOf(container)).toHaveAttribute('viewBox', '0 0 24 24');
   });
 
   describe.each(icons)('%s', (_name, Icon) => {
