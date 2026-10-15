@@ -76,12 +76,20 @@ needs no extension):
 
 In `deploy/nginx/templates/default.conf.template`:
 
-- `limit_req_zone $binary_remote_addr` zones `api` and `socket`, `limit_conn_zone` `sockets`;
-  `limit_req` in `location /api/` and `/socket.io/` only, so `/api/health/live` (the deploy's
-  request loop) and web pages are not limited. `limit_req_status 429`, `limit_conn_status 429`.
+- `limit_req_zone $binary_remote_addr` zones `edge_api` and `edge_socket`, `limit_conn_zone`
+  `edge_sockets` (`api` and `web` are already the upstream zones' names); `limit_req` with
+  `nodelay` (F32) on `location /api/` and `/socket.io/`; `/api/health/live` (the deploy's request
+  loop) gets its own generous zone (F36), web pages none (F37). `limit_req_status 429`,
+  `limit_conn_status 429`.
 - `client_max_body_size 1m` at the server level (web takes no uploads).
 - `error_page 413` and `error_page 429` → named locations that `return` JSON in the api's format
-  (`default_type application/json`).
+  (`default_type application/json`); `/api/` also maps nginx's 502 and 504 to a JSON 503, with
+  `proxy_read_timeout 60s` (F33).
+- `location ~* ^/api/socket\.io` answers 404 `ROUTE_NOT_FOUND` in the api's format, so socket.io
+  is reached only through `/socket.io/` and its limits (F35).
+- Client timeouts of 10 s (header, body, send) and `keepalive_timeout 15s`; `limit_conn`
+  `edge_conns` 50 per address at the server level (repeated in `/socket.io/`); zone `edge_health`
+  on `/api/health/live` (F36). Web pages stay without `limit_req` (F37).
 - Server-level `add_header … always`: `X-Content-Type-Options nosniff`,
   `Content-Security-Policy "frame-ancestors 'none'"`, `Referrer-Policy
 strict-origin-when-cross-origin`, `X-Request-Id $request_id`; `proxy_hide_header X-Request-Id`
@@ -107,18 +115,21 @@ forwards the incoming `x-request-id`. Its 5 s timeout stays below the api's 10 s
 
 ## Values
 
-| What                       | Value            | Why                                                                 |
-| -------------------------- | ---------------- | ------------------------------------------------------------------- |
-| read                       | 10/s, 300/min    | a page makes a few api calls; filtering clicks come in bursts       |
-| write                      | 3/s, 60/min      | only admin scripts write today                                      |
-| expensive                  | 1/s, 10/min      | an AI generation will cost money                                    |
-| nginx `/api/`              | 20 r/s, burst 40 | twice the read burst: never hit by a client within the api's quotas |
-| nginx `/socket.io/`        | 10 r/s, burst 20 | long-polling before the upgrade makes a few requests                |
-| `limit_conn` sockets       | 10 per address   | a few tabs per person, a small office behind NAT                    |
-| `SOCKET_MAX_MESSAGE_BYTES` | 64 KB            | only `ping` exists                                                  |
-| `BODY_LIMIT`               | 100 KB           | today's implicit value                                              |
-| `REQUEST_TIMEOUT_MS`       | 10 000           | the slowest list today answers well under a second                  |
-| N (details)                | 50               | backlog's example; a DTO has far fewer fields                       |
+| What                       | Value                 | Why                                                                 |
+| -------------------------- | --------------------- | ------------------------------------------------------------------- |
+| read                       | 10/s, 300/min         | a page makes a few api calls; filtering clicks come in bursts       |
+| write                      | 3/s, 60/min           | only admin scripts write today                                      |
+| expensive                  | 1/s, 10/min           | an AI generation will cost money                                    |
+| nginx `/api/`              | 20 r/s, burst 40      | twice the read burst: never hit by a client within the api's quotas |
+| nginx `/socket.io/`        | 10 r/s, burst 20      | long-polling before the upgrade makes a few requests                |
+| `limit_conn` sockets       | 10 per address        | a few tabs per person, a small office behind NAT                    |
+| nginx `/api/health/live`   | 50 r/s, burst 100     | five times the deploy's request loop from one address (F36)         |
+| `limit_conn` requests      | 50 per address        | a browser holds at most 6 connections per host (F36)                |
+| nginx client timeouts      | 10 s; keep-alive 15 s | bounds a slow client; a pause in a body, not the whole body (F36)   |
+| `SOCKET_MAX_MESSAGE_BYTES` | 64 KB                 | only `ping` exists                                                  |
+| `BODY_LIMIT`               | 100 KB                | today's implicit value                                              |
+| `REQUEST_TIMEOUT_MS`       | 10 000                | the slowest list today answers well under a second                  |
+| N (details)                | 50                    | backlog's example; a DTO has far fewer fields                       |
 
 ## Environment
 

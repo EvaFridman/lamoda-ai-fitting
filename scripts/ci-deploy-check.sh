@@ -3,6 +3,8 @@
 # blue-green deploy end to end, with the same deploy.sh the server runs:
 #   1. deploy <tag> (blue), smoke test through nginx; the seed loaded the demo catalog; nginx's
 #      request id is on the response and on nginx's and the api's log lines (spec 0006 AC14);
+#      nginx's limits per address: a flood, a 2 MB body, an 11th socket (AC10–AC12), a 51st request
+#      in progress and an unfinished header (F36);
 #   2. deploy the same images as a second version (green) while scripts/request-loop.sh runs:
 #      no request may fail (AC26); smoke test of the new version; the second seed changed no
 #      counts (spec 0002, AC11);
@@ -12,7 +14,8 @@
 #      b. make the next secret PROXY_SECRET and deploy an image whose seed fails: nginx is
 #         recreated with the new secret, the deploy fails, and blue still trusts nginx and web;
 #      c. a third secret, unknown to blue, is refused by deploy.sh before nginx is recreated;
-#      d. deploy <tag>-next (green) with the new secret only.
+#      d. deploy <tag>-next (green) with the new secret only;
+#   4. with the serving api stopped, /api/ answers 503 in the api's format (F33).
 # nginx runs on its temporary self-signed certificate, SITE_DOMAIN is localhost, ports 80 and 443
 # must be free. Used by the `images` job in CI; runs locally the same way. Outside CI it removes, on
 # exit, the stacks it started with their volumes, and refuses to start next to an existing one
@@ -85,6 +88,168 @@ check_request_id() {
   return 1
 }
 
+# Runs a command in the nginx container. Its curl reaches nginx from 127.0.0.1, another address
+# than this machine's, so one address can be over nginx's limits while this machine is served.
+in_nginx() { docker compose -f deploy/compose/infra.yml --env-file "$env_file" exec -T nginx "$@"; }
+# The parts of a curl call to nginx from inside its container.
+inner='curl -sk --resolve localhost:443:127.0.0.1'
+# A WebSocket handshake by hand: curl's own ws:// support is not in every build. The key is any
+# 16 random bytes in base64.
+socket_url='https://localhost/socket.io/?EIO=4&transport=websocket'
+socket_headers="-H 'Connection: Upgrade' -H 'Upgrade: websocket' -H 'Sec-WebSocket-Version: 13' \
+  -H 'Sec-WebSocket-Key: $(openssl rand -base64 16)'"
+
+# Fails unless "<status> <content type>" is <expected> and the body file holds the error code.
+expect_error() {
+  local what="$1" got="$2" expected="$3" body="$4" code="$5"
+  [ "$got" = "$expected" ] && grep -qF "{\"error\":{\"code\":\"$code\"" <<< "$body" \
+    || { echo "ci-deploy-check: $what answers '$got' $body, expected $expected with $code" >&2; return 1; }
+  echo "$what answers $expected $code"
+}
+
+# AC10: a flood of requests at once from one address (100, or 200 to liveness) gets nginx's 429 in
+# the api's format past the burst (40 on /api/, 100 on liveness). Unknown routes, broken JSON and
+# liveness: the api's own limit never counts them, so every 429 here is nginx's.
+# At most 40 at once: past 50 in progress the connection limit (edge_conns) would answer the same
+# 429, so nginx's log must show the request zone <zone> refusing them.
+nginx_log_count() {
+  docker compose -f deploy/compose/infra.yml --env-file "$env_file" logs nginx 2>&1 \
+    | grep -c "$1" || true
+}
+check_flood() {
+  local what="$1" request="$2" zone="$3" total="${4:-100}" out n429 json429 bodies before after conns
+  before="$(nginx_log_count "limiting requests.* by zone \"$zone\"")"
+  conns="$(nginx_log_count 'limiting connections by zone "edge_conns"')"
+  # A transfer that fails shows in the counts, so curl's exit code is ignored.
+  out="$(in_nginx sh -c "rm -rf /tmp/flood && $inner --parallel --parallel-immediate \
+    --parallel-max 40 --create-dirs -o '/tmp/flood/#1' -w '%{http_code} %{content_type}\n' \
+    $request; true")"
+  after="$(nginx_log_count "limiting requests.* by zone \"$zone\"")"
+  [ "$after" -gt "$before" ] \
+    && [ "$(nginx_log_count 'limiting connections by zone "edge_conns"')" -eq "$conns" ] \
+    || { echo "ci-deploy-check: a flood of $what was not refused by the zone $zone alone" >&2; return 1; }
+  n429="$(grep -c '^429 ' <<< "$out" || true)"
+  json429="$(grep -c '^429 application/json$' <<< "$out" || true)"
+  bodies="$(in_nginx sh -c "grep -lF '{\"error\":{\"code\":\"TOO_MANY_REQUESTS\"' /tmp/flood/* | wc -l")"
+  [ "$n429" -gt 0 ] && [ "$json429" -eq "$n429" ] && [ "$bodies" -eq "$n429" ] || {
+    printf 'ci-deploy-check: a flood of %s: %s of %s answered 429, %s as JSON, %s with the code:\n%s\n' \
+      "$what" "$n429" "$total" "$json429" "$bodies" "$(sort <<< "$out" | uniq -c)" >&2
+    return 1
+  }
+  echo "a flood of $what: $n429 of $total answered nginx's 429 in the api's format"
+}
+
+check_edge_limits() {
+  local i status got holders held
+  check_flood "unknown routes" "'https://localhost/api/no-such-route-[1-100]'" edge_api
+  check_flood "broken JSON" \
+    "-X POST -H 'Content-Type: application/json' -d '{' 'https://localhost/api/products?n=[1-100]'" \
+    edge_api
+  check_flood "liveness" "'https://localhost/api/health/live?n=[1-200]'" edge_health 200
+  # The flooding address is over its limit; a visitor at a normal pace from this machine is served.
+  for i in 1 2 3 4 5; do
+    status="$(curl -sk --max-time 10 -o /dev/null -w '%{http_code}' https://localhost/api/hello \
+      || true)"
+    [ "$status" = 200 ] \
+      || { echo "ci-deploy-check: after the flood, another address got $status from /api/hello" >&2; return 1; }
+    sleep 0.2
+  done
+  echo "another address is served after the flood"
+
+  # AC11: a body over 1 MB answers nginx's 413 in the api's format.
+  got="$(head -c 2097152 /dev/zero | tr '\0' a | curl -sk --max-time 10 -o "$work/413.json" \
+    -w '%{http_code} %{content_type}' -H 'Content-Type: application/json' --data-binary @- \
+    https://localhost/api/products || true)"
+  expect_error "a 2 MB body" "$got" "413 application/json" "$(cat "$work/413.json")" PAYLOAD_TOO_LARGE
+
+  # AC12: one address holds 10 sockets; the 11th is refused with 429 in the api's format while
+  # another address still connects. curl waits for a body that never comes after 101, so a holder
+  # keeps its socket until it is killed below (or its 60 s run out). Each holder writes its response
+  # headers (-D) as soon as they arrive.
+  in_nginx sh -c "rm -rf /tmp/sockets && mkdir /tmp/sockets && for i in \$(seq 10); do
+      $inner $socket_headers --max-time 60 -o /dev/null -D /tmp/sockets/\$i '$socket_url' &
+    done; wait; true" &
+  holders=$!
+  for i in $(seq 20); do
+    held="$(in_nginx sh -c "grep -l '^HTTP/1.1 101' /tmp/sockets/* 2> /dev/null | wc -l")"
+    [ "$held" -eq 10 ] && break
+    sleep 0.5
+  done
+  [ "$held" -eq 10 ] \
+    || { echo "ci-deploy-check: only $held of 10 sockets from one address connected" >&2; return 1; }
+  got="$(in_nginx sh -c "$inner $socket_headers --max-time 2 -o /tmp/socket-11 \
+    -w '%{http_code} %{content_type}' '$socket_url'; true")"
+  expect_error "an 11th socket from one address" "$got" "429 application/json" \
+    "$(in_nginx cat /tmp/socket-11)" TOO_MANY_REQUESTS
+  status="$(eval "curl -sk $socket_headers --max-time 2 -o /dev/null -w '%{http_code}' '$socket_url'" || true)"
+  [ "$status" = 101 ] \
+    || { echo "ci-deploy-check: a socket from another address got $status, expected 101" >&2; return 1; }
+  echo "one address holds 10 sockets, its 11th is refused, another address connects"
+  # The holders are the only curl processes in the nginx container.
+  in_nginx pkill curl || true
+  wait "$holders" || true
+  # /api/ strips its prefix: socket.io behind it would escape the socket limits.
+  got="$(curl -sk --max-time 10 -o "$work/404.json" -w '%{http_code} %{content_type}' \
+    'https://localhost/api/socket.io/?EIO=4&transport=polling' || true)"
+  expect_error "socket.io under /api/" "$got" "404 application/json" "$(cat "$work/404.json")" \
+    ROUTE_NOT_FOUND
+
+  # F36: one address has at most 50 requests in progress anywhere. 50 uploads whose body never
+  # comes (curl reads it from a `sleep`) hold their slots through `/`, which has no rate limit,
+  # until client_body_timeout (10 s); meanwhile a 51st request is refused. All in one shell in the
+  # container, so docker's own delays do not eat the 10 s. Not `pkill sleep` at the end: the
+  # image's reload loop sleeps too; anchored, or `-f` would match this shell's own command line.
+  local out
+  out="$(in_nginx sh -c "for i in \$(seq 50); do
+      sleep 29 | $inner -T - -X POST -o /dev/null https://localhost/ 2> /dev/null &
+    done
+    i=0
+    while [ \$(pgrep -f '^curl .* -T - -X POST' | wc -l) -lt 50 ] && [ \$i -lt 30 ]; do
+      sleep 0.1; i=\$((i + 1))
+    done
+    sleep 1
+    echo \$(pgrep -f '^curl .* -T - -X POST' | wc -l)
+    $inner --max-time 5 -o /tmp/request-51 -w '%{http_code} %{content_type}\n' https://localhost/
+    pkill curl; pkill -f '^sleep 29'; true")"
+  held="$(sed -n 1p <<< "$out")"
+  got="$(sed -n 2p <<< "$out")"
+  [ "$held" = 50 ] \
+    || { echo "ci-deploy-check: only $held of 50 uploads from one address were running" >&2; return 1; }
+  expect_error "a 51st request in progress from one address" "$got" "429 application/json" \
+    "$(in_nginx cat /tmp/request-51)" TOO_MANY_REQUESTS
+
+  # F36: a client that never finishes its header is dropped after client_header_timeout (10 s).
+  # Plain HTTP on port 80: the timeout is set for every server. nginx closes without an answer.
+  local started elapsed line
+  # A failed `exec` of a redirection ends the script with no message, so the port is checked first.
+  curl -s --max-time 5 -o /dev/null http://127.0.0.1/nginx-health \
+    || { echo "ci-deploy-check: nginx does not answer on port 80" >&2; return 1; }
+  started="$(date +%s)"
+  exec 3<> /dev/tcp/127.0.0.1/80
+  printf 'GET / HTTP/1.1\r\nHost: localhost\r\n' >&3
+  read -r -t 30 line <&3 || true
+  exec 3<&-
+  elapsed=$(($(date +%s) - started))
+  [ "$elapsed" -ge 9 ] && [ "$elapsed" -le 15 ] \
+    || { echo "ci-deploy-check: an unfinished header was dropped after ${elapsed}s, expected ~10s" >&2; return 1; }
+  echo "an unfinished header is dropped after ${elapsed}s"
+}
+
+# F33: nginx's 502 for a stopped api answers 503 in the api's format.
+check_api_unavailable() {
+  local color="$1" got i
+  docker stop "ai-fitting-$color-api-1" > /dev/null
+  # Until nginx resolves the name again (`valid=10s`) a request may wait for the gone address up to
+  # the connect timeout, so it is retried for up to a minute until nginx answers.
+  for i in $(seq 6); do
+    got="$(curl -sk --max-time 10 -o "$work/503.json" -w '%{http_code} %{content_type}' \
+      https://localhost/api/hello || true)"
+    [ "${got%% *}" != 000 ] && break
+  done
+  expect_error "/api/ with the api stopped" "$got" "503 application/json" "$(cat "$work/503.json")" \
+    SERVICE_UNAVAILABLE
+}
+
 # A throwaway environment. The request loop comes from one address, so the per-client limit is
 # raised: this checks switching, not rate limiting.
 cat > "$env_file" <<EOF
@@ -151,6 +316,10 @@ echo "$first_counts"
 # /api/hello, not /api/health/live: the api does not log health checks.
 check_request_id /api/hello blue
 check_request_id / blue
+endgroup
+
+group "nginx's limits per address"
+check_edge_limits
 endgroup
 
 group "deploy $second (green) under a request loop"
@@ -238,6 +407,11 @@ ENV_FILE="$env_file" deploy/scripts/deploy.sh "$second"
 scripts/smoke-test.sh https://localhost "$second"
 check_request_id /api/hello green
 check_request_id / green
+endgroup
+
+# Last: it leaves the site without an api.
+group "nginx's answer with the api stopped"
+check_api_unavailable green
 endgroup
 
 echo "ci-deploy-check: ok"
