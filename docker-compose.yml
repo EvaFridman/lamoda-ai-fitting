@@ -142,6 +142,8 @@ services:
       API_URL: http://api:3000
       REDIS_URL: redis://redis:6379
       APP_VERSION: dev
+      # Locally there is no nginx: web is the only one that sends the secret to the api.
+      PROXY_SECRET: ${PROXY_SECRET?add PROXY_SECRET to .env (openssl rand -hex 32), see README}
     volumes:
       - ./web/app:/app/app
       - ./web/src:/app/src

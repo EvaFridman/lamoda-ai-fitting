@@ -45,7 +45,7 @@ Before the merge:
       response carries an `X-Request-Id` that is on its log line (plan, Risks); 0004's admin
       tests pass unchanged. AC3 (principal part), AC9.
       Commit: `feat(api): read the client address and request id from trusted proxies only`
-- [ ] **T5. web forwards the secret and the request id.** `apiFetch` sends `X-Proxy-Secret` (server
+- [x] **T5. web forwards the secret and the request id.** `apiFetch` sends `X-Proxy-Secret` (server
       env `PROXY_SECRET`, zod schema in `shared/config`) and the incoming `x-request-id`;
       `docker-compose.yml` passes the secret to web.
       Check: unit test of `apiFetch` headers; locally, two page loads with different
