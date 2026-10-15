@@ -747,7 +747,9 @@ describe('GET /products/facets: the counts equal the list totals', () => {
         });
       }
     }
-  });
+    // Hundreds of requests one after another: about 1 s alone, over the default 5 s while the web
+    // tests run at the same time (`npm test`).
+  }, 30_000);
 });
 
 describe('GET /products/facets: repeated and odd values', () => {
