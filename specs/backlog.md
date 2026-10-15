@@ -4,13 +4,6 @@ Known problems that have no spec of their own yet. When a new spec touches an it
 item goes into that spec (its `spec.md` or `plan.md` names it), and the commit that closes it
 removes it from this list. Found by the agents' first security audit and trial runs (2026-10-07).
 
-## CI
-
-- **Image job permissions.** The `images` job in `.github/workflows/ci.yml` also runs for pull
-  requests with `packages: write`, and `actions/checkout` keeps the token for later steps. Publish
-  images from a separate job that runs only on a push to `main`; set `persist-credentials: false`
-  on checkouts.
-
 ## Images
 
 - **api image size.** The api runtime image is 801 MB (web: 296 MB): it costs about 35 s of the push

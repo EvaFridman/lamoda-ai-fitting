@@ -27,6 +27,8 @@ job permissions").
   build and check images with read-only access (G1, closes the backlog item "Image job
   permissions", including `persist-credentials: false` on checkouts).
 - CD starts only when every check of the push succeeded: Secret scan, Checks and Images.
+- On `main`, images are published only after Secret scan passed; a deploy by hand deploys only a tag
+  that was live, any other is refused before the server is touched (G6).
 - Image builds in CI reuse layers of earlier runs that did not change (dependencies above all).
 - api and web tests in `npm test` run at the same time; `verify` stays the one list of checks (G3).
 - A new api or web copy reports healthy soon after it is ready, in CI and on the server; the regular
@@ -47,15 +49,16 @@ job permissions").
 ### Order and permissions
 
 - AC1. In a CI run, Secret scan, Checks and Images all start at the run's start; none waits for
-  another.
+  another, except that on a push to `main` Images starts after Secret scan succeeded (G6).
 - AC2. A pull request's image job has a token with `contents: read` only (the job log's "GITHUB_TOKEN
   Permissions"), and no checkout in CI leaves the token in `.git/config`.
 - AC3. Images are published to GHCR, tagged with the commit hash, only on a push to `main`, never
   from a pull request (as 0001 AC15).
 - AC4. CD runs only after Secret scan, Checks and Images of the same push all succeeded; a push to
   `main` with any of them failed deploys nothing.
-- AC5. A deploy by hand (Actions → CD → Run workflow) with the hash of an earlier `main` commit still
-  works (as 0001 AC19).
+- AC5. A deploy by hand (Actions → CD → Run workflow) with the hash of an earlier `main` commit that
+  was live still works (as 0001 AC19); a hash CI never deployed is refused before the server is
+  touched (G6).
 
 ### Speed
 

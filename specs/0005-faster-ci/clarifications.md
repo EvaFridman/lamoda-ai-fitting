@@ -40,6 +40,19 @@ code comments.
   reboot; PR 1 is merged at a quiet time. Found in T3. Measured locally (old `deploy/`, then the new
   one synced in place): all four recreated once, the site did not answer for about a second (9 of
   704 requests failed), the old copy was ready afterwards.
+- **G6. CD by hand deploys only a tag that was live.** With G1, GHCR holds images of `main` pushes
+  whose Secret scan or Checks failed; a rollback by hand to one of them would put unchecked code
+  live. CD run by hand (`workflow_dispatch`) first checks that the tag's commit has a successful
+  check run `CD / Deploy to production` from GitHub Actions (only CI's call of CD makes one; a run
+  by hand names its job without the `CD / ` prefix and attaches to the dispatched branch's head),
+  and refuses otherwise before touching the server. A CD that failed on its own is re-run in its
+  CI run. Proposed by the security review of T5; owner, 2026-10-15. Chosen over a rule in
+  `deploy/README.md` alone. Also from that review: `images-main` waits for Secret scan, so a secret
+  that reached `main` without its pull request's scan (an admin push, an edit on GitHub) is not
+  pushed to GHCR or uploaded to Sentry with the source maps. The repository is public, so the
+  secret is exposed in git anyway and is rotated; this keeps two more copies from being made. It
+  costs the scan's few seconds on `main` only; pull requests keep all three jobs starting together
+  (owner, 2026-10-15, over leaving it as G1's accepted risk).
 
 ## Later
 

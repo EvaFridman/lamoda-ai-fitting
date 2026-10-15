@@ -19,13 +19,13 @@ uses for every `docker build` today (the default builder is BuildKit inside the 
 
 `ci.yml` after the change:
 
-| Job           | Runs on             | Needs                              | Permissions                         | What                                                        |
-| ------------- | ------------------- | ---------------------------------- | ----------------------------------- | ----------------------------------------------------------- |
-| `secrets`     | every run           | —                                  | `contents: read`                    | unchanged                                                   |
-| `checks`      | every run           | —                                  | `contents: read`                    | unchanged                                                   |
-| `images-pr`   | `pull_request` only | —                                  | `contents: read`                    | calls `images.yml` with `publish: false`                    |
-| `images-main` | push to `main` only | —                                  | `contents: read`, `packages: write` | calls `images.yml` with `publish: true`, `secrets: inherit` |
-| `cd`          | push to `main` only | `secrets`, `checks`, `images-main` | `contents: read`, `packages: read`  | calls `cd.yml` with the tag from `images-main`              |
+| Job           | Runs on             | Needs                              | Permissions                                        | What                                                        |
+| ------------- | ------------------- | ---------------------------------- | -------------------------------------------------- | ----------------------------------------------------------- |
+| `secrets`     | every run           | —                                  | `contents: read`                                   | unchanged                                                   |
+| `checks`      | every run           | —                                  | `contents: read`                                   | unchanged                                                   |
+| `images-pr`   | `pull_request` only | —                                  | `contents: read`                                   | calls `images.yml` with `publish: false`                    |
+| `images-main` | push to `main` only | `secrets` (G6)                     | `contents: read`, `packages: write`                | calls `images.yml` with `publish: true`, `secrets: inherit` |
+| `cd`          | push to `main` only | `secrets`, `checks`, `images-main` | `contents: read`, `packages: read`, `checks: read` | calls `cd.yml` with the tag from `images-main`              |
 
 - New reusable workflow `.github/workflows/images.yml` (`on: workflow_call`, input `publish`,
   output `image_tag`): the steps of today's `images` job (tag, build, deploy check, publish when
@@ -41,7 +41,14 @@ uses for every `docker build` today (the default builder is BuildKit inside the 
   run graph shows one skipped `images-*` job per run.
 - Accepted risk (G1): on `main`, images reach GHCR before Checks ends; a push whose Checks fail has
   a published image that CD skips. `deploy/README.md`, "Откат", says to roll back only to a hash that
-  was live.
+  was live, and CD by hand refuses any other (G6, below).
+- `images-main` needs `secrets` (G6): a secret in a `main` push never reaches GHCR or Sentry's
+  source maps; it costs the secret scan's few seconds on `main` only.
+- `cd.yml`, run by hand only: a step before the SSH resolves the tag to a commit (`gh api`) and
+  requires the full hash to start with the tag, the commit to be in `main` (`compare`) and a
+  successful check run `CD / Deploy to production` from GitHub Actions on it (G6). The
+  job gets `checks: read`, and so does the `cd` caller in `ci.yml` (a called job cannot ask for
+  more than its caller).
 
 ## 2. Image layer cache (AC6)
 
@@ -119,17 +126,17 @@ image=moby/buildkit:v0.33.1 --use`) and builds with `docker buildx build --load`
 
 ## How each criterion is verified
 
-| AC   | How                                                                                                                                                                       |
-| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| AC1  | `gh run view <id> --json jobs`: the start times of Secret scan, Checks and Images are within a few seconds of each other.                                                 |
-| AC2  | The pull request's `images-pr` log, "GITHUB_TOKEN Permissions": `Contents: read` only; `rg persist-credentials .github` lists every checkout.                             |
-| AC3  | The pull request's run has no publish step that ran; `gh api` of the GHCR package versions lists only `main` hashes.                                                      |
-| AC4  | The `main` run's graph: CD needs Secret scan, Checks and Images. Not checked by breaking `main` on purpose; `needs` with a failed job skips the job by GitHub's rules.    |
-| AC5  | After the merge: CD by hand with the previous hash (rollback), then with the current one; both green, the site reports each version.                                      |
-| AC6  | Two runs of the pull request with the same lockfiles: the second one's build log shows the `npm ci` steps `CACHED`, and its build step is shorter than today's 100–118 s. |
-| AC7  | `gh run list` timings of three pull request runs in a row, each ≤ 4.5 min.                                                                                                |
-| AC8  | Three `main` runs: the merge of PR 1 and two re-runs of its CI, before the acceptance task (the owner confirms each re-run: it redeploys); each ≤ 5.5 min.                |
-| AC9  | `docker inspect` of a fresh api and web container: `State.Health.Log` entries 1 s apart until the first success, 5 s apart after it.                                      |
-| AC10 | A test made to fail on purpose, once in api and once in web: `npm test` exits 1 and its output names the test; then removed.                                              |
-| AC11 | The deploy check's log in every run: the request loop ran through the switch with no failed request.                                                                      |
-| AC12 | `npm run verify` exits 0.                                                                                                                                                 |
+| AC   | How                                                                                                                                                                                                                                                                    |
+| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AC1  | `gh run view <id> --json jobs`: in a pull request, the start times of Secret scan, Checks and Images are within a few seconds of each other; on `main`, Images starts right after Secret scan ends.                                                                    |
+| AC2  | The pull request's `images-pr` log, "GITHUB_TOKEN Permissions": `Contents: read` only; `rg persist-credentials .github` lists every checkout.                                                                                                                          |
+| AC3  | The pull request's run has no publish step that ran; `gh api` of the GHCR package versions lists only `main` hashes.                                                                                                                                                   |
+| AC4  | The `main` run's graph: CD needs Secret scan, Checks and Images. Not checked by breaking `main` on purpose; `needs` with a failed job skips the job by GitHub's rules.                                                                                                 |
+| AC5  | After the merge: CD by hand with the previous hash (rollback), then with the current one; both green, the site reports each version. CD by hand with the hash of a commit CI never deployed (one inside a merged pull request) fails at "Check that the tag was live". |
+| AC6  | Two runs of the pull request with the same lockfiles: the second one's build log shows the `npm ci` steps `CACHED`, and its build step is shorter than today's 100–118 s.                                                                                              |
+| AC7  | `gh run list` timings of three pull request runs in a row, each ≤ 4.5 min.                                                                                                                                                                                             |
+| AC8  | Three `main` runs: the merge of PR 1 and two re-runs of its CI, before the acceptance task (the owner confirms each re-run: it redeploys); each ≤ 5.5 min.                                                                                                             |
+| AC9  | `docker inspect` of a fresh api and web container: `State.Health.Log` entries 1 s apart until the first success, 5 s apart after it.                                                                                                                                   |
+| AC10 | A test made to fail on purpose, once in api and once in web: `npm test` exits 1 and its output names the test; then removed.                                                                                                                                           |
+| AC11 | The deploy check's log in every run: the request loop ran through the switch with no failed request.                                                                                                                                                                   |
+| AC12 | `npm run verify` exits 0.                                                                                                                                                                                                                                              |

@@ -14,9 +14,14 @@ Details and commands: `deploy/README.md`.
 
 ## Deploys
 
-- A merge into `main` is the deploy: CI (secret scan, `verify`, images built and a blue-green deploy
-  checked on the runner, published to GHCR) → CD (`.github/workflows/cd.yml`) → the server runs
-  `deploy/scripts/deploy.sh <commit hash>`. Rollback: run CD by hand with an earlier hash.
+- A merge into `main` is the deploy: CI runs at once the secret scan, Checks (`verify`) and Images
+  (`.github/workflows/images.yml`: images built and a blue-green deploy checked on the runner; the
+  `main`-only caller `images-main` with `packages: write` waits for the secret scan and also
+  publishes to GHCR, pull requests call it as `images-pr` with `contents: read`) → CD (`.github/workflows/cd.yml`, needs all three) → the
+  server runs `deploy/scripts/deploy.sh <commit hash>`. Every checkout has
+  `persist-credentials: false`. Rollback: run CD by hand with the hash of a version that was live
+  (an image of a push whose Checks failed is published but was never deployed); CD
+  run by hand refuses a hash whose commit has no successful `CD / Deploy to production` check run.
 - Blue-green: the new copy of api and web starts next to the running one, nginx switches only when
   it is healthy; the previous copy stays as the rollback. The Temporal worker is replaced in place.
 - Infrastructure (`deploy/compose/infra.yml`) is not blue-green: a deploy that changes a service's

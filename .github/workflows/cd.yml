@@ -1,8 +1,9 @@
 name: CD
 
 # Deploys one image tag to the production server with deploy/scripts/deploy.sh (blue-green).
-# - Called by CI after the images of a push to main are built, checked and published.
-# - Run by hand (Actions → CD → Run workflow) with an earlier tag to roll back (AC19).
+# - Called by CI after Secret scan, Checks and Images of a push to main all passed.
+# - Run by hand (Actions → CD → Run workflow) with the tag of a version that was live to roll back
+#   (AC19); a tag CI never deployed (its Checks or its CD failed) is refused.
 on:
   workflow_call:
     inputs:
@@ -36,6 +37,8 @@ jobs:
       contents: read
       # A short-lived token for the server to pull the private images from GHCR.
       packages: read
+      # To find out by hand whether a tag was live (next steps).
+      checks: read
     env:
       IMAGE_TAG: ${{ inputs.image_tag }}
     steps:
@@ -43,8 +46,29 @@ jobs:
         run: |
           [[ "$IMAGE_TAG" =~ ^[0-9a-f]{7}$ ]] || { echo "not a 7-character commit hash: '$IMAGE_TAG'" >&2; exit 1; }
 
+      # By hand only: CI calls CD after every check of the push passed. Images of main are published
+      # before the checks end, so GHCR holds tags that never went live; a tag is deployed by hand only
+      # when CI's own CD once deployed its commit (check run "CD / Deploy to production" succeeded).
+      - name: Check that the tag was live
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sha=$(gh api "repos/$GITHUB_REPOSITORY/commits/$IMAGE_TAG" --jq .sha)
+          # The ref could resolve to a branch or tag of that name; a fork can make a commit with the
+          # same prefix and a check run of that name on it. Only a commit of main with this prefix.
+          [[ "${sha:0:7}" == "$IMAGE_TAG" ]] || { echo "$IMAGE_TAG resolves to $sha, not a commit with that hash" >&2; exit 1; }
+          in_main=$(gh api "repos/$GITHUB_REPOSITORY/compare/$sha...main" --jq .status)
+          [[ "$in_main" == ahead || "$in_main" == identical ]] || { echo "$IMAGE_TAG is not a commit of main" >&2; exit 1; }
+          live=$(gh api -X GET "repos/$GITHUB_REPOSITORY/commits/$sha/check-runs" \
+            -f check_name='CD / Deploy to production' -f filter=all \
+            --jq '[.check_runs[] | select(.app.slug == "github-actions" and .conclusion == "success")] | length')
+          [[ "$live" -gt 0 ]] || { echo "$IMAGE_TAG was never deployed by CI: roll back only to a version that was live" >&2; exit 1; }
+
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: SSH to the server as the deploy user
         env:

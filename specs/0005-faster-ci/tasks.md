@@ -48,11 +48,12 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Check: `npm test` before and after (time, locally); a test made to fail in api, then in web:
       `npm test` exits 1 and the output names the test, then removed. AC10, AC12.
       Commit: `perf(tooling): run the api and web tests in parallel`
-- [ ] **T5. Images alongside Checks; publishing only on `main`.** `.github/workflows/images.yml`
+- [x] **T5. Images alongside Checks; publishing only on `main`.** `.github/workflows/images.yml`
       (the steps of today's `images` job, input `publish`, output `image_tag`, `production`
       environment only when publishing); `ci.yml` with `images-pr`, `images-main` and `cd` needing
       `secrets`, `checks` and `images-main` (plan §1); `persist-credentials: false` on every
-      checkout in `ci.yml`, `images.yml` and `cd.yml`. `deploy/README.md` ("Как идёт деплой",
+      checkout in `ci.yml`, `images.yml` and `cd.yml`; CD by hand refuses a tag that was never
+      live (G6, `checks: read`). `deploy/README.md` ("Как идёт деплой",
       "Откат": only to a hash that was live) and `.claude/rules/deploy.md`. Removes "Image job
       permissions" from `specs/backlog.md`.
       Check: `actionlint`; the pull request's run: the three jobs start together, `images-pr` has
@@ -74,7 +75,8 @@ After the merge of PR 1:
 - 👤 Confirm two re-runs of the merge's CI; the merge and both re-runs ≤ 5.5 min from CI start to
   the end of CD. AC4 (the run graph), AC8.
 - 👤 Confirm CD by hand with the hash before the merge, then with the merge's hash; the site reports
-  each version. AC5.
+  each version. Then with the hash of a commit CI never deployed (one inside a merged pull
+  request): CD fails at "Check that the tag was live" before the SSH step. AC5.
 
 ## PR 2 · `docs/0005-close` · acceptance
 

@@ -27,6 +27,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Scan the whole git history with gitleaks
         run: >
@@ -42,6 +43,8 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          # Nothing after a checkout uses git with the token; it does not stay in .git/config.
+          persist-credentials: false
 
       - name: Set up Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -77,69 +80,43 @@ jobs:
       - name: Verify
         run: npm run verify
 
-  images:
-    name: Images
-    needs: [secrets, checks]
-    runs-on: ubuntu-latest
-    # The Sentry token is a secret of the production environment (it accepts protected branches
-    # only); pull requests run without an environment and so without the token.
-    environment: ${{ github.event_name == 'push' && 'production' || '' }}
-    # Pushing to GHCR needs packages: write; it happens only on a push to main (last step).
+  # Images run alongside Checks (images.yml). A job's permissions cannot depend on the event, so
+  # two callers keep packages: write away from pull requests; each run skips one of them.
+  images-pr:
+    name: Images (PR)
+    if: github.event_name == 'pull_request'
     permissions:
       contents: read
-      packages: write
-    outputs:
-      image_tag: ${{ steps.tag.outputs.image_tag }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    uses: ./.github/workflows/images.yml
+    with:
+      publish: false
 
-      - name: Image tag and registry
-        id: tag
-        # The short commit hash is the image tag and the version the site reports; GHCR needs a
-        # lower-case owner.
-        run: |
-          echo "IMAGE_TAG=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
-          echo "IMAGE_REGISTRY=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/" >> "$GITHUB_ENV"
-          echo "image_tag=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
-
-      - name: Build api and web images
-        env:
-          IMAGE_SOURCE: ${{ github.server_url }}/${{ github.repository }}
-          # Browser-side Sentry is baked in at build time; empty values turn it off.
-          NEXT_PUBLIC_SENTRY_DSN: ${{ vars.NEXT_PUBLIC_SENTRY_DSN }}
-          NEXT_PUBLIC_SENTRY_ENVIRONMENT: production
-          SENTRY_ORG: ${{ vars.SENTRY_ORG }}
-          SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT }}
-          SENTRY_PROJECT_API: ${{ vars.SENTRY_PROJECT_API }}
-          # Source maps are uploaded only for images that can be deployed (main).
-          SENTRY_AUTH_TOKEN: ${{ github.event_name == 'push' && secrets.SENTRY_AUTH_TOKEN || '' }}
-        run: scripts/ci-build-images.sh
-
-      # The production setup on the runner with the same deploy.sh the server runs: a first deploy,
-      # then a blue-green switch under a request loop that must see no failed request (AC26).
-      - name: Deploy check
-        run: scripts/ci-deploy-check.sh
-
-      - name: Publish images to GHCR
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        env:
-          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "$REGISTRY_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
-          docker push "${IMAGE_REGISTRY}ai-fitting-api:${IMAGE_TAG}"
-          docker push "${IMAGE_REGISTRY}ai-fitting-web:${IMAGE_TAG}"
-          docker logout ghcr.io
-
-  # Continuous delivery: every push to main whose images passed the checks above goes live.
-  cd:
-    name: CD
-    needs: [images]
+  # Waits for the secret scan (seconds): a secret must not reach GHCR or Sentry's source maps. Then
+  # publishes right after its own build and deploy check, before Checks may have ended: a push whose
+  # Checks fail leaves a published image that CD never deploys (CD by hand refuses it, G6).
+  images-main:
+    name: Images (main)
+    needs: [secrets]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: read
+      packages: write
+    uses: ./.github/workflows/images.yml
+    with:
+      publish: true
+    secrets: inherit
+
+  # Continuous delivery: every push to main whose checks and images all passed goes live.
+  cd:
+    name: CD
+    needs: [secrets, checks, images-main]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # As cd.yml's job asks; checks: read is for its by-hand step, skipped here.
+    permissions:
+      contents: read
       packages: read
+      checks: read
     uses: ./.github/workflows/cd.yml
     with:
-      image_tag: ${{ needs.images.outputs.image_tag }}
+      image_tag: ${{ needs.images-main.outputs.image_tag }}
     secrets: inherit
