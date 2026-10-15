@@ -9,6 +9,11 @@ describe('entities/category public entry', () => {
     }
   });
 
+  it('exports the CatalogCategoryList component', async () => {
+    const entry = await import('./index');
+    expect(typeof entry.CatalogCategoryList).toBe('function');
+  });
+
   it('exports nothing built on apiFetch', async () => {
     const entry = await import('./index');
     expect('getCategories' in entry).toBe(false);

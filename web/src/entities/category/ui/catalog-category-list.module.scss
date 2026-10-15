@@ -1,0 +1,64 @@
+// Lamoda's catalog tree on the desktop: 13px rows, the name in black and the count in grey after
+// it; a row turns grey on hover; the chosen one is a black block with white text. A long name
+// wraps instead of widening the column (0009 K16).
+
+.list {
+  display: flex;
+  flex-direction: column;
+
+  margin: 0;
+  padding: 0;
+
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  list-style: none;
+}
+
+.link {
+  display: flex;
+  gap: var(--space-2);
+  align-items: baseline;
+
+  padding: var(--space-1) var(--space-2);
+
+  color: var(--color-text);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+
+  transition: background-color var(--duration-fast);
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: 2px;
+  }
+
+  @media (hover: hover) {
+    &:hover {
+      background-color: var(--color-background-secondary);
+    }
+  }
+}
+
+.chosen {
+  color: var(--color-background);
+  background-color: var(--color-text);
+
+  @media (hover: hover) {
+    &:hover {
+      background-color: var(--color-text);
+    }
+  }
+}
+
+.name {
+  min-width: 0;
+}
+
+.count {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+
+  .chosen & {
+    color: inherit;
+  }
+}

@@ -6,3 +6,8 @@ export {
   type Category,
   type CategoryList,
 } from './model/schemas';
+export {
+  CatalogCategoryList,
+  type CatalogCategory,
+  type CatalogCategoryListProps,
+} from './ui/catalog-category-list';
