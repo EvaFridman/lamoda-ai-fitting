@@ -18,9 +18,14 @@ removes it from this list. Found by the agents' first security audit and trial r
 
 ## nginx and realtime
 
-- **WebSocket connections per client.** `/socket.io/` holds connections for an hour and nothing
-  limits how many one client opens. Add a per-address connection limit (`limit_conn`) and review
-  `worker_connections`.
+- **Connections per address in the firewall.** nginx's limits count a request only once its header
+  is read, so one address can open connections that never finish a header or sit idle between
+  requests; each lasts at most 10 s (header) or 15 s (keep-alive, spec 0006 F36). A per-address connection limit on 80/443 in the
+  server's firewall (`ct count`, `deploy/ansible/base.yml`) closes it; the owner applies it, with
+  a way back in case the rule cuts off the site or SSH.
+- **Rate limit for web pages.** `/` has no `limit_req` (spec 0006 F37). Add one after the catalog
+  pages of 0007: move `/_next/static/` and `/media/` to their own locations, measure how many
+  requests a page makes with Next's prefetch, and set the rate above that.
 - **HTTP/2.** nginx serves HTTP/1.1 only: with HTTP/2 every reload drops a few requests (spec 0004
   E38). Bringing it back needs nginx to stop reloading in normal work: blue-green switching through
   a DNS name nginx re-resolves (`resolve`) instead of a rewritten upstream and a reload, the
@@ -30,13 +35,6 @@ removes it from this list. Found by the agents' first security audit and trial r
   its WebSocket connections break.
 - **Security headers.** Add `Content-Security-Policy: frame-ancestors 'none'` and
   `X-Content-Type-Options: nosniff` before login or photo upload land.
-- **Request rate limit at the edge.** The api's `ThrottlerGuard` is a Nest guard, so it runs only
-  on matched routes: requests to unknown routes are never counted, and each one still writes two
-  log lines (the request and the filter's warn). Nor are bodies the parser refuses (broken JSON,
-  over the limit), which it reads before any guard, admin routes included (0004 E49). nginx has no
-  `limit_req`. Add one for `/api/` and `/socket.io/`; the owner decides the rate and burst per
-  address, how visitors behind one NAT are treated, a separate limit for writes, and how it sits
-  with the api's own limit.
 
 ## api
 

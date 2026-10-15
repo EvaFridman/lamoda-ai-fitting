@@ -238,7 +238,10 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
 
 A merge into `main` is the deploy (blue-green for api and web; the Temporal worker is replaced in
 place; a changed `infra.yml` service is recreated in place, with an outage). Before the new copy starts, the deploy runs the migrations, then the seed (the demo catalog,
-a no-op once loaded); a failure of either stops it, the running copy keeps serving. How deploys, rollbacks and images work: `.claude/rules/deploy.md`, loaded when you work on
+a no-op once loaded); a failure of either stops it, the running copy keeps serving. nginx limits
+requests, sockets and requests in progress per client address above the api's own quotas, slow
+clients to 10 s, and bodies to 1 MB, and answers 429, 413 and
+`/api/`'s 502/504 (as 503) in the api's error format (`deploy/README.md`, "Лимиты nginx"). How deploys, rollbacks and images work: `.claude/rules/deploy.md`, loaded when you work on
 deploy, CI, Docker or `scripts/` files, and `deploy/README.md`. Production secrets never pass through the chat;
 commands that change the server (`ssh ai-fitting`) need the owner's confirmation.
 

@@ -128,7 +128,7 @@ After the merge of PR 1:
 
 ## PR 3 · `feat/0006-edge` · nginx limits and headers
 
-- [ ] **T12. Edge limits.** `limit_req` on `/api/` and `/socket.io/`, `limit_conn` on
+- [x] **T12. Edge limits.** `limit_req` on `/api/` and `/socket.io/`, `limit_conn` on
       `/socket.io/`, `client_max_body_size 1m`, JSON answers for 429 and 413 (plan §5); a proxy
       read timeout above the api's. Backlog: "Request rate limit at the edge" and "WebSocket
       connections per client" leave.

@@ -47,6 +47,16 @@ code comments.
 - **F17. nginx's 429.** A request over the edge limit answers 429 `TOO_MANY_REQUESTS` in the api's
   error format, not nginx's default 503 HTML page, so web handles one error format (as with 413,
   F12).
+- **F32. A burst passes at once.** Added in T12 (owner, 2026-10-15): `limit_req` takes its burst
+  with `nodelay`: requests within the burst are served at once, not spread over time, and the next
+  one answers 429, so a page's parallel calls are not slowed. nginx's 429 sends no `Retry-After`: an
+  `add_header` in its location would drop the server's headers, and the api's own 429 tells the
+  exact wait.
+- **F33. nginx's 502 and 504 in the api's format.** Added in T12 (owner, 2026-10-15): on `/api/`,
+  nginx's own 502 (no copy of the api answers) and 504 answer 503 `SERVICE_UNAVAILABLE` in the
+  api's format, as the api's own timeout does (F11); the api's errors pass unchanged. nginx's proxy
+  read timeout on `/api/` is 60 s, above the api's longest answer (30 s at most, F27, and 1 s of
+  Redis, F28).
 - **F8. WebSockets.** nginx `limit_conn` per client address on `/socket.io/`, and a maximum message
   size in socket.io. Limits on socket messages still wait for the first real socket feature
   (0001 B12c).
@@ -61,6 +71,34 @@ code comments.
   The api's parser takes no attachments: a client message that announces one closes the
   connection. The server's own messages (pushes) may still carry binary data. A feature that needs
   binary data from clients allows one attachment (`maxAttachments: 1`) and decides its budget.
+- **F34. `worker_connections` stays.** Added in T12 (owner, 2026-10-15): nginx keeps its image's
+  1024 connections per worker (one worker per core); a socket takes two (client and api). With 10
+  sockets per address (F8) and 50 requests in progress (F36), using them up through requests takes
+  dozens of addresses at once. One address can still hold connections no nginx limit counts: those
+  that have not sent a whole header and idle keep-alive ones. F36's timeouts bound each (10 s,
+  15 s, none kept on the redirect servers), and a
+  per-address connection limit in the server's firewall (backlog) closes it. Raising
+  `worker_connections` needs our own `nginx.conf` and a higher `nofile` limit; nginx logs
+  "worker_connections are not enough" when it runs out. Revisit with the first real socket feature
+  (0001 B12c).
+- **F35. socket.io only at `/socket.io/`.** Added in T12's review (owner, 2026-10-15): `/api/`
+  strips its prefix, so `/api/socket.io/` reached socket.io's long-polling past the socket limits
+  (F8). nginx answers any path under `/api/socket.io` with 404 `ROUTE_NOT_FOUND` in the api's
+  format; no client uses it.
+- **F36. Slow clients and liveness.** Added in T12's review (owner, 2026-10-15): nginx's limits
+  count a request only once its header is read, and a body is read at the client's pace, so one
+  address could hold many connections. `client_header_timeout`, `client_body_timeout` and
+  `send_timeout` are 10 s (nginx's default 60 s), `keepalive_timeout` 15 s (the image's 65 s; 0 on
+  the redirect-only servers, port 80 and `www`, as `limit_conn` does not count idle connections), and
+  one address has at most 50 requests in progress on the whole site (`limit_conn`), sockets
+  included; a 1 MB body is not cut by the body timeout, which counts each pause. `/api/health/live`,
+  the one path into Node no limit counted, gets its own zone: 50 r/s, burst 100, five times the
+  deploy's request loop from one address.
+- **F37. web pages have no rate limit yet.** Added in T12's review (owner, 2026-10-15): `/` (pages,
+  `/_next/static/`, `/media/`) stays outside `limit_req`; F36's connection limit applies. A page
+  render costs more than an api request, but a page loads dozens of static files and Next
+  prefetches the links in view, so a threshold needs the real catalog pages (0007), measured, with
+  static files in their own locations. Accepted until then; in the backlog.
 - **F22. A wrong token counts per route.** Added in T7's review (owner, 2026-10-15): the api's
   limit keeps a counter per route and client address (as `@nestjs/throttler` keys it), so F5's
   "guessing the token runs into the limit" holds per route; guessing across many admin routes is
