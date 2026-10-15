@@ -33,6 +33,16 @@ FSD layers carry an underscore here.
 - **Through the public API only:** other layers import a slice from its `index.ts`
   (`@/entities/greeting`), never from inside it (`@/entities/greeting/api/get-greeting`). `shared`
   segments have their own `index.ts` (`@/shared/api`).
+- **Server-only exports go through `server.ts`:** a slice or `shared` segment may have a
+  `server.ts` next to its `index.ts`, a second public entry that starts with `import 'server-only'`
+  (`@/shared/api/server`, `@/entities/product/server`). A slice or segment whose exports are all
+  server-only has only a `server.ts`. `index.ts` stays safe to import from the browser: it exports
+  no module that imports `server-only` and does not re-export `server.ts`. This counts direct
+  exports only: server components of widgets and pages stay in `index.ts` (`next build` catches a
+  client component that imports them). Browser code (a `'use client'` module or anything it
+  imports) never imports a `server.ts`. `server.ts`, and what it re-exports, holds no
+  `'use server'`: server actions would be public endpoints and need their own decision. No entries
+  besides these two and the `@x` cross-imports: any other file is still inside the slice.
 - **Inside a slice, relative imports** (`./ui/home-page`); between layers, the `@/` alias.
 
 ## Segments inside a slice
@@ -52,7 +62,8 @@ Name segments by purpose, not by kind of file: no `components/`, `hooks/`, `type
   `fetch` to the api would put all visitors into one rate limit (CLAUDE.md, "Conventions").
 - A widget that renders api data per request calls `connection()` and sits inside `<Suspense>` in
   the page, so `next build` needs no api (see `widgets/greeting`, `_pages/home`).
-- Server-only modules (env, Redis, api client) live in `shared` and import `server-only`.
+- Server-only modules import `server-only`; the infrastructure ones (env, Redis, api client) live in
+  `shared`. Their exports leave a segment or slice through its `server.ts`, never its `index.ts`.
 - Text the user sees is Russian.
 
 ## Where does it go?
