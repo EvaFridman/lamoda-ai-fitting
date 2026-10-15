@@ -38,7 +38,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       on `/ui-kit` (plan §5).
       Check: the icon tests cover them; `/ui-kit` shows both at 16 and 24px.
       Commit: `feat(web): add the profile and bag icons`
-- [ ] **T6. Header and the layout.** `widgets/header`: top row, logo, inert gender switch, city
+- [x] **T6. Header and the layout.** `widgets/header`: top row, logo, inert gender switch, city
       and icons, the second row with a plain `SearchField` in place of the search feature, styles
       from Lamoda's CSS, narrow layouts; `<Header />` in `web/app/layout.tsx` (plan §1, §6).
       Check: `header.test.tsx` (no "15 лет", the logo links to `/`, buttons `aria-disabled`);
