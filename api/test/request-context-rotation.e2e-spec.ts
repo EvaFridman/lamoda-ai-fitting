@@ -1,4 +1,5 @@
 import type { INestApplication } from '@nestjs/common';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -18,13 +19,13 @@ describe('proxy secret rotation (e2e)', () => {
     vi.resetModules();
     for (const [name, value] of Object.entries(env)) vi.stubEnv(name, value);
     const { AppModule } = await import('../src/app.module.js');
-    const { AppExpressAdapter } = await import('../src/common/http/app-express.adapter.js');
-    const { useRequestContext } = await import('../src/common/http/request-context.js');
-    const { createValidationPipe } = await import('../src/common/validation/validation-pipe.js');
+    const { createHttpApp } = await import('../src/common/http/http-app.js');
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
-    app = moduleRef.createNestApplication(new AppExpressAdapter(), { logger: false });
-    useRequestContext(app);
-    app.useGlobalPipes(createValidationPipe());
+    app = await createHttpApp(
+      (adapter, options) =>
+        moduleRef.createNestApplication<NestExpressApplication>(adapter, options),
+      { logger: false },
+    );
     await app.init();
   }
 

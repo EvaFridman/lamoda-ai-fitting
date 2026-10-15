@@ -1,11 +1,12 @@
 import type { INestApplication } from '@nestjs/common';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import { io, type Socket } from 'socket.io-client';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { AppModule } from '../src/app.module.js';
-import { useRequestContext } from '../src/common/http/request-context.js';
+import { createHttpApp } from '../src/common/http/http-app.js';
 import { SocketIoAdapter } from '../src/realtime/socket-io.adapter.js';
 
 // Redis points at a closed port (vitest.config.ts), so the request counters run on the in-memory
@@ -17,8 +18,11 @@ describe('throttling and websockets (e2e)', () => {
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
-    app = moduleRef.createNestApplication({ logger: false });
-    useRequestContext(app);
+    app = await createHttpApp(
+      (adapter, options) =>
+        moduleRef.createNestApplication<NestExpressApplication>(adapter, options),
+      { logger: false },
+    );
     app.useWebSocketAdapter(new SocketIoAdapter(app, 'http://localhost:3001'));
     await app.listen(0, '127.0.0.1');
     url = await app.getUrl();

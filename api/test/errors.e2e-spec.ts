@@ -1,16 +1,12 @@
 import { gzipSync } from 'node:zlib';
 
-import { ConfigService } from '@nestjs/config';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { AppModule } from '../src/app.module.js';
-import { AppExpressAdapter } from '../src/common/http/app-express.adapter.js';
-import { useRequestContext } from '../src/common/http/request-context.js';
-import { createValidationPipe } from '../src/common/validation/validation-pipe.js';
-import type { Env } from '../src/config/env.js';
+import { createHttpApp } from '../src/common/http/http-app.js';
 
 type INestApplication = NestExpressApplication;
 
@@ -23,21 +19,13 @@ describe('a lowered BODY_LIMIT (e2e)', () => {
     vi.resetModules();
     vi.stubEnv('BODY_LIMIT', '1024');
     const fresh = await import('../src/app.module.js');
-    const adapter = await import('../src/common/http/app-express.adapter.js');
-    const context = await import('../src/common/http/request-context.js');
-    const pipe = await import('../src/common/validation/validation-pipe.js');
+    const http = await import('../src/common/http/http-app.js');
     const moduleRef = await Test.createTestingModule({ imports: [fresh.AppModule] }).compile();
-    lowered = moduleRef.createNestApplication<NestExpressApplication>(
-      new adapter.AppExpressAdapter(),
-      { logger: false, bodyParser: false },
+    lowered = await http.createHttpApp(
+      (adapter, options) =>
+        moduleRef.createNestApplication<NestExpressApplication>(adapter, options),
+      { logger: false },
     );
-    context.useRequestContext(lowered);
-    const nestConfig = await import('@nestjs/config');
-    const config = lowered.get<InstanceType<typeof ConfigService<Env, true>>>(
-      nestConfig.ConfigService,
-    );
-    lowered.useBodyParser('json', { limit: config.get('BODY_LIMIT', { infer: true }) });
-    lowered.useGlobalPipes(pipe.createValidationPipe());
     await lowered.init();
   });
 
@@ -200,18 +188,13 @@ describe('validation details cap and gzip bodies (e2e)', () => {
   });
 });
 
-// Created like src/server.ts does: the adapter keeps body-parser's errors apart, the request context
-// comes before the body parser (limited to BODY_LIMIT), the pipe is global.
+// Set up by createHttpApp, as src/server.ts is.
 async function createApp(): Promise<NestExpressApplication> {
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
-  const created = moduleRef.createNestApplication<NestExpressApplication>(new AppExpressAdapter(), {
-    logger: false,
-    bodyParser: false,
-  });
-  useRequestContext(created);
-  const config = created.get<ConfigService<Env, true>>(ConfigService);
-  created.useBodyParser('json', { limit: config.get('BODY_LIMIT', { infer: true }) });
-  created.useGlobalPipes(createValidationPipe());
+  const created = await createHttpApp(
+    (adapter, options) => moduleRef.createNestApplication<NestExpressApplication>(adapter, options),
+    { logger: false },
+  );
   await created.init();
   return created;
 }
