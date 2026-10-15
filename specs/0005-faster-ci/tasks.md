@@ -60,7 +60,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       `Contents: read` only and publishes nothing. AC1, AC2, AC3. `images-main` first runs at the
       merge: a failure there deploys nothing and is fixed forward.
       Commit: `ci(ci): build images alongside the checks and publish from a main-only job`
-- [ ] **T6. Image layer cache.** `scripts/ci-build-images.sh` with `BUILD_CACHE=gha` (Buildx
+- [x] **T6. Image layer cache.** `scripts/ci-build-images.sh` with `BUILD_CACHE=gha` (Buildx
       builder on BuildKit v0.33.1, `--load`, `gha` cache per image, `mode=max`,
       `ignore-error=true`); `images.yml` sets `BUILD_CACHE` and exports the cache variables with
       `actions/github-script` (plan §2).

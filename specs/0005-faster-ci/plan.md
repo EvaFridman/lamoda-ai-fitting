@@ -55,17 +55,23 @@ uses for every `docker build` today (the default builder is BuildKit inside the 
 `scripts/ci-build-images.sh` builds with Buildx and the GitHub Actions cache when it runs in CI:
 
 - When `BUILD_CACHE=gha` is set, the script creates a builder once
-  (`docker buildx create --name ai-fitting-ci --driver docker-container --driver-opt
-image=moby/buildkit:v0.33.1 --use`) and builds with `docker buildx build --load`,
-  `--cache-from type=gha,scope=<app>` and `--cache-to type=gha,scope=<app>,mode=max,ignore-error=true`.
-  `mode=max` keeps the layers of the `deps`, `prod-deps` and `build` stages too, where the time goes.
-  `ignore-error`: a cache that cannot be written never fails a build.
+  (`docker buildx create --name ai-fitting-ci-buildkit-v0.33.1 --driver docker-container
+--driver-opt image=moby/buildkit:v0.33.1@sha256:<digest>`; the version in the name keeps a new pin
+  from reusing an old builder, the digest pins the one component that sees the Sentry secret) and
+  builds with `docker buildx build --builder <it> --load`,
+  `--cache-from type=gha,version=2,scope=<app>` and
+  `--cache-to type=gha,version=2,scope=<app>,mode=max,ignore-error=true`. `--builder` per build
+  leaves the default builder alone. `version=2`: without it the backend picks the version from
+  `ACTIONS_CACHE_SERVICE_V2`, and v1 is shut down. `mode=max` keeps the layers of the `deps`,
+  `prod-deps` and `build` stages too, where the time goes. `ignore-error`: a cache that cannot be
+  written never fails a build.
 - Without `BUILD_CACHE` (a local run) the script builds as today. Everything else stays: tags,
   labels, the Sentry secret, the check that the api image holds no source maps, the size lines.
 - The `gha` backend reads `ACTIONS_RUNTIME_TOKEN` and `ACTIONS_RESULTS_URL` from the environment,
   which GitHub gives only to actions, not to `run` steps (Docker's docs, "GitHub Actions cache",
   "Authentication"). One `actions/github-script` step exports both before the build. The token
-  allows only this run's cache and artifacts.
+  allows only this run's cache and artifacts. A step right after the build (`if: always()`) blanks
+  both, so the deploy check and the publish step cannot write to the cache `main` builds from.
 - Cache isolation: a pull request reads the cache of `main` and its own branch and writes only to
   its own (GitHub's cache rules), so a pull request cannot change what `main` builds from.
 - The Sentry token is a BuildKit secret: not part of any layer, so not part of the cache. The

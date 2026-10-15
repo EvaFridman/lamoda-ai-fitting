@@ -48,3 +48,6 @@ Details and commands: `deploy/README.md`.
   before sources are copied.
 - Secrets never go into an image (`ARG`/`ENV`/`COPY`); the web and api builds take the Sentry token
   as a BuildKit secret.
+- CI builds with the GitHub Actions layer cache (`BUILD_CACHE=gha` in `scripts/ci-build-images.sh`,
+  one scope per image, `mode=max`); the Sentry token, a BuildKit secret, is in no layer and so in no
+  cache. A pull request writes only its own branch's cache; `main` builds from `main`'s.
