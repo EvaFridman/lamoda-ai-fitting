@@ -10,10 +10,17 @@ const state = vi.hoisted(() => ({
 }));
 
 vi.mock('next/headers', () => ({ headers: () => Promise.resolve(state.incoming) }));
-vi.mock('@/shared/config', () => ({ getServerEnv: () => state.env }));
+vi.mock('@/shared/config/server', () => ({ getServerEnv: () => state.env }));
 
-import { ApiError, apiFetch } from './api-fetch';
+import { ApiError, buildPath, type ApiPath } from './index';
+import { apiFetch } from './server';
 
+// A path buildPath would never make, to check that the origin check still holds.
+function forged(path: string): ApiPath {
+  return { path, template: '/forged' } as unknown as ApiPath;
+}
+
+const THINGS = buildPath('/things');
 const SECRET = 's'.repeat(32);
 const ID = '0123456789abcdef0123456789abcdef';
 const schema = z.object({ ok: z.boolean() });
@@ -25,7 +32,7 @@ function jsonResponse(body: unknown, status = 200): Response {
 }
 
 async function sentHeaders(init?: RequestInit): Promise<Headers> {
-  await apiFetch('/things', schema, init);
+  await apiFetch(THINGS, schema, init);
   const options = fetchMock.mock.calls[0]?.[1] as RequestInit;
   return options.headers as Headers;
 }
@@ -94,7 +101,7 @@ describe('apiFetch caller headers', () => {
   });
 
   it('keeps the other caller headers and the init options', async () => {
-    await apiFetch('/things', schema, {
+    await apiFetch(THINGS, schema, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Custom': 'a' },
       body: '{}',
@@ -108,7 +115,7 @@ describe('apiFetch caller headers', () => {
   });
 
   it('calls the url built from API_URL', async () => {
-    await apiFetch('/things?x=1', schema);
+    await apiFetch(buildPath('/things', {}, { x: 1 }), schema);
     expect(String(fetchMock.mock.calls[0]?.[0])).toBe('http://api:3000/things?x=1');
   });
 });
@@ -189,7 +196,7 @@ describe('apiFetch path origin', () => {
   it.each(['//evil.example/x', 'https://evil.example/x', '/\\evil.example/x'])(
     'refuses %s before calling fetch',
     async (path) => {
-      const error = await apiFetch(path, schema).catch((e: unknown) => e);
+      const error = await apiFetch(forged(path), schema).catch((e: unknown) => e);
       expect(error).toBeInstanceOf(ApiError);
       expect((error as ApiError).message).toBe('path leaves the api: evil.example');
       expect(fetchMock).not.toHaveBeenCalled();
@@ -197,7 +204,9 @@ describe('apiFetch path origin', () => {
   );
 
   it('names only the host in the error, not userinfo, path or query', async () => {
-    const error = await apiFetch('//user:pw@evil.example/x?q=1', schema).catch((e: unknown) => e);
+    const error = await apiFetch(forged('//user:pw@evil.example/x?q=1'), schema).catch(
+      (e: unknown) => e,
+    );
     expect(error).toBeInstanceOf(ApiError);
     const message = (error as ApiError).message;
     expect(message).toBe('path leaves the api: evil.example');
@@ -207,25 +216,25 @@ describe('apiFetch path origin', () => {
   });
 
   it('overrides a caller redirect option with error', async () => {
-    await apiFetch('/things', schema, { redirect: 'follow' });
+    await apiFetch(THINGS, schema, { redirect: 'follow' });
     const options = fetchMock.mock.calls[0]?.[1] as RequestInit;
     expect(options.redirect).toBe('error');
   });
 
   it('accepts an absolute url on the origin of API_URL', async () => {
-    await expect(apiFetch('http://api:3000/things', schema)).resolves.toEqual({ ok: true });
+    await expect(apiFetch(forged('http://api:3000/things'), schema)).resolves.toEqual({ ok: true });
     expect(String(fetchMock.mock.calls[0]?.[0])).toBe('http://api:3000/things');
   });
 });
 
 describe('apiFetch results', () => {
   it('returns the parsed body', async () => {
-    await expect(apiFetch('/things', schema)).resolves.toEqual({ ok: true });
+    await expect(apiFetch(THINGS, schema)).resolves.toEqual({ ok: true });
   });
 
   it('throws ApiError with the status on a non-2xx answer', async () => {
     fetchMock.mockResolvedValue(jsonResponse({}, 503));
-    await expect(apiFetch('/things', schema)).rejects.toMatchObject({
+    await expect(apiFetch(THINGS, schema)).rejects.toMatchObject({
       name: 'ApiError',
       status: 503,
     });
@@ -233,13 +242,74 @@ describe('apiFetch results', () => {
 
   it('throws ApiError when the api is unreachable', async () => {
     fetchMock.mockRejectedValue(new Error('down'));
-    const error = await apiFetch('/things', schema).catch((e: unknown) => e);
+    const error = await apiFetch(THINGS, schema).catch((e: unknown) => e);
     expect(error).toBeInstanceOf(ApiError);
     expect((error as ApiError).status).toBeUndefined();
   });
 
   it('throws ApiError when the body does not match the schema', async () => {
     fetchMock.mockResolvedValue(jsonResponse({ ok: 'yes' }));
-    await expect(apiFetch('/things', schema)).rejects.toThrow(/unexpected api response/);
+    await expect(apiFetch(THINGS, schema)).rejects.toThrow(/unexpected api response/);
+  });
+});
+
+describe('apiFetch error kinds', () => {
+  const path = buildPath('/things/:id', { id: 'a' });
+
+  it.each([
+    ['http', () => fetchMock.mockResolvedValue(jsonResponse({}, 500)), 500],
+    [
+      'timeout',
+      () => fetchMock.mockRejectedValue(Object.assign(new Error('t'), { name: 'TimeoutError' })),
+      undefined,
+    ],
+    ['network', () => fetchMock.mockRejectedValue(new TypeError('fetch failed')), undefined],
+    ['schema', () => fetchMock.mockResolvedValue(new Response('not json')), undefined],
+    ['schema', () => fetchMock.mockResolvedValue(jsonResponse({ ok: 1 })), undefined],
+  ])('kind %s carries the template', async (kind, arrange, status) => {
+    arrange();
+    const error = (await apiFetch(path, schema).catch((e: unknown) => e)) as ApiError;
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({ kind, template: '/things/:id', status });
+  });
+
+  it('refuses a path outside the origin with kind path and the template', async () => {
+    const error = (await apiFetch(forged('//evil.example/x'), schema).catch(
+      (e: unknown) => e,
+    )) as ApiError;
+    expect(error).toMatchObject({ kind: 'path', template: '/forged' });
+  });
+
+  it('keeps a segment taken from input on the api origin', async () => {
+    await apiFetch(buildPath('/things/:id', { id: '..' + '/users' }), schema);
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe('http://api:3000/things/..%2Fusers');
+  });
+
+  it.each([
+    ['http', () => fetchMock.mockResolvedValue(jsonResponse({}, 500))],
+    ['network', () => fetchMock.mockRejectedValue(new TypeError('fetch failed'))],
+    [
+      'timeout',
+      () => fetchMock.mockRejectedValue(Object.assign(new Error('t'), { name: 'TimeoutError' })),
+    ],
+    ['unreadable body', () => fetchMock.mockResolvedValue(new Response('not json'))],
+    ['schema', () => fetchMock.mockResolvedValue(jsonResponse({ ok: 1 }))],
+  ])('names the template and not the param in the %s message', async (_name, arrange) => {
+    arrange();
+    const secretPath = buildPath('/things/:id', { id: 'secret-value' });
+    const error = (await apiFetch(secretPath, schema).catch((e: unknown) => e)) as ApiError;
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error.message).toContain('/things/:id');
+    expect(error.message).not.toContain('secret-value');
+  });
+
+  it('sends a 5 s timeout signal and redirect error', async () => {
+    const timeout = vi.spyOn(AbortSignal, 'timeout');
+    await apiFetch(THINGS, schema);
+    const options = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    expect(timeout).toHaveBeenCalledWith(5000);
+    expect(options.signal).toBeInstanceOf(AbortSignal);
+    expect(options.redirect).toBe('error');
+    timeout.mockRestore();
   });
 });

@@ -67,6 +67,11 @@ code comments. All decisions below: owner, 2026-10-15.
 - **H10. Retries.** Server-side calls are never retried. The browser retries a request at most
   twice, with a pause, and only after a network error or a 503; never after a 4xx or a 429.
 - **H11. Too many requests.** A 429 shows its own text (wait and try again) and is not retried.
+- **H17. A refused path.** A path refused before any request is an `ApiError` with a fifth `kind`,
+  `path`: a `buildPath` param that is empty, `.` or `..` (`encodeURIComponent` leaves dots alone and
+  URL parsing treats `%2E%2E` as `..` too) or not well-formed unicode, a template param left without
+  a value, a malformed template, and a path whose origin is not the api's. It gets the general text (T9); whether it reaches Sentry is settled in
+  T10. (Added in T5.)
 
 ## Contract
 

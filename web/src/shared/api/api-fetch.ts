@@ -5,7 +5,11 @@ import { isIP } from 'node:net';
 import { headers } from 'next/headers';
 import type { z } from 'zod';
 
-import { getServerEnv } from '@/shared/config';
+import { getServerEnv } from '@/shared/config/server';
+
+import { ApiError } from './api-error';
+import { callApi } from './call-api';
+import type { ApiPath } from './path';
 
 const TIMEOUT_MS = 5000;
 
@@ -32,30 +36,24 @@ function requestId(incoming: Headers): string | undefined {
   return id && REQUEST_ID.test(id) ? id : undefined;
 }
 
-export class ApiError extends Error {
-  constructor(
-    message: string,
-    readonly status?: number,
-  ) {
-    super(message);
-    this.name = 'ApiError';
-  }
-}
-
 // The only way server code calls the api: over the internal network (API_URL), on behalf of the
 // visitor (their address and the request id forwarded, vouched for by the proxy secret), with a
 // timeout, and with the response checked against a schema, so a changed api fails here and not deep
 // in a page. Request-time only: it reads the incoming request's headers.
 export async function apiFetch<Schema extends z.ZodType>(
-  path: string,
+  path: ApiPath,
   schema: Schema,
   init?: RequestInit,
 ): Promise<z.infer<Schema>> {
   const env = getServerEnv();
-  const url = new URL(path, env.API_URL);
-  // An absolute or `//host` path would leave API_URL, and the secret with it.
+  const url = new URL(path.path, env.API_URL);
+  // `buildPath` makes only paths on the api's origin; this holds even for a forged ApiPath, since
+  // an absolute or `//host` path would leave API_URL, and the secret with it.
   if (url.origin !== new URL(env.API_URL).origin) {
-    throw new ApiError(`path leaves the api: ${url.host}`);
+    throw new ApiError(`path leaves the api: ${url.host}`, {
+      kind: 'path',
+      template: path.template,
+    });
   }
   const requestHeaders = new Headers(init?.headers);
   for (const name of PROXY_HEADERS) requestHeaders.delete(name);
@@ -65,25 +63,12 @@ export async function apiFetch<Schema extends z.ZodType>(
   if (visitor) requestHeaders.set('X-Forwarded-For', visitor);
   const id = requestId(incoming);
   if (id) requestHeaders.set('X-Request-Id', id);
-  let response: Response;
-  try {
-    response = await fetch(url, {
-      ...init,
-      headers: requestHeaders,
-      // A redirect to another host would take the secret along: fetch drops only its own
-      // credential headers.
-      redirect: 'error',
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-    });
-  } catch (error) {
-    throw new ApiError(`api unreachable: ${url.pathname}: ${String(error)}`);
-  }
-  if (!response.ok) {
-    throw new ApiError(`api answered ${response.status}: ${url.pathname}`, response.status);
-  }
-  const parsed = schema.safeParse(await response.json());
-  if (!parsed.success) {
-    throw new ApiError(`unexpected api response: ${url.pathname}: ${parsed.error.message}`);
-  }
-  return parsed.data;
+  return callApi(url, path, schema, {
+    ...init,
+    headers: requestHeaders,
+    // A redirect to another host would take the secret along: fetch drops only its own
+    // credential headers.
+    redirect: 'error',
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
 }

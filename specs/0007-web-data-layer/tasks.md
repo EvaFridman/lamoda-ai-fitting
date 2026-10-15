@@ -34,7 +34,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       `shared/config` and `shared/redis`.
       Check: `npm run verify`; 👤 restarts Claude Code.
       Commit: `chore(tooling): allow a server-only public entry in fsd slices`
-- [ ] **T5. `shared/api` split and paths.** `index.ts` / `server.ts`; `buildPath` and `ApiPath`;
+- [x] **T5. `shared/api` split and paths.** `index.ts` / `server.ts`; `buildPath` and `ApiPath`;
       `query` serialization; one response step shared by both clients (status, schema →
       `ApiError` with `kind`); `apiFetch` takes an `ApiPath`. `entities/greeting/server.ts`;
       `shared/config/server.ts` and `shared/redis/server.ts` in place of their `index.ts` (H16).

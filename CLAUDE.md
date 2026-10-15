@@ -224,10 +224,13 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   `requestContextOf(req)`, never `req.ip` or the headers: `X-Forwarded-For` and `X-Request-Id`
   count only on requests that carry `X-Proxy-Secret` equal to `PROXY_SECRET` (nginx, web) or, while
   it is rotated, to `PROXY_SECRET_NEXT` (api only; rotation in two deploys: `deploy/README.md`).
-- `web` calls the api from the server only through `apiFetch` (`web/src/shared/api`): it forwards
+- `web` calls the api from the server only through `apiFetch` (`@/shared/api/server`): it forwards
   the visitor's address and the request id with `X-Proxy-Secret` (server env `PROXY_SECRET`, never
   `NEXT_PUBLIC_`), so the api's per-client rate limit applies to the visitor and not to the web
-  container. A direct `fetch` to the api would put all visitors into one limit.
+  container. A direct `fetch` to the api would put all visitors into one limit. Paths come only
+  from `buildPath('/products/:id', { id }, query)` (`@/shared/api`): each param is encoded into one
+  segment, and an empty, `.` or `..` param, like a path off the api's origin, is an `ApiError` of
+  kind `path` before any request.
 - `web` data from the api renders at request time inside `<Suspense>`: the web image must build with
   no api, Redis or database running.
 - Every new environment variable goes into `.env.example` with a comment.

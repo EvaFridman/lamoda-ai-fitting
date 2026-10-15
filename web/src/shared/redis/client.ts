@@ -2,7 +2,7 @@ import 'server-only';
 
 import { Redis } from 'ioredis';
 
-import { getServerEnv } from '@/shared/config';
+import { getServerEnv } from '@/shared/config/server';
 
 // One Redis client per server process, created on first use and connected on its first command:
 // nothing here runs during `next build`. What web keeps in Redis is decided by the features that

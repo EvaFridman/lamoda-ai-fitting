@@ -9,13 +9,14 @@ dependencies: zod 4 (`z.toJSONSchema`), TanStack Query 5 (`HydrationBoundary`, `
 ## 1. `shared/api` (H16, backlog "`apiFetch` paths")
 
 - `index.ts`, safe in the browser:
-  - `buildPath(template, params)`: `template` is a literal such as `/products/:id`; each param is
+  - `buildPath(template, params?, query?)`: `template` is a literal such as `/products/:id`; each param is
     encoded with `encodeURIComponent`, so one value is one segment (`../users` → `..%2Fusers`). It
     returns an `ApiPath` (the path plus its template, used by Sentry, §3). Both clients take only an
     `ApiPath`, never a string.
-  - Query strings: a `query` option serialized with `URLSearchParams`, arrays as repeated keys (the
+  - Query strings: `buildPath`'s `query` serialized with `URLSearchParams`, arrays as repeated keys (the
     api accepts both, 0004).
-  - `ApiError`: `kind` (`http`, `network`, `timeout`, `schema`), `status`, `code`, `details`,
+  - `ApiError`: `kind` (`http`, `network`, `timeout`, `schema`, and `path` for a path refused
+    before any request, H17), `status`, `code`, `details`,
     `template`. A non-2xx answer is parsed as the api's error envelope (zod); one that is not (an
     nginx HTML page) keeps `code` empty.
   - `paginatedSchema(item)` for `{ items, total }`.
