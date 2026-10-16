@@ -7,8 +7,10 @@ import { AppModule } from '../../src/app.module.js';
 import { createHttpApp } from '../../src/common/http/http-app.js';
 import type { PrismaClient } from '../../src/generated/prisma/client.js';
 import { PrismaService } from '../../src/prisma/prisma.service.js';
+import { STORAGE_SETTINGS } from '../../src/storage/s3-client.provider.js';
 import { FallbackThrottlerStorage } from '../../src/throttling/fallback-throttler-storage.js';
 import { createTestDatabase } from './test-database.js';
+import { testStorageSettings } from './test-storage.js';
 
 export interface TestApp {
   app: INestApplication;
@@ -25,8 +27,9 @@ const unlimited: Pick<ThrottlerStorage, 'increment'> = {
 };
 
 // The whole api on a database of the test file's own (test-database.ts), for specs under
-// test/database/. Set up by createHttpApp, as src/server.ts is. Redis and Temporal point at closed
-// ports (vitest.config.ts); there is no rate limit.
+// test/database/. Set up by createHttpApp, as src/server.ts is. StorageService uses the throwaway
+// emulator (storage.ts); Redis and Temporal point at closed ports (vitest.config.ts); there is no
+// rate limit.
 // Call once per file in `beforeAll` and `close()` in `afterAll`.
 export async function createTestApp(): Promise<TestApp> {
   const prisma = await createTestDatabase();
@@ -34,6 +37,8 @@ export async function createTestApp(): Promise<TestApp> {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(PrismaService)
       .useValue(prisma)
+      .overrideProvider(STORAGE_SETTINGS)
+      .useValue(testStorageSettings())
       .overrideProvider(FallbackThrottlerStorage)
       .useValue(unlimited)
       .compile();

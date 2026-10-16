@@ -146,3 +146,19 @@ code comments. All decisions below: owner, 2026-10-16.
   so such a key would reach the api changed or run as a command. This narrows M19 for production
   only; the api's schema stays as M19 says. Writing the `.env` quoted, to allow any key, was
   deferred: Timeweb's keys need none of these characters; it is the way out if one ever does.
+
+## Decided at T6
+
+- **M22. Storage errors are wrapped.** `StorageService` never lets the SDK's error out: it throws
+  a `StorageError` with the operation, the S3 code, the HTTP status and the request id, and no
+  cause. The SDK's error keeps the raw response, whose request header holds the access key id
+  (`Credential=…`) and the object's path or the list's prefix (a user's id), and the answer's body
+  fields (`Key`, `Resource`); pino's error serializer writes an error's own fields, so a log line
+  would carry them (AC14). The e2e found this on the emulator with a wrong secret, so it does not
+  depend on the service. First decided as "passed on as thrown, checked once on Timeweb with a
+  made-up key"; dropped because the key id comes from the SDK, not from the service's answer.
+- **M23. Sentry keeps no storage paths.** The http instrumentation names each outgoing request's
+  span after its URL and puts the path and query into its attributes and into the breadcrumb that
+  errors carry; a storage path holds the user's id next to the file (`keep/users/<userId>/…`). The
+  api's and worker's Sentry options cut requests to `S3_ENDPOINT` down to the method and the
+  origin, at T6 rather than with the worker's deletes at T8.

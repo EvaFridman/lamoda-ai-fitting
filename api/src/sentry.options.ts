@@ -25,6 +25,7 @@ const dataCollection: NonNullable<NodeOptions['dataCollection']> = {
 // can check them without starting the SDK. Reads the environment directly: instrument.ts runs
 // before Nest and its validated config exist.
 export function sentryOptions(env: NodeJS.ProcessEnv): NodeOptions {
+  const storage = storageOrigin(env.S3_ENDPOINT);
   return {
     // `||`, not `??`: an empty value from compose means off.
     dsn: env.SENTRY_DSN || undefined,
@@ -40,7 +41,8 @@ export function sentryOptions(env: NodeJS.ProcessEnv): NodeOptions {
     dataCollection,
     // Console output of libraries would ride along with every later error of the process (the
     // worker has no scope per activity), whatever data it holds.
-    beforeBreadcrumb: (breadcrumb) => (breadcrumb.category === 'console' ? null : breadcrumb),
+    beforeBreadcrumb: (breadcrumb) =>
+      breadcrumb.category === 'console' ? null : withoutStoragePath(breadcrumb, storage),
     // Sentry's default ("warn") only logs an unhandled rejection, so a failed start of the server
     // or the worker would leave a process that is alive but does nothing. "strict" reports it and
     // exits, as Node does without Sentry, and the container restarts.
@@ -49,8 +51,65 @@ export function sentryOptions(env: NodeJS.ProcessEnv): NodeOptions {
     beforeSendTransaction: (event) =>
       isThrottled(event) || isRedisCommand(event)
         ? null
-        : withoutRedisCommands(withoutUserAgent(withoutRequestData(event))),
+        : withoutStoragePaths(
+            withoutRedisCommands(withoutUserAgent(withoutRequestData(event))),
+            storage,
+          ),
   };
+}
+
+type Breadcrumb = Parameters<NonNullable<NodeOptions['beforeBreadcrumb']>>[0];
+
+// The origin (`http://s3:8333`) of the storage's address; undefined when it is unset or invalid (a
+// process without storage settings, a unit test).
+export function storageOrigin(endpoint: string | undefined): string | undefined {
+  if (!endpoint || !URL.canParse(endpoint)) return undefined;
+  return new URL(endpoint).origin;
+}
+
+function isStorageUrl(url: unknown, origin: string | undefined): url is string {
+  return (
+    origin !== undefined &&
+    typeof url === 'string' &&
+    URL.canParse(url) &&
+    new URL(url).origin === origin
+  );
+}
+
+// The http instrumentation names each outgoing request's span after its URL and writes the path
+// and query to its attributes. A storage path holds the user's id next to the file
+// (`keep/users/<userId>/…`, a list's `prefix=` too): the span keeps the method and the storage's
+// origin only (spec 0011, T6).
+export function withoutStoragePaths(
+  event: TransactionEvent,
+  origin: string | undefined,
+): TransactionEvent {
+  for (const span of event.spans ?? []) {
+    const data = span.data;
+    if (!data || !isStorageUrl(data['url.full'], origin)) continue;
+    data['url.full'] = origin;
+    delete data['url.path'];
+    delete data['url.query'];
+    delete data['url.fragment'];
+    delete data['http.target'];
+    const method = data['http.request.method'];
+    span.description = typeof method === 'string' ? `${method} ${origin}` : origin;
+  }
+  return event;
+}
+
+// The same for the breadcrumb of an outgoing request, which errors of the process carry along.
+export function withoutStoragePath(breadcrumb: Breadcrumb, origin: string | undefined): Breadcrumb {
+  const data = breadcrumb.data;
+  if (breadcrumb.category !== 'http' || !data || !isStorageUrl(data['url'], origin)) {
+    return breadcrumb;
+  }
+  data['url'] = origin;
+  delete data['url.query'];
+  delete data['url.fragment'];
+  delete data['http.query'];
+  delete data['http.fragment'];
+  return breadcrumb;
 }
 
 type TransactionEvent = Parameters<NonNullable<NodeOptions['beforeSendTransaction']>>[0];

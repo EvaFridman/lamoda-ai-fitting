@@ -1,6 +1,5 @@
 import 'reflect-metadata';
 
-import { S3Client } from '@aws-sdk/client-s3';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { Logger } from 'nestjs-pino';
@@ -8,6 +7,8 @@ import { Logger } from 'nestjs-pino';
 import type { Env } from '../config/env.js';
 import { CoreModule } from '../core/core.module.js';
 import { setUpBucket } from './dev-setup.js';
+import { createS3Client, storageSettings } from './s3-client.provider.js';
+import { StorageError } from './storage.error.js';
 
 // Entry point of the compose service `s3-init` (`npm run storage:setup:dev`): the local counterpart
 // of the owner's setup of the bucket (spec 0011 M14). Exits 0 when done, 1 on an error, so the
@@ -24,22 +25,16 @@ async function bootstrap(): Promise<void> {
     await app.close();
     return;
   }
-  const bucket = config.get('S3_BUCKET', { infer: true });
-  const client = new S3Client({
-    endpoint: config.get('S3_ENDPOINT', { infer: true }),
-    region: config.get('S3_REGION', { infer: true }),
-    credentials: {
-      accessKeyId: config.get('S3_ACCESS_KEY_ID', { infer: true }),
-      secretAccessKey: config.get('S3_SECRET_ACCESS_KEY', { infer: true }),
-    },
-    forcePathStyle: true,
-  });
+  const settings = storageSettings(config);
+  const { bucket } = settings;
+  const client = createS3Client(settings, settings.endpoint);
 
   try {
     await setUpBucket(client, bucket);
     logger.log(`Bucket ${bucket}: media/ readable by anyone, tmp/ expires after a day`);
   } catch (error) {
-    logger.error(error);
+    // Not the SDK's error itself: it holds the access key id (spec 0011 M22).
+    logger.error(StorageError.from('setUpBucket', error));
     process.exitCode = 1;
   } finally {
     client.destroy();
