@@ -39,3 +39,13 @@ code comments. All decisions below: owner, 2026-10-16.
   keeps what is typed, and the query it starts from, out of the input's `value` attribute, so
   recordings and the SDK's click events cannot carry it (CLAUDE.md, analytics). (Owner, at the
   plan.)
+- **L10. Text typed before hydration is kept.** In the prerendered shell `useSearchParams` makes
+  React render the search in the browser and throw away the fallback field, with what was typed
+  into it and its focus. The search renders per request instead, after `connection()`, so the server
+  sends it with the real `q` in the same response, the browser hydrates it, and the kit keeps text
+  typed before hydration. What is typed in the few milliseconds between the shell and that part of
+  the stream is still lost; accepted. (Owner, at T8.)
+- **L11. A query is at most 100 characters.** The api's limit for the product search: the field
+  takes no more (`maxLength`), and a longer `q` in the URL is shown cut to 100. Without a limit a
+  query of a few thousand characters made the URL too long and the server answered 431 with the
+  browser's error page. (Owner, at T8.)

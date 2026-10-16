@@ -2,7 +2,7 @@
 
 Status: accepted (2026-10-16).
 
-Implements [spec.md](spec.md); decisions in [clarifications.md](clarifications.md) (L1–L9).
+Implements [spec.md](spec.md); decisions in [clarifications.md](clarifications.md) (L1–L11).
 
 ## 1. Widget `widgets/header` (L2, L5, L6, L7; AC1, AC2, AC6, AC7)
 
@@ -10,7 +10,8 @@ Built like `widgets/footer`: a server component with its own SCSS module; the on
 the search feature (§3).
 
 - `index.ts` exports `Header`. Files: `ui/header.tsx`, `ui/header.module.scss`, `ui/logo.tsx`,
-  `ui/header-categories.tsx`, `ui/header.test.tsx`, `ui/header-categories.test.tsx`.
+  `ui/header-categories.tsx`, `ui/header-search-slot.tsx` (§3), `ui/header.test.tsx`,
+  `ui/header-categories.test.tsx`.
 - **Top row**, three columns:
   - Left: "Женщинам" with `ChevronDownIcon` (16px), then "Укажите ваш населенный пункт".
   - Centre: the logo, a `Link` to `/` with `aria-label="Lamoda, на главную"`.
@@ -58,10 +59,17 @@ the search feature (§3).
     from `q` (`defaultValue`), with `key={q}` so a URL change (back, another link) refreshes it.
   - `onSearch(query)` (the kit already trims and skips a blank value): copies the current
     parameters, sets `q`, and calls `router.push(\`${pathname}?${params}\`)`. Other parameters
-    stay; nothing is fetched.
+stay. No results are fetched, but with Cache Components the push is a soft navigation: Next
+asks its server for the page again and re-renders it (on `/dev/catalog` that is one more
+    catalog request). The catalog page needs exactly this push, so it stays.
+  - A query is at most 100 characters (L11): `maxLength` on the field, a longer `q` is shown cut.
 - `useSearchParams` needs a `<Suspense>` boundary for the prerendered shell: the header wraps
   `HeaderSearch` in one whose fallback is a plain `SearchField`, so the field is visible before
-  hydration and the shell's height does not change.
+  the search arrives and the shell's height does not change. Inside the boundary a server
+  component awaits `connection()` and renders `HeaderSearch` (L10): the search renders per request
+  with the real `q` and hydrates, instead of being rendered in the browser in place of the
+  fallback, which would drop text typed into it. In development nothing is prerendered, so the
+  fallback is checked on a production build (`next build && next start`).
 - FSD: `widgets/header` → `features/header-search` → `shared/ui`; the feature knows nothing of
   the catalog. The catalog page spec gives the query a results page.
 
@@ -113,6 +121,14 @@ draws them (24px; 16px scaled as D3a). They appear in the `/ui-kit` icons sectio
   event, so after a search `q` goes with the visitor's events, as on Lamoda. A search phrase is not
   meant to hold personal data; if it must stay out, the catalog page spec strips `q` from the URL
   the SDK sees.
+- **The query in the URL reaches Sentry**: the browser SDK's breadcrumbs keep navigations and
+  fetches with their full URL, `?q=` included (`dataCollection.urlQueryParams: false` cleans only
+  the event's own URL and spans), so an error later in the tab carries the last searches. Accepted
+  for the same reason as Mixpanel; the catalog page spec strips `q` from breadcrumbs if it must
+  stay out.
+- **The query in nginx's access log**: `$request` logs the URI with `?q=` next to the client
+  address, as for any other query parameter. Accepted: the log is the server's own, needed to
+  investigate requests, and a search phrase is not meant to hold personal data.
 - **A long category list** would scroll sideways on desktop too; with six it fits (spec
   assumptions).
 - **0009 in parallel (L1)**: both touch `shared/ui/icon` and `/ui-kit`; the later branch rebases.
