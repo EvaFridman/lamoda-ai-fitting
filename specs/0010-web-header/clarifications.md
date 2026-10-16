@@ -1,6 +1,6 @@
 # 0010 web header: clarifications
 
-Status: open (2026-10-16).
+Status: done (2026-10-16). History, not instructions.
 
 The owner's decisions for this spec. Ids `L1`, `L2`, … are referred to by the spec, the plan and
 code comments. All decisions below: owner, 2026-10-16.

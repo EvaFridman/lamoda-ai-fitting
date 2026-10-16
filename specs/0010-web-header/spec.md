@@ -1,6 +1,7 @@
 # 0010 web header
 
-Status: accepted (2026-10-16); amended 2026-10-16 at the plan: working search field (L8, AC7a),
+Status: done (2026-10-16): all 10 criteria pass (record in `tasks.md`). History, not instructions.
+Accepted 2026-10-16; amended 2026-10-16 at the plan: working search field (L8, AC7a),
 gender switch and city on narrow screens (L6), typed text out of attributes (L9); amended
 2026-10-16 at T8: text typed before hydration is kept (L10), a query is at most 100 characters
 (L11).
