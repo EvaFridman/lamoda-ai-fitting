@@ -68,7 +68,8 @@ export function errorText(error: unknown): string {
 // A field's broken rule. The codes are class-validator's rule names in upper snake case
 // (api/src/common/validation/), the database rules' codes (common/filters/to-app-exception.ts),
 // `INVALID_ID` of a path id, `MATCHES_STATUS` of a generation's status and result
-// (ai-generations/generation-triple.ts) and `TOO_MANY_ERRORS` of a cut list (spec 0006 F14).
+// (ai-generations/generation-triple.ts), `IN_OWNER_FOLDER` of a file key outside the owner's
+// folder (storage/owner-check.ts, spec 0011 M8) and `TOO_MANY_ERRORS` of a cut list (spec 0006 F14).
 export const DETAIL_TEXTS = {
   IS_STRING: 'Должно быть текстом',
   IS_NUMBER: 'Должно быть числом',
@@ -97,6 +98,7 @@ export const DETAIL_TEXTS = {
   RELATED_NOT_FOUND: 'Связанная запись не найдена',
   CONSTRAINT_VIOLATION: 'Недопустимое значение',
   MATCHES_STATUS: 'Не соответствует статусу генерации',
+  IN_OWNER_FOLDER: 'Файл принадлежит другому пользователю или ещё не загружен',
   TOO_MANY_ERRORS: 'И другие ошибки',
 } as const satisfies Record<string, string>;
 

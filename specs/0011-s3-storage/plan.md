@@ -49,14 +49,17 @@ The endpoint, the bucket and both keys are required in every environment, with n
 ## 3. Users' files in the api (M8, M9; AC8, AC9)
 
 - Responses: `UserResponseDto.fittingProfileImageUrl: string | null`,
-  `AiGenerationResponseDto.userImageUrl: string` and `resultImageUrl: string | null`, signed in the
+  `AiGenerationResponseDto.userImageUrl: string | null` and `resultImageUrl: string | null`, signed in the
   services' `toResponse` (lists too: signing is a local HMAC, no request per row). No existence check
   per row: a link to a missing file answers 404 from the storage. The keys stay in the responses.
+  Only a key in the owner's folder is signed; any other gives a `null` url and a warning (M25).
   The comments "personal photos have no url" (0004 E47, E51) go.
 - Owner check (M8), in the services, after the DTO's `IsImageKey`:
-  - users: `update` checks `fittingProfileImageKey` against the path's id; `create` refuses any
+  - users: `update` checks `fittingProfileImageKey` against the id the database holds (the path's
+    id may differ in case), a missing user answering 404 before the check; `create` refuses any
     non-null key, as the new user's id does not exist yet;
-  - generations: `create` reads the session's `userId`; `update` reads it through the generation.
+  - generations: `create` reads the session's `userId`; `update` reads it through the generation;
+    any folder of that user is accepted (M24).
   - A refusal is `AppException` `VALIDATION_FAILED` with the field's detail, as the DTO errors are;
     `@ApiErrors` is not needed (400 `VALIDATION_FAILED` is implied by a body).
 - `api/openapi.json` is rewritten; web's `entities/user` and `entities/generation` schemas get the

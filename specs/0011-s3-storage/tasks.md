@@ -54,7 +54,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       `deletePrefix` over more than 1,000 keys, a signed link 200 and refused after a short TTL, an
       unsigned `keep/` read refused (AC7, AC8); unit tests of `keys.ts`; `npm run verify` (AC13).
       Commit: `feat(api): add the s3 storage module`
-- [ ] **T7. Signed links and the owner check.** `fittingProfileImageUrl`, `userImageUrl`,
+- [x] **T7. Signed links and the owner check.** `fittingProfileImageUrl`, `userImageUrl`,
       `resultImageUrl` in the responses; keys outside `keep/users/<owner>/` refused with
       `VALIDATION_FAILED`; `api/openapi.json` rewritten; web's user and generation schemas and
       their contract tests (plan §3).

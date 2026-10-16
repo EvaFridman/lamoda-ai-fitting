@@ -1,9 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 
 import { NotFoundError, ValidationError } from '../common/errors/app.exception.js';
 import type { Paginated } from '../common/pagination/paginated.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { ownedLink, ownerFolderDetails } from '../storage/owner-check.js';
+import { StorageService } from '../storage/storage.service.js';
 import type { AiGenerationListQueryDto } from './dto/ai-generation-list-query.dto.js';
 import type { AiGenerationResponseDto } from './dto/ai-generation-response.dto.js';
 import type { CreateAiGenerationDto } from './dto/create-ai-generation.dto.js';
@@ -16,18 +18,22 @@ const ORDER: Prisma.AiGenerationOrderByWithRelationInput[] = [
   { id: 'desc' },
 ];
 
-const WITH_PRODUCTS = {
+// The product ids, and the session's user, who owns the images (spec 0011 M25).
+const FOR_RESPONSE = {
   products: { select: { productId: true }, orderBy: { productId: 'asc' } },
+  session: { select: { userId: true } },
 } satisfies Prisma.AiGenerationInclude;
 
-type Row = Prisma.AiGenerationGetPayload<{ include: typeof WITH_PRODUCTS }>;
+type Row = Prisma.AiGenerationGetPayload<{ include: typeof FOR_RESPONSE }>;
 
-function toResponse({ products, ...generation }: Row): AiGenerationResponseDto {
-  return { ...generation, productIds: products.map((link) => link.productId) };
-}
+type ImageKeys = Record<'userImageKey' | 'resultImageKey', string | null | undefined>;
 
-function assertTriple(triple: GenerationTriple): void {
-  const details = checkGenerationTriple(triple);
+// The triple and the keys written (spec 0011 M8) are refused together, in one 400.
+function assertWrite(triple: GenerationTriple, keys: ImageKeys, ownerId: string | null): void {
+  const details = [
+    ...checkGenerationTriple(triple),
+    ...(ownerId === null ? [] : ownerFolderDetails(keys, ownerId)),
+  ];
   if (details.length > 0) {
     throw new ValidationError(details);
   }
@@ -38,40 +44,56 @@ function assertTriple(triple: GenerationTriple): void {
 // are replaced in the same transaction. The triple is read before the row lock, so two parallel
 // updates can still break it together; the database check catches that (E55). A missing session or product is P2003, 400
 // RELATED_NOT_FOUND; a missing generation 404. Deleting a generation removes its links (cascade).
+// The image keys written must lie in the folder of the session's user (spec 0011 M8); responses
+// carry signed links to them (M9), only for keys in that folder (M25).
 @Injectable()
 export class AiGenerationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(AiGenerationsService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageService,
+  ) {}
 
   async list(query: AiGenerationListQueryDto): Promise<Paginated<AiGenerationResponseDto>> {
     const where: Prisma.AiGenerationWhereInput = { sessionId: query.sessionId };
     const [rows, total] = await this.prisma.$transaction([
       this.prisma.aiGeneration.findMany({
         where,
-        include: WITH_PRODUCTS,
+        include: FOR_RESPONSE,
         orderBy: ORDER,
         take: query.limit,
         skip: query.offset,
       }),
       this.prisma.aiGeneration.count({ where }),
     ]);
-    return { items: rows.map(toResponse), total };
+    return { items: await Promise.all(rows.map((row) => this.toResponse(row))), total };
   }
 
   async get(id: string): Promise<AiGenerationResponseDto> {
     const row = await this.prisma.aiGeneration.findUnique({
       where: { id },
-      include: WITH_PRODUCTS,
+      include: FOR_RESPONSE,
     });
     if (row === null) {
       throw new NotFoundError('AI generation not found');
     }
-    return toResponse(row);
+    return this.toResponse(row);
   }
 
-  // `null` or left out, the result and the error are none.
+  // `null` or left out, the result and the error are none. A missing session skips the owner
+  // check, so the create answers 400 RELATED_NOT_FOUND on `sessionId` as before (spec 0004 E52).
   async create(dto: CreateAiGenerationDto): Promise<AiGenerationResponseDto> {
     const { productIds, resultImageKey = null, errorMessage = null, ...fields } = dto;
-    assertTriple({ status: dto.status, resultImageKey, errorMessage });
+    const session = await this.prisma.fittingSession.findUnique({
+      where: { id: dto.sessionId },
+      select: { userId: true },
+    });
+    assertWrite(
+      { status: dto.status, resultImageKey, errorMessage },
+      { userImageKey: dto.userImageKey, resultImageKey },
+      session?.userId ?? null,
+    );
     const row = await this.prisma.aiGeneration.create({
       data: {
         ...fields,
@@ -79,9 +101,9 @@ export class AiGenerationsService {
         errorMessage,
         products: { createMany: { data: productIds.map((productId) => ({ productId })) } },
       },
-      include: WITH_PRODUCTS,
+      include: FOR_RESPONSE,
     });
-    return toResponse(row);
+    return this.toResponse(row);
   }
 
   // An empty body changes nothing, `updatedAt` included (spec 0004 E40). Statements of the
@@ -91,20 +113,31 @@ export class AiGenerationsService {
       return this.get(id);
     }
     const { productIds, ...fields } = dto;
-    return this.prisma.$transaction(async (tx) => {
+    // Signed after the transaction: it holds the row lock until it ends.
+    const row = await this.prisma.$transaction(async (tx) => {
       const stored = await tx.aiGeneration.findUnique({
         where: { id },
-        select: { status: true, resultImageKey: true, errorMessage: true },
+        select: {
+          status: true,
+          resultImageKey: true,
+          errorMessage: true,
+          session: { select: { userId: true } },
+        },
       });
       if (stored === null) {
         throw new NotFoundError('AI generation not found');
       }
-      assertTriple({
-        status: fields.status ?? stored.status,
-        resultImageKey:
-          fields.resultImageKey === undefined ? stored.resultImageKey : fields.resultImageKey,
-        errorMessage: fields.errorMessage === undefined ? stored.errorMessage : fields.errorMessage,
-      });
+      assertWrite(
+        {
+          status: fields.status ?? stored.status,
+          resultImageKey:
+            fields.resultImageKey === undefined ? stored.resultImageKey : fields.resultImageKey,
+          errorMessage:
+            fields.errorMessage === undefined ? stored.errorMessage : fields.errorMessage,
+        },
+        { userImageKey: fields.userImageKey, resultImageKey: fields.resultImageKey },
+        stored.session.userId,
+      );
       // The row first: its lock makes a parallel update wait here, so that update's deleteMany
       // sees the links this one writes and removes them. Links replaced before the lock could end
       // up as both lists together. `updatedAt` is set so a body of only `productIds` still locks.
@@ -115,13 +148,36 @@ export class AiGenerationsService {
           data: productIds.map((productId) => ({ generationId: id, productId })),
         });
       }
-      return toResponse(
-        await tx.aiGeneration.findUniqueOrThrow({ where: { id }, include: WITH_PRODUCTS }),
-      );
+      return tx.aiGeneration.findUniqueOrThrow({ where: { id }, include: FOR_RESPONSE });
     });
+    return this.toResponse(row);
   }
 
   async delete(id: string): Promise<void> {
     await this.prisma.aiGeneration.delete({ where: { id } });
+  }
+
+  private async toResponse({
+    products,
+    session,
+    ...generation
+  }: Row): Promise<AiGenerationResponseDto> {
+    const link = (field: 'userImageKey' | 'resultImageKey') =>
+      ownedLink(this.storage, this.logger, {
+        rowId: generation.id,
+        field,
+        key: generation[field],
+        ownerId: session.userId,
+      });
+    const [userImageUrl, resultImageUrl] = await Promise.all([
+      link('userImageKey'),
+      link('resultImageKey'),
+    ]);
+    return {
+      ...generation,
+      productIds: products.map((link) => link.productId),
+      userImageUrl,
+      resultImageUrl,
+    };
   }
 }

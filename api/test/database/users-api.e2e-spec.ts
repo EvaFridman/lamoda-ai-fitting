@@ -4,6 +4,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { userPhotoKey } from '../../src/storage/keys.js';
 import { createTestApp, type TestApp } from '../support/test-app.js';
 
 const ADMIN_TOKEN = 'test-admin-token-0123456789abcdef';
@@ -18,6 +19,7 @@ interface UserBody {
   dateOfBirth: string | null;
   gender: string | null;
   fittingProfileImageKey: string | null;
+  fittingProfileImageUrl: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -28,6 +30,7 @@ const RESPONSE_KEYS = [
   'email',
   'firstName',
   'fittingProfileImageKey',
+  'fittingProfileImageUrl',
   'gender',
   'id',
   'lastName',
@@ -155,7 +158,7 @@ describe('users: access (AC1)', () => {
 });
 
 describe('users: create, read, update, delete (AC2)', () => {
-  it('creates with 201 and returns the own columns only, no session ids, no url', async () => {
+  it('creates with 201 and returns the own columns and the photo link, no session ids', async () => {
     const digits = nextDigits();
     const response = await http()
       .post('/users')
@@ -168,7 +171,6 @@ describe('users: create, read, update, delete (AC2)', () => {
         patronymic: 'Сергеевна',
         dateOfBirth: '2000-01-31',
         gender: 'female',
-        fittingProfileImageKey: 'users/profile.jpg',
       });
 
     expect(response.status).toBe(201);
@@ -182,7 +184,8 @@ describe('users: create, read, update, delete (AC2)', () => {
       patronymic: 'Сергеевна',
       dateOfBirth: '2000-01-31',
       gender: 'female',
-      fittingProfileImageKey: 'users/profile.jpg',
+      fittingProfileImageKey: null,
+      fittingProfileImageUrl: null,
     });
   });
 
@@ -256,8 +259,12 @@ describe('users: create, read, update, delete (AC2)', () => {
       patronymic: 'Сергеевна',
       dateOfBirth: '2000-01-31',
       gender: 'female',
-      fittingProfileImageKey: 'users/profile.jpg',
     });
+    const withKey = await http()
+      .patch(`/users/${user.id}`)
+      .set(admin)
+      .send({ fittingProfileImageKey: userPhotoKey(user.id) });
+    expect(withKey.status).toBe(200);
     const response = await http().patch(`/users/${user.id}`).set(admin).send({
       lastName: null,
       patronymic: null,
@@ -273,6 +280,7 @@ describe('users: create, read, update, delete (AC2)', () => {
       dateOfBirth: null,
       gender: null,
       fittingProfileImageKey: null,
+      fittingProfileImageUrl: null,
     });
     expect(await testApp.prisma.user.findUnique({ where: { id: user.id } })).toMatchObject({
       lastName: null,

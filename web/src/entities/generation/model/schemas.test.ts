@@ -7,7 +7,9 @@ const generation = {
   sessionId: '6b1e2c34-1f5a-4d0e-8a77-2c9d4e5f6a22',
   productIds: ['9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c33'],
   userImageKey: 'user/a.jpg',
+  userImageUrl: 'http://storage.example/bucket/user/a.jpg?X-Amz-Signature=abc',
   resultImageKey: null,
+  resultImageUrl: null,
   status: 'pending',
   aiProvider: 'provider',
   aiModel: 'model',
@@ -29,6 +31,25 @@ describe('generationStatusSchema', () => {
 describe('generationSchema', () => {
   it('accepts a generation and keeps dates as ISO strings', () => {
     expect(generationSchema.parse(generation)).toEqual(generation);
+  });
+
+  it('accepts a result link and refuses links that are not URLs or a missing input link', () => {
+    const resultImageUrl = 'http://storage.example/bucket/r.webp?X-Amz-Signature=abc';
+    const { userImageUrl: _link, ...withoutInput } = generation;
+
+    expect(generationSchema.parse({ ...generation, resultImageUrl })).toMatchObject({
+      resultImageUrl,
+    });
+    expect(generationSchema.safeParse({ ...generation, resultImageUrl: 'x' }).success).toBe(false);
+    expect(generationSchema.safeParse({ ...generation, userImageUrl: 'x' }).success).toBe(false);
+    expect(generationSchema.safeParse(withoutInput).success).toBe(false);
+  });
+
+  it('accepts a null input link, as the api sends for a key outside the owner folder', () => {
+    expect(generationSchema.parse({ ...generation, userImageUrl: null })).toEqual({
+      ...generation,
+      userImageUrl: null,
+    });
   });
 
   it('fails on an unknown status', () => {

@@ -12,6 +12,7 @@ const user = {
   dateOfBirth: '1990-05-17',
   gender: 'female',
   fittingProfileImageKey: null,
+  fittingProfileImageUrl: null,
   createdAt: '2026-10-15T08:00:00.000Z',
   updatedAt: '2026-10-15T08:00:00.000Z',
 };
@@ -23,6 +24,24 @@ describe('userSchema', () => {
 
   it('accepts a null gender and a null birth date', () => {
     expect(userSchema.safeParse({ ...user, gender: null, dateOfBirth: null }).success).toBe(true);
+  });
+
+  it('accepts a signed photo link and refuses one that is not a URL', () => {
+    const key = 'keep/users/u/photos/a.webp';
+    const url = `http://storage.example/bucket/${key}?X-Amz-Signature=abc`;
+
+    expect(
+      userSchema.parse({ ...user, fittingProfileImageKey: key, fittingProfileImageUrl: url }),
+    ).toMatchObject({ fittingProfileImageUrl: url });
+    expect(userSchema.safeParse({ ...user, fittingProfileImageUrl: 'not a url' }).success).toBe(
+      false,
+    );
+  });
+
+  it('refuses a user with no photo link field', () => {
+    const { fittingProfileImageUrl: _link, ...rest } = user;
+
+    expect(userSchema.safeParse(rest).success).toBe(false);
   });
 
   it('fails on an unknown gender', () => {

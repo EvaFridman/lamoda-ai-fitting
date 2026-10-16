@@ -16,6 +16,9 @@ export const userSchema = z.object({
   dateOfBirth: z.iso.date().nullable(),
   gender: genderSchema.nullable(),
   fittingProfileImageKey: z.string().nullable(),
+  // A signed link that works for 15 minutes (spec 0011 M9); null for a key outside the owner's
+  // folder (M25).
+  fittingProfileImageUrl: z.url().nullable(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 });
