@@ -39,12 +39,14 @@ Status: accepted (2026-10-16).
       first deploy logs `removed N app images`.
       Commit: `fix(deploy): remove app images no container uses`
 
-- [ ] **T4. Configuration and the fake provider.** `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_ID`,
+- [x] **T4. Configuration and the fake provider.** `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_ID`,
       `GOOGLE_CLIENT_SECRET`, `AUTH_FAKE_OIDC_URL`, `AUTH_FAKE_OIDC_PUBLIC_URL` in `env.ts` with
       `assertServerEnv`'s production rules and their tests, `.env.example`, `scripts/init-env.sh`,
       `api/vitest.config.ts`; `oauth2-mock-server@9.3.0` and `api/scripts/fake-oidc.mjs` with its
       login form; the `oidc` service in `docker-compose.yml`; `check:web-bundle` names (plan §8,
-      §11).
+      §11). Added with the owner: `qa-tester`'s ports 4010/4011 and the `oidc` service (N19),
+      `OIDC_HOST_PORT` (N20), letters and digits in `BETTER_AUTH_SECRET` (N21), the three production
+      variables in `deploy/compose/app.yml` and `ci-deploy-check.sh` (N22).
       Check: env unit tests (AC14); `docker compose up -d --wait` healthy; the fake provider's
       discovery document answers on 4010; `npm run verify`.
       Commit: `feat(api): add the auth configuration and a fake openid provider`
@@ -81,7 +83,8 @@ Status: accepted (2026-10-16).
       Check: socket e2e with and without a cookie (AC10); `npm run verify`.
       Commit: `feat(api): recognise the signed-in user on the socket`
 - [ ] **T9. Deploy and docs of the api.** `ADMIN_API_TOKEN` out of `docker-compose.yml`,
-      `deploy/compose/app.yml`, `cd.yml`, `ci-deploy-check.sh`; the new variables in them;
+      `deploy/compose/app.yml`, `cd.yml`, `ci-deploy-check.sh`; the new variables in `cd.yml`
+      (`app.yml` and the deploy check have them since T4, N22);
       `deploy/README.md` (Google console, secrets, removing the old one); `README.md` (local
       sign-in, no admin token); `CLAUDE.md` (access, request context, error format exception,
       stack table, env); `specs/backlog.md` (plan "Backlog").

@@ -8,10 +8,21 @@
 
 import { Blocked, isSecret, words } from './guard-lib.mjs';
 
-// api, web, Temporal UI and the S3 emulator of the default stack and of a second copy (README,
-// "Вторая копия стека"). The agent's --allowed-origins lists the same ports (checked by
-// guards.test.mjs).
-export const PORTS = ['3000', '3001', '8233', '8333', '4000', '4001', '8234', '8334'];
+// api, web, Temporal UI, the S3 emulator and the fake Google's login page (spec 0013 N19) of the
+// default stack and of a second copy (README, "Вторая копия стека"). The agent's --allowed-origins
+// lists the same ports (checked by guards.test.mjs).
+export const PORTS = [
+  '3000',
+  '3001',
+  '8233',
+  '8333',
+  '4010',
+  '4000',
+  '4001',
+  '8234',
+  '8334',
+  '4011',
+];
 const LOCAL_URL = new RegExp(
   `^https?://(localhost|127\\.0\\.0\\.1):(${PORTS.join('|')})([/?#].*)?$`,
 );
@@ -26,6 +37,7 @@ const SERVICES = new Set([
   's3-init',
   'api',
   'web',
+  'oidc',
 ]);
 
 // curl flags without a value; short ones may be bundled (-si).

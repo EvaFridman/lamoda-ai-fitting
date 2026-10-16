@@ -27,6 +27,11 @@ export default defineConfig({
       THROTTLE_EXPENSIVE_MINUTE: '5',
       ADMIN_API_TOKEN: 'test-admin-token-0123456789abcdef',
       PROXY_SECRET: 'testproxysecret0123456789abcdef0',
+      BETTER_AUTH_SECRET: 'testbetterauthsecret0123456789abcdef',
+      // The fake OpenID provider (spec 0013 N14) behind a closed port; an e2e that signs in starts
+      // its own (api/scripts/fake-oidc.mjs) and points the app at it.
+      AUTH_FAKE_OIDC_URL: 'http://127.0.0.1:1',
+      AUTH_FAKE_OIDC_PUBLIC_URL: 'http://127.0.0.1:1',
       MEDIA_BASE_URL: 'http://localhost:3001/media/',
       S3_ENDPOINT: 'http://127.0.0.1:1',
       S3_BUCKET: 'test-bucket',

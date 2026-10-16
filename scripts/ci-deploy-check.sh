@@ -443,6 +443,9 @@ S3_ENDPOINT=http://s3:8333
 S3_BUCKET=ai-fitting
 S3_ACCESS_KEY_ID=$(openssl rand -hex 10)
 S3_SECRET_ACCESS_KEY=$(openssl rand -hex 20)
+BETTER_AUTH_SECRET=$(openssl rand -hex 32)
+GOOGLE_CLIENT_ID=deploy-check.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=deploy-check-google-client-secret
 EOF
 # The emulator's admin user, from the same keys; in a file, so they stay off its command line.
 sed -n -e 's/^S3_ACCESS_KEY_ID=/AWS_ACCESS_KEY_ID=/p' -e 's/^S3_SECRET_ACCESS_KEY=/AWS_SECRET_ACCESS_KEY=/p' \

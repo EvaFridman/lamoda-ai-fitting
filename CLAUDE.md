@@ -120,7 +120,8 @@ Pinned on purpose; each "not newer" has a reason and a condition to move on.
 `next build`), the agents' guard hooks and root `scripts/*.mjs` (lint, `node --test`). Last, after
 `build`, `check:web-bundle` (`scripts/check-web-bundle.mjs`) fails when a file under
 `web/.next/static` (the browser bundle) contains `x-proxy-secret` (any case), `PROXY_SECRET`,
-`S3_ACCESS_KEY_ID` or `S3_SECRET_ACCESS_KEY`, or when that directory is missing or empty. Docker must be running for `verify` and
+`S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `BETTER_AUTH_SECRET` or `GOOGLE_CLIENT_SECRET`, or
+when that directory is missing or empty. Docker must be running for `verify` and
 `npm test`: the Vitest project `database` (`api/test/database/`) starts a throwaway PostgreSQL,
 SeaweedFS and Temporal with Testcontainers (`api/test/support/`), never the development ones; without Docker it fails
 with a message to start it. The project `unit` (everything else) needs no Docker. `web` tests
@@ -144,6 +145,8 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   (served at `/media/<key>`).
 - `api/src/storage/`: the S3 bucket (`StorageService`: `put`, `exists`, `deletePrefix`,
   `signedUrl`) and `keys.ts`, the one place object keys are built and checked.
+- `api/scripts/`: development-only scripts, not in the runtime image: `fake-oidc.mjs`, the fake
+  Google of the compose service `oidc` and of e2e (spec 0013 N14, N19, N20).
 - `web/`: `app/` holds routing only and re-exports pages from `src/_pages`. FSD layers in `web/src/`,
   imports only downward: `_app → _pages → widgets → features → entities → shared`. A slice or a
   `shared` segment exposes `index.ts` (browser-safe) and/or `server.ts`, which starts with
@@ -162,7 +165,8 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   api or web natively against the compose services, or two copies end up fighting over ports.
 - A second copy in Docker (e.g. a git worktree) needs its own `COMPOSE_PROJECT_NAME` and host
   ports in its `.env` (README, "Вторая копия стека"). `qa-tester` reaches only the ports of these
-  two copies (3000/3001/8233/8333 and 4000/4001/8234/8334) and picks its own from `docker compose ps`.
+  two copies (3000/3001/8233/8333/4010 and 4000/4001/8234/8334/4011) and picks its own from
+  `docker compose ps`.
 - `.env` (git-ignored, created by `scripts/init-env.sh`) holds local values; every variable is
   listed in `.env.example`. Claude cannot read `.env` (settings deny it) and does not need to.
 - Sources are bind-mounted; rebuild an image (`docker compose up -d --build <service>`) only after

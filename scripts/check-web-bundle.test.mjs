@@ -73,6 +73,21 @@ describe('check-web-bundle', () => {
     assert.equal(result.status, 0, result.stderr);
   });
 
+  for (const name of ['BETTER_AUTH_SECRET', 'GOOGLE_CLIENT_SECRET']) {
+    it(`fails on the env name ${name}`, () => {
+      put('chunks/auth.js', `process.env.${name}`);
+      const result = check();
+      assert.equal(result.status, 1, result.stderr);
+      assert.match(result.stderr, new RegExp(`auth\\.js: ${name}`));
+    });
+  }
+
+  it('passes the public GOOGLE_CLIENT_ID', () => {
+    put('chunks/auth.js', 'process.env.GOOGLE_CLIENT_ID');
+    const result = check();
+    assert.equal(result.status, 0, result.stderr);
+  });
+
   it('searches binary files too', () => {
     put(
       'media/font.woff2',

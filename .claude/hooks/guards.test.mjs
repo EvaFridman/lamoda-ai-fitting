@@ -139,6 +139,9 @@ describe('qa-tester rules', () => {
       bash(
         'curl -sI http://localhost:8333/ai-fitting/media/x.jpg http://127.0.0.1:8334/ai-fitting/media/',
       ),
+      bash('curl -s http://localhost:4010/.well-known/openid-configuration'),
+      ['mcp__playwright__browser_navigate', { url: 'http://localhost:4011/authorize' }],
+      bash('docker compose stop oidc'),
       bash('docker compose ps'),
       bash('docker compose logs --tail 100 api'),
       bash('docker compose logs --tail=50 --no-color api temporal-worker'),
@@ -165,6 +168,7 @@ describe('qa-tester rules', () => {
       bash('curl -s http://localhost:3000.evil.com/'),
       bash('curl -s http://localhost:3002/'),
       bash('curl -s http://localhost:4002/'),
+      bash('curl -s http://localhost:4012/'),
       bash('curl -s http://localhost:40000/'),
       bash('curl -s http://localhost:5434/'),
       bash('curl -s http://localhost:8335/'),

@@ -43,6 +43,11 @@ services:
       # Trusted as well while the secret is rotated, empty otherwise (F21); nginx and web never send
       # it, so only the api gets it.
       PROXY_SECRET_NEXT: ${PROXY_SECRET_NEXT:-}
+      # Sign-in with Google (spec 0013 plan §8); the api refuses to start without them in production
+      # and never gets the fake provider's addresses here.
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       MEDIA_BASE_URL: ${MEDIA_BASE_URL:?set MEDIA_BASE_URL}
       # The app's bucket and the key of its "Чтение и запись" user (spec 0011 M10, M14); the api
       # refuses to start without them (M19). Signed links carry S3_ENDPOINT's host: no
