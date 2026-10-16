@@ -269,6 +269,26 @@ describe('StorageService', () => {
       ]);
     });
 
+    it('passes the abort signal to the list and the delete requests', async () => {
+      send.mockImplementation((command: unknown) =>
+        Promise.resolve(
+          command instanceof ListObjectsV2Command
+            ? { Contents: [{ Key: 'a' }], IsTruncated: false }
+            : {},
+        ),
+      );
+      const { signal } = new AbortController();
+
+      await service.deletePrefix(folder, signal);
+
+      expect(send).toHaveBeenCalledTimes(2);
+      expect(send.mock.calls[0]?.[0]).toBeInstanceOf(ListObjectsV2Command);
+      expect(send.mock.calls[1]?.[0]).toBeInstanceOf(DeleteObjectsCommand);
+      for (const call of send.mock.calls) {
+        expect(call[1]).toEqual({ abortSignal: signal });
+      }
+    });
+
     it('throws on a truncated page without a continuation token, after deleting its keys', async () => {
       send.mockImplementation((command: unknown) =>
         Promise.resolve(

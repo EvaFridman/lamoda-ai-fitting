@@ -47,9 +47,11 @@ patterns in single quotes; a hook allows only ls, grep, rg, find and read-only g
    from there; new activities added to `createActivities()`; workflow ids chosen to prevent
    duplicates where a duplicate would be wrong.
 6. **Tests.** `workflows/workflows.spec.ts` checks that the workflows bundle for the sandbox and
-   tests activities directly; a new workflow keeps bundling there. Workflow logic beyond a single
-   activity call needs `@temporalio/testing` (time-skipping environment), which is not installed
-   yet: say so as a finding, adding it is the owner's decision.
+   tests activities directly; a new workflow keeps bundling there. Workflow logic runs in
+   `api/test/database/` against a throwaway Temporal of the compose image (Testcontainers,
+   `test/support/temporal.ts`) with a test worker (`test/support/test-temporal.ts`), not
+   `@temporalio/testing` (spec 0011 M16). A test that ends a workflow with an execution timeout
+   hides endless retries: a finding.
 
 Do not report general code style or security outside Temporal: other agents cover them.
 

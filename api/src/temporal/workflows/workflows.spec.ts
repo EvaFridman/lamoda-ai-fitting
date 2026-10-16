@@ -3,11 +3,11 @@ import { fileURLToPath } from 'node:url';
 import { bundleWorkflowCode } from '@temporalio/worker';
 import { describe, expect, it } from 'vitest';
 
-import { createActivities } from '../activities/hello.activities.js';
+import { createHelloActivities } from '../activities/hello.activities.js';
 
 describe('temporal code', () => {
   it('the hello activity returns the greeting', async () => {
-    await expect(createActivities().greet()).resolves.toBe('Hello, world!');
+    await expect(createHelloActivities().greet()).resolves.toBe('Hello, world!');
   });
 
   // The worker bundles workflow code for Temporal's sandbox when it starts. A workflow that imports
@@ -25,5 +25,6 @@ describe('temporal code', () => {
       },
     });
     expect(code).toContain('async function hello');
+    expect(code).toContain('async function deleteFiles');
   });
 });

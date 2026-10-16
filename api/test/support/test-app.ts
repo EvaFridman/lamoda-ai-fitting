@@ -8,9 +8,11 @@ import { createHttpApp } from '../../src/common/http/http-app.js';
 import type { PrismaClient } from '../../src/generated/prisma/client.js';
 import { PrismaService } from '../../src/prisma/prisma.service.js';
 import { STORAGE_SETTINGS } from '../../src/storage/s3-client.provider.js';
+import { TEMPORAL_SETTINGS, type TemporalSettings } from '../../src/temporal/temporal-settings.js';
 import { FallbackThrottlerStorage } from '../../src/throttling/fallback-throttler-storage.js';
 import { createTestDatabase } from './test-database.js';
 import { testStorageSettings } from './test-storage.js';
+import { testTemporalSettings } from './test-temporal.js';
 
 export interface TestApp {
   app: INestApplication;
@@ -28,10 +30,13 @@ const unlimited: Pick<ThrottlerStorage, 'increment'> = {
 
 // The whole api on a database of the test file's own (test-database.ts), for specs under
 // test/database/. Set up by createHttpApp, as src/server.ts is. StorageService uses the throwaway
-// emulator (storage.ts); Redis and Temporal point at closed ports (vitest.config.ts); there is no
-// rate limit.
+// emulator (storage.ts); workflows start on the throwaway Temporal (temporal.ts), on `temporal`'s
+// task queue, by default a new one no worker polls (a delete's workflow then waits there); Redis
+// points at a closed port (vitest.config.ts); there is no rate limit.
 // Call once per file in `beforeAll` and `close()` in `afterAll`.
-export async function createTestApp(): Promise<TestApp> {
+export async function createTestApp(
+  temporal: TemporalSettings = testTemporalSettings(),
+): Promise<TestApp> {
   const prisma = await createTestDatabase();
   try {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
@@ -39,6 +44,8 @@ export async function createTestApp(): Promise<TestApp> {
       .useValue(prisma)
       .overrideProvider(STORAGE_SETTINGS)
       .useValue(testStorageSettings())
+      .overrideProvider(TEMPORAL_SETTINGS)
+      .useValue(temporal)
       .overrideProvider(FallbackThrottlerStorage)
       .useValue(unlimited)
       .compile();

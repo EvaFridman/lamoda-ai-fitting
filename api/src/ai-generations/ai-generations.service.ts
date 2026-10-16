@@ -4,8 +4,10 @@ import { NotFoundError, ValidationError } from '../common/errors/app.exception.j
 import type { Paginated } from '../common/pagination/paginated.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { generationFolder } from '../storage/keys.js';
 import { ownedLink, ownerFolderDetails } from '../storage/owner-check.js';
 import { StorageService } from '../storage/storage.service.js';
+import { FileDeletion } from '../temporal/file-deletion.js';
 import type { AiGenerationListQueryDto } from './dto/ai-generation-list-query.dto.js';
 import type { AiGenerationResponseDto } from './dto/ai-generation-response.dto.js';
 import type { CreateAiGenerationDto } from './dto/create-ai-generation.dto.js';
@@ -43,7 +45,8 @@ function assertWrite(triple: GenerationTriple, keys: ImageKeys, ownerId: string 
 // before any write (AC9); an update checks the stored row with the body merged in, and the links
 // are replaced in the same transaction. The triple is read before the row lock, so two parallel
 // updates can still break it together; the database check catches that (E55). A missing session or product is P2003, 400
-// RELATED_NOT_FOUND; a missing generation 404. Deleting a generation removes its links (cascade).
+// RELATED_NOT_FOUND; a missing generation 404. Deleting a generation removes its links (cascade)
+// and then its files (spec 0011 M11).
 // The image keys written must lie in the folder of the session's user (spec 0011 M8); responses
 // carry signed links to them (M9), only for keys in that folder (M25).
 @Injectable()
@@ -53,6 +56,7 @@ export class AiGenerationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
+    private readonly fileDeletion: FileDeletion,
   ) {}
 
   async list(query: AiGenerationListQueryDto): Promise<Paginated<AiGenerationResponseDto>> {
@@ -153,8 +157,16 @@ export class AiGenerationsService {
     return this.toResponse(row);
   }
 
+  // The files go after the row: its own folder only, so a key of it elsewhere in the owner's folder
+  // (the user's photo) stays (spec 0011 M24).
   async delete(id: string): Promise<void> {
-    await this.prisma.aiGeneration.delete({ where: { id } });
+    const generation = await this.prisma.aiGeneration.delete({
+      where: { id },
+      select: { id: true, session: { select: { userId: true } } },
+    });
+    await this.fileDeletion.startFileDeletion('generation', generation.id, [
+      generationFolder(generation.session.userId, generation.id),
+    ]);
   }
 
   private async toResponse({

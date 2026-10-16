@@ -42,16 +42,21 @@ export default defineConfig({
           exclude: ['test/database/**'],
         },
       },
-      // Specs under test/database/ (and only there) use a real, throwaway PostgreSQL and SeaweedFS:
-      // one Testcontainers container each per run, a database per file (test/support/database.ts,
-      // spec 0002 C19/C20) and one shared bucket (test/support/storage.ts, spec 0011 M17). Their
+      // Specs under test/database/ (and only there) use a real, throwaway PostgreSQL, SeaweedFS and
+      // Temporal: one Testcontainers container each per run, a database per file
+      // (test/support/database.ts, spec 0002 C19/C20), one shared bucket (test/support/storage.ts,
+      // spec 0011 M17) and a task queue per file (test/support/temporal.ts, M16). Their
       // globalSetup runs only when one of these files runs, and needs Docker.
       {
         extends: true,
         test: {
           name: 'database',
           include: ['test/database/**/*.e2e-spec.ts'],
-          globalSetup: ['test/support/database.ts', 'test/support/storage.ts'],
+          globalSetup: [
+            'test/support/database.ts',
+            'test/support/storage.ts',
+            'test/support/temporal.ts',
+          ],
         },
       },
     ],

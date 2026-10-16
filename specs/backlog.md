@@ -131,17 +131,12 @@ removes it from this list. Found by the agents' first security audit and trial r
 - **Retry policy of `hello`.** `api/src/temporal/workflows/hello.workflow.ts` sets no retry policy,
   so a failing activity is retried forever. A retry policy change needs no `patched()` (Temporal
   versioning rules), but already scheduled activities keep the old one.
-- **Workflow logic tests.** `workflows.spec.ts` only checks that workflows bundle. Testing workflow
-  logic needs `@temporalio/testing` (an owner's decision: its test server is downloaded on the first
-  run, in CI on every run). A test must not end a workflow with an execution timeout: that hides
-  endless retries.
 - **SDK version ranges.** `@temporalio/client` is `"1.24"` while the other SDK packages are
   `"^1.24.0"`; align them so all SDK packages move together.
-- **Retries of the shared connection at shutdown.** `TemporalClientModule`'s connection keeps the
-  SDK's default gRPC retries; a retry still scheduled when the app closes it fires on the closed
-  channel and throws "Channel has been shut down" out of a timer (an uncaught exception at SIGTERM
-  or in an e2e test). Nothing calls it yet; the first code that starts workflows through `Client`
-  needs bounded retries and calls finished (or cancelled) before `close()`.
+- **Outbox for file deletion.** A row's delete commits, then `FileDeletion` starts `deleteFiles`
+  (spec 0011 T8); an api killed between the two (OOM, SIGKILL) leaves the files with no log line.
+  Accepted while only the admin deletes; when users delete their own data (account deletion), write
+  the deletion into a table in the delete's transaction and start workflows from it.
 
 ## Dependencies
 

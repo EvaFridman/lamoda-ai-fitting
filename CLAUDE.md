@@ -119,8 +119,8 @@ Pinned on purpose; each "not newer" has a reason and a condition to move on.
 `build`, `check:web-bundle` (`scripts/check-web-bundle.mjs`) fails when a file under
 `web/.next/static` (the browser bundle) contains `x-proxy-secret` (any case), `PROXY_SECRET`,
 `S3_ACCESS_KEY_ID` or `S3_SECRET_ACCESS_KEY`, or when that directory is missing or empty. Docker must be running for `verify` and
-`npm test`: the Vitest project `database` (`api/test/database/`) starts a throwaway PostgreSQL and
-SeaweedFS with Testcontainers (`api/test/support/`), never the development database or emulator; without Docker it fails
+`npm test`: the Vitest project `database` (`api/test/database/`) starts a throwaway PostgreSQL,
+SeaweedFS and Temporal with Testcontainers (`api/test/support/`), never the development ones; without Docker it fails
 with a message to start it. The project `unit` (everything else) needs no Docker. `web` tests
 (Vitest in jsdom with Testing Library, `web/vitest.config.mts`) sit next to their code as
 `web/src/**/*.test.ts(x)` and need no Docker: `npm --prefix web test`.

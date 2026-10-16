@@ -4,6 +4,8 @@ import { NotFoundError } from '../common/errors/app.exception.js';
 import type { Paginated } from '../common/pagination/paginated.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { generationFolder } from '../storage/keys.js';
+import { FileDeletion } from '../temporal/file-deletion.js';
 import type { CreateFittingSessionDto } from './dto/create-fitting-session.dto.js';
 import type { FittingSessionListQueryDto } from './dto/fitting-session-list-query.dto.js';
 import type { FittingSessionResponseDto } from './dto/fitting-session-response.dto.js';
@@ -32,10 +34,13 @@ function archiveActive(
 // the same transaction. Of two activations whose transactions overlap, the second hits the partial
 // unique index (P2002) and AppExceptionFilter answers 409 ALREADY_EXISTS; nothing is retried. A missing user is
 // P2003, 400 RELATED_NOT_FOUND; a missing session 404. Deleting a session removes its generations
-// (database cascade, spec 0002 C8) and activates no other one.
+// (database cascade, spec 0002 C8) and their files (spec 0011 M11), and activates no other one.
 @Injectable()
 export class FittingSessionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly fileDeletion: FileDeletion,
+  ) {}
 
   async list(query: FittingSessionListQueryDto): Promise<Paginated<FittingSessionResponseDto>> {
     const where: Prisma.FittingSessionWhereInput = { userId: query.userId };
@@ -89,7 +94,26 @@ export class FittingSessionsService {
     });
   }
 
+  // The generations' folders are read inside the delete's transaction, after the session's row is
+  // locked: a generation created at the same time either commits before the lock (and is read) or
+  // waits for it and fails on the gone session (400), so the cascade takes no generation unread.
   async delete(id: string): Promise<void> {
-    await this.prisma.fittingSession.delete({ where: { id } });
+    const { session, generationIds } = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT 1 FROM fitting_sessions WHERE id = ${id}::uuid FOR UPDATE`;
+      const generations = await tx.aiGeneration.findMany({
+        where: { sessionId: id },
+        select: { id: true },
+      });
+      const deleted = await tx.fittingSession.delete({
+        where: { id },
+        select: { id: true, userId: true },
+      });
+      return { session: deleted, generationIds: generations.map((generation) => generation.id) };
+    });
+    await this.fileDeletion.startFileDeletion(
+      'session',
+      session.id,
+      generationIds.map((generationId) => generationFolder(session.userId, generationId)),
+    );
   }
 }

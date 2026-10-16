@@ -82,8 +82,9 @@ export class StorageService implements OnModuleDestroy {
 
   // Deletes every object under one user's or one generation's folder (keys.ts: userFolders,
   // generationFolder); returns how many. Repeating it is harmless: an empty folder deletes nothing.
-  // Throws if any object is not deleted, so an activity that calls it retries.
-  async deletePrefix(prefix: string): Promise<number> {
+  // Throws if any object is not deleted, so an activity that calls it retries. `abortSignal` (an
+  // activity's cancellation) stops the request in flight.
+  async deletePrefix(prefix: string, abortSignal?: AbortSignal): Promise<number> {
     if (!isDeletableFolder(prefix)) {
       throw new Error("deletePrefix takes only a user's or a generation's folder");
     }
@@ -98,6 +99,7 @@ export class StorageService implements OnModuleDestroy {
             Prefix: prefix,
             ContinuationToken: continuationToken,
           }),
+          { abortSignal },
         ),
       );
       const keys = (page.Contents ?? []).flatMap(({ Key }) => (Key === undefined ? [] : [Key]));
@@ -108,6 +110,7 @@ export class StorageService implements OnModuleDestroy {
               Bucket: this.settings.bucket,
               Delete: { Objects: keys.map((Key) => ({ Key })), Quiet: true },
             }),
+            { abortSignal },
           ),
         );
         const errors = result.Errors ?? [];

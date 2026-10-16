@@ -23,7 +23,7 @@ with Testing Library). You do not change the code under test: a hook (rules in
 
 One plain command per call, arguments with spaces in single quotes. Tests never touch files,
 processes or the network outside what they test; the only real services allowed are the throwaway
-database and storage emulator of `api/test/database/` (below).
+database, storage emulator and Temporal of `api/test/database/` (below).
 
 ## Before writing
 
@@ -44,8 +44,9 @@ For web, read `web/vitest.config.mts`, `web/vitest.setup.ts` and an existing tes
 ## Database specs (`api/test/database/` only)
 
 Only specs under `api/test/database/` use real services: a throwaway PostgreSQL, with the
-migrations applied, and a throwaway SeaweedFS (the S3 emulator) with the bucket's rules, both
-started by the Vitest project `database` in Docker for the run (spec 0002 C19/C20, spec 0011 M17).
+migrations applied, a throwaway SeaweedFS (the S3 emulator) with the bucket's rules and a
+throwaway Temporal dev server, all started by the Vitest project `database` in Docker for the run
+(spec 0002 C19/C20, spec 0011 M16/M17).
 You do not write or change `api/test/support/*`; ask the main session if it lacks something.
 
 - `createTestDatabase()` from `api/test/support/test-database.ts` in `beforeAll` gives the file a
@@ -58,6 +59,18 @@ You do not write or change `api/test/support/*`; ask the main session if it lack
   with `StorageService` on the emulator. `createTestS3Client()` and `testStorageSettings()` from
   `api/test/support/test-storage.ts` reach the emulator directly; `destroy()` the client in
   `afterAll`. Files share one bucket: put objects under keys of the file's own (a random user id).
+  `createTestStorageService(endpoint?)` there gives a `StorageService` outside the app (for a test
+  worker); call its `onModuleDestroy()` in `afterAll`.
+- Workflows: `createTestApp(settings)` starts them on the throwaway Temporal, on the task queue of
+  `testTemporalSettings()` (`api/test/support/test-temporal.ts`; a new queue per call, so files do
+  not share workflows; by default no worker polls it). `startTestWorker(settings, storage)` there
+  runs the app's workflows and activities on that queue (bundling takes seconds: a long
+  `beforeAll` timeout); `stop()` it in `afterAll`, before the app's `close()`. Wait for a
+  workflow's effect with `vi.waitFor` and a timeout, never with an execution timeout of the
+  workflow (it hides endless retries).
+- `startTcpProxy(target)` from `api/test/support/tcp-proxy.ts` puts a proxy in front of a service
+  (`block()`/`unblock()`), to make it unreachable for one file while the shared container keeps
+  serving the others; `close()` it in `afterAll`.
 - Docker must be running. If the run fails with the message to start Docker, report it and stop.
 
 ## Web tests (`web/src/` only)

@@ -5,8 +5,10 @@ import type { Paginated } from '../common/pagination/paginated.js';
 import type { PaginationQueryDto } from '../common/pagination/pagination-query.dto.js';
 import type { Prisma, User } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { userFolders } from '../storage/keys.js';
 import { noKeyDetails, ownedLink, ownerFolderDetails } from '../storage/owner-check.js';
 import { StorageService } from '../storage/storage.service.js';
+import { FileDeletion } from '../temporal/file-deletion.js';
 import type { CreateUserDto } from './dto/create-user.dto.js';
 import type { UpdateUserDto } from './dto/update-user.dto.js';
 import type { UserResponseDto } from './dto/user-response.dto.js';
@@ -21,7 +23,7 @@ function toDate(value: string | null | undefined): Date | null | undefined {
 
 // A duplicate phone or email and a missing id reach AppExceptionFilter as Prisma errors:
 // 409 ALREADY_EXISTS, 404 NOT_FOUND. Deleting a user removes their fitting sessions and
-// generations (database cascade, spec 0002 C8). The fitting photo's key must lie in the user's
+// generations (database cascade, spec 0002 C8), and then their files (spec 0011 M11). The fitting photo's key must lie in the user's
 // folder (spec 0011 M8); responses carry a signed link to it (M9), only for such a key (M25).
 @Injectable()
 export class UsersService {
@@ -30,6 +32,7 @@ export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
+    private readonly fileDeletion: FileDeletion,
   ) {}
 
   async list(query: PaginationQueryDto): Promise<Paginated<UserResponseDto>> {
@@ -85,8 +88,10 @@ export class UsersService {
     return this.toResponse(user);
   }
 
+  // The files go after the row, by the id the database holds (keys use it in lower case).
   async delete(id: string): Promise<void> {
-    await this.prisma.user.delete({ where: { id } });
+    const user = await this.prisma.user.delete({ where: { id }, select: { id: true } });
+    await this.fileDeletion.startFileDeletion('user', user.id, userFolders(user.id));
   }
 
   private async toResponse(user: User): Promise<UserResponseDto> {

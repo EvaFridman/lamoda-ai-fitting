@@ -38,6 +38,9 @@ export function storageSettings(config: ConfigService<Env, true>): StorageSettin
   };
 }
 
+export const S3_CONNECTION_TIMEOUT_MS = 5000;
+export const S3_SOCKET_TIMEOUT_MS = 10_000;
+
 export function createS3Client(settings: StorageSettings, endpoint: string): S3Client {
   return new S3Client({
     endpoint,
@@ -52,6 +55,14 @@ export function createS3Client(settings: StorageSettings, endpoint: string): S3C
     // S3-compatible services refuse; only operations that require one send it (plan §2).
     requestChecksumCalculation: 'WHEN_REQUIRED',
     responseChecksumValidation: 'WHEN_REQUIRED',
+    // The SDK waits without limit by default: a storage that does not answer would hold a request
+    // (and an activity's attempt, past its 30 s startToCloseTimeout) for good. socketTimeout is the
+    // longest silence on the socket, not a bound on the whole transfer (a slow upload of the seed
+    // goes on). Not requestTimeout: without throwOnRequestTimeout it only logs a warning.
+    requestHandler: {
+      connectionTimeout: S3_CONNECTION_TIMEOUT_MS,
+      socketTimeout: S3_SOCKET_TIMEOUT_MS,
+    },
   });
 }
 
