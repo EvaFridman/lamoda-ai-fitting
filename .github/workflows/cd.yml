@@ -42,11 +42,15 @@ jobs:
     env:
       IMAGE_TAG: ${{ inputs.image_tag }}
     steps:
-      - name: Check the image tag and the proxy secret
+      - name: Check the image tag, the proxy secret and the storage settings
         env:
           PROXY_SECRET: ${{ secrets.PROXY_SECRET }}
           PROXY_SECRET_NEXT: ${{ secrets.PROXY_SECRET_NEXT }}
           ADMIN_API_TOKEN: ${{ secrets.ADMIN_API_TOKEN }}
+          S3_ENDPOINT: ${{ vars.S3_ENDPOINT }}
+          S3_BUCKET: ${{ vars.S3_BUCKET }}
+          S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+          S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
         # Before anything reaches the server: the synced nginx template needs the secret too, and an
         # nginx restarted without it would not start (spec 0006 F18).
         run: |
@@ -74,6 +78,29 @@ jobs:
               exit 1
             fi
           fi
+          # The api and the worker refuse to start without them (spec 0011 M19); checked here so a
+          # bad one fails before anything reaches the server. An https address of a host (users'
+          # photos travel to it) and the api's rule for a bucket name; both go into the sourced .env.
+          endpoint_format='^https://[A-Za-z0-9.-]+(:[0-9]+)?/?$'
+          if ! [[ "$S3_ENDPOINT" =~ $endpoint_format ]]; then
+            echo "::error::variable S3_ENDPOINT in GitHub Environment production is missing or not an https address of a host (deploy/README.md)"
+            exit 1
+          fi
+          bucket_format='^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$'
+          if ! [[ "$S3_BUCKET" =~ $bucket_format ]]; then
+            echo "::error::variable S3_BUCKET in GitHub Environment production is missing or not an S3 bucket name (deploy/README.md)"
+            exit 1
+          fi
+          # The keys have no format of ours (M19), but they go into the .env that deploy.sh sources
+          # and compose reads: only characters both take as they are (bash expands a ~ after = or
+          # :). The message never shows them.
+          unsafe="[[:space:]\$\`\"'\\\\;&|<>()#~]"
+          for name in S3_ACCESS_KEY_ID S3_SECRET_ACCESS_KEY; do
+            if [ -z "${!name}" ] || [[ "${!name}" =~ $unsafe ]]; then
+              echo "::error::secret $name in GitHub Environment production is missing or holds a space or one of \$\`\"'\\;&|<>()#~ (deploy/README.md)"
+              exit 1
+            fi
+          done
 
       # By hand only: CI calls CD after every check of the push passed. Images of main are published
       # before the checks end, so GHCR holds tags that never went live; a tag is deployed by hand only
@@ -141,6 +168,10 @@ jobs:
           PROXY_SECRET: ${{ secrets.PROXY_SECRET }}
           PROXY_SECRET_NEXT: ${{ secrets.PROXY_SECRET_NEXT }}
           MEDIA_BASE_URL: ${{ vars.MEDIA_BASE_URL }}
+          S3_ENDPOINT: ${{ vars.S3_ENDPOINT }}
+          S3_BUCKET: ${{ vars.S3_BUCKET }}
+          S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+          S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
           IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}/
         run: |
           {
@@ -154,6 +185,10 @@ jobs:
             echo "PROXY_SECRET=$PROXY_SECRET"
             echo "PROXY_SECRET_NEXT=$PROXY_SECRET_NEXT"
             echo "MEDIA_BASE_URL=$MEDIA_BASE_URL"
+            echo "S3_ENDPOINT=$S3_ENDPOINT"
+            echo "S3_BUCKET=$S3_BUCKET"
+            echo "S3_ACCESS_KEY_ID=$S3_ACCESS_KEY_ID"
+            echo "S3_SECRET_ACCESS_KEY=$S3_SECRET_ACCESS_KEY"
             echo "SENTRY_ENVIRONMENT=production"
             echo "IMAGE_REGISTRY=${IMAGE_REGISTRY,,}"
             echo "LOG_LEVEL=info"

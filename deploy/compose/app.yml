@@ -44,6 +44,15 @@ services:
       # it, so only the api gets it.
       PROXY_SECRET_NEXT: ${PROXY_SECRET_NEXT:-}
       MEDIA_BASE_URL: ${MEDIA_BASE_URL:?set MEDIA_BASE_URL}
+      # The app's bucket and the key of its "Чтение и запись" user (spec 0011 M10, M14); the api
+      # refuses to start without them (M19). Signed links carry S3_ENDPOINT's host: no
+      # S3_PUBLIC_ENDPOINT here. The defaults are the api's own.
+      S3_ENDPOINT: ${S3_ENDPOINT:?set S3_ENDPOINT}
+      S3_REGION: ${S3_REGION:-ru-1}
+      S3_BUCKET: ${S3_BUCKET:?set S3_BUCKET}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?set S3_ACCESS_KEY_ID}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?set S3_SECRET_ACCESS_KEY}
+      S3_SIGNED_URL_TTL_SECONDS: ${S3_SIGNED_URL_TTL_SECONDS:-900}
       # The api's own Sentry project (SENTRY_DSN in .env is web's); empty turns it off.
       SENTRY_DSN: ${API_SENTRY_DSN:-}
       SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}

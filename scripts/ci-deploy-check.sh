@@ -18,7 +18,8 @@
 #      d. deploy <tag>-next (green) with the new secret only;
 #   4. with the serving api stopped, /api/ answers 503 in the api's format (F33).
 # nginx runs on its temporary self-signed certificate, SITE_DOMAIN is localhost, ports 80 and 443
-# must be free. Used by the `images` job in CI; runs locally the same way. Outside CI it removes, on
+# must be free. A SeaweedFS container (spec 0011 M12, the image of docker-compose.yml's `s3`) on the
+# network `ai-fitting`, named `s3` there, stands in for the production storage with throwaway keys. Used by the `images` job in CI; runs locally the same way. Outside CI it removes, on
 # exit, the stacks it started with their volumes, and refuses to start next to an existing one
 # (spec 0002, C25).
 #
@@ -289,7 +290,15 @@ MEDIA_BASE_URL=https://localhost/media/
 THROTTLE_READ_BURST=1000000
 THROTTLE_READ_MINUTE=1000000
 PROXY_SECRET=$(openssl rand -hex 32)
+S3_ENDPOINT=http://s3:8333
+S3_BUCKET=ai-fitting
+S3_ACCESS_KEY_ID=$(openssl rand -hex 10)
+S3_SECRET_ACCESS_KEY=$(openssl rand -hex 20)
 EOF
+# The emulator's admin user, from the same keys; in a file, so they stay off its command line.
+sed -n -e 's/^S3_ACCESS_KEY_ID=/AWS_ACCESS_KEY_ID=/p' -e 's/^S3_SECRET_ACCESS_KEY=/AWS_SECRET_ACCESS_KEY=/p' \
+  "$env_file" > "$work/s3.env"
+s3_container=ai-fitting-check-s3
 
 # Outside CI: remove what this run starts, so the next run gets a fresh database. Only what it
 # starts: an existing stack is an earlier run or a real deploy, and its volumes may hold data.
@@ -303,6 +312,8 @@ teardown() {
       --env-file "$env_file" down --remove-orphans || true
   done
   IMAGE_TAG="$tag" docker compose -f deploy/compose/worker.yml --env-file "$env_file" down || true
+  # Before infra: the network is removed only once nothing is attached to it.
+  docker rm -f -v "$s3_container" > /dev/null 2>&1 || true
   docker compose -f deploy/compose/infra.yml --env-file "$env_file" --profile server down --volumes \
     || true
   rm -f .deploy-state
@@ -324,12 +335,41 @@ if [ -z "${GITHUB_ACTIONS:-}" ]; then
     echo "ci-deploy-check: .deploy-state exists (an earlier run or a real deploy); remove it by hand" >&2
     exit 1
   fi
+  if [ -n "$(docker ps -aq --filter "name=^$s3_container\$")" ]; then
+    echo "ci-deploy-check: the container $s3_container exists (an earlier run); remove it by hand" >&2
+    exit 1
+  fi
   trap teardown EXIT
 fi
 
 for app in api web; do
   docker tag "ai-fitting-$app:$tag" "ai-fitting-$app:$second"
 done
+
+group "storage emulator"
+# The api needs the storage from its first deploy on (the seed uploads its photos, spec 0011 T9),
+# so the emulator joins the network before it: infra's containers and network are created here, not started, and deploy.sh still sees
+# a first deploy (nginx not running).
+docker compose -f deploy/compose/infra.yml --env-file "$env_file" up --no-start
+# The flags of docker-compose.yml's `s3`; ready once the bucket exists, a moment after the S3 port.
+docker run -d --name "$s3_container" --network ai-fitting --network-alias s3 \
+  --env-file "$work/s3.env" -e S3_BUCKET=ai-fitting \
+  --health-cmd 'curl -fsS -o /dev/null http://localhost:8333/healthz && curl -fsS -o /dev/null http://localhost:8888/buckets/ai-fitting/' \
+  --health-interval 1s --health-retries 60 \
+  chrislusf/seaweedfs:4.48 mini -dir=/data -master.telemetry=false -admin.ui=false -webdav=false \
+  -s3.autoCreateBucket=false > /dev/null
+for _ in $(seq 60); do
+  s3_health="$(docker inspect -f '{{.State.Health.Status}}' "$s3_container")"
+  [ "$s3_health" = healthy ] && break
+  sleep 1
+done
+[ "$s3_health" = healthy ] || {
+  docker logs "$s3_container" >&2 || true
+  echo "ci-deploy-check: the storage emulator is $s3_health after 60 s" >&2
+  exit 1
+}
+echo "the storage emulator serves the bucket ai-fitting"
+endgroup
 
 group "deploy $tag (first deploy, blue)"
 ENV_FILE="$env_file" deploy/scripts/deploy.sh "$tag"
