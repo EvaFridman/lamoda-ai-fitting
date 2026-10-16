@@ -39,7 +39,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       second run changes nothing; `GetBucketPolicy` and `GetBucketLifecycleConfiguration` show the
       rules; `npm run verify`.
       Commit: `feat(infra): add the local s3 emulator and the storage settings`
-- [ ] **T5. Storage settings in CI and deploy.** The S3 variables in `deploy/compose/app.yml`,
+- [x] **T5. Storage settings in CI and deploy.** The S3 variables in `deploy/compose/app.yml`,
       `worker.yml`, `cd.yml` (secrets and variables into `.env`) and `scripts/ci-deploy-check.sh`
       (a SeaweedFS container on the runner); `check:web-bundle` fails on the S3 variable names
       (plan §1, §8).

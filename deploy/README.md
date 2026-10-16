@@ -197,6 +197,8 @@ Host ai-fitting
 | `POSTGRES_USER`  | `ai_fitting`                          |
 | `POSTGRES_DB`    | `ai_fitting`                          |
 | `MEDIA_BASE_URL` | `https://lamoda-ai-fitting.ru/media/` |
+| `S3_ENDPOINT`    | `https://s3.twcstorage.ru`            |
+| `S3_BUCKET`      | имя бакета приложения в Timeweb       |
 
 **Секреты** — из корня репозитория, по одному блоку.
 
@@ -265,6 +267,18 @@ shell; иначе CD остановится. Первый деплой с ним
 openssl rand -hex 32 | gh secret set PROXY_SECRET --env production
 ```
 
+Ключ хранилища S3 для api и воркера Temporal (спека 0011): ключ дополнительного пользователя Timeweb
+с правом «Чтение и запись» на бакет приложения, не главного. Без него и без переменных `S3_ENDPOINT`,
+`S3_BUCKET` CD останавливается, а api и воркер не стартуют; `S3_ENDPOINT` — только `https://` и
+имя хоста. В ключах не должно быть пробелов и символов ``$`"'\;&|<>()#~``: они попадают в `.env`,
+который читает shell; иначе CD остановится.
+gh спросит значение, ввод не отображается:
+
+```bash
+gh secret set S3_ACCESS_KEY_ID --env production
+gh secret set S3_SECRET_ACCESS_KEY --env production
+```
+
 #### Смена `PROXY_SECRET`
 
 В два деплоя (спека 0006 F21). api верит и второму секрету, `PROXY_SECRET_NEXT` (тот же формат, не
@@ -330,8 +344,9 @@ gh variable list
 
 1. `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS`, `POSTGRES_PASSWORD`, `SENTRY_DSN`, `API_SENTRY_DSN`,
    `SENTRY_AUTH_TOKEN`, `ADMIN_API_TOKEN`, `PROXY_SECRET` (и `PROXY_SECRET_NEXT`, только во время
-   смены).
-2. `DEPLOY_HOST`, `DEPLOY_USER`, `SITE_DOMAIN`, `POSTGRES_USER`, `POSTGRES_DB`, `MEDIA_BASE_URL`.
+   смены), `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`.
+2. `DEPLOY_HOST`, `DEPLOY_USER`, `SITE_DOMAIN`, `POSTGRES_USER`, `POSTGRES_DB`, `MEDIA_BASE_URL`,
+   `S3_ENDPOINT`, `S3_BUCKET`.
 3. Пусто.
 4. `SENTRY_ORG`, `SENTRY_PROJECT`, `SENTRY_PROJECT_API`, `NEXT_PUBLIC_SENTRY_DSN`,
    `NEXT_PUBLIC_MIXPANEL_TOKEN`.

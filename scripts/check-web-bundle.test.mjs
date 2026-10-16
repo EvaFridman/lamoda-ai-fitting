@@ -58,6 +58,21 @@ describe('check-web-bundle', () => {
     assert.match(result.stderr, /app\.js: PROXY_SECRET/);
   });
 
+  for (const name of ['S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY']) {
+    it(`fails on the env name ${name}`, () => {
+      put('chunks/app.js', `process.env.${name}`);
+      const result = check();
+      assert.equal(result.status, 1, result.stderr);
+      assert.match(result.stderr, new RegExp(`app\\.js: ${name}`));
+    });
+  }
+
+  it('passes the other storage settings', () => {
+    put('chunks/app.js', 'process.env.S3_BUCKET+process.env.S3_PUBLIC_ENDPOINT');
+    const result = check();
+    assert.equal(result.status, 0, result.stderr);
+  });
+
   it('searches binary files too', () => {
     put(
       'media/font.woff2',

@@ -137,3 +137,12 @@ code comments. All decisions below: owner, 2026-10-16.
 - **M20. `@aws-sdk/client-s3` arrives with T4**, because `dev-setup.ts` sets the emulator's policy
   and rule through the S3 API; T6 adds the presigner on the same version. `weed shell` inside the
   container was rejected: the test emulator of T6 runs the same `dev-setup.ts`.
+
+## Decided at T5
+
+- **M21. CD checks production's storage settings before the server.** `S3_ENDPOINT` is `https://`
+  and a host (users' photos travel to it), `S3_BUCKET` follows the api's bucket rule, and the keys
+  hold no space and none of ``$`"'\;&|<>()#~``: the server's `.env` is sourced by shell unquoted,
+  so such a key would reach the api changed or run as a command. This narrows M19 for production
+  only; the api's schema stays as M19 says. Writing the `.env` quoted, to allow any key, was
+  deferred: Timeweb's keys need none of these characters; it is the way out if one ever does.
