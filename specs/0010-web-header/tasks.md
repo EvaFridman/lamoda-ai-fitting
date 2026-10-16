@@ -50,10 +50,12 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       nothing and reports a non-`ApiError`); `qa-tester`: six categories, a category deactivated
       through the api disappears and comes back, `/` answers 200 with the api stopped (AC3–AC5).
       Commit: `feat(web): show the categories in the header`
-- [ ] **T8. Header search.** `features/header-search`: `q` from the URL, `router.push` with the
-      other parameters kept, the fallback field in `<Suspense>` (plan §3).
+- [x] **T8. Header search.** `features/header-search`: `q` from the URL, `router.push` with the
+      other parameters kept, the fallback field in `<Suspense>`, the search after `connection()`
+      (plan §3, L10), a query of at most 100 characters (L11).
       Check: `header-search.test.tsx` with a mocked router (AC7a); `qa-tester` in the browser:
-      submit, reload with `?q=`, blank submit, reset, no attribute holds the query (AC7a, AC8).
+      submit, reload with `?q=`, blank submit, reset, no attribute holds the query (AC7a, AC8); on a
+      production build, text typed before hydration stays in the field (L10).
       Commit: `feat(web): make the header search keep its query in the url`
 - [ ] **T9. Close the spec.** The acceptance record below; every file gets `Status: done`;
       CLAUDE.md as plan "Docs"; `README.md` if it describes the layout.

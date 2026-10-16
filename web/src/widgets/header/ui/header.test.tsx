@@ -1,11 +1,17 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { use } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { Header } from './header';
 
-// An async server component, rendered on the server only; the header's own parts are tested here.
+// Async server components, rendered on the server only; the header's own parts are tested here.
+// The search stays pending, so its fallback field is what renders.
 vi.mock('./header-categories', () => ({ HeaderCategories: () => null }));
+vi.mock('./header-search-slot', () => {
+  const pending = new Promise<never>(() => {});
+  return { HeaderSearchSlot: () => use(pending) };
+});
 
 describe('Header', () => {
   it('still renders its other parts when the categories render nothing', () => {

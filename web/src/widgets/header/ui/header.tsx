@@ -12,6 +12,7 @@ import {
 
 import styles from './header.module.scss';
 import { HeaderCategories } from './header-categories';
+import { HeaderSearchSlot } from './header-search-slot';
 import { Logo } from './logo';
 
 const userNav = [
@@ -70,7 +71,10 @@ export function Header() {
         </div>
 
         <div className={styles.search}>
-          <SearchField />
+          {/* The fallback is the same field, empty, so the row keeps its height (plan §3). */}
+          <Suspense fallback={<SearchField />}>
+            <HeaderSearchSlot />
+          </Suspense>
         </div>
       </div>
     </header>
