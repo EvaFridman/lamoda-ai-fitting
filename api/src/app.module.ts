@@ -17,6 +17,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
 import { ProductsModule } from './products/products.module.js';
 import { RealtimeModule } from './realtime/realtime.module.js';
 import { RedisModule } from './redis/redis.module.js';
+import { StorageModule } from './storage/storage.module.js';
 import { TemporalClientModule } from './temporal/temporal-client.module.js';
 import { TieredThrottlerGuard } from './throttling/tiered-throttler.guard.js';
 import { ThrottlingModule } from './throttling/throttling.module.js';
@@ -34,6 +35,7 @@ import { UsersModule } from './users/users.module.js';
     EventEmitterModule.forRoot(),
     PrismaModule,
     RedisModule,
+    StorageModule,
     TemporalClientModule,
     ThrottlingModule,
     RealtimeModule,

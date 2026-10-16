@@ -22,8 +22,8 @@ with Testing Library). You do not change the code under test: a hook (rules in
 - `npx eslint --max-warnings=0 <api/... or web/src/... files>`.
 
 One plain command per call, arguments with spaces in single quotes. Tests never touch files,
-processes or the network outside what they test; the one real service allowed is the throwaway
-database of `api/test/database/` (below).
+processes or the network outside what they test; the only real services allowed are the throwaway
+database and storage emulator of `api/test/database/` (below).
 
 ## Before writing
 
@@ -38,13 +38,14 @@ For web, read `web/vitest.config.mts`, `web/vitest.setup.ts` and an existing tes
   missing permission, a dependency that fails).
 - Behavior through public methods and HTTP, not private details.
 - Unit specs go next to the source (`foo.service.ts` → `foo.service.spec.ts`); tests that boot the
-  app go to `api/test/*.e2e-spec.ts`; tests of the database itself (constraints, keys, deletes) go
-  to `api/test/database/*.e2e-spec.ts`.
+  app go to `api/test/*.e2e-spec.ts`; tests of the database itself (constraints, keys, deletes) and
+  of the storage go to `api/test/database/*.e2e-spec.ts`.
 
 ## Database specs (`api/test/database/` only)
 
-Only specs under `api/test/database/` use a real database: a throwaway PostgreSQL that the Vitest
-project `database` starts in Docker for the run, with the migrations applied (spec 0002, C19/C20).
+Only specs under `api/test/database/` use real services: a throwaway PostgreSQL, with the
+migrations applied, and a throwaway SeaweedFS (the S3 emulator) with the bucket's rules, both
+started by the Vitest project `database` in Docker for the run (spec 0002 C19/C20, spec 0011 M17).
 You do not write or change `api/test/support/*`; ask the main session if it lacks something.
 
 - `createTestDatabase()` from `api/test/support/test-database.ts` in `beforeAll` gives the file a
@@ -53,6 +54,10 @@ You do not write or change `api/test/support/*`; ask the main session if it lack
 - `expectViolation(write, '<constraint name>')` from `api/test/support/violation.ts` checks that the
   database refused a write because of that CHECK, unique index or foreign key. Constraint names are
   in `api/prisma/migrations/*/migration.sql`.
+- `createTestApp()` from `api/test/support/test-app.ts` gives the whole api on such a database,
+  with `StorageService` on the emulator. `createTestS3Client()` and `testStorageSettings()` from
+  `api/test/support/test-storage.ts` reach the emulator directly; `destroy()` the client in
+  `afterAll`. Files share one bucket: put objects under keys of the file's own (a random user id).
 - Docker must be running. If the run fails with the message to start Docker, report it and stop.
 
 ## Web tests (`web/src/` only)
@@ -76,7 +81,7 @@ You do not write or change `api/test/support/*`; ask the main session if it lack
 - Import `describe`, `it`, `expect`, `vi` from `vitest` explicitly. In api, relative imports end in
   `.js`.
 - Build Nest classes through `Test.createTestingModule`, replacing real dependencies (Prisma, Redis,
-  Temporal) with providers or `vi.fn()` stubs. Outside `api/test/database/`, tests never reach a
+  Temporal, the storage) with providers or `vi.fn()` stubs. Outside `api/test/database/`, tests never reach a
   real service: the Vitest environment points every address at a closed port on purpose.
 - No `toMatchSnapshot` (it writes `__snapshots__/` files the hook does not allow and the check after
   you flags); `toMatchInlineSnapshot` only for short values.

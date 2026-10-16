@@ -46,7 +46,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Check: `scripts/ci-deploy-check.sh` passes locally; `node --test` of the bundle check covers
       the new names; CI green on the branch.
       Commit: `ci(deploy): pass the storage settings to the api and the worker`
-- [ ] **T6. Storage module.** `@aws-sdk/s3-request-presigner` (on `@aws-sdk/client-s3`'s version), `testcontainers`; `api/src/storage/` (clients, `StorageService`,
+- [x] **T6. Storage module.** `@aws-sdk/s3-request-presigner` (on `@aws-sdk/client-s3`'s version), `testcontainers`; `api/src/storage/` (clients, `StorageService`,
       `keys.ts`); `api/test/support/storage.ts` as a second `globalSetup` of `database`;
       `createTestApp()` wired to it; `test-writer` may use the throwaway SeaweedFS and Temporal
       (M17: its agent file, `.claude/README.md`) (plan §2, §8).

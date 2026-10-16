@@ -1,3 +1,6 @@
+import { request as httpRequest } from 'node:http';
+import { type AddressInfo, createServer } from 'node:net';
+
 import * as Sentry from '@sentry/nestjs';
 import type { ErrorEvent, NodeOptions } from '@sentry/nestjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -6,9 +9,12 @@ import {
   isRedisCommand,
   isThrottled,
   sentryOptions,
+  storageOrigin,
   withoutPrismaMessages,
   withoutRedisCommands,
   withoutRequestData,
+  withoutStoragePath,
+  withoutStoragePaths,
   withoutUserAgent,
 } from './sentry.options.js';
 
@@ -436,6 +442,187 @@ describe('withoutRequestData', () => {
   });
 });
 
+describe('storageOrigin', () => {
+  it.each([undefined, '', 'not a url', '/relative'])('is undefined for %j', (endpoint) => {
+    expect(storageOrigin(endpoint)).toBeUndefined();
+  });
+
+  it.each([
+    ['http://s3:8333/', 'http://s3:8333'],
+    ['https://s3.twcstorage.ru', 'https://s3.twcstorage.ru'],
+  ])('gives the origin of %s', (endpoint, origin) => {
+    expect(storageOrigin(endpoint)).toBe(origin);
+  });
+});
+
+describe('withoutStoragePaths', () => {
+  const ORIGIN = 'http://s3:8333';
+  const eventWith = (spans: unknown): TransactionEvent =>
+    ({ type: 'transaction', spans }) as TransactionEvent;
+
+  it('keeps only the method and the origin of a put span', () => {
+    const event = eventWith([
+      {
+        description: 'PUT http://s3:8333/bucket/keep/users/u1/...',
+        data: {
+          'url.full': 'http://s3:8333/bucket/keep/users/u1/photos/a.webp?x-id=PutObject',
+          'url.path': '/bucket/keep/users/u1/photos/a.webp',
+          'url.query': '?x-id=PutObject',
+          'url.fragment': '#f',
+          'http.target': '/bucket/keep/users/u1/photos/a.webp?x-id=PutObject',
+          'http.request.method': 'PUT',
+          'http.response.status_code': 200,
+        },
+      },
+    ]);
+
+    const span = withoutStoragePaths(event, ORIGIN).spans?.[0];
+
+    expect(span?.description).toBe('PUT http://s3:8333');
+    expect(span?.data).toEqual({
+      'url.full': ORIGIN,
+      'http.request.method': 'PUT',
+      'http.response.status_code': 200,
+    });
+  });
+
+  it('cleans a list span, whose query holds the prefix', () => {
+    const event = eventWith([
+      {
+        description: 'GET http://s3:8333/bucket?list-type=2&prefix=keep%2Fusers%2Fu1%2F',
+        data: {
+          'url.full': 'http://s3:8333/bucket?list-type=2&prefix=keep%2Fusers%2Fu1%2F',
+          'url.query': '?list-type=2&prefix=keep%2Fusers%2Fu1%2F',
+          'http.request.method': 'GET',
+        },
+      },
+    ]);
+
+    const span = withoutStoragePaths(event, ORIGIN).spans?.[0];
+
+    expect(span?.description).toBe('GET http://s3:8333');
+    expect(span?.data).toEqual({ 'url.full': ORIGIN, 'http.request.method': 'GET' });
+  });
+
+  it('leaves a span to another host unchanged', () => {
+    const spans = [
+      {
+        description: 'GET https://api.example.com/v1/x',
+        data: {
+          'url.full': 'https://api.example.com/v1/x',
+          'url.path': '/v1/x',
+          'http.request.method': 'GET',
+        },
+      },
+    ];
+    const expected = structuredClone(spans);
+
+    expect(withoutStoragePaths(eventWith(spans), ORIGIN).spans).toEqual(expected);
+  });
+
+  it('leaves everything unchanged without an origin', () => {
+    const spans = [
+      {
+        description: 'PUT http://s3:8333/bucket/keep/users/u1/a.webp',
+        data: { 'url.full': 'http://s3:8333/bucket/keep/users/u1/a.webp', 'url.path': '/bucket' },
+      },
+    ];
+    const expected = structuredClone(spans);
+
+    expect(withoutStoragePaths(eventWith(spans), undefined).spans).toEqual(expected);
+  });
+
+  it('handles spans without data and an event without spans', () => {
+    expect(() => withoutStoragePaths(eventWith([{}, { data: undefined }]), ORIGIN)).not.toThrow();
+    expect(() =>
+      withoutStoragePaths({ type: 'transaction' } as TransactionEvent, ORIGIN),
+    ).not.toThrow();
+  });
+});
+
+describe('withoutStoragePath', () => {
+  const ORIGIN = 'http://s3:8333';
+
+  it('keeps only the origin in the url of an http breadcrumb', () => {
+    const breadcrumb = {
+      category: 'http',
+      data: {
+        url: 'http://s3:8333/bucket/keep/users/u1/a.webp',
+        'url.query': 'x-id=GetObject',
+        'url.fragment': 'f',
+        method: 'GET',
+        status_code: 200,
+      },
+    };
+
+    expect(withoutStoragePath(breadcrumb, ORIGIN).data).toEqual({
+      url: ORIGIN,
+      method: 'GET',
+      status_code: 200,
+    });
+  });
+
+  it('leaves another host, another category and no origin unchanged', () => {
+    const other = { category: 'http', data: { url: 'https://api.example.com/v1/x' } };
+    const category = { category: 'fetch', data: { url: 'http://s3:8333/bucket/a' } };
+    const storage = { category: 'http', data: { url: 'http://s3:8333/bucket/a' } };
+
+    expect(withoutStoragePath(other, ORIGIN)).toEqual({
+      category: 'http',
+      data: { url: 'https://api.example.com/v1/x' },
+    });
+    expect(withoutStoragePath(category, ORIGIN).data).toEqual({ url: 'http://s3:8333/bucket/a' });
+    expect(withoutStoragePath(storage, undefined).data).toEqual({ url: 'http://s3:8333/bucket/a' });
+    expect(withoutStoragePath({ category: 'http' }, ORIGIN)).toEqual({ category: 'http' });
+  });
+});
+
+describe('sentryOptions with S3_ENDPOINT', () => {
+  const storageSpan = (): TransactionEvent =>
+    ({
+      type: 'transaction',
+      spans: [
+        {
+          description: 'PUT http://s3:8333/bucket/keep/users/u1/a.webp',
+          data: {
+            'url.full': 'http://s3:8333/bucket/keep/users/u1/a.webp',
+            'url.path': '/bucket/keep/users/u1/a.webp',
+            'http.request.method': 'PUT',
+          },
+        },
+      ],
+    }) as unknown as TransactionEvent;
+  const storageCrumb = () => ({
+    category: 'http',
+    data: { url: 'http://s3:8333/bucket/keep/users/u1/a.webp', 'url.query': 'x' },
+  });
+
+  it('cleans spans and breadcrumbs of the storage', () => {
+    const options = sentryOptions({ S3_ENDPOINT: 'http://s3:8333' });
+
+    const event = options.beforeSendTransaction?.(storageSpan(), {}) as TransactionEvent;
+    const crumb = options.beforeBreadcrumb?.(storageCrumb(), undefined);
+
+    expect(event.spans?.[0]?.description).toBe('PUT http://s3:8333');
+    expect(event.spans?.[0]?.data).toEqual({
+      'url.full': 'http://s3:8333',
+      'http.request.method': 'PUT',
+    });
+    expect(crumb?.data).toEqual({ url: 'http://s3:8333' });
+    expect(options.beforeBreadcrumb?.({ category: 'console', message: 'x' }, undefined)).toBeNull();
+  });
+
+  it('leaves them alone without S3_ENDPOINT', () => {
+    const options = sentryOptions({});
+
+    const event = options.beforeSendTransaction?.(storageSpan(), {}) as TransactionEvent;
+    const crumb = options.beforeBreadcrumb?.(storageCrumb(), undefined);
+
+    expect(event.spans?.[0]?.data?.['url.path']).toBe('/bucket/keep/users/u1/a.webp');
+    expect(crumb?.data?.['url']).toBe('http://s3:8333/bucket/keep/users/u1/a.webp');
+  });
+});
+
 describe('the SDK with sentryOptions', () => {
   afterEach(async () => {
     await Sentry.close();
@@ -635,6 +822,78 @@ describe('the SDK with sentryOptions', () => {
       expect(sentTransactions).toHaveLength(1);
       expect(sentTransactions[0]).toContain('"description":"redis-get"');
       expect(sentTransactions[0]).not.toContain('leak-child-key');
+    });
+
+    it('sends a storage span and breadcrumb without the storage path', async () => {
+      const sent = initWith({ SENTRY_DSN: DSN, S3_ENDPOINT: 'http://s3:8333' }, sampleAll);
+      const path = `/bucket/keep/users/${['leak', 'user'].join('-')}/a.webp`;
+
+      Sentry.startSpan({ name: 'GET /x', forceTransaction: true }, () => {
+        Sentry.startSpan(
+          {
+            name: `PUT http://s3:8333${path}`,
+            attributes: {
+              'url.full': `http://s3:8333${path}?x-id=PutObject`,
+              'url.path': path,
+              'http.request.method': 'PUT',
+            },
+          },
+          () => undefined,
+        );
+      });
+      Sentry.addBreadcrumb({ category: 'http', data: { url: `http://s3:8333${path}` } });
+      Sentry.captureException(new Error('after storage'));
+      await Sentry.flush(1000);
+
+      const sentTransactions = transactions(sent);
+      expect(sentTransactions).toHaveLength(1);
+      expect(sentTransactions[0]).toContain('PUT http://s3:8333');
+      expect(sent.join('')).not.toContain('leak-user');
+      expect(sent.join('')).toContain('after storage');
+    });
+
+    it('sends a real outgoing request to the storage without its path or query', async () => {
+      // A bare TCP listener, not an http.Server: the SDK would trace the server side of the request
+      // too, in this same process, with the path as its transaction name.
+      const server = createServer((socket) => {
+        socket.on('data', () => {
+          socket.end('HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok');
+        });
+        socket.on('error', () => undefined);
+      });
+      await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+      try {
+        const { port } = server.address() as AddressInfo;
+        const origin = `http://127.0.0.1:${String(port)}`;
+        const sent = initWith({ SENTRY_DSN: DSN, S3_ENDPOINT: origin }, sampleAll);
+
+        await Sentry.startSpan({ name: 'GET /x', forceTransaction: true }, async () => {
+          await new Promise<void>((resolve, reject) => {
+            const request = httpRequest(
+              `${origin}/bucket/keep/users/u1/a.webp?prefix=keep%2Fusers%2Fu1%2F`,
+              { method: 'PUT' },
+              (response) => {
+                response.resume();
+                response.on('end', resolve);
+              },
+            );
+            request.on('error', reject);
+            request.end();
+          });
+        });
+        Sentry.captureException(new Error('after storage'));
+        await Sentry.flush(1000);
+
+        const all = sent.join('');
+        expect(all).toContain('after storage');
+        expect(all).toContain(origin);
+        expect(all).not.toContain('keep/users/u1');
+        expect(all).not.toContain('keep%2Fusers');
+        expect(all).not.toContain('a.webp');
+        expect(all).not.toContain('prefix=');
+      } finally {
+        await new Promise<void>((resolve) => server.close(() => resolve()));
+      }
     });
 
     it('sends no transaction for a 429', async () => {
