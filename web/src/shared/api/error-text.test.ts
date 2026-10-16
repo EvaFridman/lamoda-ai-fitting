@@ -105,6 +105,13 @@ describe('detailText', () => {
     expect(DETAIL_TEXTS.MATCHES_STATUS).toMatch(/[а-яё]/i);
   });
 
+  it('has a text for IN_OWNER_FOLDER', () => {
+    expect(detailText({ field: 'photoKey', code: 'IN_OWNER_FOLDER', message: 'english' })).toBe(
+      DETAIL_TEXTS.IN_OWNER_FOLDER,
+    );
+    expect(DETAIL_TEXTS.IN_OWNER_FOLDER).toMatch(/[а-яё]/i);
+  });
+
   it('has a text for TOO_MANY_ERRORS with an empty field', () => {
     expect(detailText({ field: '', code: 'TOO_MANY_ERRORS', message: '3 more' })).toBe(
       DETAIL_TEXTS.TOO_MANY_ERRORS,

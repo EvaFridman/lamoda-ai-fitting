@@ -22,6 +22,13 @@ import {
 // Products of one generation (spec 0004 E53).
 export const MAX_GENERATION_PRODUCTS = 20;
 
+// Keys in the folder of the session's user (spec 0011 M7, M8).
+const FOLDER_EXAMPLE =
+  'keep/users/0b6f2a52-6d1e-4f8a-9c3b-2e7d5a1c4f90/generations/7c2e9b14-3a5d-4f6e-8b1c-9d0a2e4f6b8c';
+export const USER_IMAGE_KEY_EXAMPLE = `${FOLDER_EXAMPLE}/input.webp`;
+export const RESULT_IMAGE_KEY_EXAMPLE = `${FOLDER_EXAMPLE}/result.webp`;
+const KEY_DESCRIPTION = "A key in the folder of the session's user, `keep/users/<userId>/`.";
+
 // Ids come in any letter case; lower-cased once here, so the duplicate check and the database see
 // the same value. Anything but an array of strings stays as sent and fails the rules below.
 function lowerCaseIds({ value }: { value: unknown }): unknown {
@@ -55,16 +62,20 @@ export class CreateAiGenerationDto {
   @IsUUID(undefined, { each: true })
   productIds: string[];
 
-  @ApiProperty({ example: 'users/photo.jpg', maxLength: IMAGE_KEY_MAX_LENGTH })
+  @ApiProperty({
+    example: USER_IMAGE_KEY_EXAMPLE,
+    maxLength: IMAGE_KEY_MAX_LENGTH,
+    description: KEY_DESCRIPTION,
+  })
   @IsImageKey()
   userImageKey: string;
 
   @ApiPropertyOptional({
     type: String,
     nullable: true,
-    example: 'generations/result.jpg',
+    example: RESULT_IMAGE_KEY_EXAMPLE,
     maxLength: IMAGE_KEY_MAX_LENGTH,
-    description: 'Required when status is completed; null when pending or processing.',
+    description: `${KEY_DESCRIPTION} Required when status is completed; null when pending or processing.`,
   })
   @IsOptional()
   @IsImageKey()

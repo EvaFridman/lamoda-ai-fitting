@@ -68,8 +68,11 @@ export class CreateUserDto {
   @ApiPropertyOptional({
     type: String,
     nullable: true,
-    example: 'users/profile.jpg',
+    example:
+      'keep/users/0b6f2a52-6d1e-4f8a-9c3b-2e7d5a1c4f90/photos/5e3a7c1d-2b4f-4e6a-8d9c-1f0b3a5e7c2d.webp',
     maxLength: IMAGE_KEY_MAX_LENGTH,
+    description:
+      "A key in the user's folder `keep/users/<id>/`; on create only null, as the folder does not exist yet.",
   })
   @IsOptional()
   @IsImageKey()

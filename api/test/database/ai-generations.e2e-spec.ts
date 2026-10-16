@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { generationInputKey, generationResultKey } from '../../src/storage/keys.js';
 import { createTestApp, type TestApp } from '../support/test-app.js';
 
 const ADMIN_TOKEN = 'test-admin-token-0123456789abcdef';
@@ -13,6 +14,8 @@ interface GenerationBody {
   productIds: string[];
   userImageKey: string;
   resultImageKey: string | null;
+  userImageUrl: string;
+  resultImageUrl: string | null;
   status: string;
   aiProvider: string;
   aiModel: string;
@@ -29,11 +32,23 @@ const RESPONSE_KEYS = [
   'id',
   'productIds',
   'resultImageKey',
+  'resultImageUrl',
   'sessionId',
   'status',
   'updatedAt',
   'userImageKey',
+  'userImageUrl',
 ];
+
+// A signed link changes with the second it is signed in: two responses are equal up to the query.
+function stable(generation: unknown): unknown {
+  const body = generation as GenerationBody;
+  return {
+    ...body,
+    userImageUrl: body.userImageUrl.split('?')[0],
+    resultImageUrl: body.resultImageUrl?.split('?')[0] ?? null,
+  };
+}
 
 let testApp: TestApp;
 let counter = 0;
@@ -62,12 +77,25 @@ function next(): number {
   return counter;
 }
 
+const owners = new Map<string, string>();
+
 async function createSession(): Promise<string> {
   const n = String(next()).padStart(9, '0');
   const user = await testApp.prisma.user.create({
     data: { phone: `+79${n}`.slice(0, 12), email: `gen${n}@mail.ru`, firstName: 'Анна' },
   });
-  return (await testApp.prisma.fittingSession.create({ data: { userId: user.id } })).id;
+  const session = await testApp.prisma.fittingSession.create({ data: { userId: user.id } });
+  owners.set(session.id, user.id);
+  return session.id;
+}
+
+// The keys a write to this session may carry: in the folder of the session's user.
+function inputKey(sessionId: string): string {
+  return generationInputKey(owners.get(sessionId) ?? randomUUID(), randomUUID());
+}
+
+function resultKey(sessionId: string): string {
+  return generationResultKey(owners.get(sessionId) ?? randomUUID(), randomUUID());
 }
 
 async function createProducts(count: number): Promise<string[]> {
@@ -85,7 +113,7 @@ function body(sessionId: string, productIds: string[], extra: Record<string, unk
   return {
     sessionId,
     productIds,
-    userImageKey: 'users/photo.jpg',
+    userImageKey: inputKey(sessionId),
     status: 'pending',
     aiProvider: 'openai',
     aiModel: 'gpt-image-1',
@@ -193,10 +221,12 @@ describe('ai generations: create, read, update, delete (AC2)', () => {
     expect(created).toMatchObject({
       sessionId,
       status: 'pending',
-      userImageKey: 'users/photo.jpg',
+      userImageKey: expect.stringMatching(/^keep\/users\//) as unknown,
       aiProvider: 'openai',
       aiModel: 'gpt-image-1',
       resultImageKey: null,
+      resultImageUrl: null,
+      userImageUrl: expect.stringContaining(created.userImageKey) as unknown,
       errorMessage: null,
     });
     expect(created.productIds).toEqual([...products].sort());
@@ -211,7 +241,7 @@ describe('ai generations: create, read, update, delete (AC2)', () => {
     const response = await get(generation.id);
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual(generation);
+    expect(stable(response.body)).toEqual(stable(generation));
   });
 
   it('updates fields with 200 and keeps the links when productIds is left out', async () => {
@@ -262,7 +292,7 @@ describe('ai generations: create, read, update, delete (AC2)', () => {
     const response = await patch(generation.id, {});
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual(generation);
+    expect(stable(response.body)).toEqual(stable(generation));
   });
 
   it('accepts upper-case product ids and stores them lower-case', async () => {
@@ -291,20 +321,22 @@ describe('ai generations: status, result and error (E54, AC9)', () => {
     const sessionId = await createSession();
     const products = await createProducts(1);
 
+    const doneKey = resultKey(sessionId);
+    const partialKey = resultKey(sessionId);
     const done = await create(sessionId, products, {
       status: 'completed',
-      resultImageKey: 'generations/r.jpg',
+      resultImageKey: doneKey,
     });
     const failed = await create(sessionId, products, {
       status: 'failed',
       errorMessage: 'PROVIDER_TIMEOUT',
-      resultImageKey: 'generations/partial.jpg',
+      resultImageKey: partialKey,
     });
 
-    expect(done).toMatchObject({ resultImageKey: 'generations/r.jpg', errorMessage: null });
+    expect(done).toMatchObject({ resultImageKey: doneKey, errorMessage: null });
     expect(failed).toMatchObject({
       errorMessage: 'PROVIDER_TIMEOUT',
-      resultImageKey: 'generations/partial.jpg',
+      resultImageKey: partialKey,
     });
   });
 
@@ -343,10 +375,11 @@ describe('ai generations: status, result and error (E54, AC9)', () => {
     const stored = await testApp.prisma.aiGeneration.findUniqueOrThrow({
       where: { id: generation.id },
     });
+    const key = resultKey(generation.sessionId);
 
     const refused = await patch(generation.id, {
       status: 'completed',
-      resultImageKey: 'generations/r.jpg',
+      resultImageKey: key,
     });
 
     expectError(refused, 400, 'VALIDATION_FAILED', 'errorMessage');
@@ -356,14 +389,14 @@ describe('ai generations: status, result and error (E54, AC9)', () => {
 
     const accepted = await patch(generation.id, {
       status: 'completed',
-      resultImageKey: 'generations/r.jpg',
+      resultImageKey: key,
       errorMessage: null,
     });
 
     expect(accepted.status).toBe(200);
     expect(accepted.body).toMatchObject({
       status: 'completed',
-      resultImageKey: 'generations/r.jpg',
+      resultImageKey: key,
       errorMessage: null,
     });
   });
@@ -383,19 +416,24 @@ describe('ai generations: status, result and error (E54, AC9)', () => {
       'VALIDATION_FAILED',
       'errorMessage',
     );
-    expect((await get(generation.id)).body).toEqual(generation);
+    expect(stable((await get(generation.id)).body)).toEqual(stable(generation));
   });
 
   it('clears the result with null when the status allows it', async () => {
-    const generation = await create(await createSession(), await createProducts(1), {
+    const sessionId = await createSession();
+    const generation = await create(sessionId, await createProducts(1), {
       status: 'completed',
-      resultImageKey: 'generations/r.jpg',
+      resultImageKey: resultKey(sessionId),
     });
 
     const response = await patch(generation.id, { status: 'pending', resultImageKey: null });
 
     expect(response.status).toBe(200);
-    expect(response.body).toMatchObject({ status: 'pending', resultImageKey: null });
+    expect(response.body).toMatchObject({
+      status: 'pending',
+      resultImageKey: null,
+      resultImageUrl: null,
+    });
   });
 });
 
@@ -436,7 +474,7 @@ describe('ai generations: product links', () => {
 
     expectError(response, 400, 'RELATED_NOT_FOUND', 'productIds');
     expect(await links(generation.id)).toEqual([...products].sort());
-    expect((await get(generation.id)).body).toEqual(generation);
+    expect(stable((await get(generation.id)).body)).toEqual(stable(generation));
   });
 
   it('leaves the links unchanged when the update breaks the triple', async () => {
@@ -448,7 +486,7 @@ describe('ai generations: product links', () => {
 
     expectError(response, 400, 'VALIDATION_FAILED', 'resultImageKey');
     expect(await links(generation.id)).toEqual([...products].sort());
-    expect((await get(generation.id)).body).toEqual(generation);
+    expect(stable((await get(generation.id)).body)).toEqual(stable(generation));
   });
 
   it('answers 400 RELATED_NOT_FOUND on sessionId for a missing session and writes nothing', async () => {
@@ -597,7 +635,7 @@ describe('ai generations: validation', () => {
       'VALIDATION_FAILED',
       'sessionId',
     );
-    expect((await get(generation.id)).body).toEqual(generation);
+    expect(stable((await get(generation.id)).body)).toEqual(stable(generation));
   });
 
   it.each(['status', 'aiProvider', 'aiModel', 'userImageKey'])(
@@ -606,7 +644,7 @@ describe('ai generations: validation', () => {
       const generation = await create(await createSession(), await createProducts(1));
 
       expectError(await patch(generation.id, { [field]: null }), 400, 'VALIDATION_FAILED', field);
-      expect((await get(generation.id)).body).toEqual(generation);
+      expect(stable((await get(generation.id)).body)).toEqual(stable(generation));
     },
   );
 
@@ -634,15 +672,22 @@ describe('ai generations: validation', () => {
   });
 
   it('accepts the longest values', async () => {
-    const generation = await create(await createSession(), await createProducts(1), {
+    const sessionId = await createSession();
+    const owner = owners.get(sessionId) as string;
+    const shortest = generationInputKey(owner, 'x');
+    const userImageKey = generationInputKey(owner, 'x'.repeat(255 - shortest.length + 1));
+    expect(userImageKey).toHaveLength(255);
+
+    const generation = await create(sessionId, await createProducts(1), {
       status: 'failed',
       aiProvider: 'p'.repeat(50),
       aiModel: 'm'.repeat(50),
       errorMessage: 'e'.repeat(1000),
-      userImageKey: 'a'.repeat(255),
+      userImageKey,
     });
 
     expect(generation.errorMessage).toHaveLength(1000);
+    expect(generation.userImageKey).toHaveLength(255);
   });
 
   it('refuses an unknown field', async () => {

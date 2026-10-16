@@ -11,7 +11,11 @@ export const generationSchema = z.object({
   sessionId: z.uuid(),
   productIds: z.array(z.uuid()),
   userImageKey: z.string(),
+  // Signed links that work for 15 minutes (spec 0011 M9); null for a key outside the owner's
+  // folder (M25).
+  userImageUrl: z.url().nullable(),
   resultImageKey: z.string().nullable(),
+  resultImageUrl: z.url().nullable(),
   status: generationStatusSchema,
   aiProvider: z.string(),
   aiModel: z.string(),

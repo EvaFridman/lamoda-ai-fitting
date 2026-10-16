@@ -162,3 +162,19 @@ code comments. All decisions below: owner, 2026-10-16.
   errors carry; a storage path holds the user's id next to the file (`keep/users/<userId>/…`). The
   api's and worker's Sentry options cut requests to `S3_ENDPOINT` down to the method and the
   origin, at T6 rather than with the worker's deletes at T8.
+
+## Decided at T7
+
+- **M24. The owner check is per user, not per generation.** A generation's key may lie anywhere in
+  its user's folder, another generation's folder included; deleting that generation (T8) then
+  leaves a link that answers 404. Only the admin writes keys until upload exists, and then the
+  server names them. Requiring the generation's own folder or `photos/` was rejected as strictness
+  with no real writer; deleting by the rows' keys instead of the folder too.
+- **M25. Links are signed only for keys in the owner's folder.** `toResponse` signs a key only when
+  it lies in the row's owner's folder (the user, or the generation's session's user); otherwise the
+  url is `null` and a warning names the row and the field, not the key (on every read: such rows
+  are not expected, so it is not rate-limited). Rows written before T7 or
+  by a later path that skips the services' write check (the worker, the seed, manual SQL) can then
+  never give a link to another user's file or to `media/` and `tmp/`. Signing every stored key and
+  checking production by hand was rejected: the check would hold only while these two services
+  write the keys.
