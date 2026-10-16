@@ -35,6 +35,15 @@ x-api-env: &api-env
   # Optional: trusted as well while PROXY_SECRET is rotated (spec 0006 F21).
   PROXY_SECRET_NEXT: ${PROXY_SECRET_NEXT:-}
   MEDIA_BASE_URL: ${MEDIA_BASE_URL:-http://localhost:${WEB_HOST_PORT:-3001}/media/}
+  # The emulator below (spec 0011). Signed links carry the browser's address: its published port.
+  S3_ENDPOINT: http://s3:8333
+  S3_PUBLIC_ENDPOINT: http://localhost:${S3_HOST_PORT:-8333}
+  S3_BUCKET: ${S3_BUCKET:-ai-fitting}
+  # Required in .env: a .env made before spec 0011 lacks them, see README.
+  S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?add S3_ACCESS_KEY_ID to .env (openssl rand -hex 10), see README}
+  S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?add S3_SECRET_ACCESS_KEY to .env (openssl rand -hex 20), see README}
+  # Signed link lifetime in seconds (spec 0011 M9); the default is the api's own.
+  S3_SIGNED_URL_TTL_SECONDS: ${S3_SIGNED_URL_TTL_SECONDS:-900}
   # Empty turns Sentry off.
   SENTRY_DSN: ${SENTRY_DSN:-}
   SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-}
@@ -104,6 +113,53 @@ services:
       retries: 20
       start_period: 15s
 
+  s3:
+    image: chrislusf/seaweedfs:4.48
+    # SeaweedFS as an S3 emulator (spec 0011 M12): one process, the bucket created from S3_BUCKET at
+    # start, an admin user from the AWS_* keys. Only the S3 port is published; telemetry, the admin
+    # UI and WebDAV are off, and a write to a missing bucket fails instead of creating it.
+    command:
+      - mini
+      - -dir=/data
+      - -master.telemetry=false
+      - -admin.ui=false
+      - -webdav=false
+      - -s3.autoCreateBucket=false
+    environment:
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?add S3_ACCESS_KEY_ID to .env (openssl rand -hex 10), see README}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?add S3_SECRET_ACCESS_KEY to .env (openssl rand -hex 20), see README}
+      S3_BUCKET: ${S3_BUCKET:-ai-fitting}
+    volumes:
+      - s3data:/data
+    ports:
+      - '127.0.0.1:${S3_HOST_PORT:-8333}:8333'
+    healthcheck:
+      # Ready, and the bucket exists: it is created a moment after the S3 port answers. The filer's
+      # port (8888) is the container's own, unpublished.
+      test:
+        - CMD-SHELL
+        - curl -fsS -o /dev/null http://localhost:8333/healthz && curl -fsS -o /dev/null "http://localhost:8888/buckets/$${S3_BUCKET}/"
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  # One-shot: the bucket's rules (src/storage/dev-setup.ts), the local counterpart of the owner's
+  # setup (media/ is readable by anyone here, only by the server in production). api, the worker and
+  # web start only after it exits 0; running it again changes nothing. It compiles src/ with the
+  # Prisma client of its own anonymous volume, so a schema change renews it too.
+  s3-init:
+    image: ${COMPOSE_PROJECT_NAME:-ai-fitting}-api:dev
+    build:
+      context: ./api
+      target: dev
+    command: ['npm', 'run', 'storage:setup:dev']
+    environment: *api-env
+    volumes: *api-volumes
+    depends_on:
+      s3:
+        condition: service_healthy
+
   api:
     build:
       context: ./api
@@ -134,6 +190,8 @@ services:
         condition: service_healthy
       temporal:
         condition: service_healthy
+      s3-init:
+        condition: service_completed_successfully
 
   temporal-worker:
     # Same image as api, different entry point. No HTTP port, so no healthcheck.
@@ -181,8 +239,11 @@ services:
     depends_on:
       api:
         condition: service_healthy
+      s3-init:
+        condition: service_completed_successfully
 
 volumes:
   pgdata:
   redisdata:
   temporaldata:
+  s3data:

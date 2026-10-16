@@ -19,8 +19,8 @@ Implements [spec.md](spec.md); decisions in [clarifications.md](clarifications.m
 | `S3_SECRET_ACCESS_KEY`      | from `scripts/init-env.sh` | GitHub secret              |                                                                                      |
 | `S3_SIGNED_URL_TTL_SECONDS` | 900                        | 900                        | default 900 (M9), 60 to 3600                                                         |
 
-Both keys are required in production (the env schema refuses an empty one, as `ADMIN_API_TOKEN`
-rules do); `init-env.sh` generates random local values for the emulator. The unit tests' env
+The endpoint, the bucket and both keys are required in every environment, with no default (M19);
+`init-env.sh` generates random local values for the emulator. The unit tests' env
 (`api/vitest.config.ts`) points `S3_ENDPOINT` at a closed port, as it does for the other services.
 `check:web-bundle` also fails on the names `S3_SECRET_ACCESS_KEY` and `S3_ACCESS_KEY_ID`.
 
@@ -207,7 +207,8 @@ location @media_not_found { return 404; }
 | `@aws-sdk/s3-request-presigner` | 3.1148.0 (same release)      | api dependencies    | signed links                                                                 |
 | `testcontainers`                | 12.2.0 (2026-09-28)          | api devDependencies | SeaweedFS and Temporal containers, same line as `@testcontainers/postgresql` |
 
-Releases at least a week old, both AWS packages on one version; checked again (`npm view`) at the
+`@aws-sdk/client-s3` is installed at T4 for `dev-setup.ts`, the presigner at T6 (M20). Releases at
+least a week old, both AWS packages on one version; checked again (`npm view`) at the
 task, install scripts expected none. `chrislusf/seaweedfs:4.48` (2026-09-28), exact tag.
 
 ## Backlog

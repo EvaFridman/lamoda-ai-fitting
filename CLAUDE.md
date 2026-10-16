@@ -157,12 +157,12 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   api or web natively against the compose services, or two copies end up fighting over ports.
 - A second copy in Docker (e.g. a git worktree) needs its own `COMPOSE_PROJECT_NAME` and host
   ports in its `.env` (README, "Вторая копия стека"). `qa-tester` reaches only the ports of these
-  two copies (3000/3001/8233 and 4000/4001/8234) and picks its own from `docker compose ps`.
+  two copies (3000/3001/8233/8333 and 4000/4001/8234/8334) and picks its own from `docker compose ps`.
 - `.env` (git-ignored, created by `scripts/init-env.sh`) holds local values; every variable is
   listed in `.env.example`. Claude cannot read `.env` (settings deny it) and does not need to.
 - Sources are bind-mounted; rebuild an image (`docker compose up -d --build <service>`) only after
   a dependency or config change. After a Prisma schema change:
-  `docker compose up -d --build --renew-anon-volumes --wait api temporal-worker`. The generated
+  `docker compose up -d --build --renew-anon-volumes --wait api temporal-worker s3-init`. The generated
   client lives in the image and in each container's anonymous volume: `prisma generate` in a
   `run --rm` container reaches neither the running services nor the next `run`.
 - Local database: `docker compose run --rm api npx prisma migrate dev`, then

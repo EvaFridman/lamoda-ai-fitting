@@ -23,9 +23,12 @@
 ## Быстрый старт
 
 1. `npm ci`: зависимости корня и git-хуки.
-2. `./scripts/init-env.sh`, один раз: `.env` со случайными паролем базы, админ-токеном и секретом
-   прокси.
-3. `docker compose up -d --wait`: весь стек; команда ждёт, пока сервисы станут здоровы.
+2. `./scripts/init-env.sh`, один раз: `.env` со случайными паролем базы, админ-токеном, секретом
+   прокси и ключами эмулятора S3.
+3. `docker compose up -d --wait`: весь стек; команда ждёт, пока сервисы станут здоровы. Эмулятор
+   S3 (SeaweedFS, сервис `s3`) создаёт бакет при старте, одноразовый `s3-init` ставит его правила
+   (`media/` читает кто угодно, `tmp/` очищается через сутки) и завершается; api, worker и web
+   стартуют после него.
 4. Миграции: dev-стек сам их не применяет.
 
 ```bash
@@ -35,13 +38,14 @@ docker compose up -d --wait
 docker compose run --rm api npx prisma migrate deploy
 ```
 
-| Что         | Адрес                                                       |
-| ----------- | ----------------------------------------------------------- |
-| Сайт        | http://localhost:3001                                       |
-| api         | http://localhost:3000 (Swagger: http://localhost:3000/docs) |
-| Temporal UI | http://localhost:8233                                       |
-| PostgreSQL  | `localhost:5433` (логин и пароль в `.env`)                  |
-| Redis       | `localhost:6380`                                            |
+| Что           | Адрес                                                             |
+| ------------- | ----------------------------------------------------------------- |
+| Сайт          | http://localhost:3001                                             |
+| api           | http://localhost:3000 (Swagger: http://localhost:3000/docs)       |
+| Temporal UI   | http://localhost:8233                                             |
+| PostgreSQL    | `localhost:5433` (логин и пароль в `.env`)                        |
+| Redis         | `localhost:6380`                                                  |
+| S3 (эмулятор) | http://localhost:8333 (ключи `S3_*` в `.env`, бакет `ai-fitting`) |
 
 Запросы, которые меняют данные, и все запросы к пользователям, сессиям примерки и генерациям
 требуют админ-токен: значение `ADMIN_API_TOKEN` из `.env` в заголовке `X-Admin-Token` (в Swagger:
@@ -58,6 +62,15 @@ printf 'PROXY_SECRET=%s\n' "$(openssl rand -hex 32)" >> .env
 docker compose up -d --wait
 ```
 
+Ключи эмулятора S3 (`S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`) тоже обязательны: со старым `.env`
+`docker compose` не запустится ни с одной командой и подскажет, чего не хватает. Допишите их и
+пересоберите образ api (в нём появилась зависимость `@aws-sdk/client-s3`):
+
+```bash
+printf 'S3_ACCESS_KEY_ID=%s\nS3_SECRET_ACCESS_KEY=%s\n' "$(openssl rand -hex 10)" "$(openssl rand -hex 20)" >> .env
+docker compose up -d --build --wait
+```
+
 Аналитика (Mixpanel, после согласия посетителя) работает только с `NEXT_PUBLIC_MIXPANEL_TOKEN`:
 его получают лишь образы, опубликованные из `main`. Локально он пуст, и сайт ничего не отправляет.
 Для проверки можно задать в `.env` любой токен и пересоздать web (`docker compose up -d web`):
@@ -67,7 +80,7 @@ docker compose up -d --wait
 пересборки. Пересобрать образ (`docker compose up -d --build <сервис>`) нужно после изменения
 зависимостей или конфигов. После изменения схемы Prisma клиент Prisma нужно собрать заново: он
 лежит в образе и в анонимных томах контейнеров, а не в примонтированных исходниках:
-`docker compose up -d --build --renew-anon-volumes --wait api temporal-worker`.
+`docker compose up -d --build --renew-anon-volumes --wait api temporal-worker s3-init`.
 
 База после первого запуска и после изменения схемы: миграции, затем демо-каталог. Сид только
 добавляет недостающее (товары ищет по артикулу), правки, сделанные в базе, остаются:
@@ -101,6 +114,7 @@ WEB_HOST_PORT=4001
 POSTGRES_HOST_PORT=5434
 REDIS_HOST_PORT=6381
 TEMPORAL_UI_HOST_PORT=8234
+S3_HOST_PORT=8334
 ```
 
 И только после этого запустить стек:

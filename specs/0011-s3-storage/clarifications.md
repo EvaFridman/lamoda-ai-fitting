@@ -126,3 +126,14 @@ code comments. All decisions below: owner, 2026-10-16.
   GitHub secrets (the api refuses to start without the S3 variables). PR 2: the seed photos, web,
   nginx and the media check after a deploy; before its merge the owner sets the `media/` policy and
   checks the address; it recreates nginx (a few seconds of outage), merged at a quiet time.
+
+## Decided at T4
+
+- **M19. The S3 variables are required everywhere.** `S3_ENDPOINT`, `S3_BUCKET`,
+  `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY` have no default and refuse an empty value in every
+  `NODE_ENV`, in the schema the api and the worker share (the worker deletes files). The keys are
+  any non-space characters, with no length rule: Timeweb's key format is not ours. Checking them
+  only in production (`assertServerEnv`) was rejected: the worker does not run that check.
+- **M20. `@aws-sdk/client-s3` arrives with T4**, because `dev-setup.ts` sets the emulator's policy
+  and rule through the S3 API; T6 adds the presigner on the same version. `weed shell` inside the
+  container was rejected: the test emulator of T6 runs the same `dev-setup.ts`.

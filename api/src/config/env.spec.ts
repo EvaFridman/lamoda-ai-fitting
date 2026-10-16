@@ -8,6 +8,10 @@ const valid = {
   REDIS_URL: 'redis://redis:6379',
   TEMPORAL_ADDRESS: 'temporal:7233',
   MEDIA_BASE_URL: 'http://localhost:3001/media/',
+  S3_ENDPOINT: 'http://s3:8333',
+  S3_BUCKET: 'lamoda-ai-fitting',
+  S3_ACCESS_KEY_ID: 'access-key-id',
+  S3_SECRET_ACCESS_KEY: 'secret-access-key',
 };
 
 function thrownMessage(run: () => unknown): string {
@@ -245,6 +249,113 @@ describe('validateEnv SOCKET_MAX_MESSAGE_BYTES', () => {
   it.each(['0', '-1', '1.5', 'abc', '1048577'])('refuses %j, naming the variable', (value) => {
     expect(() => validateEnv({ ...valid, SOCKET_MAX_MESSAGE_BYTES: value })).toThrow(
       /SOCKET_MAX_MESSAGE_BYTES/,
+    );
+  });
+});
+
+describe('validateEnv S3', () => {
+  const required = [
+    'S3_ENDPOINT',
+    'S3_BUCKET',
+    'S3_ACCESS_KEY_ID',
+    'S3_SECRET_ACCESS_KEY',
+  ] as const;
+
+  it.each(required.flatMap((name) => ['development', 'production', 'test'].map((e) => [name, e])))(
+    'refuses a missing %s with NODE_ENV=%s, naming the variable',
+    (name, nodeEnv) => {
+      const without: Record<string, unknown> = { ...valid, NODE_ENV: nodeEnv };
+      delete without[name as string];
+
+      expect(() => validateEnv(without)).toThrow(new RegExp(name as string));
+    },
+  );
+
+  it('accepts the valid S3 settings and applies the defaults', () => {
+    const env = validateEnv(valid);
+
+    expect(env.S3_ENDPOINT).toBe('http://s3:8333');
+    expect(env.S3_BUCKET).toBe('lamoda-ai-fitting');
+    expect(env.S3_PUBLIC_ENDPOINT).toBe('');
+    expect(env.S3_REGION).toBe('ru-1');
+    expect(env.S3_SIGNED_URL_TTL_SECONDS).toBe(900);
+  });
+
+  it.each(['http://s3:8333', 'https://s3.example.ru'])('accepts S3_ENDPOINT %s', (url) => {
+    expect(validateEnv({ ...valid, S3_ENDPOINT: url }).S3_ENDPOINT).toBe(url);
+  });
+
+  it.each(['ftp://s3.example.ru', 'not a url', ''])('refuses S3_ENDPOINT %j', (url) => {
+    expect(() => validateEnv({ ...valid, S3_ENDPOINT: url })).toThrow(/S3_ENDPOINT/);
+  });
+
+  it.each(['', 'http://localhost:8333', 'https://s3.example.ru'])(
+    'accepts S3_PUBLIC_ENDPOINT %j',
+    (url) => {
+      expect(validateEnv({ ...valid, S3_PUBLIC_ENDPOINT: url }).S3_PUBLIC_ENDPOINT).toBe(url);
+    },
+  );
+
+  it.each(['ftp://s3.example.ru', 'not a url'])('refuses S3_PUBLIC_ENDPOINT %j', (url) => {
+    expect(() => validateEnv({ ...valid, S3_PUBLIC_ENDPOINT: url })).toThrow(/S3_PUBLIC_ENDPOINT/);
+  });
+
+  it('accepts a set S3_REGION', () => {
+    expect(validateEnv({ ...valid, S3_REGION: 'us-east-1' }).S3_REGION).toBe('us-east-1');
+  });
+
+  it('refuses an empty S3_REGION', () => {
+    expect(() => validateEnv({ ...valid, S3_REGION: '' })).toThrow(/S3_REGION/);
+  });
+
+  it.each(['abc', 'my.bucket-1', 'a'.repeat(63), '1bucket1'])('accepts S3_BUCKET %j', (name) => {
+    expect(validateEnv({ ...valid, S3_BUCKET: name }).S3_BUCKET).toBe(name);
+  });
+
+  it.each([
+    ['uppercase', 'MyBucket'],
+    ['an underscore', 'my_bucket'],
+    ['2 characters', 'ab'],
+    ['64 characters', 'a'.repeat(64)],
+    ['a leading hyphen', '-bucket'],
+    ['a trailing hyphen', 'bucket-'],
+    ['empty', ''],
+  ])('refuses S3_BUCKET with %s', (_name, bucket) => {
+    expect(() => validateEnv({ ...valid, S3_BUCKET: bucket })).toThrow(/S3_BUCKET/);
+  });
+
+  describe.each(['S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY'] as const)('%s', (name) => {
+    it.each(['k', 'AKIA+/=0123456789abcdef', 'a-b_c.d'])('accepts %j', (value) => {
+      expect(validateEnv({ ...valid, [name]: value })[name]).toBe(value);
+    });
+
+    it.each([
+      ['empty', ''],
+      ['a space inside', 'abc def'],
+      ['a leading space', ' abcdef'],
+      ['a trailing space', 'abcdef '],
+      ['a tab', 'abcdef\t'],
+    ])('refuses %s, naming the variable but not the value', (_case, value) => {
+      const message = thrownMessage(() => validateEnv({ ...valid, [name]: value }));
+
+      expect(message).toMatch(new RegExp(name));
+      if (value !== '') expect(message).not.toContain(value);
+    });
+  });
+
+  it.each([
+    ['60', 60],
+    ['3600', 3600],
+    ['900', 900],
+  ])('accepts S3_SIGNED_URL_TTL_SECONDS %s', (value, expected) => {
+    expect(
+      validateEnv({ ...valid, S3_SIGNED_URL_TTL_SECONDS: value }).S3_SIGNED_URL_TTL_SECONDS,
+    ).toBe(expected);
+  });
+
+  it.each(['59', '3601', '1.5', 'abc'])('refuses S3_SIGNED_URL_TTL_SECONDS %j', (value) => {
+    expect(() => validateEnv({ ...valid, S3_SIGNED_URL_TTL_SECONDS: value })).toThrow(
+      /S3_SIGNED_URL_TTL_SECONDS/,
     );
   });
 });

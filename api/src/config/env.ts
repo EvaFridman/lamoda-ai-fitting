@@ -77,6 +77,22 @@ export const envSchema = z
     // Where image keys are served: http://localhost:3001/media/ locally (spec 0004 E8).
     MEDIA_BASE_URL: z.url({ protocol: /^https?$/ }),
 
+    // S3 storage (spec 0011). Required in every environment, the worker's too: it deletes files
+    // (M19). The api's and the worker's address of the storage: http://s3:8333 locally.
+    S3_ENDPOINT: z.url({ protocol: /^https?$/ }),
+    // The host signed links carry, i.e. the browser's address of the storage (the signature covers
+    // it): http://localhost:8333 locally. Empty: S3_ENDPOINT.
+    S3_PUBLIC_ENDPOINT: z.union([z.literal(''), z.url({ protocol: /^https?$/ })]).default(''),
+    S3_REGION: z.string().min(1).default('ru-1'),
+    // The app's bucket (M1).
+    S3_BUCKET: z.string().regex(/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/, 'must be an S3 bucket name'),
+    // The key of a user that reads and writes the app's bucket only (M10, M14). Any non-space
+    // characters: the provider's key format is not ours (M19).
+    S3_ACCESS_KEY_ID: z.string().regex(/^\S+$/, 'must be set, with no spaces'),
+    S3_SECRET_ACCESS_KEY: z.string().regex(/^\S+$/, 'must be set, with no spaces'),
+    // How long a signed link to a private file works (M9).
+    S3_SIGNED_URL_TTL_SECONDS: z.coerce.number().int().min(60).max(3600).default(900),
+
     // Sentry (spec 0004 E23): the api's own project, empty turns it off. Read by instrument.ts before
     // Nest starts; validated here so a malformed DSN stops the process with its name.
     SENTRY_DSN: z.union([z.literal(''), z.url({ protocol: /^https?$/ })]).default(''),
