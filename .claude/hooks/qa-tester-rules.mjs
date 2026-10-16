@@ -8,14 +8,25 @@
 
 import { Blocked, isSecret, words } from './guard-lib.mjs';
 
-// api, web and Temporal UI of the default stack and of a second copy (README, "Вторая копия
-// стека"). The agent's --allowed-origins lists the same ports (checked by guards.test.mjs).
-export const PORTS = ['3000', '3001', '8233', '4000', '4001', '8234'];
+// api, web, Temporal UI and the S3 emulator of the default stack and of a second copy (README,
+// "Вторая копия стека"). The agent's --allowed-origins lists the same ports (checked by
+// guards.test.mjs).
+export const PORTS = ['3000', '3001', '8233', '8333', '4000', '4001', '8234', '8334'];
 const LOCAL_URL = new RegExp(
   `^https?://(localhost|127\\.0\\.0\\.1):(${PORTS.join('|')})([/?#].*)?$`,
 );
 const ALLOWED = `only http://localhost on ports ${PORTS.join(', ')}`;
-const SERVICES = new Set(['postgres', 'redis', 'temporal', 'temporal-worker', 'api', 'web']);
+// s3-init is one-shot: its logs show the bucket's setup, and starting it again changes nothing.
+const SERVICES = new Set([
+  'postgres',
+  'redis',
+  'temporal',
+  'temporal-worker',
+  's3',
+  's3-init',
+  'api',
+  'web',
+]);
 
 // curl flags without a value; short ones may be bundled (-si).
 const CURL_BOOL_LONG = new Set([

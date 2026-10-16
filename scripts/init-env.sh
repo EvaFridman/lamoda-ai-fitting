@@ -1,6 +1,7 @@
 #!/bin/sh
-# Creates .env for docker-compose.yml from .env.example: a random database password, admin token
-# and proxy secret, local defaults for the rest, optional values left empty. Never overwrites an existing .env.
+# Creates .env for docker-compose.yml from .env.example: a random database password, admin token,
+# proxy secret and S3 emulator keys, local defaults for the rest, optional values left empty. Never
+# overwrites an existing .env.
 set -eu
 cd "$(dirname "$0")/.."
 
@@ -14,9 +15,11 @@ while IFS= read -r line || [ -n "$line" ]; do
     POSTGRES_USER= | POSTGRES_DB=) echo "${line}ai_fitting" ;;
     POSTGRES_PASSWORD=) echo "${line}$(openssl rand -hex 16)" ;;
     ADMIN_API_TOKEN= | PROXY_SECRET=) echo "${line}$(openssl rand -hex 32)" ;;
+    S3_ACCESS_KEY_ID=) echo "${line}$(openssl rand -hex 10)" ;;
+    S3_SECRET_ACCESS_KEY=) echo "${line}$(openssl rand -hex 20)" ;;
     *) echo "$line" ;;
   esac
 done < .env.example > .env
 
 chmod 600 .env
-echo "Created .env (local development values; random database password)."
+echo "Created .env (local development values; random passwords and keys)."

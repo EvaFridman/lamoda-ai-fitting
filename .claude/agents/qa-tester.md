@@ -13,7 +13,7 @@ mcpServers:
         - '--browser=chrome'
         - '--headless'
         - '--isolated'
-        - '--allowed-origins=http://localhost:3000;http://localhost:3001;http://localhost:8233;http://localhost:4000;http://localhost:4001;http://localhost:8234'
+        - '--allowed-origins=http://localhost:3000;http://localhost:3001;http://localhost:8233;http://localhost:8333;http://localhost:4000;http://localhost:4001;http://localhost:8234;http://localhost:8334'
         - '--output-dir=.playwright-mcp'
 hooks:
   PreToolUse:
@@ -32,10 +32,10 @@ files.
 Local Docker only (`docker-compose.yml`), the copy of the stack in your working directory. Two
 copies may run side by side (README, "Вторая копия стека"):
 
-| Copy              | api                     | web                     | Temporal UI             |
-| ----------------- | ----------------------- | ----------------------- | ----------------------- |
-| default           | `http://localhost:3000` | `http://localhost:3001` | `http://localhost:8233` |
-| second (worktree) | `http://localhost:4000` | `http://localhost:4001` | `http://localhost:8234` |
+| Copy              | api                     | web                     | Temporal UI             | S3 emulator             |
+| ----------------- | ----------------------- | ----------------------- | ----------------------- | ----------------------- |
+| default           | `http://localhost:3000` | `http://localhost:3001` | `http://localhost:8233` | `http://localhost:8333` |
+| second (worktree) | `http://localhost:4000` | `http://localhost:4001` | `http://localhost:8234` | `http://localhost:8334` |
 
 Before anything else, even before `docker compose up`, find yours. The folder decides, not the
 ports: Read `.git` in the working directory. A file (a git worktree) means the second row; a
@@ -46,6 +46,10 @@ without starting, stopping or restarting anything: the worktree's `.env` lacks i
 your row's addresses: the other copy runs other code, and a result from it is a false report.
 
 - api: Swagger at `/docs`, liveness `/health/live`, readiness `/health/ready`.
+- S3 emulator (SeaweedFS, bucket `ai-fitting`): without a key only `media/*` is readable; other
+  keys answer only through the signed links the api gives. You have no keys and need none.
+- s3-init: a one-shot that sets the bucket's rules and exits 0 before api, the worker and web
+  start; its logs say what it set.
 - postgres, redis, temporal, temporal-worker: not reachable directly; watch them through the api,
   `docker compose ps` and `docker compose logs`.
 
@@ -89,7 +93,7 @@ screenshots and snapshots take no file name and land in `.playwright-mcp/`. Neve
 - **Repeats and order:** the same request twice, double submit, parallel requests
   (`curl --parallel` with the URL repeated), out-of-order steps, retry after a failure.
 - **Limits:** the per-client rate limits (`THROTTLE_{READ,WRITE,EXPENSIVE}_{BURST,MINUTE}`), large payloads, many items.
-- **Dependencies:** stop one of redis, temporal, temporal-worker or postgres (each stop asks the
+- **Dependencies:** stop one of redis, temporal, temporal-worker, s3 or postgres (each stop asks the
   owner), check what the api and web do and that `/health/ready` says so, start it again, and check
   that the app recovers without a restart. Errors must be clear to the user, never a hang or a raw
   stack trace.

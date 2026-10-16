@@ -28,6 +28,10 @@ export default defineConfig({
       ADMIN_API_TOKEN: 'test-admin-token-0123456789abcdef',
       PROXY_SECRET: 'testproxysecret0123456789abcdef0',
       MEDIA_BASE_URL: 'http://localhost:3001/media/',
+      S3_ENDPOINT: 'http://127.0.0.1:1',
+      S3_BUCKET: 'test-bucket',
+      S3_ACCESS_KEY_ID: 'test-access-key',
+      S3_SECRET_ACCESS_KEY: 'test-secret-key',
     },
     projects: [
       {

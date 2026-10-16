@@ -29,8 +29,8 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## PR 2 · `feat/0011-storage` · storage, users' files and their deletion
 
-- [ ] **T4. Emulator and configuration.** The S3 variables in `api/src/config/env.ts` with their
-      tests, `.env.example`, `scripts/init-env.sh` (random local keys), `api/vitest.config.ts`
+- [x] **T4. Emulator and configuration.** `@aws-sdk/client-s3` (M20); the S3 variables in
+      `api/src/config/env.ts` with their tests (M19), `.env.example`, `scripts/init-env.sh` (random local keys), `api/vitest.config.ts`
       (closed port); the `s3` and `s3-init` services in `docker-compose.yml` with
       `api/src/storage/dev-setup.ts` (the `media/*` read policy and the `tmp/` rule); README's
       quick start and second copy (`S3_HOST_PORT`); `qa-tester` may reach 8333/8334 (its rules,
@@ -46,8 +46,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Check: `scripts/ci-deploy-check.sh` passes locally; `node --test` of the bundle check covers
       the new names; CI green on the branch.
       Commit: `ci(deploy): pass the storage settings to the api and the worker`
-- [ ] **T6. Storage module.** `@aws-sdk/client-s3` and `@aws-sdk/s3-request-presigner` (a week-old
-      release, one version), `testcontainers`; `api/src/storage/` (clients, `StorageService`,
+- [ ] **T6. Storage module.** `@aws-sdk/s3-request-presigner` (on `@aws-sdk/client-s3`'s version), `testcontainers`; `api/src/storage/` (clients, `StorageService`,
       `keys.ts`); `api/test/support/storage.ts` as a second `globalSetup` of `database`;
       `createTestApp()` wired to it; `test-writer` may use the throwaway SeaweedFS and Temporal
       (M17: its agent file, `.claude/README.md`) (plan §2, §8).
