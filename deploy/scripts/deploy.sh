@@ -174,13 +174,43 @@ is_healthy() {
   [ "$(docker inspect --format '{{.State.Health.Status}}' "ai-fitting-$1-$2-1" 2>/dev/null)" = healthy ]
 }
 
+# Removes the app images no container uses: every deploy adds an api and a web image (~1.7 GB), and
+# on 2026-10-16 they filled the server's disk, so the next pull failed. Kept: every image a
+# container (running or stopped) was created from: the serving copy, the rollback copy and the
+# worker; a rollback to an older version pulls its images again. Only this deploy's names count
+# (the registry prefix compared as text), never the tag `dev` of the development stack. A tagged
+# image is removed by its name (its other tags stay), an untagged one by its id. Removes nothing
+# when the containers' images cannot be listed. Exit 1 when anything was not removed.
+prune_app_images() {
+  local used images id ref prefix="${IMAGE_REGISTRY,,}ai-fitting-" removed=0 failed=0
+  used="$(docker ps -aq | xargs -r docker inspect --format '{{.Image}}')" || return 1
+  [ -n "$used" ] || return 1
+  images="$(docker image ls --no-trunc --format '{{.ID}} {{.Repository}}:{{.Tag}}')" || return 1
+  # Tagged names first: removing them may already remove an id that also shows as untagged.
+  while read -r id ref; do
+    [[ "$ref" == "$prefix"api:* || "$ref" == "$prefix"web:* ]] || continue
+    [[ "$ref" == *:dev ]] && continue
+    grep -qxF "$id" <<<"$used" && continue
+    if [[ "$ref" == *:\<none\> ]]; then
+      docker image inspect "$id" >/dev/null 2>&1 || continue
+      ref="$id"
+    fi
+    if docker image rm "$ref" >/dev/null; then removed=$((removed + 1)); else failed=1; fi
+  done < <(grep -v ':<none>$' <<<"$images"; grep ':<none>$' <<<"$images")
+  log "removed $removed app images no container uses"
+  [ "$failed" -eq 0 ]
+}
+
 active="$(sed -n 's/^COLOR=//p' "$state_file" 2>/dev/null || true)"
 active_tag="$(sed -n 's/^TAG=//p' "$state_file" 2>/dev/null || true)"
 if [ "$active" = blue ]; then target=green; else target=blue; fi
 log "active: ${active:-none} (${active_tag:-none}); deploying $tag to $target"
 
-# 1. The images must exist before anything running is touched.
+# 1. The images must exist before anything running is touched. Pulled images first make room: a
+#    full disk fails the pull, and a failed deploy never reaches step 6. Only with a registry: local
+#    images (CI, a laptop) are built ahead, and the next version's are not in use yet.
 if [ -n "$IMAGE_REGISTRY" ]; then
+  prune_app_images || log "WARNING: old app images were not all removed before the pull"
   app "$target" "$tag" pull --quiet || fail "cannot pull images for $tag"
 else
   for image in api web; do
@@ -315,4 +345,8 @@ worker up -d --remove-orphans >&2 || log "WARNING: the worker did not start; the
 
 printf 'COLOR=%s\nTAG=%s\nPREVIOUS_COLOR=%s\nPREVIOUS_TAG=%s\n' \
   "$target" "$tag" "$active" "$active_tag" > "$state_file"
+
+# 6. Old app images go after every successful deploy too (see prune_app_images).
+prune_app_images || log "WARNING: old app images were not all removed; the site is fine, check the disk"
+
 log "done: $tag serves the site from $target; ${active:-nothing} stays as the rollback copy"

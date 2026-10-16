@@ -29,6 +29,16 @@ Status: accepted (2026-10-16).
 
 ## PR 2 · `feat/0013-auth-api` · sign-in and access in the api
 
+- [x] **T3a. Old app images (not of this spec).** On 2026-10-16 the deploy of PR 1 failed: about
+      45 old api and web images filled the server's disk. They were removed by hand, and
+      `deploy.sh` now removes the app images no container uses, before the pull (with a registry)
+      and after the switch; `ci-deploy-check.sh` checks it. Carried in this pull request by the
+      owner's choice instead of a pull request of its own.
+      Check: the function on probe images (unused removed; used, `:dev` and other images kept;
+      nothing removed when the containers cannot be listed); CI's deploy check; on the server the
+      first deploy logs `removed N app images`.
+      Commit: `fix(deploy): remove app images no container uses`
+
 - [ ] **T4. Configuration and the fake provider.** `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_ID`,
       `GOOGLE_CLIENT_SECRET`, `AUTH_FAKE_OIDC_URL`, `AUTH_FAKE_OIDC_PUBLIC_URL` in `env.ts` with
       `assertServerEnv`'s production rules and their tests, `.env.example`, `scripts/init-env.sh`,

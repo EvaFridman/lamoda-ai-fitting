@@ -24,6 +24,9 @@ Details and commands: `deploy/README.md`.
   run by hand refuses a hash whose commit has no successful `CD / Deploy to production` check run.
 - Blue-green: the new copy of api and web starts next to the running one, nginx switches only when
   it is healthy; the previous copy stays as the rollback. The Temporal worker is replaced in place.
+  Before pulling (with a registry) and after the switch, `deploy.sh` removes the app images no
+  container uses (they once filled the server's disk); a rollback to an older version pulls its
+  images again.
 - Infrastructure (`deploy/compose/infra.yml`) is not blue-green: a deploy that changes a service's
   definition there recreates it in place, postgres, redis and temporal before the migrations, nginx
   after the seed and the bucket check (spec 0011 M38); for any of them that is an outage (seconds for a config change, longer for an image upgrade). Such a change

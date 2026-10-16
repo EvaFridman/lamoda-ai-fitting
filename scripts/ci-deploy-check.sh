@@ -19,7 +19,8 @@
 #      b. make the next secret PROXY_SECRET and deploy an image whose api is never ready: nginx is
 #         recreated with the new secret, the deploy fails, and blue still trusts nginx and web;
 #      c. a third secret, unknown to blue, is refused by deploy.sh before nginx is recreated;
-#      d. deploy <tag>-next (green) with the new secret only;
+#      d. deploy <tag>-next (green) with the new secret only; an app image no container uses is
+#         removed, the images of blue and green stay;
 #   4. with the serving api stopped, /api/ answers 503 in the api's format (F33);
 #   5. no request that reached the storage carried X-Proxy-Secret (spec 0011 plan §7).
 # nginx runs on its temporary self-signed certificate, SITE_DOMAIN is localhost, ports 80 and 443
@@ -469,7 +470,7 @@ teardown() {
   # It holds the run's env files with their one-off keys (spec 0011 M35).
   rm -rf "$work"
   docker image rm "ai-fitting-api:$second" "ai-fitting-web:$second" "ai-fitting-api:$broken" \
-    "ai-fitting-web:$broken" > /dev/null 2>&1 || true
+    "ai-fitting-web:$broken" "ai-fitting-api:$tag-stale" > /dev/null 2>&1 || true
 }
 if [ -z "${GITHUB_ACTIONS:-}" ]; then
   # Each docker call on its own line, so a docker error stops the script instead of passing the check.
@@ -738,12 +739,26 @@ scripts/smoke-test.sh https://localhost "$tag"
 check_request_id /api/hello blue
 endgroup
 
-group "rotation, deploy 2 again: $second (green) with the new secret only"
+group "rotation, deploy 2 again: $second (green) with the new secret only; unused images go"
 set_proxy_secrets "$new_secret" ""
+# An app image no container uses (its own id, unlike the tags of <tag>): the deploy removes it and
+# keeps the images of blue, green and the worker.
+docker build -q -t "ai-fitting-api:$tag-stale" - > /dev/null <<EOF
+FROM ai-fitting-api:$tag
+LABEL stale=1
+EOF
 ENV_FILE="$env_file" deploy/scripts/deploy.sh "$second"
 scripts/smoke-test.sh https://localhost "$second"
 check_request_id /api/hello green
 check_request_id / green
+if docker image inspect "ai-fitting-api:$tag-stale" > /dev/null 2>&1; then
+  echo "ci-deploy-check: the deploy kept an app image no container uses" >&2
+  exit 1
+fi
+for image in "ai-fitting-api:$tag" "ai-fitting-web:$tag" "ai-fitting-api:$second" "ai-fitting-web:$second"; do
+  docker image inspect "$image" > /dev/null 2>&1 \
+    || { echo "ci-deploy-check: the deploy removed $image, which a container uses" >&2; exit 1; }
+done
 endgroup
 
 # Last: it leaves the site without an api.
