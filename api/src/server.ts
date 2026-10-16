@@ -23,6 +23,11 @@ async function bootstrap(): Promise<void> {
   assertServerEnv({
     NODE_ENV: config.get('NODE_ENV', { infer: true }),
     PROXY_SECRET: config.get('PROXY_SECRET', { infer: true }),
+    BETTER_AUTH_SECRET: config.get('BETTER_AUTH_SECRET', { infer: true }),
+    GOOGLE_CLIENT_ID: config.get('GOOGLE_CLIENT_ID', { infer: true }),
+    GOOGLE_CLIENT_SECRET: config.get('GOOGLE_CLIENT_SECRET', { infer: true }),
+    AUTH_FAKE_OIDC_URL: config.get('AUTH_FAKE_OIDC_URL', { infer: true }),
+    AUTH_FAKE_OIDC_PUBLIC_URL: config.get('AUTH_FAKE_OIDC_PUBLIC_URL', { infer: true }),
   });
 
   app.useWebSocketAdapter(

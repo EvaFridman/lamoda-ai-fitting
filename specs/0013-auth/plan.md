@@ -135,12 +135,15 @@ connects with and without a cookie and checks `socket.data` through `fetchSocket
 
 | Variable                    | Local                                | Production      | Note                                                                        |
 | --------------------------- | ------------------------------------ | --------------- | --------------------------------------------------------------------------- |
-| `BETTER_AUTH_SECRET`        | `scripts/init-env.sh` generates it   | GitHub secret   | `secret()`, at least 32 characters; must differ from the proxy secrets      |
+| `BETTER_AUTH_SECRET`        | `scripts/init-env.sh` generates it   | GitHub secret   | At least 32 letters or digits (N21); must differ from the proxy secrets     |
 | `GOOGLE_CLIENT_ID`          | empty                                | GitHub variable |                                                                             |
 | `GOOGLE_CLIENT_SECRET`      | empty                                | GitHub secret   |                                                                             |
 | `AUTH_FAKE_OIDC_URL`        | `http://oidc:4010` (compose service) | must be empty   | Server-side address of the fake provider                                    |
 | `AUTH_FAKE_OIDC_PUBLIC_URL` | `http://localhost:4010`              | must be empty   | The browser's address of its login page                                     |
 | `ADMIN_API_TOKEN`           | removed                              | removed         | Also from `init-env.sh`, `cd.yml`, `ci-deploy-check.sh`, `deploy/README.md` |
+
+Locally 4010 is `OIDC_HOST_PORT`'s default (N20). `deploy/compose/app.yml` and the CI deploy check
+get the three production variables in T4, with the rules that require them (N22).
 
 `assertServerEnv` (production only) refuses a set fake provider and an empty secret, client id or
 client secret (AC14). The worker does not need these. `check:web-bundle` also fails on the names
@@ -184,7 +187,8 @@ client secret (AC14). The worker does not need these. `check:web-bundle` also fa
 - `api/scripts/fake-oidc.mjs`: `oauth2-mock-server` on port 4010 plus a small login form at
   `/authorize`: email and given name fields, then the standard code flow; the token and userinfo
   claims carry what was typed, with `email_verified: true`. Run by a compose service `oidc` (the
-  api image, `profiles` none, only in `docker-compose.yml`); `qa-tester` can sign in as any user.
+  api image, `profiles` none, only in `docker-compose.yml`); `qa-tester` can sign in as any user
+  (its ports 4010 and 4011, N19).
 - The api's `genericOAuth` uses explicit endpoints: authorization at the public address, token and
   userinfo at the server address (one discovery URL cannot serve both).
 - e2e: the fake server starts in-process; one test walks the whole redirect flow, the rest sign in

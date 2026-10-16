@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { assertServerEnv, validateEnv } from './env.js';
+import { assertServerEnv, type ServerEnv, validateEnv } from './env.js';
 
 const valid = {
   WEB_ORIGIN: 'http://localhost:3001',
@@ -361,22 +361,31 @@ describe('validateEnv S3', () => {
 });
 
 describe('assertServerEnv', () => {
-  it('refuses production with an empty PROXY_SECRET, naming the variable', () => {
-    expect(() => assertServerEnv({ NODE_ENV: 'production', PROXY_SECRET: '' })).toThrow(
-      'Invalid environment: PROXY_SECRET: must be set in production',
-    );
+  // A production server environment that passes; each case breaks one thing.
+  const production: ServerEnv = {
+    NODE_ENV: 'production',
+    PROXY_SECRET: 'p'.repeat(32),
+    BETTER_AUTH_SECRET: 'b'.repeat(32),
+    GOOGLE_CLIENT_ID: 'client-id.apps.googleusercontent.com',
+    GOOGLE_CLIENT_SECRET: 'google-client-secret',
+    AUTH_FAKE_OIDC_URL: '',
+    AUTH_FAKE_OIDC_PUBLIC_URL: '',
+  };
+
+  it('accepts production with every secret set and no fake provider', () => {
+    expect(() => assertServerEnv(production)).not.toThrow();
   });
 
-  it('accepts production with a PROXY_SECRET', () => {
-    expect(() =>
-      assertServerEnv({ NODE_ENV: 'production', PROXY_SECRET: 'p'.repeat(32) }),
-    ).not.toThrow();
+  it('refuses production with an empty PROXY_SECRET, naming the variable', () => {
+    expect(() => assertServerEnv({ ...production, PROXY_SECRET: '' })).toThrow(
+      'Invalid environment: PROXY_SECRET: must be set in production',
+    );
   });
 
   it('still refuses production with an empty PROXY_SECRET when PROXY_SECRET_NEXT is set', () => {
     const env = validateEnv({
       ...valid,
-      NODE_ENV: 'production',
+      ...production,
       PROXY_SECRET: '',
       PROXY_SECRET_NEXT: 'n'.repeat(32),
     });
@@ -386,7 +395,154 @@ describe('assertServerEnv', () => {
     );
   });
 
-  it.each(['development', 'test'] as const)('accepts %s with an empty PROXY_SECRET', (nodeEnv) => {
-    expect(() => assertServerEnv({ NODE_ENV: nodeEnv, PROXY_SECRET: '' })).not.toThrow();
+  it.each(['BETTER_AUTH_SECRET', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'] as const)(
+    'refuses production with an empty %s, naming the variable (AC14)',
+    (name) => {
+      expect(() => assertServerEnv({ ...production, [name]: '' })).toThrow(
+        `Invalid environment: ${name}: must be set in production`,
+      );
+    },
+  );
+
+  it.each([
+    ['AUTH_FAKE_OIDC_URL', 'http://oidc:4010'],
+    ['AUTH_FAKE_OIDC_PUBLIC_URL', 'http://localhost:4010'],
+  ] as const)('refuses production with %s set, without its value (AC14)', (name, url) => {
+    const message = thrownMessage(() => assertServerEnv({ ...production, [name]: url }));
+
+    expect(message).toBe(`Invalid environment: ${name}: must be empty in production`);
+    expect(message).not.toContain(url);
   });
+
+  it('names every problem at once, never a value', () => {
+    const message = thrownMessage(() =>
+      assertServerEnv({
+        NODE_ENV: 'production',
+        PROXY_SECRET: '',
+        BETTER_AUTH_SECRET: '',
+        GOOGLE_CLIENT_ID: '',
+        GOOGLE_CLIENT_SECRET: '',
+        AUTH_FAKE_OIDC_URL: 'http://oidc:4010',
+        AUTH_FAKE_OIDC_PUBLIC_URL: 'http://localhost:4010',
+      }),
+    );
+
+    expect(message).toBe(
+      'Invalid environment: PROXY_SECRET: must be set in production; ' +
+        'BETTER_AUTH_SECRET: must be set in production; ' +
+        'GOOGLE_CLIENT_ID: must be set in production; ' +
+        'GOOGLE_CLIENT_SECRET: must be set in production; ' +
+        'AUTH_FAKE_OIDC_URL: must be empty in production; ' +
+        'AUTH_FAKE_OIDC_PUBLIC_URL: must be empty in production',
+    );
+  });
+
+  it.each(['development', 'test'] as const)(
+    'accepts %s with empty secrets, no Google client and the fake provider',
+    (nodeEnv) => {
+      expect(() =>
+        assertServerEnv({
+          NODE_ENV: nodeEnv,
+          PROXY_SECRET: '',
+          BETTER_AUTH_SECRET: '',
+          GOOGLE_CLIENT_ID: '',
+          GOOGLE_CLIENT_SECRET: '',
+          AUTH_FAKE_OIDC_URL: 'http://oidc:4010',
+          AUTH_FAKE_OIDC_PUBLIC_URL: 'http://localhost:4010',
+        }),
+      ).not.toThrow();
+    },
+  );
+});
+
+describe('validateEnv auth', () => {
+  it('defaults every auth variable to an empty string', () => {
+    const env = validateEnv(valid);
+
+    expect(env.BETTER_AUTH_SECRET).toBe('');
+    expect(env.GOOGLE_CLIENT_ID).toBe('');
+    expect(env.GOOGLE_CLIENT_SECRET).toBe('');
+    expect(env.AUTH_FAKE_OIDC_URL).toBe('');
+    expect(env.AUTH_FAKE_OIDC_PUBLIC_URL).toBe('');
+  });
+
+  it.each(['', 'a'.repeat(32), 'ab12'.repeat(16)])('accepts BETTER_AUTH_SECRET %j', (secret) => {
+    expect(validateEnv({ ...valid, BETTER_AUTH_SECRET: secret }).BETTER_AUTH_SECRET).toBe(secret);
+  });
+
+  // Letters and digits only: the server's .env is sourced by the deploy (spec 0013 N21).
+  it.each([
+    ['31 characters', 'a'.repeat(31)],
+    ['a space inside', `${'a'.repeat(20)} ${'a'.repeat(19)}`],
+    ['a trailing space', `${'a'.repeat(39)} `],
+    ['a dollar sign', `${'a'.repeat(39)}$`],
+    ['a double quote', `${'a'.repeat(39)}"`],
+    ['a semicolon', `${'a'.repeat(39)};`],
+    ['a hyphen', `${'a'.repeat(20)}-${'a'.repeat(19)}`],
+  ])('refuses BETTER_AUTH_SECRET with %s, naming the variable but not the value', (_n, secret) => {
+    const message = thrownMessage(() => validateEnv({ ...valid, BETTER_AUTH_SECRET: secret }));
+
+    expect(message).toMatch(/BETTER_AUTH_SECRET/);
+    expect(message).not.toContain(secret);
+  });
+
+  it.each(['PROXY_SECRET', 'PROXY_SECRET_NEXT'])(
+    'refuses BETTER_AUTH_SECRET equal to %s, naming the variables but not the value',
+    (name) => {
+      const shared = 'sharedvalue0123456789abcdefxyz01';
+
+      const message = thrownMessage(() =>
+        validateEnv({ ...valid, [name]: shared, BETTER_AUTH_SECRET: shared }),
+      );
+
+      expect(message).toMatch(
+        /BETTER_AUTH_SECRET: must differ from PROXY_SECRET and PROXY_SECRET_NEXT/,
+      );
+      expect(message).not.toContain(shared);
+    },
+  );
+
+  it('accepts BETTER_AUTH_SECRET that differs from both proxy secrets', () => {
+    const env = validateEnv({
+      ...valid,
+      PROXY_SECRET: 'p'.repeat(32),
+      PROXY_SECRET_NEXT: 'n'.repeat(32),
+      BETTER_AUTH_SECRET: 'b'.repeat(32),
+    });
+
+    expect(env.BETTER_AUTH_SECRET).toBe('b'.repeat(32));
+  });
+
+  it('accepts both fake provider addresses', () => {
+    const env = validateEnv({
+      ...valid,
+      AUTH_FAKE_OIDC_URL: 'http://oidc:4010',
+      AUTH_FAKE_OIDC_PUBLIC_URL: 'http://localhost:4010',
+    });
+
+    expect(env.AUTH_FAKE_OIDC_URL).toBe('http://oidc:4010');
+    expect(env.AUTH_FAKE_OIDC_PUBLIC_URL).toBe('http://localhost:4010');
+  });
+
+  it.each([
+    ['only the server address', 'http://oidc:4010', ''],
+    ['only the public address', '', 'http://localhost:4010'],
+  ])('refuses %s of the fake provider', (_name, url, publicUrl) => {
+    expect(() =>
+      validateEnv({ ...valid, AUTH_FAKE_OIDC_URL: url, AUTH_FAKE_OIDC_PUBLIC_URL: publicUrl }),
+    ).toThrow(/AUTH_FAKE_OIDC_PUBLIC_URL: must be set together with AUTH_FAKE_OIDC_URL/);
+  });
+
+  it.each(['ftp://oidc:4010', 'oidc:4010', 'not a url'])(
+    'refuses AUTH_FAKE_OIDC_URL %j, naming the variable',
+    (url) => {
+      expect(() =>
+        validateEnv({
+          ...valid,
+          AUTH_FAKE_OIDC_URL: url,
+          AUTH_FAKE_OIDC_PUBLIC_URL: 'http://localhost:4010',
+        }),
+      ).toThrow(/AUTH_FAKE_OIDC_URL/);
+    },
+  );
 });

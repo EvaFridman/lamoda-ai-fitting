@@ -96,3 +96,19 @@ code comments. All decisions below: owner, 2026-10-16.
 - **N18. The session cache lives 5 minutes.** A signed copy of the session in a cookie spares the
   database read for 5 minutes. So after "Выйти со всех устройств" the other browsers stay signed in
   for up to 5 minutes; this browser is signed out at once.
+
+## Added at T4
+
+- **N19. `qa-tester` reaches the fake Google.** Its guard and `--allowed-origins` also allow 4010
+  and 4011 (the login page of each copy of the stack), and it may stop and start the `oidc`
+  service, so it can sign in as any user and test the provider being down. Done in T4.
+- **N20. The fake Google's port is `OIDC_HOST_PORT`.** Like the other host ports: default 4010, 4011
+  in a second copy (README, "Вторая копия стека"). The container listens on the same port, so the
+  issuer is one address; compose builds both `AUTH_FAKE_OIDC_*` addresses from it.
+- **N21. `BETTER_AUTH_SECRET` is letters and digits only.** At least 32, as the proxy secret: the
+  deploy sources the server's `.env`, where `$`, `"` or `;` would break or change the value.
+- **N22. The production variables reach the deploy in T4.** The production rules of
+  `assertServerEnv` start in T4, so the same task passes `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_ID`
+  and `GOOGLE_CLIENT_SECRET` to the api in `deploy/compose/app.yml` and gives
+  `ci-deploy-check.sh` test values; otherwise CI's deploy check fails on every push until T9.
+  `cd.yml`, `deploy/README.md` and removing `ADMIN_API_TOKEN` stay in T9.

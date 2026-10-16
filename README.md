@@ -118,6 +118,7 @@ POSTGRES_HOST_PORT=5434
 REDIS_HOST_PORT=6381
 TEMPORAL_UI_HOST_PORT=8234
 S3_HOST_PORT=8334
+OIDC_HOST_PORT=4011
 ```
 
 И только после этого запустить стек:
@@ -130,8 +131,8 @@ docker compose run --rm api npx prisma migrate deploy
 У копии свои тома, значит и своя пустая база. Останавливается копия командой
 `docker compose down` из её папки.
 
-Агент `qa-tester` ходит только на порты api, web и Temporal UI этих двух копий (3000, 3001, 8233 и
-4000, 4001, 8234) и выбирает свои по `docker compose ps` в папке, из которой запущен. Другие
+Агент `qa-tester` ходит только на порты api, web, Temporal UI и поддельного Google этих двух копий
+(3000, 3001, 8233, 4010 и 4000, 4001, 8234, 4011) и выбирает свои по `docker compose ps` в папке, из которой запущен. Другие
 порты для второй копии он не пропустит.
 
 ## Команды

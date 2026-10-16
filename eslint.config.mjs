@@ -62,9 +62,9 @@ export default tseslint.config(
     languageOptions: { globals: globals.node },
   },
 
-  // api: NestJS on Node.
+  // api: NestJS on Node, and its scripts (the fake OpenID provider).
   {
-    files: ['api/**/*.ts'],
+    files: ['api/**/*.ts', 'api/scripts/**/*.mjs'],
     languageOptions: { globals: globals.node },
   },
 

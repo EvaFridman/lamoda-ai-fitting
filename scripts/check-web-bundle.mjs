@@ -1,9 +1,10 @@
 // Fails when the browser bundle of web holds a server secret's name (spec 0007 AC6, plan §10): any
 // file under `web/.next/static` that contains `x-proxy-secret` (any case), the header `apiFetch`
 // sends, or `PROXY_SECRET`, its env name, or the env names of the storage keys, `S3_ACCESS_KEY_ID`
-// and `S3_SECRET_ACCESS_KEY` (spec 0011 AC14, plan §1). Importing `server-only` from a client
-// component already fails `next build`; this catches the rest, e.g. a client file that copies the
-// header by hand.
+// and `S3_SECRET_ACCESS_KEY` (spec 0011 AC14, plan §1), or the auth secrets' names
+// `BETTER_AUTH_SECRET` and `GOOGLE_CLIENT_SECRET` (spec 0013 plan §8). Importing `server-only` from
+// a client component already fails `next build`; this catches the rest, e.g. a client file that
+// copies the header by hand.
 // Root `verify` runs it after `build`. A missing or empty directory fails too, so the check never
 // passes on a build that did not happen, and so does a symbolic link: Next makes none there, and a
 // link would be skipped by the search.
@@ -14,7 +15,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const DEFAULT_DIR = path.join(import.meta.dirname, '..', 'web', '.next', 'static');
-const PATTERNS = [/x-proxy-secret/i, /PROXY_SECRET/, /S3_ACCESS_KEY_ID/, /S3_SECRET_ACCESS_KEY/];
+const PATTERNS = [
+  /x-proxy-secret/i,
+  /PROXY_SECRET/,
+  /S3_ACCESS_KEY_ID/,
+  /S3_SECRET_ACCESS_KEY/,
+  /BETTER_AUTH_SECRET/,
+  /GOOGLE_CLIENT_SECRET/,
+];
 
 /** Every file under a directory, recursively. Throws on a symbolic link. */
 function listFiles(dir) {
