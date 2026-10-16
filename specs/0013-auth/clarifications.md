@@ -112,3 +112,10 @@ code comments. All decisions below: owner, 2026-10-16.
   and `GOOGLE_CLIENT_SECRET` to the api in `deploy/compose/app.yml` and gives
   `ci-deploy-check.sh` test values; otherwise CI's deploy check fails on every push until T9.
   `cd.yml`, `deploy/README.md` and removing `ADMIN_API_TOKEN` stay in T9.
+- **N23. The fake Google redirects only to this machine; its memory growth is accepted.** It sends
+  the browser only to http(s) addresses on `localhost`, `127.0.0.1` or `[::1]` (sign-in and
+  `/endsession`), so a link from another site cannot carry a code away. Each refused or unfinished
+  sign-in still leaves its nonce and PKCE challenge in `oauth2-mock-server`'s own memory until the
+  process restarts: a page in the developer's browser could grow it. Accepted: the service listens
+  on 127.0.0.1 only and never runs in production; closing it would mean wrapping the library's
+  request handler.
