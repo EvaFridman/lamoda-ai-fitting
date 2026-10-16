@@ -12,7 +12,7 @@ entities, Russian error texts, Sentry reports, the OpenAPI contract check, the b
 page `/dev/catalog`) by `0007-web-data-layer`; Mixpanel analytics behind a cookie consent banner,
 the page `/privacy` and Lamoda's footer by `0008-web-analytics`; attribute values' swatch colour,
 the catalog product card, filters and category list, and their sections on `/ui-kit` by
-`0009-entity-ui` (all closed).
+`0009-entity-ui`; Lamoda's header by `0010-web-header` (all closed).
 
 Keep this file true: update it in the same commit that changes what a section describes.
 
@@ -291,7 +291,8 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   which `strip-attributes.ts` drops element attributes, ids, links and text. Recordings mask all
   text and inputs and block image elements and inline `url(...)` styles, but keep attributes and
   stylesheets as they are: personal data never goes into attributes (`title`, `aria-*`, `alt`,
-  `href`, `data-*`) or stylesheets, a fitting photo renders only through `<img>`/`next/image`
+  `href`, `data-*`) or stylesheets (the kit's `SearchField`, uncontrolled, keeps typed text and
+  its starting query out of attributes, L9), a fitting photo renders only through `<img>`/`next/image`
   without `priority`/`preload`, and a container of personal data gets the class `mp-block` (not
   recorded). `mixpanel-browser` is imported only by `client.ts`,
   through `import()` (`eslint.config.mjs` fails any other import of the package or its files, except type imports), so nothing loads before consent: `startAnalytics()` loads and inits the SDK

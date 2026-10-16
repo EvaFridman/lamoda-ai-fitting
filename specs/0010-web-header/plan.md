@@ -1,6 +1,6 @@
 # 0010 web header: plan
 
-Status: accepted (2026-10-16).
+Status: done (2026-10-16). History, not instructions.
 
 Implements [spec.md](spec.md); decisions in [clarifications.md](clarifications.md) (L1–L11).
 
