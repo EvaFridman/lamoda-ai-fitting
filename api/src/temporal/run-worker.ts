@@ -8,7 +8,8 @@ import { NativeConnection, Worker } from '@temporalio/worker';
 import { Logger } from 'nestjs-pino';
 
 import type { Env } from '../config/env.js';
-import { createActivities } from './activities/hello.activities.js';
+import { StorageService } from '../storage/storage.service.js';
+import { createActivities } from './activities/index.js';
 import { sentryActivityInterceptor } from './sentry-activity.interceptor.js';
 import { WorkerModule } from './worker.module.js';
 
@@ -30,7 +31,7 @@ async function bootstrap(): Promise<void> {
     taskQueue,
     // The compiled workflows next to this file (dist/temporal/workflows in the image).
     workflowsPath: fileURLToPath(new URL('./workflows/index.js', import.meta.url)),
-    activities: createActivities(),
+    activities: createActivities(app.get(StorageService)),
     interceptors: { activity: [sentryActivityInterceptor] },
   });
 

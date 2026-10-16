@@ -231,18 +231,19 @@ table), `.claude/rules/deploy.md` (the media check in `deploy.sh`), `.env.exampl
 
 ## Risks
 
-| Risk                                                                        | Answer                                                                                     |
-| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| Timeweb refuses the SDK's default checksums                                 | `WHEN_REQUIRED` on both settings; the first deploy's seed fails loudly if a put is refused |
-| Timeweb sees the server's requests from an internal address (M15)           | checked in §9 step 2 before the first deploy; otherwise back to the owner                  |
-| An expired signed link answers 500 on Timeweb, not 403                      | AC8 says "refused"; nothing depends on the status                                          |
-| A policy on the whole bucket opens users' files to the server (M1)          | resource `media/*` only; AC7 checks a `keep/` object from the server                       |
-| Temporal unreachable when a row is deleted: its files stay                  | logged and sent to Sentry with the prefixes; the owner reruns the deletion by hand         |
-| nginx sends the proxy secret or visitors' addresses to Timeweb              | the location's own `proxy_set_header`; CI asserts the emulator never sees the secret       |
-| PR 2's deploy recreates nginx                                               | a few seconds of outage, merged at a quiet time                                            |
-| `/media/` breaks between the deploy that drops `web/public/media` and nginx | both land in the same PR and deploy (PR 2); the seed uploads before the new copy starts    |
-| The seaweedfs image is 690 MB                                               | development and tests only, pulled once                                                    |
-| SeaweedFS enforces lifecycle on a schedule                                  | AC11 is checked by reading the rules, not by waiting a day                                 |
+| Risk                                                                                   | Answer                                                                                               |
+| -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Timeweb refuses the SDK's default checksums                                            | `WHEN_REQUIRED` on both settings; the first deploy's seed fails loudly if a put is refused           |
+| Timeweb sees the server's requests from an internal address (M15)                      | checked in §9 step 2 before the first deploy; otherwise back to the owner                            |
+| An expired signed link answers 500 on Timeweb, not 403                                 | AC8 says "refused"; nothing depends on the status                                                    |
+| A policy on the whole bucket opens users' files to the server (M1)                     | resource `media/*` only; AC7 checks a `keep/` object from the server                                 |
+| Temporal unreachable when a row is deleted: its files stay                             | logged and sent to Sentry with the prefixes; the owner reruns the deletion by hand                   |
+| The api killed (OOM, SIGKILL) between a row's delete and its start: files stay, unseen | accepted (T8): a window of milliseconds; a SIGTERM waits for the starts; an outbox is in the backlog |
+| nginx sends the proxy secret or visitors' addresses to Timeweb                         | the location's own `proxy_set_header`; CI asserts the emulator never sees the secret                 |
+| PR 2's deploy recreates nginx                                                          | a few seconds of outage, merged at a quiet time                                                      |
+| `/media/` breaks between the deploy that drops `web/public/media` and nginx            | both land in the same PR and deploy (PR 2); the seed uploads before the new copy starts              |
+| The seaweedfs image is 690 MB                                                          | development and tests only, pulled once                                                              |
+| SeaweedFS enforces lifecycle on a schedule                                             | AC11 is checked by reading the rules, not by waiting a day                                           |
 
 ## How each criterion is verified
 

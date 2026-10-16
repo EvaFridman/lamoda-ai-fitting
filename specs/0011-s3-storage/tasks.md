@@ -61,7 +61,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Check: e2e — a link from an admin `GET` opens the file (AC8); another user's key, a `media/`
       key, a `tmp/` key, any key on user create answer 400 (AC9); web contract tests pass.
       Commit: `feat(api): give users' files signed links and refuse keys of other users`
-- [ ] **T8. Files deleted through Temporal.** `deleteFiles` workflow and `deletePrefix` activity,
+- [x] **T8. Files deleted through Temporal.** `deleteFiles` workflow and `deletePrefix` activity,
       `startFileDeletion` after the delete of a user, a session and a generation; the worker gets
       `StorageService`; bounded starts and `close()` after the starts in progress
       (`TemporalClientModule`); a throwaway Temporal container in the tests (M16) (plan §4).

@@ -141,11 +141,11 @@ npm run verify
 npm run format
 ```
 
-`verify` и `npm test` требуют запущенного Docker: тесты в `api/test/database/` проверяют ограничения
-базы на одноразовой PostgreSQL (Testcontainers), а не на базе разработки. Без Docker тесты падают
-с сообщением его запустить. Контейнер удаляется в конце прогона; если прогон оборвать (Ctrl+C,
-падение процесса), он остаётся — найти его можно по метке `org.testcontainers=true` и удалить в
-Docker Desktop.
+`verify` и `npm test` требуют запущенного Docker: тесты в `api/test/database/` идут в одноразовые
+PostgreSQL, SeaweedFS и Temporal (Testcontainers), а не в сервисы разработки. Без Docker тесты
+падают с сообщением его запустить. Контейнеры удаляются в конце прогона; если прогон оборвать
+(Ctrl+C, падение процесса), они остаются — найти их можно по метке `org.testcontainers=true` и
+удалить в Docker Desktop.
 
 Остальные команды: `api/package.json`, `web/README.md`.
 

@@ -14,12 +14,11 @@ const TIMEOUT_MS = 2000;
 
 @Injectable()
 export class DependencyChecks implements OnModuleDestroy {
-  // The check's own connection, without the gRPC retries of the shared one (TemporalClientModule):
-  // one answer within the timeout is the check, and deploy.sh asks up to 10 times, 1 s apart. A
-  // retry left
-  // scheduled would also fire after the app closes the connection and throw "Channel has been
-  // shut down" out of a timer. Otherwise it connects as the shared one does: TLS or an API key added
-  // there goes here too, or the check tests another path.
+  // The check's own connection, without gRPC retries (as the shared one, TemporalClientModule):
+  // one answer within the timeout is the check, and deploy.sh asks up to 10 times, 1 s apart. Its
+  // own, so the check does not wait behind the starts of WorkflowStarter or its close. Otherwise it
+  // connects as the shared one does: TLS or an API key added there goes here too, or the check
+  // tests another path.
   private readonly temporalConnection: Connection;
 
   constructor(

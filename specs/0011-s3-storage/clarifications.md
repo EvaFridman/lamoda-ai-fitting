@@ -178,3 +178,12 @@ code comments. All decisions below: owner, 2026-10-16.
   never give a link to another user's file or to `media/` and `tmp/`. Signing every stored key and
   checking production by hand was rejected: the check would hold only while these two services
   write the keys.
+- **M26. `REQUEST_TIMEOUT_MS` stays at 6000 or more, by documentation only.** A delete waits up to
+  `START_TIMEOUT_MS` (5 s) for its file deletion to start; a request timeout below that would answer
+  503 for a row already deleted while Temporal is down. The default (10 s) and production keep it;
+  `env.ts` and `.env.example` say so. A minimum in the schema was rejected: the request timeout's
+  e2e sets 100 ms through the environment to check its 503 quickly (T8).
+- **M27. A killed api may leave a deleted row's files.** Between a row's delete and its workflow's
+  start lies a window of milliseconds; a SIGTERM waits for the starts in progress, an OOM kill or
+  SIGKILL there leaves the files with no log line. Accepted while only the admin deletes (plan,
+  Risks); an outbox table went to the backlog (T8).

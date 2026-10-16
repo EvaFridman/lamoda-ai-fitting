@@ -1,3 +1,7 @@
+import { createServer, type Socket } from 'node:net';
+import type { AddressInfo } from 'node:net';
+
+import { HeadObjectCommand } from '@aws-sdk/client-s3';
 import type { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -5,6 +9,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Env } from '../config/env.js';
 import {
   createS3Client,
+  S3_CONNECTION_TIMEOUT_MS,
+  S3_SOCKET_TIMEOUT_MS,
   STORAGE_SETTINGS,
   type StorageSettings,
   storageProviders,
@@ -108,4 +114,79 @@ describe('createS3Client', () => {
     await expect(resolve(config['responseChecksumValidation'])).resolves.toBe('WHEN_REQUIRED');
     client.destroy();
   });
+
+  it('limits the connection and the silence on the socket', async () => {
+    const client = createS3Client(
+      {
+        endpoint: 'http://s3:8333',
+        publicEndpoint: 'http://s3:8333',
+        region: 'ru-1',
+        bucket: 'bucket',
+        accessKeyId: 'k',
+        secretAccessKey: 's',
+        signedUrlTtlSeconds: 900,
+      },
+      'http://s3:8333',
+    );
+    const handler = client.config.requestHandler as unknown as {
+      configProvider: Promise<{ connectionTimeout?: number; socketTimeout?: number }>;
+    };
+
+    const options = await handler.configProvider;
+
+    expect(options.connectionTimeout).toBe(S3_CONNECTION_TIMEOUT_MS);
+    expect(options.socketTimeout).toBe(S3_SOCKET_TIMEOUT_MS);
+    expect(S3_CONNECTION_TIMEOUT_MS).toBe(5000);
+    expect(S3_SOCKET_TIMEOUT_MS).toBe(10_000);
+    client.destroy();
+  });
+
+  it('fails a request to a server that accepts the connection and never answers', async () => {
+    const sockets = new Set<Socket>();
+    const server = createServer((socket) => {
+      sockets.add(socket);
+      socket.on('error', () => {});
+      socket.on('close', () => sockets.delete(socket));
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const address = server.address() as AddressInfo;
+    const endpoint = `http://127.0.0.1:${String(address.port)}`;
+    const client = createS3Client(
+      {
+        endpoint,
+        publicEndpoint: endpoint,
+        region: 'ru-1',
+        bucket: 'bucket',
+        accessKeyId: 'k',
+        secretAccessKey: 's',
+        signedUrlTtlSeconds: 900,
+      },
+      endpoint,
+    );
+    // The SDK's own retries would repeat the wait; one attempt shows the bound.
+    // A strategy that refuses every retry: the SDK then throws the attempt's own error.
+    const noRetries = {
+      acquireInitialRetryToken: () => Promise.resolve({ getRetryCount: () => 0 }),
+      refreshRetryTokenForRetry: () => Promise.reject(new Error('no retry')),
+      recordSuccess: () => {},
+    };
+    client.config.retryStrategy = (() =>
+      Promise.resolve(noRetries)) as unknown as typeof client.config.retryStrategy;
+    const began = Date.now();
+
+    try {
+      await expect(
+        client.send(new HeadObjectCommand({ Bucket: 'bucket', Key: 'media/a.webp' })),
+      ).rejects.toThrow();
+      const elapsed = Date.now() - began;
+      expect(elapsed).toBeGreaterThanOrEqual(S3_SOCKET_TIMEOUT_MS - 500);
+      expect(elapsed).toBeLessThan(S3_SOCKET_TIMEOUT_MS + 2000);
+    } finally {
+      client.destroy();
+      for (const socket of sockets) {
+        socket.destroy();
+      }
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  }, 20_000);
 });

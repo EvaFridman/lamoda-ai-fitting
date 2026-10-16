@@ -56,7 +56,9 @@ export const envSchema = z
     // its own (client_max_body_size); at most 1 MB, so a typo cannot lift the api's (F24).
     BODY_LIMIT: z.coerce.number().int().positive().max(1_048_576).default(102_400),
     // Milliseconds a handler may take, then 503 SERVICE_UNAVAILABLE (spec 0006 F11); at most 30 s,
-    // so a typo cannot let nginx's proxy timeout answer 504 first (F27).
+    // so a typo cannot let nginx's proxy timeout answer 504 first (F27). Keep it at 6000 or more: a
+    // delete waits up to 5 s for its file deletion to start (START_TIMEOUT_MS) and must still
+    // answer 204 with Temporal down (spec 0011 M26). Not enforced, so tests can set 100 ms.
     REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().max(30_000).default(10_000),
     // Largest socket.io message in bytes; a bigger one never reaches the gateway: it closes a
     // WebSocket and answers 413 on long-polling (spec 0006 F8). nginx does not limit WebSocket
