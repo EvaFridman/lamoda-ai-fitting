@@ -121,49 +121,31 @@ The endpoint, the bucket and both keys are required in every environment, with n
 
 `deploy/nginx/templates/default.conf.template`:
 
-```nginx
-# http level
-proxy_cache_path /var/cache/nginx/media levels=1:2 keys_zone=media:10m max_size=1g
-                 inactive=7d use_temp_path=off;
-
-# main server
-location /media/ {
-  limit_except GET { deny all; }        # GET also allows HEAD
-  set $s3_origin "${S3_ENDPOINT}";
-  rewrite ^/media/(.*)$ /${S3_BUCKET}/media/$1 break;
-  proxy_pass $s3_origin;                # a variable: resolved at request time, not at start
-  proxy_ssl_server_name on;
-  proxy_ssl_verify on;
-  proxy_ssl_trusted_certificate /etc/ssl/certs/ca-certificates.crt;
-  proxy_set_header Host "${S3_HOST}";   # own proxy_set_header: proxy-headers.inc is NOT inherited
-  proxy_set_header Authorization "";
-  proxy_set_header Cookie "";
-  proxy_hide_header x-amz-id-2;
-  proxy_hide_header x-amz-request-id;
-  proxy_hide_header x-amz-meta-owner-user-id;
-  proxy_hide_header Set-Cookie;
-  proxy_ignore_headers Set-Cookie;
-  proxy_intercept_errors on;
-  error_page 403 404 = @media_not_found; # a missing key answers 403 without ListBucket
-  proxy_cache media;
-  proxy_cache_valid 200 1d;
-  proxy_cache_valid 404 1m;
-  proxy_cache_use_stale error timeout updating;
-  proxy_cache_lock on;
-}
-location @media_not_found { return 404; }
-```
-
-- Its own `proxy_set_header` lines mean the location does not inherit `proxy-headers.inc`: neither
-  `X-Proxy-Secret` nor the visitor's address go to Timeweb. A check in `ci-deploy-check.sh` asserts
-  that the emulator never sees `X-Proxy-Secret`.
+- http level: `proxy_cache_path` (zone `media`, 1 GB, `inactive=7d`) and a `map` that gives
+  `$s3_origin`, `S3_ENDPOINT` without a trailing `/` (M30).
+- `location /media/`: `limit_except GET`; `rewrite ^/media/(.*[^/])$ /${S3_BUCKET}/media/$1?
+break` (the `?` drops the query string), else 404; `proxy_pass $s3_origin` (a variable: resolved
+  at request time, not at start) with TLS verification and SNI; `proxy_pass_request_headers off`
+  and `proxy_set_header Host $proxy_host`, so no header of the visitor reaches Timeweb and no
+  `S3_HOST` is needed (M30); `proxy_hide_header` for the storage's `x-amz-*` (AC2), its
+  `Vary: Origin` and `Set-Cookie`; `proxy_intercept_errors` with the storage's 4xx → 404
+  `NOT_FOUND` (a missing key answers 403 without ListBucket; other refusals carry an XML body that
+  names the bucket), a refused method → 404 `ROUTE_NOT_FOUND`, 5xx →
+  503 (M30), 413 and 429 repeated; the cache keyed by the rewritten path, 200 for a day (the
+  object's own `Cache-Control`), 403/404 for a minute, stale on errors, with a lock.
+- The location's own `proxy_set_header` means it does not inherit `proxy-headers.inc`: neither
+  `X-Proxy-Secret` nor the visitor's address go to Timeweb. `ci-deploy-check.sh` puts a probe in
+  front of the emulator and asserts that no request carries `X-Proxy-Secret` and that nginx's
+  bring only the key and `Host`.
 - No `add_header` in the location, so the server's security headers and HSTS stay.
 - `/media/` gets no `limit_req` yet; the backlog item "Rate limit for web pages" keeps the rest
   (`/_next/static/`, measuring a page). The connection limit applies.
-- `infra.yml`: nginx gets `S3_ENDPOINT`, `S3_HOST` and `S3_BUCKET`. A new variable recreates nginx:
-  a few seconds of outage on the deploy of PR 2, merged at a quiet time (`.claude/rules/deploy.md`).
-- `deploy.sh`: after the nginx config is applied and before the switch, `curl` of one seed photo
-  through nginx; a failure stops the deploy (the M15 address check).
+- `infra.yml`: nginx gets `S3_ENDPOINT` and `S3_BUCKET`. A new variable recreates nginx: a few
+  seconds of outage on the deploy of PR 2, merged at a quiet time (`.claude/rules/deploy.md`).
+- `deploy.sh`: refuses an `S3_ENDPOINT` that is not `http(s)://host[:port]` (the `map` would leave
+  `/media/` answering 503). After the seed, before the new copy starts, a random catalog image
+  straight from the bucket out of nginx's container (past the cache) and then through nginx; a
+  failure stops the deploy (the M15 address check). Not on a rollback (M31).
 
 ## 8. Local stack and CI (M12; AC12, AC13)
 

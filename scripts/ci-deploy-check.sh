@@ -5,10 +5,11 @@
 #      request id is on the response and on nginx's and the api's log lines (spec 0006 AC14);
 #      nginx's security headers on api and web and on nginx's own errors (AC13);
 #      nginx's limits per address: a flood, a 2 MB body, an 11th socket (AC10–AC12), a 51st request
-#      in progress and an unfinished header (F36);
+#      in progress and an unfinished header (F36); the seed uploaded its photos and nginx serves
+#      them at /media/ (spec 0011 AC2, AC3);
 #   2. deploy the same images as a second version (green) while scripts/request-loop.sh runs:
 #      no request may fail (AC26); smoke test of the new version; the second seed changed no
-#      counts (spec 0002, AC11);
+#      counts (spec 0002, AC11) and uploaded no photo, no object changed (spec 0011 AC6);
 #   3. rotate PROXY_SECRET in two deploys (spec 0006 F21), with a failed one in between:
 #      a. set PROXY_SECRET_NEXT and roll back to <tag>, still running in blue: deploy.sh recreates
 #         it, so it accepts the next secret too;
@@ -16,10 +17,12 @@
 #         recreated with the new secret, the deploy fails, and blue still trusts nginx and web;
 #      c. a third secret, unknown to blue, is refused by deploy.sh before nginx is recreated;
 #      d. deploy <tag>-next (green) with the new secret only;
-#   4. with the serving api stopped, /api/ answers 503 in the api's format (F33).
+#   4. with the serving api stopped, /api/ answers 503 in the api's format (F33);
+#   5. no request that reached the storage carried X-Proxy-Secret (spec 0011 plan §7).
 # nginx runs on its temporary self-signed certificate, SITE_DOMAIN is localhost, ports 80 and 443
 # must be free. A SeaweedFS container (spec 0011 M12, the image of docker-compose.yml's `s3`) on the
-# network `ai-fitting`, named `s3` there, stands in for the production storage with throwaway keys. Used by the `images` job in CI; runs locally the same way. Outside CI it removes, on
+# network `ai-fitting` stands in for the production storage with throwaway keys; `s3` there is a
+# probe in front of it, which logs what each request brings (method, path, header names). Used by the `images` job in CI; runs locally the same way. Outside CI it removes, on
 # exit, the stacks it started with their volumes, and refuses to start next to an existing one
 # (spec 0002, C25).
 #
@@ -279,6 +282,94 @@ check_api_unavailable() {
     "$(cat "$work/503.json")" SERVICE_UNAVAILABLE
 }
 
+# A request to the emulator signed with its admin keys, from inside its container (its port is not
+# published); the keys stay in the container's environment, off this machine's command lines.
+s3_admin() {
+  docker exec -i "$s3_container" sh -c \
+    'curl -sS --fail-with-body --aws-sigv4 aws:amz:ru-1:s3 --user "$AWS_ACCESS_KEY_ID:$AWS_SECRET_ACCESS_KEY" "$@"' \
+    s3_admin "$@"
+}
+# The probe's log so far, in a file: a pipe into grep -q could end docker logs early, and under
+# pipefail its SIGPIPE would read as "not found".
+probe_log() {
+  docker logs "$probe_container" > "$work/probe.log" 2>&1 \
+    || { echo "ci-deploy-check: cannot read the storage probe's log" >&2; return 1; }
+}
+# "key etag" of every object under media/, sorted (the seed's photos are far below one page).
+media_etags() {
+  s3_admin 'http://localhost:8333/ai-fitting?list-type=2&prefix=media/' \
+    | grep -o '<Key>[^<]*</Key><ETag>[^<]*</ETag>' | sed 's/<Key>\(.*\)<\/Key><ETag>\(.*\)<\/ETag>/\1 \2/' \
+    | sort
+}
+# How many photos the seed of a deploy log uploaded ("Seed done: ..., N photos uploaded").
+photos_uploaded() { grep -o '[0-9]* photos uploaded' "$1" | sed 's/ .*//'; }
+
+# spec 0011 AC2, AC3 on the runner: every image of the catalog through nginx answers 200 as a webp
+# with the seed's Cache-Control and none of the storage's x-amz-* headers; a query string reaches
+# nothing (the emulator would act on ?response-content-type=); a missing key, a folder and a write
+# answer 404 in the api's format (M30); the storage got only nginx's Host and no query string.
+check_media() {
+  local keys key headers n=0 got first
+  keys="$(docker compose -f deploy/compose/infra.yml --env-file "$env_file" exec -T postgres \
+    psql -U ai_fitting -d ai_fitting -tA -c 'SELECT DISTINCT image_key FROM product_images ORDER BY 1')" \
+    || { echo "ci-deploy-check: cannot read the image keys from the database" >&2; return 1; }
+  [ -n "$keys" ] || { echo "ci-deploy-check: the catalog has no image" >&2; return 1; }
+  while read -r key; do
+    headers="$(curl -sk --max-time 10 -o /dev/null -D - "https://localhost/media/$key" | tr -d '\r')" \
+      || { echo "ci-deploy-check: /media/$key: the request failed" >&2; return 1; }
+    head -n 1 <<< "$headers" | grep -q '^HTTP/1.1 200 ' \
+      && grep -qix 'content-type: image/webp' <<< "$headers" \
+      && grep -qix 'cache-control: public, max-age=86400' <<< "$headers" \
+      && ! grep -qi '^x-amz-' <<< "$headers" \
+      || { printf 'ci-deploy-check: /media/%s answers:\n%s\n' "$key" "$headers" >&2; return 1; }
+    n=$((n + 1))
+  done <<< "$keys"
+  echo "$n catalog images: 200, image/webp, Cache-Control: public, max-age=86400, no x-amz-*"
+  first="$(head -n 1 <<< "$keys")"
+  check_security_headers "/media/$first"
+  got="$(curl -sk --max-time 10 -o /dev/null -w '%{http_code} %{content_type}' \
+    "https://localhost/media/$first?response-content-type=text/html&X-Amz-Expires=1" || true)"
+  [ "$got" = '200 image/webp' ] \
+    || { echo "ci-deploy-check: /media/ with a query string answers '$got', expected 200 image/webp" >&2; return 1; }
+  echo "a query string does not change /media/'s answer"
+
+  local path method
+  # A key over S3's 1024 bytes: the storage refuses it with its own XML (400), which nginx hides.
+  local long
+  long="$(head -c 1100 /dev/zero | tr '\0' a)"
+  for path in /media/no-such-key.webp /media/ /media/seed/ "/media/$(dirname "$first")/" \
+    "/media/$long.webp"; do
+    got="$(curl -sk --max-time 10 -o "$work/media.json" -w "%{http_code} %{content_type} $security_w" \
+      "https://localhost$path" || true)"
+    expect_error "${path:0:60}" "$got" "404 application/json $security" "$(cat "$work/media.json")" \
+      NOT_FOUND
+  done
+  for method in PUT POST DELETE; do
+    got="$(curl -sk --max-time 10 -X "$method" -d x -o "$work/media.json" \
+      -w "%{http_code} %{content_type} $security_w" "https://localhost/media/$first" || true)"
+    expect_error "$method /media/<key>" "$got" "404 application/json $security" \
+      "$(cat "$work/media.json")" ROUTE_NOT_FOUND
+  done
+
+  # What nginx sent the storage, from the probe's log: the visitor's headers stay behind (only the
+  # Host nginx sets, and Connection), and so does the query string. deploy.sh's own check from
+  # nginx's container (curl, marked with X-Deploy-Check) is not nginx's.
+  local nginx_ip from_nginx bad
+  nginx_ip="$(docker inspect -f '{{(index .NetworkSettings.Networks "ai-fitting").IPAddress}}' \
+    "$(docker compose -f deploy/compose/infra.yml --env-file "$env_file" ps -q nginx)")"
+  probe_log
+  # Node writes an IPv4 address as ::ffff:a.b.c.d where the container has IPv6.
+  from_nginx="$(grep -E "\"from\":\"(::ffff:)?${nginx_ip//./\\.}\"" "$work/probe.log" \
+    | grep -vF '"x-deploy-check"' || true)"
+  [ -n "$from_nginx" ] \
+    || { echo "ci-deploy-check: the storage got no request from nginx ($nginx_ip)" >&2; return 1; }
+  bad="$(grep -vE '"url":"/ai-fitting/media/[^"?]+","headers":\["host"(,"connection")?\]\}$' \
+    <<< "$from_nginx" || true)"
+  [ -z "$bad" ] \
+    || { printf 'ci-deploy-check: nginx sent the storage more than a key and its Host:\n%s\n' "$bad" >&2; return 1; }
+  echo "nginx sent the storage $(wc -l <<< "$from_nginx" | tr -d ' ') requests: a key and its Host, nothing else"
+}
+
 # A throwaway environment. The request loop comes from one address, so the per-client limit is
 # raised: this checks switching, not rate limiting.
 cat > "$env_file" <<EOF
@@ -299,6 +390,7 @@ EOF
 sed -n -e 's/^S3_ACCESS_KEY_ID=/AWS_ACCESS_KEY_ID=/p' -e 's/^S3_SECRET_ACCESS_KEY=/AWS_SECRET_ACCESS_KEY=/p' \
   "$env_file" > "$work/s3.env"
 s3_container=ai-fitting-check-s3
+probe_container=ai-fitting-check-s3-probe
 
 # Outside CI: remove what this run starts, so the next run gets a fresh database. Only what it
 # starts: an existing stack is an earlier run or a real deploy, and its volumes may hold data.
@@ -313,7 +405,7 @@ teardown() {
   done
   IMAGE_TAG="$tag" docker compose -f deploy/compose/worker.yml --env-file "$env_file" down || true
   # Before infra: the network is removed only once nothing is attached to it.
-  docker rm -f -v "$s3_container" > /dev/null 2>&1 || true
+  docker rm -f -v "$probe_container" "$s3_container" > /dev/null 2>&1 || true
   docker compose -f deploy/compose/infra.yml --env-file "$env_file" --profile server down --volumes \
     || true
   rm -f .deploy-state
@@ -335,10 +427,12 @@ if [ -z "${GITHUB_ACTIONS:-}" ]; then
     echo "ci-deploy-check: .deploy-state exists (an earlier run or a real deploy); remove it by hand" >&2
     exit 1
   fi
-  if [ -n "$(docker ps -aq --filter "name=^$s3_container\$")" ]; then
-    echo "ci-deploy-check: the container $s3_container exists (an earlier run); remove it by hand" >&2
-    exit 1
-  fi
+  for container in "$s3_container" "$probe_container"; do
+    if [ -n "$(docker ps -aq --filter "name=^$container\$")" ]; then
+      echo "ci-deploy-check: the container $container exists (an earlier run); remove it by hand" >&2
+      exit 1
+    fi
+  done
   trap teardown EXIT
 fi
 
@@ -352,7 +446,7 @@ group "storage emulator"
 # a first deploy (nginx not running).
 docker compose -f deploy/compose/infra.yml --env-file "$env_file" up --no-start
 # The flags of docker-compose.yml's `s3`; ready once the bucket exists, a moment after the S3 port.
-docker run -d --name "$s3_container" --network ai-fitting --network-alias s3 \
+docker run -d --name "$s3_container" --network ai-fitting --network-alias s3-emulator \
   --env-file "$work/s3.env" -e S3_BUCKET=ai-fitting \
   --health-cmd 'curl -fsS -o /dev/null http://localhost:8333/healthz && curl -fsS -o /dev/null http://localhost:8888/buckets/ai-fitting/' \
   --health-interval 1s --health-retries 60 \
@@ -368,11 +462,44 @@ done
   echo "ci-deploy-check: the storage emulator is $s3_health after 60 s" >&2
   exit 1
 }
-echo "the storage emulator serves the bucket ai-fitting"
+# media/ readable without a key, as s3-init sets it locally (api/src/storage/dev-setup.ts; the
+# production image refuses that setup). In production only the server's address reads it (M15).
+printf '%s' '{"Version":"2012-10-17","Statement":[{"Sid":"PublicReadMedia","Effect":"Allow","Principal":"*","Action":["s3:GetObject"],"Resource":["arn:aws:s3:::ai-fitting/media/*"]}]}' \
+  | s3_admin -o /dev/null -X PUT --data-binary @- 'http://localhost:8333/ai-fitting?policy'
+# The probe that is `s3` for the api, the worker and nginx: it logs each request's method, path and
+# header names (never values: the api's carry its signature) and passes it on unchanged. Node from
+# the api image, which this machine has anyway.
+docker run -d --name "$probe_container" --network ai-fitting --network-alias s3 "ai-fitting-api:$tag" \
+  node -e "
+    const http = require('node:http');
+    http.createServer((req, res) => {
+      const { remoteAddress: from } = req.socket;
+      console.log(JSON.stringify({ from, method: req.method, url: req.url, headers: Object.keys(req.headers) }));
+      const upstream = http.request(
+        { host: 's3-emulator', port: 8333, method: req.method, path: req.url, headers: req.headers },
+        (answer) => { res.writeHead(answer.statusCode, answer.rawHeaders); answer.pipe(res); },
+      );
+      upstream.on('error', () => res.destroy());
+      req.pipe(upstream);
+    }).listen(8333);
+  " > /dev/null
+for _ in $(seq 30); do
+  probe_status="$(docker exec "$probe_container" node -e "
+    fetch('http://127.0.0.1:8333/ai-fitting/media/').then((r) => console.log(r.status), () => console.log(0))")" \
+    || probe_status=0
+  [ "$probe_status" != 0 ] && break
+  sleep 1
+done
+[ "$probe_status" != 0 ] || {
+  docker logs "$probe_container" >&2 || true
+  echo "ci-deploy-check: the storage probe does not answer after 30 s" >&2
+  exit 1
+}
+echo "the storage emulator serves the bucket ai-fitting, media/ readable without a key, behind the probe"
 endgroup
 
 group "deploy $tag (first deploy, blue)"
-ENV_FILE="$env_file" deploy/scripts/deploy.sh "$tag"
+ENV_FILE="$env_file" deploy/scripts/deploy.sh "$tag" 2>&1 | tee "$work/deploy-1.log"
 scripts/smoke-test.sh https://localhost "$tag"
 first_counts="$(counts)"
 echo "$first_counts"
@@ -391,6 +518,17 @@ check_security_headers '/socket.io/?EIO=4&transport=polling'
 check_security_headers /api/health/ready
 endgroup
 
+group "the catalog media through nginx"
+# AC6: the first deploy uploaded every photo of the catalog.
+first_etags="$(media_etags)" \
+  || { echo "ci-deploy-check: cannot list media/ in the storage emulator" >&2; exit 1; }
+[ "$(photos_uploaded "$work/deploy-1.log")" -gt 0 ] \
+  && [ "$(photos_uploaded "$work/deploy-1.log")" -eq "$(wc -l <<< "$first_etags")" ] \
+  || { echo "ci-deploy-check: the seed uploaded '$(photos_uploaded "$work/deploy-1.log")' photos, the bucket holds $(wc -l <<< "$first_etags")" >&2; exit 1; }
+echo "the first seed uploaded $(photos_uploaded "$work/deploy-1.log") photos"
+check_media
+endgroup
+
 group "nginx's limits per address"
 check_edge_limits
 endgroup
@@ -398,7 +536,7 @@ endgroup
 group "deploy $second (green) under a request loop"
 scripts/request-loop.sh https://localhost > "$work/loop.out" 2>&1 &
 loop=$!
-ENV_FILE="$env_file" deploy/scripts/deploy.sh "$second"
+ENV_FILE="$env_file" deploy/scripts/deploy.sh "$second" 2>&1 | tee "$work/deploy-2.log"
 sleep 2
 kill -TERM "$loop"
 loop_status=0
@@ -413,6 +551,12 @@ endgroup
   printf 'ci-deploy-check: the second seed changed the counts:\n%s\n' "$second_counts" >&2
   exit 1
 }
+# AC6: the second seed uploaded nothing and changed no object.
+[ "$(photos_uploaded "$work/deploy-2.log")" = 0 ] && [ "$(media_etags)" = "$first_etags" ] || {
+  echo "ci-deploy-check: the second seed uploaded '$(photos_uploaded "$work/deploy-2.log")' photos or changed objects in media/" >&2
+  exit 1
+}
+echo "the second seed uploaded no photo and changed no object"
 
 # Sets the proxy secrets in the env file, as CD writes them from GitHub.
 set_proxy_secrets() {
@@ -486,5 +630,14 @@ endgroup
 group "nginx's answer with the api stopped"
 check_api_unavailable green
 endgroup
+
+# Every request the storage got in this run (the api's, the worker's, nginx's before and after it
+# was recreated): none carried the proxy secret. Node writes header names in lower case.
+probe_log
+if grep -qF '"x-proxy-secret"' "$work/probe.log"; then
+  echo "ci-deploy-check: a request to the storage carried X-Proxy-Secret" >&2
+  exit 1
+fi
+echo "the storage got $(grep -c '"from"' "$work/probe.log") requests, none with X-Proxy-Secret"
 
 echo "ci-deploy-check: ok"

@@ -203,3 +203,23 @@ code comments. All decisions below: owner, 2026-10-16.
   `/ui-kit` would vanish. `Select`'s `<Image>` gets `unoptimized`, as the product card has: the
   browser asks `/media/…`, which nginx serves from the bucket. Absolute sources with
   `images.remotePatterns` were rejected: the optimizer would fetch from an outside host (T10).
+
+## Decided at T11
+
+- **M30. `/media/` answers in the api's error format and sends the bucket only the key.** A missing
+  key, `/media/` itself and a key ending in `/` (the emulator answers a folder with an empty object)
+  answer 404 `NOT_FOUND`; a method other than `GET`/`HEAD` answers 404 `ROUTE_NOT_FOUND`, as the api
+  answers a method a route lacks (owner); a storage that fails or cannot be reached answers 503
+  `SERVICE_UNAVAILABLE`, as `/api/` does (F33). A 403 code was rejected: the api has none (a closed
+  route answers 401), and adding one changes api and web for a route the api does not have. nginx
+  drops the query string and every header of the visitor (`proxy_pass_request_headers off`) and
+  sets only `Host` from the endpoint, so the plan's `S3_HOST` is not needed: the emulator acts on
+  `?response-content-type=` and would answer with that type, and a query in the cache key would let
+  anyone skip the cache to the bucket. `S3_ENDPOINT` may end in `/` (CD allows it); nginx drops it,
+  or `proxy_pass` would take it for the path (T11).
+- **M31. The media check runs only when a new copy starts.** After the seed, before the new copy,
+  `deploy.sh` fetches a random catalog image straight from the bucket out of nginx's container (the
+  server's address, past nginx's cache, which would hide a broken policy for up to a day) and then
+  through nginx, and stops on anything but 200. A rollback
+  to the copy that still runs skips it: a rollback is the way back, and a broken bucket is not
+  fixed by refusing it (owner, T11).

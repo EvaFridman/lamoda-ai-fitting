@@ -86,8 +86,9 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Check: `curl -I` of every seed key on :3001 (AC1); `qa-tester` on `/dev/catalog` and
       `/ui-kit` (AC4); the built web image has no `public/media` (AC5).
       Commit: `feat(web): serve the media from the storage`
-- [ ] **T11. nginx serves `/media/`.** The `/media/` location and its cache, the S3 variables of
-      nginx in `infra.yml`, the media check in `deploy.sh` before the switch; `ci-deploy-check.sh`
+- [x] **T11. nginx serves `/media/`.** The `/media/` location and its cache, the S3 variables of
+      nginx in `infra.yml`, the media check in `deploy.sh` after the seed, before the new copy
+      (M31); `ci-deploy-check.sh`
       checks `/media/` through nginx, the second deploy's no-op and that the emulator never sees
       `X-Proxy-Secret` (plan §7).
       Check: `ci-deploy-check.sh` locally and in CI: 200 with `Cache-Control` and no `x-amz-*`, a
