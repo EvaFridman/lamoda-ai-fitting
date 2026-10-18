@@ -41,7 +41,7 @@ describe('FileDeletion.startFileDeletion', () => {
     });
   });
 
-  it('does not throw when the start fails; logs and reports it with the prefixes', async () => {
+  it('does not throw when the start fails; logs it with the prefixes, reports it without them (M32)', async () => {
     const { fileDeletion, start } = setup();
     const failure = new Error('Temporal is down');
     start.mockRejectedValue(failure);
@@ -59,7 +59,11 @@ describe('FileDeletion.startFileDeletion', () => {
       prefixes: ['keep/users/u-1/'],
     });
     expect(Sentry.captureException).toHaveBeenCalledExactlyOnceWith(failure, {
-      extra: { kind: 'user', id: 'u-1', prefixes: ['keep/users/u-1/'] },
+      extra: { kind: 'user', id: 'u-1' },
     });
+    const extra = vi.mocked(Sentry.captureException).mock.calls[0]?.[1] as {
+      extra: Record<string, unknown>;
+    };
+    expect(extra.extra).not.toHaveProperty('prefixes');
   });
 });

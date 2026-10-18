@@ -113,6 +113,10 @@ removes it from this list. Found by the agents' first security audit and trial r
   with the catalog page spec, which brings the caches to warm ("Page cache in a read-only image"
   above, "Cache for filter counts" in "Data and media"); there is nothing to warm in Next's cache or
   Redis before it. Measure the first request to `/` after a deploy against later ones first.
+- **Signed links in reports.** A signed storage link carries `X-Amz-Credential=<S3_ACCESS_KEY_ID>/…`
+  and a user's id in its path (0011 M34). The spec that shows a user's photo through such a link
+  keeps its `src` out of Sentry (events, breadcrumbs) and Mixpanel (heatmap clicks, recordings),
+  and checks what `strip-attributes.ts` and the recordings' image blocking already cover.
 - **Product card link.** `CatalogProductCard` (0009 K15) takes its link address as a prop: no
   product page exists yet. The spec that places the card on a page passes the address; once the
   product page exists, its spec decides whether the card builds the address itself.
@@ -137,6 +141,17 @@ removes it from this list. Found by the agents' first security audit and trial r
   (spec 0011 T8); an api killed between the two (OOM, SIGKILL) leaves the files with no log line.
   Accepted while only the admin deletes; when users delete their own data (account deletion), write
   the deletion into a table in the delete's transaction and start workflows from it.
+- **Users' ids in Temporal history.** `deleteFiles` takes its prefixes (`keep/users/<userId>/…`) as
+  input: the rows are gone when it starts, so they cannot be read later. A deleted user's id stays
+  in the history, seen in Temporal UI, for the namespace's retention, which production
+  (`temporal server start-dev`) never sets. With the auth spec (0013), or sooner if users delete
+  their own accounts: check and set the retention (e.g. 7 days); a payload codec only if a deletion
+  must leave no trace at all.
+- **Heartbeats for long activities.** No activity heartbeats: a cancelled workflow's running
+  attempt goes on until its timeout (`deletePrefix`: at most 30 s, harmless, the delete is
+  idempotent), and a dead worker is noticed only then. With the photo upload and AI generation
+  activities, where a cancellation must stop a paid call, add `heartbeatTimeout` and `heartbeat()`
+  to them and to `deletePrefix`.
 
 ## Dependencies
 

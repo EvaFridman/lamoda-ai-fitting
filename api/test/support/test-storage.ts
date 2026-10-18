@@ -21,7 +21,7 @@ export function createTestS3Client(): S3Client {
 
 // A StorageService of the emulator outside the app, for a test worker's activities
 // (test-temporal.ts). `endpoint` replaces the emulator's address, e.g. a TcpProxy's (tcp-proxy.ts)
-// to make the storage unreachable. Its clients end with `onModuleDestroy()`, in `afterAll`.
+// to make the storage unreachable. Its clients end with `onApplicationShutdown()`, in `afterAll`.
 export function createTestStorageService(endpoint?: string): StorageService {
   const settings = testStorageSettings();
   const reached = { ...settings, endpoint: endpoint ?? settings.endpoint };

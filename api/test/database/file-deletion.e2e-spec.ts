@@ -111,7 +111,7 @@ describe('files deleted through Temporal', () => {
   afterAll(async () => {
     await worker.stop();
     await testApp.close();
-    workerStorage.onModuleDestroy();
+    workerStorage.onApplicationShutdown();
     await proxy.close();
     s3.destroy();
   });

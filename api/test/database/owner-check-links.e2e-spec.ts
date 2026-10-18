@@ -49,7 +49,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  shortLived.onModuleDestroy();
+  shortLived.onApplicationShutdown();
   await testApp.close();
 });
 

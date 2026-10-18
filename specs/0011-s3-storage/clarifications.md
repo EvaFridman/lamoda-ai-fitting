@@ -223,3 +223,27 @@ code comments. All decisions below: owner, 2026-10-16.
   through nginx, and stops on anything but 200. A rollback
   to the copy that still runs skips it: a rollback is the way back, and a broken bucket is not
   fixed by refusing it (owner, T11).
+
+## Decided at the review of PR 2
+
+- **M32. A failed deletion start sends Sentry only the kind and the id.** Plan §4 sent the prefixes,
+  which are storage paths (`keep/users/<userId>/…`), against M23. Sentry gets `kind` and `id`: an
+  opaque row uuid is allowed (a user's one already reaches Sentry with `/users/<id>` requests), a
+  storage path is not; the
+  log line keeps the full list, the only source for the owner's manual rerun: a session's or a
+  generation's prefixes cannot be rebuilt from its id once the rows are gone (owner).
+- **M33. One refused folder does not stop the others.** `deleteFiles` waits for every activity of a
+  batch with `Promise.allSettled`, goes through all batches and only then fails with an
+  `ApplicationFailure` naming how many folders failed (no paths). With `Promise.all` a non-retryable
+  `InvalidPrefix` failed the workflow at once and left the later batches' files undeleted (M11).
+  Today the api builds no such prefix: it would be a bug of the api, and the activity's own failure
+  reaches Sentry on its first attempt either way (owner). A cancelled workflow still ends as
+  cancelled. No `patched()`: the commands differ from the old code's only after a rejected
+  activity, which closed that workflow at once, and nothing queries or replays closed ones.
+- **M34. AC14 means the secret.** `S3_SECRET_ACCESS_KEY` appears in no image, log line or browser
+  bundle. `S3_ACCESS_KEY_ID` is not a secret: every signed link carries it in `X-Amz-Credential`,
+  so it reaches admin answers and anyone a link is shown to. A page that shows such links keeps
+  their `src` out of Sentry and Mixpanel (backlog "Signed links in reports") (owner).
+- **M35. The deploy check removes its work folder.** `ci-deploy-check.sh` deletes `$work`
+  (`deploy.env`, `s3.env` with the run's one-off keys) on every exit: a trap set right after
+  `mktemp`, then `teardown` outside CI, so local runs leave no keys in the temp folder (owner).

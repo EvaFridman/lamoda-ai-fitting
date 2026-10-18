@@ -83,9 +83,10 @@ The endpoint, the bucket and both keys are required in every environment, with n
   `hello.activities.ts` names); `WorkerModule` imports `StorageModule`.
 - `api/src/temporal/file-deletion.ts`: `startFileDeletion(kind, id, prefixes)` through the shared
   `Client`, after the database delete has committed. If Temporal cannot be reached, the request still
-  answers 204, and the failure is logged and sent to Sentry with the prefixes (Risks).
+  answers 204, and the failure is logged with the prefixes and sent to Sentry with the kind and id
+  (Risks, M32).
 - Backlog "Retries of the shared connection at shutdown": `TemporalClientModule` bounds each start
-  with an abort signal (5 s, `connection.withAbortSignal`) and `onModuleDestroy` waits for the
+  with an abort signal (5 s, `connection.withAbortSignal`) and `onApplicationShutdown` waits for the
   starts in progress before `connection.close()`. Detailed in the task with the
   `temporal-developer` skill; the `temporal-reviewer` checks it.
 - Tests (M16): the workflow and activity run against a throwaway
@@ -222,7 +223,7 @@ table), `.claude/rules/deploy.md` (the media check in `deploy.sh`), `.env.exampl
 | Timeweb sees the server's requests from an internal address (M15)                      | checked in §9 step 2 before the first deploy; otherwise back to the owner                            |
 | An expired signed link answers 500 on Timeweb, not 403                                 | AC8 says "refused"; nothing depends on the status                                                    |
 | A policy on the whole bucket opens users' files to the server (M1)                     | resource `media/*` only; AC7 checks a `keep/` object from the server                                 |
-| Temporal unreachable when a row is deleted: its files stay                             | logged and sent to Sentry with the prefixes; the owner reruns the deletion by hand                   |
+| Temporal unreachable when a row is deleted: its files stay                             | logged with the prefixes, sent to Sentry with the kind and id (M32); the owner reruns it by hand     |
 | The api killed (OOM, SIGKILL) between a row's delete and its start: files stay, unseen | accepted (T8): a window of milliseconds; a SIGTERM waits for the starts; an outbox is in the backlog |
 | nginx sends the proxy secret or visitors' addresses to Timeweb                         | the location's own `proxy_set_header`; CI asserts the emulator never sees the secret                 |
 | PR 2's deploy recreates nginx                                                          | a few seconds of outage, merged at a quiet time                                                      |

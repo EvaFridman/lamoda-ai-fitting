@@ -34,7 +34,7 @@ describe('a storage error', () => {
   });
 
   afterAll(() => {
-    service.onModuleDestroy();
+    service.onApplicationShutdown();
   });
 
   const calls = [

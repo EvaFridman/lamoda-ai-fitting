@@ -60,7 +60,7 @@ You do not write or change `api/test/support/*`; ask the main session if it lack
   `api/test/support/test-storage.ts` reach the emulator directly; `destroy()` the client in
   `afterAll`. Files share one bucket: put objects under keys of the file's own (a random user id).
   `createTestStorageService(endpoint?)` there gives a `StorageService` outside the app (for a test
-  worker); call its `onModuleDestroy()` in `afterAll`.
+  worker); call its `onApplicationShutdown()` in `afterAll`.
 - Workflows: `createTestApp(settings)` starts them on the throwaway Temporal, on the task queue of
   `testTemporalSettings()` (`api/test/support/test-temporal.ts`; a new queue per call, so files do
   not share workflows; by default no worker polls it). `startTestWorker(settings, storage)` there
