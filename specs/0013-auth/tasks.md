@@ -1,7 +1,8 @@
 # 0013 auth: tasks
 
 Status: accepted (2026-10-16); amended 2026-10-18 at the review of PR 1 (T7, T10, T12: N31–N34,
-plan §10); amended 2026-10-19 after the rebase on 0011 (T10 before T7, AC12's files in T7).
+plan §10); amended 2026-10-19 after the rebase on 0011 (T10 before T7, AC12's files in T7, the `GET /me`
+link check in T7).
 
 ## How the work flows
 
@@ -78,7 +79,9 @@ plan §10); amended 2026-10-19 after the rebase on 0011 (T10 before T7, AC12's f
       session (N31); the session hook drops the User-Agent (N34); `mount-auth.ts`'s comment on
       the error format names the 429 exception (N32); `openapi.json`; web's contract tests and
       entity schemas follow (plan §6).
-      Check: e2e with two users on every fitting session and generation route (AC8); `GET /me`;
+      Check: e2e with two users on every fitting session and generation route (AC8); `GET /me`,
+      with a signed link for a photo key in the user's folder and a `null` link for one outside it
+      (0011 M8, M25; plan §6);
       `DELETE /me` removes the rows, clears both cookies in its answer and the session token alone
       then answers 401; a cached copy (another session, or both old cookies) gets 401 on `GET /me`,
       `DELETE /me` and a write; `DELETE /me` starts the file deletion and the user's folder is empty
