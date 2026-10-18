@@ -9,6 +9,7 @@ import type { PrismaClient } from '../../src/generated/prisma/client.js';
 import { generationFolder, userPhotoKey } from '../../src/storage/keys.js';
 import type { StorageService } from '../../src/storage/storage.service.js';
 import { FileDeletion } from '../../src/temporal/file-deletion.js';
+import { signIn } from '../support/sign-in.js';
 import { createTestApp, type TestApp } from '../support/test-app.js';
 import { startTcpProxy, type TcpProxy } from '../support/tcp-proxy.js';
 import {
@@ -22,17 +23,17 @@ import {
   type TestWorker,
 } from '../support/test-temporal.js';
 
-const ADMIN = { 'X-Admin-Token': process.env['ADMIN_API_TOKEN'] ?? '' };
 const BODY = new Uint8Array([82, 73, 70, 70, 1, 2, 3]);
 const { bucket } = testStorageSettings();
+// The session cookies of the users createUser() made, by user id.
+const cookies = new Map<string, { Cookie: string }>();
 
-// Files share the emulator's bucket and the databases are the file's own: ids are random.
-async function createUser(prisma: PrismaClient): Promise<string> {
-  const digits = String(Math.floor(Math.random() * 1e9)).padStart(9, '0');
-  const user = await prisma.user.create({
-    data: { phone: `+79${digits}`, email: `${randomUUID()}@example.test`, firstName: 'Test' },
-  });
-  return user.id;
+// A signed-in user (sign-in.ts). Files share the emulator's bucket and the databases are the
+// file's own: ids are random.
+async function createUser(testApp: TestApp): Promise<string> {
+  const { userId, cookie } = await signIn(testApp.app);
+  cookies.set(userId, { Cookie: cookie });
+  return userId;
 }
 
 async function createSession(
@@ -88,8 +89,13 @@ async function expectKeysGone(s3: S3Client, prefix: string): Promise<void> {
   });
 }
 
-function remove(testApp: TestApp, path: string) {
-  return request(testApp.app.getHttpServer()).delete(path).set(ADMIN);
+// A delete with the session of the user `as`: a fitting session or a generation is deleted by its
+// owner. `/users/:id` is @Closed(), which the test guard opens to any signed-in user, and the delete
+// ends the deleted user's sessions, so it goes as another user.
+function remove(testApp: TestApp, path: string, as: string) {
+  const cookie = cookies.get(as);
+  if (cookie === undefined) throw new Error(`no session for user ${as}`);
+  return request(testApp.app.getHttpServer()).delete(path).set(cookie);
 }
 
 describe('files deleted through Temporal', () => {
@@ -118,8 +124,8 @@ describe('files deleted through Temporal', () => {
 
   it('deleting a user removes all their files and keeps another user’s', async () => {
     const { prisma } = testApp;
-    const userId = await createUser(prisma);
-    const otherId = await createUser(prisma);
+    const userId = await createUser(testApp);
+    const otherId = await createUser(testApp);
     const photo = userPhotoKey(userId);
     const otherPhoto = userPhotoKey(otherId);
     const sessionId = await createSession(prisma, userId, true);
@@ -132,7 +138,7 @@ describe('files deleted through Temporal', () => {
     expect(second.keys).toHaveLength(2);
     expect(await keysUnder(s3, `keep/users/${userId}/`)).toHaveLength(5);
 
-    await remove(testApp, `/users/${userId}`).expect(204);
+    await remove(testApp, `/users/${userId}`, otherId).expect(204);
 
     await expectKeysGone(s3, `keep/users/${userId}/`);
     expect((await keysUnder(s3, `keep/users/${otherId}/`)).sort()).toEqual(
@@ -142,7 +148,7 @@ describe('files deleted through Temporal', () => {
 
   it('deleting a session removes its generations’ folders and keeps the rest', async () => {
     const { prisma } = testApp;
-    const userId = await createUser(prisma);
+    const userId = await createUser(testApp);
     const photo = userPhotoKey(userId);
     const sessionId = await createSession(prisma, userId, true);
     const otherSessionId = await createSession(prisma, userId, false);
@@ -151,7 +157,7 @@ describe('files deleted through Temporal', () => {
     const kept = await createGeneration(prisma, s3, userId, otherSessionId);
     await put(s3, [photo]);
 
-    await remove(testApp, `/fitting-sessions/${sessionId}`).expect(204);
+    await remove(testApp, `/fitting-sessions/${sessionId}`, userId).expect(204);
 
     await expectKeysGone(s3, generationFolder(userId, first.id));
     await expectKeysGone(s3, generationFolder(userId, second.id));
@@ -162,26 +168,26 @@ describe('files deleted through Temporal', () => {
 
   it('deleting a session without generations answers 204 and removes nothing', async () => {
     const { prisma } = testApp;
-    const userId = await createUser(prisma);
+    const userId = await createUser(testApp);
     const photo = userPhotoKey(userId);
     await put(s3, [photo]);
     const sessionId = await createSession(prisma, userId, true);
 
-    await remove(testApp, `/fitting-sessions/${sessionId}`).expect(204);
+    await remove(testApp, `/fitting-sessions/${sessionId}`, userId).expect(204);
 
     expect(await keysUnder(s3, photo)).toEqual([photo]);
   });
 
   it('deleting a generation removes its folder only, the photo it points at stays (M24)', async () => {
     const { prisma } = testApp;
-    const userId = await createUser(prisma);
+    const userId = await createUser(testApp);
     const photo = userPhotoKey(userId);
     const sessionId = await createSession(prisma, userId, true);
     const doomed = await createGeneration(prisma, s3, userId, sessionId, photo);
     const kept = await createGeneration(prisma, s3, userId, sessionId);
     await put(s3, [photo]);
 
-    await remove(testApp, `/ai-generations/${doomed.id}`).expect(204);
+    await remove(testApp, `/ai-generations/${doomed.id}`, userId).expect(204);
 
     await expectKeysGone(s3, generationFolder(userId, doomed.id));
     expect((await keysUnder(s3, `keep/users/${userId}/`)).sort()).toEqual(
@@ -191,7 +197,7 @@ describe('files deleted through Temporal', () => {
 
   it('deleting a session of more than 20 generations removes every folder', async () => {
     const { prisma } = testApp;
-    const userId = await createUser(prisma);
+    const userId = await createUser(testApp);
     const photo = userPhotoKey(userId);
     const sessionId = await createSession(prisma, userId, true);
     await put(s3, [photo]);
@@ -200,7 +206,7 @@ describe('files deleted through Temporal', () => {
       generations.push(await createGeneration(prisma, s3, userId, sessionId, photo));
     }
 
-    await remove(testApp, `/fitting-sessions/${sessionId}`).expect(204);
+    await remove(testApp, `/fitting-sessions/${sessionId}`, userId).expect(204);
 
     await vi.waitFor(
       async () => expect(await keysUnder(s3, `keep/users/${userId}/generations/`)).toEqual([]),
@@ -211,51 +217,55 @@ describe('files deleted through Temporal', () => {
 
   it('deletes the files when the user id in the path is upper case', async () => {
     const { prisma } = testApp;
-    const userId = await createUser(prisma);
+    const userId = await createUser(testApp);
+    const visitorId = await createUser(testApp);
     const sessionId = await createSession(prisma, userId, true);
     const photo = userPhotoKey(userId);
     await put(s3, [photo]);
     await createGeneration(prisma, s3, userId, sessionId, photo);
 
-    await remove(testApp, `/users/${userId.toUpperCase()}`).expect(204);
+    await remove(testApp, `/users/${userId.toUpperCase()}`, visitorId).expect(204);
 
     await expectKeysGone(s3, `keep/users/${userId}/`);
   });
 
   it('deletes the files when the generation id in the path is upper case', async () => {
     const { prisma } = testApp;
-    const userId = await createUser(prisma);
+    const userId = await createUser(testApp);
     const sessionId = await createSession(prisma, userId, true);
     const generation = await createGeneration(prisma, s3, userId, sessionId);
 
-    await remove(testApp, `/ai-generations/${generation.id.toUpperCase()}`).expect(204);
+    await remove(testApp, `/ai-generations/${generation.id.toUpperCase()}`, userId).expect(204);
 
     await expectKeysGone(s3, generationFolder(userId, generation.id));
   });
 
   it('answers 404 to a repeated delete', async () => {
     const { prisma } = testApp;
-    const userId = await createUser(prisma);
+    const userId = await createUser(testApp);
+    const visitorId = await createUser(testApp);
     const sessionId = await createSession(prisma, userId, true);
     const generation = await createGeneration(prisma, s3, userId, sessionId);
 
-    await remove(testApp, `/ai-generations/${generation.id}`).expect(204);
-    await remove(testApp, `/ai-generations/${generation.id}`).expect(404);
-    await remove(testApp, `/fitting-sessions/${sessionId}`).expect(204);
-    await remove(testApp, `/fitting-sessions/${sessionId}`).expect(404);
-    await remove(testApp, `/users/${userId}`).expect(204);
-    await remove(testApp, `/users/${userId}`).expect(404);
+    await remove(testApp, `/ai-generations/${generation.id}`, userId).expect(204);
+    await remove(testApp, `/ai-generations/${generation.id}`, userId).expect(404);
+    await remove(testApp, `/fitting-sessions/${sessionId}`, userId).expect(204);
+    await remove(testApp, `/fitting-sessions/${sessionId}`, userId).expect(404);
+    await remove(testApp, `/users/${userId}`, visitorId).expect(204);
+    await remove(testApp, `/users/${userId}`, visitorId).expect(404);
   });
 
   it('answers 404 for a missing row', async () => {
-    await remove(testApp, `/users/${randomUUID()}`).expect(404);
-    await remove(testApp, `/fitting-sessions/${randomUUID()}`).expect(404);
-    await remove(testApp, `/ai-generations/${randomUUID()}`).expect(404);
+    const visitorId = await createUser(testApp);
+
+    await remove(testApp, `/users/${randomUUID()}`, visitorId).expect(404);
+    await remove(testApp, `/fitting-sessions/${randomUUID()}`, visitorId).expect(404);
+    await remove(testApp, `/ai-generations/${randomUUID()}`, visitorId).expect(404);
   });
 
   it('answers 204 with the storage unreachable and deletes the files once it is back (AC10)', async () => {
     const { prisma } = testApp;
-    const userId = await createUser(prisma);
+    const userId = await createUser(testApp);
     const sessionId = await createSession(prisma, userId, true);
     const generation = await createGeneration(prisma, s3, userId, sessionId);
     const client = testApp.app.get(Client);
@@ -263,7 +273,7 @@ describe('files deleted through Temporal', () => {
 
     proxy.block();
     try {
-      await remove(testApp, `/ai-generations/${generation.id}`).expect(204);
+      await remove(testApp, `/ai-generations/${generation.id}`, userId).expect(204);
 
       // The activity has failed and been retried, and the files are still there.
       await vi.waitFor(
@@ -307,11 +317,11 @@ describe('a delete with no worker on the task queue', () => {
 
   it('answers 204, the workflow waits and the files stay', async () => {
     const { prisma } = testApp;
-    const userId = await createUser(prisma);
+    const userId = await createUser(testApp);
     const sessionId = await createSession(prisma, userId, true);
     const generation = await createGeneration(prisma, s3, userId, sessionId);
 
-    await remove(testApp, `/ai-generations/${generation.id}`).expect(204);
+    await remove(testApp, `/ai-generations/${generation.id}`, userId).expect(204);
 
     const handle = testApp.app
       .get(Client)
@@ -322,7 +332,7 @@ describe('a delete with no worker on the task queue', () => {
   });
 
   it('starting the same workflow id twice while it runs does not fail', async () => {
-    const userId = await createUser(testApp.prisma);
+    const userId = await createUser(testApp);
     const fileDeletion = testApp.app.get(FileDeletion);
     const prefixes = [`keep/users/${userId}/`];
 
@@ -352,12 +362,12 @@ describe('a delete with Temporal unreachable', () => {
 
   it('answers 204 within the start bound and leaves the files', async () => {
     const { prisma } = testApp;
-    const userId = await createUser(prisma);
+    const userId = await createUser(testApp);
     const sessionId = await createSession(prisma, userId, true);
     const generation = await createGeneration(prisma, s3, userId, sessionId);
     const began = Date.now();
 
-    await remove(testApp, `/ai-generations/${generation.id}`).expect(204);
+    await remove(testApp, `/ai-generations/${generation.id}`, userId).expect(204);
 
     expect(Date.now() - began).toBeLessThan(7000);
     expect(await prisma.aiGeneration.findUnique({ where: { id: generation.id } })).toBeNull();
@@ -366,7 +376,7 @@ describe('a delete with Temporal unreachable', () => {
 
   it('closing the app during a start raises no unhandled rejection or uncaught exception', async () => {
     const { prisma } = testApp;
-    const userId = await createUser(prisma);
+    const userId = await createUser(testApp);
     const sessionId = await createSession(prisma, userId, true);
     const generation = await createGeneration(prisma, s3, userId, sessionId);
     const raised: unknown[] = [];
@@ -374,7 +384,7 @@ describe('a delete with Temporal unreachable', () => {
     process.on('uncaughtException', onError);
     process.on('unhandledRejection', onError);
     try {
-      const answer = remove(testApp, `/ai-generations/${generation.id}`).then(
+      const answer = remove(testApp, `/ai-generations/${generation.id}`, userId).then(
         (response) => response.status,
         () => 'connection closed',
       );

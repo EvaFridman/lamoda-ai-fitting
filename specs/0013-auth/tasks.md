@@ -103,7 +103,7 @@ plan §10); amended 2026-10-19 after the rebase on 0011 (T10 before T7, AC12's f
       Check: activity e2e on the database (expired rows go, live ones stay); workflow test with
       the Temporal test environment; `temporal-reviewer`; `npm run verify`.
       Commit: `feat(api): delete expired sessions and sign-in states`
-- [ ] **T10. 0011's checks without the admin token (done right after the rebase, before T7).**
+- [x] **T10. 0011's checks without the admin token (done right after the rebase, before T7).**
       0011's admin-based e2e (`owner-check-links`, `file-deletion`, `file-deletion-close`; M8, M9,
       M11) rewritten for a signed-in user and the test guard (N15). The branch was rebased on
       `main` with all of 0011 (#77, #78) on 2026-10-19; the owner moved this task before T7 so the
