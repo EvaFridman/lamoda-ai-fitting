@@ -1,6 +1,8 @@
 # 0011 S3 storage
 
-Status: accepted (2026-10-16); amended 2026-10-16 at the plan: one private bucket for the app
+Status: done (2026-10-19): all 14 criteria pass, AC6 on the CI runner, its production half
+checked after PR 4's merge (record in `tasks.md`). History, not instructions.
+Accepted 2026-10-16; amended 2026-10-16 at the plan: one private bucket for the app
 instead of two (M1), its `media/` readable only from the server (M15, AC3), an expired link is
 refused rather than answering 403 (AC8), the owner sets the bucket up (M14), deleting a fitting
 session deletes its generations' files (AC10), the seed photos appear after the seed (AC12).

@@ -1,6 +1,7 @@
 # 0011 S3 storage: tasks
 
-Status: accepted (2026-10-16).
+Status: done (2026-10-19): all 14 criteria pass, AC6 on the CI runner, its production half
+checked after PR 4's merge (record below). History, not instructions.
 Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## How the work flows
@@ -122,7 +123,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       key after PR 4's merge shows no `x-amz-*` and no `x-rgw-object-type` (another `x-rgw-*`
       would be a finding for the list). `security-reviewer` joins the review (nginx).
       Commit: `fix(deploy): hide the storage's x-rgw-object-type header`
-- [ ] **T13. Close the spec.** The production checks (AC2, AC3, AC4, AC6–AC8, AC10, AC11, AC14,
+- [x] **T13. Close the spec.** The production checks (AC2, AC3, AC4, AC6–AC8, AC10, AC11, AC14,
       with the owner where the server or the panel is needed), the acceptance record below, every
       file gets `Status: done`. T13a's evidence is its CI run and the deploy log of PR 4's merge.
       Check: every criterion has evidence; `npm run verify`.
@@ -131,4 +132,29 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## Acceptance record
 
-Filled in by T13.
+Production checks on 2026-10-18/19 by the main session, on the deploy of `82025f9` (PR 3's merge):
+from the laptop with `curl`, and on the server (`ssh ai-fitting`) with a throwaway script that
+read its keys from the server's `.env` and printed none. That script made a test user, two fitting
+sessions with a generation each and three objects under `keep/users/<id>/`, and deleted them all
+through the api. The local criteria rest on the checks of the tasks named. `npm run verify` on the
+closing commit passed (api 2440 tests, web 1654, guards and scripts 577). Two criteria take part of their evidence from elsewhere
+(M40). Checked after PR 4's merge, with the result in the pull request (M40): AC6's production
+half (the merge's deploy is the second after PR 3), T13a (the CI run of PR 4 and that deploy's
+log) and T13b (`curl -I` of a seed key without `x-rgw-object-type`).
+
+| AC   | Result                                            | Evidence                                                                                                                                                                                                                                                                                                                                                                                              |
+| ---- | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AC1  | pass                                              | T10: `curl -I` of every seed key on :3001 answers 200 `image/webp`; the web container has no `public/media`                                                                                                                                                                                                                                                                                           |
+| AC2  | pass                                              | All 78 seed keys on `https://lamoda-ai-fitting.ru/media/`: 200, `image/webp`, `Cache-Control: public, max-age=86400`, no `x-amz-*` header; Timeweb's `x-rgw-object-type` came through and is hidden by T13b (M39)                                                                                                                                                                                     |
+| AC3  | pass                                              | A missing key, `/media/` and `/media/seed/`: 404 `NOT_FOUND`; `PUT`, `POST`, `DELETE` of a seed key: 404 `ROUTE_NOT_FOUND` (M30); a seed key, the bucket's root, a listing and `keep/` straight from `s3.twcstorage.ru` from the laptop (path and virtual-host style): 403 `AccessDenied`                                                                                                             |
+| AC4  | pass                                              | Production `/dev/catalog` (12 photos) and `/ui-kit` (8): 200, and every `/media/` photo they reference answers 200, checked with `curl` instead of a browser (`qa-tester` reaches only the local stack); locally `qa-tester` in a browser in T10                                                                                                                                                      |
+| AC5  | pass                                              | T10: CI's web image has no `public/media` (`test ! -e public/media`; the image copies no `public/`, M28)                                                                                                                                                                                                                                                                                              |
+| AC6  | pass on the CI runner; production after the merge | First deploy (run 39166201696, attempt 2): `Seed done: 0 products created, 30 already there, 78 photos uploaded`, then `media/seed/products/OST-TS-004/2.webp answers 200 from the bucket and through nginx`; the second deploy on the CI runner in T11 uploaded nothing with every `ETag` unchanged; production's second deploy is PR 4's merge, checked after it (M40)                              |
+| AC7  | pass                                              | On the server: a `keep/users/<id>/photos/…` object fetched unsigned from the bucket: 403; `/media/` of that key: 404; emulator: `storage.e2e-spec.ts` "refuses a private object"                                                                                                                                                                                                                      |
+| AC8  | pass                                              | On the server: the admin `GET` of the test user returned a link to `s3.twcstorage.ru` that answered 200; 1042 s later the same link answered 500, refused (spec: "refused", plan risk: an expired link may answer 500); emulator: `storage.e2e-spec.ts` "is refused once it has expired"                                                                                                              |
+| AC9  | pass                                              | T7: another user's key, a `media/` key, a `tmp/` key and any key on user create answer 400 `VALIDATION_FAILED` (`IN_OWNER_FOLDER`)                                                                                                                                                                                                                                                                    |
+| AC10 | pass                                              | On the server: deleting a fitting session (204) and a generation (204) emptied that generation's folder within 5 s and left the user's photo; deleting the user (204) emptied `keep/users/<id>/` by the first listing. Storage unreachable: `file-deletion.e2e-spec.ts` "answers 204 with the storage unreachable and deletes the files once it is back" (M40)                                        |
+| AC11 | pass                                              | The bucket's lifecycle as the api's key reads it: one rule, prefix `tmp/`, `Expiration` 1 day and `AbortIncompleteMultipartUpload` 1 day; no other rule                                                                                                                                                                                                                                               |
+| AC12 | pass                                              | T4: `docker compose up -d --wait` on a fresh `.env` is healthy, `s3-init` exits 0; T9: `seed:dev` on an empty emulator uploads 78, a second run 0; `qa-tester` from a fresh clone in T10. The emulator's keys are random ones `scripts/init-env.sh` writes into `.env`, and nothing outside the compose services is called; a run with no internet at all (after the images are pulled) was not tried |
+| AC13 | pass                                              | `npm run verify` above; the storage tests start their own SeaweedFS with Testcontainers (`api/test/support/`)                                                                                                                                                                                                                                                                                         |
+| AC14 | pass                                              | On the server, the secret key's value in the config and history of the images of all 10 running containers (api, web, worker, nginx and the rest): 0; in their logs: 0 lines; in the files of the web container: 0; the CI and CD logs print only the script text that writes it to the server's `.env`; `check:web-bundle` in `verify`; the key id is in every signed link (M34)                     |
