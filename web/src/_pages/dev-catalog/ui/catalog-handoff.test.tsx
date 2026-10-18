@@ -170,7 +170,8 @@ describe('CatalogHandoff', () => {
     );
     await renderHandoff();
 
-    expect(screen.getByRole('alert')).toHaveTextContent(
+    // The browser's own request for the facets fails the same way and may add its own alert.
+    expect(screen.getAllByRole('alert')[0]).toHaveTextContent(
       `На сервере (facets): ${ERROR_TEXTS.NOT_FOUND}`,
     );
     expect(screen.getByText(/Handed dress/)).toBeInTheDocument();
