@@ -41,6 +41,8 @@ export IMAGE_REGISTRY=""
 # the check and the teardown would then act on another project, e.g. the development stack.
 unset COMPOSE_PROJECT_NAME COMPOSE_FILE COMPOSE_PROFILES
 work="$(mktemp -d)"
+# Until teardown takes over: an early exit leaves no env files with the run's keys (spec 0011 M35).
+trap 'rm -rf "$work"' EXIT
 env_file="$work/deploy.env"
 
 group() { if [ -n "${GITHUB_ACTIONS:-}" ]; then echo "::group::$*"; else echo "==> $*"; fi; }
@@ -409,6 +411,8 @@ teardown() {
   docker compose -f deploy/compose/infra.yml --env-file "$env_file" --profile server down --volumes \
     || true
   rm -f .deploy-state
+  # It holds the run's env files with their one-off keys (spec 0011 M35).
+  rm -rf "$work"
   docker image rm "ai-fitting-api:$second" "ai-fitting-web:$second" "ai-fitting-api:$broken" \
     "ai-fitting-web:$broken" > /dev/null 2>&1 || true
 }

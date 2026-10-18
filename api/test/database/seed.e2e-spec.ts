@@ -49,7 +49,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await db.$disconnect();
-  storage.onModuleDestroy();
+  storage.onApplicationShutdown();
 });
 
 function pick(index: number) {
@@ -545,7 +545,7 @@ describe('SeedService photos in the bucket (spec 0011 AC6)', () => {
 
   afterAll(async () => {
     await photoDb.$disconnect();
-    photoStorage.onModuleDestroy();
+    photoStorage.onApplicationShutdown();
     s3.destroy();
     await proxy.close();
   });
@@ -631,7 +631,7 @@ describe('SeedService photos in the bucket (spec 0011 AC6)', () => {
       expect(failure).toBeInstanceOf(StorageError);
       expect(await photoDb.product.count({ where: { article: product.article } })).toBe(1);
     } finally {
-      blocked.onModuleDestroy();
+      blocked.onApplicationShutdown();
       proxy.unblock();
     }
   });

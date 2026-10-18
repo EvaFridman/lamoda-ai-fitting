@@ -25,9 +25,18 @@ let runtimeInstalled = false;
 // A worker of the app's workflows and activities on `settings.taskQueue`, as run-worker.ts builds
 // it, with the activities' services given by the test (a StorageService on the emulator). Bundling
 // the workflows takes seconds: start it in `beforeAll` with a long timeout, `stop()` in `afterAll`.
-export async function startTestWorker(
+export function startTestWorker(
   settings: TemporalSettings,
   storage: StorageService,
+): Promise<TestWorker> {
+  return startTestWorkerWith(settings, createActivities(storage));
+}
+
+// The same worker with activities of the test, e.g. stubs, to check a workflow's own logic apart
+// from the storage.
+export async function startTestWorkerWith(
+  settings: TemporalSettings,
+  activities: object,
 ): Promise<TestWorker> {
   if (!runtimeInstalled) {
     // The worker's own logs (bundling, polling) stay out of the test output; failures still throw.
@@ -53,7 +62,7 @@ export async function startTestWorker(
       workflowsPath: fileURLToPath(
         new URL('../../src/temporal/workflows/index.ts', import.meta.url),
       ),
-      activities: createActivities(storage),
+      activities,
     });
     const running = worker.run();
     return {

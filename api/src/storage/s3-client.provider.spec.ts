@@ -9,7 +9,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Env } from '../config/env.js';
 import {
   createS3Client,
+  S3_CLIENT,
   S3_CONNECTION_TIMEOUT_MS,
+  S3_SIGNING_CLIENT,
   S3_SOCKET_TIMEOUT_MS,
   STORAGE_SETTINGS,
   type StorageSettings,
@@ -88,7 +90,32 @@ describe('signed links', () => {
     expect(url.pathname).toBe('/bucket/keep/users/u1/photos/a.webp');
     expect(url.searchParams.get('X-Amz-Expires')).toBe('777');
     expect(fetchSpy).not.toHaveBeenCalled();
-    service.onModuleDestroy();
+    service.onApplicationShutdown();
+  });
+});
+
+describe('StorageService shutdown', () => {
+  it('destroys both clients when the app closes, in onApplicationShutdown', async () => {
+    const client = { destroy: vi.fn() };
+    const signingClient = { destroy: vi.fn() };
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        { provide: STORAGE_SETTINGS, useValue: {} },
+        { provide: S3_CLIENT, useValue: client },
+        { provide: S3_SIGNING_CLIENT, useValue: signingClient },
+        StorageService,
+      ],
+    }).compile();
+    const service = moduleRef.get(StorageService);
+
+    // onModuleDestroy would run while the HTTP server still takes requests.
+    expect('onModuleDestroy' in service).toBe(false);
+    expect(client.destroy).not.toHaveBeenCalled();
+
+    await moduleRef.close();
+
+    expect(client.destroy).toHaveBeenCalledOnce();
+    expect(signingClient.destroy).toHaveBeenCalledOnce();
   });
 });
 

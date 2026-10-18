@@ -16,8 +16,9 @@ export class FileDeletion {
   constructor(private readonly starter: WorkflowStarter) {}
 
   // `prefixes` are folders of keys.ts (userFolders, generationFolder); none starts nothing. A
-  // failed start leaves the files: it is logged and sent to Sentry with the prefixes, so the owner
-  // can start the deletion by hand (plan, Risks).
+  // failed start leaves the files: it is logged with the prefixes, so the owner can start the
+  // deletion by hand (plan, Risks). Sentry gets only the kind and the id: no storage paths (spec
+  // 0011 M32).
   async startFileDeletion(kind: FileDeletionKind, id: string, prefixes: string[]): Promise<void> {
     if (prefixes.length === 0) {
       return;
@@ -35,7 +36,7 @@ export class FileDeletion {
         id,
         prefixes,
       });
-      Sentry.captureException(error, { extra: { kind, id, prefixes } });
+      Sentry.captureException(error, { extra: { kind, id } });
     }
   }
 }

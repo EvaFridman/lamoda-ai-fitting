@@ -81,7 +81,8 @@ specs.
   real keys are needed.
 - AC13. `npm run verify` passes; the storage tests use a throwaway emulator, never the development
   one.
-- AC14. The S3 keys appear in no image, no log line and no browser bundle.
+- AC14. The S3 secret key appears in no image, no log line and no browser bundle (the key id is in
+  every signed link, M34).
 
 ## Owner actions (Claude cannot do them)
 

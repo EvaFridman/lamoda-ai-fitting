@@ -7,7 +7,7 @@ import {
   S3Client,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { Inject, Injectable, type OnModuleDestroy } from '@nestjs/common';
+import { Inject, Injectable, type OnApplicationShutdown } from '@nestjs/common';
 
 import { isDeletableFolder, isInUserFolder, isUserFileKey, isValidKey } from './keys.js';
 import {
@@ -33,7 +33,7 @@ export interface PutOptions {
 // before a request. A failed request throws a StorageError (never the SDK's error, M22), so a caller
 // (a seed, an activity that retries) sees it and a log line of it holds no key id or path.
 @Injectable()
-export class StorageService implements OnModuleDestroy {
+export class StorageService implements OnApplicationShutdown {
   constructor(
     @Inject(STORAGE_SETTINGS) private readonly settings: StorageSettings,
     @Inject(S3_CLIENT) private readonly client: S3Client,
@@ -157,7 +157,9 @@ export class StorageService implements OnModuleDestroy {
     }
   }
 
-  onModuleDestroy(): void {
+  // After the HTTP server has closed: onModuleDestroy runs while it still takes requests, as in
+  // TemporalClientModule.
+  onApplicationShutdown(): void {
     this.client.destroy();
     this.signingClient.destroy();
   }
