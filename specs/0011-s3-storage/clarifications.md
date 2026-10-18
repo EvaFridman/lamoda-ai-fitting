@@ -187,3 +187,10 @@ code comments. All decisions below: owner, 2026-10-16.
   start lies a window of milliseconds; a SIGTERM waits for the starts in progress, an OOM kill or
   SIGKILL there leaves the files with no log line. Accepted while only the admin deletes (plan,
   Risks); an outbox table went to the backlog (T8).
+
+## Decided at T9
+
+- **M28. The web image copies no `public/`.** Once the seed photos move, git holds no file under
+  `web/public`, so a clean checkout has no such folder and `COPY /app/public` fails the build. The
+  copy goes from `web/Dockerfile` in T9 and comes back with the first static file of web. A
+  `web/public/.gitkeep` was rejected: an empty folder in the image for nothing (T9).

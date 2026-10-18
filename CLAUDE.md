@@ -138,7 +138,8 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
 - `api/prisma/`: `schema.prisma` and migrations. CHECK constraints live only in the migrations'
   `migration.sql` (Prisma does not model them); `schema.prisma` notes the rules queries must follow.
 - `api/src/seed/`: the demo catalog. Its image columns hold keys, not URLs; the files are in
-  `web/public/media/<key>` and web serves them at `/media/<key>`.
+  `api/seed-media/<key>`, and the seed uploads the missing ones to the bucket's `media/<key>`
+  (served at `/media/<key>`).
 - `web/`: `app/` holds routing only and re-exports pages from `src/_pages`. FSD layers in `web/src/`,
   imports only downward: `_app → _pages → widgets → features → entities → shared`. A slice or a
   `shared` segment exposes `index.ts` (browser-safe) and/or `server.ts`, which starts with

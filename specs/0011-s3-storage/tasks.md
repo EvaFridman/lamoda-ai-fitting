@@ -75,7 +75,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## PR 3 · `feat/0011-media` · the catalog media in the bucket
 
-- [ ] **T9. The seed uploads its photos.** `git mv` of the 78 files to `api/seed-media/`;
+- [x] **T9. The seed uploads its photos.** `git mv` of the 78 files to `api/seed-media/`;
       `api/Dockerfile` copies them; the seed uploads the missing ones with `image/webp` and
       `MEDIA_CACHE_CONTROL`; the seed test reads the new folder and seeds twice (plan §5).
       Check: `seed:dev` on an empty emulator uploads 78, a second run 0 (AC6, AC12); the seed
