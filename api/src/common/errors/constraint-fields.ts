@@ -33,6 +33,9 @@ export const CONSTRAINT_FIELDS: Readonly<Record<string, readonly string[]>> = {
   users_phone_check: ['phone'],
 
   // Unique: the field a caller changes to resolve the conflict (a size is unique per product).
+  // Better Auth's own writes (spec 0013 plan §2); its answers never pass the api's filter, so
+  // these only name the field should another write hit them.
+  accounts_provider_id_account_id_key: ['accountId'],
   attribute_values_attribute_id_value_key: ['value'],
   attributes_name_key: ['name'],
   brands_name_key: ['name'],
@@ -45,10 +48,12 @@ export const CONSTRAINT_FIELDS: Readonly<Record<string, readonly string[]>> = {
   product_attribute_values_pkey: ['attributeValueId'],
   product_variations_product_id_size_key: ['size'],
   products_article_key: ['article'],
+  sessions_token_key: ['token'],
   users_email_key: ['email'],
   users_phone_key: ['phone'],
 
   // Foreign keys: the field holding the reference.
+  accounts_user_id_fkey: ['userId'],
   ai_generations_session_id_fkey: ['sessionId'],
   attribute_values_attribute_id_fkey: ['attributeId'],
   fitting_sessions_user_id_fkey: ['userId'],
@@ -61,6 +66,7 @@ export const CONSTRAINT_FIELDS: Readonly<Record<string, readonly string[]>> = {
   product_variations_product_id_fkey: ['productId'],
   products_brand_id_fkey: ['brandId'],
   products_category_id_fkey: ['categoryId'],
+  sessions_user_id_fkey: ['userId'],
 };
 
 export function constraintFields(name: string | undefined): readonly string[] {

@@ -17,8 +17,9 @@ import { type Tier, TIERS, throttlerName, type Window, WINDOWS } from './tiered-
 })
 class ThrottlerStorageModule {}
 
-// The env variable with each tier's limit for each window.
-const LIMITS: Record<Tier, Record<Window, Extract<keyof Env, `THROTTLE_${string}`>>> = {
+// The env variable with each tier's limit for each window. authThrottle (auth-throttle.ts) reads the
+// same ones.
+export const LIMITS: Record<Tier, Record<Window, Extract<keyof Env, `THROTTLE_${string}`>>> = {
   read: { burst: 'THROTTLE_READ_BURST', minute: 'THROTTLE_READ_MINUTE' },
   write: { burst: 'THROTTLE_WRITE_BURST', minute: 'THROTTLE_WRITE_MINUTE' },
   expensive: { burst: 'THROTTLE_EXPENSIVE_BURST', minute: 'THROTTLE_EXPENSIVE_MINUTE' },

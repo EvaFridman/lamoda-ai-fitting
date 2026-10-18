@@ -7421,6 +7421,7 @@
           },
           "phone": {
             "type": "string",
+            "nullable": true,
             "example": "+79991234567"
           },
           "email": {
@@ -7429,6 +7430,7 @@
           },
           "firstName": {
             "type": "string",
+            "nullable": true,
             "example": "Анна"
           },
           "lastName": {

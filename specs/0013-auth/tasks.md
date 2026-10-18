@@ -50,7 +50,7 @@ Status: accepted (2026-10-16).
       Check: env unit tests (AC14); `docker compose up -d --wait` healthy; the fake provider's
       discovery document answers on 4010; `npm run verify`.
       Commit: `feat(api): add the auth configuration and a fake openid provider`
-- [ ] **T5. Better Auth and the database.** `better-auth@1.7.10`; the `auth` migration and models;
+- [x] **T5. Better Auth and the database.** `better-auth@1.7.10`; the `auth` migration and models;
       `api/src/auth/` (instance, hooks, module); the mount in `createHttpApp()` with
       `authThrottle`; `constraint-fields.ts`; nginx's `location /api/auth/`; web's development
       rewrite for `/api/auth/:path*` (plan §2, §3, §5, §9). First the risky part (plan "Risks"):
@@ -90,6 +90,12 @@ Status: accepted (2026-10-16).
       stack table, env); `specs/backlog.md` (plan "Backlog").
       Check: `rg -i 'admin_api_token|x-admin-token'` finds only specs (AC6); `npm run verify`.
       Commit: `docs(docs): describe sign-in and the end of the admin token`
+- [ ] **T9a. Expired sign-in rows are deleted (added at T5, N27).** A Temporal schedule, created by
+      the worker at start if missing, runs once a day a workflow whose activity deletes
+      `verifications` and `sessions` with `expires_at < now()` in batches (plan §12).
+      Check: activity e2e on the database (expired rows go, live ones stay); workflow test with
+      the Temporal test environment; `temporal-reviewer`; `npm run verify`.
+      Commit: `feat(api): delete expired sessions and sign-in states`
 - [ ] **T10. Account files (after `feat/0011-storage` is in `main`).** Rebase; `DELETE /me` goes
       through 0011's user deletion; 0011's admin-based e2e (M8, M9; its T7) rewritten for a
       signed-in user and the test guard (N15). If 0011 lands after PR 2 is merged, this task moves

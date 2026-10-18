@@ -8,14 +8,16 @@ export class UserResponseDto {
   @ApiProperty({ format: 'uuid' })
   id: string;
 
-  @ApiProperty({ example: '+79991234567' })
-  phone: string;
+  // Null for a user who signed in with Google: it gives no phone, and a given name that fails the
+  // name rule is not kept (spec 0013 N5).
+  @ApiProperty({ type: String, nullable: true, example: '+79991234567' })
+  phone: string | null;
 
   @ApiProperty({ example: 'anna@mail.ru' })
   email: string;
 
-  @ApiProperty({ example: 'Анна' })
-  firstName: string;
+  @ApiProperty({ type: String, nullable: true, example: 'Анна' })
+  firstName: string | null;
 
   @ApiProperty({ type: String, nullable: true, example: 'Иванова' })
   lastName: string | null;

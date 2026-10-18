@@ -36,11 +36,15 @@ enum GenerationStatus {
   @@map("generation_status")
 }
 
+// Better Auth writes users through its model `user` (api/src/auth/auth.ts): its `name` is
+// `firstName`, `null` unless Google's given name passes the name rule (spec 0013 N5). Google gives
+// no phone, so `phone` is unique only among the users that have one.
 model User {
   id                     String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  phone                  String    @unique @db.VarChar(12)
+  phone                  String?   @unique @db.VarChar(12)
   email                  String    @unique @db.VarChar(254)
-  firstName              String    @map("first_name") @db.VarChar(50)
+  emailVerified          Boolean   @default(false) @map("email_verified")
+  firstName              String?   @map("first_name") @db.VarChar(50)
   lastName               String?   @map("last_name") @db.VarChar(50)
   patronymic             String?   @db.VarChar(50)
   dateOfBirth            DateTime? @map("date_of_birth") @db.Date
@@ -50,8 +54,65 @@ model User {
   updatedAt              DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   fittingSessions FittingSession[]
+  sessions        Session[]
+  accounts        Account[]
 
   @@map("users")
+}
+
+// Better Auth's tables (spec 0013 plan §2). Only Better Auth writes them. A session row is the
+// sign-in; the cookie holds its token.
+model Session {
+  id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  token     String   @unique @db.VarChar(255)
+  userId    String   @map("user_id") @db.Uuid
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
+  // Cut to 512 characters by the session hook.
+  userAgent String?  @map("user_agent") @db.VarChar(512)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+// A user's Google account. The token columns are Better Auth's and stay null: the account hook
+// drops Google's tokens, since the api never calls Google after sign-in.
+model Account {
+  id                    String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  accountId             String    @map("account_id") @db.VarChar(255)
+  providerId            String    @map("provider_id") @db.VarChar(255)
+  userId                String    @map("user_id") @db.Uuid
+  accessToken           String?   @map("access_token")
+  refreshToken          String?   @map("refresh_token")
+  idToken               String?   @map("id_token")
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at") @db.Timestamptz(3)
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at") @db.Timestamptz(3)
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+// Short-lived values of Better Auth, e.g. the OAuth state of a sign-in in progress.
+model Verification {
+  id         String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  identifier String   @db.VarChar(255)
+  value      String
+  expiresAt  DateTime @map("expires_at") @db.Timestamptz(3)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([identifier])
+  @@map("verifications")
 }
 
 model Category {

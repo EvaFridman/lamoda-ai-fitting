@@ -74,7 +74,13 @@ FROM base AS prod-deps
 USER node
 COPY --chown=node:node package.json package-lock.json .npmrc prisma.config.ts ./
 COPY --chown=node:node prisma ./prisma
-RUN npm ci --omit=dev && npm cache clean --force
+# No peers either: better-auth names vitest, react and others as optional peers, which npm would
+# otherwise install (vitest pulls in vite and native build tools). Every peer the api needs at run
+# time is its own dependency. vitest itself stays, being also the api's dev dependency, so it is
+# uninstalled here with what only it needs; --no-save leaves package.json and the lockfile alone.
+RUN npm ci --omit=dev --omit=peer \
+    && npm uninstall --no-save --omit=dev --omit=peer --ignore-scripts vitest \
+    && npm cache clean --force
 # Temporal's native module ships prebuilt binaries for five platforms (~150 MB); keep only this
 # image's own Linux architecture.
 RUN case "$(uname -m)" in \

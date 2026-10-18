@@ -68,7 +68,9 @@ given_name` (N5); or, when `AUTH_FAKE_OIDC_URL` is set, `genericOAuth` with `pro
   before the JSON parser: `app.all('/api/auth/*splat', authThrottle, toNodeHandler(auth))`. The
   path keeps `/api/` because Better Auth matches it against its `baseURL`; nginx and web pass it
   unchanged (§9, §10). Its answers keep Better Auth's `{ code, message }` (N17, AC11); no Nest
-  filter sees them. Its body has no limit of its own: nginx's 1 MB and Node's header limit apply.
+  filter sees them. (Amended at T5: the route also carries the request log, the allowlist of
+  routes, its own JSON parser with `BODY_LIMIT` and request timeout, and an error handler; N25,
+  N26, N28.)
 
 ## 4. Principal, guards and markers (N7, N8)
 
@@ -194,6 +196,12 @@ client secret (AC14). The worker does not need these. `check:web-bundle` also fa
 - e2e: the fake server starts in-process; one test walks the whole redirect flow, the rest sign in
   through `test/support/sign-in.ts`, which creates a user and a session through Better Auth's
   internal adapter and returns the signed cookie.
+
+## 12. Expired sign-in rows (N27; added at T5)
+
+- A Temporal schedule, created by the worker at start if missing, runs a workflow once a day whose
+  activity deletes `verifications` and `sessions` rows with `expires_at < now()`, in batches. Its
+  task is T9a.
 
 ## Dependencies
 

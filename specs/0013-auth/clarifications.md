@@ -119,3 +119,37 @@ code comments. All decisions below: owner, 2026-10-16.
   process restarts: a page in the developer's browser could grow it. Accepted: the service listens
   on 127.0.0.1 only and never runs in production; closing it would mean wrapping the library's
   request handler.
+
+## Added at T5
+
+- **N24. Better Auth's schema check is off.** Better Auth 1.7 compares the Prisma schema with its
+  full model and refuses every request while `users.image` and `sessions.ip_address` are missing.
+  Neither is needed (no avatar, N6; no IP tracking, plan §2), so the check is off
+  (`advanced.database.validateSchema: false`) and the hooks never write those fields. A schema that
+  drifts after an update of Better Auth fails the auth e2e instead. Rejected: two columns that
+  always stay null.
+- **N25. Only the routes of sign-in, the session and signing out answer.** A list of the routes
+  that answer (`/sign-in/social`, `/callback/google`, `/get-session`, `/sign-out`,
+  `/revoke-sessions` for "Выйти со всех устройств", `ok`, `error`); every other path under
+  `/api/auth` answers 404 `{ code: "NOT_FOUND", message }` before Better Auth sees it: changing the
+  user (`/update-user` would write the name past the api's DTOs), linking and listing accounts,
+  listing sessions (it answers the token of every session), Google's tokens (never kept), email and
+  password, verification and deletion, and whatever an update adds. A user's data changes only
+  through the api's own routes (`/me`). Rejected: Better Auth's `disabledPaths`, which matches exact
+  paths only (a route with a parameter slips through).
+- **N26. A failure inside Better Auth answers its own format too.** An error that is not Better
+  Auth's own (a database error) answers 500 `{ code: "INTERNAL_SERVER_ERROR", message }`, so every
+  answer of `/api/auth/*` has one format (N17). It is logged without the row and reported to Sentry,
+  as AppExceptionFilter does for a 5xx. Its default (an empty 500 and the whole error, session token
+  and user data included, printed with `console.error`) is off. Rejected: passing it to
+  AppExceptionFilter, which would answer the api's format on this one path.
+- **N27. Expired sign-in rows are deleted in this spec.** Every sign-in that is started and not
+  finished leaves a `verifications` row, and expired sessions stay with their User-Agent: a
+  schedule deletes both once a day (plan §12, task T9a). Rejected: a backlog item.
+- **N28. `/api/auth` has the api's body limit and request timeout.** Better Auth is an Express
+  route ahead of Nest, so neither the JSON parser nor `TimeoutInterceptor` reaches it; their copies
+  on the route do: a JSON body over `BODY_LIMIT` answers 413 `PAYLOAD_TOO_LARGE`, a broken one 400
+  `BAD_REQUEST`, and a request not answered within `REQUEST_TIMEOUT_MS` answers 503
+  `SERVICE_UNAVAILABLE` (its work is not cancelled, its end is logged, the first timeout within a
+  minute goes to Sentry), all in Better Auth's `{ code, message }`. So `/api/auth` needs no
+  exception in `CLAUDE.md`'s limits. Rejected: nginx's 1 MB and 60 s alone.
