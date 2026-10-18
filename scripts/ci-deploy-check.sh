@@ -323,7 +323,8 @@ media_etags() {
 photos_uploaded() { grep -o '[0-9]* photos uploaded' "$1" | sed 's/ .*//'; }
 
 # spec 0011 AC2, AC3 on the runner: every image of the catalog through nginx answers 200 as a webp
-# with the seed's Cache-Control and none of the storage's x-amz-* headers; a query string reaches
+# with the seed's Cache-Control and none of the storage's headers (x-amz-*, Timeweb's x-rgw-*, the
+# emulator's Seaweed-*, M39); a query string reaches
 # nothing (the emulator would act on ?response-content-type=); a missing key, a folder and a write
 # answer 404 in the api's format (M30); the storage got only nginx's Host and no query string.
 check_media() {
@@ -338,11 +339,11 @@ check_media() {
     head -n 1 <<< "$headers" | grep -q '^HTTP/1.1 200 ' \
       && grep -qix 'content-type: image/webp' <<< "$headers" \
       && grep -qix 'cache-control: public, max-age=86400' <<< "$headers" \
-      && ! grep -qi '^x-amz-' <<< "$headers" \
+      && ! grep -qiE '^(x-amz-|x-rgw-|seaweed-)' <<< "$headers" \
       || { printf 'ci-deploy-check: /media/%s answers:\n%s\n' "$key" "$headers" >&2; return 1; }
     n=$((n + 1))
   done <<< "$keys"
-  echo "$n catalog images: 200, image/webp, Cache-Control: public, max-age=86400, no x-amz-*"
+  echo "$n catalog images: 200, image/webp, Cache-Control: public, max-age=86400, no x-amz-*, x-rgw-*, Seaweed-*"
   first="$(head -n 1 <<< "$keys")"
   check_security_headers "/media/$first"
   got="$(curl -sk --max-time 10 -o /dev/null -w '%{http_code} %{content_type}' \

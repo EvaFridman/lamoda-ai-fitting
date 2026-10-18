@@ -256,7 +256,7 @@ server {
     proxy_ssl_verify_depth 3;
 
     # The storage's own headers (AC2): request ids, the owner of a user's file, the emulator's,
-    # and those S3 sends for versions, encryption, lock and checksums.
+    # Timeweb's (Ceph RGW), and those S3 sends for versions, encryption, lock and checksums.
     proxy_hide_header x-amz-id-2;
     proxy_hide_header x-amz-request-id;
     proxy_hide_header x-amz-meta-owner-user-id;
@@ -281,6 +281,7 @@ server {
     proxy_hide_header x-amz-checksum-type;
     proxy_hide_header Seaweed-X-Amz-ETag;
     proxy_hide_header Seaweed-X-Amz-Owner;
+    proxy_hide_header x-rgw-object-type;
     # The storage never sees the visitor's Origin, so its Vary: Origin would only split the cache.
     proxy_hide_header Vary;
     proxy_hide_header Set-Cookie;

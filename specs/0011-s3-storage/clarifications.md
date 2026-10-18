@@ -279,3 +279,14 @@ code comments. All decisions below: owner, 2026-10-16.
   migrations, the seed and the check straight from the bucket, which runs from a throwaway
   container on the server instead of nginx's; the check through nginx follows the nginx step.
   New task T13a in PR 4, whose branch becomes `fix/0011-close` (owner).
+
+## Decided at closing (2026-10-19)
+
+- **M39. nginx hides `x-rgw-object-type` too.** T13's AC2 check found Timeweb's storage (Ceph
+  RGW) answering `/media/` with `x-rgw-object-type: Normal`, which nginx passed on: not an
+  `x-amz-*` header, so AC2 passes, but it names the storage behind the site like the headers
+  already hidden. It joins nginx's list (a list, not a mask, as before). The rest of the
+  `x-amz-server-side-encryption-*` family (sent once a bucket is encrypted, never seen here)
+  stays out: names that long overflow nginx's `proxy_headers_hash_bucket_size` (64), and nginx
+  did not start in `ci-deploy-check.sh`. `ci-deploy-check.sh` refuses `x-rgw-*` and the emulator's `Seaweed-*`
+  as well as `x-amz-*` on `/media/`. New task T13b in PR 4, before T13 (owner).
