@@ -16,6 +16,8 @@ import path from 'node:path';
 import { Blocked, isSecret } from './guard-lib.mjs';
 
 const SHELLS = new Set(['sh', 'bash', 'zsh', 'dash']);
+// Keywords after which `[[` still starts a command: `if [[ ... ]]`, `! [[ ... ]]`.
+const COND_LEAD = ['if', 'elif', 'while', 'until', 'then', 'do', 'else', '!'];
 const MAX_DEPTH = 20;
 const block = (why) => {
   throw new Blocked(`${why}. If this is really needed, ask the owner to run it by hand.`);
@@ -29,8 +31,24 @@ function closingParen(text, open) {
   let q = null;
   for (let j = open; j < text.length; j++) {
     const c = text[j];
-    if (q) {
+    if (q === "$'") {
+      if (c === '\\') j++;
+      else if (c === "'") q = null;
+    } else if (q === '"') {
+      // Substitutions run inside double quotes, with quotes of their own.
+      if (c === '\\') j++;
+      else if (c === '$' && text[j + 1] === '(') j = closingParen(text, j + 1);
+      else if (c === '`') {
+        const end = text.indexOf('`', j + 1);
+        j = end === -1 ? text.length : end;
+      } else if (c === q) q = null;
+    } else if (q) {
       if (c === q) q = null;
+    } else if (c === '\\') {
+      j++; // \) \' \$ are plain characters
+    } else if (c === '$' && text[j + 1] === "'") {
+      q = "$'";
+      j++;
     } else if (c === "'" || c === '"') q = c;
     else if (c === '(') depth++;
     else if (c === ')' && --depth === 0) return j;
@@ -52,6 +70,79 @@ function closingParen(text, open) {
     }
   }
   return text.length;
+}
+
+/**
+ * [from, to) ranges of the insides of `[[ ... ]]`, where the shell expands no glob (a regex after
+ * =~ is not one). Found conservatively, anything else keeps its globs: `[[` where a command starts
+ * (the line's start, after ; && || | or a newline, then only keywords of COND_LEAD), with no quote,
+ * backslash or substitution before it, on a line without `case` (a pattern may read `[[`);
+ * inside, nothing that runs or ends a command (` $( <(
+ * >( =( << ; a newline, a single & or |), balanced parentheses, closed by a `]]` word.
+ */
+function condSpans(line) {
+  if (/(^|[\s;&|(])case(\s|$)/.test(line)) return [];
+  const spans = [];
+  for (let at = line.indexOf('[['); at !== -1; at = line.indexOf('[[', at + 2)) {
+    if (![' ', '\t'].includes(line[at + 2])) continue;
+    const trim = (s) => s.replace(/[ \t]+$/, '');
+    let before = trim(line.slice(0, at));
+    for (;;) {
+      const lead = COND_LEAD.find(
+        (k) => before.endsWith(k) && /^$|[\s;&|]$/.test(before.slice(0, -k.length)),
+      );
+      if (!lead) break;
+      before = trim(before.slice(0, -lead.length));
+    }
+    // split() tracks quotes and escapes from the line's start, this scan from `[[`: they agree
+    // only on a prefix without them (`\;` or `'; [[ x'` is no command start for the shell).
+    if (/['"\\`]|\$\(/.test(line.slice(0, at))) continue;
+    // An operator, not a redirection's tail (`>|`, `>&`: `[[` is a file name there).
+    if (!/^$|[;&|\n]$/.test(before) || /[<>][&|]$/.test(before)) continue;
+    let depth = 0;
+    let q = null;
+    for (let j = at + 2; j < line.length; j++) {
+      const c = line[j];
+      // $'…' escapes differently from the quotes tracked here.
+      if (c === '\n' || c === '`' || (c === '$' && "('".includes(line[j + 1]))) break;
+      if (q) {
+        if (c === q) q = null;
+        else if (q === '"' && c === '\\') j++;
+        continue;
+      }
+      if (c === "'" || c === '"') q = c;
+      else if (c === '\\') j++;
+      else if (c === ';' || ('<>='.includes(c) && line[j + 1] === '(') || line.startsWith('<<', j))
+        break;
+      else if (c === '&' || c === '|') {
+        if (line[j + 1] !== c) break;
+        j++;
+      } else if (c === '(') depth++;
+      else if (c === ')' && --depth < 0) break;
+      else if (line.startsWith(']]', j)) {
+        // Any other `]]` (`(x)]]`, `]]>file`) may close it for the shell: no span then.
+        if (depth === 0 && /\s/.test(line[j - 1]) && /^$|[\s;&|]/.test(line[j + 2] ?? '')) {
+          spans.push([at + 2, j]);
+        }
+        break;
+      }
+    }
+  }
+  return spans;
+}
+
+// Codes of the letter escapes of $'…' (bash): \n \t \r \a \b \e \E \f \v.
+const ANSI_LETTERS = { n: 10, t: 9, r: 13, a: 7, b: 8, e: 27, E: 27, f: 12, v: 11 };
+/**
+ * The text an escape of $'…' stands for, `c` the character after the backslash (the shell's lexer
+ * takes exactly that one). Codes (\xHH, \uHHHH, \UHHHHHHHH, octal, \cX) are refused: shells
+ * differ in how they decode them (bytes, NUL cutting the word), so the word's text is unknown.
+ */
+function ansiEscape(c) {
+  if (/[xuUc0-7]/.test(c)) block(`the escape \\${c} in $'…' hides what the word says`);
+  if (c in ANSI_LETTERS) return String.fromCodePoint(ANSI_LETTERS[c]);
+  if (`\\'"?`.includes(c)) return c;
+  return `\\${c}`; // the shell keeps the backslash of an unknown escape
 }
 
 /** The contents of $(...) and backticks in text where only those run (an unquoted heredoc). */
@@ -107,6 +198,8 @@ function split(line) {
     if (segment.length > 0) segments.push(segment);
     segment = [];
   };
+  const spans = condSpans(line);
+  const inCond = (i) => spans.some(([from, to]) => i >= from && i < to);
   const append = (c) => {
     word = (word ?? '') + c;
   };
@@ -116,6 +209,22 @@ function split(line) {
     if (quote === "'") {
       if (ch === "'") quote = null;
       else append(ch);
+      continue;
+    }
+    // ANSI-C quoting: a backslash escapes the next character (\' is no closing quote); escapes are
+    // decoded, so the secret checks see what the shell passes on.
+    if (quote === "$'") {
+      if (ch === "'") quote = null;
+      else if (ch === '\\' && i + 1 < line.length) append(ansiEscape(line[++i]));
+      else append(ch);
+      continue;
+    }
+    if (quote === null && ch === '$' && line[i + 1] === "'") {
+      quote = "$'";
+      quoted = true;
+      expand = true;
+      word ??= '';
+      i++;
       continue;
     }
     // Substitutions run outside quotes and inside double quotes.
@@ -186,6 +295,9 @@ function split(line) {
         heredocs.push({ delim: m[2], quoted: m[1] !== '', segment });
         i += m[0].length - 1;
       } else i++;
+    } else if ('()'.includes(ch) && inCond(i)) {
+      // Grouping inside `[[ ]]`, or a regex's group after =~: part of the word.
+      append(ch);
     } else if (';&|()'.includes(ch)) {
       endSegment();
     } else if (ch === '<' || ch === '>') {
@@ -194,7 +306,7 @@ function split(line) {
       const eol = line.indexOf('\n', i);
       i = (eol === -1 ? line.length : eol) - 1;
     } else {
-      if ('*?['.includes(ch)) glob = true;
+      if ('*?['.includes(ch) && !inCond(i)) glob = true;
       if (ch === '{') brace = true;
       if (ch === '$') expand = true;
       append(ch);

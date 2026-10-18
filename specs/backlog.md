@@ -193,6 +193,17 @@ Left for later specs by `0002-database-schema` (its `clarifications.md` has the 
   list's `offset` (e.g. 10 000) and add indexes `(price, id)`, `(created_at, id)`, `(discount, id)`
   and a trigram index on `name` (0004 T11 security review).
 
+## Agents' guards
+
+- **zsh glob alternation.** The main session's Bash guard splits a word at `(`, so zsh's
+  `cat .(e|x)nv` (alternation, extendedglob not needed) may pass as `cat .` and `e|x)nv`; not run
+  to confirm (found in the review of the `[[ ]]` fix, spec 0011 T13a). Treat a `(` glued to a word
+  as part of a glob and check the alternatives against the secret names.
+- **Array index arithmetic.** bash evaluates an array index in `[[ -v 'a[$(cmd)]' ]]` and in the
+  operands of `-eq` and the like, running `$(cmd)` even inside single quotes; the guard extracts
+  no code from single quotes, so `cmd` is not checked (the same review). Extract `$(…)` from a
+  quoted operand of `[[ -v`, `-eq`, `-ne`, `-lt`, `-le`, `-gt`, `-ge`, or refuse it.
+
 ## Tests
 
 - **Database specs stay on the helper.** Specs under `api/test/database/` reach a real database
