@@ -186,12 +186,15 @@ nginx отдаёт `/media/<ключ>` из `media/<ключ>` бакета на
 недоступно, а копии в кэше нет — 503 `SERVICE_UNAVAILABLE`. `S3_ENDPOINT` и `S3_BUCKET` есть и у nginx в `infra.yml`:
 их смена пересоздаёт nginx (несколько секунд простоя).
 
-Настройка, один раз, в панели Timeweb:
+Настройка, один раз (сделана 2026-10-16):
 
-1. Бакет: приватный, класс Standard, 10 ГБ. Дополнительный пользователь с правом «Чтение и
-   запись» на этот бакет: его ключ — секреты `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`
-   («Environment `production`» ниже), не ключ главного пользователя.
-2. Политика бакета: чтение `media/*` без ключа только с адреса сервера:
+1. В панели Timeweb: бакет — приватный, класс Standard, 10 ГБ; дополнительный пользователь с
+   правом «Чтение и запись» на этот бакет: его ключ — секреты `S3_ACCESS_KEY_ID`,
+   `S3_SECRET_ACCESS_KEY` («Environment `production`» ниже), не ключ главного пользователя.
+2. Политика бакета: чтение `media/*` без ключа только с адреса сервера. В панели её задать
+   нельзя: она ставится через `aws-cli` в одноразовом контейнере на сервере, с ключом главного
+   пользователя, который никуда не сохраняется. На сервере (`ssh ai-fitting`) файл
+   `policy.json`:
 
    ```json
    {
@@ -208,7 +211,32 @@ nginx отдаёт `/media/<ключ>` из `media/<ключ>` бакета на
    }
    ```
 
-   Проверка: загрузить в панели тестовые объекты `media/check.txt` и `keep/check.txt`, затем
+   Затем ключ главного пользователя. Эти строки вставлять по одной: `read` без них заберёт
+   следующую строку блока, а ключ, набранный в приглашение shell, попадёт в историю. Ввод не
+   отображается; история этой сессии не пишется в файл:
+
+   ```bash
+   unset HISTFILE
+   read -rsp 'Access key ID: ' AWS_ACCESS_KEY_ID; echo
+   read -rsp 'Secret key: ' AWS_SECRET_ACCESS_KEY; echo
+   export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+   ```
+
+   Политика (образ закреплён по дайджесту: он получает главный ключ) и уборка:
+
+   ```bash
+   docker run --rm -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY \
+     --mount type=bind,src="$PWD/policy.json",dst=/policy.json,readonly \
+     amazon/aws-cli:2.17.0@sha256:643507c10ada7964ca6157b3d799f030b90577643da9955d319a77399ed80d73 \
+     s3api put-bucket-policy --endpoint-url https://s3.twcstorage.ru --region ru-1 \
+     --bucket <бакет> --policy file:///policy.json
+   unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+   rm policy.json
+   ```
+
+   Если ключ мог попасть в историю или на экран, перевыпустить его в панели.
+
+   Проверка: тестовые объекты `media/check.txt` и `keep/check.txt` в панели, затем
    `curl -I https://s3.twcstorage.ru/<бакет>/media/check.txt` с сервера (`ssh ai-fitting`) — 200,
    с Mac — отказ; `…/keep/check.txt` с сервера — отказ. Если с сервера тоже отказ, Timeweb видит
    его запросы с другого адреса (внутренняя сеть): к выбору доступа к `media/` возвращаемся
@@ -231,7 +259,7 @@ ssh ai-fitting 'docker exec ai-fitting-infra-nginx-1 sh -c "rm -rf /var/cache/ng
 ```
 
 **Новый адрес сервера.** Политика пускает в `media/` только старый адрес: сначала добавить новый
-адрес в политику (а старый убрать после переезда), потом переезжать. Иначе `/media/` отвечает 404
+адрес в политику (шаг 2, `"aws:SourceIp"` принимает список) (а старый убрать после переезда), потом переезжать. Иначе `/media/` отвечает 404
 и деплой останавливается на проверке фото («nginx does not serve the media»). Отказ nginx держит в
 кэше минуту: после исправления политики проверка проходит не сразу.
 

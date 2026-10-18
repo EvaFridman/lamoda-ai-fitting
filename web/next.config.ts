@@ -18,7 +18,9 @@ const nextConfig: NextConfig = {
   // The browser calls the site's own /api (spec 0007 H6) and loads the catalog media from its own
   // /media/ (spec 0011 M3). In production nginx serves both before Next: /api/ with the prefix
   // stripped, /media/<key> from the bucket's media/<key>. Locally there is no nginx, so `next dev`
-  // forwards them the same way; the objects carry their own Content-Type and Cache-Control. The
+  // forwards them the same way, except that the query string reaches the emulator here (nginx
+  // drops it, M30: `?response-content-type=` changes the answer locally only); the objects carry
+  // their own Content-Type and Cache-Control. The
   // production image has no rewrite: outside `next dev` this returns none, so it proxies nothing.
   async rewrites() {
     if (process.env.NODE_ENV !== 'development') return [];
