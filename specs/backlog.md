@@ -80,6 +80,12 @@ removes it from this list. Found by the agents' first security audit and trial r
   writes are admin writes and fast. The photo upload and generation specs make their expensive
   routes answer at once (start a workflow, 202) or take an idempotency key, so a retry does not run
   the work twice.
+- **Timeouts of the database pool.** `PrismaPg` gets only the connection string, so `pg.Pool`'s
+  defaults hold: 10 connections, no `connectionTimeoutMillis` (a query waits for a connection
+  forever) and no `statement_timeout`. A query whose request answered 503 after a timeout (0006 F11,
+  0013 N29) keeps its place in the pool's queue until the database answers, which slows the
+  recovery of every route after an outage (found in 0013 T6). Set a connection and a statement
+  timeout for every route; the session reads are capped meanwhile (0013 N29).
 
 ## web
 
@@ -247,3 +253,9 @@ Left for later specs by `0002-database-schema` (its `clarifications.md` has the 
   machine (the api run took 53 s instead of about 25 s). Like the facets test above: find what
   makes the app start and the race test slow under load, and give them a time budget that holds
   on a loaded machine, or fewer rounds.
+- **Flaky unread-body test.** `api/test/errors.e2e-spec.ts`, "a 150 KB urlencoded body is not
+  read, so not refused as too large (F26)", failed once in `npm run verify` with `write EPIPE`
+  (2026-10-18, 0013 T6, test unchanged) and passed alone 8 times of 8. The api answers 404 without
+  reading the body and closes the connection while supertest is still writing it. Send the body
+  so a closed socket is not an error (e.g. a raw `http.request` that ignores EPIPE and reads the
+  answer), or check the answer with a body under the socket's buffer.

@@ -8,9 +8,8 @@ import * as Sentry from '@sentry/nestjs';
 import type { NextFunction, Request, Response } from 'express';
 
 import type { Env } from '../../config/env.js';
-import { ADMIN, ANONYMOUS, type Principal } from '../auth/principal.js';
+import { ANONYMOUS, type Principal } from '../auth/principal.js';
 
-export const ADMIN_TOKEN_HEADER = 'X-Admin-Token';
 export const PROXY_SECRET_HEADER = 'X-Proxy-Secret';
 export const REQUEST_ID_HEADER = 'X-Request-Id';
 
@@ -30,9 +29,16 @@ export interface RequestContextOptions {
   // PROXY_SECRET_NEXT: trusted the same way while the secret is rotated (spec 0006 F21); empty or
   // left out trusts nothing more.
   proxySecretNext?: string;
-  // ADMIN_API_TOKEN: X-Admin-Token equal to it makes the principal admin; empty makes no admin.
-  adminToken: string;
+  // Finds the signed-in user of a request by its session cookie (auth/session-reader.ts); left out,
+  // every principal is anonymous (an app without AuthModule).
+  readSession?: SessionReader;
 }
+
+// The user and the session of a request's valid session cookie; undefined without one. A broken or
+// expired cookie is undefined, never an error; a failure to read the session (the database) rejects.
+export type SessionReader = (
+  req: Request,
+) => Promise<{ userId: string; sessionId: string } | undefined>;
 
 // nginx's $request_id: 32 hex characters.
 const REQUEST_ID = /^[\da-f]{32}$/i;
@@ -41,12 +47,15 @@ const contexts = new WeakMap<IncomingMessage, RequestContext>();
 
 // The Express middleware that builds the context. Registered with useRequestContext before Nest
 // adds its body parser, so a body it refuses (BAD_JSON, PAYLOAD_TOO_LARGE) still gets a request id.
+// The context is set with an anonymous principal at once, then with the user once the session is
+// read (spec 0013 plan §4); a failure to read it goes to Nest's error handler (AppExceptionFilter)
+// with the request id already set.
 export function requestContextMiddleware(
   options: RequestContextOptions,
 ): (req: Request, res: Response, next: NextFunction) => void {
   const proxySecret = secretDigest(options.proxySecret);
   const proxySecretNext = secretDigest(options.proxySecretNext ?? '');
-  const adminToken = secretDigest(options.adminToken);
+  const { readSession } = options;
 
   return (req, res, next) => {
     const sentSecret = req.get(PROXY_SECRET_HEADER);
@@ -55,24 +64,35 @@ export function requestContextMiddleware(
       clientAddress:
         (trusted && forwardedAddress(req.get('X-Forwarded-For'))) || socketAddress(req),
       requestId: (trusted && sentRequestId(req.get(REQUEST_ID_HEADER))) || randomUUID(),
-      principal: matches(req.get(ADMIN_TOKEN_HEADER), adminToken) ? ADMIN : ANONYMOUS,
+      principal: ANONYMOUS,
     };
     contexts.set(req, context);
     res.setHeader(REQUEST_ID_HEADER, context.requestId);
     Sentry.getIsolationScope().setTag('request_id', context.requestId);
-    next();
+    if (readSession === undefined) {
+      next();
+      return;
+    }
+    readSession(req).then((user) => {
+      if (user !== undefined) {
+        contexts.set(req, { ...context, principal: { kind: 'user', ...user } });
+        // The id only: no email or name reaches Sentry.
+        Sentry.getIsolationScope().setUser({ id: user.userId });
+      }
+      next();
+    }, next);
   };
 }
 
 // Registers the middleware on an app that is not initialised yet, with the values from its
 // configuration. createHttpApp (http-app.ts) calls it before `init()`.
-export function useRequestContext(app: INestApplication): void {
+export function useRequestContext(app: INestApplication, readSession?: SessionReader): void {
   const config = app.get<ConfigService<Env, true>>(ConfigService);
   app.use(
     requestContextMiddleware({
       proxySecret: config.get('PROXY_SECRET', { infer: true }),
       proxySecretNext: config.get('PROXY_SECRET_NEXT', { infer: true }),
-      adminToken: config.get('ADMIN_API_TOKEN', { infer: true }),
+      readSession,
     }),
   );
 }

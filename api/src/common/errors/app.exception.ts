@@ -72,8 +72,22 @@ export class RequestTimeoutError extends AppException {
   }
 }
 
+// The 503 of a session that could not be read (the request context, spec 0013 N29). `report` is
+// false for all but the first within a minute: AppExceptionFilter then logs it as a warning and skips
+// Sentry, so a database outage cannot spend the Sentry quota with one event per signed-in request.
+export class SessionUnavailableError extends AppException {
+  constructor(
+    message: string,
+    readonly report: boolean,
+    cause?: unknown,
+  ) {
+    super('SERVICE_UNAVAILABLE', message);
+    if (cause !== undefined) this.cause = cause;
+  }
+}
+
 export class UnauthorizedError extends AppException {
-  constructor(message = 'Missing or invalid admin token') {
+  constructor(message = 'Unauthorized') {
     super('UNAUTHORIZED', message);
   }
 }

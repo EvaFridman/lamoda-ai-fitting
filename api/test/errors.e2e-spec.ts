@@ -1,11 +1,14 @@
 import { gzipSync } from 'node:zlib';
 
+import { Injectable } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { AppModule } from '../src/app.module.js';
+import type { Access } from '../src/common/auth/access.decorators.js';
+import { AccessGuard } from '../src/common/auth/access.guard.js';
 import { createHttpApp } from '../src/common/http/http-app.js';
 
 type INestApplication = NestExpressApplication;
@@ -61,7 +64,6 @@ describe('a lowered BODY_LIMIT (e2e)', () => {
 // requests per route and tier in tests.
 describe('validation details cap and gzip bodies (e2e)', () => {
   let app: INestApplication;
-  const adminToken = process.env.ADMIN_API_TOKEN ?? '';
 
   function unknownParams(count: number): Record<string, string> {
     return Object.fromEntries(Array.from({ length: count }, (_, i) => [`unknown${i}`, '1']));
@@ -104,7 +106,6 @@ describe('validation details cap and gzip bodies (e2e)', () => {
   it('a body with one 50 KB key answers a 400 whose body stays small', async () => {
     const response = await request(app.getHttpServer())
       .post('/products')
-      .set('X-Admin-Token', adminToken)
       .send({ ['k'.repeat(50 * 1024)]: 1 })
       .expect(400);
 
@@ -121,10 +122,9 @@ describe('validation details cap and gzip bodies (e2e)', () => {
     expect(response.body.error.code).toBe('ROUTE_NOT_FOUND');
   });
 
-  it('an admin POST /products with a urlencoded body is not parsed, so its fields are missing (F26)', async () => {
+  it('a POST /products with a urlencoded body is not parsed, so its fields are missing (F26)', async () => {
     const response = await request(app.getHttpServer())
       .post('/products')
-      .set('X-Admin-Token', adminToken)
       .set('Content-Type', 'application/x-www-form-urlencoded')
       .send('notAProductField=1')
       .expect(400);
@@ -167,13 +167,9 @@ describe('validation details cap and gzip bodies (e2e)', () => {
     expect(response.body.error.code).toBe('ROUTE_NOT_FOUND');
   });
 
-  it('POST /products as admin with 60 unknown fields answers 50 details and TOO_MANY_ERRORS', async () => {
+  it('POST /products with 60 unknown fields answers 50 details and TOO_MANY_ERRORS', async () => {
     const unknown = Object.fromEntries(Array.from({ length: 60 }, (_, i) => [`extra${i}`, i]));
-    const response = await request(app.getHttpServer())
-      .post('/products')
-      .set('X-Admin-Token', adminToken)
-      .send(unknown)
-      .expect(400);
+    const response = await request(app.getHttpServer()).post('/products').send(unknown).expect(400);
 
     const { code, details } = response.body.error;
     expect(code).toBe('VALIDATION_FAILED');
@@ -188,9 +184,22 @@ describe('validation details cap and gzip bodies (e2e)', () => {
   });
 });
 
+// POST /products is @Closed(): it answers 401 to everyone, a signed-in user too (spec 0013 N8). The
+// ValidationPipe checks of this file run behind the access guard, so it is opened for them. The body-parser
+// cases (413, BAD_JSON) do not need it: the parsers are Express middleware ahead of the guards.
+@Injectable()
+class OpenAccessGuard extends AccessGuard {
+  protected override accessOf(): Access {
+    return 'public';
+  }
+}
+
 // Set up by createHttpApp, as src/server.ts is.
 async function createApp(): Promise<NestExpressApplication> {
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+  const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+    .overrideProvider(AccessGuard)
+    .useClass(OpenAccessGuard)
+    .compile();
   const created = await createHttpApp(
     (adapter, options) => moduleRef.createNestApplication<NestExpressApplication>(adapter, options),
     { logger: false },

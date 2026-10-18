@@ -61,7 +61,7 @@ Status: accepted (2026-10-16).
       `/api/auth`; a sign-in on the local stack at `localhost:3001/api/auth/…` creates a user;
       `nginx -t` on the template; `npm run verify`.
       Commit: `feat(api): sign in with google through better auth`
-- [ ] **T6. Principal and markers; the admin goes.** The async request context with the session
+- [x] **T6. Principal and markers; the admin goes.** The async request context with the session
       principal and Sentry's user id; `@SignedIn()`, `@Closed()`, `AccessGuard`; `@AdminOnly()`,
       the admin principal, `X-Admin-Token`, `ADMIN_API_TOKEN` in `env.ts`, Swagger's admin scheme
       and pino's admin redaction removed; markers set on every controller (plan §6's access
@@ -83,7 +83,8 @@ Status: accepted (2026-10-16).
       Check: socket e2e with and without a cookie (AC10); `npm run verify`.
       Commit: `feat(api): recognise the signed-in user on the socket`
 - [ ] **T9. Deploy and docs of the api.** `ADMIN_API_TOKEN` out of `docker-compose.yml`,
-      `deploy/compose/app.yml`, `cd.yml`, `ci-deploy-check.sh`; the new variables in `cd.yml`
+      `deploy/compose/app.yml`, `cd.yml`, `ci-deploy-check.sh`, `scripts/init-env.sh` and
+      `.env.example` (listed here at T6, when `env.ts` stopped reading it); the new variables in `cd.yml`
       (`app.yml` and the deploy check have them since T4, N22);
       `deploy/README.md` (Google console, secrets, removing the old one); `README.md` (local
       sign-in, no admin token); `CLAUDE.md` (access, request context, error format exception,
@@ -118,7 +119,8 @@ Status: accepted (2026-10-16).
 - [ ] **T12. Sign-in in the header.** `better-auth@1.7.10` in web; `shared/auth`,
       `entities/session`, `features/auth` (`LoginModal`, sign-outs); the profile icon as a client
       component with the modal and the menu of N12; `errorText` for Better Auth's codes;
-      `/privacy`'s line (plan §10).
+      `/privacy`'s line (plan §10). The session comes from Better Auth's client
+      (`/api/auth/get-session`), which also extends it: the api never does (N30).
       Check: web tests of the icon's states, the menu's items and the name fallback (AC3);
       `qa-tester` on the local stack: sign-in through the fake provider and back to the same page
       (AC1), sign-out and sign-out everywhere with two browsers (AC4), screenshots of the menu for

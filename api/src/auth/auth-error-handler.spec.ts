@@ -19,7 +19,7 @@ function loggerStub(): { [K in keyof AuthLogger]: Mock<AuthLogger[K]> } {
 function appThrowing(error: unknown, logger: AuthLogger, withContext = true) {
   const app = express();
   if (withContext) {
-    app.use(requestContextMiddleware({ proxySecret: 'secret-secret', adminToken: 'admin-token' }));
+    app.use(requestContextMiddleware({ proxySecret: 'secret-secret' }));
   }
   app.get('/api/auth/boom', (_req, _res, next) => {
     next(error);

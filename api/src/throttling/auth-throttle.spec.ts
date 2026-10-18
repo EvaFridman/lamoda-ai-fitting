@@ -46,7 +46,7 @@ const LIMITS: TierLimits = {
 
 function appWith(storage: Pick<ThrottlerStorage, 'increment'>, limits: TierLimits = LIMITS) {
   const app = express();
-  app.use(requestContextMiddleware({ proxySecret: SECRET, adminToken: 'admin-token' }));
+  app.use(requestContextMiddleware({ proxySecret: SECRET }));
   app.all('/api/auth/*splat', authThrottle(storage, limits), (_req, res) => {
     res.json({ ok: true });
   });

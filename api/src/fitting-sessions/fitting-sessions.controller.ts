@@ -12,7 +12,7 @@ import {
 import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 
 import { ApiErrors } from '../common/errors/api-errors.decorator.js';
-import { AdminOnly } from '../common/auth/access.decorators.js';
+import { SignedIn } from '../common/auth/access.decorators.js';
 import { ApiPaginatedResponse, type Paginated } from '../common/pagination/paginated.js';
 import { UuidParam } from '../common/pipes/uuid.pipe.js';
 import { CreateFittingSessionDto } from './dto/create-fitting-session.dto.js';
@@ -21,10 +21,10 @@ import { FittingSessionResponseDto } from './dto/fitting-session-response.dto.js
 import { UpdateFittingSessionDto } from './dto/update-fitting-session.dto.js';
 import { FittingSessionsService } from './fitting-sessions.service.js';
 
-// Every route, reads included, needs the admin token (spec 0004 E1).
+// Every route, reads included, needs a signed-in user (spec 0013 N8).
 @ApiTags('fitting-sessions')
 @Controller('fitting-sessions')
-@AdminOnly()
+@SignedIn()
 export class FittingSessionsController {
   constructor(private readonly sessions: FittingSessionsService) {}
 

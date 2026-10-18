@@ -18,15 +18,14 @@ import {
   requestContextOf,
 } from './request-context.js';
 
-const { setTag } = vi.hoisted(() => ({ setTag: vi.fn() }));
+const { setTag, setUser } = vi.hoisted(() => ({ setTag: vi.fn(), setUser: vi.fn() }));
 
 vi.mock('@sentry/nestjs', () => ({
-  getIsolationScope: () => ({ setTag }),
+  getIsolationScope: () => ({ setTag, setUser }),
 }));
 
 const PROXY_SECRET = 'proxy-secret-0123456789abcdef-xyz';
-const ADMIN_TOKEN = 'admin-token-0123456789abcdef-xyz';
-const options: RequestContextOptions = { proxySecret: PROXY_SECRET, adminToken: ADMIN_TOKEN };
+const options: RequestContextOptions = { proxySecret: PROXY_SECRET };
 const UUID = /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/;
 const REQUEST_ID = 'a1b2c3d4e5f60718293a4b5c6d7e8f90';
 
@@ -81,7 +80,7 @@ describe('requestContextMiddleware: trust', () => {
   });
 
   it('trusts nothing when PROXY_SECRET is empty, even with an empty header', async () => {
-    const empty = { proxySecret: '', adminToken: ADMIN_TOKEN };
+    const empty = { proxySecret: '' };
 
     const seen = await send(
       { 'X-Proxy-Secret': '', 'X-Forwarded-For': '203.0.113.7', 'X-Request-Id': REQUEST_ID },
@@ -211,10 +210,6 @@ describe('requestContextMiddleware: PROXY_SECRET_NEXT', () => {
       server.close();
     }
   });
-
-  it('does not make the next secret an admin token', async () => {
-    expect((await send({ 'X-Admin-Token': NEXT }, both)).principal.kind).toBe('anonymous');
-  });
 });
 
 describe('requestContextMiddleware: client address', () => {
@@ -332,34 +327,99 @@ describe('requestContextMiddleware: Sentry tag', () => {
 });
 
 describe('requestContextMiddleware: principal', () => {
-  it('is admin with the right token', async () => {
-    expect((await send({ 'X-Admin-Token': ADMIN_TOKEN })).principal).toEqual({ kind: 'admin' });
+  const user = { userId: 'user-1', sessionId: 'session-1' };
+
+  beforeEach(() => {
+    setUser.mockClear();
   });
 
-  it.each([
-    ['wrong', { 'X-Admin-Token': 'wrong' }],
-    ['of the same length', { 'X-Admin-Token': ADMIN_TOKEN.replace(/.$/, 'Q') }],
-    ['empty', { 'X-Admin-Token': '' }],
-    ['missing', {}],
-  ])('is anonymous with a %s token', async (_name, headers) => {
-    expect((await send(headers)).principal).toEqual({ kind: 'anonymous' });
+  it('is anonymous without a session reader, and sets no Sentry user', async () => {
+    expect((await send({})).principal).toEqual({ kind: 'anonymous' });
+    expect(setUser).not.toHaveBeenCalled();
   });
 
-  it('makes no admin when ADMIN_API_TOKEN is empty, even with an empty token', async () => {
-    const noAdmin = { proxySecret: PROXY_SECRET, adminToken: '' };
+  it('is the user the session reader finds, and sets only the id on the Sentry scope', async () => {
+    const readSession = vi.fn().mockResolvedValue(user);
 
-    expect((await send({ 'X-Admin-Token': '' }, noAdmin)).principal.kind).toBe('anonymous');
-    expect((await send({ 'X-Admin-Token': 'anything' }, noAdmin)).principal.kind).toBe('anonymous');
+    const seen = await send({}, { ...options, readSession });
+
+    expect(seen.principal).toEqual({ kind: 'user', ...user });
+    expect(setUser).toHaveBeenCalledExactlyOnceWith({ id: 'user-1' });
   });
 
-  it('does not depend on the proxy secret', async () => {
-    const withSecret = await send({ 'X-Admin-Token': ADMIN_TOKEN, 'X-Proxy-Secret': PROXY_SECRET });
-    const wrongSecret = await send({ 'X-Admin-Token': ADMIN_TOKEN, 'X-Proxy-Secret': 'wrong' });
-    const noSecret = await send({ 'X-Admin-Token': ADMIN_TOKEN });
+  it('is anonymous when the session reader finds nobody', async () => {
+    const readSession = vi.fn().mockResolvedValue(undefined);
 
-    expect(withSecret.principal.kind).toBe('admin');
-    expect(wrongSecret.principal.kind).toBe('admin');
-    expect(noSecret.principal.kind).toBe('admin');
+    const seen = await send({}, { ...options, readSession });
+
+    expect(readSession).toHaveBeenCalledOnce();
+    expect(seen.principal).toEqual({ kind: 'anonymous' });
+    expect(setUser).not.toHaveBeenCalled();
+  });
+
+  it('keeps the address and the request id of the context when it adds the user', async () => {
+    const readSession = vi.fn().mockResolvedValue(user);
+
+    const seen = await send(
+      {
+        'X-Proxy-Secret': PROXY_SECRET,
+        'X-Forwarded-For': '203.0.113.7',
+        'X-Request-Id': REQUEST_ID,
+      },
+      { ...options, readSession },
+    );
+
+    expect(seen.clientAddress).toBe('203.0.113.7');
+    expect(seen.requestId).toBe(REQUEST_ID);
+    expect(seen.principal.kind).toBe('user');
+  });
+
+  it('waits for the session reader before the next handler runs', async () => {
+    let resolve!: (value: typeof user) => void;
+    const readSession = vi.fn(
+      () =>
+        new Promise<typeof user>((done) => {
+          resolve = done;
+        }),
+    );
+    let reached = false;
+    const app = express();
+    app.use(requestContextMiddleware({ ...options, readSession }));
+    app.get('/', (req, res) => {
+      reached = true;
+      res.json(requestContextOf(req).principal);
+    });
+    const pending = request(createServer(app))
+      .get('/')
+      .then((response) => response);
+    await vi.waitFor(() => expect(readSession).toHaveBeenCalledOnce());
+
+    expect(reached).toBe(false);
+    resolve(user);
+    const response = await pending;
+
+    expect(reached).toBe(true);
+    expect(response.body).toEqual({ kind: 'user', ...user });
+  });
+
+  it('passes a failed read to the error handler, and the response still has X-Request-Id', async () => {
+    const readSession = vi.fn().mockRejectedValue(new Error('database is down'));
+    const app = express();
+    app.use(requestContextMiddleware({ ...options, readSession }));
+    app.get('/', (_req, res) => {
+      res.json({});
+    });
+    app.use(
+      (error: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+        res.status(500).json({ message: error.message });
+      },
+    );
+
+    const response = await request(createServer(app)).get('/').expect(500);
+
+    expect(response.body).toEqual({ message: 'database is down' });
+    expect(response.headers['x-request-id']).toMatch(UUID);
+    expect(setUser).not.toHaveBeenCalled();
   });
 });
 
@@ -390,12 +450,6 @@ describe('requestContextMiddleware: repeated and oversized headers', () => {
   }
 
   const trusted = { 'X-Proxy-Secret': PROXY_SECRET };
-
-  it('makes the principal anonymous for two X-Admin-Token headers, even both right', async () => {
-    const seen = await sendRaw({ 'X-Admin-Token': [ADMIN_TOKEN, ADMIN_TOKEN] });
-
-    expect(seen.principal).toEqual({ kind: 'anonymous' });
-  });
 
   it('does not trust two X-Proxy-Secret headers, even both right', async () => {
     const seen = await sendRaw({
@@ -448,35 +502,28 @@ describe('@CurrentPrincipal()', () => {
   @Module({ controllers: [WhoController] })
   class WhoModule {}
 
-  async function whoServer(): Promise<Server> {
+  async function whoServer(opts: RequestContextOptions = options): Promise<Server> {
     const moduleRef = await Test.createTestingModule({ imports: [WhoModule] }).compile();
     const app = moduleRef.createNestApplication({ logger: false });
-    app.use(requestContextMiddleware(options));
+    app.use(requestContextMiddleware(opts));
     await app.init();
     return app.getHttpServer() as Server;
   }
 
-  it('hands the admin principal to the handler with the right token', async () => {
-    const response = await request(await whoServer())
+  it('hands the user principal to the handler when the session reader finds one', async () => {
+    const readSession = vi.fn().mockResolvedValue({ userId: 'user-1', sessionId: 'session-1' });
+    const response = await request(await whoServer({ ...options, readSession }))
       .get('/who')
-      .set('X-Admin-Token', ADMIN_TOKEN)
       .expect(200);
 
-    expect(response.body).toEqual({ kind: 'admin' });
+    expect(response.body).toEqual({ kind: 'user', userId: 'user-1', sessionId: 'session-1' });
   });
 
-  it.each([
-    ['no token', {}],
-    ['a wrong token', { 'X-Admin-Token': 'wrong' }],
-  ])(
-    'hands the anonymous principal with %s, and serves a public route (200, not 401)',
-    async (_n, headers) => {
-      const response = await request(await whoServer())
-        .get('/who')
-        .set(headers)
-        .expect(200);
+  it('hands the anonymous principal to the handler without a session', async () => {
+    const response = await request(await whoServer())
+      .get('/who')
+      .expect(200);
 
-      expect(response.body).toEqual({ kind: 'anonymous' });
-    },
-  );
+    expect(response.body).toEqual({ kind: 'anonymous' });
+  });
 });

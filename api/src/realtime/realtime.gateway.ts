@@ -13,7 +13,7 @@ import { Public } from '../common/auth/access.decorators.js';
 // handshake address) and comes with the first real socket feature.
 //
 // Global guards run for gateway handlers too: without @Public() the access guard would refuse
-// every message. Sockets carry no auth yet (spec 0006 non-goals).
+// every message. The socket learns the user in spec 0013's T8; its handlers stay @Public().
 @Public()
 @SkipThrottle()
 @WebSocketGateway()

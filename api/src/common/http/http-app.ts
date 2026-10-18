@@ -2,7 +2,8 @@ import type { NestApplicationOptions } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 
-import { mountAuth } from '../../auth/mount-auth.js';
+import { mountAuth, providedAuth } from '../../auth/mount-auth.js';
+import { sessionReader } from '../../auth/session-reader.js';
 import type { Env } from '../../config/env.js';
 import { createValidationPipe } from '../validation/validation-pipe.js';
 import { AppExpressAdapter } from './app-express.adapter.js';
@@ -32,8 +33,9 @@ export async function createHttpApp(
   // request-context middleware reads it, so Express must not (req.ip stays the connection's).
   app.set('trust proxy', false);
   // Before init() and ahead of the body parser registered below: a refused body (BAD_JSON,
-  // PAYLOAD_TOO_LARGE) still gets a request id.
-  useRequestContext(app);
+  // PAYLOAD_TOO_LARGE) still gets a request id. With AuthModule, the session cookie names the user.
+  const auth = providedAuth(app);
+  useRequestContext(app, auth === undefined ? undefined : sessionReader(auth));
   app.enableCors({ origin: config.get('WEB_ORIGIN', { infer: true }), credentials: true });
   // Better Auth reads its own body, so it comes before the JSON parser; after the request context
   // (its rate limit reads the client address) and CORS.

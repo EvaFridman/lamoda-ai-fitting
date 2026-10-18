@@ -47,7 +47,6 @@ class MixedController {
 }
 
 const LOOSE = '1000';
-const adminToken = process.env.ADMIN_API_TOKEN ?? '';
 const SIX = [0, 1, 2, 3, 4, 5];
 
 describe('quota tiers (e2e)', () => {
@@ -259,34 +258,39 @@ describe('quota tiers (e2e)', () => {
   });
 
   // AC6: the rate limit runs before the access guard and the validation pipe.
-  describe('admin requests', () => {
-    it('count against the write quota with the right token', async () => {
+  describe('refused requests', () => {
+    it('count against the write quota of a closed write without a cookie', async () => {
       await boot();
-      const call = (): request.Test =>
-        request(server()).post('/brands').set('X-Admin-Token', adminToken).send({});
-
-      expect(await statuses(call)).toEqual([400, 400, 400, 400, 400, 429]);
-    });
-
-    it('count against the write quota with a wrong token', async () => {
-      await boot();
-      const call = (): request.Test =>
-        request(server()).post('/brands').set('X-Admin-Token', 'wrong').send({});
+      const call = (): request.Test => request(server()).post('/brands').send({});
 
       expect(await statuses(call)).toEqual([401, 401, 401, 401, 401, 429]);
     });
 
-    it('count against the read quota of an admin route with a wrong token', async () => {
+    it('count against the write quota with a cookie that is no session', async () => {
       await boot();
       const call = (): request.Test =>
-        request(server()).get('/users').set('X-Admin-Token', 'wrong');
+        request(server()).post('/brands').set('Cookie', 'lamoda.session_token=garbage').send({});
+
+      expect(await statuses(call)).toEqual([401, 401, 401, 401, 401, 429]);
+    });
+
+    it('count against the read quota of a closed read', async () => {
+      await boot();
+      const call = (): request.Test => request(server()).get('/users');
+
+      expect(await statuses(call)).toEqual([401, 401, 401, 401, 401, 429]);
+    });
+
+    it('count against the read quota of a @SignedIn() route without a session', async () => {
+      await boot();
+      const call = (): request.Test => request(server()).get('/fitting-sessions');
 
       expect(await statuses(call)).toEqual([401, 401, 401, 401, 401, 429]);
     });
 
     it('do not use up the read quota when they are writes', async () => {
       await boot();
-      await statuses(() => request(server()).post('/brands').set('X-Admin-Token', 'wrong'), 6);
+      await statuses(() => request(server()).post('/brands'), 6);
 
       await get('/hello')().expect(200);
     });

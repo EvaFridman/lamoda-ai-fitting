@@ -11,8 +11,9 @@ import { AppModule } from '../src/app.module.js';
 import {
   type Access,
   ACCESS_METADATA,
-  AdminOnly,
+  Closed,
   Public,
+  SignedIn,
 } from '../src/common/auth/access.decorators.js';
 
 type Handler = (...args: unknown[]) => unknown;
@@ -56,10 +57,10 @@ function handlersOf(
   return handlers;
 }
 
-// Markers the guard would honour but the app does not allow: @Public() on a route of an
-// @AdminOnly() controller (Swagger would still show the class's admin lock on it), and
-// @AdminOnly() on a socket handler (the principal is read from an HTTP request; sockets have no
-// auth yet, spec 0006 non-goals).
+// Markers the guard would honour but the app does not allow: @Public() on a route of a
+// @Closed() or @SignedIn() controller (Swagger would still show the class's 401 and, under @SignedIn(), its session lock on it), and
+// @Closed() or @SignedIn() on a socket handler (AccessGuard reads the principal of an HTTP
+// request; a socket's user is set on the socket by its own middleware, spec 0013 plan §7).
 function mixedMarkersOf(wrappers: InstanceWrapper[]): string[] {
   const scanner = new MetadataScanner();
   const found: string[] = [];
@@ -77,11 +78,19 @@ function mixedMarkersOf(wrappers: InstanceWrapper[]): string[] {
       }
       const access =
         (Reflect.getMetadata(ACCESS_METADATA, method) as Access | undefined) ?? classAccess;
-      if (classAccess === 'admin' && access === 'public') {
-        found.push(`${type.name}.${name}: @Public() under an @AdminOnly() controller`);
+      if (classAccess === 'closed' && access === 'public') {
+        found.push(`${type.name}.${name}: @Public() under a @Closed() controller`);
       }
-      if (Reflect.hasMetadata(MESSAGE_MAPPING_METADATA, method) && access === 'admin') {
-        found.push(`${type.name}.${name}: @AdminOnly() on a socket handler`);
+      if (classAccess === 'user' && access === 'public') {
+        found.push(`${type.name}.${name}: @Public() under a @SignedIn() controller`);
+      }
+      if (Reflect.hasMetadata(MESSAGE_MAPPING_METADATA, method)) {
+        if (access === 'closed') {
+          found.push(`${type.name}.${name}: @Closed() on a socket handler`);
+        }
+        if (access === 'user') {
+          found.push(`${type.name}.${name}: @SignedIn() on a socket handler`);
+        }
       }
     }
   }
@@ -113,10 +122,56 @@ const PUBLIC_HANDLERS = [
   'RealtimeGateway.ping',
 ];
 
-// Access is closed by default (spec 0006 F3, AC1): a route with neither @Public() nor @AdminOnly()
-// answers 401 to everyone, so a forgotten marker breaks it. This test names it before a deploy.
+// Every handler no one may call, a signed-in user neither (spec 0013 N8), sorted.
+const CLOSED_HANDLERS = [
+  'AiGenerationsController.create',
+  'AiGenerationsController.update',
+  'AttributeValuesController.create',
+  'AttributeValuesController.delete',
+  'AttributeValuesController.update',
+  'AttributesController.create',
+  'AttributesController.delete',
+  'AttributesController.update',
+  'BrandsController.create',
+  'BrandsController.delete',
+  'BrandsController.update',
+  'CategoriesController.create',
+  'CategoriesController.delete',
+  'CategoriesController.update',
+  'ProductAttributeValuesController.create',
+  'ProductAttributeValuesController.delete',
+  'ProductImagesController.create',
+  'ProductImagesController.delete',
+  'ProductImagesController.update',
+  'ProductVariationsController.create',
+  'ProductVariationsController.delete',
+  'ProductVariationsController.update',
+  'ProductsController.create',
+  'ProductsController.delete',
+  'ProductsController.update',
+  'UsersController.create',
+  'UsersController.delete',
+  'UsersController.get',
+  'UsersController.list',
+  'UsersController.update',
+];
+
+// Every handler that needs a signed-in user, sorted.
+const SIGNED_IN_HANDLERS = [
+  'AiGenerationsController.delete',
+  'AiGenerationsController.get',
+  'AiGenerationsController.list',
+  'FittingSessionsController.create',
+  'FittingSessionsController.delete',
+  'FittingSessionsController.get',
+  'FittingSessionsController.list',
+  'FittingSessionsController.update',
+];
+
+// Access is closed by default (spec 0006 F3, AC1): a route with no marker answers 401 to
+// everyone, so a forgotten marker breaks it. This test names it before a deploy.
 describe('access markers', () => {
-  it('every route of the app carries @Public() or @AdminOnly()', async () => {
+  it('every route of the app carries exactly one of @Public(), @SignedIn() and @Closed()', async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule, DiscoveryModule],
     }).compile();
@@ -131,9 +186,10 @@ describe('access markers', () => {
       // The walk found the app's routes, socket handlers included, so an empty list is no pass.
       expect(handlers.get('HealthController.live')).toBe('public');
       expect(handlers.get('RealtimeGateway.ping')).toBe('public');
-      expect(handlers.get('UsersController.list')).toBe('admin');
+      expect(handlers.get('UsersController.list')).toBe('closed');
       expect(handlers.get('CategoriesController.list')).toBe('public');
-      expect(handlers.get('CategoriesController.create')).toBe('admin');
+      expect(handlers.get('CategoriesController.create')).toBe('closed');
+      expect(handlers.get('FittingSessionsController.list')).toBe('user');
 
       const unmarked = [...handlers].filter(([, access]) => access === undefined).map(([n]) => n);
       expect(unmarked).toEqual([]);
@@ -143,6 +199,15 @@ describe('access markers', () => {
       const open = [...handlers].filter(([, access]) => access === 'public').map(([n]) => n);
       expect(open.sort()).toEqual(PUBLIC_HANDLERS);
 
+      // Likewise a route opened to signed-in users, or closed on purpose.
+      const named = (access: Access): string[] =>
+        [...handlers]
+          .filter(([, found]) => found === access)
+          .map(([n]) => n)
+          .sort();
+      expect(named('user')).toEqual(SIGNED_IN_HANDLERS);
+      expect(named('closed')).toEqual(CLOSED_HANDLERS);
+
       expect(mixedMarkersOf([...discovery.getControllers(), ...discovery.getProviders()])).toEqual(
         [],
       );
@@ -151,8 +216,8 @@ describe('access markers', () => {
     }
   });
 
-  it('names @Public() under an @AdminOnly() controller and @AdminOnly() on a socket handler', () => {
-    @AdminOnly()
+  it('names @Public() under a @Closed() or @SignedIn() controller and either on a socket handler', () => {
+    @Closed()
     @Controller('mixed')
     class MixedController {
       @Get()
@@ -167,21 +232,39 @@ describe('access markers', () => {
       }
     }
 
-    class SecuredGateway {
-      @SubscribeMessage('secret')
-      @AdminOnly()
-      secret(): string {
+    @SignedIn()
+    @Controller('mixed-user')
+    class MixedUserController {
+      @Get()
+      @Public()
+      read(): string {
         return 'x';
       }
     }
 
-    const wrappers = [MixedController, SecuredGateway].map(
+    class SecuredGateway {
+      @SubscribeMessage('secret')
+      @Closed()
+      secret(): string {
+        return 'x';
+      }
+
+      @SubscribeMessage('mine')
+      @SignedIn()
+      mine(): string {
+        return 'x';
+      }
+    }
+
+    const wrappers = [MixedController, MixedUserController, SecuredGateway].map(
       (metatype) => ({ metatype }) as unknown as InstanceWrapper,
     );
 
     expect(mixedMarkersOf(wrappers)).toEqual([
-      'MixedController.read: @Public() under an @AdminOnly() controller',
-      'SecuredGateway.secret: @AdminOnly() on a socket handler',
+      'MixedController.read: @Public() under a @Closed() controller',
+      'MixedUserController.read: @Public() under a @SignedIn() controller',
+      'SecuredGateway.secret: @Closed() on a socket handler',
+      'SecuredGateway.mine: @SignedIn() on a socket handler',
     ]);
   });
 
@@ -194,7 +277,7 @@ describe('access markers', () => {
       }
 
       @Post()
-      @AdminOnly()
+      @Closed()
       write(): string {
         return 'x';
       }
@@ -220,7 +303,7 @@ describe('access markers', () => {
       );
 
       expect(handlers.get('OpenController.read')).toBe('public');
-      expect(handlers.get('ForgottenController.write')).toBe('admin');
+      expect(handlers.get('ForgottenController.write')).toBe('closed');
       expect([...handlers].filter(([, access]) => access === undefined).map(([n]) => n)).toEqual([
         'ForgottenController.read',
       ]);

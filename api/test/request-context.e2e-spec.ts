@@ -78,7 +78,7 @@ describe('request context (e2e)', () => {
     });
   });
 
-  describe('429 and empty admin token', () => {
+  describe('429 and an empty session cookie', () => {
     it('carries X-Request-Id on a 429, and a new forwarded address still gets 429 without the secret', async () => {
       for (let i = 0; i < 5; i += 1) {
         await request(app.getHttpServer()).get('/hello').expect(200);
@@ -92,14 +92,14 @@ describe('request context (e2e)', () => {
       expect(response.headers['x-request-id']).toMatch(/^[\da-f-]{36}$/);
     });
 
-    it('serves a public route with an empty X-Admin-Token', async () => {
-      await request(app.getHttpServer()).get('/hello').set('X-Admin-Token', '').expect(200);
+    it('serves a public route with an empty Cookie header', async () => {
+      await request(app.getHttpServer()).get('/hello').set('Cookie', '').expect(200);
     });
 
-    it('answers 401 on an @AdminOnly route with an empty X-Admin-Token', async () => {
+    it('answers 401 on a @SignedIn() route with a Cookie header that holds no session', async () => {
       const response = await request(app.getHttpServer())
-        .get('/users')
-        .set('X-Admin-Token', '')
+        .get('/fitting-sessions')
+        .set('Cookie', 'lamoda.session_token=')
         .expect(401);
 
       expect(response.body.error.code).toBe('UNAUTHORIZED');

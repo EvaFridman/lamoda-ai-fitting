@@ -3,9 +3,9 @@ import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { signIn } from '../support/sign-in.js';
 import { createTestApp, type TestApp } from '../support/test-app.js';
 
-const ADMIN_TOKEN = 'test-admin-token-0123456789abcdef';
 // MEDIA_BASE_URL of the test environment (vitest.config.ts).
 const MEDIA = 'http://localhost:3001/media/';
 
@@ -57,6 +57,7 @@ let categoryId: string;
 
 beforeAll(async () => {
   testApp = await createTestApp();
+  userCookie = { Cookie: (await signIn(testApp.app)).cookie };
   const brand = await testApp.prisma.brand.create({ data: { name: `Brand ${randomUUID()}` } });
   const category = await testApp.prisma.category.create({
     data: { name: `Category ${randomUUID()}`, slug: randomUUID(), isActive: true },
@@ -70,12 +71,13 @@ afterAll(async () => {
 });
 
 const http = () => request(testApp.app.getHttpServer());
-const admin = { 'X-Admin-Token': ADMIN_TOKEN };
+// The Cookie header of a signed-in user (the test app lets one through the closed routes).
+let userCookie: Record<string, string> = {};
 
 async function createProduct(): Promise<{ id: string }> {
   const response = await http()
     .post('/products')
-    .set(admin)
+    .set(userCookie)
     .send({ article: `ART-${randomUUID()}`, name: 'Dress', price: 100, brandId, categoryId });
   expect(response.status).toBe(201);
   return response.body as { id: string };
@@ -84,7 +86,7 @@ async function createProduct(): Promise<{ id: string }> {
 async function createImage(productId: string, body: Record<string, unknown> = {}): Promise<Image> {
   const response = await http()
     .post(`/products/${productId}/images`)
-    .set(admin)
+    .set(userCookie)
     .send({ imageKey: `p/${randomUUID()}.jpg`, ...body });
   expect(response.status).toBe(201);
   return response.body as Image;
@@ -97,7 +99,7 @@ async function createSize(
 ): Promise<Size> {
   const response = await http()
     .post(`/products/${productId}/variations`)
-    .set(admin)
+    .set(userCookie)
     .send({ size, stock });
   expect(response.status).toBe(201);
   return response.body as Size;
@@ -114,7 +116,7 @@ async function createValue(name = `Attr ${randomUUID()}`, value = `Val ${randomU
 async function link(productId: string, attributeValueId: string): Promise<Link> {
   const response = await http()
     .post(`/products/${productId}/attribute-values`)
-    .set(admin)
+    .set(userCookie)
     .send({ attributeValueId });
   expect(response.status).toBe(201);
   return response.body as Link;
@@ -150,7 +152,7 @@ describe('product images', () => {
     const imageKey = `products/${randomUUID()}.jpg`;
     const response = await http()
       .post(`/products/${product.id}/images`)
-      .set(admin)
+      .set(userCookie)
       .send({ imageKey });
 
     expect(response.status).toBe(201);
@@ -199,7 +201,7 @@ describe('product images', () => {
     const image = await createImage(product.id);
     const response = await http()
       .patch(`/products/${product.id}/images/${image.id}`)
-      .set(admin)
+      .set(userCookie)
       .send({ imageKey: 'new/key.png', sortOrder: 7 });
 
     expect(response.status).toBe(200);
@@ -216,7 +218,7 @@ describe('product images', () => {
     const image = await createImage(product.id);
     const response = await http()
       .patch(`/products/${product.id}/images/${image.id}`)
-      .set(admin)
+      .set(userCookie)
       .send({});
 
     expect(response.status).toBe(200);
@@ -227,7 +229,7 @@ describe('product images', () => {
     const product = await createProduct();
     const image = await createImage(product.id);
     const path = `/products/${product.id}/images/${image.id}`;
-    const response = await http().delete(path).set(admin);
+    const response = await http().delete(path).set(userCookie);
 
     expect(response.status).toBe(204);
     expect(response.text).toBe('');
@@ -239,7 +241,7 @@ describe('product images', () => {
     const image = await createImage(product.id);
 
     expectError(
-      await http().post(`/products/${product.id}/images`).set(admin).send({ imageKey }),
+      await http().post(`/products/${product.id}/images`).set(userCookie).send({ imageKey }),
       400,
       'VALIDATION_FAILED',
       'imageKey',
@@ -247,7 +249,7 @@ describe('product images', () => {
     expectError(
       await http()
         .patch(`/products/${product.id}/images/${image.id}`)
-        .set(admin)
+        .set(userCookie)
         .send({ imageKey }),
       400,
       'VALIDATION_FAILED',
@@ -261,44 +263,49 @@ describe('product images', () => {
     const base = `/products/${product.id}/images`;
 
     expectError(
-      await http().post(base).set(admin).send({ imageKey: 'a.jpg', sortOrder: -1 }),
+      await http().post(base).set(userCookie).send({ imageKey: 'a.jpg', sortOrder: -1 }),
       400,
       'VALIDATION_FAILED',
       'sortOrder',
     );
     expectError(
-      await http().post(base).set(admin).send({ imageKey: 'a.jpg', sortOrder: 1.5 }),
-      400,
-      'VALIDATION_FAILED',
-      'sortOrder',
-    );
-    expectError(await http().post(base).set(admin).send({}), 400, 'VALIDATION_FAILED', 'imageKey');
-    expectError(
-      await http().post(base).set(admin).send({ imageKey: 'a.jpg', sortOrder: null }),
+      await http().post(base).set(userCookie).send({ imageKey: 'a.jpg', sortOrder: 1.5 }),
       400,
       'VALIDATION_FAILED',
       'sortOrder',
     );
     expectError(
-      await http().patch(`${base}/${image.id}`).set(admin).send({ imageKey: null }),
+      await http().post(base).set(userCookie).send({}),
       400,
       'VALIDATION_FAILED',
       'imageKey',
     );
     expectError(
-      await http().patch(`${base}/${image.id}`).set(admin).send({ sortOrder: null }),
+      await http().post(base).set(userCookie).send({ imageKey: 'a.jpg', sortOrder: null }),
       400,
       'VALIDATION_FAILED',
       'sortOrder',
     );
     expectError(
-      await http().post(base).set(admin).send({ imageKey: 'a.jpg', productId: randomUUID() }),
+      await http().patch(`${base}/${image.id}`).set(userCookie).send({ imageKey: null }),
+      400,
+      'VALIDATION_FAILED',
+      'imageKey',
+    );
+    expectError(
+      await http().patch(`${base}/${image.id}`).set(userCookie).send({ sortOrder: null }),
+      400,
+      'VALIDATION_FAILED',
+      'sortOrder',
+    );
+    expectError(
+      await http().post(base).set(userCookie).send({ imageKey: 'a.jpg', productId: randomUUID() }),
       400,
       'VALIDATION_FAILED',
       'productId',
     );
     expectError(
-      await http().patch(`${base}/${image.id}`).set(admin).send({ productId: randomUUID() }),
+      await http().patch(`${base}/${image.id}`).set(userCookie).send({ productId: randomUUID() }),
       400,
       'VALIDATION_FAILED',
       'productId',
@@ -326,7 +333,11 @@ describe('product images', () => {
     const base = `/products/${randomUUID()}/images`;
 
     expectError(await http().get(base), 404, 'NOT_FOUND');
-    expectError(await http().post(base).set(admin).send({ imageKey: 'a.jpg' }), 404, 'NOT_FOUND');
+    expectError(
+      await http().post(base).set(userCookie).send({ imageKey: 'a.jpg' }),
+      404,
+      'NOT_FOUND',
+    );
     expectError(await http().get(`${base}/${randomUUID()}`), 404, 'NOT_FOUND');
   });
 
@@ -337,9 +348,9 @@ describe('product images', () => {
     const path = `/products/${other.id}/images/${image.id}`;
 
     expectError(await http().get(path), 404, 'NOT_FOUND');
-    expectError(await http().patch(path).set(admin).send({ sortOrder: 9 }), 404, 'NOT_FOUND');
-    expectError(await http().patch(path).set(admin).send({}), 404, 'NOT_FOUND');
-    expectError(await http().delete(path).set(admin), 404, 'NOT_FOUND');
+    expectError(await http().patch(path).set(userCookie).send({ sortOrder: 9 }), 404, 'NOT_FOUND');
+    expectError(await http().patch(path).set(userCookie).send({}), 404, 'NOT_FOUND');
+    expectError(await http().delete(path).set(userCookie), 404, 'NOT_FOUND');
     expect(await testApp.prisma.productImage.findUnique({ where: { id: image.id } })).toMatchObject(
       { productId: owner.id, sortOrder: 2 },
     );
@@ -351,7 +362,7 @@ describe('product images', () => {
     expectError(await http().get('/products/not-a-uuid/images'), 400, 'INVALID_ID');
     expectError(await http().get(`/products/${product.id}/images/not-a-uuid`), 400, 'INVALID_ID');
     expectError(
-      await http().delete(`/products/${product.id}/images/not-a-uuid`).set(admin),
+      await http().delete(`/products/${product.id}/images/not-a-uuid`).set(userCookie),
       400,
       'INVALID_ID',
     );
@@ -364,7 +375,7 @@ describe('product images', () => {
       { id: image.id, url: image.url, sortOrder: 3 },
     ]);
 
-    await http().delete(`/products/${product.id}/images/${image.id}`).set(admin);
+    await http().delete(`/products/${product.id}/images/${image.id}`).set(userCookie);
     expect((await detail(product.id)).images).toEqual([]);
   });
 });
@@ -374,7 +385,7 @@ describe('product sizes', () => {
     const product = await createProduct();
     const response = await http()
       .post(`/products/${product.id}/variations`)
-      .set(admin)
+      .set(userCookie)
       .send({ size: 'M', stock: 4 });
 
     expect(response.status).toBe(201);
@@ -409,7 +420,7 @@ describe('product sizes', () => {
     const size = await createSize(product.id);
     const response = await http()
       .patch(`/products/${product.id}/variations/${size.id}`)
-      .set(admin)
+      .set(userCookie)
       .send({ size: 'XL', stock: 0 });
 
     expect(response.status).toBe(200);
@@ -421,7 +432,7 @@ describe('product sizes', () => {
     const size = await createSize(product.id);
     const response = await http()
       .patch(`/products/${product.id}/variations/${size.id}`)
-      .set(admin)
+      .set(userCookie)
       .send({});
 
     expect(response.status).toBe(200);
@@ -432,7 +443,7 @@ describe('product sizes', () => {
     const product = await createProduct();
     const size = await createSize(product.id);
     const path = `/products/${product.id}/variations/${size.id}`;
-    const response = await http().delete(path).set(admin);
+    const response = await http().delete(path).set(userCookie);
 
     expect(response.status).toBe(204);
     expectError(await http().get(path), 404, 'NOT_FOUND');
@@ -446,13 +457,13 @@ describe('product sizes', () => {
     const base = `/products/${product.id}/variations`;
 
     expectError(
-      await http().post(base).set(admin).send({ size: taken.size, stock: 1 }),
+      await http().post(base).set(userCookie).send({ size: taken.size, stock: 1 }),
       409,
       'ALREADY_EXISTS',
       'size',
     );
     expectError(
-      await http().patch(`${base}/${second.id}`).set(admin).send({ size: taken.size }),
+      await http().patch(`${base}/${second.id}`).set(userCookie).send({ size: taken.size }),
       409,
       'ALREADY_EXISTS',
       'size',
@@ -465,7 +476,10 @@ describe('product sizes', () => {
     const existing = await createSize(product.id);
 
     expectError(
-      await http().post(`/products/${product.id}/variations`).set(admin).send({ size, stock: 1 }),
+      await http()
+        .post(`/products/${product.id}/variations`)
+        .set(userCookie)
+        .send({ size, stock: 1 }),
       400,
       'VALIDATION_FAILED',
       'size',
@@ -473,7 +487,7 @@ describe('product sizes', () => {
     expectError(
       await http()
         .patch(`/products/${product.id}/variations/${existing.id}`)
-        .set(admin)
+        .set(userCookie)
         .send({ size }),
       400,
       'VALIDATION_FAILED',
@@ -493,49 +507,55 @@ describe('product sizes', () => {
     const base = `/products/${product.id}/variations`;
 
     expectError(
-      await http().post(base).set(admin).send({ size: 'Q', stock: -1 }),
+      await http().post(base).set(userCookie).send({ size: 'Q', stock: -1 }),
       400,
       'VALIDATION_FAILED',
       'stock',
     );
     expectError(
-      await http().patch(`${base}/${existing.id}`).set(admin).send({ stock: -1 }),
+      await http().patch(`${base}/${existing.id}`).set(userCookie).send({ stock: -1 }),
       400,
       'VALIDATION_FAILED',
       'stock',
     );
     expectError(
-      await http().post(base).set(admin).send({ size: 'Q' }),
+      await http().post(base).set(userCookie).send({ size: 'Q' }),
       400,
       'VALIDATION_FAILED',
       'stock',
     );
     expectError(
-      await http().post(base).set(admin).send({ stock: 1 }),
+      await http().post(base).set(userCookie).send({ stock: 1 }),
       400,
       'VALIDATION_FAILED',
       'size',
     );
     expectError(
-      await http().patch(`${base}/${existing.id}`).set(admin).send({ size: null }),
+      await http().patch(`${base}/${existing.id}`).set(userCookie).send({ size: null }),
       400,
       'VALIDATION_FAILED',
       'size',
     );
     expectError(
-      await http().patch(`${base}/${existing.id}`).set(admin).send({ stock: null }),
+      await http().patch(`${base}/${existing.id}`).set(userCookie).send({ stock: null }),
       400,
       'VALIDATION_FAILED',
       'stock',
     );
     expectError(
-      await http().post(base).set(admin).send({ size: 'Q', stock: 1, productId: randomUUID() }),
+      await http()
+        .post(base)
+        .set(userCookie)
+        .send({ size: 'Q', stock: 1, productId: randomUUID() }),
       400,
       'VALIDATION_FAILED',
       'productId',
     );
     expectError(
-      await http().patch(`${base}/${existing.id}`).set(admin).send({ productId: randomUUID() }),
+      await http()
+        .patch(`${base}/${existing.id}`)
+        .set(userCookie)
+        .send({ productId: randomUUID() }),
       400,
       'VALIDATION_FAILED',
       'productId',
@@ -558,7 +578,11 @@ describe('product sizes', () => {
     const base = `/products/${randomUUID()}/variations`;
 
     expectError(await http().get(base), 404, 'NOT_FOUND');
-    expectError(await http().post(base).set(admin).send({ size: 'M', stock: 1 }), 404, 'NOT_FOUND');
+    expectError(
+      await http().post(base).set(userCookie).send({ size: 'M', stock: 1 }),
+      404,
+      'NOT_FOUND',
+    );
     expectError(await http().get(`${base}/${randomUUID()}`), 404, 'NOT_FOUND');
   });
 
@@ -569,8 +593,8 @@ describe('product sizes', () => {
     const path = `/products/${other.id}/variations/${size.id}`;
 
     expectError(await http().get(path), 404, 'NOT_FOUND');
-    expectError(await http().patch(path).set(admin).send({ stock: 9 }), 404, 'NOT_FOUND');
-    expectError(await http().delete(path).set(admin), 404, 'NOT_FOUND');
+    expectError(await http().patch(path).set(userCookie).send({ stock: 9 }), 404, 'NOT_FOUND');
+    expectError(await http().delete(path).set(userCookie), 404, 'NOT_FOUND');
     expect(
       await testApp.prisma.productVariation.findUnique({ where: { id: size.id } }),
     ).toMatchObject({ productId: owner.id, stock: 2 });
@@ -594,7 +618,7 @@ describe('product sizes', () => {
     expect((await detail(product.id)).variations).toEqual([{ id: size.id, size: 'M', stock: 5 }]);
     await http()
       .patch(`/products/${product.id}/variations/${size.id}`)
-      .set(admin)
+      .set(userCookie)
       .send({ stock: 8 });
     expect((await detail(product.id)).variations[0]).toMatchObject({ stock: 8 });
   });
@@ -606,7 +630,7 @@ describe('product attribute values', () => {
     const { attribute, value } = await createValue();
     const response = await http()
       .post(`/products/${product.id}/attribute-values`)
-      .set(admin)
+      .set(userCookie)
       .send({ attributeValueId: value.id });
 
     expect(response.status).toBe(201);
@@ -657,7 +681,7 @@ describe('product attribute values', () => {
     expectError(
       await http()
         .post(`/products/${product.id}/attribute-values`)
-        .set(admin)
+        .set(userCookie)
         .send({ attributeValueId: randomUUID() }),
       400,
       'RELATED_NOT_FOUND',
@@ -673,7 +697,7 @@ describe('product attribute values', () => {
     expectError(
       await http()
         .post(`/products/${product.id}/attribute-values`)
-        .set(admin)
+        .set(userCookie)
         .send({ attributeValueId: value.id }),
       409,
       'ALREADY_EXISTS',
@@ -685,21 +709,24 @@ describe('product attribute values', () => {
     const product = await createProduct();
     const base = `/products/${product.id}/attribute-values`;
 
-    expectError(await http().post(base).set(admin).send({}), 400, 'VALIDATION_FAILED');
+    expectError(await http().post(base).set(userCookie).send({}), 400, 'VALIDATION_FAILED');
     expectError(
-      await http().post(base).set(admin).send({ attributeValueId: null }),
+      await http().post(base).set(userCookie).send({ attributeValueId: null }),
       400,
       'VALIDATION_FAILED',
       'attributeValueId',
     );
     expectError(
-      await http().post(base).set(admin).send({ attributeValueId: 'nope' }),
+      await http().post(base).set(userCookie).send({ attributeValueId: 'nope' }),
       400,
       'VALIDATION_FAILED',
       'attributeValueId',
     );
     expectError(
-      await http().post(base).set(admin).send({ attributeValueId: randomUUID(), productId: 'x' }),
+      await http()
+        .post(base)
+        .set(userCookie)
+        .send({ attributeValueId: randomUUID(), productId: 'x' }),
       400,
       'VALIDATION_FAILED',
       'productId',
@@ -713,12 +740,16 @@ describe('product attribute values', () => {
     const base = `/products/${product.id}/attribute-values`;
     await link(product.id, value.id);
 
-    const response = await http().delete(`${base}/${value.id}`).set(admin);
+    const response = await http().delete(`${base}/${value.id}`).set(userCookie);
     expect(response.status).toBe(204);
     expect(response.text).toBe('');
     expectError(await http().get(`${base}/${value.id}`), 404, 'NOT_FOUND');
     expectError(await http().get(`${base}/${unlinked.value.id}`), 404, 'NOT_FOUND');
-    expectError(await http().delete(`${base}/${unlinked.value.id}`).set(admin), 404, 'NOT_FOUND');
+    expectError(
+      await http().delete(`${base}/${unlinked.value.id}`).set(userCookie),
+      404,
+      'NOT_FOUND',
+    );
     expect(await testApp.prisma.attributeValue.count({ where: { id: value.id } })).toBe(1);
   });
 
@@ -728,7 +759,7 @@ describe('product attribute values', () => {
     await link(product.id, value.id);
     const response = await http()
       .patch(`/products/${product.id}/attribute-values/${value.id}`)
-      .set(admin)
+      .set(userCookie)
       .send({});
 
     expect(response.status).toBe(404);
@@ -755,7 +786,7 @@ describe('product attribute values', () => {
 
     expectError(await http().get(base), 404, 'NOT_FOUND');
     expectError(
-      await http().post(base).set(admin).send({ attributeValueId: value.id }),
+      await http().post(base).set(userCookie).send({ attributeValueId: value.id }),
       404,
       'NOT_FOUND',
     );
@@ -770,7 +801,7 @@ describe('product attribute values', () => {
     const path = `/products/${other.id}/attribute-values/${value.id}`;
 
     expectError(await http().get(path), 404, 'NOT_FOUND');
-    expectError(await http().delete(path).set(admin), 404, 'NOT_FOUND');
+    expectError(await http().delete(path).set(userCookie), 404, 'NOT_FOUND');
     expect(
       await testApp.prisma.productAttributeValue.count({ where: { productId: owner.id } }),
     ).toBe(1);
@@ -798,7 +829,7 @@ describe('product attribute values', () => {
         values: [{ id: value.id, value: value.value }],
       },
     ]);
-    await http().delete(`/products/${product.id}/attribute-values/${value.id}`).set(admin);
+    await http().delete(`/products/${product.id}/attribute-values/${value.id}`).set(userCookie);
     expect((await detail(product.id)).attributes).toEqual([]);
   });
 
@@ -808,7 +839,7 @@ describe('product attribute values', () => {
     await link(product.id, value.id);
 
     expectError(
-      await http().delete(`/attributes/${attribute.id}/values/${value.id}`).set(admin),
+      await http().delete(`/attributes/${attribute.id}/values/${value.id}`).set(userCookie),
       409,
       'IN_USE',
     );

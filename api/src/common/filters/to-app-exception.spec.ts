@@ -105,7 +105,7 @@ describe('toAppException, one case per row of E20', () => {
     expect(result.body.error.details).toEqual([]);
   });
 
-  it('no or wrong admin token: 401 UNAUTHORIZED', () => {
+  it('no session: 401 UNAUTHORIZED', () => {
     const result = toAppException(new UnauthorizedError());
     expect(result.getStatus()).toBe(401);
     expect(result.body.error.code).toBe('UNAUTHORIZED');

@@ -25,7 +25,6 @@ export default defineConfig({
       THROTTLE_WRITE_MINUTE: '5',
       THROTTLE_EXPENSIVE_BURST: '100',
       THROTTLE_EXPENSIVE_MINUTE: '5',
-      ADMIN_API_TOKEN: 'test-admin-token-0123456789abcdef',
       PROXY_SECRET: 'testproxysecret0123456789abcdef0',
       BETTER_AUTH_SECRET: 'testbetterauthsecret0123456789abcdef',
       // The fake OpenID provider (spec 0013 N14) behind a closed port; an e2e that signs in starts

@@ -7,7 +7,8 @@ import {
   SwaggerModule,
 } from '@nestjs/swagger';
 
-import { ADMIN_SECURITY, ADMIN_TOKEN_HEADER } from './common/auth/access.decorators.js';
+import { SESSION_COOKIE } from './auth/auth.js';
+import { CLOSED_EXTENSION, SESSION_SECURITY } from './common/auth/access.decorators.js';
 import { ERROR_CODES_EXTENSION } from './common/errors/api-errors.decorator.js';
 import { ERROR_CODES, ERROR_STATUS, type ErrorCode } from './common/errors/error-codes.js';
 import { ErrorResponseDto } from './common/errors/error-response.dto.js';
@@ -24,8 +25,16 @@ export function createOpenApiDocument(app: INestApplication, version: string): O
     new DocumentBuilder()
       .setTitle('lamoda-ai-fitting api')
       .setVersion(version)
-      // Routes under @AdminOnly() send the admin token (spec 0004 E1).
-      .addApiKey({ type: 'apiKey', in: 'header', name: ADMIN_TOKEN_HEADER }, ADMIN_SECURITY)
+      // Routes under @SignedIn() send Better Auth's session cookie (spec 0013 plan §4).
+      .addCookieAuth(
+        SESSION_COOKIE,
+        {
+          type: 'apiKey',
+          in: 'cookie',
+          description: `Set by /api/auth sign-in; named \`__Secure-${SESSION_COOKIE}\` on https.`,
+        },
+        SESSION_SECURITY,
+      )
       .build(),
     { extraModels: [ErrorResponseDto] },
   );
@@ -47,10 +56,15 @@ function addErrorResponses(document: OpenAPIObject): void {
         continue;
       }
       const decorated = takeDecoratedCodes(operation);
+      const closed = takeClosed(operation);
       if (path.startsWith('/health/')) {
         continue;
       }
-      const codes = new Set<ErrorCode>([...shapeCodes(operation), ...decorated]);
+      const codes = new Set<ErrorCode>([
+        ...shapeCodes(operation),
+        ...decorated,
+        ...(closed ? (['UNAUTHORIZED'] as const) : []),
+      ]);
       for (const status of new Set([...codes].map((code) => ERROR_STATUS[code]))) {
         // A controller's own response here would be lost: declare its codes with ApiErrors instead.
         if (operation.responses[status] !== undefined) {
@@ -89,10 +103,18 @@ function shapeCodes(operation: OperationObject): ErrorCode[] {
   ) {
     codes.push('INVALID_ID', 'NOT_FOUND');
   }
-  if (operation.security?.some((requirement) => ADMIN_SECURITY in requirement) === true) {
+  if (operation.security?.some((requirement) => SESSION_SECURITY in requirement) === true) {
     codes.push('UNAUTHORIZED');
   }
   return codes;
+}
+
+// Whether @Closed() marked the operation (it answers 401 to everyone); the extension is removed.
+function takeClosed(operation: OperationObject): boolean {
+  const extended = operation as OperationObject & { [CLOSED_EXTENSION]?: boolean };
+  const closed = extended[CLOSED_EXTENSION] === true;
+  delete extended[CLOSED_EXTENSION];
+  return closed;
 }
 
 // The codes ApiErrors(...) put on the operation; the extension is removed from the document.

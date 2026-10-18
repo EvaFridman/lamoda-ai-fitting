@@ -95,7 +95,10 @@ code comments. All decisions below: owner, 2026-10-16.
   `errorText`. Rejected: rewrapping its answers (own code against every update of the library).
 - **N18. The session cache lives 5 minutes.** A signed copy of the session in a cookie spares the
   database read for 5 minutes. So after "Выйти со всех устройств" the other browsers stay signed in
-  for up to 5 minutes; this browser is signed out at once.
+  for up to 5 minutes; this browser is signed out at once. The same holds for any sign-out (amended
+  at T6): a copy of both cookies taken before it stays valid until its copy of the session expires,
+  at most 5 minutes after it was issued; the session token alone is checked against the database.
+  Rejected: no cache in the api (a database read on every request with a cookie) and a shorter one.
 
 ## Added at T4
 
@@ -153,3 +156,22 @@ code comments. All decisions below: owner, 2026-10-16.
   `SERVICE_UNAVAILABLE` (its work is not cancelled, its end is logged, the first timeout within a
   minute goes to Sentry), all in Better Auth's `{ code, message }`. So `/api/auth` needs no
   exception in `CLAUDE.md`'s limits. Rejected: nginx's 1 MB and 60 s alone.
+- **N29. A session that cannot be read answers 503 (added at T6).** The request context reads the
+  session ahead of the guards, out of `TimeoutInterceptor`'s reach. A read that fails (the
+  database) or takes longer than 2 s answers 503 `SERVICE_UNAVAILABLE` in the api's format, which
+  web's queries retry; a slow read is not cancelled. A request without a session cookie never reads
+  it. At most 20 reads run at once in a process, slow ones past their timeout included; one more
+  answers 503 at once, so abandoned reads cannot pile up in the database pool while it is down
+  (the pool's own timeouts, for every route, are a backlog item). Only the first such 503 within a
+  minute goes to Sentry, the rest to the log as warnings, as for timeouts (0006 F29). Rejected: 500
+  (not retried), and treating the request as anonymous (a signed-in user would get 401 and look
+  signed out).
+- **N30. The request context reads the session on every request with a cookie, and only reads it
+  (added at T6).** The principal is a plain value from the start of a request: guards, services,
+  the error filter and Sentry read it on any route, public ones too. Accepted risk: the read runs
+  ahead of the rate limit, so a user with a valid session cookie and no cached copy makes a database
+  read per request beyond the api's quota, up to nginx's limit; without a valid signature nothing is
+  read. The api never extends a session (`disableRefresh`): the refreshed cookies would have to ride
+  on its answers. web's Better Auth client extends it through `/api/auth/get-session` (N4), so web
+  reads the session through that client (T12). Rejected: reading it in the access guard on
+  `@SignedIn()` routes only (an async principal, unknown on public routes, and a change of plan §4).

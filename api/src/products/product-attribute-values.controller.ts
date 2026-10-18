@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Post, Query } from
 import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 
 import { ApiErrors } from '../common/errors/api-errors.decorator.js';
-import { AdminOnly, Public } from '../common/auth/access.decorators.js';
+import { Closed, Public } from '../common/auth/access.decorators.js';
 import { ApiPaginatedResponse, type Paginated } from '../common/pagination/paginated.js';
 import { PaginationQueryDto } from '../common/pagination/pagination-query.dto.js';
 import { UuidParam } from '../common/pipes/uuid.pipe.js';
@@ -11,7 +11,7 @@ import { ProductAttributeValueResponseDto } from './dto/product-part-response.dt
 import { ProductAttributeValuesService } from './product-attribute-values.service.js';
 
 // The attribute values linked to a product, nested under it; a link is added and removed, never
-// updated (spec 0004 E3, E44). Reads are public, writes need the admin token (E1).
+// updated (spec 0004 E3, E44). Reads are public, writes are closed (0013 N8).
 @ApiTags('products')
 @Controller('products/:id/attribute-values')
 export class ProductAttributeValuesController {
@@ -38,7 +38,7 @@ export class ProductAttributeValuesController {
   }
 
   @Post()
-  @AdminOnly()
+  @Closed()
   @ApiCreatedResponse({ type: ProductAttributeValueResponseDto })
   @ApiErrors('ALREADY_EXISTS', 'RELATED_NOT_FOUND')
   create(
@@ -49,7 +49,7 @@ export class ProductAttributeValuesController {
   }
 
   @Delete(':attributeValueId')
-  @AdminOnly()
+  @Closed()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiNoContentResponse()
   delete(

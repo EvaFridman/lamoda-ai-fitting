@@ -5,9 +5,8 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { userPhotoKey } from '../../src/storage/keys.js';
+import { signIn } from '../support/sign-in.js';
 import { createTestApp, type TestApp } from '../support/test-app.js';
-
-const ADMIN_TOKEN = 'test-admin-token-0123456789abcdef';
 
 interface UserBody {
   id: string;
@@ -44,6 +43,7 @@ let counter = 0;
 
 beforeAll(async () => {
   testApp = await createTestApp();
+  userCookie = { Cookie: (await signIn(testApp.app)).cookie };
 });
 
 afterAll(async () => {
@@ -51,7 +51,8 @@ afterAll(async () => {
 });
 
 const http = () => request(testApp.app.getHttpServer());
-const admin = { 'X-Admin-Token': ADMIN_TOKEN };
+// The Cookie header of a signed-in user (the test app lets one through the closed routes).
+let userCookie: Record<string, string> = {};
 
 // Ten digits of a mobile number (`9XXXXXXXXX`), unique in the file: tests share the table.
 function nextDigits(): string {
@@ -70,7 +71,7 @@ function validBody(overrides: Record<string, unknown> = {}): Record<string, unkn
 }
 
 async function create(overrides: Record<string, unknown> = {}): Promise<UserBody> {
-  const response = await http().post('/users').set(admin).send(validBody(overrides));
+  const response = await http().post('/users').set(userCookie).send(validBody(overrides));
   expect(response.status).toBe(201);
   return response.body as UserBody;
 }
@@ -78,7 +79,7 @@ async function create(overrides: Record<string, unknown> = {}): Promise<UserBody
 async function listAll(): Promise<UserBody[]> {
   const items: UserBody[] = [];
   for (let offset = 0; ; offset += 100) {
-    const response = await http().get(`/users?limit=100&offset=${offset}`).set(admin);
+    const response = await http().get(`/users?limit=100&offset=${offset}`).set(userCookie);
     expect(response.status).toBe(200);
     const page = response.body as { items: UserBody[]; total: number };
     items.push(...page.items);
@@ -127,7 +128,7 @@ describe('users: access (AC1)', () => {
   it('refuses every route with a wrong token with 401 UNAUTHORIZED', async () => {
     const user = await create();
     const id = user.id;
-    const wrong = { 'X-Admin-Token': 'wrong-token' };
+    const wrong = { Cookie: 'lamoda.session_token=garbage' };
 
     expectError(await http().get('/users').set(wrong), 401, 'UNAUTHORIZED');
     expectError(await http().get(`/users/${id}`).set(wrong), 401, 'UNAUTHORIZED');
@@ -150,10 +151,10 @@ describe('users: access (AC1)', () => {
   it('serves every route with the right token', async () => {
     const user = await create();
 
-    expect((await http().get('/users').set(admin)).status).toBe(200);
-    expect((await http().get(`/users/${user.id}`).set(admin)).status).toBe(200);
-    expect((await http().patch(`/users/${user.id}`).set(admin).send({})).status).toBe(200);
-    expect((await http().delete(`/users/${user.id}`).set(admin)).status).toBe(204);
+    expect((await http().get('/users').set(userCookie)).status).toBe(200);
+    expect((await http().get(`/users/${user.id}`).set(userCookie)).status).toBe(200);
+    expect((await http().patch(`/users/${user.id}`).set(userCookie).send({})).status).toBe(200);
+    expect((await http().delete(`/users/${user.id}`).set(userCookie)).status).toBe(204);
   });
 });
 
@@ -162,7 +163,7 @@ describe('users: create, read, update, delete (AC2)', () => {
     const digits = nextDigits();
     const response = await http()
       .post('/users')
-      .set(admin)
+      .set(userCookie)
       .send({
         phone: `+7${digits}`,
         email: `full${digits}@mail.ru`,
@@ -203,7 +204,7 @@ describe('users: create, read, update, delete (AC2)', () => {
 
   it('reads one by id with 200', async () => {
     const user = await create({ dateOfBirth: '1990-05-17' });
-    const response = await http().get(`/users/${user.id}`).set(admin);
+    const response = await http().get(`/users/${user.id}`).set(userCookie);
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual(user);
@@ -211,7 +212,10 @@ describe('users: create, read, update, delete (AC2)', () => {
 
   it('updates one field with 200 and keeps the others', async () => {
     const user = await create({ lastName: 'Иванова' });
-    const response = await http().patch(`/users/${user.id}`).set(admin).send({ firstName: 'Ира' });
+    const response = await http()
+      .patch(`/users/${user.id}`)
+      .set(userCookie)
+      .send({ firstName: 'Ира' });
 
     expect(response.status).toBe(200);
     expect(response.body).toMatchObject({
@@ -232,7 +236,7 @@ describe('users: create, read, update, delete (AC2)', () => {
     const digits = nextDigits();
     const response = await http()
       .patch(`/users/${user.id}`)
-      .set(admin)
+      .set(userCookie)
       .send({
         phone: `8 (${digits.slice(0, 3)}) ${digits.slice(3)}`,
         email: ` New${digits}@Mail.RU `,
@@ -247,7 +251,7 @@ describe('users: create, read, update, delete (AC2)', () => {
 
   it('answers 200 with the record unchanged, updatedAt included, for an empty body', async () => {
     const user = await create();
-    const response = await http().patch(`/users/${user.id}`).set(admin).send({});
+    const response = await http().patch(`/users/${user.id}`).set(userCookie).send({});
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual(user);
@@ -262,10 +266,10 @@ describe('users: create, read, update, delete (AC2)', () => {
     });
     const withKey = await http()
       .patch(`/users/${user.id}`)
-      .set(admin)
+      .set(userCookie)
       .send({ fittingProfileImageKey: userPhotoKey(user.id) });
     expect(withKey.status).toBe(200);
-    const response = await http().patch(`/users/${user.id}`).set(admin).send({
+    const response = await http().patch(`/users/${user.id}`).set(userCookie).send({
       lastName: null,
       patronymic: null,
       dateOfBirth: null,
@@ -306,33 +310,33 @@ describe('users: create, read, update, delete (AC2)', () => {
 
   it('deletes with 204 and an empty body, then answers 404 NOT_FOUND', async () => {
     const user = await create();
-    const response = await http().delete(`/users/${user.id}`).set(admin);
+    const response = await http().delete(`/users/${user.id}`).set(userCookie);
 
     expect(response.status).toBe(204);
     expect(response.text).toBe('');
-    expectError(await http().get(`/users/${user.id}`).set(admin), 404, 'NOT_FOUND');
+    expectError(await http().get(`/users/${user.id}`).set(userCookie), 404, 'NOT_FOUND');
   });
 
   it('answers 404 NOT_FOUND for an unknown id on get, update and delete', async () => {
     const id = randomUUID();
 
-    expectError(await http().get(`/users/${id}`).set(admin), 404, 'NOT_FOUND');
+    expectError(await http().get(`/users/${id}`).set(userCookie), 404, 'NOT_FOUND');
     expectError(
-      await http().patch(`/users/${id}`).set(admin).send({ firstName: 'Ира' }),
+      await http().patch(`/users/${id}`).set(userCookie).send({ firstName: 'Ира' }),
       404,
       'NOT_FOUND',
     );
-    expectError(await http().delete(`/users/${id}`).set(admin), 404, 'NOT_FOUND');
+    expectError(await http().delete(`/users/${id}`).set(userCookie), 404, 'NOT_FOUND');
   });
 
   it('answers 400 INVALID_ID for a malformed id on every id route', async () => {
-    expectError(await http().get('/users/not-a-uuid').set(admin), 400, 'INVALID_ID');
+    expectError(await http().get('/users/not-a-uuid').set(userCookie), 400, 'INVALID_ID');
     expectError(
-      await http().patch('/users/not-a-uuid').set(admin).send({ firstName: 'Ира' }),
+      await http().patch('/users/not-a-uuid').set(userCookie).send({ firstName: 'Ира' }),
       400,
       'INVALID_ID',
     );
-    expectError(await http().delete('/users/not-a-uuid').set(admin), 400, 'INVALID_ID');
+    expectError(await http().delete('/users/not-a-uuid').set(userCookie), 400, 'INVALID_ID');
   });
 
   it('lists /users and /users/{id} in the Swagger document with a uuid id', () => {
@@ -354,7 +358,7 @@ describe('users: list (AC3, E47)', () => {
   it('answers { items, total } and pages with limit and offset', async () => {
     await Promise.all([create(), create(), create()]);
     const all = await listAll();
-    const response = await http().get('/users?limit=2&offset=1').set(admin);
+    const response = await http().get('/users?limit=2&offset=1').set(userCookie);
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ items: all.slice(1, 3), total: all.length });
@@ -367,7 +371,7 @@ describe('users: list (AC3, E47)', () => {
         return { phone: `+7${digits}`, email: `bulk${digits}@mail.ru`, firstName: 'Анна' };
       }),
     });
-    const body = (await http().get('/users').set(admin)).body as {
+    const body = (await http().get('/users').set(userCookie)).body as {
       items: UserBody[];
       total: number;
     };
@@ -377,11 +381,21 @@ describe('users: list (AC3, E47)', () => {
   });
 
   it('refuses limit 101 with 400 VALIDATION_FAILED', async () => {
-    expectError(await http().get('/users?limit=101').set(admin), 400, 'VALIDATION_FAILED', 'limit');
+    expectError(
+      await http().get('/users?limit=101').set(userCookie),
+      400,
+      'VALIDATION_FAILED',
+      'limit',
+    );
   });
 
   it('refuses an unknown parameter with 400 VALIDATION_FAILED', async () => {
-    expectError(await http().get('/users?email=a').set(admin), 400, 'VALIDATION_FAILED', 'email');
+    expectError(
+      await http().get('/users?email=a').set(userCookie),
+      400,
+      'VALIDATION_FAILED',
+      'email',
+    );
   });
 
   it('lists the newest first', async () => {
@@ -412,7 +426,7 @@ describe('users: list (AC3, E47)', () => {
     );
     const expected = rows.map((row) => row.id).sort((a, b) => (a < b ? 1 : -1));
 
-    const page = (await http().get('/users?limit=3').set(admin)).body as { items: UserBody[] };
+    const page = (await http().get('/users?limit=3').set(userCookie)).body as { items: UserBody[] };
 
     expect(page.items.map((item) => item.id)).toEqual(expected);
   });
@@ -444,7 +458,7 @@ describe('users: cascade (AC6)', () => {
       makeSession(other.id, true),
     ]);
 
-    expect((await http().delete(`/users/${user.id}`).set(admin)).status).toBe(204);
+    expect((await http().delete(`/users/${user.id}`).set(userCookie)).status).toBe(204);
 
     const gone = [active.id, archived.id];
     expect(await prisma.fittingSession.count({ where: { id: { in: gone } } })).toBe(0);
@@ -462,7 +476,7 @@ describe('users: phone and email normalization (AC7)', () => {
 
     const response = await http()
       .post('/users')
-      .set(admin)
+      .set(userCookie)
       .send({ phone: '8 (999) 123-45-67', email: 'Anna@Mail.RU', firstName: 'Анна' });
 
     expect(response.status).toBe(201);
@@ -494,7 +508,7 @@ describe('users: phone and email normalization (AC7)', () => {
     const digits = nextDigits();
     const response = await http()
       .post('/users')
-      .set(admin)
+      .set(userCookie)
       .send(validBody({ phone: format(digits), email: `form${digits}@mail.ru` }));
 
     expect(response.status).toBe(201);
@@ -516,7 +530,7 @@ describe('users: phone and email normalization (AC7)', () => {
     '   ',
   ])('refuses the phone %j with 400 on phone', async (phone) => {
     expectError(
-      await http().post('/users').set(admin).send(validBody({ phone })),
+      await http().post('/users').set(userCookie).send(validBody({ phone })),
       400,
       'VALIDATION_FAILED',
       'phone',
@@ -527,7 +541,7 @@ describe('users: phone and email normalization (AC7)', () => {
     expectError(
       await http()
         .post('/users')
-        .set(admin)
+        .set(userCookie)
         .send(validBody({ phone: 79991234567 })),
       400,
       'VALIDATION_FAILED',
@@ -555,7 +569,7 @@ describe('users: phone and email normalization (AC7)', () => {
     `${'a'.repeat(250)}@b.ru`,
   ])('refuses the email %j with 400 on email', async (email) => {
     expectError(
-      await http().post('/users').set(admin).send(validBody({ email })),
+      await http().post('/users').set(userCookie).send(validBody({ email })),
       400,
       'VALIDATION_FAILED',
       'email',
@@ -568,7 +582,7 @@ describe('users: phone and email normalization (AC7)', () => {
       const email = `anna${String.fromCodePoint(code)}${nextDigits()}@mail.ru`;
 
       expectError(
-        await http().post('/users').set(admin).send(validBody({ email })),
+        await http().post('/users').set(userCookie).send(validBody({ email })),
         400,
         'VALIDATION_FAILED',
         'email',
@@ -588,7 +602,7 @@ describe('users: phone and email normalization (AC7)', () => {
     expectError(
       await http()
         .post('/users')
-        .set(admin)
+        .set(userCookie)
         .send(validBody({ email: composed })),
       409,
       'ALREADY_EXISTS',
@@ -603,7 +617,7 @@ describe('users: phone and email normalization (AC7)', () => {
     expectError(
       await http()
         .post('/users')
-        .set(admin)
+        .set(userCookie)
         .send(validBody({ email: `${String.fromCodePoint(0x438, 0x306)}ван${digits}@mail.ru` })),
       409,
       'ALREADY_EXISTS',
@@ -621,7 +635,7 @@ describe('users: phone and email normalization (AC7)', () => {
     expectError(
       await http()
         .post('/users')
-        .set(admin)
+        .set(userCookie)
         .send(validBody({ email: 5 })),
       400,
       'VALIDATION_FAILED',
@@ -633,13 +647,13 @@ describe('users: phone and email normalization (AC7)', () => {
     const user = await create();
 
     expectError(
-      await http().patch(`/users/${user.id}`).set(admin).send({ phone: '+8 999 123 45 67' }),
+      await http().patch(`/users/${user.id}`).set(userCookie).send({ phone: '+8 999 123 45 67' }),
       400,
       'VALIDATION_FAILED',
       'phone',
     );
     expectError(
-      await http().patch(`/users/${user.id}`).set(admin).send({ email: 'nope' }),
+      await http().patch(`/users/${user.id}`).set(userCookie).send({ email: 'nope' }),
       400,
       'VALIDATION_FAILED',
       'email',
@@ -676,7 +690,7 @@ describe('users: date of birth (AC7, E47)', () => {
     expectError(
       await http()
         .post('/users')
-        .set(admin)
+        .set(userCookie)
         .send(validBody({ dateOfBirth: date() })),
       400,
       'VALIDATION_FAILED',
@@ -688,7 +702,7 @@ describe('users: date of birth (AC7, E47)', () => {
     expectError(
       await http()
         .post('/users')
-        .set(admin)
+        .set(userCookie)
         .send(validBody({ dateOfBirth: 20000101 })),
       400,
       'VALIDATION_FAILED',
@@ -701,20 +715,20 @@ describe('users: date of birth (AC7, E47)', () => {
 
     for (const dateOfBirth of [isoDay(-13), isoDay(0, 1)]) {
       expectError(
-        await http().patch(`/users/${user.id}`).set(admin).send({ dateOfBirth }),
+        await http().patch(`/users/${user.id}`).set(userCookie).send({ dateOfBirth }),
         400,
         'VALIDATION_FAILED',
         'dateOfBirth',
       );
     }
-    expect((await http().get(`/users/${user.id}`).set(admin)).body).toEqual(user);
+    expect((await http().get(`/users/${user.id}`).set(userCookie)).body).toEqual(user);
   });
 
   it('sets a date of birth on update', async () => {
     const user = await create();
     const response = await http()
       .patch(`/users/${user.id}`)
-      .set(admin)
+      .set(userCookie)
       .send({ dateOfBirth: '1985-12-01' });
 
     expect((response.body as UserBody).dateOfBirth).toBe('1985-12-01');
@@ -726,14 +740,19 @@ describe('users: required fields and nulls (E47)', () => {
     const body = validBody();
     delete body[field];
 
-    expectError(await http().post('/users').set(admin).send(body), 400, 'VALIDATION_FAILED', field);
+    expectError(
+      await http().post('/users').set(userCookie).send(body),
+      400,
+      'VALIDATION_FAILED',
+      field,
+    );
   });
 
   it.each(['phone', 'email', 'firstName'])('refuses null in %s on create', async (field) => {
     expectError(
       await http()
         .post('/users')
-        .set(admin)
+        .set(userCookie)
         .send(validBody({ [field]: null })),
       400,
       'VALIDATION_FAILED',
@@ -747,17 +766,17 @@ describe('users: required fields and nulls (E47)', () => {
     expectError(
       await http()
         .patch(`/users/${user.id}`)
-        .set(admin)
+        .set(userCookie)
         .send({ [field]: null }),
       400,
       'VALIDATION_FAILED',
       field,
     );
-    expect((await http().get(`/users/${user.id}`).set(admin)).body).toEqual(user);
+    expect((await http().get(`/users/${user.id}`).set(userCookie)).body).toEqual(user);
   });
 
   it('refuses an empty body on create', async () => {
-    const response = await http().post('/users').set(admin).send({});
+    const response = await http().post('/users').set(userCookie).send({});
 
     expectError(response, 400, 'VALIDATION_FAILED', 'phone');
     expectError(response, 400, 'VALIDATION_FAILED', 'email');
@@ -770,7 +789,7 @@ describe('users: required fields and nulls (E47)', () => {
       expectError(
         await http()
           .post('/users')
-          .set(admin)
+          .set(userCookie)
           .send(validBody({ [field]: field === 'id' ? randomUUID() : '2020-01-01T00:00:00Z' })),
         400,
         'VALIDATION_FAILED',
@@ -785,7 +804,7 @@ describe('users: required fields and nulls (E47)', () => {
     expectError(
       await http()
         .patch(`/users/${user.id}`)
-        .set(admin)
+        .set(userCookie)
         .send({ [field]: field === 'id' ? randomUUID() : '2020-01-01T00:00:00Z' }),
       400,
       'VALIDATION_FAILED',
@@ -797,7 +816,7 @@ describe('users: required fields and nulls (E47)', () => {
     expectError(
       await http()
         .post('/users')
-        .set(admin)
+        .set(userCookie)
         .send(validBody({ gender: 'other' })),
       400,
       'VALIDATION_FAILED',
@@ -813,7 +832,7 @@ describe('users: required fields and nulls (E47)', () => {
     'refuses the photo key %j',
     async (fittingProfileImageKey) => {
       expectError(
-        await http().post('/users').set(admin).send(validBody({ fittingProfileImageKey })),
+        await http().post('/users').set(userCookie).send(validBody({ fittingProfileImageKey })),
         400,
         'VALIDATION_FAILED',
         'fittingProfileImageKey',
@@ -838,7 +857,7 @@ describe.each(['firstName', 'lastName', 'patronymic'])('users: %s (E47)', (field
       expectError(
         await http()
           .post('/users')
-          .set(admin)
+          .set(userCookie)
           .send(validBody({ [field]: name })),
         400,
         'VALIDATION_FAILED',
@@ -853,7 +872,7 @@ describe.each(['firstName', 'lastName', 'patronymic'])('users: %s (E47)', (field
     expectError(
       await http()
         .patch(`/users/${user.id}`)
-        .set(admin)
+        .set(userCookie)
         .send({ [field]: ' Анна' }),
       400,
       'VALIDATION_FAILED',
@@ -869,7 +888,7 @@ describe('users: duplicates', () => {
     expectError(
       await http()
         .post('/users')
-        .set(admin)
+        .set(userCookie)
         .send(validBody({ phone: user.phone })),
       409,
       'ALREADY_EXISTS',
@@ -885,7 +904,7 @@ describe('users: duplicates', () => {
     expectError(
       await http()
         .post('/users')
-        .set(admin)
+        .set(userCookie)
         .send(validBody({ phone: written })),
       409,
       'ALREADY_EXISTS',
@@ -899,7 +918,7 @@ describe('users: duplicates', () => {
     expectError(
       await http()
         .post('/users')
-        .set(admin)
+        .set(userCookie)
         .send(validBody({ email: user.email.toUpperCase() })),
       409,
       'ALREADY_EXISTS',
@@ -911,7 +930,7 @@ describe('users: duplicates', () => {
     const [one, other] = [await create(), await create()];
 
     expectError(
-      await http().patch(`/users/${other.id}`).set(admin).send({ phone: one.phone }),
+      await http().patch(`/users/${other.id}`).set(userCookie).send({ phone: one.phone }),
       409,
       'ALREADY_EXISTS',
       'phone',
@@ -919,7 +938,7 @@ describe('users: duplicates', () => {
     expectError(
       await http()
         .patch(`/users/${other.id}`)
-        .set(admin)
+        .set(userCookie)
         .send({ email: ` ${one.email.toUpperCase()}` }),
       409,
       'ALREADY_EXISTS',
@@ -931,7 +950,7 @@ describe('users: duplicates', () => {
     const user = await create();
     const response = await http()
       .patch(`/users/${user.id}`)
-      .set(admin)
+      .set(userCookie)
       .send({ phone: user.phone, email: user.email });
 
     expect(response.status).toBe(200);

@@ -3,9 +3,8 @@ import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { signIn } from '../support/sign-in.js';
 import { createTestApp, type TestApp } from '../support/test-app.js';
-
-const ADMIN_TOKEN = 'test-admin-token-0123456789abcdef';
 
 interface BrandBody {
   id: string;
@@ -18,6 +17,7 @@ let testApp: TestApp;
 
 beforeAll(async () => {
   testApp = await createTestApp();
+  session = { Cookie: (await signIn(testApp.app)).cookie };
 });
 
 afterAll(async () => {
@@ -25,10 +25,11 @@ afterAll(async () => {
 });
 
 const http = () => request(testApp.app.getHttpServer());
-const admin = { 'X-Admin-Token': ADMIN_TOKEN };
+// The Cookie header of a signed-in user (the test app lets one through the closed routes).
+let session: Record<string, string> = {};
 
 async function create(name = `Brand ${randomUUID()}`): Promise<BrandBody> {
-  const response = await http().post('/brands').set(admin).send({ name });
+  const response = await http().post('/brands').set(session).send({ name });
   expect(response.status).toBe(201);
   return response.body as BrandBody;
 }
@@ -80,7 +81,7 @@ describe('brands: access (AC1)', () => {
     expectError(await http().patch('/brands/not-a-uuid').send({ name: 'x' }), 401, 'UNAUTHORIZED');
     expectError(await http().delete('/brands/not-a-uuid'), 401, 'UNAUTHORIZED');
     expectError(
-      await http().delete('/brands/not-a-uuid').set({ 'X-Admin-Token': 'wrong-token' }),
+      await http().delete('/brands/not-a-uuid').set({ Cookie: 'lamoda.session_token=garbage' }),
       401,
       'UNAUTHORIZED',
     );
@@ -88,7 +89,7 @@ describe('brands: access (AC1)', () => {
 
   it('refuses a write with a wrong token with 401 UNAUTHORIZED', async () => {
     const brand = await create();
-    const wrong = { 'X-Admin-Token': 'wrong-token' };
+    const wrong = { Cookie: 'lamoda.session_token=garbage' };
 
     expectError(await http().post('/brands').set(wrong).send({ name: 'x' }), 401, 'UNAUTHORIZED');
     expectError(
@@ -104,7 +105,7 @@ describe('brands: access (AC1)', () => {
 describe('brands: create, read, update, delete (AC2)', () => {
   it('creates with 201 and returns the own columns only', async () => {
     const name = `Brand ${randomUUID()}`;
-    const response = await http().post('/brands').set(admin).send({ name });
+    const response = await http().post('/brands').set(session).send({ name });
 
     expect(response.status).toBe(201);
     expect(Object.keys(response.body as object).sort()).toEqual([
@@ -127,7 +128,7 @@ describe('brands: create, read, update, delete (AC2)', () => {
   it('updates the name with 200 and returns the record', async () => {
     const brand = await create();
     const name = `Renamed ${randomUUID()}`;
-    const response = await http().patch(`/brands/${brand.id}`).set(admin).send({ name });
+    const response = await http().patch(`/brands/${brand.id}`).set(session).send({ name });
 
     expect(response.status).toBe(200);
     expect(response.body).toMatchObject({ id: brand.id, name });
@@ -135,7 +136,7 @@ describe('brands: create, read, update, delete (AC2)', () => {
 
   it('answers 200 with the record unchanged, updatedAt included, for an empty body', async () => {
     const brand = await create();
-    const response = await http().patch(`/brands/${brand.id}`).set(admin).send({});
+    const response = await http().patch(`/brands/${brand.id}`).set(session).send({});
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual(brand);
@@ -143,7 +144,7 @@ describe('brands: create, read, update, delete (AC2)', () => {
 
   it('deletes with 204 and an empty body, then answers 404 NOT_FOUND', async () => {
     const brand = await create();
-    const response = await http().delete(`/brands/${brand.id}`).set(admin);
+    const response = await http().delete(`/brands/${brand.id}`).set(session);
 
     expect(response.status).toBe(204);
     expect(response.text).toBe('');
@@ -207,7 +208,7 @@ describe('brands: list (AC3, E39)', () => {
 describe('brands: rules (E40)', () => {
   it.each(['', ' padded ', 'a\u0000b', 'x'.repeat(256)])('refuses the name %j', async (name) => {
     expectError(
-      await http().post('/brands').set(admin).send({ name }),
+      await http().post('/brands').set(session).send({ name }),
       400,
       'VALIDATION_FAILED',
       'name',
@@ -215,12 +216,17 @@ describe('brands: rules (E40)', () => {
   });
 
   it('refuses a missing name', async () => {
-    expectError(await http().post('/brands').set(admin).send({}), 400, 'VALIDATION_FAILED', 'name');
+    expectError(
+      await http().post('/brands').set(session).send({}),
+      400,
+      'VALIDATION_FAILED',
+      'name',
+    );
   });
 
   it('refuses an unknown field', async () => {
     expectError(
-      await http().post('/brands').set(admin).send({ name: 'Ok', extra: 1 }),
+      await http().post('/brands').set(session).send({ name: 'Ok', extra: 1 }),
       400,
       'VALIDATION_FAILED',
       'extra',
@@ -231,7 +237,7 @@ describe('brands: rules (E40)', () => {
     const brand = await create();
 
     expectError(
-      await http().patch(`/brands/${brand.id}`).set(admin).send({ name: null }),
+      await http().patch(`/brands/${brand.id}`).set(session).send({ name: null }),
       400,
       'VALIDATION_FAILED',
       'name',
@@ -244,7 +250,7 @@ describe('brands: errors', () => {
     const brand = await create();
 
     expectError(
-      await http().post('/brands').set(admin).send({ name: brand.name }),
+      await http().post('/brands').set(session).send({ name: brand.name }),
       409,
       'ALREADY_EXISTS',
       'name',
@@ -255,7 +261,7 @@ describe('brands: errors', () => {
     const [one, other] = [await create(), await create()];
 
     expectError(
-      await http().patch(`/brands/${other.id}`).set(admin).send({ name: one.name }),
+      await http().patch(`/brands/${other.id}`).set(session).send({ name: one.name }),
       409,
       'ALREADY_EXISTS',
       'name',
@@ -277,18 +283,18 @@ describe('brands: errors', () => {
       },
     });
 
-    expectError(await http().delete(`/brands/${brand.id}`).set(admin), 409, 'IN_USE');
+    expectError(await http().delete(`/brands/${brand.id}`).set(session), 409, 'IN_USE');
     expect(await testApp.prisma.brand.count({ where: { id: brand.id } })).toBe(1);
   });
 
   it('answers 400 INVALID_ID for a malformed id on every id route', async () => {
     expectError(await http().get('/brands/not-a-uuid'), 400, 'INVALID_ID');
     expectError(
-      await http().patch('/brands/not-a-uuid').set(admin).send({ name: 'x' }),
+      await http().patch('/brands/not-a-uuid').set(session).send({ name: 'x' }),
       400,
       'INVALID_ID',
     );
-    expectError(await http().delete('/brands/not-a-uuid').set(admin), 400, 'INVALID_ID');
+    expectError(await http().delete('/brands/not-a-uuid').set(session), 400, 'INVALID_ID');
   });
 
   it('answers 404 NOT_FOUND for an unknown id on get, update and delete', async () => {
@@ -296,10 +302,10 @@ describe('brands: errors', () => {
 
     expectError(await http().get(`/brands/${id}`), 404, 'NOT_FOUND');
     expectError(
-      await http().patch(`/brands/${id}`).set(admin).send({ name: 'Anything' }),
+      await http().patch(`/brands/${id}`).set(session).send({ name: 'Anything' }),
       404,
       'NOT_FOUND',
     );
-    expectError(await http().delete(`/brands/${id}`).set(admin), 404, 'NOT_FOUND');
+    expectError(await http().delete(`/brands/${id}`).set(session), 404, 'NOT_FOUND');
   });
 });

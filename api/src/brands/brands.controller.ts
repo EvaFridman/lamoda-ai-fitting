@@ -12,7 +12,7 @@ import {
 import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 
 import { ApiErrors } from '../common/errors/api-errors.decorator.js';
-import { AdminOnly, Public } from '../common/auth/access.decorators.js';
+import { Closed, Public } from '../common/auth/access.decorators.js';
 import { ApiPaginatedResponse, type Paginated } from '../common/pagination/paginated.js';
 import { PaginationQueryDto } from '../common/pagination/pagination-query.dto.js';
 import { UuidParam } from '../common/pipes/uuid.pipe.js';
@@ -21,7 +21,7 @@ import { BrandResponseDto } from './dto/brand-response.dto.js';
 import { CreateBrandDto } from './dto/create-brand.dto.js';
 import { UpdateBrandDto } from './dto/update-brand.dto.js';
 
-// Reads are public, writes need the admin token (spec 0004 E1).
+// Reads are public, writes are closed to everyone (spec 0013 N8).
 @ApiTags('brands')
 @Controller('brands')
 export class BrandsController {
@@ -42,7 +42,7 @@ export class BrandsController {
   }
 
   @Post()
-  @AdminOnly()
+  @Closed()
   @ApiCreatedResponse({ type: BrandResponseDto })
   @ApiErrors('ALREADY_EXISTS')
   create(@Body() dto: CreateBrandDto): Promise<BrandResponseDto> {
@@ -50,7 +50,7 @@ export class BrandsController {
   }
 
   @Patch(':id')
-  @AdminOnly()
+  @Closed()
   @ApiOkResponse({ type: BrandResponseDto })
   @ApiErrors('ALREADY_EXISTS')
   update(@UuidParam('id') id: string, @Body() dto: UpdateBrandDto): Promise<BrandResponseDto> {
@@ -58,7 +58,7 @@ export class BrandsController {
   }
 
   @Delete(':id')
-  @AdminOnly()
+  @Closed()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiNoContentResponse()
   @ApiErrors('IN_USE')

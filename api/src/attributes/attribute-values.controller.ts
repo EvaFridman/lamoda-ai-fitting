@@ -12,7 +12,7 @@ import {
 import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 
 import { ApiErrors } from '../common/errors/api-errors.decorator.js';
-import { AdminOnly, Public } from '../common/auth/access.decorators.js';
+import { Closed, Public } from '../common/auth/access.decorators.js';
 import { ApiPaginatedResponse, type Paginated } from '../common/pagination/paginated.js';
 import { PaginationQueryDto } from '../common/pagination/pagination-query.dto.js';
 import { UuidParam } from '../common/pipes/uuid.pipe.js';
@@ -21,8 +21,8 @@ import { AttributeValueResponseDto } from './dto/attribute-value-response.dto.js
 import { CreateAttributeValueDto } from './dto/create-attribute-value.dto.js';
 import { UpdateAttributeValueDto } from './dto/update-attribute-value.dto.js';
 
-// The values of an attribute, nested under it (spec 0004 E3). Reads are public, writes need the
-// admin token (E1).
+// The values of an attribute, nested under it (spec 0004 E3). Reads are public, writes are
+// closed to everyone (spec 0013 N8).
 @ApiTags('attributes')
 @Controller('attributes/:id/values')
 export class AttributeValuesController {
@@ -49,7 +49,7 @@ export class AttributeValuesController {
   }
 
   @Post()
-  @AdminOnly()
+  @Closed()
   @ApiCreatedResponse({ type: AttributeValueResponseDto })
   @ApiErrors('ALREADY_EXISTS')
   create(
@@ -60,7 +60,7 @@ export class AttributeValuesController {
   }
 
   @Patch(':valueId')
-  @AdminOnly()
+  @Closed()
   @ApiOkResponse({ type: AttributeValueResponseDto })
   @ApiErrors('ALREADY_EXISTS')
   update(
@@ -72,7 +72,7 @@ export class AttributeValuesController {
   }
 
   @Delete(':valueId')
-  @AdminOnly()
+  @Closed()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiNoContentResponse()
   @ApiErrors('IN_USE')

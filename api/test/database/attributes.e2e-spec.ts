@@ -3,10 +3,9 @@ import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { signIn } from '../support/sign-in.js';
 import { createTestApp, type TestApp } from '../support/test-app.js';
 import { expectViolation } from '../support/violation.js';
-
-const ADMIN_TOKEN = 'test-admin-token-0123456789abcdef';
 
 interface AttributeBody {
   id: string;
@@ -33,6 +32,7 @@ let testApp: TestApp;
 
 beforeAll(async () => {
   testApp = await createTestApp();
+  session = { Cookie: (await signIn(testApp.app)).cookie };
 });
 
 afterAll(async () => {
@@ -40,10 +40,11 @@ afterAll(async () => {
 });
 
 const http = () => request(testApp.app.getHttpServer());
-const admin = { 'X-Admin-Token': ADMIN_TOKEN };
+// The Cookie header of a signed-in user (the test app lets one through the closed routes).
+let session: Record<string, string> = {};
 
 async function createAttribute(name = `Attribute ${randomUUID()}`): Promise<AttributeBody> {
-  const response = await http().post('/attributes').set(admin).send({ name });
+  const response = await http().post('/attributes').set(session).send({ name });
   expect(response.status).toBe(201);
   return response.body as AttributeBody;
 }
@@ -54,7 +55,7 @@ async function createValue(
 ): Promise<ValueBody> {
   const response = await http()
     .post(`/attributes/${attributeId}/values`)
-    .set(admin)
+    .set(session)
     .send({ value });
   expect(response.status).toBe(201);
   return response.body as ValueBody;
@@ -115,7 +116,7 @@ describe('attributes: access', () => {
     const attribute = await createAttribute();
     const value = await createValue(attribute.id);
     const base = `/attributes/${attribute.id}/values`;
-    const wrong = { 'X-Admin-Token': 'wrong-token' };
+    const wrong = { Cookie: 'lamoda.session_token=garbage' };
 
     expectError(await http().post(base).send({ value: 'x' }), 401, 'UNAUTHORIZED');
     expectError(await http().post(base).set(wrong).send({ value: 'x' }), 401, 'UNAUTHORIZED');
@@ -145,7 +146,7 @@ describe('attributes: access', () => {
 describe('attributes: create, read, update, delete', () => {
   it('creates with 201 and returns exactly the own columns', async () => {
     const name = `Attribute ${randomUUID()}`;
-    const response = await http().post('/attributes').set(admin).send({ name });
+    const response = await http().post('/attributes').set(session).send({ name });
 
     expect(response.status).toBe(201);
     expect(Object.keys(response.body as object).sort()).toEqual([
@@ -169,7 +170,7 @@ describe('attributes: create, read, update, delete', () => {
   it('updates the name with 200', async () => {
     const attribute = await createAttribute();
     const name = `Renamed ${randomUUID()}`;
-    const response = await http().patch(`/attributes/${attribute.id}`).set(admin).send({ name });
+    const response = await http().patch(`/attributes/${attribute.id}`).set(session).send({ name });
 
     expect(response.status).toBe(200);
     expect(response.body).toMatchObject({ id: attribute.id, name });
@@ -177,7 +178,7 @@ describe('attributes: create, read, update, delete', () => {
 
   it('answers 200 with the record unchanged, updatedAt included, for an empty body', async () => {
     const attribute = await createAttribute();
-    const response = await http().patch(`/attributes/${attribute.id}`).set(admin).send({});
+    const response = await http().patch(`/attributes/${attribute.id}`).set(session).send({});
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual(attribute);
@@ -185,7 +186,7 @@ describe('attributes: create, read, update, delete', () => {
 
   it('deletes with 204 and an empty body, then answers 404', async () => {
     const attribute = await createAttribute();
-    const response = await http().delete(`/attributes/${attribute.id}`).set(admin);
+    const response = await http().delete(`/attributes/${attribute.id}`).set(session);
 
     expect(response.status).toBe(204);
     expect(response.text).toBe('');
@@ -226,7 +227,7 @@ describe('attributes: name rules', () => {
     'refuses the name %j',
     async (name) => {
       expectError(
-        await http().post('/attributes').set(admin).send({ name }),
+        await http().post('/attributes').set(session).send({ name }),
         400,
         'VALIDATION_FAILED',
         'name',
@@ -237,7 +238,7 @@ describe('attributes: name rules', () => {
   it('accepts a name of 100 code points', async () => {
     const response = await http()
       .post('/attributes')
-      .set(admin)
+      .set(session)
       .send({ name: '\u{1F600}'.repeat(100) });
 
     expect(response.status).toBe(201);
@@ -245,13 +246,13 @@ describe('attributes: name rules', () => {
 
   it('refuses a missing name and an unknown field', async () => {
     expectError(
-      await http().post('/attributes').set(admin).send({}),
+      await http().post('/attributes').set(session).send({}),
       400,
       'VALIDATION_FAILED',
       'name',
     );
     expectError(
-      await http().post('/attributes').set(admin).send({ name: 'Ok', extra: 1 }),
+      await http().post('/attributes').set(session).send({ name: 'Ok', extra: 1 }),
       400,
       'VALIDATION_FAILED',
       'extra',
@@ -262,13 +263,13 @@ describe('attributes: name rules', () => {
     const attribute = await createAttribute();
 
     expectError(
-      await http().post('/attributes').set(admin).send({ name: null }),
+      await http().post('/attributes').set(session).send({ name: null }),
       400,
       'VALIDATION_FAILED',
       'name',
     );
     expectError(
-      await http().patch(`/attributes/${attribute.id}`).set(admin).send({ name: null }),
+      await http().patch(`/attributes/${attribute.id}`).set(session).send({ name: null }),
       400,
       'VALIDATION_FAILED',
       'name',
@@ -279,7 +280,7 @@ describe('attributes: name rules', () => {
     const attribute = await createAttribute();
 
     expectError(
-      await http().patch(`/attributes/${attribute.id}`).set(admin).send({ name: ' x' }),
+      await http().patch(`/attributes/${attribute.id}`).set(session).send({ name: ' x' }),
       400,
       'VALIDATION_FAILED',
       'name',
@@ -293,13 +294,13 @@ describe('attributes: errors', () => {
     const other = await createAttribute();
 
     expectError(
-      await http().post('/attributes').set(admin).send({ name: one.name }),
+      await http().post('/attributes').set(session).send({ name: one.name }),
       409,
       'ALREADY_EXISTS',
       'name',
     );
     expectError(
-      await http().patch(`/attributes/${other.id}`).set(admin).send({ name: one.name }),
+      await http().patch(`/attributes/${other.id}`).set(session).send({ name: one.name }),
       409,
       'ALREADY_EXISTS',
       'name',
@@ -310,23 +311,23 @@ describe('attributes: errors', () => {
     const attribute = await createAttribute();
     const value = await createValue(attribute.id);
 
-    expectError(await http().delete(`/attributes/${attribute.id}`).set(admin), 409, 'IN_USE');
+    expectError(await http().delete(`/attributes/${attribute.id}`).set(session), 409, 'IN_USE');
     expect(await testApp.prisma.attribute.count({ where: { id: attribute.id } })).toBe(1);
 
     expect(
-      (await http().delete(`/attributes/${attribute.id}/values/${value.id}`).set(admin)).status,
+      (await http().delete(`/attributes/${attribute.id}/values/${value.id}`).set(session)).status,
     ).toBe(204);
-    expect((await http().delete(`/attributes/${attribute.id}`).set(admin)).status).toBe(204);
+    expect((await http().delete(`/attributes/${attribute.id}`).set(session)).status).toBe(204);
   });
 
   it('answers 400 INVALID_ID for a malformed id', async () => {
     expectError(await http().get('/attributes/not-a-uuid'), 400, 'INVALID_ID');
     expectError(
-      await http().patch('/attributes/not-a-uuid').set(admin).send({ name: 'x' }),
+      await http().patch('/attributes/not-a-uuid').set(session).send({ name: 'x' }),
       400,
       'INVALID_ID',
     );
-    expectError(await http().delete('/attributes/not-a-uuid').set(admin), 400, 'INVALID_ID');
+    expectError(await http().delete('/attributes/not-a-uuid').set(session), 400, 'INVALID_ID');
   });
 
   it('answers 404 NOT_FOUND for an unknown id on get, update and delete', async () => {
@@ -334,11 +335,11 @@ describe('attributes: errors', () => {
 
     expectError(await http().get(`/attributes/${id}`), 404, 'NOT_FOUND');
     expectError(
-      await http().patch(`/attributes/${id}`).set(admin).send({ name: 'Anything' }),
+      await http().patch(`/attributes/${id}`).set(session).send({ name: 'Anything' }),
       404,
       'NOT_FOUND',
     );
-    expectError(await http().delete(`/attributes/${id}`).set(admin), 404, 'NOT_FOUND');
+    expectError(await http().delete(`/attributes/${id}`).set(session), 404, 'NOT_FOUND');
   });
 });
 
@@ -348,7 +349,7 @@ describe('attribute values: create, read, update, delete', () => {
     const value = `Value ${randomUUID()}`;
     const response = await http()
       .post(`/attributes/${attribute.id}/values`)
-      .set(admin)
+      .set(session)
       .send({ value });
 
     expect(response.status).toBe(201);
@@ -378,7 +379,7 @@ describe('attribute values: create, read, update, delete', () => {
     const next = `Renamed ${randomUUID()}`;
     const response = await http()
       .patch(`/attributes/${attribute.id}/values/${value.id}`)
-      .set(admin)
+      .set(session)
       .send({ value: next });
 
     expect(response.status).toBe(200);
@@ -390,7 +391,7 @@ describe('attribute values: create, read, update, delete', () => {
     const value = await createValue(attribute.id);
     const response = await http()
       .patch(`/attributes/${attribute.id}/values/${value.id}`)
-      .set(admin)
+      .set(session)
       .send({});
 
     expect(response.status).toBe(200);
@@ -401,7 +402,7 @@ describe('attribute values: create, read, update, delete', () => {
     const attribute = await createAttribute();
     const value = await createValue(attribute.id);
     const path = `/attributes/${attribute.id}/values/${value.id}`;
-    const response = await http().delete(path).set(admin);
+    const response = await http().delete(path).set(session);
 
     expect(response.status).toBe(204);
     expect(response.text).toBe('');
@@ -455,7 +456,7 @@ describe('attribute values: rules', () => {
       const existing = await createValue(attribute.id);
 
       expectError(
-        await http().post(`/attributes/${attribute.id}/values`).set(admin).send({ value }),
+        await http().post(`/attributes/${attribute.id}/values`).set(session).send({ value }),
         400,
         'VALIDATION_FAILED',
         'value',
@@ -463,7 +464,7 @@ describe('attribute values: rules', () => {
       expectError(
         await http()
           .patch(`/attributes/${attribute.id}/values/${existing.id}`)
-          .set(admin)
+          .set(session)
           .send({ value }),
         400,
         'VALIDATION_FAILED',
@@ -476,7 +477,7 @@ describe('attribute values: rules', () => {
     const attribute = await createAttribute();
     const response = await http()
       .post(`/attributes/${attribute.id}/values`)
-      .set(admin)
+      .set(session)
       .send({ value: '\u{1F600}'.repeat(255) });
 
     expect(response.status).toBe(201);
@@ -487,15 +488,15 @@ describe('attribute values: rules', () => {
     const existing = await createValue(attribute.id);
     const base = `/attributes/${attribute.id}/values`;
 
-    expectError(await http().post(base).set(admin).send({}), 400, 'VALIDATION_FAILED', 'value');
+    expectError(await http().post(base).set(session).send({}), 400, 'VALIDATION_FAILED', 'value');
     expectError(
-      await http().post(base).set(admin).send({ value: null }),
+      await http().post(base).set(session).send({ value: null }),
       400,
       'VALIDATION_FAILED',
       'value',
     );
     expectError(
-      await http().patch(`${base}/${existing.id}`).set(admin).send({ value: null }),
+      await http().patch(`${base}/${existing.id}`).set(session).send({ value: null }),
       400,
       'VALIDATION_FAILED',
       'value',
@@ -509,13 +510,13 @@ describe('attribute values: rules', () => {
     const base = `/attributes/${attribute.id}/values`;
 
     expectError(
-      await http().post(base).set(admin).send({ value: 'Ok', attributeId: other.id }),
+      await http().post(base).set(session).send({ value: 'Ok', attributeId: other.id }),
       400,
       'VALIDATION_FAILED',
       'attributeId',
     );
     expectError(
-      await http().patch(`${base}/${existing.id}`).set(admin).send({ attributeId: other.id }),
+      await http().patch(`${base}/${existing.id}`).set(session).send({ attributeId: other.id }),
       400,
       'VALIDATION_FAILED',
       'attributeId',
@@ -536,13 +537,13 @@ describe('attribute values: errors', () => {
     const base = `/attributes/${attribute.id}/values`;
 
     expectError(
-      await http().post(base).set(admin).send({ value: one.value }),
+      await http().post(base).set(session).send({ value: one.value }),
       409,
       'ALREADY_EXISTS',
       'value',
     );
     expectError(
-      await http().patch(`${base}/${other.id}`).set(admin).send({ value: one.value }),
+      await http().patch(`${base}/${other.id}`).set(session).send({ value: one.value }),
       409,
       'ALREADY_EXISTS',
       'value',
@@ -557,7 +558,7 @@ describe('attribute values: errors', () => {
     await createValue(first.id, text);
     const response = await http()
       .post(`/attributes/${second.id}/values`)
-      .set(admin)
+      .set(session)
       .send({ value: text });
 
     expect(response.status).toBe(201);
@@ -584,13 +585,13 @@ describe('attribute values: errors', () => {
     });
     const path = `/attributes/${attribute.id}/values/${value.id}`;
 
-    expectError(await http().delete(path).set(admin), 409, 'IN_USE');
+    expectError(await http().delete(path).set(session), 409, 'IN_USE');
     expect(await testApp.prisma.attributeValue.count({ where: { id: value.id } })).toBe(1);
 
     await testApp.prisma.productAttributeValue.deleteMany({
       where: { attributeValueId: value.id },
     });
-    expect((await http().delete(path).set(admin)).status).toBe(204);
+    expect((await http().delete(path).set(session)).status).toBe(204);
   });
 
   it('answers 400 INVALID_ID for a malformed attribute id or value id', async () => {
@@ -598,7 +599,7 @@ describe('attribute values: errors', () => {
 
     expectError(await http().get('/attributes/not-a-uuid/values'), 400, 'INVALID_ID');
     expectError(
-      await http().post('/attributes/not-a-uuid/values').set(admin).send({ value: 'x' }),
+      await http().post('/attributes/not-a-uuid/values').set(session).send({ value: 'x' }),
       400,
       'INVALID_ID',
     );
@@ -610,13 +611,13 @@ describe('attribute values: errors', () => {
     expectError(
       await http()
         .patch(`/attributes/${attribute.id}/values/not-a-uuid`)
-        .set(admin)
+        .set(session)
         .send({ value: 'x' }),
       400,
       'INVALID_ID',
     );
     expectError(
-      await http().delete(`/attributes/${attribute.id}/values/not-a-uuid`).set(admin),
+      await http().delete(`/attributes/${attribute.id}/values/not-a-uuid`).set(session),
       400,
       'INVALID_ID',
     );
@@ -627,7 +628,7 @@ describe('attribute values: errors', () => {
 
     expectError(await http().get(`/attributes/${id}/values`), 404, 'NOT_FOUND');
     expectError(
-      await http().post(`/attributes/${id}/values`).set(admin).send({ value: 'x' }),
+      await http().post(`/attributes/${id}/values`).set(session).send({ value: 'x' }),
       404,
       'NOT_FOUND',
     );
@@ -638,8 +639,8 @@ describe('attribute values: errors', () => {
     const path = `/attributes/${attribute.id}/values/${randomUUID()}`;
 
     expectError(await http().get(path), 404, 'NOT_FOUND');
-    expectError(await http().patch(path).set(admin).send({ value: 'x' }), 404, 'NOT_FOUND');
-    expectError(await http().delete(path).set(admin), 404, 'NOT_FOUND');
+    expectError(await http().patch(path).set(session).send({ value: 'x' }), 404, 'NOT_FOUND');
+    expectError(await http().delete(path).set(session), 404, 'NOT_FOUND');
   });
 
   it('answers 404 for a value under another attribute and leaves it untouched', async () => {
@@ -649,8 +650,8 @@ describe('attribute values: errors', () => {
     const path = `/attributes/${other.id}/values/${value.id}`;
 
     expectError(await http().get(path), 404, 'NOT_FOUND');
-    expectError(await http().patch(path).set(admin).send({ value: 'Changed' }), 404, 'NOT_FOUND');
-    expectError(await http().delete(path).set(admin), 404, 'NOT_FOUND');
+    expectError(await http().patch(path).set(session).send({ value: 'Changed' }), 404, 'NOT_FOUND');
+    expectError(await http().delete(path).set(session), 404, 'NOT_FOUND');
 
     const stored = await testApp.prisma.attributeValue.findUnique({ where: { id: value.id } });
     expect(stored).toMatchObject({ attributeId: owner.id, value: value.value });
@@ -661,7 +662,7 @@ describe('attribute values: colorHex (spec 0009)', () => {
   const create = (attributeId: string, body: Record<string, unknown>) =>
     http()
       .post(`/attributes/${attributeId}/values`)
-      .set(admin)
+      .set(session)
       .send({ value: `Value ${randomUUID()}`, ...body });
 
   it.each(['#A1b2C3', '#a1b2c3', '#000000', '#FFFFFF'])(
@@ -707,7 +708,7 @@ describe('attribute values: colorHex (spec 0009)', () => {
     const attribute = await createAttribute();
     const value = await createValue(attribute.id);
     const path = `/attributes/${attribute.id}/values/${value.id}`;
-    const patch = (body: Record<string, unknown>) => http().patch(path).set(admin).send(body);
+    const patch = (body: Record<string, unknown>) => http().patch(path).set(session).send(body);
 
     const set = await patch({ colorHex: '#12ab34' });
     expect(set.status).toBe(200);
@@ -741,7 +742,7 @@ describe('attribute values: colorHex (spec 0009)', () => {
     expectError(
       await http()
         .patch(`/attributes/${attribute.id}/values/${existing.id}`)
-        .set(admin)
+        .set(session)
         .send({ colorHex }),
       400,
       'VALIDATION_FAILED',

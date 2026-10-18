@@ -56,11 +56,12 @@ import { UsersModule } from './users/users.module.js';
     // Every HTTP error answers one format with a code (spec 0004 E18–E22).
     { provide: APP_FILTER, useClass: AppExceptionFilter },
     // Global guards run in the order they are registered, so both are registered here. The rate
-    // limit comes first: a request with a wrong admin token is counted before it is refused, so
-    // guessing the token runs into the limit (spec 0006 F5). Then access, closed unless a route is
-    // marked @Public() or @AdminOnly() (F3).
+    // limit comes first: a refused request is counted too (spec 0006 F22). Then access, closed
+    // unless a route is marked @Public(), or @SignedIn() for a signed-in user (F3, spec 0013 §4).
     { provide: APP_GUARD, useClass: TieredThrottlerGuard },
-    { provide: APP_GUARD, useClass: AccessGuard },
+    // By its class, so createTestApp() can replace it (test/support/test-access-guard.ts).
+    AccessGuard,
+    { provide: APP_GUARD, useExisting: AccessGuard },
   ],
 })
 export class AppModule {}
