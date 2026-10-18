@@ -1,6 +1,7 @@
 # 0013 auth: tasks
 
-Status: accepted (2026-10-16).
+Status: accepted (2026-10-16); amended 2026-10-18 at the review of PR 1 (T7, T10, T12: N31–N34,
+plan §10).
 
 ## How the work flows
 
@@ -73,10 +74,14 @@ Status: accepted (2026-10-16).
       Commit: `feat(api): replace the admin token with signed-in users`
 - [ ] **T7. Own data only, and the current user.** Owner-scoped services and DTOs for fitting
       sessions and generations; `MeController` (`GET /me`, `DELETE /me` clearing the cookies);
-      nullable `phone` and `firstName` in `UserResponseDto`; `openapi.json`; web's contract tests
-      and entity schemas follow (plan §6).
+      nullable `phone` and `firstName` in `UserResponseDto`; 401 for a deleted user's cached
+      session (N31); the session hook drops the User-Agent (N34); `mount-auth.ts`'s comment on
+      the error format names the 429 exception (N32); `openapi.json`; web's contract tests and
+      entity schemas follow (plan §6).
       Check: e2e with two users on every fitting session and generation route (AC8); `GET /me`;
-      `DELETE /me` removes the rows and the old cookie answers 401 (AC12 without files);
+      `DELETE /me` removes the rows, clears both cookies in its answer and the session token alone
+      then answers 401; a cached copy (another session, or both old cookies) gets 401 on `GET /me`,
+      `DELETE /me` and a write (AC12 without files); a new session has no User-Agent;
       `npm run verify`.
       Commit: `feat(api): serve each user only their own fittings`
 - [ ] **T8. The socket knows the user.** `io.use` in `SocketIoAdapter` (plan §7).
@@ -99,8 +104,8 @@ Status: accepted (2026-10-16).
       Commit: `feat(api): delete expired sessions and sign-in states`
 - [ ] **T10. Account files (after `feat/0011-storage` is in `main`).** Rebase; `DELETE /me` goes
       through 0011's user deletion; 0011's admin-based e2e (M8, M9; its T7) rewritten for a
-      signed-in user and the test guard (N15). If 0011 lands after PR 2 is merged, this task moves
-      to PR 3.
+      signed-in user and the test guard (N15). 0011's storage and user deletion are in `main`
+      since #77.
       Check: e2e: `DELETE /me` starts the file deletion and the user's folder is empty afterwards
       (AC12); 0011's link and key-folder checks pass; `npm run verify`.
       Commit: `feat(api): delete an account's files with it`
@@ -116,12 +121,15 @@ Status: accepted (2026-10-16).
       separator) and its section on `/ui-kit` (plan §10).
       Check: web tests (keyboard, `aria-disabled`); `qa-tester` on `/ui-kit`; `npm run verify`.
       Commit: `feat(web): add a menu to the ui kit`
-- [ ] **T12. Sign-in in the header.** `better-auth@1.7.10` in web; `shared/auth`,
+- [ ] **T12. Sign-in in the header.** `better-auth` in web at the api's exact pin (N33); `shared/auth`,
       `entities/session`, `features/auth` (`LoginModal`, sign-outs); the profile icon as a client
-      component with the modal and the menu of N12; `errorText` for Better Auth's codes;
-      `/privacy`'s line (plan §10). The session comes from Better Auth's client
-      (`/api/auth/get-session`), which also extends it: the api never does (N30).
-      Check: web tests of the icon's states, the menu's items and the name fallback (AC3);
+      component with the modal and the menu of N12; `errorText` for Better Auth's codes and for the
+      api-format 429 and nginx answers of `/api/auth` (N32); `/privacy`'s line (plan §10). The
+      session comes from Better Auth's client (`/api/auth/get-session`), which also extends it: the
+      api never does (N30). `callbackURL` is a path from the router, never from the query (plan §10).
+      Check: web tests of the icon's states, the menu's items and the name fallback (AC3), and that
+      `callbackURL` starts with a single `/` for a pathname starting with `//`, `///` or `/\`, and
+      ignores the query (`?next=//evil.example`);
       `qa-tester` on the local stack: sign-in through the fake provider and back to the same page
       (AC1), sign-out and sign-out everywhere with two browsers (AC4), screenshots of the menu for
       the owner; `npm run verify`.

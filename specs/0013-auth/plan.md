@@ -1,8 +1,8 @@
 # 0013 auth: plan
 
-Status: accepted (2026-10-16).
+Status: accepted (2026-10-16); amended 2026-10-18 at the review of PR 1 (N29, N31–N36).
 
-Implements [spec.md](spec.md); decisions in [clarifications.md](clarifications.md) (N1–N18).
+Implements [spec.md](spec.md); decisions in [clarifications.md](clarifications.md) (N1–N36).
 
 ## 1. Library and versions (N1)
 
@@ -24,7 +24,7 @@ One migration, `<timestamp>_auth`, compatible with the running release (it only 
 - `users`: `phone` and `first_name` drop `NOT NULL` (their CHECKs stay; a `NULL` passes them; the
   phone stays unique among the non-null); new `email_verified boolean NOT NULL DEFAULT false`.
 - `sessions`: `id uuid` (`uuidv7()`), `token varchar UNIQUE`, `user_id` → `users` `ON DELETE
-CASCADE`, `expires_at`, `user_agent varchar(512) NULL`, `created_at`, `updated_at`; index on
+CASCADE`, `expires_at`, `user_agent varchar(512) NULL` (left empty from T7, N34), `created_at`, `updated_at`; index on
   `user_id`. No IP address column: Better Auth's IP tracking is off (`advanced.ipAddress.
 disableIpTracking`), since it would read `X-Forwarded-For` without our proxy secret.
 - `accounts`: `id`, `account_id`, `provider_id`, `user_id` → `users` cascade, the token columns
@@ -67,8 +67,8 @@ given_name` (N5); or, when `AUTH_FAKE_OIDC_URL` is set, `genericOAuth` with `pro
 - Mounting (in `createHttpApp()`, so every e2e app has it): after `useRequestContext` and CORS,
   before the JSON parser: `app.all('/api/auth/*splat', authThrottle, toNodeHandler(auth))`. The
   path keeps `/api/` because Better Auth matches it against its `baseURL`; nginx and web pass it
-  unchanged (§9, §10). Its answers keep Better Auth's `{ code, message }` (N17, AC11); no Nest
-  filter sees them. (Amended at T5: the route also carries the request log, the allowlist of
+  unchanged (§9, §10). Its answers keep Better Auth's `{ code, message }` (N17, AC11), except
+  `authThrottle`'s 429 (N32); no Nest filter sees them. (Amended at T5: the route also carries the request log, the allowlist of
   routes, its own JSON parser with `BODY_LIMIT` and request timeout, and an error handler; N25,
   N26, N28.)
 
@@ -78,7 +78,9 @@ given_name` (N5); or, when `AUTH_FAKE_OIDC_URL` is set, `genericOAuth` with `pro
 - The request-context middleware becomes async: with a session cookie present it calls
   `auth.api.getSession({ headers })` (the 5-minute cookie cache answers most calls without the
   database); otherwise the principal is anonymous at once. A broken or expired cookie is
-  anonymous, never an error. Sentry's scope gets `user.id` (no email).
+  anonymous, never an error. A read that fails or times out, or one more while 20 are running,
+  answers 503 `SERVICE_UNAVAILABLE` (N29); `/api/auth/*` is not read here, Better Auth reads its own session (N26). Sentry's scope
+  gets `user.id` (no email).
 - Markers in `common/auth/`: `@Public()` (unchanged), `@SignedIn()` (needs a user, adds Swagger's
   cookie security `session`), `@Closed()` (answers 401 to everyone). `@AdminOnly()`, the admin
   principal, `X-Admin-Token`, `ADMIN_SECURITY` and the admin token comparison go away.
@@ -96,9 +98,9 @@ given_name` (N5); or, when `AUTH_FAKE_OIDC_URL` is set, `genericOAuth` with `pro
 ## 5. Rate limits for `/api/auth` (N1)
 
 - `authThrottle` (Express middleware, `throttling/`): counts the request with the shared throttler
-  storage, keyed by the request context's client address (as the Nest guard does): GET in tier
-  `read`, `POST /sign-in/*` in `expensive`, any other POST in `write`; over the limit it answers
-  429 in the api's format with `Retry-After`, like the guard.
+  storage, keyed by the request context's client address (as the Nest guard does): GET and HEAD
+  in tier `read`, `POST /sign-in/*` in `expensive` (N35), any other request in `write`; over the limit it
+  answers 429 in the api's format with `Retry-After`, like the guard (N32).
 - nginx: a `location /api/auth/` in the same `edge_api` zone (§9).
 
 ## 6. Routes (N8, N11; AC7–AC9, AC12)
@@ -120,6 +122,10 @@ given_name` (N5); or, when `AUTH_FAKE_OIDC_URL` is set, `genericOAuth` with `pro
 - `GET /me` answers `UserResponseDto` (`phone` and `firstName` now nullable). `DELETE /me` calls
   `UsersService.delete` (after 0011: also starts the deletion of the user's files, 0011 M11),
   which removes sessions and accounts by cascade, then clears the session cookies in its answer.
+  Another browser's cached session names the deleted user for up to 5 minutes (N31): `GET /me`
+  and `DELETE /me` finding no user and a write whose user reference fails (`RELATED_NOT_FOUND` on
+  the user) answer 401 `UNAUTHORIZED`.
+- The session hook stops keeping the User-Agent, as it does the IP address (N34).
 - 0011's checks (M8, M9) written around admin requests are rewritten: a link comes from `GET /me`
   or the user's own generation; the key-folder check of M8 is tested on the closed writes through
   the test guard (§4) (N15).
@@ -171,7 +177,10 @@ client secret (AC14). The worker does not need these. `check:web-bundle` also fa
   on `/ui-kit`.
 - `features/auth`: `LoginModal` (the kit's `Modal`, one button "Войти через Google",
   `signIn.social({ provider: 'google', callbackURL: <current path and query> })`) and the sign-out
-  actions (`signOut`, `revokeSessions` + `signOut`).
+  actions (`signOut`, `revokeSessions` + `signOut`). `callbackURL` is always a path on the site
+  built from the router (`usePathname()`, `useSearchParams()`) and normalised to start with a
+  single `/` (every leading run of `/` and `\` becomes a single `/`); it is never taken from a query
+  parameter (no open redirect).
 - `widgets/header`: the profile icon becomes a client component: no session → it opens
   `LoginModal`; a session → the `Menu` of N12 (initials circle, name or "Профиль", four inert items
   with `aria-disabled`, separator, the two sign-outs), its top block with `mp-block`. While the
@@ -207,14 +216,16 @@ client secret (AC14). The worker does not need these. `check:web-bundle` also fa
 
 `better-auth@1.7.10` (api, web) and `oauth2-mock-server@9.3.0` (api, dev) are checked by
 `CONTRIBUTING.md`'s rules: public repositories, heavy use, releases this week (Better Auth ships
-patches every few days; the pin is moved on purpose). Neither needs an install script.
+patches every few days; the pin is moved on purpose, N33). Neither needs an install script.
 
 ## Backlog
 
 - Remove: "IDOR checks with auth" (done, N8).
 - Add: other providers and sign-in methods (N2); guests (N9, with the reasons it was dropped);
   `apiFetch` forwarding the session cookie for the first server-rendered page with user data; the
-  "Мои данные" page with editing and account deletion (N11, N12).
+  "Мои данные" page with editing and account deletion (N11, N12); dropping the empty
+  `sessions.user_agent` column (N34); the socket keeping a revoked session's user until it
+  disconnects, for the generations spec to decide (N36).
 - Keep: "Email look-alikes" (spec non-goal).
 
 ## Docs
@@ -240,23 +251,23 @@ patches every few days; the pin is moved on purpose). Neither needs an install s
 
 ## How each criterion is verified
 
-| AC   | Check                                                                                                             |
-| ---- | ----------------------------------------------------------------------------------------------------------------- |
-| AC1  | e2e of the redirect flow through the fake provider; `qa-tester` in the browser on the local stack                 |
-| AC2  | e2e: two sign-ins of one account, one user row                                                                    |
-| AC3  | web tests of the menu (items, `aria-disabled`, name fallback); `qa-tester` screenshots, owner compares            |
-| AC4  | e2e: sign-out → 401; revoke-sessions → the other session's cookie answers 401 after the cache window (test clock) |
-| AC5  | e2e: `Set-Cookie` attributes; expiry and extension with a moved clock                                             |
-| AC6  | `rg` for the admin names in the repo; OpenAPI snapshot without `admin`                                            |
-| AC7  | e2e without a cookie on each `@SignedIn()` route; catalog reads still 200                                         |
-| AC8  | e2e with two users on every fitting session and generation route                                                  |
-| AC9  | e2e: closed routes 401 with a signed-in user; access-markers test                                                 |
-| AC10 | socket e2e (§7)                                                                                                   |
-| AC11 | e2e: a refused `/api/auth/*` request's body; an api error's body                                                  |
-| AC12 | e2e: `DELETE /me`, then rows gone and the cookie 401; files: 0011's deletion e2e after the rebase                 |
-| AC13 | web tests of the analytics calls; `qa-tester` watches the requests with and without consent                       |
-| AC14 | env unit tests of `assertServerEnv`                                                                               |
-| AC15 | `npm run verify`; CI                                                                                              |
+| AC   | Check                                                                                                                                                                                                                                                   |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AC1  | e2e of the redirect flow through the fake provider; `qa-tester` in the browser on the local stack                                                                                                                                                       |
+| AC2  | e2e: two sign-ins of one account, one user row                                                                                                                                                                                                          |
+| AC3  | web tests of the menu (items, `aria-disabled`, name fallback); `qa-tester` screenshots, owner compares                                                                                                                                                  |
+| AC4  | e2e: sign-out → 401; revoke-sessions → the other session's cookie answers 401 after the cache window (test clock)                                                                                                                                       |
+| AC5  | e2e: `Set-Cookie` attributes; expiry and extension with a moved clock                                                                                                                                                                                   |
+| AC6  | `rg` for the admin names in the repo; OpenAPI snapshot without `admin`                                                                                                                                                                                  |
+| AC7  | e2e without a cookie on each `@SignedIn()` route; catalog reads still 200                                                                                                                                                                               |
+| AC8  | e2e with two users on every fitting session and generation route                                                                                                                                                                                        |
+| AC9  | e2e: closed routes 401 with a signed-in user; access-markers test                                                                                                                                                                                       |
+| AC10 | socket e2e (§7)                                                                                                                                                                                                                                         |
+| AC11 | e2e: a refused `/api/auth/*` request's body, its 429's body; an api error's body                                                                                                                                                                        |
+| AC12 | e2e: `DELETE /me`, then rows gone, both cookies cleared in its answer and the session token alone 401; a cached copy (another session, or both old cookies): `GET /me`, `DELETE /me` and a write 401 (N31); files: 0011's deletion e2e after the rebase |
+| AC13 | web tests of the analytics calls; `qa-tester` watches the requests with and without consent                                                                                                                                                             |
+| AC14 | env unit tests of `assertServerEnv`                                                                                                                                                                                                                     |
+| AC15 | `npm run verify`; CI                                                                                                                                                                                                                                    |
 
 ## Pull requests
 

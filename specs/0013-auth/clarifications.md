@@ -2,7 +2,7 @@
 
 Status: accepted (2026-10-16); amended 2026-10-16 at the plan: no guests (N2, N9, N10 withdrawn),
 the first name is optional (N5), Better Auth's own error format (N17), a 5-minute session cache
-(N18).
+(N18); amended 2026-10-18 at the review of PR 1 (N31–N36).
 
 The owner's decisions for this spec. Ids `N1`, `N2`, … are referred to by the spec, the plan and
 code comments. All decisions below: owner, 2026-10-16.
@@ -32,7 +32,7 @@ code comments. All decisions below: owner, 2026-10-16.
 
 - **N5. Phone and first name are optional.** Google gives no phone number, so `users.phone` becomes
   optional and stays unique among the users who have one. Google's given name is kept when it
-  passes the existing name rule (0004 E10) and left empty otherwise; the rule does not change. No
+  passes the existing name rule (`IsPersonName()`, `common/validation/`) and left empty otherwise; the rule does not change. No
   phone or name is asked for after sign-in. (Amended at the plan: the fallback to the part of the
   email before `@` is dropped, since it rarely passes the rule.)
 - **N6. No avatar.** Google's profile picture is not stored or shown; the menu shows initials.
@@ -92,7 +92,7 @@ code comments. All decisions below: owner, 2026-10-16.
 - **N17. `/api/auth/*` keeps Better Auth's error format.** Its errors answer `{ code, message }`,
   which Better Auth's browser client expects, not the api's `{ error: { code, message, details } }`;
   like `/health/*`, it is a documented exception. web shows its errors in Russian through
-  `errorText`. Rejected: rewrapping its answers (own code against every update of the library).
+  `errorText`. (Amended at the review of PR 1: its 429 keeps the api's format, N32.) Rejected: rewrapping its answers (own code against every update of the library).
 - **N18. The session cache lives 5 minutes.** A signed copy of the session in a cookie spares the
   database read for 5 minutes. So after "Выйти со всех устройств" the other browsers stay signed in
   for up to 5 minutes; this browser is signed out at once. The same holds for any sign-out (amended
@@ -142,7 +142,7 @@ code comments. All decisions below: owner, 2026-10-16.
   paths only (a route with a parameter slips through).
 - **N26. A failure inside Better Auth answers its own format too.** An error that is not Better
   Auth's own (a database error) answers 500 `{ code: "INTERNAL_SERVER_ERROR", message }`, so every
-  answer of `/api/auth/*` has one format (N17). It is logged without the row and reported to Sentry,
+  answer of `/api/auth/*` has one format (N17; the 429 of its rate limit aside, N32). It is logged without the row and reported to Sentry,
   as AppExceptionFilter does for a 5xx. Its default (an empty 500 and the whole error, session token
   and user data included, printed with `console.error`) is off. Rejected: passing it to
   AppExceptionFilter, which would answer the api's format on this one path.
@@ -175,3 +175,39 @@ code comments. All decisions below: owner, 2026-10-16.
   on its answers. web's Better Auth client extends it through `/api/auth/get-session` (N4), so web
   reads the session through that client (T12). Rejected: reading it in the access guard on
   `@SignedIn()` routes only (an async principal, unknown on public routes, and a change of plan §4).
+
+## Added at the review of PR 1
+
+All decisions below: owner, 2026-10-18, on the review of the spec's pull request (#76).
+
+- **N31. A deleted account stays signed in elsewhere for up to 5 minutes.** `DELETE /me` clears
+  this browser's cookies, so it is signed out at once; another browser of the user keeps the cached
+  copy of its session (N18) until it expires, and so does a copy of both cookies taken before the
+  deletion. Meanwhile its principal names a user with no row: `GET /me`, `DELETE /me` and the
+  writes that reference the user answer 401 `UNAUTHORIZED`, reads find nothing (empty lists, 404).
+  No database read is added for it. AC12 is worded like AC4. Rejected: reading
+  the user past the cache on every write and on `/me` (a read per write, against N18).
+- **N32. The 429 of `/api/auth/*` keeps the api's format.** `authThrottle` answers 429 like the
+  api's own rate limit, `{ error: { code, message, details } }` with `Retry-After`, as nginx's
+  413, 429 and 502/504 (as 503) already do in front of `/api/auth/`; web reads both formats
+  there. Every other answer of `/api/auth/*` keeps Better Auth's (N17, N26, N28). Rejected: a 429 in Better Auth's
+  format (a second copy of the limit's answer).
+- **N33. Better Auth is pinned to its latest patch on purpose.** An auth library with frequent
+  security fixes is pinned to its latest release, never below 1.7.7 (the last 2026 advisory),
+  even when it is only days old, against `CONTRIBUTING.md`'s preference. The pin stays exact and
+  the same in api and web: the task that installs it in web (T12) takes the api's pin, and a bump
+  moves both packages in one commit and runs the auth e2e (plan, Risks). `oauth2-mock-server` is a development tool, so its age does not matter.
+- **N34. Sessions keep no User-Agent.** Nothing reads it, and with the user id it fingerprints a
+  browser: the session hook drops it like the IP address (T7). The empty `sessions.user_agent`
+  column goes in a later release (migrations stay compatible), a backlog item. Rejected: keeping it
+  for a future list of devices (it comes back with that list).
+- **N35. Starting a sign-in stays in the `expensive` tier.** Each one leaves a `verifications`
+  row until the daily cleanup (N27), so its limit stays low; visitors behind one address (a shared
+  network at a demo) who hit it get 429, and `THROTTLE_EXPENSIVE_*` raise it without a code change.
+  Those limits are the tier's, shared with the `@Expensive()` routes (counters stay separate), so
+  raising them for sign-in raises the quota of AI generations and photo uploads too; accepted.
+  Rejected: tier `write`; separate variables for sign-in.
+- **N36. The socket keeps a revoked session's user until it disconnects.** The gateway reads the
+  user at the handshake (plan §7); a sign-out or a revoke does not close an open socket. The
+  gateway carries no user data in this spec, so the generations spec decides how long that trust
+  lasts (a backlog item).

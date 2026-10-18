@@ -2,9 +2,11 @@
 
 Status: accepted (2026-10-16); amended 2026-10-16 at the plan: guests dropped (N9), the first name
 is optional (N5), `/api/auth/*` keeps its own error format (N17), other browsers are signed out
-within 5 minutes (N18); criteria renumbered.
+within 5 minutes (N18); criteria renumbered. Amended 2026-10-18 at the review of PR 1: a deleted
+account is signed out elsewhere within 5 minutes (AC12, N31), `/api/auth/*`'s 429 and nginx's
+answers keep the api's format (AC11, N32).
 
-Issue #38. Decisions: `clarifications.md` (N1–N18; N9 and N10 withdrawn).
+Issue #38. Decisions: `clarifications.md` (N1–N36; N9 and N10 withdrawn).
 
 ## Goal
 
@@ -68,13 +70,15 @@ replaces the admin token with access by user: each user sees and changes only th
 - **AC9.** Catalog writes, the `/users` routes and generation writes answer 401 to everyone, a
   signed-in user too; the access-markers test fails on a route whose access is not declared.
 - **AC10.** The socket gateway recognises a signed-in user from the same session cookie.
-- **AC11.** An error of `/api/auth/*` answers Better Auth's `{ code, message }` with its status;
-  every other route keeps the api's error format (N17).
+- **AC11.** An error of `/api/auth/*` answers Better Auth's `{ code, message }` with its status,
+  except its 429 and nginx's own answers, which keep the api's format (N32); every other route
+  keeps the api's error format (N17).
 
 ### Account
 
 - **AC12.** Deleting the current user removes the user, their sessions, fitting sessions,
-  generations and files; the next request with the old cookie answers 401.
+  generations and files; the user's routes answer 401 in this browser at once and in every other
+  browser of the user within 5 minutes (N31).
 
 ### Analytics
 
