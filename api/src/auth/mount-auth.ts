@@ -19,9 +19,10 @@ import { AUTH } from './auth.module.js';
 // Better Auth at /api/auth (spec 0013 plan §3), as an Express route ahead of Nest's: called by
 // createHttpApp() before init(). The path keeps `/api/`, which Better Auth matches against its
 // baseURL; nginx and web pass it unchanged. Every answer is Better Auth's `{ code, message }`
-// (N17), its failures too (authErrorHandler): no Nest guard, interceptor or filter sees them, so
-// the rate limit is authThrottle's. An app whose module has no AuthModule (a spec's small module)
-// gets no /api/auth.
+// (N17), its failures too (authErrorHandler), except authThrottle's 429, which keeps the api's
+// `{ error: { code, message, details } }` with Retry-After, as nginx's 429 in front of it does
+// (N32). No Nest guard, interceptor or filter sees these routes, so the rate limit is
+// authThrottle's. An app whose module has no AuthModule (a spec's small module) gets no /api/auth.
 export async function mountAuth(app: NestExpressApplication): Promise<void> {
   const auth = providedAuth(app);
   if (auth === undefined) return;

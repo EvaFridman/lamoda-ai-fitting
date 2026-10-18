@@ -66,7 +66,7 @@ export function createAuth(env: AuthEnv, prisma: PrismaClient, logger: AuthLogge
         update: { before: () => Promise.resolve({ data: accountFields() }) },
       },
       session: {
-        create: { before: (session) => Promise.resolve({ data: sessionFields(session) }) },
+        create: { before: () => Promise.resolve({ data: sessionFields() }) },
       },
     },
     // Its counter and its IP tracking read X-Forwarded-For without the proxy secret (spec 0006

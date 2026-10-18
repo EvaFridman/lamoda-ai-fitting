@@ -16,6 +16,11 @@ const checks: ContractCheck[] = [
     schema: userSchema,
     response: { method: 'get', path: '/users/{id}', status: '200' },
   },
+  {
+    name: 'userSchema (current user)',
+    schema: userSchema,
+    response: { method: 'get', path: '/me', status: '200' },
+  },
 ];
 
 describe('user schemas match the api', () => {

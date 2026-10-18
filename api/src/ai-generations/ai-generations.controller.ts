@@ -13,6 +13,7 @@ import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiTags } from
 
 import { ApiErrors } from '../common/errors/api-errors.decorator.js';
 import { Closed, SignedIn } from '../common/auth/access.decorators.js';
+import { CurrentUserId } from '../common/auth/current-principal.decorator.js';
 import { ApiPaginatedResponse, type Paginated } from '../common/pagination/paginated.js';
 import { UuidParam } from '../common/pipes/uuid.pipe.js';
 import { AiGenerationsService } from './ai-generations.service.js';
@@ -21,8 +22,8 @@ import { AiGenerationResponseDto } from './dto/ai-generation-response.dto.js';
 import { CreateAiGenerationDto } from './dto/create-ai-generation.dto.js';
 import { UpdateAiGenerationDto } from './dto/update-ai-generation.dto.js';
 
-// Reads and deletion need a signed-in user; the writes are the generation workflow's, closed to
-// everyone (spec 0013 N8).
+// Reads and deletion need a signed-in user and serve only the generations of that user's sessions;
+// the writes are the generation workflow's, closed to everyone (spec 0013 N8).
 @ApiTags('ai-generations')
 @Controller('ai-generations')
 export class AiGenerationsController {
@@ -31,15 +32,21 @@ export class AiGenerationsController {
   @Get()
   @SignedIn()
   @ApiPaginatedResponse(AiGenerationResponseDto)
-  list(@Query() query: AiGenerationListQueryDto): Promise<Paginated<AiGenerationResponseDto>> {
-    return this.generations.list(query);
+  list(
+    @CurrentUserId() userId: string,
+    @Query() query: AiGenerationListQueryDto,
+  ): Promise<Paginated<AiGenerationResponseDto>> {
+    return this.generations.list(userId, query);
   }
 
   @Get(':id')
   @SignedIn()
   @ApiOkResponse({ type: AiGenerationResponseDto })
-  get(@UuidParam('id') id: string): Promise<AiGenerationResponseDto> {
-    return this.generations.get(id);
+  get(
+    @CurrentUserId() userId: string,
+    @UuidParam('id') id: string,
+  ): Promise<AiGenerationResponseDto> {
+    return this.generations.get(userId, id);
   }
 
   @Post()
@@ -65,7 +72,7 @@ export class AiGenerationsController {
   @SignedIn()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiNoContentResponse()
-  delete(@UuidParam('id') id: string): Promise<void> {
-    return this.generations.delete(id);
+  delete(@CurrentUserId() userId: string, @UuidParam('id') id: string): Promise<void> {
+    return this.generations.delete(userId, id);
   }
 }

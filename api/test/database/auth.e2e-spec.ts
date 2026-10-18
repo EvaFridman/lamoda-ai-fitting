@@ -554,25 +554,25 @@ describe('sign-in with Google (e2e)', () => {
   });
 
   describe('the session row', () => {
-    it('stores a User-Agent longer than 512 characters cut to 512', async () => {
+    it('stores no User-Agent whatever the browser sent (N34)', async () => {
       const address = email();
 
-      const { response } = await signIn(address, 'Ева', 'u'.repeat(700));
+      const { response } = await signIn(address, 'Ева', 'Mozilla/5.0 test');
 
       expect(response.status).toBe(302);
       const user = await testApp.prisma.user.findUniqueOrThrow({ where: { email: address } });
       const session = await testApp.prisma.session.findFirstOrThrow({ where: { userId: user.id } });
-      expect(session.userAgent).toBe('u'.repeat(512));
+      expect(session.userAgent).toBeNull();
     });
 
-    it('stores a short User-Agent as sent', async () => {
+    it('stores no User-Agent of 700 characters either', async () => {
       const address = email();
 
-      await signIn(address, 'Ева', 'Mozilla/5.0 test');
+      await signIn(address, 'Ева', 'u'.repeat(700));
 
       const user = await testApp.prisma.user.findUniqueOrThrow({ where: { email: address } });
       const session = await testApp.prisma.session.findFirstOrThrow({ where: { userId: user.id } });
-      expect(session.userAgent).toBe('Mozilla/5.0 test');
+      expect(session.userAgent).toBeNull();
     });
   });
 });
