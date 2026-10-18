@@ -159,6 +159,10 @@ removes it from this list. Found by the agents' first security audit and trial r
   idempotent), and a dead worker is noticed only then. With the photo upload and AI generation
   activities, where a cancellation must stop a paid call, add `heartbeatTimeout` and `heartbeat()`
   to them and to `deletePrefix`.
+- **Temporal history backup.** Spec 0012 backs up only PostgreSQL and the app bucket (0012 P1):
+  Temporal's history is a SQLite file on the `temporaldata` volume. A lost volume loses unfinished
+  workflows (`deleteFiles`, later generations), which may leave a deleted user's files in the
+  bucket. Revisit with generations, or when Temporal moves off `start-dev`.
 
 ## Dependencies
 
@@ -180,6 +184,9 @@ Left for later specs by `0002-database-schema` (its `clarifications.md` has the 
   `keep/` (users' photos, generation results) is gone. The catalog's seed photos come back from
   `api/seed-media/` with the next seed; photos added later would not. Choose between versioning
   in Timeweb, a copy to a second bucket, or none, once users upload photos.
+- **Backups outside Timeweb.** The server and the backup bucket of spec 0012 share one Timeweb
+  account (0012 P8): losing the account or the provider loses the data and its copies. Before real
+  users: a copy at a second provider, or one the owner downloads regularly.
 - **Category tree.** Categories are a flat list (0002 C4); the catalog's left-hand tree is nested
   (0004 E29).
 - **Sizes off the scale.** The size filter's order (0009 K13) knows `XXS … 3XL` (`XXXL` = `3XL`)
