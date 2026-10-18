@@ -147,6 +147,16 @@ break` (the `?` drops the query string), else 404; `proxy_pass $s3_origin` (a va
   `/media/` answering 503). After the seed, before the new copy starts, a random catalog image
   straight from the bucket out of nginx's container (past the cache) and then through nginx; a
   failure stops the deploy (the M15 address check). Not on a rollback (M31).
+- Amended by M38 (T13a): nginx changes last. Step 2 of `deploy.sh` brings up the data stores and
+  Temporal only; nginx (recreated when its `infra.yml` service changed, the new templates applied)
+  waits until the migrations, the seed and the bucket check have passed. The bucket check runs
+  before nginx changes, from a throwaway container on the server (the server's address, no
+  cache), so it no longer needs nginx's container; the check through nginx follows the nginx step,
+  before the new copy starts. A failure before the nginx step leaves nginx, its config and
+  `/media/` as they were. A rollback to the running copy (3a) applies nginx without the checks, as
+  before. `ci-deploy-check.sh` deploys a changed nginx config against a storage that refuses
+  writes: the deploy stops at the seed, the nginx container and its config are unchanged, and
+  `/media/` still answers 200.
 
 ## 8. Local stack and CI (M12; AC12, AC13)
 
