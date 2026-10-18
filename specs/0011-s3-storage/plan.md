@@ -107,7 +107,9 @@ The endpoint, the bucket and both keys are required in every environment, with n
 ## 6. web
 
 - `web/public/media/` is gone (the folder holds nothing else); the `/media/:path*` header rule in
-  `next.config.ts` goes (the objects carry `Cache-Control`). `web/Dockerfile` still copies `public/`.
+  `next.config.ts` goes (the objects carry `Cache-Control`). `web/Dockerfile` copies no `public/`
+  any more (M28, in T9: git holds no file under `web/public`); T10 drops the web service's
+  `./web/public:/app/public` mount in `docker-compose.yml` with its comment.
 - Local `/media/`: `rewrites()` in `next.config.ts`, development only, as `/api` is: `/media/:path*`
   → `${S3_ENDPOINT}/${S3_BUCKET}/media/:path*` (server env of the web container). In production
   nginx answers `/media/` and the request never reaches web; without a rewrite web answers 404.
@@ -249,11 +251,11 @@ table), `.claude/rules/deploy.md` (the media check in `deploy.sh`), `.env.exampl
 
 | AC   | How                                                                                                                                                 |
 | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| AC1  | `curl -I` of every seed key on :3001 locally; `docker compose exec web ls public` has no `media`                                                    |
+| AC1  | `curl -I` of every seed key on :3001 locally; `docker compose exec web test ! -e public/media` (M28)                                                |
 | AC2  | `curl -I` of every seed key on production: 200, `Cache-Control`, no `x-amz-*`                                                                       |
 | AC3  | `curl` of a missing key (404), `PUT`/`POST`/`DELETE` (403), `/media/` (404); a seed key straight from `s3.twcstorage.ru` from the laptop (refused)  |
 | AC4  | `qa-tester` on `/dev/catalog` and `/ui-kit`, locally and on production                                                                              |
-| AC5  | `docker run --rm <web image> ls public` in CI's image has no `media`                                                                                |
+| AC5  | `docker run --rm <web image> test ! -e public/media` in CI's image (M28: the image has no `public/`)                                                |
 | AC6  | `ci-deploy-check.sh`: first deploy uploads, second uploads nothing (seed log line, object `ETag`s unchanged); the same lines in production's CD log |
 | AC7  | e2e against the emulator (unsigned `GET` of a `keep/` object refused); on production `curl` from the server (§9 step 2)                             |
 | AC8  | e2e: link 200, refused after a short TTL; on production a link from an admin `GET`, then after 15 min                                               |

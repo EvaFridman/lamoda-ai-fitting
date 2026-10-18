@@ -1,24 +1,55 @@
+import { randomUUID } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync, type Dirent } from 'node:fs';
 import { join, relative, sep } from 'node:path';
-import { fileURLToPath } from 'node:url';
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  HeadObjectCommand,
+  PutObjectCommand,
+  type S3Client,
+} from '@aws-sdk/client-s3';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import type { PrismaClient } from '../../src/generated/prisma/client.js';
 import { CATALOG, COLOUR, imageKeys } from '../../src/seed/catalog.data.js';
-import { SeedService } from '../../src/seed/seed.service.js';
+import { SEED_MEDIA_DIR, SeedService } from '../../src/seed/seed.service.js';
+import { MEDIA_CACHE_CONTROL } from '../../src/storage/keys.js';
+import { StorageError } from '../../src/storage/storage.error.js';
+import type { StorageService } from '../../src/storage/storage.service.js';
+import { startTcpProxy, type TcpProxy } from '../support/tcp-proxy.js';
 import { createTestDatabase } from '../support/test-database.js';
+import {
+  createTestS3Client,
+  createTestStorageService,
+  testStorageSettings,
+} from '../support/test-storage.js';
 
 let db: PrismaClient;
 let seed: SeedService;
+let storage: StorageService;
+
+// The emulator's bucket is shared with the other files, and some of them seed too. This storage
+// moves every `media/<key>` of the seed to `media/<folder>/<key>`, so a file counts only its own
+// uploads.
+function underFolder(inner: StorageService, folder: string): StorageService {
+  const shift = (key: string) => key.replace(/^media\//, `media/${folder}/`);
+  return {
+    exists: (key: string) => inner.exists(shift(key)),
+    put: (key: string, body: Uint8Array, options: Parameters<StorageService['put']>[2]) =>
+      inner.put(shift(key), body, options),
+  } as unknown as StorageService;
+}
 
 beforeAll(async () => {
   db = await createTestDatabase();
-  seed = new SeedService(db);
+  storage = createTestStorageService();
+  seed = new SeedService(db, underFolder(storage, `seed-${randomUUID()}`));
 });
 
 afterAll(async () => {
   await db.$disconnect();
+  storage.onModuleDestroy();
 });
 
 function pick(index: number) {
@@ -134,7 +165,7 @@ describe('catalog data (C22)', () => {
   });
 
   describe('image files', () => {
-    const mediaDir = fileURLToPath(new URL('../../../web/public/media/', import.meta.url));
+    const mediaDir = SEED_MEDIA_DIR;
     const keys = CATALOG.products.flatMap((product) => imageKeys(product));
 
     it('uses keys the image key CHECK accepts', () => {
@@ -146,7 +177,7 @@ describe('catalog data (C22)', () => {
       expect(new Set(keys).size).toBe(keys.length);
     });
 
-    it('has a non-empty WebP file under web/public/media for every key', () => {
+    it('has a non-empty WebP file under api/seed-media for every key', () => {
       for (const key of keys) {
         const file = join(mediaDir, key);
         expect(existsSync(file), `missing file for ${key}`).toBe(true);
@@ -215,7 +246,11 @@ describe('SeedService on a throwaway database', () => {
   it('loads the whole catalog into an empty database (AC8)', async () => {
     const result = await seed.run();
 
-    expect(result).toEqual({ productsCreated: total, productsSkipped: 0 });
+    expect(result).toEqual({
+      productsCreated: total,
+      productsSkipped: 0,
+      photosUploaded: sum(CATALOG.products.map((p) => p.imageCount)),
+    });
     expect(await counts()).toEqual({
       categories: CATALOG.categories.length,
       brands: CATALOG.brands.length,
@@ -266,7 +301,7 @@ describe('SeedService on a throwaway database', () => {
 
     const result = await seed.run();
 
-    expect(result).toEqual({ productsCreated: 0, productsSkipped: total });
+    expect(result).toEqual({ productsCreated: 0, productsSkipped: total, photosUploaded: 0 });
     expect(await counts()).toEqual(before);
   });
 
@@ -306,7 +341,7 @@ describe('SeedService on a throwaway database', () => {
 
     const result = await seed.run();
 
-    expect(result).toEqual({ productsCreated: 0, productsSkipped: total });
+    expect(result).toEqual({ productsCreated: 0, productsSkipped: total, photosUploaded: 0 });
     const product = await db.product.findUniqueOrThrow({ where: { article: first.article } });
     expect(product.price.toString()).toBe('1.23');
     const category = await db.category.findUniqueOrThrow({ where: { slug: first.categorySlug } });
@@ -323,7 +358,7 @@ describe('SeedService on a throwaway database', () => {
 
     const result = await seed.run();
 
-    expect(result).toEqual({ productsCreated: 0, productsSkipped: total });
+    expect(result).toEqual({ productsCreated: 0, productsSkipped: total, photosUploaded: 0 });
     expect(await counts()).toEqual(before);
     const product = await db.product.findUniqueOrThrow({
       where: { article },
@@ -340,7 +375,7 @@ describe('SeedService on a throwaway database', () => {
 
     const result = await seed.run();
 
-    expect(result).toEqual({ productsCreated: 1, productsSkipped: total - 1 });
+    expect(result).toEqual({ productsCreated: 1, productsSkipped: total - 1, photosUploaded: 0 });
     expect(await counts()).toEqual(before);
     const restored = await db.product.findUniqueOrThrow({
       where: { article: target.article },
@@ -373,7 +408,11 @@ describe('SeedService on a throwaway database', () => {
 
       const result = await seed.run();
 
-      expect(result).toEqual({ productsCreated: 1, productsSkipped: total - 1 });
+      expect(result).toEqual({
+        productsCreated: 1,
+        productsSkipped: total - 1,
+        photosUploaded: 0,
+      });
       const after = await db.attributeValue.findUniqueOrThrow({ where: { id: row.id } });
       expect(after.colorHex).toBe(edited);
     },
@@ -394,7 +433,7 @@ describe('SeedService on a throwaway database', () => {
 
     const result = await seed.run();
 
-    expect(result).toEqual({ productsCreated: 0, productsSkipped: total });
+    expect(result).toEqual({ productsCreated: 0, productsSkipped: total, photosUploaded: 0 });
     expect(await counts()).toEqual(before);
     expect(await db.brand.count({ where: { name: brand } })).toBe(0);
     expect(await db.attributeValue.count({ where: { value } })).toBe(0);
@@ -411,7 +450,7 @@ describe('SeedService on a throwaway database', () => {
 
     const result = await seed.run();
 
-    expect(result).toEqual({ productsCreated: 1, productsSkipped: total - 1 });
+    expect(result).toEqual({ productsCreated: 1, productsSkipped: total - 1, photosUploaded: 0 });
     expect(await db.brand.count()).toBe(brandsBefore + 1);
     const restored = await db.product.findUniqueOrThrow({
       where: { article: target.article },
@@ -461,13 +500,139 @@ describe('SeedService on a throwaway database', () => {
       ],
     };
 
-    const result = await seed.run(catalog);
+    // The custom product has no photo file: a storage that has every object uploads nothing.
+    const stored = { exists: async () => true, put: vi.fn() } as unknown as StorageService;
 
-    expect(result).toEqual({ productsCreated: 1, productsSkipped: 0 });
+    const result = await new SeedService(db, stored).run(catalog);
+
+    expect(result).toEqual({ productsCreated: 1, productsSkipped: 0, photosUploaded: 0 });
     expect(await db.brand.count({ where: { name: 'Custom brand' } })).toBe(1);
     expect(await db.brand.count({ where: { name: 'Unused brand' } })).toBe(0);
     expect(await db.category.count({ where: { slug: 'unused-category' } })).toBe(0);
     expect(await db.attributeValue.count({ where: { value: 'used' } })).toBe(1);
     expect(await db.attributeValue.count({ where: { value: 'unused' } })).toBe(0);
+  });
+});
+
+// A database and a folder of the bucket of their own; the tests run in the order written.
+describe('SeedService photos in the bucket (spec 0011 AC6)', () => {
+  const keys = CATALOG.products.flatMap((product) => imageKeys(product));
+  const folder = `seed-photos-${randomUUID()}`;
+  const objectKey = (key: string) => `media/${folder}/${key}`;
+  const bucket = testStorageSettings().bucket;
+  let photoDb: PrismaClient;
+  let photoStorage: StorageService;
+  let s3: S3Client;
+  let proxy: TcpProxy;
+  let photoSeed: SeedService;
+
+  const head = (key: string) =>
+    s3.send(new HeadObjectCommand({ Bucket: bucket, Key: objectKey(key) }));
+  const body = async (key: string) => {
+    const object = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: objectKey(key) }));
+    return Buffer.from((await object.Body?.transformToByteArray()) ?? []);
+  };
+  const heads = async () =>
+    new Map(await Promise.all(keys.map(async (k) => [k, await head(k)] as const)));
+
+  beforeAll(async () => {
+    photoDb = await createTestDatabase();
+    photoStorage = createTestStorageService();
+    s3 = createTestS3Client();
+    proxy = await startTcpProxy(testStorageSettings().endpoint);
+    photoSeed = new SeedService(photoDb, underFolder(photoStorage, folder));
+  });
+
+  afterAll(async () => {
+    await photoDb.$disconnect();
+    photoStorage.onModuleDestroy();
+    s3.destroy();
+    await proxy.close();
+  });
+
+  it('uploads every photo of the catalog on an empty bucket, with its type, cache header and bytes', async () => {
+    expect(keys).toHaveLength(78);
+
+    const result = await photoSeed.run();
+
+    expect(result.photosUploaded).toBe(keys.length);
+    const stored = await heads();
+    for (const [key, object] of stored) {
+      expect(object.ContentType, key).toBe('image/webp');
+      expect(object.CacheControl, key).toBe(MEDIA_CACHE_CONTROL);
+      expect(object.CacheControl, key).toBe('public, max-age=86400');
+    }
+    for (const key of [keys[0], keys[40], keys[77]]) {
+      const file = readFileSync(join(SEED_MEDIA_DIR, key ?? ''));
+      expect(await body(key ?? ''), key).toEqual(file);
+    }
+  });
+
+  it('uploads nothing on a second run and leaves the objects as they were', async () => {
+    const before = await heads();
+
+    const result = await photoSeed.run();
+
+    expect(result.photosUploaded).toBe(0);
+    const after = await heads();
+    for (const [key, object] of before) {
+      expect(after.get(key)?.ETag, key).toBe(object.ETag);
+      expect(after.get(key)?.LastModified, key).toEqual(object.LastModified);
+    }
+  });
+
+  it('uploads again only the photo deleted from the bucket', async () => {
+    const deleted = keys[5] ?? '';
+    const before = await heads();
+    await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: objectKey(deleted) }));
+
+    const result = await photoSeed.run();
+
+    expect(result.photosUploaded).toBe(1);
+    const after = await heads();
+    expect(await body(deleted)).toEqual(readFileSync(join(SEED_MEDIA_DIR, deleted)));
+    for (const [key, object] of before) {
+      if (key === deleted) continue;
+      expect(after.get(key)?.ETag, key).toBe(object.ETag);
+      expect(after.get(key)?.LastModified, key).toEqual(object.LastModified);
+    }
+  });
+
+  it('does not overwrite a photo that is there with other content', async () => {
+    const key = keys[7] ?? '';
+    const other = Buffer.from('changed by hand');
+    await s3.send(
+      new PutObjectCommand({
+        Bucket: bucket,
+        Key: objectKey(key),
+        Body: other,
+        ContentType: 'image/webp',
+      }),
+    );
+
+    const result = await photoSeed.run();
+
+    expect(result.photosUploaded).toBe(0);
+    expect(await body(key)).toEqual(other);
+  });
+
+  it('fails when the storage is unreachable, after the rows are written', async () => {
+    const product = CATALOG.products[0];
+    if (!product) throw new Error('empty catalog');
+    const catalog = { ...CATALOG, products: [product] };
+    await photoDb.product.deleteMany({ where: { article: product.article } });
+    proxy.block();
+    const blocked = createTestStorageService(proxy.endpoint);
+    try {
+      const failing = new SeedService(photoDb, underFolder(blocked, folder));
+
+      const failure = await failing.run(catalog).catch((error: unknown) => error);
+
+      expect(failure).toBeInstanceOf(StorageError);
+      expect(await photoDb.product.count({ where: { article: product.article } })).toBe(1);
+    } finally {
+      blocked.onModuleDestroy();
+      proxy.unblock();
+    }
   });
 });

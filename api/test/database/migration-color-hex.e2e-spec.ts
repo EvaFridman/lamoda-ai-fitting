@@ -5,11 +5,12 @@ import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
 import { PrismaPg } from '@prisma/adapter-pg';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { PrismaClient } from '../../src/generated/prisma/client.js';
 import { CATALOG, COLOUR } from '../../src/seed/catalog.data.js';
 import { SeedService } from '../../src/seed/seed.service.js';
+import type { StorageService } from '../../src/storage/storage.service.js';
 import { createTestDatabaseUrl } from '../support/test-database.js';
 
 // Migration 20261015120000_attribute_values_color_hex (spec 0009, K12) on a database that the seed
@@ -23,10 +24,15 @@ let db: PrismaClient;
 let otherAttributeName: string;
 
 beforeAll(async () => {
+  // The photos do not matter here: the storage says every file is there and keeps none.
+  const storage = {
+    exists: vi.fn().mockResolvedValue(true),
+    put: vi.fn(),
+  } as unknown as StorageService;
   const url = await createTestDatabaseUrl();
   db = new PrismaClient({ adapter: new PrismaPg({ connectionString: url }) });
 
-  await new SeedService(db).run();
+  await new SeedService(db, storage).run();
   const other = await db.attribute.create({ data: { name: `Other ${randomUUID()}` } });
   otherAttributeName = other.name;
   // The text of a colour under another attribute, and a colour of the colour attribute that is

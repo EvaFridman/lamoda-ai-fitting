@@ -1,8 +1,10 @@
 // The demo catalog the seed loads (spec 0002, C5): invented brands and products, no users.
-// Articles and image keys are fixed here; web/public/media/<key> holds the images, cut from the
+// Articles and image keys are fixed here; api/seed-media/<key> holds the images, cut from the
 // Unsplash photo each product names (C9d): image 1 the whole garment, the others closer crops. The
 // product's kind, colour and name follow its photo (C9g). Change an article only together with its
 // image files: a reseed never touches an existing product, so the old row and files would stay.
+// Likewise a photo replaced under the same key never reaches a bucket that has it (the seed writes
+// only missing objects, spec 0011 AC6): give it a new key, or replace the object by hand.
 
 export type GarmentKind =
   'dress' | 'jeans' | 'jacket' | 'coat' | 't-shirt' | 'hoodie' | 'sneakers' | 'boots';

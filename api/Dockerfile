@@ -97,6 +97,8 @@ COPY package.json ./
 COPY prisma ./prisma
 COPY prisma.config.ts ./
 COPY --from=release --chown=root:root /app/dist ./dist
+# The demo catalog's photos, which the seed uploads to the bucket (spec 0011 M13).
+COPY seed-media ./seed-media
 # base gives /app to the app user; take it back, or the process could replace files in it.
 RUN chown root:root /app
 USER node

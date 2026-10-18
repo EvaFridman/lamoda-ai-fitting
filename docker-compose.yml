@@ -56,6 +56,8 @@ x-api-volumes: &api-volumes
   - ./api/src:/app/src
   - /app/src/generated
   - ./api/prisma:/app/prisma
+  # The demo catalog's photos, which `seed:dev` uploads to the emulator (spec 0011 M13).
+  - ./api/seed-media:/app/seed-media:ro
 
 services:
   postgres:

@@ -1,25 +1,40 @@
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import type { PrismaClient } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { MEDIA_CACHE_CONTROL, mediaKey } from '../storage/keys.js';
+import { StorageService } from '../storage/storage.service.js';
 import { CATALOG, imageKeys, type SeedCatalog, type SeedProduct } from './catalog.data.js';
+
+// The catalog's photos, `<key>` under this folder (spec 0011 M13): `api/seed-media/` from the
+// sources and `/app/seed-media/` next to `dist/` in the image, both two levels above this file.
+export const SEED_MEDIA_DIR = fileURLToPath(new URL('../../seed-media/', import.meta.url));
 
 export interface SeedResult {
   productsCreated: number;
   productsSkipped: number;
+  photosUploaded: number;
 }
 
 // Loads the demo catalog (spec 0002, C5) and only adds what is missing, found by natural keys
 // (C16): it never updates or deletes a row, so edits made in the database survive a reseed.
 // Reference rows (categories, brands, attributes) are added only for the products being created
-// (C16b), so one renamed by hand is not added again while its products exist. Runs on every
-// deploy: a run that finds every product is one query.
+// (C16b), so one renamed by hand is not added again while its products exist. Then uploads the
+// catalog's photos missing from the bucket's `media/` and never writes one that is there (spec
+// 0011 AC6). Runs on every deploy: a run that finds everything is one query and a HEAD per photo.
 @Injectable()
 export class SeedService {
   private readonly logger = new Logger(SeedService.name);
 
   // Typed as the plain client, so tests hand in the client of their throwaway database.
-  constructor(@Inject(PrismaService) private readonly prisma: PrismaClient) {}
+  constructor(
+    @Inject(PrismaService) private readonly prisma: PrismaClient,
+    @Inject(StorageService) private readonly storage: StorageService,
+  ) {}
 
   async run(catalog: SeedCatalog = CATALOG): Promise<SeedResult> {
     const existing = await this.prisma.product.findMany({
@@ -39,11 +54,37 @@ export class SeedService {
       }
     }
 
-    const result = { productsCreated: missing.length, productsSkipped: existingArticles.size };
+    // After the rows, so a failed upload leaves them in place and the next run uploads the rest. A
+    // storage failure throws and fails the seed: the deploy stops, the running copy keeps serving.
+    const photosUploaded = await this.uploadPhotos(catalog);
+
+    const result = {
+      productsCreated: missing.length,
+      productsSkipped: existingArticles.size,
+      photosUploaded,
+    };
     this.logger.log(
-      `Seed done: ${result.productsCreated} products created, ${result.productsSkipped} already there`,
+      `Seed done: ${result.productsCreated} products created, ${result.productsSkipped} already there, ${result.photosUploaded} photos uploaded`,
     );
     return result;
+  }
+
+  // Every photo of the catalog, whether its product was created now or earlier: a bucket that is
+  // new or was emptied gets them back. Returns how many were uploaded.
+  private async uploadPhotos(catalog: SeedCatalog): Promise<number> {
+    let uploaded = 0;
+    for (const key of catalog.products.flatMap((p) => imageKeys(p))) {
+      const objectKey = mediaKey(key);
+      if (await this.storage.exists(objectKey)) {
+        continue;
+      }
+      await this.storage.put(objectKey, await readFile(join(SEED_MEDIA_DIR, key)), {
+        contentType: 'image/webp',
+        cacheControl: MEDIA_CACHE_CONTROL,
+      });
+      uploaded += 1;
+    }
+    return uploaded;
   }
 
   // Category slug → id.
