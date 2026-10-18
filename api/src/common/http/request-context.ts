@@ -34,10 +34,13 @@ export interface RequestContextOptions {
   readSession?: SessionReader;
 }
 
+// What a session read looks at: an HTTP request, or a socket's handshake (realtime/).
+export type SessionRequest = Pick<Request, 'headers' | 'path'>;
+
 // The user and the session of a request's valid session cookie; undefined without one. A broken or
 // expired cookie is undefined, never an error; a failure to read the session (the database) rejects.
 export type SessionReader = (
-  req: Request,
+  req: SessionRequest,
 ) => Promise<{ userId: string; sessionId: string } | undefined>;
 
 // nginx's $request_id: 32 hex characters.

@@ -1,3 +1,4 @@
+import type { INestApplicationContext } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { UnknownElementException } from '@nestjs/core/errors/exceptions/unknown-element.exception.js';
 import type { NestExpressApplication } from '@nestjs/platform-express';
@@ -14,7 +15,8 @@ import type { Auth } from './auth.js';
 import { authErrorHandler } from './auth-error-handler.js';
 import { authBody, authTimeout, onlyParsedBodies } from './auth-limits.js';
 import { authRoutes } from './auth-routes.js';
-import { AUTH } from './auth.module.js';
+import type { SharedSessionReader } from './session-reader.js';
+import { AUTH, SESSION_READER } from './auth.module.js';
 
 // Better Auth at /api/auth (spec 0013 plan §3), as an Express route ahead of Nest's: called by
 // createHttpApp() before init(). The path keeps `/api/`, which Better Auth matches against its
@@ -77,9 +79,20 @@ function withoutQuery(req: { url?: string } & Record<string, unknown>): Record<s
 }
 
 // The Better Auth instance, or undefined in an app whose module has no AuthModule.
-export function providedAuth(app: NestExpressApplication): Auth | undefined {
+export function providedAuth(app: INestApplicationContext): Auth | undefined {
+  return provided<Auth>(app, AUTH);
+}
+
+// The session reader, or undefined in an app whose module has no AuthModule.
+export function providedSessionReader(
+  app: INestApplicationContext,
+): SharedSessionReader | undefined {
+  return provided<SharedSessionReader>(app, SESSION_READER);
+}
+
+function provided<T>(app: INestApplicationContext, token: symbol): T | undefined {
   try {
-    return app.get<Auth>(AUTH);
+    return app.get<T>(token);
   } catch (error) {
     if (error instanceof UnknownElementException) return undefined;
     throw error;

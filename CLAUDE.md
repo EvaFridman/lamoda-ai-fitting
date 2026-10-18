@@ -247,9 +247,15 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   e2e): CORS for `WEB_ORIGIN` and `maxHttpBufferSize` from `SOCKET_MAX_MESSAGE_BYTES` (64 KB, at
   most 1 MB, spec 0006 F30). A bigger message never reaches the gateway: over WebSocket the server
   closes the connection, over long-polling the request answers 413. nginx does not limit WebSocket
-  frames, so this is the only size limit. Clients may not send binary attachments (F31): the
-  adapter's parser (`NoAttachmentsDecoder`) takes none and closes the connection; the server's own
-  emits may carry binary data. `socket.io-parser` is a direct dependency for that parser; its range
+  frames, so this is the only size limit. At the handshake the adapter reads the session cookie
+  through the request context's session reader (`SESSION_READER`, one per app, so both share its
+  cap, sockets at most 5 of its 20 reads, N42; one read per connection) and puts the principal in
+  `socket.data.principal`; a new connection whose `Origin` is not `WEB_ORIGIN` (an exact origin,
+  checked at start, N43) is refused (N40), a failed read connects as anonymous, and a sign-out
+  does not close an open socket (spec 0013 plan §7, N36). A database socket e2e gets its app from
+  `createTestApp({ socketAdapter })`. Clients may not send binary attachments (F31): the adapter's
+  parser (`NoAttachmentsDecoder`) takes none and closes the connection; the server's own emits may
+  carry binary data. `socket.io-parser` is a direct dependency for that parser; its range
   stays in socket.io's minor line, so `npm ls socket.io-parser` shows one copy.
 - `api` rate limit (`throttling/`): `TieredThrottlerGuard` counts a request in one quota tier, each
   with a 1-second and a 60-second limit from `THROTTLE_*` env: `expensive` for a route marked

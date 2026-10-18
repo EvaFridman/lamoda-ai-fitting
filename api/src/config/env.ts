@@ -22,8 +22,14 @@ export const envSchema = z
     LOG_LEVEL: z
       .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
       .default('info'),
-    // Browser origin allowed by CORS (the web app in development; same origin in production).
-    WEB_ORIGIN: z.url(),
+    // Browser origin allowed by CORS (the web app in development; same origin in production). Exactly
+    // what a browser sends in Origin (scheme://host[:port], no path, trailing slash or default
+    // port): CORS and the socket's Origin check compare it as a string, so any other form would
+    // refuse every browser (N43).
+    // zod 4 runs the refinement after a failed format check too, and new URL() throws on a non-URL.
+    WEB_ORIGIN: z.url().refine((value) => URL.canParse(value) && new URL(value).origin === value, {
+      message: 'must be an origin: scheme://host[:port], without a path or a trailing slash',
+    }),
     // The deployed image tag (commit hash); `dev` locally.
     APP_VERSION: z.string().min(1).default('dev'),
 

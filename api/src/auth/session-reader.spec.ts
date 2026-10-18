@@ -367,4 +367,141 @@ describe('sessionReader', () => {
       await expect(reader(request)).resolves.toBeUndefined();
     });
   });
+
+  describe('share (N42)', () => {
+    const request = requestOf('/socket.io/', 'lamoda.session_token=abc');
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    function hang(): { release: () => void } {
+      let release: () => void = () => undefined;
+      getSession.mockReturnValueOnce(
+        new Promise((resolve) => {
+          release = () => {
+            resolve(null);
+          };
+        }),
+      );
+      return { release };
+    }
+
+    async function refusal(read: Promise<unknown>): Promise<SessionUnavailableError> {
+      const error = await read.catch((caught: unknown) => caught);
+      expect(error).toBeInstanceOf(SessionUnavailableError);
+      return error as SessionUnavailableError;
+    }
+
+    it('refuses the read over its limit at once, unreported, without calling getSession', async () => {
+      const share = sessionReader(auth, { timeoutMs: 60_000 }).share(2);
+      hang();
+      hang();
+      void share(request).catch(() => undefined);
+      void share(request).catch(() => undefined);
+
+      const refused = await refusal(share(request));
+
+      expect(refused.report).toBe(false);
+      expect(refused.code).toBe('SERVICE_UNAVAILABLE');
+      expect(getSession).toHaveBeenCalledTimes(2);
+    });
+
+    it('frees a slot only when the underlying read ends, even after its timeout', async () => {
+      vi.useFakeTimers();
+      const share = sessionReader(auth, { timeoutMs: 100 }).share(1);
+      const held = hang();
+      const timedOut = refusal(share(request));
+      await vi.advanceTimersByTimeAsync(100);
+      expect((await timedOut).message).toBe('The session read took longer than 100 ms');
+
+      await refusal(share(request));
+      expect(getSession).toHaveBeenCalledTimes(1);
+
+      held.release();
+      await vi.advanceTimersByTimeAsync(0);
+      getSession.mockResolvedValue(null);
+
+      await expect(share(request)).resolves.toBeUndefined();
+      expect(getSession).toHaveBeenCalledTimes(2);
+    });
+
+    it('counts its reads against the global cap', async () => {
+      const reader = sessionReader(auth, { maxReads: 2, timeoutMs: 60_000 });
+      hang();
+      hang();
+      void reader
+        .share(5)(request)
+        .catch(() => undefined);
+      void reader(request).catch(() => undefined);
+
+      const refused = await refusal(reader(request));
+
+      expect(refused.message).toBe('2 session reads are already in progress');
+      expect(getSession).toHaveBeenCalledTimes(2);
+    });
+
+    it('checks its own limit before the global cap and leaves the Sentry interval alone', async () => {
+      const reader = sessionReader(auth, { maxReads: 2, timeoutMs: 60_000, now: () => 1_000 });
+      const share = reader.share(1);
+      hang();
+      hang();
+      void share(request).catch(() => undefined);
+      void reader(request).catch(() => undefined);
+
+      const refusedShare = await refusal(share(request));
+      const refusedPlain = await refusal(reader(request));
+
+      expect(refusedShare.report).toBe(false);
+      expect(refusedShare.message).toBe('1 session reads of this share are already in progress');
+      expect(getSession).toHaveBeenCalledTimes(2);
+      expect(refusedPlain.message).toBe('2 session reads are already in progress');
+      expect(refusedPlain.report).toBe(true);
+    });
+
+    it('does not limit plain reads', async () => {
+      const reader = sessionReader(auth, { maxReads: 10, timeoutMs: 60_000 });
+      hang();
+      void reader
+        .share(1)(request)
+        .catch(() => undefined);
+      getSession.mockReturnValue(new Promise(() => undefined));
+      for (let i = 0; i < 3; i += 1) void reader(request).catch(() => undefined);
+
+      expect(getSession).toHaveBeenCalledTimes(4);
+    });
+
+    it('counts two shares separately', async () => {
+      const reader = sessionReader(auth, { timeoutMs: 60_000 });
+      const first = reader.share(1);
+      const second = reader.share(1);
+      getSession.mockReturnValue(new Promise(() => undefined));
+      void first(request).catch(() => undefined);
+
+      await refusal(first(request));
+      void second(request).catch(() => undefined);
+
+      expect(getSession).toHaveBeenCalledTimes(2);
+    });
+
+    it('takes no slot for a request without a session cookie', async () => {
+      const share = sessionReader(auth, { timeoutMs: 60_000 }).share(1);
+      getSession.mockReturnValue(new Promise(() => undefined));
+
+      await expect(share(requestOf('/socket.io/'))).resolves.toBeUndefined();
+      await expect(share(requestOf('/socket.io/', 'cookie-consent=yes'))).resolves.toBeUndefined();
+      void share(request).catch(() => undefined);
+
+      expect(getSession).toHaveBeenCalledTimes(1);
+    });
+
+    it('answers the user like the plain reader', async () => {
+      getSession.mockResolvedValue({ user: { id: 'u' }, session: { id: 's' } });
+
+      await expect(sessionReader(auth).share(1)(request)).resolves.toEqual({
+        userId: 'u',
+        sessionId: 's',
+      });
+    });
+  });
 });

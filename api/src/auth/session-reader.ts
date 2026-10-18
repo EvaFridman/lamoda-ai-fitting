@@ -1,7 +1,7 @@
 import { fromNodeHeaders } from 'better-auth/node';
 
 import { SessionUnavailableError } from '../common/errors/app.exception.js';
-import type { SessionReader } from '../common/http/request-context.js';
+import type { SessionReader, SessionRequest } from '../common/http/request-context.js';
 import { type Auth, SESSION_COOKIE } from './auth.js';
 
 // Better Auth's own route (mount-auth.ts) reads the session itself, and its answers keep its own
@@ -24,6 +24,17 @@ const REPORT_INTERVAL_MS = 60_000;
 // What the timer rejects with, told apart from the read's own failure.
 const TIMED_OUT = Symbol('timed out');
 
+// The reader with its shares: `share(n)` is a reader of the same cap, timeout and Sentry interval
+// that also keeps at most n of its own reads in progress, counted until each read itself ends, so
+// one kind of caller cannot take the whole cap from the others (the sockets', N42). One more is
+// refused at once with a SessionUnavailableError that is not reported.
+export type SharedSessionReader = SessionReader & { share: (maxReads: number) => SessionReader };
+
+interface Share {
+  readonly maxReads: number;
+  reads: number;
+}
+
 export interface SessionReaderOptions {
   timeoutMs?: number;
   maxReads?: number;
@@ -37,9 +48,10 @@ export interface SessionReaderOptions {
 // through /api/auth/get-session (N30). A cookie with a bad signature or an expired session is no
 // user. A read that fails (the database), takes longer than the timeout or finds MAX_SESSION_READS
 // reads still running rejects with 503 SERVICE_UNAVAILABLE, which web's queries retry (N29); a slow
-// read is not cancelled and counts until it ends. AppExceptionFilter logs the first within a minute
-// with its cause (through loggable()) and reports it to Sentry; the rest are warnings without it.
-export function sessionReader(auth: Auth, options: SessionReaderOptions = {}): SessionReader {
+// read is not cancelled and counts until it ends. AppExceptionFilter (for a socket, SocketIoAdapter)
+// logs the first within a minute with its cause (through loggable()) and reports it to Sentry; the
+// rest are warnings without it.
+export function sessionReader(auth: Auth, options: SessionReaderOptions = {}): SharedSessionReader {
   const timeoutMs = options.timeoutMs ?? SESSION_READ_TIMEOUT_MS;
   const maxReads = options.maxReads ?? MAX_SESSION_READS;
   const now = options.now ?? Date.now;
@@ -53,10 +65,21 @@ export function sessionReader(auth: Auth, options: SessionReaderOptions = {}): S
     return new SessionUnavailableError(message, report, cause);
   };
 
-  return async (req) => {
+  const readSession = async (
+    req: SessionRequest,
+    share?: Share,
+  ): Promise<{ userId: string; sessionId: string } | undefined> => {
     const { cookie } = req.headers;
     if (cookie === undefined || !HAS_SESSION_COOKIE.test(cookie) || AUTH_ROUTE.test(req.path)) {
       return undefined;
+    }
+    // The share's own limit first: it is no failure of the database, so the log only, never Sentry,
+    // and it must not take the Sentry interval of HTTP's next 503 even when the cap is full too.
+    if (share !== undefined && share.reads >= share.maxReads) {
+      throw new SessionUnavailableError(
+        `${share.maxReads} session reads of this share are already in progress`,
+        false,
+      );
     }
     if (reads >= maxReads) {
       throw unavailable(`${maxReads} session reads are already in progress`);
@@ -73,10 +96,12 @@ export function sessionReader(auth: Auth, options: SessionReaderOptions = {}): S
       throw unavailable('The session could not be read', error);
     }
     reads += 1;
-    void read.then(
-      () => (reads -= 1),
-      () => (reads -= 1),
-    );
+    if (share !== undefined) share.reads += 1;
+    const ended = (): void => {
+      reads -= 1;
+      if (share !== undefined) share.reads -= 1;
+    };
+    void read.then(ended, ended);
     let timer: NodeJS.Timeout | undefined;
     const timeout = new Promise<never>((_resolve, reject) => {
       timer = setTimeout(() => {
@@ -96,4 +121,11 @@ export function sessionReader(auth: Auth, options: SessionReaderOptions = {}): S
       clearTimeout(timer);
     }
   };
+
+  return Object.assign((req: SessionRequest) => readSession(req), {
+    share: (shareMaxReads: number): SessionReader => {
+      const share: Share = { maxReads: shareMaxReads, reads: 0 };
+      return (req) => readSession(req, share);
+    },
+  });
 }
