@@ -1,6 +1,6 @@
-# The site's only entry point. ${SITE_DOMAIN}, ${PROXY_SECRET} and ${NGINX_LOCAL_RESOLVERS} are filled
-# in by the image's entrypoint at start (and by deploy.sh on every deploy); nginx variables
-# ($host, ...) are left alone.
+# The site's only entry point. ${SITE_DOMAIN}, ${PROXY_SECRET}, ${NGINX_LOCAL_RESOLVERS},
+# ${S3_ENDPOINT} and ${S3_BUCKET} are filled in by the image's entrypoint at start (and by deploy.sh
+# on every deploy); nginx variables ($host, ...) are left alone.
 
 # Docker's DNS: upstream names (api-blue, web-green, ...) are resolved at run time, so nginx starts
 # even before the app containers exist and follows them when they are replaced.
@@ -42,6 +42,16 @@ limit_conn_status 429;
 client_header_timeout 10s;
 client_body_timeout 10s;
 send_timeout 10s;
+
+# The catalog media from the bucket (spec 0011 M3, M15): S3_ENDPOINT without a trailing slash,
+# which proxy_pass would take for a path and send every request there; deploy.sh refuses any other
+# form, which would leave $s3_origin empty and /media/ answering 503. A file is kept a day (its
+# own Cache-Control), a missing one a minute; a key nobody asks for in a week is dropped.
+map "${S3_ENDPOINT}" $s3_origin {
+  "~^(?<origin>https?://[^/]+)/?$" $origin;
+}
+proxy_cache_path /var/cache/nginx/media levels=1:2 keys_zone=media:10m max_size=1g inactive=7d
+  use_temp_path=off;
 
 server_tokens off;
 gzip on;
@@ -216,6 +226,97 @@ server {
     # Idle sockets must survive nginx's default 60 s read timeout.
     proxy_read_timeout 1h;
     proxy_send_timeout 1h;
+  }
+
+  # The catalog media: /media/<key> is the bucket's media/<key>, which the bucket lets only this
+  # server read, without a key (spec 0011 M3, M15). Read-only, no rate limit yet (only edge_conns,
+  # backlog "Rate limit for web pages"). No add_header here: the server's would be dropped.
+  location /media/ {
+    # GET allows HEAD too. Any other method is refused, as the api refuses a method a route lacks.
+    limit_except GET {
+      deny all;
+    }
+    # The key only: the query string stays here (the storage would act on one, e.g.
+    # ?response-content-type= replaces the answer's type, M30) and is not in the cache key, so
+    # it cannot split the cache. A key ending in / is a folder: the emulator answers it with an
+    # empty object, nothing lists the bucket.
+    rewrite ^/media/(.*[^/])$ /${S3_BUCKET}/media/$1? break;
+    return 404;
+
+    # A variable: resolved at request time, so nginx starts while the storage is unreachable.
+    proxy_pass $s3_origin;
+    # Nothing of the visitor's request goes to the storage: no header (the proxy secret, the
+    # address, cookies), only the Host nginx sets. A proxy_set_header here also drops the server's.
+    proxy_pass_request_headers off;
+    proxy_set_header Host $proxy_host;
+    proxy_ssl_server_name on;
+    proxy_ssl_verify on;
+    proxy_ssl_trusted_certificate /etc/ssl/certs/ca-certificates.crt;
+    # The default 1 allows one intermediate; room for a longer chain if the storage changes CA.
+    proxy_ssl_verify_depth 3;
+
+    # The storage's own headers (AC2): request ids, the owner of a user's file, the emulator's,
+    # and those S3 sends for versions, encryption, lock and checksums.
+    proxy_hide_header x-amz-id-2;
+    proxy_hide_header x-amz-request-id;
+    proxy_hide_header x-amz-meta-owner-user-id;
+    proxy_hide_header x-amz-version-id;
+    proxy_hide_header x-amz-delete-marker;
+    proxy_hide_header x-amz-storage-class;
+    proxy_hide_header x-amz-server-side-encryption;
+    proxy_hide_header x-amz-expiration;
+    proxy_hide_header x-amz-restore;
+    proxy_hide_header x-amz-tagging-count;
+    proxy_hide_header x-amz-mp-parts-count;
+    proxy_hide_header x-amz-replication-status;
+    proxy_hide_header x-amz-object-lock-mode;
+    proxy_hide_header x-amz-object-lock-retain-until-date;
+    proxy_hide_header x-amz-object-lock-legal-hold;
+    proxy_hide_header x-amz-website-redirect-location;
+    proxy_hide_header x-amz-checksum-crc32;
+    proxy_hide_header x-amz-checksum-crc32c;
+    proxy_hide_header x-amz-checksum-crc64nvme;
+    proxy_hide_header x-amz-checksum-sha1;
+    proxy_hide_header x-amz-checksum-sha256;
+    proxy_hide_header x-amz-checksum-type;
+    proxy_hide_header Seaweed-X-Amz-ETag;
+    proxy_hide_header Seaweed-X-Amz-Owner;
+    # The storage never sees the visitor's Origin, so its Vary: Origin would only split the cache.
+    proxy_hide_header Vary;
+    proxy_hide_header Set-Cookie;
+    proxy_ignore_headers Set-Cookie Vary;
+
+    # A missing key answers 403 (the policy allows no listing) or 404; both are 404 here, as is any
+    # other refusal of the storage (a key too long, a bad byte): its XML body names the bucket. Not
+    # 412 and 416: the storage gets no If-* or Range, they are nginx's own answers to a visitor's. A
+    # location's error_page replaces the server's, so 413 and 429 are repeated.
+    proxy_intercept_errors on;
+    error_page 400 401 402 403 404 405 406 408 409 410 411 414 415 417 421 422 423 424 428 431 451
+      = @media_not_found;
+    error_page 500 501 502 503 504 =503 @media_unavailable;
+    error_page 413 @payload_too_large;
+    error_page 429 @too_many_requests;
+
+    proxy_cache media;
+    proxy_cache_key $proxy_host$uri;
+    proxy_cache_valid 200 1d;
+    proxy_cache_valid 403 404 1m;
+    proxy_cache_use_stale error timeout updating;
+    proxy_cache_lock on;
+  }
+  # limit_except's 403 lands here too: told apart by the method (M30).
+  location @media_not_found {
+    types {}
+    default_type application/json;
+    if ($request_method !~ ^(GET|HEAD)$) {
+      return 404 '{"error":{"code":"ROUTE_NOT_FOUND","message":"Route not found","details":[]}}';
+    }
+    return 404 '{"error":{"code":"NOT_FOUND","message":"File not found","details":[]}}';
+  }
+  location @media_unavailable {
+    types {}
+    default_type application/json;
+    return 503 '{"error":{"code":"SERVICE_UNAVAILABLE","message":"The storage is unavailable, try again later","details":[]}}';
   }
 
   # web gets the address and the request id but not the secret: it has its own and forwards both

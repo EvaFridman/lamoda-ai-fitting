@@ -33,6 +33,10 @@ set -a
 . "$env_file"
 set +a
 : "${SITE_DOMAIN:?set SITE_DOMAIN in $env_file}"
+# nginx's map takes the storage's origin from it (spec 0011 M30); another form leaves /media/
+# answering 503 with nothing in the config check to say why.
+[[ "${S3_ENDPOINT:-}" =~ ^https?://[^/]+/?$ ]] \
+  || { echo "deploy: S3_ENDPOINT in $env_file is not http(s)://host[:port]" >&2; exit 1; }
 export IMAGE_REGISTRY="${IMAGE_REGISTRY:-}"
 # The project names come from the compose files (and -p); one from the caller's shell or the env file
 # would put infra and the worker into another project.
@@ -102,6 +106,36 @@ apply_nginx_config() {
     fi
     nginx -s reload
   '
+}
+
+# One catalog photo (spec 0011 M15, M31): the bucket lets only this server's address read media/,
+# so a new address or a broken policy shows here. Straight from the bucket out of nginx's
+# container, past its cache (which keeps a photo a day and a refusal a minute), then through nginx,
+# as visitors get it. A random image of the catalog; none (an empty catalog) is not checked. Three
+# tries, a second apart, for a storage that fails or times out.
+check_media() {
+  local key status="" direct=""
+  key="$(infra exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tA \
+    -c 'SELECT image_key FROM product_images ORDER BY random() LIMIT 1')" \
+    || { log "cannot read an image key from the database"; return 1; }
+  if [ -z "$key" ]; then
+    log "media not checked: the catalog has no image"
+    return 0
+  fi
+  [[ "$key" =~ ^[A-Za-z0-9._/-]+$ ]] || { log "unexpected image key '$key'"; return 1; }
+  for _ in 1 2 3; do
+    status=""
+    # X-Deploy-Check tells this request from nginx's own in ci-deploy-check's storage probe.
+    direct="$(infra exec -T nginx sh -c 'curl -s --max-time 10 -o /dev/null -w "%{http_code}" \
+      -H "X-Deploy-Check: media" "${S3_ENDPOINT%/}/$S3_BUCKET/media/$1"' check_media "$key" || true)"
+    [ "$direct" = 200 ] && status="$(curl -sk --max-time 10 -o /dev/null -w '%{http_code}' \
+      --resolve "$SITE_DOMAIN:443:127.0.0.1" "https://$SITE_DOMAIN/media/$key" || true)"
+    [ "$status" = 200 ] && { log "media: media/$key answers 200 from the bucket and through nginx"; return 0; }
+    sleep 1
+  done
+  # nginx keeps a refusal a minute: a fixed policy shows through it only after that.
+  log "media/$key answers ${direct:-nothing} from the bucket, ${status:-not asked} through nginx (a refusal stays in its cache a minute); expected 200"
+  return 1
 }
 
 image_tag_of() {
@@ -198,6 +232,10 @@ else
     3) log "seed skipped: $tag has no dist/seed/main.js" ;;
     *) fail "cannot check $tag for the seed (exit $seed_status); ${active:-nothing} keeps serving" ;;
   esac
+
+  # The seed has uploaded its photos. Not on a rollback (3a): it is the way back, and a broken
+  # bucket is not fixed by refusing it (spec 0011 M31).
+  check_media || fail "nginx does not serve the media (deploy/README.md, \"Хранилище S3\"); ${active:-nothing} keeps serving"
 
   log "starting $target with $tag"
   if ! app "$target" "$tag" up -d --wait --remove-orphans; then
