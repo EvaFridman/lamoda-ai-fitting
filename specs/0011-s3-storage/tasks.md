@@ -102,11 +102,21 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 - 👤 before the merge (plan §9 step 2): sets the `media/*` policy and checks the address Timeweb
   sees; merges PR 3 at a quiet time (nginx is recreated).
 
-## PR 4 · `docs/0011-close` · production checks and closing
+## PR 4 · `fix/0011-close` · nginx after the media check, production checks and closing
 
+- [ ] **T13a. nginx changes after the media check.** `deploy.sh`: step 2 without nginx; the
+      migrations, the seed and the bucket check from a throwaway container on the server; then
+      nginx (recreated or its new config applied) and the check through it; then the new copy;
+      the rollback to the running copy applies nginx as before (M38, plan §7). `ci-deploy-check.sh`:
+      a deploy with a changed nginx config against a storage that refuses writes.
+      `deploy/README.md` ("Как идёт деплой"), `.claude/rules/deploy.md`.
+      Check: `ci-deploy-check.sh` locally and in CI: the refused write stops the deploy at the
+      seed, the nginx container id and its rendered config are unchanged, `/media/` answers 200;
+      every earlier step still passes. `security-reviewer` joins the review (deploy).
+      Commit: `fix(deploy): change nginx only after the media check`
 - [ ] **T13. Close the spec.** The production checks (AC2, AC3, AC4, AC6–AC8, AC10, AC11, AC14,
       with the owner where the server or the panel is needed), the acceptance record below, every
-      file gets `Status: done`.
+      file gets `Status: done`. T13a's evidence is its CI run and the deploy log of PR 4's merge.
       Check: every criterion has evidence; `npm run verify`.
       Commit: `docs(specs): close spec 0011`
 - 👤 merges PR 4.

@@ -267,3 +267,15 @@ code comments. All decisions below: owner, 2026-10-16.
   differently, and fails with its own message on a listing that yields nothing. The development
   rewrite of `/media/` keeps passing the query string to the emulator, unlike nginx (M30): only
   its comment says so (owner).
+
+## Decided after the deploy of PR 3
+
+- **M38. nginx changes only after the media check.** The first deploy of PR 3 (2026-10-18) failed
+  at the seed: the api's storage user had read rights only, so `PutObject` answered 403. By then
+  step 2 of `deploy.sh` had already recreated nginx with the new `/media/` location, which served
+  the still empty bucket: the site's photos answered 404 for about five minutes, until the owner
+  gave the user "Чтение и запись" and the failed job was rerun. M31 promised that a failed media
+  check only stops the deploy. So nginx (its recreation and its new config) moves after the
+  migrations, the seed and the check straight from the bucket, which runs from a throwaway
+  container on the server instead of nginx's; the check through nginx follows the nginx step.
+  New task T13a in PR 4, whose branch becomes `fix/0011-close` (owner).
