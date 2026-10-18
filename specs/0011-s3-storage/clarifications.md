@@ -194,3 +194,12 @@ code comments. All decisions below: owner, 2026-10-16.
   `web/public`, so a clean checkout has no such folder and `COPY /app/public` fails the build. The
   copy goes from `web/Dockerfile` in T9 and comes back with the first static file of web. A
   `web/public/.gitkeep` was rejected: an empty folder in the image for nothing (T9).
+
+## Decided at T10
+
+- **M29. `Select`'s thumbnails skip Next's image optimizer.** An optimized `next/image` with a
+  relative `/media/…` source makes the browser ask `/_next/image`, and web fetches the file from
+  itself; with no `public/` and no rewrite in production that answers 400, so the thumbnails on
+  `/ui-kit` would vanish. `Select`'s `<Image>` gets `unoptimized`, as the product card has: the
+  browser asks `/media/…`, which nginx serves from the bucket. Absolute sources with
+  `images.remotePatterns` were rejected: the optimizer would fetch from an outside host (T10).

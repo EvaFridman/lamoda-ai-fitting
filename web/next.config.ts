@@ -15,23 +15,20 @@ const nextConfig: NextConfig = {
   // Cache Components: the build prerenders a static shell; uncached data (anything from the api)
   // renders per request inside <Suspense>. So the image builds with no api, Redis or database.
   cacheComponents: true,
-  // Images under public/media/ keep their key when the file is replaced, so they are not immutable:
-  // a day bounds how long a visitor sees an old one (spec 0002, C9e).
-  async headers() {
-    return [
-      {
-        source: '/media/:path*',
-        headers: [{ key: 'Cache-Control', value: 'public, max-age=86400' }],
-      },
-    ];
-  },
-  // The browser calls the site's own /api (spec 0007 H6). In production nginx serves /api/ before
-  // Next and strips the prefix; locally there is no nginx, so `next dev` forwards it the same way.
-  // The production image has no rewrite: built without API_URL, it must not proxy anything.
+  // The browser calls the site's own /api (spec 0007 H6) and loads the catalog media from its own
+  // /media/ (spec 0011 M3). In production nginx serves both before Next: /api/ with the prefix
+  // stripped, /media/<key> from the bucket's media/<key>. Locally there is no nginx, so `next dev`
+  // forwards them the same way; the objects carry their own Content-Type and Cache-Control. The
+  // production image has no rewrite: outside `next dev` this returns none, so it proxies nothing.
   async rewrites() {
-    const apiUrl = process.env.API_URL;
-    if (process.env.NODE_ENV !== 'development' || !apiUrl) return [];
-    return [{ source: '/api/:path*', destination: `${apiUrl}/:path*` }];
+    if (process.env.NODE_ENV !== 'development') return [];
+    const { API_URL: apiUrl, S3_ENDPOINT: s3Endpoint, S3_BUCKET: s3Bucket } = process.env;
+    return [
+      ...(apiUrl ? [{ source: '/api/:path*', destination: `${apiUrl}/:path*` }] : []),
+      ...(s3Endpoint && s3Bucket
+        ? [{ source: '/media/:path*', destination: `${s3Endpoint}/${s3Bucket}/media/:path*` }]
+        : []),
+    ];
   },
 };
 

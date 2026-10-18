@@ -114,7 +114,8 @@ The endpoint, the bucket and both keys are required in every environment, with n
   → `${S3_ENDPOINT}/${S3_BUCKET}/media/:path*` (server env of the web container). In production
   nginx answers `/media/` and the request never reaches web; without a rewrite web answers 404.
 - `_pages/ui-kit/config/select.ts` (relative `/media/…`) and `catalog.ts` (absolute production URL)
-  keep working unchanged.
+  keep working unchanged. `Select`'s `<Image>` (`shared/ui/select`) gets `unoptimized` (M29):
+  optimized, its relative `/media/…` source would go through `/_next/image` to web itself.
 
 ## 7. nginx (M3, M15; AC2, AC3)
 

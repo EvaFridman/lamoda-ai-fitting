@@ -220,11 +220,13 @@ services:
       PROXY_SECRET: ${PROXY_SECRET?add PROXY_SECRET to .env (openssl rand -hex 32), see README}
       # Empty turns analytics off; a dummy token in .env is for local checks only.
       NEXT_PUBLIC_MIXPANEL_TOKEN: ${NEXT_PUBLIC_MIXPANEL_TOKEN:-}
+      # `next dev` forwards /media/ to the emulator's media/ (spec 0011 plan §6); no keys: the
+      # emulator lets anyone read media/ (M15).
+      S3_ENDPOINT: http://s3:8333
+      S3_BUCKET: ${S3_BUCKET:-ai-fitting}
     volumes:
       - ./web/app:/app/app
       - ./web/src:/app/src
-      # Static files, including the placeholder images under /media/: new ones show without a rebuild.
-      - ./web/public:/app/public
     ports:
       - '127.0.0.1:${WEB_HOST_PORT:-3001}:3001'
     healthcheck:
