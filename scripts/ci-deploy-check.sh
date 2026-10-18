@@ -526,7 +526,9 @@ done
 printf '%s' '{"Version":"2012-10-17","Statement":[{"Sid":"PublicReadMedia","Effect":"Allow","Principal":"*","Action":["s3:GetObject"],"Resource":["arn:aws:s3:::ai-fitting/media/*"]}]}' \
   | s3_admin -o /dev/null -X PUT --data-binary @- 'http://localhost:8333/ai-fitting?policy'
 # The probe that is `s3` for the api, the worker and nginx: it logs each request's method, path and
-# header names (never values: the api's carry its signature) and passes it on unchanged; while
+# header names (never values: the api's carry its signature) and passes it on unchanged, adding
+# to each answer it passes on the x-rgw-object-type Timeweb's storage sends, which nginx must hide
+# (M39); while
 # /tmp/fail exists it answers 503 instead (a failing storage, check_media_stale), and while
 # /tmp/read-only exists it refuses every write with S3's 403 (the storage user of M38). Node from
 # the api image, which this machine has anyway.
@@ -550,7 +552,10 @@ docker run -d --name "$probe_container" --network ai-fitting --network-alias s3 
       }
       const upstream = http.request(
         { host: 's3-emulator', port: 8333, method: req.method, path: req.url, headers: req.headers },
-        (answer) => { res.writeHead(answer.statusCode, answer.rawHeaders); answer.pipe(res); },
+        (answer) => {
+          res.writeHead(answer.statusCode, [...answer.rawHeaders, 'x-rgw-object-type', 'Normal']);
+          answer.pipe(res);
+        },
       );
       upstream.on('error', () => res.destroy());
       req.pipe(upstream);
@@ -691,15 +696,20 @@ group "rotation, deploy 2 fails: PROXY_SECRET is the new one, the api of $broken
 docker build -q -t "ai-fitting-api:$broken" - > /dev/null <<EOF
 FROM ai-fitting-api:$tag
 USER root
-RUN echo "require('node:http').createServer((req, res) => res.writeHead(req.url === '/health/ready' ? 503 : 200).end()).listen(3000);" > dist/main.js
+RUN echo "import { createServer } from 'node:http'; createServer((req, res) => res.writeHead(req.url === '/health/ready' ? 503 : 200).end()).listen(3000);" > dist/main.js
 USER node
 EOF
 docker tag "ai-fitting-web:$tag" "ai-fitting-web:$broken"
 set_proxy_secrets "$new_secret" ""
-if ENV_FILE="$env_file" deploy/scripts/deploy.sh "$broken"; then
+if ENV_FILE="$env_file" deploy/scripts/deploy.sh "$broken" 2> "$work/broken.err"; then
+  cat "$work/broken.err" >&2
   echo "ci-deploy-check: the deploy of $broken was expected to fail" >&2
   exit 1
 fi
+cat "$work/broken.err" >&2
+# The image is ESM ("type": "module"): a server that crashed would fail the health check instead.
+grep -qF 'is not ready' "$work/broken.err" \
+  || { echo "ci-deploy-check: the deploy of $broken failed, but not at readiness" >&2; exit 1; }
 # nginx sends the new secret now, or the checks below would only show that blue trusts the old one.
 # Compared, never printed.
 [ "$(docker compose -f deploy/compose/infra.yml --env-file "$env_file" exec -T nginx \
