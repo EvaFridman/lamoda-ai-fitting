@@ -7,9 +7,11 @@
 #      nginx's limits per address: a flood, a 2 MB body, an 11th socket (AC10–AC12), a 51st request
 #      in progress and an unfinished header (F36); the seed uploaded its photos and nginx serves
 #      them at /media/ (spec 0011 AC2, AC3), from its cache while the storage answers 5xx (M36);
+#      Temporal's retention is 24 hours (spec 0013 N45), then changed for the next deploy;
 #   2. deploy the same images as a second version (green) while scripts/request-loop.sh runs:
 #      no request may fail (AC26); smoke test of the new version; the second seed changed no
-#      counts (spec 0002, AC11) and uploaded no photo, no object changed (spec 0011 AC6);
+#      counts (spec 0002, AC11) and uploaded no photo, no object changed (spec 0011 AC6); the
+#      retention is 24 hours again;
 #   2b. a deploy that would recreate nginx with a changed config, against a storage that refuses
 #      writes and lacks one photo: it stops at the seed, nginx's container and rendered config are
 #      unchanged and /media/ answers 200 (spec 0011 M38);
@@ -125,6 +127,12 @@ check_security_headers() {
 # Runs a command in the nginx container. Its curl reaches nginx from 127.0.0.1, another address
 # than this machine's, so one address can be over nginx's limits while this machine is served.
 in_nginx() { docker compose -f deploy/compose/infra.yml --env-file "$env_file" exec -T nginx "$@"; }
+in_temporal() { docker compose -f deploy/compose/infra.yml --env-file "$env_file" exec -T temporal "$@"; }
+# The retention of the namespace the api and the worker use, as Temporal prints it ("86400s").
+temporal_retention() {
+  in_temporal temporal operator namespace describe -n default --address 127.0.0.1:7233 -o json \
+    | sed -n 's/.*"workflowExecutionRetentionTtl": *"\([^"]*\)".*/\1/p'
+}
 # The parts of a curl call to nginx from inside its container.
 inner='curl -sk --resolve localhost:443:127.0.0.1'
 # A WebSocket handshake by hand: curl's own ws:// support is not in every build. The key is any
@@ -616,6 +624,14 @@ group "nginx's limits per address"
 check_edge_limits
 endgroup
 
+group "Temporal's retention"
+# spec 0013 N45: every deploy sets it, so a changed one comes back with the next deploy (green).
+[ "$(temporal_retention)" = 86400s ] \
+  || { echo "ci-deploy-check: Temporal's retention is '$(temporal_retention)', not 24 hours" >&2; exit 1; }
+in_temporal temporal operator namespace update -n default --retention 72h --address 127.0.0.1:7233 > /dev/null
+echo "the first deploy set 24 hours; changed to 72 hours for the next deploy to undo"
+endgroup
+
 group "deploy $second (green) under a request loop"
 scripts/request-loop.sh https://localhost > "$work/loop.out" 2>&1 &
 loop=$!
@@ -640,6 +656,9 @@ endgroup
   exit 1
 }
 echo "the second seed uploaded no photo and changed no object"
+[ "$(temporal_retention)" = 86400s ] \
+  || { echo "ci-deploy-check: the second deploy left Temporal's retention at '$(temporal_retention)'" >&2; exit 1; }
+echo "the second deploy set Temporal's retention back to 24 hours"
 
 group "a refused write stops the deploy before nginx changes"
 # spec 0011 M38. S3_ENDPOINT with the trailing slash CD allows changes nginx's environment and its

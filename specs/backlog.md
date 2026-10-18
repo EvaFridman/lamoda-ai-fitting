@@ -51,6 +51,15 @@ removes it from this list. Found by the agents' first security audit and trial r
   algorithm and MD5, bucket key) is not in it: names that long need
   `proxy_headers_hash_bucket_size 128` (at 64 nginx does not start). They appear only if the
   bucket gets encryption; add both before that, checked by `ci-deploy-check.sh`.
+- **A revoked session on an open socket.** The socket reads its user once, at the handshake; a
+  sign-out, a "sign out everywhere" or a deleted user does not close an open socket (0013 N36), and
+  one connected while the session reads were full stays anonymous until it reconnects (N42).
+  Harmless while no handler reads the user; the generations spec decides how long that trust lasts
+  (close on revoke, read again on demand, or refuse for a retry).
+- **CONNECT packets per connection.** The session is read once per connection, but every CONNECT
+  a client sends while that read runs (up to 2 s) still becomes a socket, held until the
+  connection closes (0013 N41). Limit the sockets of one connection with the first real socket
+  feature (0006 F8).
 
 ## api
 
@@ -60,10 +69,19 @@ removes it from this list. Found by the agents' first security audit and trial r
   U+034F, Hangul fillers, U+2800) and full-width or ligature forms that only NFKC folds. Decide
   before sign-up lands: one script per part or a UTS #39 skeleton check, and NFKC; the api rule
   and `users_email_check` change together.
-- **IDOR checks with auth (0006 F4).** Once users sign in, every route that reads or changes a
-  user's data (users, fitting sessions, generations, photos) checks that the resource belongs to
-  the principal (the owner decides the answer for someone else's: 404 or 403). Today these routes
-  are admin-only and the admin sees everything; the auth spec owes the checks and their tests.
+- **Other ways to sign in.** Sign-in is Google only (0013 N2). Yandex ID, VK ID, Google One Tap,
+  passkeys and email codes each come with their own decision; Better Auth's `AUTH_ROUTES` list
+  (`auth/auth-routes.ts`) opens their routes.
+- **Guests.** Trying on needs a Google sign-in (0013 N9). Guests (Better Auth's anonymous sign-in,
+  fewer generations, deleted after 30 idle days) were dropped: a guest who later signs in into an
+  existing account needs their files copied between owners' folders (0011 M7), and a guest who
+  becomes a new account is not something Better Auth supports, so it needs custom rewiring of its
+  users. Comes back only with an answer to both.
+- **Drop `sessions.user_agent`.** Sessions keep no User-Agent (0013 N34): the column is always
+  empty. Drop it in a release after 0013's (migrations stay compatible with the previous release).
+- **Fitting sessions per user.** A signed-in user can create fitting sessions within the `write`
+  quota, and nothing removes archived ones (0013 N39). The generations spec, which defines how
+  sessions are used, sets a per-user limit.
 - **Flaky facets test.** `test/database/product-facets.e2e-spec.ts`, "holds for every listed value,
   and every value with products is listed", takes about 1 s alone but timed out at Vitest's 5 s
   twice in a row in `npm run verify` on the development machine while other work loaded it
@@ -89,6 +107,11 @@ removes it from this list. Found by the agents' first security audit and trial r
 
 ## web
 
+- **The session cookie in `apiFetch`.** `apiFetch` does not forward the visitor's cookies: no page
+  reads user data on the server yet (0013). The first server-rendered page with user data forwards
+  the session cookie (and only it) and keeps such answers out of shared caches.
+- **The "Мои данные" page.** The profile menu draws "Мои данные" inert (0013 N12). Its page brings
+  editing the name and deleting the account (`DELETE /me` exists, N11) with a confirmation.
 - **How long to wait after a 429.** The api's limit sets `Retry-After` (0006 F23), but web's 429
   text only says "wait a little" (0007 H25), while the minute window can mean up to 60 s. Show the
   wait, or retry after it, when the header is there; nginx's own 429 has none (0006 F32) and keeps
@@ -152,14 +175,9 @@ removes it from this list. Found by the agents' first security audit and trial r
   `"^1.24.0"`; align them so all SDK packages move together.
 - **Outbox for file deletion.** A row's delete commits, then `FileDeletion` starts `deleteFiles`
   (spec 0011 T8); an api killed between the two (OOM, SIGKILL) leaves the files with no log line.
-  Accepted while only the admin deletes; when users delete their own data (account deletion), write
-  the deletion into a table in the delete's transaction and start workflows from it.
-- **Users' ids in Temporal history.** `deleteFiles` takes its prefixes (`keep/users/<userId>/…`) as
-  input: the rows are gone when it starts, so they cannot be read later. A deleted user's id stays
-  in the history, seen in Temporal UI, for the namespace's retention, which production
-  (`temporal server start-dev`) never sets. With the auth spec (0013), or sooner if users delete
-  their own accounts: check and set the retention (e.g. 7 days); a payload codec only if a deletion
-  must leave no trace at all.
+  Users can delete their accounts since 0013 (`DELETE /me`), but no route writes into users'
+  folders yet (0013 N37). With the photo upload spec, before the first user's file: write the
+  deletion into a table in the delete's transaction and start workflows from it.
 - **Heartbeats for long activities.** No activity heartbeats: a cancelled workflow's running
   attempt goes on until its timeout (`deletePrefix`: at most 30 s, harmless, the delete is
   idempotent), and a dead worker is noticed only then. With the photo upload and AI generation

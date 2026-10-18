@@ -258,11 +258,15 @@ fi
 profile_args=()
 [ "${DEPLOY_PROFILE:-}" = server ] && profile_args=(--profile server)
 infra up -d --wait postgres redis temporal || fail "infrastructure did not become healthy"
+# A deleted user's id stays in deleteFiles' history for the namespace's retention (spec 0013 N45).
+# start-dev's default is the same 24 hours, but a new image or a fresh volume must not change it.
+infra exec -T temporal temporal operator namespace update -n default --retention 24h \
+  --address 127.0.0.1:7233 >/dev/null || fail "could not set the retention of Temporal's namespace"
 
 if [ "$(image_tag_of "$target")" = "$tag" ] && is_healthy "$target" api && is_healthy "$target" web; then
   # 3a. Rollback to the version that ran before: it is still running, only the switch is left.
-  #     `up` is a no-op unless .env or app.yml changed since it started (a rotated PROXY_SECRET or
-  #     ADMIN_API_TOKEN, a new variable): then compose recreates it, or nginx's new secret would
+  #     `up` is a no-op unless .env or app.yml changed since it started (a rotated PROXY_SECRET, a
+  #     new variable): then compose recreates it, or nginx's new secret would
   #     not match its old one and every visitor of /api/ would share one quota (spec 0006 F18).
   log "$target already runs $tag and is healthy: switching only, recreated if its config changed"
   update_nginx

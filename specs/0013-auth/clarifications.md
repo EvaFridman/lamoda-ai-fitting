@@ -3,7 +3,7 @@
 Status: accepted (2026-10-16); amended 2026-10-16 at the plan: no guests (N2, N9, N10 withdrawn),
 the first name is optional (N5), Better Auth's own error format (N17), a 5-minute session cache
 (N18); amended 2026-10-18 at the review of PR 1 (N31–N36); amended 2026-10-19 at T7 (N37–N39);
-amended 2026-10-19 at T8 (N40–N44).
+amended 2026-10-19 at T8 (N40–N44); amended 2026-10-19 at T9 (N45–N49).
 
 The owner's decisions for this spec. Ids `N1`, `N2`, … are referred to by the spec, the plan and
 code comments. All decisions below: owner, 2026-10-16.
@@ -262,3 +262,33 @@ All decisions below: owner, 2026-10-18, on the review of the spec's pull request
   at once; the adapter logs the first in a minute and counts the rest into the next line
   (`alsoSinceLastLine`). Reported failures (N29) are not affected. Rejected: a line per socket, as
   HTTP's 503 warnings have (HTTP requests are counted by the rate limit, handshakes are not).
+
+## Added at T9
+
+- **N45. Temporal's retention stays one day, set by every deploy** (owner, 2026-10-19, at T9).
+  Checked on the server: `temporal server start-dev` registers `default` with a retention of 24
+  hours, so production did expire histories, unlike N37's premise. 24 hours already keeps a deleted
+  user's id shorter than the 7 days N37 named. `deploy.sh` sets it after the infrastructure is up,
+  so a new image's default or a fresh volume cannot change it, and the CI deploy check reads it
+  back. Rejected: 7 days (a week of ids for more time to look at a failure); a one-time command on
+  the server (lost with the volume).
+- **N46. AC6's search keeps the tests of the retired names** (owner, 2026-10-19, at T9). The
+  tests that check the api ignores `X-Admin-Token` and a leftover `ADMIN_API_TOKEN` name them on
+  purpose; T9's check finds only specs and those tests. Rejected: rewriting the tests to hide the
+  names.
+- **N47. CD checks `BETTER_AUTH_SECRET` before the server** (owner, 2026-10-19, at T9). The check
+  that compared the proxy secrets with `ADMIN_API_TOKEN` (0006 F19) now refuses a
+  `BETTER_AUTH_SECRET` that is not 32+ letters or digits (N21) or equals `PROXY_SECRET` or
+  `PROXY_SECRET_NEXT`, and an empty `GOOGLE_CLIENT_ID` or `GOOGLE_CLIENT_SECRET`, as it does for the
+  storage settings: otherwise only the new copy's start would fail. Rejected: only removing the old
+  comparison.
+- **N48. `deploy/README.md` says `SITE_DOMAIN` is a lower-case host in punycode** (owner,
+  2026-10-19, at T9). `WEB_ORIGIN` is `https://${SITE_DOMAIN}` and must equal its own origin (N43),
+  which lower-cases the host and writes it in punycode; a port, a path or a slash also fail. A
+  line in the README, no CD check. Rejected: no note; a format check in CD.
+- **N49. The production Google client has no localhost redirect** (owner, 2026-10-19, at T9's
+  review). Testing it locally would put its secret into a local `.env` (CONTRIBUTING.md rule 4),
+  and a localhost redirect lets any local process on port 3001 take a code issued for production.
+  Locally the fake provider signs in; checking the real Google locally takes a separate client,
+  `lamoda-ai-fitting-dev`, whose values stay in the local `.env`. Rejected: both redirects on one
+  client (T9's first wording).

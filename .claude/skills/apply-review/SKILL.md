@@ -56,7 +56,7 @@ at `HEAD`, reading the file at that place. Each gets one verdict:
 - **owner**: a fix would change behavior, the plan, the spec or something outside the pull
   request's task (CLAUDE.md: "Decisions that change behavior belong to the owner"); every note on
   `.claude/`, CI, deploy, secrets or dependencies; and every note whose fix would remove or loosen
-  a guard: access markers (`@Public()`, `@AdminOnly()`, `AccessGuard`), quota markers
+  a guard: access markers (`@Public()`, `@SignedIn()`, `@Closed()`, `AccessGuard`), quota markers
   (`@SkipThrottle()`, `@Expensive()`, `@Throttle()`), validation, size and time limits, CORS, CSP,
   cookies, nginx;
 - **not an issue**: wrong, already fixed, or against a decision; name the decision (`M30`,

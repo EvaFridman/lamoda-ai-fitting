@@ -36,6 +36,9 @@ Details and commands: `deploy/README.md`.
   are applied by `deploy.sh` without restarting nginx.
 - The server's `.env` is rewritten from GitHub on every deploy; values change in GitHub, not on the
   server.
+- After the infrastructure is up, every deploy (a rollback too) sets the retention of Temporal's
+  `default` namespace to 24 hours (spec 0013 N45): a deleted user's id stays in `deleteFiles`'
+  history no longer. `ci-deploy-check.sh` reads it back; the step is not removed.
 - Before the new copy starts, `deploy.sh` runs, from the new image, the migrations and then the seed
   (`dist/seed/main.js`, the demo catalog: adds only missing rows and uploads only the photos missing
   from the bucket, a no-op once loaded), then checks one random catalog photo straight from the
