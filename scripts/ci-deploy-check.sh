@@ -10,10 +10,13 @@
 #   2. deploy the same images as a second version (green) while scripts/request-loop.sh runs:
 #      no request may fail (AC26); smoke test of the new version; the second seed changed no
 #      counts (spec 0002, AC11) and uploaded no photo, no object changed (spec 0011 AC6);
+#   2b. a deploy that would recreate nginx with a changed config, against a storage that refuses
+#      writes and lacks one photo: it stops at the seed, nginx's container and rendered config are
+#      unchanged and /media/ answers 200 (spec 0011 M38);
 #   3. rotate PROXY_SECRET in two deploys (spec 0006 F21), with a failed one in between:
 #      a. set PROXY_SECRET_NEXT and roll back to <tag>, still running in blue: deploy.sh recreates
 #         it, so it accepts the next secret too;
-#      b. make the next secret PROXY_SECRET and deploy an image whose seed fails: nginx is
+#      b. make the next secret PROXY_SECRET and deploy an image whose api is never ready: nginx is
 #         recreated with the new secret, the deploy fails, and blue still trusts nginx and web;
 #      c. a third secret, unknown to blue, is refused by deploy.sh before nginx is recreated;
 #      d. deploy <tag>-next (green) with the new secret only;
@@ -367,15 +370,18 @@ check_media() {
   done
 
   # What nginx sent the storage, from the probe's log: the visitor's headers stay behind (only the
-  # Host nginx sets, and Connection), and so does the query string. deploy.sh's own check from
-  # nginx's container (curl, marked with X-Deploy-Check) is not nginx's.
-  local nginx_ip from_nginx bad
+  # Host nginx sets, and Connection), and so does the query string. nginx starts after the
+  # deploy's throwaway containers (the seed, the bucket check) and may get the address of one of
+  # them, so only lines logged since nginx started count.
+  local nginx_container nginx_ip from_nginx bad
+  nginx_container="$(docker compose -f deploy/compose/infra.yml --env-file "$env_file" ps -q nginx)"
   nginx_ip="$(docker inspect -f '{{(index .NetworkSettings.Networks "ai-fitting").IPAddress}}' \
-    "$(docker compose -f deploy/compose/infra.yml --env-file "$env_file" ps -q nginx)")"
-  probe_log
+    "$nginx_container")"
+  docker logs --since "$(docker inspect -f '{{.State.StartedAt}}' "$nginx_container")" \
+    "$probe_container" > "$work/probe.log" 2>&1 \
+    || { echo "ci-deploy-check: cannot read the storage probe's log" >&2; return 1; }
   # Node writes an IPv4 address as ::ffff:a.b.c.d where the container has IPv6.
-  from_nginx="$(grep -E "\"from\":\"(::ffff:)?${nginx_ip//./\\.}\"" "$work/probe.log" \
-    | grep -vF '"x-deploy-check"' || true)"
+  from_nginx="$(grep -E "\"from\":\"(::ffff:)?${nginx_ip//./\\.}\"" "$work/probe.log" || true)"
   [ -n "$from_nginx" ] \
     || { echo "ci-deploy-check: the storage got no request from nginx ($nginx_ip)" >&2; return 1; }
   bad="$(grep -vE '"url":"/ai-fitting/media/[^"?]+","headers":\["host"(,"connection")?\]\}$' \
@@ -520,8 +526,9 @@ printf '%s' '{"Version":"2012-10-17","Statement":[{"Sid":"PublicReadMedia","Effe
   | s3_admin -o /dev/null -X PUT --data-binary @- 'http://localhost:8333/ai-fitting?policy'
 # The probe that is `s3` for the api, the worker and nginx: it logs each request's method, path and
 # header names (never values: the api's carry its signature) and passes it on unchanged; while
-# /tmp/fail exists it answers 503 instead (a failing storage, check_media_stale). Node from the api
-# image, which this machine has anyway.
+# /tmp/fail exists it answers 503 instead (a failing storage, check_media_stale), and while
+# /tmp/read-only exists it refuses every write with S3's 403 (the storage user of M38). Node from
+# the api image, which this machine has anyway.
 docker run -d --name "$probe_container" --network ai-fitting --network-alias s3 "ai-fitting-api:$tag" \
   node -e "
     const http = require('node:http');
@@ -532,6 +539,12 @@ docker run -d --name "$probe_container" --network ai-fitting --network-alias s3 
       if (fs.existsSync('/tmp/fail')) {
         req.resume();
         res.writeHead(503).end();
+        return;
+      }
+      if (fs.existsSync('/tmp/read-only') && !['GET', 'HEAD'].includes(req.method)) {
+        req.resume();
+        res.writeHead(403, { 'Content-Type': 'application/xml' })
+          .end('<?xml version=\"1.0\" encoding=\"UTF-8\"?><Error><Code>AccessDenied</Code><Message>Access Denied</Message></Error>');
         return;
       }
       const upstream = http.request(
@@ -618,6 +631,41 @@ endgroup
 }
 echo "the second seed uploaded no photo and changed no object"
 
+group "a refused write stops the deploy before nginx changes"
+# spec 0011 M38. S3_ENDPOINT with the trailing slash CD allows changes nginx's environment and its
+# rendered map, so a deploy that reached the nginx step would recreate nginx. One photo is removed
+# from the bucket past the probe, so the seed has one to upload, and the probe refuses it.
+nginx_id="$(docker compose -f deploy/compose/infra.yml --env-file "$env_file" ps -q nginx)"
+nginx_conf() { in_nginx sh -c 'find /etc/nginx/conf.d -type f | sort | xargs cat | sha256sum'; }
+conf_before="$(nginx_conf)"
+etags="$(media_etags)" || exit 1
+kept="$(head -n 1 <<< "$etags" | cut -d ' ' -f 1)"
+missing="$(tail -n 1 <<< "$etags" | cut -d ' ' -f 1)"
+s3_admin -o /dev/null -X DELETE "http://localhost:8333/ai-fitting/$missing"
+docker exec "$probe_container" touch /tmp/read-only
+cp "$env_file" "$work/kept.env"
+grep -v '^S3_ENDPOINT=' "$work/kept.env" > "$env_file"
+echo 'S3_ENDPOINT=http://s3:8333/' >> "$env_file"
+if ENV_FILE="$env_file" deploy/scripts/deploy.sh "$second" 2>&1 | tee "$work/deploy-refused.log"; then
+  echo "ci-deploy-check: the deploy against a storage that refuses writes was expected to fail" >&2
+  exit 1
+fi
+docker exec "$probe_container" rm /tmp/read-only
+cp "$work/kept.env" "$env_file"
+grep -qF 'the seed failed' "$work/deploy-refused.log" \
+  || { echo "ci-deploy-check: the deploy failed, but not at the seed" >&2; exit 1; }
+probe_log
+grep -qF "\"method\":\"PUT\",\"url\":\"/ai-fitting/$missing" "$work/probe.log" \
+  || { echo "ci-deploy-check: the seed did not try to upload $missing" >&2; exit 1; }
+[ "$(docker compose -f deploy/compose/infra.yml --env-file "$env_file" ps -q nginx)" = "$nginx_id" ] \
+  || { echo "ci-deploy-check: nginx was recreated by a deploy that failed at the seed" >&2; exit 1; }
+[ "$(nginx_conf)" = "$conf_before" ] \
+  || { echo "ci-deploy-check: nginx's rendered config changed in a deploy that failed at the seed" >&2; exit 1; }
+got="$(curl -sk --max-time 10 -o /dev/null -w '%{http_code}' "https://localhost/$kept" || true)"
+[ "$got" = 200 ] || { echo "ci-deploy-check: /$kept answers '$got' after the failed deploy, expected 200" >&2; exit 1; }
+echo "the refused upload of $missing stopped the deploy at the seed; nginx and /media/ are as they were"
+endgroup
+
 # Sets the proxy secrets in the env file, as CD writes them from GitHub.
 set_proxy_secrets() {
   grep -v -e '^PROXY_SECRET=' -e '^PROXY_SECRET_NEXT=' "$env_file" > "$work/rotated.env"
@@ -635,13 +683,14 @@ check_request_id /api/hello blue
 check_request_id / blue
 endgroup
 
-group "rotation, deploy 2 fails: PROXY_SECRET is the new one, the seed of $broken fails"
-# The api image of <tag> with a seed that exits with 1: the deploy stops after nginx was recreated
-# with the new secret, before the switch, and leaves the database as it was.
+group "rotation, deploy 2 fails: PROXY_SECRET is the new one, the api of $broken is never ready"
+# The api image of <tag> whose server answers everything but readiness: the migrations, the seed
+# (it uploads the photo the refused deploy left out) and the media checks pass, nginx is recreated
+# with the new secret (spec 0011 M38: it changes last), and the deploy stops before the switch.
 docker build -q -t "ai-fitting-api:$broken" - > /dev/null <<EOF
 FROM ai-fitting-api:$tag
 USER root
-RUN echo 'process.exit(1);' > dist/seed/main.js
+RUN echo "require('node:http').createServer((req, res) => res.writeHead(req.url === '/health/ready' ? 503 : 200).end()).listen(3000);" > dist/main.js
 USER node
 EOF
 docker tag "ai-fitting-web:$tag" "ai-fitting-web:$broken"

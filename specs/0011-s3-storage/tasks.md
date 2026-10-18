@@ -104,7 +104,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## PR 4 · `fix/0011-close` · nginx after the media check, production checks and closing
 
-- [ ] **T13a. nginx changes after the media check.** `deploy.sh`: step 2 without nginx; the
+- [x] **T13a. nginx changes after the media check.** `deploy.sh`: step 2 without nginx; the
       migrations, the seed and the bucket check from a throwaway container on the server; then
       nginx (recreated or its new config applied) and the check through it; then the new copy;
       the rollback to the running copy applies nginx as before (M38, plan §7). `ci-deploy-check.sh`:
