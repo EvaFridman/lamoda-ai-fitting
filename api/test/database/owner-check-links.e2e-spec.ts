@@ -6,10 +6,10 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { generationInputKey, generationResultKey, userPhotoKey } from '../../src/storage/keys.js';
 import { createS3Client } from '../../src/storage/s3-client.provider.js';
 import { StorageService } from '../../src/storage/storage.service.js';
+import { signIn } from '../support/sign-in.js';
 import { createTestApp, type TestApp } from '../support/test-app.js';
 import { testStorageSettings } from '../support/test-storage.js';
 
-const ADMIN_TOKEN = 'test-admin-token-0123456789abcdef';
 const WEBP = { contentType: 'image/webp' };
 
 interface ErrorBody {
@@ -19,11 +19,14 @@ interface ErrorBody {
 let testApp: TestApp;
 let storage: StorageService;
 let shortLived: StorageService;
-let counter = 0;
+// A signed-in user who owns nothing, for requests about rows that do not exist.
+let visitor: { Cookie: string };
+const cookies = new Map<string, { Cookie: string }>();
 let productId: string;
 
 beforeAll(async () => {
   testApp = await createTestApp();
+  visitor = { Cookie: (await signIn(testApp.app)).cookie };
   storage = testApp.app.get(StorageService);
   const settings = { ...testStorageSettings(), signedUrlTtlSeconds: 1 };
   shortLived = new StorageService(
@@ -54,15 +57,18 @@ afterAll(async () => {
 });
 
 const http = () => request(testApp.app.getHttpServer());
-const admin = { 'X-Admin-Token': ADMIN_TOKEN };
-
+// A signed-in user: requests about their rows go with their own session (spec 0013 plan §6), and
+// the test guard lets them through the @Closed() routes (plan §4, test-access-guard.ts).
 async function createUser(): Promise<string> {
-  counter += 1;
-  const digits = `9${String(counter).padStart(9, '0')}`;
-  const user = await testApp.prisma.user.create({
-    data: { phone: `+7${digits}`, email: `owner${digits}@mail.ru`, firstName: 'Анна' },
-  });
-  return user.id;
+  const { userId, cookie } = await signIn(testApp.app);
+  cookies.set(userId, { Cookie: cookie });
+  return userId;
+}
+
+function cookieOf(userId: string): { Cookie: string } {
+  const cookie = cookies.get(userId);
+  if (cookie === undefined) throw new Error(`no session for user ${userId}`);
+  return cookie;
 }
 
 async function createSession(userId: string): Promise<string> {
@@ -84,7 +90,7 @@ async function createGeneration(userId: string): Promise<{ id: string; sessionId
   const sessionId = await createSession(userId);
   const response = await http()
     .post('/ai-generations')
-    .set(admin)
+    .set(cookieOf(userId))
     .send(generationBody(sessionId, { userImageKey: generationInputKey(userId, randomUUID()) }));
   expect(response.status).toBe(201);
   return { id: (response.body as { id: string }).id, sessionId };
@@ -117,10 +123,10 @@ describe('signed links to users files (AC8)', () => {
       data: { fittingProfileImageKey: key },
     });
 
-    const one = (await http().get(`/users/${userId}`).set(admin)).body as {
+    const one = (await http().get(`/users/${userId}`).set(cookieOf(userId))).body as {
       fittingProfileImageUrl: string;
     };
-    const list = (await http().get('/users?limit=100').set(admin)).body as {
+    const list = (await http().get('/users?limit=100').set(cookieOf(userId))).body as {
       items: { id: string; fittingProfileImageUrl: string | null }[];
     };
 
@@ -135,7 +141,7 @@ describe('signed links to users files (AC8)', () => {
   it('answers a null link for a user with no photo key', async () => {
     const userId = await createUser();
 
-    const response = await http().get(`/users/${userId}`).set(admin);
+    const response = await http().get(`/users/${userId}`).set(cookieOf(userId));
 
     expect(response.body).toMatchObject({
       fittingProfileImageKey: null,
@@ -155,7 +161,7 @@ describe('signed links to users files (AC8)', () => {
     await storage.put(resultKey, result, { ...WEBP, ownerUserId: userId });
     const created = await http()
       .post('/ai-generations')
-      .set(admin)
+      .set(cookieOf(userId))
       .send(
         generationBody(sessionId, {
           userImageKey: inputKey,
@@ -166,11 +172,12 @@ describe('signed links to users files (AC8)', () => {
     expect(created.status).toBe(201);
     const { id } = created.body as { id: string };
 
-    const one = (await http().get(`/ai-generations/${id}`).set(admin)).body as {
+    const one = (await http().get(`/ai-generations/${id}`).set(cookieOf(userId))).body as {
       userImageUrl: string;
       resultImageUrl: string;
     };
-    const list = (await http().get(`/ai-generations?sessionId=${sessionId}`).set(admin)).body as {
+    const list = (await http().get(`/ai-generations?sessionId=${sessionId}`).set(cookieOf(userId)))
+      .body as {
       items: { userImageUrl: string; resultImageUrl: string }[];
     };
 
@@ -187,9 +194,10 @@ describe('signed links to users files (AC8)', () => {
   });
 
   it('answers a null result link for a generation with no result', async () => {
-    const { id } = await createGeneration(await createUser());
+    const userId = await createUser();
+    const { id } = await createGeneration(userId);
 
-    const body = (await http().get(`/ai-generations/${id}`).set(admin)).body as {
+    const body = (await http().get(`/ai-generations/${id}`).set(cookieOf(userId))).body as {
       resultImageKey: null;
       resultImageUrl: null;
       userImageUrl: string;
@@ -253,8 +261,8 @@ describe('links for stored keys outside the owner folder (M25)', () => {
         data: { fittingProfileImageKey: key },
       });
 
-      const one = await http().get(`/users/${userId}`).set(admin);
-      const list = await http().get('/users?limit=100').set(admin);
+      const one = await http().get(`/users/${userId}`).set(cookieOf(userId));
+      const list = await http().get('/users?limit=100').set(cookieOf(userId));
 
       expect(one.status).toBe(200);
       expect(one.body).toMatchObject({ fittingProfileImageKey: key, fittingProfileImageUrl: null });
@@ -273,8 +281,8 @@ describe('links for stored keys outside the owner folder (M25)', () => {
       const resultKey = makeKey();
       const { id, sessionId } = await legacyGeneration(userId, userKey, resultKey);
 
-      const one = await http().get(`/ai-generations/${id}`).set(admin);
-      const list = await http().get(`/ai-generations?sessionId=${sessionId}`).set(admin);
+      const one = await http().get(`/ai-generations/${id}`).set(cookieOf(userId));
+      const list = await http().get(`/ai-generations?sessionId=${sessionId}`).set(cookieOf(userId));
 
       const expected = {
         userImageKey: userKey,
@@ -297,7 +305,7 @@ describe('links for stored keys outside the owner folder (M25)', () => {
     const ownKey = generationInputKey(userId, randomUUID());
     const { id } = await legacyGeneration(userId, ownKey, 'media/seed/products/a/1.webp');
 
-    const body = (await http().get(`/ai-generations/${id}`).set(admin)).body as {
+    const body = (await http().get(`/ai-generations/${id}`).set(cookieOf(userId))).body as {
       userImageUrl: string | null;
       resultImageUrl: string | null;
     };
@@ -311,7 +319,7 @@ describe('links for stored keys outside the owner folder (M25)', () => {
     const ownKey = generationResultKey(userId, randomUUID());
     const { id } = await legacyGeneration(userId, userPhotoKey(randomUUID()), ownKey);
 
-    const body = (await http().get(`/ai-generations/${id}`).set(admin)).body as {
+    const body = (await http().get(`/ai-generations/${id}`).set(cookieOf(userId))).body as {
       userImageUrl: string | null;
       resultImageUrl: string | null;
     };
@@ -326,7 +334,7 @@ describe('links for stored keys outside the owner folder (M25)', () => {
     const strangerKey = generationInputKey(stranger, randomUUID());
     const { id } = await legacyGeneration(owner, strangerKey, null);
 
-    const body = (await http().get(`/ai-generations/${id}`).set(admin)).body;
+    const body = (await http().get(`/ai-generations/${id}`).set(cookieOf(owner))).body;
 
     expect(body).toMatchObject({ userImageKey: strangerKey, userImageUrl: null });
   });
@@ -337,11 +345,11 @@ describe('links for stored keys outside the owner folder (M25)', () => {
 
     const created = await http()
       .post('/ai-generations')
-      .set(admin)
+      .set(cookieOf(userId))
       .send(generationBody(sessionId, { userImageKey: generationInputKey(userId, randomUUID()) }));
     const updated = await http()
       .patch(`/ai-generations/${id}`)
-      .set(admin)
+      .set(cookieOf(userId))
       .send({ aiModel: 'other' });
 
     expect(created.status).toBe(201);
@@ -366,7 +374,8 @@ describe('links for stored keys outside the owner folder (M25)', () => {
       data: { ...base, userImageKey: 'users/legacy.jpg' },
     });
 
-    const list = (await http().get(`/ai-generations?sessionId=${sessionId}`).set(admin)).body as {
+    const list = (await http().get(`/ai-generations?sessionId=${sessionId}`).set(cookieOf(userId)))
+      .body as {
       items: { userImageKey: string; userImageUrl: string | null }[];
     };
 
@@ -381,7 +390,7 @@ describe('the owner check of users (AC9)', () => {
     const digits = '9999990001';
     const response = await http()
       .post('/users')
-      .set(admin)
+      .set(visitor)
       .send({
         phone: `+7${digits}`,
         email: `nokey${digits}@mail.ru`,
@@ -397,7 +406,7 @@ describe('the owner check of users (AC9)', () => {
     const digits = '9999990002';
     const response = await http()
       .post('/users')
-      .set(admin)
+      .set(visitor)
       .send({
         phone: `+7${digits}`,
         email: `nullkey${digits}@mail.ru`,
@@ -418,7 +427,7 @@ describe('the owner check of users (AC9)', () => {
 
     const response = await http()
       .patch(`/users/${userId}`)
-      .set(admin)
+      .set(cookieOf(userId))
       .send({ fittingProfileImageKey: makeKey() });
 
     expectOwnerRefusal(response, 'fittingProfileImageKey');
@@ -434,7 +443,7 @@ describe('the owner check of users (AC9)', () => {
 
     const response = await http()
       .patch(`/users/${userId}`)
-      .set(admin)
+      .set(cookieOf(userId))
       .send({ fittingProfileImageKey: key });
 
     expect(response.status).toBe(200);
@@ -450,7 +459,7 @@ describe('the owner check of users (AC9)', () => {
 
     const response = await http()
       .patch(`/users/${userId.toUpperCase()}`)
-      .set(admin)
+      .set(cookieOf(userId))
       .send({ fittingProfileImageKey: key });
 
     expect(response.status).toBe(200);
@@ -466,7 +475,7 @@ describe('the owner check of users (AC9)', () => {
 
     const response = await http()
       .patch(`/users/${userId}`)
-      .set(admin)
+      .set(cookieOf(userId))
       .send({ fittingProfileImageKey: null });
 
     expect(response.status).toBe(200);
@@ -481,7 +490,7 @@ describe('the owner check of users (AC9)', () => {
 
     const response = await http()
       .patch(`/users/${id}`)
-      .set(admin)
+      .set(visitor)
       .send({ fittingProfileImageKey: userPhotoKey(id) });
 
     expect(response.status).toBe(404);
@@ -501,11 +510,11 @@ describe('the owner check of generations (AC9)', () => {
 
     const asInput = await http()
       .post('/ai-generations')
-      .set(admin)
+      .set(cookieOf(userId))
       .send(generationBody(sessionId, { userImageKey: makeKey() }));
     const asResult = await http()
       .post('/ai-generations')
-      .set(admin)
+      .set(cookieOf(userId))
       .send(
         generationBody(sessionId, {
           userImageKey: generationInputKey(userId, randomUUID()),
@@ -525,7 +534,7 @@ describe('the owner check of generations (AC9)', () => {
 
     const response = await http()
       .post('/ai-generations')
-      .set(admin)
+      .set(cookieOf(userId))
       .send(
         generationBody(sessionId, {
           userImageKey: generationInputKey(userId, randomUUID()),
@@ -544,7 +553,7 @@ describe('the owner check of generations (AC9)', () => {
 
     const response = await http()
       .post('/ai-generations')
-      .set(admin)
+      .set(cookieOf(owner))
       .send(
         generationBody(sessionId, { userImageKey: generationInputKey(stranger, randomUUID()) }),
       );
@@ -555,7 +564,7 @@ describe('the owner check of generations (AC9)', () => {
   it('answers 400 RELATED_NOT_FOUND on sessionId for a missing session, not an owner error', async () => {
     const response = await http()
       .post('/ai-generations')
-      .set(admin)
+      .set(visitor)
       .send(
         generationBody(randomUUID(), {
           userImageKey: generationInputKey(randomUUID(), randomUUID()),
@@ -574,7 +583,7 @@ describe('the owner check of generations (AC9)', () => {
 
     const response = await http()
       .post('/ai-generations')
-      .set(admin)
+      .set(cookieOf(userId))
       .send(
         generationBody(sessionId, {
           status: 'pending',
@@ -606,11 +615,11 @@ describe('the owner check of generations (AC9)', () => {
 
     const asInput = await http()
       .patch(`/ai-generations/${id}`)
-      .set(admin)
+      .set(cookieOf(userId))
       .send({ userImageKey: makeKey() });
     const asResult = await http()
       .patch(`/ai-generations/${id}`)
-      .set(admin)
+      .set(cookieOf(userId))
       .send({ status: 'completed', resultImageKey: makeKey() });
 
     expectOwnerRefusal(asInput, 'userImageKey');
@@ -626,7 +635,7 @@ describe('the owner check of generations (AC9)', () => {
 
     const response = await http()
       .patch(`/ai-generations/${id}`)
-      .set(admin)
+      .set(cookieOf(userId))
       .send({ userImageKey: input, resultImageKey: result, status: 'completed' });
 
     expect(response.status).toBe(200);
@@ -644,7 +653,7 @@ describe('the owner check of generations (AC9)', () => {
 
     const response = await http()
       .patch(`/ai-generations/${id}`)
-      .set(admin)
+      .set(cookieOf(userId))
       .send({ status: 'processing', aiModel: 'other' });
 
     expect(response.status).toBe(200);
@@ -658,7 +667,7 @@ describe('the owner check of generations (AC9)', () => {
   it('answers 404 NOT_FOUND for a missing generation with a key', async () => {
     const response = await http()
       .patch(`/ai-generations/${randomUUID()}`)
-      .set(admin)
+      .set(visitor)
       .send({ userImageKey: generationInputKey(randomUUID(), randomUUID()) });
 
     expect(response.status).toBe(404);

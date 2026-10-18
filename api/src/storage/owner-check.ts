@@ -6,7 +6,7 @@ import type { StorageService } from './storage.service.js';
 
 const CODE = 'IN_OWNER_FOLDER';
 
-// The owner check of admin writes (spec 0011 M8): each key written must lie in the owner's folder,
+// The owner check of the users' and generations' key writes (spec 0011 M8): each key written must lie in the owner's folder,
 // else a signed link in a response could lead to another user's file or to the media. `undefined`
 // (left out) and `null` (cleared) write no file and pass. `ownerId` is the id the database holds.
 // An empty list means every key passes.
