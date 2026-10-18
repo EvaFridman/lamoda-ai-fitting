@@ -41,7 +41,7 @@ describe('mountAuth', () => {
       },
     );
     app = express();
-    app.use(requestContextMiddleware({ proxySecret: 'secret-secret', adminToken: 'admin-token' }));
+    app.use(requestContextMiddleware({ proxySecret: 'secret-secret' }));
     // Answers the address Better Auth would route.
     const auth = {
       handler: (req: Request) => Promise.resolve(Response.json({ routed: req.url })),

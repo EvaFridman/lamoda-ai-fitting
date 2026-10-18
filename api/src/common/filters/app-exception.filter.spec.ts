@@ -16,6 +16,7 @@ import { Prisma } from '../../generated/prisma/client.js';
 import {
   NotFoundError,
   RequestTimeoutError,
+  SessionUnavailableError,
   UnauthorizedError,
   ValidationError,
 } from '../errors/app.exception.js';
@@ -44,7 +45,7 @@ describe('AppExceptionFilter', () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
-    requestContextMiddleware({ proxySecret: '', adminToken: '' })(
+    requestContextMiddleware({ proxySecret: '' })(
       request,
       { setHeader: vi.fn() } as unknown as Response,
       () => undefined,
@@ -224,6 +225,42 @@ describe('AppExceptionFilter', () => {
       );
     });
 
+    it('reports a SessionUnavailableError with report=true as an error', () => {
+      const original = new SessionUnavailableError('The session could not be read', true);
+
+      filter.catch(original, host);
+
+      expect(Sentry.captureException).toHaveBeenCalledWith(original, {
+        tags: { 'error.code': 'SERVICE_UNAVAILABLE' },
+      });
+      expect(logger.error).toHaveBeenCalledTimes(1);
+      expect(logger.warn).not.toHaveBeenCalled();
+      expect(reply).toHaveBeenCalledWith(
+        response,
+        {
+          error: { code: 'SERVICE_UNAVAILABLE', message: original.message, details: [] },
+        },
+        503,
+      );
+    });
+
+    it('logs a SessionUnavailableError with report=false as a warning, skips Sentry and answers 503', () => {
+      const original = new SessionUnavailableError('The session could not be read', false);
+
+      filter.catch(original, host);
+
+      expect(Sentry.captureException).not.toHaveBeenCalled();
+      expect(logger.error).not.toHaveBeenCalled();
+      expect(logger.warn).toHaveBeenCalledTimes(1);
+      expect(reply).toHaveBeenCalledWith(
+        response,
+        {
+          error: { code: 'SERVICE_UNAVAILABLE', message: original.message, details: [] },
+        },
+        503,
+      );
+    });
+
     it('keeps reporting other 503s while a timeout is not reported', () => {
       filter.catch(new RequestTimeoutError(30_000, false), host);
       filter.catch(new HttpException('down', HttpStatus.SERVICE_UNAVAILABLE), host);
@@ -235,7 +272,7 @@ describe('AppExceptionFilter', () => {
       ['404 not found', () => new NotFoundError()],
       ['404 unknown route', () => new NotFoundException('Cannot GET /x')],
       ['400 validation', () => new ValidationError([{ field: 'a', code: 'x', message: 'bad' }])],
-      ['401 admin token', () => new UnauthorizedError()],
+      ['401 unauthorized', () => new UnauthorizedError()],
       ['429 throttled', () => new ThrottlerException()],
     ])('does not report %s', (_name, make) => {
       filter.catch(make(), host);

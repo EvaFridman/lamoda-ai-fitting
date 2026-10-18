@@ -11,7 +11,7 @@ import {
 } from '@nestjs/common';
 import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 
-import { AdminOnly, Public } from '../common/auth/access.decorators.js';
+import { Closed, Public } from '../common/auth/access.decorators.js';
 import { ApiPaginatedResponse, type Paginated } from '../common/pagination/paginated.js';
 import { PaginationQueryDto } from '../common/pagination/pagination-query.dto.js';
 import { UuidParam } from '../common/pipes/uuid.pipe.js';
@@ -20,8 +20,8 @@ import { ProductImageResponseDto } from './dto/product-part-response.dto.js';
 import { UpdateProductImageDto } from './dto/update-product-image.dto.js';
 import { ProductImagesService } from './product-images.service.js';
 
-// The images of a product, nested under it (spec 0004 E3, E44). Reads are public, writes need the
-// admin token (E1).
+// The images of a product, nested under it (spec 0004 E3, E44). Reads are public, writes are
+// closed to everyone (spec 0013 N8).
 @ApiTags('products')
 @Controller('products/:id/images')
 export class ProductImagesController {
@@ -48,7 +48,7 @@ export class ProductImagesController {
   }
 
   @Post()
-  @AdminOnly()
+  @Closed()
   @ApiCreatedResponse({ type: ProductImageResponseDto })
   create(
     @UuidParam('id') productId: string,
@@ -58,7 +58,7 @@ export class ProductImagesController {
   }
 
   @Patch(':imageId')
-  @AdminOnly()
+  @Closed()
   @ApiOkResponse({ type: ProductImageResponseDto })
   update(
     @UuidParam('id') productId: string,
@@ -69,7 +69,7 @@ export class ProductImagesController {
   }
 
   @Delete(':imageId')
-  @AdminOnly()
+  @Closed()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiNoContentResponse()
   delete(@UuidParam('id') productId: string, @UuidParam('imageId') id: string): Promise<void> {

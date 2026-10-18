@@ -319,7 +319,7 @@ describe('TimeoutInterceptor', () => {
         get: () => undefined,
         socket: { remoteAddress: '127.0.0.1' },
       } as unknown as Request;
-      requestContextMiddleware({ proxySecret: '', adminToken: '' })(
+      requestContextMiddleware({ proxySecret: '' })(
         request,
         { setHeader: vi.fn() } as unknown as Response,
         () => undefined,

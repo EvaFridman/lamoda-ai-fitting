@@ -18,7 +18,7 @@ import {
 } from '@nestjs/swagger';
 
 import { ApiErrors } from '../common/errors/api-errors.decorator.js';
-import { AdminOnly, Public } from '../common/auth/access.decorators.js';
+import { Closed, Public } from '../common/auth/access.decorators.js';
 import { ApiPaginatedResponse, type Paginated } from '../common/pagination/paginated.js';
 import { UuidParam } from '../common/pipes/uuid.pipe.js';
 import { CreateProductDto } from './dto/create-product.dto.js';
@@ -29,7 +29,7 @@ import { ProductDetailDto, ProductListItemDto } from './dto/product-response.dto
 import { UpdateProductDto } from './dto/update-product.dto.js';
 import { ProductsService } from './products.service.js';
 
-// Reads are public, writes need the admin token (spec 0004 E1).
+// Reads are public, writes are closed to everyone (spec 0013 N8).
 @ApiTags('products')
 @Controller('products')
 export class ProductsController {
@@ -63,7 +63,7 @@ export class ProductsController {
   }
 
   @Post()
-  @AdminOnly()
+  @Closed()
   @ApiCreatedResponse({ type: ProductDetailDto })
   @ApiErrors('ALREADY_EXISTS', 'RELATED_NOT_FOUND')
   create(@Body() dto: CreateProductDto): Promise<ProductDetailDto> {
@@ -71,7 +71,7 @@ export class ProductsController {
   }
 
   @Patch(':id')
-  @AdminOnly()
+  @Closed()
   @ApiOkResponse({ type: ProductDetailDto })
   @ApiErrors('ALREADY_EXISTS', 'RELATED_NOT_FOUND')
   update(@UuidParam('id') id: string, @Body() dto: UpdateProductDto): Promise<ProductDetailDto> {
@@ -80,7 +80,7 @@ export class ProductsController {
 
   // The seed adds missing products on every deploy (spec 0002 C16, C16b; 0004 plan "Risks").
   @Delete(':id')
-  @AdminOnly()
+  @Closed()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     description:

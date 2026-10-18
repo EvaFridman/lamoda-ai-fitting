@@ -4,9 +4,9 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { signIn } from '../support/sign-in.js';
 import { createTestApp, type TestApp } from '../support/test-app.js';
 
-const ADMIN_TOKEN = 'test-admin-token-0123456789abcdef';
 // MEDIA_BASE_URL of the test environment (vitest.config.ts).
 const MEDIA = 'http://localhost:3001/media/';
 
@@ -45,6 +45,7 @@ let category: { id: string; name: string; slug: string };
 
 beforeAll(async () => {
   testApp = await createTestApp();
+  userCookie = { Cookie: (await signIn(testApp.app)).cookie };
   brand = await testApp.prisma.brand.create({ data: { name: `Brand ${randomUUID()}` } });
   category = await testApp.prisma.category.create({
     data: { name: `Category ${randomUUID()}`, slug: randomUUID(), isActive: true },
@@ -56,7 +57,8 @@ afterAll(async () => {
 });
 
 const http = () => request(testApp.app.getHttpServer());
-const admin = { 'X-Admin-Token': ADMIN_TOKEN };
+// The Cookie header of a signed-in user (the test app lets one through the closed routes).
+let userCookie: Record<string, string> = {};
 
 function validBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
@@ -70,7 +72,7 @@ function validBody(overrides: Record<string, unknown> = {}): Record<string, unkn
 }
 
 async function createProduct(overrides: Record<string, unknown> = {}): Promise<Detail> {
-  const response = await http().post('/products').set(admin).send(validBody(overrides));
+  const response = await http().post('/products').set(userCookie).send(validBody(overrides));
   expect(response.status).toBe(201);
   return response.body as Detail;
 }
@@ -129,7 +131,7 @@ describe('products: access', () => {
 
   it('refuses writes with a wrong token with 401 UNAUTHORIZED', async () => {
     const product = await createProduct();
-    const wrong = { 'X-Admin-Token': 'wrong-token' };
+    const wrong = { Cookie: 'lamoda.session_token=garbage' };
 
     expectError(await http().post('/products').set(wrong).send(validBody()), 401, 'UNAUTHORIZED');
     expectError(
@@ -143,11 +145,11 @@ describe('products: access', () => {
   it('answers 400 INVALID_ID for a malformed id', async () => {
     expectError(await http().get('/products/not-a-uuid'), 400, 'INVALID_ID');
     expectError(
-      await http().patch('/products/not-a-uuid').set(admin).send({ name: 'x' }),
+      await http().patch('/products/not-a-uuid').set(userCookie).send({ name: 'x' }),
       400,
       'INVALID_ID',
     );
-    expectError(await http().delete('/products/not-a-uuid').set(admin), 400, 'INVALID_ID');
+    expectError(await http().delete('/products/not-a-uuid').set(userCookie), 400, 'INVALID_ID');
   });
 
   it('answers 404 NOT_FOUND for an unknown id on get, update and delete', async () => {
@@ -155,11 +157,11 @@ describe('products: access', () => {
 
     expectError(await http().get(`/products/${id}`), 404, 'NOT_FOUND');
     expectError(
-      await http().patch(`/products/${id}`).set(admin).send({ name: 'Anything' }),
+      await http().patch(`/products/${id}`).set(userCookie).send({ name: 'Anything' }),
       404,
       'NOT_FOUND',
     );
-    expectError(await http().delete(`/products/${id}`).set(admin), 404, 'NOT_FOUND');
+    expectError(await http().delete(`/products/${id}`).set(userCookie), 404, 'NOT_FOUND');
   });
 });
 
@@ -413,7 +415,7 @@ describe('products: detail', () => {
 describe('products: create', () => {
   it('creates with 201, defaults the discount to 0 and keeps optional fields', async () => {
     const body = validBody({ description: 'Text', rating: 4.5 });
-    const response = await http().post('/products').set(admin).send(body);
+    const response = await http().post('/products').set(userCookie).send(body);
 
     expect(response.status).toBe(201);
     expect(response.body).toMatchObject({
@@ -442,7 +444,7 @@ describe('products: create', () => {
       delete body[field];
 
       expectError(
-        await http().post('/products').set(admin).send(body),
+        await http().post('/products').set(userCookie).send(body),
         400,
         'VALIDATION_FAILED',
         field,
@@ -456,7 +458,7 @@ describe('products: create', () => {
       expectError(
         await http()
           .post('/products')
-          .set(admin)
+          .set(userCookie)
           .send(validBody({ [field]: null })),
         400,
         'VALIDATION_FAILED',
@@ -485,7 +487,7 @@ describe('products: create', () => {
     expectError(
       await http()
         .post('/products')
-        .set(admin)
+        .set(userCookie)
         .send(validBody({ [field]: value })),
       400,
       'VALIDATION_FAILED',
@@ -497,7 +499,7 @@ describe('products: create', () => {
     expectError(
       await http()
         .post('/products')
-        .set(admin)
+        .set(userCookie)
         .send(validBody({ extra: 1 })),
       400,
       'VALIDATION_FAILED',
@@ -509,7 +511,7 @@ describe('products: create', () => {
     expectError(
       await http()
         .post('/products')
-        .set(admin)
+        .set(userCookie)
         .send(validBody({ images: [] })),
       400,
       'VALIDATION_FAILED',
@@ -520,7 +522,7 @@ describe('products: create', () => {
   it('refuses a missing brand with 400 RELATED_NOT_FOUND naming brandId', async () => {
     const response = await http()
       .post('/products')
-      .set(admin)
+      .set(userCookie)
       .send(validBody({ brandId: randomUUID() }));
 
     expectError(response, 400, 'RELATED_NOT_FOUND', 'brandId');
@@ -529,7 +531,7 @@ describe('products: create', () => {
   it('refuses a missing category with 400 RELATED_NOT_FOUND naming categoryId', async () => {
     const response = await http()
       .post('/products')
-      .set(admin)
+      .set(userCookie)
       .send(validBody({ categoryId: randomUUID() }));
 
     expectError(response, 400, 'RELATED_NOT_FOUND', 'categoryId');
@@ -541,7 +543,7 @@ describe('products: create', () => {
     expectError(
       await http()
         .post('/products')
-        .set(admin)
+        .set(userCookie)
         .send(validBody({ article: product.article })),
       409,
       'ALREADY_EXISTS',
@@ -555,7 +557,7 @@ describe('products: update', () => {
     const product = await createProduct({ description: 'Keep', rating: 4 });
     const response = await http()
       .patch(`/products/${product.id}`)
-      .set(admin)
+      .set(userCookie)
       .send({ name: 'Renamed', price: 500, discount: 20 });
 
     expect(response.status).toBe(200);
@@ -572,7 +574,7 @@ describe('products: update', () => {
     const product = await createProduct({ description: 'Text', rating: 4.5 });
     const response = await http()
       .patch(`/products/${product.id}`)
-      .set(admin)
+      .set(userCookie)
       .send({ rating: null, description: null });
 
     expect(response.status).toBe(200);
@@ -584,7 +586,7 @@ describe('products: update', () => {
     const otherBrand = await testApp.prisma.brand.create({ data: { name: `B ${randomUUID()}` } });
     const response = await http()
       .patch(`/products/${product.id}`)
-      .set(admin)
+      .set(userCookie)
       .send({ brandId: otherBrand.id });
 
     expect(response.status).toBe(200);
@@ -594,7 +596,7 @@ describe('products: update', () => {
   it('answers 200 with the product and updatedAt unchanged for an empty body', async () => {
     const product = await createProduct();
     const before = await testApp.prisma.product.findUniqueOrThrow({ where: { id: product.id } });
-    const response = await http().patch(`/products/${product.id}`).set(admin).send({});
+    const response = await http().patch(`/products/${product.id}`).set(userCookie).send({});
     const after = await testApp.prisma.product.findUniqueOrThrow({ where: { id: product.id } });
 
     expect(response.status).toBe(200);
@@ -610,7 +612,7 @@ describe('products: update', () => {
       expectError(
         await http()
           .patch(`/products/${product.id}`)
-          .set(admin)
+          .set(userCookie)
           .send({ [field]: null }),
         400,
         'VALIDATION_FAILED',
@@ -631,7 +633,7 @@ describe('products: update', () => {
     expectError(
       await http()
         .patch(`/products/${product.id}`)
-        .set(admin)
+        .set(userCookie)
         .send({ [field]: value }),
       400,
       'VALIDATION_FAILED',
@@ -643,7 +645,7 @@ describe('products: update', () => {
     const product = await createProduct();
 
     expectError(
-      await http().patch(`/products/${product.id}`).set(admin).send({ extra: 1 }),
+      await http().patch(`/products/${product.id}`).set(userCookie).send({ extra: 1 }),
       400,
       'VALIDATION_FAILED',
       'extra',
@@ -654,13 +656,16 @@ describe('products: update', () => {
     const product = await createProduct();
 
     expectError(
-      await http().patch(`/products/${product.id}`).set(admin).send({ brandId: randomUUID() }),
+      await http().patch(`/products/${product.id}`).set(userCookie).send({ brandId: randomUUID() }),
       400,
       'RELATED_NOT_FOUND',
       'brandId',
     );
     expectError(
-      await http().patch(`/products/${product.id}`).set(admin).send({ categoryId: randomUUID() }),
+      await http()
+        .patch(`/products/${product.id}`)
+        .set(userCookie)
+        .send({ categoryId: randomUUID() }),
       400,
       'RELATED_NOT_FOUND',
       'categoryId',
@@ -673,7 +678,7 @@ describe('products: update', () => {
     const other = await createProduct();
 
     expectError(
-      await http().patch(`/products/${other.id}`).set(admin).send({ article: one.article }),
+      await http().patch(`/products/${other.id}`).set(userCookie).send({ article: one.article }),
       409,
       'ALREADY_EXISTS',
       'article',
@@ -684,12 +689,12 @@ describe('products: update', () => {
 describe('products: delete', () => {
   it('deletes with 204 and an empty body, then answers 404', async () => {
     const product = await createProduct();
-    const response = await http().delete(`/products/${product.id}`).set(admin);
+    const response = await http().delete(`/products/${product.id}`).set(userCookie);
 
     expect(response.status).toBe(204);
     expect(response.text).toBe('');
     expectError(await http().get(`/products/${product.id}`), 404, 'NOT_FOUND');
-    expectError(await http().delete(`/products/${product.id}`).set(admin), 404, 'NOT_FOUND');
+    expectError(await http().delete(`/products/${product.id}`).set(userCookie), 404, 'NOT_FOUND');
   });
 
   it('removes images, variations and attribute links, and keeps the attribute value', async () => {
@@ -708,7 +713,7 @@ describe('products: delete', () => {
       data: { productId: product.id, attributeValueId: value.id },
     });
 
-    expect((await http().delete(`/products/${product.id}`).set(admin)).status).toBe(204);
+    expect((await http().delete(`/products/${product.id}`).set(userCookie)).status).toBe(204);
 
     const where = { productId: product.id };
     expect(await testApp.prisma.productImage.count({ where })).toBe(0);
@@ -741,7 +746,7 @@ describe('products: delete', () => {
       data: { generationId: generation.id, productId: product.id },
     });
 
-    expectError(await http().delete(`/products/${product.id}`).set(admin), 409, 'IN_USE');
+    expectError(await http().delete(`/products/${product.id}`).set(userCookie), 409, 'IN_USE');
     expect((await http().get(`/products/${product.id}`)).status).toBe(200);
   });
 });

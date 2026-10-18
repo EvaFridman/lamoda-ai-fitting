@@ -105,7 +105,7 @@ describe('files deleted through Temporal', () => {
     proxy = await startTcpProxy(testStorageSettings().endpoint);
     workerStorage = createTestStorageService(proxy.endpoint);
     worker = await startTestWorker(settings, workerStorage);
-    testApp = await createTestApp(settings);
+    testApp = await createTestApp({ temporal: settings });
   }, 120_000);
 
   afterAll(async () => {
@@ -341,7 +341,7 @@ describe('a delete with Temporal unreachable', () => {
 
   beforeAll(async () => {
     s3 = createTestS3Client();
-    testApp = await createTestApp(unreachable);
+    testApp = await createTestApp({ temporal: unreachable });
   }, 60_000);
 
   afterAll(async () => {

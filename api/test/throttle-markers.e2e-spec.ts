@@ -37,7 +37,7 @@ const SIX = new Set(
   ),
 );
 
-// Classes that may carry @SkipThrottle(): it makes a route unlimited, which on an admin route would
+// Classes that may carry @SkipThrottle(): it makes a route unlimited, which on a closed or signed-in route would
 // silently remove "limit before access" (spec 0006 F5). A new entry is added on purpose, after
 // checking that the route is safe without a limit.
 // Compared by identity, so a class that only shares a name gets no exemption.

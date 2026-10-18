@@ -34,8 +34,7 @@ export function pinoHttpOptions(config: ConfigService<Env, true>): Options {
     redact: [
       'req.headers.authorization',
       'req.headers.cookie',
-      // The admin token (spec 0004 E1) and the proxy secret (0006 F13); Node lower-cases names.
-      'req.headers["x-admin-token"]',
+      // The proxy secret (spec 0006 F13); Node lower-cases names.
       'req.headers["x-proxy-secret"]',
       'res.headers["set-cookie"]',
     ],

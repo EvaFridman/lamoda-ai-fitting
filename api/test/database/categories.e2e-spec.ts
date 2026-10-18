@@ -3,9 +3,9 @@ import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { signIn } from '../support/sign-in.js';
 import { createTestApp, type TestApp } from '../support/test-app.js';
 
-const ADMIN_TOKEN = 'test-admin-token-0123456789abcdef';
 const COLUMNS = [
   'createdAt',
   'description',
@@ -32,6 +32,7 @@ let testApp: TestApp;
 
 beforeAll(async () => {
   testApp = await createTestApp();
+  session = { Cookie: (await signIn(testApp.app)).cookie };
 });
 
 afterAll(async () => {
@@ -39,14 +40,15 @@ afterAll(async () => {
 });
 
 const http = () => request(testApp.app.getHttpServer());
-const admin = { 'X-Admin-Token': ADMIN_TOKEN };
+// The Cookie header of a signed-in user (the test app lets one through the closed routes).
+let session: Record<string, string> = {};
 
 function validBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return { name: `Category ${randomUUID()}`, slug: randomUUID(), isActive: true, ...overrides };
 }
 
 async function create(overrides: Record<string, unknown> = {}): Promise<CategoryBody> {
-  const response = await http().post('/categories').set(admin).send(validBody(overrides));
+  const response = await http().post('/categories').set(session).send(validBody(overrides));
   expect(response.status).toBe(201);
   return response.body as CategoryBody;
 }
@@ -107,7 +109,7 @@ describe('categories: access (AC1)', () => {
     );
     expectError(await http().delete('/categories/not-a-uuid'), 401, 'UNAUTHORIZED');
     expectError(
-      await http().delete('/categories/not-a-uuid').set({ 'X-Admin-Token': 'wrong-token' }),
+      await http().delete('/categories/not-a-uuid').set({ Cookie: 'lamoda.session_token=garbage' }),
       401,
       'UNAUTHORIZED',
     );
@@ -115,7 +117,7 @@ describe('categories: access (AC1)', () => {
 
   it('refuses a write with a wrong token with 401 UNAUTHORIZED', async () => {
     const category = await create();
-    const wrong = { 'X-Admin-Token': 'wrong-token' };
+    const wrong = { Cookie: 'lamoda.session_token=garbage' };
 
     expectError(await http().post('/categories').set(wrong).send(validBody()), 401, 'UNAUTHORIZED');
     expectError(
@@ -131,7 +133,7 @@ describe('categories: access (AC1)', () => {
 describe('categories: create, read, update, delete (AC2)', () => {
   it('creates with 201 and returns the own columns only', async () => {
     const body = validBody({ description: 'About', sortOrder: 7, isActive: false });
-    const response = await http().post('/categories').set(admin).send(body);
+    const response = await http().post('/categories').set(session).send(body);
 
     expect(response.status).toBe(201);
     expect(Object.keys(response.body as object).sort()).toEqual(COLUMNS);
@@ -163,7 +165,7 @@ describe('categories: create, read, update, delete (AC2)', () => {
     const category = await create({ description: 'Keep', sortOrder: 3 });
     const response = await http()
       .patch(`/categories/${category.id}`)
-      .set(admin)
+      .set(session)
       .send({ isActive: false });
 
     expect(response.status).toBe(200);
@@ -180,7 +182,7 @@ describe('categories: create, read, update, delete (AC2)', () => {
 
   it('deletes with 204 and an empty body, then answers 404 NOT_FOUND', async () => {
     const category = await create();
-    const response = await http().delete(`/categories/${category.id}`).set(admin);
+    const response = await http().delete(`/categories/${category.id}`).set(session);
 
     expect(response.status).toBe(204);
     expect(response.text).toBe('');
@@ -276,7 +278,7 @@ describe('categories: create rules (E40)', () => {
     const { isActive: _omitted, ...body } = validBody();
 
     expectError(
-      await http().post('/categories').set(admin).send(body),
+      await http().post('/categories').set(session).send(body),
       400,
       'VALIDATION_FAILED',
       'isActive',
@@ -287,7 +289,7 @@ describe('categories: create rules (E40)', () => {
     expectError(
       await http()
         .post('/categories')
-        .set(admin)
+        .set(session)
         .send(validBody({ sortOrder: null })),
       400,
       'VALIDATION_FAILED',
@@ -299,7 +301,7 @@ describe('categories: create rules (E40)', () => {
     expectError(
       await http()
         .post('/categories')
-        .set(admin)
+        .set(session)
         .send(validBody({ sortOrder: -1 })),
       400,
       'VALIDATION_FAILED',
@@ -327,7 +329,7 @@ describe('categories: create rules (E40)', () => {
     expectError(
       await http()
         .post('/categories')
-        .set(admin)
+        .set(session)
         .send(validBody({ description: wide(5001) })),
       400,
       'VALIDATION_FAILED',
@@ -339,7 +341,7 @@ describe('categories: create rules (E40)', () => {
     expectError(
       await http()
         .post('/categories')
-        .set(admin)
+        .set(session)
         .send(validBody({ description: 'a\u0000b' })),
       400,
       'VALIDATION_FAILED',
@@ -349,7 +351,7 @@ describe('categories: create rules (E40)', () => {
 
   it.each(['', ' padded ', 'a\u0000b'])('refuses the name %j', async (name) => {
     expectError(
-      await http().post('/categories').set(admin).send(validBody({ name })),
+      await http().post('/categories').set(session).send(validBody({ name })),
       400,
       'VALIDATION_FAILED',
       'name',
@@ -358,7 +360,7 @@ describe('categories: create rules (E40)', () => {
 
   it.each(['', 'Upper', 'a_b', 'a--b', '-a', 'бренд'])('refuses the slug %j', async (slug) => {
     expectError(
-      await http().post('/categories').set(admin).send(validBody({ slug })),
+      await http().post('/categories').set(session).send(validBody({ slug })),
       400,
       'VALIDATION_FAILED',
       'slug',
@@ -369,7 +371,7 @@ describe('categories: create rules (E40)', () => {
     expectError(
       await http()
         .post('/categories')
-        .set(admin)
+        .set(session)
         .send(validBody({ extra: 1 })),
       400,
       'VALIDATION_FAILED',
@@ -385,7 +387,7 @@ describe('categories: update rules (E40)', () => {
     expectError(
       await http()
         .patch(`/categories/${category.id}`)
-        .set(admin)
+        .set(session)
         .send({ [field]: null }),
       400,
       'VALIDATION_FAILED',
@@ -397,7 +399,7 @@ describe('categories: update rules (E40)', () => {
     const category = await create({ description: 'Something' });
     const response = await http()
       .patch(`/categories/${category.id}`)
-      .set(admin)
+      .set(session)
       .send({ description: null });
 
     expect(response.status).toBe(200);
@@ -406,7 +408,7 @@ describe('categories: update rules (E40)', () => {
 
   it('answers 200 with the record unchanged, updatedAt included, for an empty body', async () => {
     const category = await create();
-    const response = await http().patch(`/categories/${category.id}`).set(admin).send({});
+    const response = await http().patch(`/categories/${category.id}`).set(session).send({});
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual(category);
@@ -416,18 +418,18 @@ describe('categories: update rules (E40)', () => {
     const id = randomUUID();
 
     expectError(
-      await http().patch(`/categories/${id}`).set(admin).send({ name: 'Anything' }),
+      await http().patch(`/categories/${id}`).set(session).send({ name: 'Anything' }),
       404,
       'NOT_FOUND',
     );
-    expectError(await http().patch(`/categories/${id}`).set(admin).send({}), 404, 'NOT_FOUND');
+    expectError(await http().patch(`/categories/${id}`).set(session).send({}), 404, 'NOT_FOUND');
   });
 
   it('refuses an unknown field', async () => {
     const category = await create();
 
     expectError(
-      await http().patch(`/categories/${category.id}`).set(admin).send({ extra: 1 }),
+      await http().patch(`/categories/${category.id}`).set(session).send({ extra: 1 }),
       400,
       'VALIDATION_FAILED',
       'extra',
@@ -442,7 +444,7 @@ describe('categories: errors', () => {
     expectError(
       await http()
         .post('/categories')
-        .set(admin)
+        .set(session)
         .send(validBody({ name: category.name })),
       409,
       'ALREADY_EXISTS',
@@ -456,7 +458,7 @@ describe('categories: errors', () => {
     expectError(
       await http()
         .post('/categories')
-        .set(admin)
+        .set(session)
         .send(validBody({ slug: category.slug })),
       409,
       'ALREADY_EXISTS',
@@ -468,13 +470,13 @@ describe('categories: errors', () => {
     const [one, other] = [await create(), await create()];
 
     expectError(
-      await http().patch(`/categories/${other.id}`).set(admin).send({ name: one.name }),
+      await http().patch(`/categories/${other.id}`).set(session).send({ name: one.name }),
       409,
       'ALREADY_EXISTS',
       'name',
     );
     expectError(
-      await http().patch(`/categories/${other.id}`).set(admin).send({ slug: one.slug }),
+      await http().patch(`/categories/${other.id}`).set(session).send({ slug: one.slug }),
       409,
       'ALREADY_EXISTS',
       'slug',
@@ -494,24 +496,24 @@ describe('categories: errors', () => {
       },
     });
 
-    expectError(await http().delete(`/categories/${category.id}`).set(admin), 409, 'IN_USE');
+    expectError(await http().delete(`/categories/${category.id}`).set(session), 409, 'IN_USE');
     expect(await testApp.prisma.category.count({ where: { id: category.id } })).toBe(1);
   });
 
   it('answers 400 INVALID_ID for a malformed id on every id route', async () => {
     expectError(await http().get('/categories/not-a-uuid'), 400, 'INVALID_ID');
     expectError(
-      await http().patch('/categories/not-a-uuid').set(admin).send({ name: 'x' }),
+      await http().patch('/categories/not-a-uuid').set(session).send({ name: 'x' }),
       400,
       'INVALID_ID',
     );
-    expectError(await http().delete('/categories/not-a-uuid').set(admin), 400, 'INVALID_ID');
+    expectError(await http().delete('/categories/not-a-uuid').set(session), 400, 'INVALID_ID');
   });
 
   it('answers 404 NOT_FOUND for an unknown id on get and delete', async () => {
     const id = randomUUID();
 
     expectError(await http().get(`/categories/${id}`), 404, 'NOT_FOUND');
-    expectError(await http().delete(`/categories/${id}`).set(admin), 404, 'NOT_FOUND');
+    expectError(await http().delete(`/categories/${id}`).set(session), 404, 'NOT_FOUND');
   });
 });

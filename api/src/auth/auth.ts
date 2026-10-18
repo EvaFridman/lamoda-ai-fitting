@@ -28,6 +28,12 @@ export interface AuthLogger {
 const GOOGLE = 'google';
 const DAY_SECONDS = 24 * 60 * 60;
 
+// The start of every cookie name Better Auth sets; on https each name also gets `__Secure-`.
+export const AUTH_COOKIE_PREFIX = 'lamoda';
+// The session cookie: the request context reads it on every route but /api/auth
+// (session-reader.ts); swagger.ts documents it.
+export const SESSION_COOKIE = `${AUTH_COOKIE_PREFIX}.session_token`;
+
 // Sign-in with Google (spec 0013 plan §3). Mounted at /api/auth by createHttpApp(), which lets
 // only the routes of auth-routes.ts reach it (N25); its answers keep Better Auth's
 // `{ code, message }` (N17).
@@ -71,7 +77,7 @@ export function createAuth(env: AuthEnv, prisma: PrismaClient, logger: AuthLogge
     // console.error, the session token and the user's data too, and answers an empty 500.
     onAPIError: { throw: true },
     advanced: {
-      cookiePrefix: 'lamoda',
+      cookiePrefix: AUTH_COOKIE_PREFIX,
       useSecureCookies: new URL(env.WEB_ORIGIN).protocol === 'https:',
       ipAddress: { disableIpTracking: true },
       // The database's uuidv7() makes every id (N16). No schema check: it wants `users.image` and

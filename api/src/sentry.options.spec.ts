@@ -391,7 +391,7 @@ describe('withoutRequestData', () => {
         method: 'POST',
         url: 'http://api:3000/products?token=abc',
         data: { phone: '+7999' },
-        headers: { 'x-admin-token': 'abc' },
+        headers: { 'x-proxy-secret': 'abc' },
         cookies: { session: 'abc' },
         query_string: 'token=abc',
       },
@@ -666,12 +666,12 @@ describe('the SDK with sentryOptions', () => {
     expect(events[0]).toContain('"release":"v1"');
   });
 
-  it('never sends X-Admin-Token, cookies, the body or the query string', async () => {
+  it('never sends X-Proxy-Secret, cookies, the body or the query string', async () => {
     const sent = initWith({ SENTRY_DSN: 'https://key@o0.ingest.sentry.io/1' });
     // Built at run time: Sentry attaches the source lines around a stack frame, and a literal
     // here would end up in the event by itself.
     const leak = (name: string): string => `leak-${name}-value`;
-    const adminToken = leak('admin');
+    const proxySecret = leak('proxy-secret');
     const cookie = leak('cookie');
     const query = leak('query');
     const body = leak('body');
@@ -684,7 +684,7 @@ describe('the SDK with sentryOptions', () => {
           method: 'POST',
           url: `http://api:3000/products?token=${query}`,
           headers: {
-            'x-admin-token': adminToken,
+            'x-proxy-secret': proxySecret,
             cookie: `session=${cookie}`,
             host: 'api',
           },
@@ -701,7 +701,7 @@ describe('the SDK with sentryOptions', () => {
     expect(events).toHaveLength(1);
     expect(events[0]).toContain('request failed');
     expect(events[0]).toContain('http://api:3000/products');
-    for (const secret of [adminToken, cookie, query, body]) {
+    for (const secret of [proxySecret, cookie, query, body]) {
       expect(events[0]).not.toContain(secret);
     }
   });

@@ -74,7 +74,7 @@ function shapeCodes(operation: OperationObject): Set<ErrorCode> {
     codes.add('INVALID_ID');
     codes.add('NOT_FOUND');
   }
-  if (operation.security?.some((requirement) => 'admin' in requirement) === true) {
+  if (operation.security?.some((requirement) => 'session' in requirement) === true) {
     codes.add('UNAUTHORIZED');
   }
   return codes;
@@ -345,16 +345,77 @@ describe('OpenAPI document (e2e)', () => {
     expect(named['503']).toEqual(['SERVICE_UNAVAILABLE']);
   });
 
-  it('gives admin operations a 401 and public catalog reads none', () => {
-    const adminOps = ops.filter((op) => op.operation.security?.some((r) => 'admin' in r) === true);
-    expect(adminOps.length).toBeGreaterThan(0);
-    for (const { method, path, operation } of adminOps) {
+  it('gives @SignedIn() operations the session security and a 401', () => {
+    const signedInOps = ops.filter(
+      (op) => op.operation.security?.some((r) => 'session' in r) === true,
+    );
+    expect(signedInOps.map((op) => `${op.method} ${op.path}`).sort()).toEqual(
+      expect.arrayContaining([
+        'get /fitting-sessions',
+        'post /fitting-sessions',
+        'delete /fitting-sessions/{id}',
+        'get /ai-generations',
+        'get /ai-generations/{id}',
+        'delete /ai-generations/{id}',
+      ]),
+    );
+    for (const { method, path, operation } of signedInOps) {
       expect(namedCodes(operation)['401'], `${method} ${path}`).toEqual(['UNAUTHORIZED']);
     }
-    const publicOps = ops.filter((op) => !op.path.startsWith('/health/') && !adminOps.includes(op));
-    expect(publicOps.length).toBeGreaterThan(0);
+  });
+
+  it('gives @Closed() operations a 401 too, with no security and no x-closed left', () => {
+    for (const [method, path] of [
+      ['post', '/brands'],
+      ['patch', '/categories/{id}'],
+      ['delete', '/products/{id}'],
+      ['get', '/users'],
+      ['post', '/ai-generations'],
+      ['patch', '/ai-generations/{id}'],
+    ] as const) {
+      const operation = find(method, path);
+      expect(namedCodes(operation)['401'], `${method} ${path}`).toEqual(['UNAUTHORIZED']);
+      expect(operation.security, `${method} ${path}`).toBeUndefined();
+      expect(operation, `${method} ${path}`).not.toHaveProperty('x-closed');
+    }
+    expect(JSON.stringify(document)).not.toContain('x-closed');
+  });
+
+  // The public operations are named by shape, not read from the document's own 401s (that would be
+  // circular): every GET outside /health and the three resources whose reads are closed or
+  // signed-in only (access-markers.e2e-spec.ts pins that split). The rest must all carry a 401.
+  const NOT_PUBLIC_PREFIXES = ['/users', '/ai-generations', '/fitting-sessions'];
+  const isHealth = (op: Op): boolean => op.path.startsWith('/health/');
+  const isPublic = (op: Op): boolean =>
+    op.method === 'get' &&
+    !NOT_PUBLIC_PREFIXES.some((prefix) => op.path === prefix || op.path.startsWith(`${prefix}/`));
+
+  it('gives public reads no 401 and no security', () => {
+    const publicOps = ops.filter((op) => !isHealth(op) && isPublic(op));
+    expect(publicOps.length).toBeGreaterThan(10);
     for (const { method, path, operation } of publicOps) {
       expect(errorStatuses(operation), `${method} ${path}`).not.toContain('401');
+      expect(operation.security, `${method} ${path}`).toBeUndefined();
     }
+  });
+
+  it('gives every other non-health operation a 401', () => {
+    const others = ops.filter((op) => !isHealth(op) && !isPublic(op));
+    expect(others.length).toBeGreaterThan(30);
+    for (const { method, path, operation } of others) {
+      expect(errorStatuses(operation), `${method} ${path}`).toContain('401');
+    }
+  });
+
+  it('describes the session cookie as the only security scheme, with no admin token anywhere', () => {
+    expect(document.components?.securitySchemes).toEqual({
+      session: {
+        type: 'apiKey',
+        in: 'cookie',
+        name: 'lamoda.session_token',
+        description: expect.stringContaining('__Secure-lamoda.session_token'),
+      },
+    });
+    expect(JSON.stringify(document).toLowerCase()).not.toContain('admin');
   });
 });

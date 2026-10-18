@@ -5,8 +5,9 @@ import {
   onUnhandledRejectionIntegration,
 } from '@sentry/nestjs';
 
-// Sentry 11 collects user info, cookies, headers (X-Admin-Token among them), query parameters and
-// request/response bodies by default; reports from the api carry none of them, as web's
+// Sentry 11 collects user info, cookies, headers (X-Proxy-Secret among them), query parameters and
+// request/response bodies by default; reports from the api carry none of them (the request context
+// sets only the user's id), as web's
 // (web/sentry.options.ts). Also off here: local variables of stack frames and database query data
 // (Redis commands carry keys and values), which can hold personal data. The Redis instrumentation
 // ignores databaseQueryData: withoutRedisCommands below. Change a field only with a reason in the

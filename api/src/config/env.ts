@@ -1,16 +1,7 @@
 import { z } from 'zod';
 
-// A shared secret: empty, or long enough not to be guessed.
-const secret = () =>
-  z
-    .union([
-      z.literal(''),
-      z.string().regex(/^\S{32,}$/, 'must be at least 32 non-space characters'),
-    ])
-    .default('');
-
-// The proxy secret: as above, but letters and digits only, as nginx's config and the server's
-// sourced .env would break on `$`, `"` or `;`.
+// The proxy secret: empty, or long enough not to be guessed; letters and digits only, as nginx's
+// config and the server's sourced .env would break on `$`, `"` or `;`.
 const proxySecret = () =>
   z
     .union([
@@ -68,10 +59,6 @@ export const envSchema = z
     // frames; at most 1 MB (F30).
     SOCKET_MAX_MESSAGE_BYTES: z.coerce.number().int().positive().max(1_048_576).default(65_536),
 
-    // Sent in the X-Admin-Token header by writes and by requests to users, fitting sessions and
-    // generations (spec 0004 E1). Empty closes those requests entirely; a set one must be long
-    // enough not to be guessed (E31).
-    ADMIN_API_TOKEN: secret(),
     // Sent in the X-Proxy-Secret header by nginx and web (spec 0006 F13): only such a request names
     // the client's address (X-Forwarded-For) and the request id. Empty trusts no request.
     PROXY_SECRET: proxySecret(),
@@ -116,17 +103,8 @@ export const envSchema = z
     // Defaults to NODE_ENV.
     SENTRY_ENVIRONMENT: z.string().default(''),
   })
-  // web gets the proxy secret but not the admin token: equal values would let a leak from web open
-  // the admin routes (spec 0006 F19). The message names the variables, never the values.
-  .refine((env) => env.PROXY_SECRET === '' || env.PROXY_SECRET !== env.ADMIN_API_TOKEN, {
-    path: ['PROXY_SECRET'],
-    message: 'must differ from ADMIN_API_TOKEN',
-  })
-  .refine((env) => env.PROXY_SECRET_NEXT === '' || env.PROXY_SECRET_NEXT !== env.ADMIN_API_TOKEN, {
-    path: ['PROXY_SECRET_NEXT'],
-    message: 'must differ from ADMIN_API_TOKEN',
-  })
   // web and nginx get the proxy secret: an equal auth secret would let a leak there forge sessions.
+  // The message names the variables, never the values.
   .refine(
     (env) =>
       env.BETTER_AUTH_SECRET === '' ||

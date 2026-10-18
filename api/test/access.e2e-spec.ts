@@ -7,16 +7,25 @@ import { LoggerModule } from 'nestjs-pino';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { AdminOnly, Public } from '../src/common/auth/access.decorators.js';
+import { Closed, Public, SignedIn } from '../src/common/auth/access.decorators.js';
 import { AccessGuard } from '../src/common/auth/access.guard.js';
 import { AppExceptionFilter } from '../src/common/filters/app-exception.filter.js';
 import { createHttpApp } from '../src/common/http/http-app.js';
 import { validateEnv } from '../src/config/env.js';
 
-@Controller('secured')
-class SecuredController {
+@Controller('own')
+class OwnController {
   @Get()
-  @AdminOnly()
+  @SignedIn()
+  read(): { ok: boolean } {
+    return { ok: true };
+  }
+}
+
+@Controller('shut')
+class ShutController {
+  @Get()
+  @Closed()
   read(): { ok: boolean } {
     return { ok: true };
   }
@@ -40,10 +49,10 @@ class ForgottenController {
   }
 }
 
-// The access guard registered globally, as AppModule does (spec 0006 F3).
+// The access guard registered globally, as AppModule does (spec 0006 F3). This app has no
+// AuthModule, so no request has a session: the signed-in case is in test/database/access.e2e-spec.ts.
 describe('access over HTTP', () => {
   let app: INestApplication;
-  const adminToken = process.env.ADMIN_API_TOKEN ?? '';
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -51,7 +60,7 @@ describe('access over HTTP', () => {
         ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true, validate: validateEnv }),
         LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }),
       ],
-      controllers: [SecuredController, OpenController, ForgottenController],
+      controllers: [OwnController, ShutController, OpenController, ForgottenController],
       providers: [
         { provide: APP_FILTER, useClass: AppExceptionFilter },
         { provide: APP_GUARD, useClass: AccessGuard },
@@ -69,56 +78,60 @@ describe('access over HTTP', () => {
     await app.close();
   });
 
-  describe('@AdminOnly()', () => {
-    it('answers 200 with the right token', async () => {
-      const response = await request(app.getHttpServer())
-        .get('/secured')
-        .set('X-Admin-Token', adminToken);
-
-      expect(response.status).toBe(200);
-      expect(response.body).toEqual({ ok: true });
-    });
-
-    it('answers 401 in the error format with a wrong token', async () => {
-      const response = await request(app.getHttpServer())
-        .get('/secured')
-        .set('X-Admin-Token', 'wrong');
+  describe('@SignedIn()', () => {
+    it('answers 401 in the error format without a session', async () => {
+      const response = await request(app.getHttpServer()).get('/own');
 
       expect(response.status).toBe(401);
-      expect(response.body).toMatchObject({ error: { code: 'UNAUTHORIZED', details: [] } });
+      expect(response.body).toMatchObject({
+        error: { code: 'UNAUTHORIZED', message: 'Sign-in required', details: [] },
+      });
     });
 
-    it('answers 401 without the header', async () => {
-      const response = await request(app.getHttpServer()).get('/secured');
+    it('answers 401 with a cookie that is no session', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/own')
+        .set('Cookie', 'lamoda.session_token=garbage');
 
       expect(response.status).toBe(401);
-      expect(response.body).toMatchObject({ error: { code: 'UNAUTHORIZED' } });
+    });
+  });
+
+  describe('@Closed()', () => {
+    it('answers 401 in the error format', async () => {
+      const response = await request(app.getHttpServer()).get('/shut');
+
+      expect(response.status).toBe(401);
+      expect(response.body).toMatchObject({
+        error: { code: 'UNAUTHORIZED', message: 'The route is closed', details: [] },
+      });
     });
   });
 
   describe('@Public()', () => {
-    it('answers 200 without a token, with a wrong one and with the right one', async () => {
+    it('answers 200 with no cookie and with a garbage one', async () => {
       await request(app.getHttpServer()).get('/open').expect(200, { ok: true });
       await request(app.getHttpServer())
         .get('/open')
-        .set('X-Admin-Token', 'wrong')
+        .set('Cookie', 'lamoda.session_token=garbage')
         .expect(200, { ok: true });
-      await request(app.getHttpServer())
-        .get('/open')
-        .set('X-Admin-Token', adminToken)
-        .expect(200, { ok: true });
+    });
+
+    it('ignores the retired X-Admin-Token header on every route', async () => {
+      await request(app.getHttpServer()).get('/open').set('X-Admin-Token', 'x').expect(200);
+      await request(app.getHttpServer()).get('/shut').set('X-Admin-Token', 'x').expect(401);
+      await request(app.getHttpServer()).get('/own').set('X-Admin-Token', 'x').expect(401);
     });
   });
 
-  describe('a route with neither marker', () => {
-    it('answers 401 to every request, the right token included', async () => {
-      for (const token of [undefined, 'wrong', adminToken]) {
-        const call = request(app.getHttpServer()).get('/forgotten');
-        const response = await (token === undefined ? call : call.set('X-Admin-Token', token));
+  describe('a route with no marker', () => {
+    it('answers 401 in the error format', async () => {
+      const response = await request(app.getHttpServer()).get('/forgotten');
 
-        expect(response.status).toBe(401);
-        expect(response.body).toMatchObject({ error: { code: 'UNAUTHORIZED', details: [] } });
-      }
+      expect(response.status).toBe(401);
+      expect(response.body).toMatchObject({
+        error: { code: 'UNAUTHORIZED', message: 'The route is closed', details: [] },
+      });
     });
   });
 });

@@ -23,7 +23,7 @@ import { AUTH } from './auth.module.js';
 // the rate limit is authThrottle's. An app whose module has no AuthModule (a spec's small module)
 // gets no /api/auth.
 export async function mountAuth(app: NestExpressApplication): Promise<void> {
-  const auth = provided<Auth>(app, AUTH);
+  const auth = providedAuth(app);
   if (auth === undefined) return;
   const config = app.get<ConfigService<Env, true>>(ConfigService);
   // Transient: resolved, not got. Resolving it also creates nestjs-pino's root logger.
@@ -75,9 +75,10 @@ function withoutQuery(req: { url?: string } & Record<string, unknown>): Record<s
   return { ...rest, url: req.url?.split('?')[0] };
 }
 
-function provided<T>(app: NestExpressApplication, token: symbol): T | undefined {
+// The Better Auth instance, or undefined in an app whose module has no AuthModule.
+export function providedAuth(app: NestExpressApplication): Auth | undefined {
   try {
-    return app.get<T>(token);
+    return app.get<Auth>(AUTH);
   } catch (error) {
     if (error instanceof UnknownElementException) return undefined;
     throw error;

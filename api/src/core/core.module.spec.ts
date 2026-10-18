@@ -55,28 +55,34 @@ function logged(context?: RequestContextOptions): { lines: () => string[]; serve
 }
 
 describe('request logging', () => {
-  it('redacts the admin token, authorization and cookie headers', async () => {
+  it('redacts the authorization and cookie headers, and Set-Cookie', async () => {
     const { server, lines } = logged();
 
     await request(server)
       .get('/ping')
-      .set('X-Admin-Token', 'secret-value')
       .set('Authorization', 'Bearer bearer-secret')
       .set('Cookie', 'sid=cookie-secret');
 
     const output = lines().join('');
     expect(output).toContain('[Redacted]');
-    expect(output).not.toContain('secret-value');
     expect(output).not.toContain('bearer-secret');
     expect(output).not.toContain('cookie-secret');
     const entry = JSON.parse(lines()[0] ?? '{}') as {
       req: { headers: Record<string, string> };
       res: { headers: Record<string, string> };
     };
-    expect(entry.req.headers['x-admin-token']).toBe('[Redacted]');
     expect(entry.req.headers.authorization).toBe('[Redacted]');
     expect(entry.req.headers.cookie).toBe('[Redacted]');
     expect(entry.res.headers['set-cookie']).toBe('[Redacted]');
+  });
+
+  it('has no redaction rule for the retired admin token header', () => {
+    const config = { get: () => 'info' } as unknown as ConfigService<Env, true>;
+
+    const redact = JSON.stringify(pinoHttpOptions(config).redact);
+
+    expect(redact).not.toMatch(/admin/i);
+    expect(redact).toMatch(/cookie/i);
   });
 
   it('redacts the proxy secret header', async () => {
@@ -100,7 +106,7 @@ describe('request logging', () => {
   });
 
   it('logs the id of the request context', async () => {
-    const { server, lines } = logged({ proxySecret: 's'.repeat(32), adminToken: '' });
+    const { server, lines } = logged({ proxySecret: 's'.repeat(32) });
     const id = 'a'.repeat(32);
 
     await request(server)

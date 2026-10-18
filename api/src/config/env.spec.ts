@@ -24,32 +24,14 @@ function thrownMessage(run: () => unknown): string {
 }
 
 describe('validateEnv', () => {
-  it('defaults ADMIN_API_TOKEN to an empty string', () => {
-    expect(validateEnv(valid).ADMIN_API_TOKEN).toBe('');
-  });
+  it.each(['', 'short', 'a'.repeat(40), 'with space'])(
+    'ignores a leftover ADMIN_API_TOKEN %j: it is neither read nor checked',
+    (token) => {
+      const env = validateEnv({ ...valid, ADMIN_API_TOKEN: token });
 
-  it.each(['', 'a'.repeat(32), 'ab12'.repeat(16)])('accepts ADMIN_API_TOKEN %j', (token) => {
-    expect(validateEnv({ ...valid, ADMIN_API_TOKEN: token }).ADMIN_API_TOKEN).toBe(token);
-  });
-
-  it.each([
-    ['31 characters', 'a'.repeat(31)],
-    ['a space inside', `${'a'.repeat(20)} ${'a'.repeat(19)}`],
-    ['a leading space', ` ${'a'.repeat(39)}`],
-    ['a trailing space', `${'a'.repeat(39)} `],
-    ['a tab', `${'a'.repeat(39)}\t`],
-  ])('refuses ADMIN_API_TOKEN with %s, naming the variable but not the value', (_name, token) => {
-    const message = thrownMessage(() => validateEnv({ ...valid, ADMIN_API_TOKEN: token }));
-
-    expect(message).toMatch(/ADMIN_API_TOKEN/);
-    expect(message).not.toContain(token);
-  });
-
-  it('still accepts ADMIN_API_TOKEN with punctuation', () => {
-    const token = 'a-b_'.repeat(10);
-
-    expect(validateEnv({ ...valid, ADMIN_API_TOKEN: token }).ADMIN_API_TOKEN).toBe(token);
-  });
+      expect(env).not.toHaveProperty('ADMIN_API_TOKEN');
+    },
+  );
 
   it('defaults PROXY_SECRET to an empty string', () => {
     expect(validateEnv(valid).PROXY_SECRET).toBe('');
@@ -77,28 +59,18 @@ describe('validateEnv', () => {
     expect(message).not.toContain(secret);
   });
 
-  it('refuses an equal PROXY_SECRET and ADMIN_API_TOKEN, naming both but not the value', () => {
+  it('does not compare PROXY_SECRET and PROXY_SECRET_NEXT with a leftover ADMIN_API_TOKEN', () => {
     const shared = 'sharedvalue0123456789abcdefxyz01';
 
-    const message = thrownMessage(() =>
-      validateEnv({ ...valid, PROXY_SECRET: shared, ADMIN_API_TOKEN: shared }),
-    );
+    const env = validateEnv({
+      ...valid,
+      PROXY_SECRET: shared,
+      PROXY_SECRET_NEXT: shared,
+      ADMIN_API_TOKEN: shared,
+    });
 
-    expect(message).toMatch(/PROXY_SECRET/);
-    expect(message).toMatch(/ADMIN_API_TOKEN/);
-    expect(message).not.toContain(shared);
-  });
-
-  it.each([
-    ['both empty', '', ''],
-    ['the proxy secret set and the admin token empty', 'p'.repeat(32), ''],
-    ['the admin token set and the proxy secret empty', '', 'a'.repeat(32)],
-    ['different values', 'p'.repeat(32), 'a'.repeat(32)],
-  ])('accepts %s', (_name, proxy, admin) => {
-    const env = validateEnv({ ...valid, PROXY_SECRET: proxy, ADMIN_API_TOKEN: admin });
-
-    expect(env.PROXY_SECRET).toBe(proxy);
-    expect(env.ADMIN_API_TOKEN).toBe(admin);
+    expect(env.PROXY_SECRET).toBe(shared);
+    expect(env.PROXY_SECRET_NEXT).toBe(shared);
   });
 
   it('defaults REQUEST_TIMEOUT_MS to 10000', () => {
@@ -147,42 +119,16 @@ describe('validateEnv', () => {
     },
   );
 
-  it('refuses PROXY_SECRET_NEXT equal to ADMIN_API_TOKEN, naming both but not the value', () => {
-    const shared = 'sharedvalue0123456789abcdefxyz01';
-
-    const message = thrownMessage(() =>
-      validateEnv({ ...valid, PROXY_SECRET_NEXT: shared, ADMIN_API_TOKEN: shared }),
-    );
-
-    expect(message).toMatch(/PROXY_SECRET_NEXT: must differ from ADMIN_API_TOKEN/);
-    expect(message).not.toContain(shared);
-  });
-
-  it('refuses PROXY_SECRET_NEXT equal to ADMIN_API_TOKEN even when PROXY_SECRET differs', () => {
-    const shared = 'sharedvalue0123456789abcdefxyz01';
-
-    expect(() =>
-      validateEnv({
-        ...valid,
-        PROXY_SECRET: 'p'.repeat(32),
-        PROXY_SECRET_NEXT: shared,
-        ADMIN_API_TOKEN: shared,
-      }),
-    ).toThrow(/PROXY_SECRET_NEXT/);
-  });
-
   it.each([
-    ['PROXY_SECRET empty', '', 'n'.repeat(32), 'a'.repeat(32)],
-    ['both set and different', 'p'.repeat(32), 'n'.repeat(32), 'a'.repeat(32)],
-    ['both equal', 'p'.repeat(32), 'p'.repeat(32), 'a'.repeat(32)],
-    ['NEXT set and the admin token empty', 'p'.repeat(32), 'n'.repeat(32), ''],
-    ['NEXT empty', 'p'.repeat(32), '', 'a'.repeat(32)],
-  ])('accepts PROXY_SECRET_NEXT with %s', (_name, proxy, next, admin) => {
+    ['PROXY_SECRET empty', '', 'n'.repeat(32)],
+    ['both set and different', 'p'.repeat(32), 'n'.repeat(32)],
+    ['both equal', 'p'.repeat(32), 'p'.repeat(32)],
+    ['NEXT empty', 'p'.repeat(32), ''],
+  ])('accepts PROXY_SECRET_NEXT with %s', (_name, proxy, next) => {
     const env = validateEnv({
       ...valid,
       PROXY_SECRET: proxy,
       PROXY_SECRET_NEXT: next,
-      ADMIN_API_TOKEN: admin,
     });
 
     expect(env.PROXY_SECRET).toBe(proxy);

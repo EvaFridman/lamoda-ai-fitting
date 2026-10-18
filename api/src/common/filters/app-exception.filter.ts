@@ -11,7 +11,7 @@ import { HttpAdapterHost } from '@nestjs/core';
 import * as Sentry from '@sentry/nestjs';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
-import { RequestTimeoutError } from '../errors/app.exception.js';
+import { RequestTimeoutError, SessionUnavailableError } from '../errors/app.exception.js';
 import { findRequestContext } from '../http/request-context.js';
 import { toAppException } from './to-app-exception.js';
 
@@ -44,8 +44,12 @@ export class AppExceptionFilter implements ExceptionFilter {
     const requestId = findRequestContext(
       host.switchToHttp().getRequest<IncomingMessage>(),
     )?.requestId;
-    if (exception instanceof RequestTimeoutError && !exception.report) {
-      // A repeat timeout of a route already reported this minute: the log only (spec 0006 F29).
+    if (
+      (exception instanceof RequestTimeoutError || exception instanceof SessionUnavailableError) &&
+      !exception.report
+    ) {
+      // A repeat timeout of a route, or a repeat failed session read, already reported this
+      // minute: the log only (spec 0006 F29, 0013 N29).
       this.logger.warn({ code: error.code, status, requestId }, error.message);
     } else if (status >= 500) {
       // The stack and the original error stay in the log; the body says only "internal error".

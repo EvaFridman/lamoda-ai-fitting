@@ -4,9 +4,8 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { generationInputKey, generationResultKey } from '../../src/storage/keys.js';
+import { signIn } from '../support/sign-in.js';
 import { createTestApp, type TestApp } from '../support/test-app.js';
-
-const ADMIN_TOKEN = 'test-admin-token-0123456789abcdef';
 
 interface GenerationBody {
   id: string;
@@ -57,6 +56,7 @@ let categoryId: string;
 
 beforeAll(async () => {
   testApp = await createTestApp();
+  session = { Cookie: (await signIn(testApp.app)).cookie };
   brandId = (await testApp.prisma.brand.create({ data: { name: 'Generations brand' } })).id;
   categoryId = (
     await testApp.prisma.category.create({
@@ -70,7 +70,8 @@ afterAll(async () => {
 });
 
 const http = () => request(testApp.app.getHttpServer());
-const admin = { 'X-Admin-Token': ADMIN_TOKEN };
+// The Cookie header of a signed-in user (the test app lets one through the closed routes).
+let session: Record<string, string> = {};
 
 function next(): number {
   counter += 1;
@@ -122,15 +123,15 @@ function body(sessionId: string, productIds: string[], extra: Record<string, unk
 }
 
 async function post(payload: Record<string, unknown>): Promise<request.Response> {
-  return http().post('/ai-generations').set(admin).send(payload);
+  return http().post('/ai-generations').set(session).send(payload);
 }
 
 async function patch(id: string, payload: Record<string, unknown>): Promise<request.Response> {
-  return http().patch(`/ai-generations/${id}`).set(admin).send(payload);
+  return http().patch(`/ai-generations/${id}`).set(session).send(payload);
 }
 
 async function get(id: string): Promise<request.Response> {
-  return http().get(`/ai-generations/${id}`).set(admin);
+  return http().get(`/ai-generations/${id}`).set(session);
 }
 
 async function create(
@@ -172,7 +173,7 @@ function expectError(
 }
 
 describe('ai generations: access', () => {
-  it('refuses every route without a token with 401 UNAUTHORIZED', async () => {
+  it('refuses every route without a session with 401 UNAUTHORIZED', async () => {
     const sessionId = await createSession();
     const [productId] = await createProducts(1);
     const generation = await create(sessionId, [productId ?? '']);
@@ -195,9 +196,9 @@ describe('ai generations: access', () => {
     expect(await generationCount(sessionId)).toBe(1);
   });
 
-  it('refuses a wrong token and answers 401 before validation', async () => {
+  it('refuses a broken session cookie and answers 401 before validation', async () => {
     expectError(
-      await http().get('/ai-generations').set({ 'X-Admin-Token': 'wrong' }),
+      await http().get('/ai-generations').set({ Cookie: 'lamoda.session_token=garbage' }),
       401,
       'UNAUTHORIZED',
     );
@@ -263,7 +264,7 @@ describe('ai generations: create, read, update, delete (AC2)', () => {
   it('deletes with 204, removes the links and answers 404 afterwards', async () => {
     const generation = await create(await createSession(), await createProducts(2));
 
-    const response = await http().delete(`/ai-generations/${generation.id}`).set(admin);
+    const response = await http().delete(`/ai-generations/${generation.id}`).set(session);
 
     expect(response.status).toBe(204);
     expect(response.text).toBe('');
@@ -277,13 +278,13 @@ describe('ai generations: create, read, update, delete (AC2)', () => {
     expectError(await get(id), 404, 'NOT_FOUND');
     expectError(await patch(id, { aiModel: 'x' }), 404, 'NOT_FOUND');
     expectError(await patch(id, {}), 404, 'NOT_FOUND');
-    expectError(await http().delete(`/ai-generations/${id}`).set(admin), 404, 'NOT_FOUND');
+    expectError(await http().delete(`/ai-generations/${id}`).set(session), 404, 'NOT_FOUND');
   });
 
   it('answers 400 INVALID_ID for a malformed id on every id route', async () => {
     expectError(await get('not-a-uuid'), 400, 'INVALID_ID');
     expectError(await patch('not-a-uuid', { aiModel: 'x' }), 400, 'INVALID_ID');
-    expectError(await http().delete('/ai-generations/not-a-uuid').set(admin), 400, 'INVALID_ID');
+    expectError(await http().delete('/ai-generations/not-a-uuid').set(session), 400, 'INVALID_ID');
   });
 
   it('answers 200 with the record unchanged, updatedAt included, for an empty PATCH', async () => {
@@ -533,7 +534,7 @@ describe('ai generations: product links', () => {
     const [productId] = await createProducts(1);
     const generation = await create(await createSession(), [productId as string]);
 
-    const response = await http().delete(`/products/${productId}`).set(admin);
+    const response = await http().delete(`/products/${productId}`).set(session);
 
     expectError(response, 409, 'IN_USE');
     expect(await links(generation.id)).toEqual([productId]);
@@ -710,12 +711,12 @@ describe('ai generations: list', () => {
     for (let i = 0; i < 3; i += 1) created.push(await create(sessionId, products));
     const newestFirst = created.map((item) => item.id).reverse();
 
-    const all = (await http().get(`/ai-generations?sessionId=${sessionId}`).set(admin)).body as {
+    const all = (await http().get(`/ai-generations?sessionId=${sessionId}`).set(session)).body as {
       items: GenerationBody[];
       total: number;
     };
     const page = (
-      await http().get(`/ai-generations?sessionId=${sessionId}&limit=2&offset=1`).set(admin)
+      await http().get(`/ai-generations?sessionId=${sessionId}&limit=2&offset=1`).set(session)
     ).body as { items: GenerationBody[]; total: number };
 
     expect(all.total).toBe(3);
@@ -756,7 +757,7 @@ describe('ai generations: list', () => {
     });
     const expected = [...rows.map((row) => row.id).sort((a, b) => (a < b ? 1 : -1)), older.id];
 
-    const list = (await http().get(`/ai-generations?sessionId=${sessionId}`).set(admin)).body as {
+    const list = (await http().get(`/ai-generations?sessionId=${sessionId}`).set(session)).body as {
       items: GenerationBody[];
     };
 
@@ -770,8 +771,8 @@ describe('ai generations: list', () => {
     const own = await create(mine, products);
     await create(other, products);
 
-    const everything = await http().get('/ai-generations').set(admin);
-    const filtered = (await http().get(`/ai-generations?sessionId=${mine}`).set(admin)).body as {
+    const everything = await http().get('/ai-generations').set(session);
+    const filtered = (await http().get(`/ai-generations?sessionId=${mine}`).set(session)).body as {
       items: GenerationBody[];
       total: number;
     };
@@ -788,7 +789,7 @@ describe('ai generations: list', () => {
 
     const response = await http()
       .get(`/ai-generations?sessionId=${sessionId.toUpperCase()}`)
-      .set(admin);
+      .set(session);
 
     expect(response.status).toBe(200);
     expect((response.body as { items: GenerationBody[] }).items.map((item) => item.id)).toEqual([
@@ -797,7 +798,7 @@ describe('ai generations: list', () => {
   });
 
   it('answers an empty list for a well-formed sessionId of no session', async () => {
-    const response = await http().get(`/ai-generations?sessionId=${randomUUID()}`).set(admin);
+    const response = await http().get(`/ai-generations?sessionId=${randomUUID()}`).set(session);
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ items: [], total: 0 });
@@ -807,25 +808,25 @@ describe('ai generations: list', () => {
     const id = randomUUID();
 
     expectError(
-      await http().get('/ai-generations?sessionId=').set(admin),
+      await http().get('/ai-generations?sessionId=').set(session),
       400,
       'VALIDATION_FAILED',
       'sessionId',
     );
     expectError(
-      await http().get('/ai-generations?sessionId=not-a-uuid').set(admin),
+      await http().get('/ai-generations?sessionId=not-a-uuid').set(session),
       400,
       'VALIDATION_FAILED',
       'sessionId',
     );
     expectError(
-      await http().get(`/ai-generations?sessionId=${id}&sessionId=${id}`).set(admin),
+      await http().get(`/ai-generations?sessionId=${id}&sessionId=${id}`).set(session),
       400,
       'VALIDATION_FAILED',
       'sessionId',
     );
     expectError(
-      await http().get('/ai-generations?status=pending').set(admin),
+      await http().get('/ai-generations?status=pending').set(session),
       400,
       'VALIDATION_FAILED',
       'status',
@@ -834,7 +835,7 @@ describe('ai generations: list', () => {
 
   it('refuses limit 101', async () => {
     expectError(
-      await http().get('/ai-generations?limit=101').set(admin),
+      await http().get('/ai-generations?limit=101').set(session),
       400,
       'VALIDATION_FAILED',
       'limit',

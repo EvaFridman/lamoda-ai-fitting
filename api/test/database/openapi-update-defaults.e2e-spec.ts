@@ -5,10 +5,11 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { LEFT_OUT_IS_ZERO } from '../../src/common/validation/rules.js';
+import { signIn } from '../support/sign-in.js';
 import { createTestApp, type TestApp } from '../support/test-app.js';
 
-const ADMIN_TOKEN = 'test-admin-token-0123456789abcdef';
-const admin = { 'X-Admin-Token': ADMIN_TOKEN };
+// The Cookie header of a signed-in user (the test app lets one through the closed routes).
+let userCookie: Record<string, string> = {};
 
 interface Schema {
   properties?: Record<string, { default?: unknown; description?: string }>;
@@ -21,6 +22,7 @@ let categoryId: string;
 
 beforeAll(async () => {
   testApp = await createTestApp();
+  userCookie = { Cookie: (await signIn(testApp.app)).cookie };
   const document = SwaggerModule.createDocument(testApp.app, new DocumentBuilder().build());
   schemas = (document.components?.schemas ?? {}) as Record<string, Schema>;
   const brand = await testApp.prisma.brand.create({ data: { name: `Brand ${randomUUID()}` } });
@@ -91,7 +93,7 @@ describe('fields left out', () => {
   async function createProduct(extra: Record<string, unknown> = {}) {
     const response = await http()
       .post('/products')
-      .set(admin)
+      .set(userCookie)
       .send({
         article: `ART-${randomUUID()}`,
         name: 'Dress',
@@ -107,18 +109,18 @@ describe('fields left out', () => {
   it('create without sortOrder gives 0; PATCH without it keeps the value (category)', async () => {
     const created = await http()
       .post('/categories')
-      .set(admin)
+      .set(userCookie)
       .send({ name: `Cat ${randomUUID()}`, slug: randomUUID(), isActive: true });
     expect(created.status).toBe(201);
     expect(created.body).toMatchObject({ sortOrder: 0 });
     const path = `/categories/${(created.body as { id: string }).id}`;
 
-    expect((await http().patch(path).set(admin).send({ sortOrder: 4 })).body).toMatchObject({
+    expect((await http().patch(path).set(userCookie).send({ sortOrder: 4 })).body).toMatchObject({
       sortOrder: 4,
     });
     const renamed = await http()
       .patch(path)
-      .set(admin)
+      .set(userCookie)
       .send({ name: `Renamed ${randomUUID()}` });
     expect(renamed.status).toBe(200);
     expect(renamed.body).toMatchObject({ sortOrder: 4 });
@@ -129,10 +131,10 @@ describe('fields left out', () => {
     expect(product.discount).toBe(0);
     const path = `/products/${product.id}`;
 
-    expect((await http().patch(path).set(admin).send({ discount: 15 })).body).toMatchObject({
+    expect((await http().patch(path).set(userCookie).send({ discount: 15 })).body).toMatchObject({
       discount: 15,
     });
-    const renamed = await http().patch(path).set(admin).send({ name: 'Skirt' });
+    const renamed = await http().patch(path).set(userCookie).send({ name: 'Skirt' });
     expect(renamed.status).toBe(200);
     expect(renamed.body).toMatchObject({ name: 'Skirt', discount: 15 });
   });
@@ -141,13 +143,13 @@ describe('fields left out', () => {
     const product = await createProduct();
     const created = await http()
       .post(`/products/${product.id}/images`)
-      .set(admin)
+      .set(userCookie)
       .send({ imageKey: 'a.jpg' });
     expect(created.body).toMatchObject({ sortOrder: 0 });
     const path = `/products/${product.id}/images/${(created.body as { id: string }).id}`;
 
-    await http().patch(path).set(admin).send({ sortOrder: 6 });
-    const response = await http().patch(path).set(admin).send({ imageKey: 'b.jpg' });
+    await http().patch(path).set(userCookie).send({ sortOrder: 6 });
+    const response = await http().patch(path).set(userCookie).send({ imageKey: 'b.jpg' });
     expect(response.status).toBe(200);
     expect(response.body).toMatchObject({ imageKey: 'b.jpg', sortOrder: 6 });
   });
@@ -157,7 +159,7 @@ describe('a parent deleted during the insert', () => {
   it('answers 404 NOT_FOUND "Product not found" for an image', async () => {
     const response = await http()
       .post('/products')
-      .set(admin)
+      .set(userCookie)
       .send({ article: `ART-${randomUUID()}`, name: 'Dress', price: 100, brandId, categoryId });
     const productId = (response.body as { id: string }).id;
     const create = testApp.prisma.productImage.create.bind(testApp.prisma.productImage);
@@ -170,7 +172,7 @@ describe('a parent deleted during the insert', () => {
 
     const result = await http()
       .post(`/products/${productId}/images`)
-      .set(admin)
+      .set(userCookie)
       .send({ imageKey: 'a.jpg' });
 
     expect(spy).toHaveBeenCalledTimes(1);

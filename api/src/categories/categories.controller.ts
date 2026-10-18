@@ -12,7 +12,7 @@ import {
 import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 
 import { ApiErrors } from '../common/errors/api-errors.decorator.js';
-import { AdminOnly, Public } from '../common/auth/access.decorators.js';
+import { Closed, Public } from '../common/auth/access.decorators.js';
 import { ApiPaginatedResponse, type Paginated } from '../common/pagination/paginated.js';
 import { UuidParam } from '../common/pipes/uuid.pipe.js';
 import { CategoriesService } from './categories.service.js';
@@ -21,7 +21,7 @@ import { CreateCategoryDto } from './dto/create-category.dto.js';
 import { ListCategoriesQueryDto } from './dto/list-categories-query.dto.js';
 import { UpdateCategoryDto } from './dto/update-category.dto.js';
 
-// Reads are public, writes need the admin token (spec 0004 E1).
+// Reads are public, writes are closed to everyone (spec 0013 N8).
 @ApiTags('categories')
 @Controller('categories')
 export class CategoriesController {
@@ -42,7 +42,7 @@ export class CategoriesController {
   }
 
   @Post()
-  @AdminOnly()
+  @Closed()
   @ApiCreatedResponse({ type: CategoryResponseDto })
   @ApiErrors('ALREADY_EXISTS')
   create(@Body() dto: CreateCategoryDto): Promise<CategoryResponseDto> {
@@ -50,7 +50,7 @@ export class CategoriesController {
   }
 
   @Patch(':id')
-  @AdminOnly()
+  @Closed()
   @ApiOkResponse({ type: CategoryResponseDto })
   @ApiErrors('ALREADY_EXISTS')
   update(
@@ -61,7 +61,7 @@ export class CategoriesController {
   }
 
   @Delete(':id')
-  @AdminOnly()
+  @Closed()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiNoContentResponse()
   @ApiErrors('IN_USE')

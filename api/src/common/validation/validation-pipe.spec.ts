@@ -107,13 +107,13 @@ describe('createValidationPipe', () => {
   });
 
   it('refuses an unknown field (forbidNonWhitelisted)', async () => {
-    const error = await failure({ ...valid, admin: true });
+    const error = await failure({ ...valid, role: true });
 
     expect(error.body.error.details).toEqual([
       {
-        field: 'admin',
+        field: 'role',
         code: 'WHITELIST_VALIDATION',
-        message: 'property admin should not exist',
+        message: 'property role should not exist',
       },
     ]);
   });
@@ -200,9 +200,9 @@ describe('clipping of field and message (F25)', () => {
   });
 
   it('leaves short fields and messages unchanged', async () => {
-    expect(await unknownKeyDetail('admin')).toMatchObject({
-      field: 'admin',
-      message: 'property admin should not exist',
+    expect(await unknownKeyDetail('role')).toMatchObject({
+      field: 'role',
+      message: 'property role should not exist',
     });
   });
 });

@@ -349,7 +349,7 @@ describe('GET /products/facets: the answer', () => {
     expect(body.price).toEqual({ min: 100, max: 250.5 });
   });
 
-  it('is public: needs no admin token', async () => {
+  it('is public: needs no session', async () => {
     const response = await http().get('/products/facets');
 
     expect(response.status).toBe(200);

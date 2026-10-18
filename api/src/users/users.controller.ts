@@ -12,7 +12,7 @@ import {
 import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 
 import { ApiErrors } from '../common/errors/api-errors.decorator.js';
-import { AdminOnly } from '../common/auth/access.decorators.js';
+import { Closed } from '../common/auth/access.decorators.js';
 import { ApiPaginatedResponse, type Paginated } from '../common/pagination/paginated.js';
 import { PaginationQueryDto } from '../common/pagination/pagination-query.dto.js';
 import { UuidParam } from '../common/pipes/uuid.pipe.js';
@@ -21,10 +21,10 @@ import { UpdateUserDto } from './dto/update-user.dto.js';
 import { UserResponseDto } from './dto/user-response.dto.js';
 import { UsersService } from './users.service.js';
 
-// Every route, reads included, needs the admin token (spec 0004 E1).
+// The routes of other users: closed to everyone (spec 0013 N8); a user's own data is /me.
 @ApiTags('users')
 @Controller('users')
-@AdminOnly()
+@Closed()
 export class UsersController {
   constructor(private readonly users: UsersService) {}
 

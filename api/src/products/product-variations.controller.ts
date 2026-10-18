@@ -12,7 +12,7 @@ import {
 import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 
 import { ApiErrors } from '../common/errors/api-errors.decorator.js';
-import { AdminOnly, Public } from '../common/auth/access.decorators.js';
+import { Closed, Public } from '../common/auth/access.decorators.js';
 import { ApiPaginatedResponse, type Paginated } from '../common/pagination/paginated.js';
 import { PaginationQueryDto } from '../common/pagination/pagination-query.dto.js';
 import { UuidParam } from '../common/pipes/uuid.pipe.js';
@@ -22,7 +22,7 @@ import { UpdateProductVariationDto } from './dto/update-product-variation.dto.js
 import { ProductVariationsService } from './product-variations.service.js';
 
 // The sizes of a product with their stock, nested under it (spec 0004 E3, E44). Reads are public,
-// writes need the admin token (E1).
+// writes are closed to everyone (spec 0013 N8).
 @ApiTags('products')
 @Controller('products/:id/variations')
 export class ProductVariationsController {
@@ -49,7 +49,7 @@ export class ProductVariationsController {
   }
 
   @Post()
-  @AdminOnly()
+  @Closed()
   @ApiCreatedResponse({ type: ProductVariationResponseDto })
   @ApiErrors('ALREADY_EXISTS')
   create(
@@ -60,7 +60,7 @@ export class ProductVariationsController {
   }
 
   @Patch(':variationId')
-  @AdminOnly()
+  @Closed()
   @ApiOkResponse({ type: ProductVariationResponseDto })
   @ApiErrors('ALREADY_EXISTS')
   update(
@@ -72,7 +72,7 @@ export class ProductVariationsController {
   }
 
   @Delete(':variationId')
-  @AdminOnly()
+  @Closed()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiNoContentResponse()
   delete(@UuidParam('id') productId: string, @UuidParam('variationId') id: string): Promise<void> {

@@ -504,11 +504,6 @@
             }
           }
         },
-        "security": [
-          {
-            "admin": []
-          }
-        ],
         "tags": [
           "categories"
         ]
@@ -709,11 +704,6 @@
             }
           }
         },
-        "security": [
-          {
-            "admin": []
-          }
-        ],
         "tags": [
           "categories"
         ]
@@ -806,11 +796,6 @@
             }
           }
         },
-        "security": [
-          {
-            "admin": []
-          }
-        ],
         "tags": [
           "categories"
         ]
@@ -1010,11 +995,6 @@
             }
           }
         },
-        "security": [
-          {
-            "admin": []
-          }
-        ],
         "tags": [
           "brands"
         ]
@@ -1215,11 +1195,6 @@
             }
           }
         },
-        "security": [
-          {
-            "admin": []
-          }
-        ],
         "tags": [
           "brands"
         ]
@@ -1312,11 +1287,6 @@
             }
           }
         },
-        "security": [
-          {
-            "admin": []
-          }
-        ],
         "tags": [
           "brands"
         ]
@@ -1516,11 +1486,6 @@
             }
           }
         },
-        "security": [
-          {
-            "admin": []
-          }
-        ],
         "tags": [
           "attributes"
         ]
@@ -1721,11 +1686,6 @@
             }
           }
         },
-        "security": [
-          {
-            "admin": []
-          }
-        ],
         "tags": [
           "attributes"
         ]
@@ -1818,11 +1778,6 @@
             }
           }
         },
-        "security": [
-          {
-            "admin": []
-          }
-        ],
         "tags": [
           "attributes"
         ]
@@ -2061,11 +2016,6 @@
             }
           }
         },
-        "security": [
-          {
-            "admin": []
-          }
-        ],
         "tags": [
           "attributes"
         ]
@@ -2284,11 +2234,6 @@
             }
           }
         },
-        "security": [
-          {
-            "admin": []
-          }
-        ],
         "tags": [
           "attributes"
         ]
@@ -2390,11 +2335,6 @@
             }
           }
         },
-        "security": [
-          {
-            "admin": []
-          }
-        ],
         "tags": [
           "attributes"
         ]
@@ -2706,11 +2646,6 @@
             }
           }
         },
-        "security": [
-          {
-            "admin": []
-          }
-        ],
         "tags": [
           "products"
         ]
@@ -3071,11 +3006,6 @@
             }
           }
         },
-        "security": [
-          {
-            "admin": []
-          }
-        ],
         "tags": [
           "products"
         ]
@@ -3169,11 +3099,6 @@
             }
           }
         },
-        "security": [
-          {
-            "admin": []
-          }
-        ],
         "summary": "",
         "tags": [
           "products"
@@ -3403,11 +3328,6 @@
             }
           }
         },
-        "security": [
-          {
-            "admin": []
-          }
-        ],
         "tags": [
           "products"
         ]
@@ -3616,11 +3536,6 @@
             }
           }
         },
-        "security": [
-          {
-            "admin": []
-          }
-        ],
         "tags": [
           "products"
         ]
@@ -3712,11 +3627,6 @@
             }
           }
         },
-        "security": [
-          {
-            "admin": []
-          }
-        ],
         "tags": [
           "products"
         ]
@@ -3955,11 +3865,6 @@
             }
           }
         },
-        "security": [
-          {
-            "admin": []
-          }
-        ],
         "tags": [
           "products"
         ]
@@ -4178,11 +4083,6 @@
             }
           }
         },
-        "security": [
-          {
-            "admin": []
-          }
-        ],
         "tags": [
           "products"
         ]
@@ -4274,11 +4174,6 @@
             }
           }
         },
-        "security": [
-          {
-            "admin": []
-          }
-        ],
         "tags": [
           "products"
         ]
@@ -4517,11 +4412,6 @@
             }
           }
         },
-        "security": [
-          {
-            "admin": []
-          }
-        ],
         "tags": [
           "products"
         ]
@@ -4703,11 +4593,6 @@
             }
           }
         },
-        "security": [
-          {
-            "admin": []
-          }
-        ],
         "tags": [
           "products"
         ]
@@ -4818,11 +4703,6 @@
             }
           }
         },
-        "security": [
-          {
-            "admin": []
-          }
-        ],
         "tags": [
           "users"
         ]
@@ -4922,11 +4802,6 @@
             }
           }
         },
-        "security": [
-          {
-            "admin": []
-          }
-        ],
         "tags": [
           "users"
         ]
@@ -5018,11 +4893,6 @@
             }
           }
         },
-        "security": [
-          {
-            "admin": []
-          }
-        ],
         "tags": [
           "users"
         ]
@@ -5142,11 +5012,6 @@
             }
           }
         },
-        "security": [
-          {
-            "admin": []
-          }
-        ],
         "tags": [
           "users"
         ]
@@ -5229,11 +5094,6 @@
             }
           }
         },
-        "security": [
-          {
-            "admin": []
-          }
-        ],
         "tags": [
           "users"
         ]
@@ -5356,7 +5216,7 @@
         },
         "security": [
           {
-            "admin": []
+            "session": []
           }
         ],
         "tags": [
@@ -5460,7 +5320,7 @@
         },
         "security": [
           {
-            "admin": []
+            "session": []
           }
         ],
         "tags": [
@@ -5556,7 +5416,7 @@
         },
         "security": [
           {
-            "admin": []
+            "session": []
           }
         ],
         "tags": [
@@ -5680,7 +5540,7 @@
         },
         "security": [
           {
-            "admin": []
+            "session": []
           }
         ],
         "tags": [
@@ -5767,7 +5627,7 @@
         },
         "security": [
           {
-            "admin": []
+            "session": []
           }
         ],
         "tags": [
@@ -5892,7 +5752,7 @@
         },
         "security": [
           {
-            "admin": []
+            "session": []
           }
         ],
         "tags": [
@@ -5984,11 +5844,6 @@
             }
           }
         },
-        "security": [
-          {
-            "admin": []
-          }
-        ],
         "tags": [
           "ai-generations"
         ]
@@ -6082,7 +5937,7 @@
         },
         "security": [
           {
-            "admin": []
+            "session": []
           }
         ],
         "tags": [
@@ -6194,11 +6049,6 @@
             }
           }
         },
-        "security": [
-          {
-            "admin": []
-          }
-        ],
         "tags": [
           "ai-generations"
         ]
@@ -6283,7 +6133,7 @@
         },
         "security": [
           {
-            "admin": []
+            "session": []
           }
         ],
         "tags": [
@@ -6302,10 +6152,11 @@
   "servers": [],
   "components": {
     "securitySchemes": {
-      "admin": {
+      "session": {
         "type": "apiKey",
-        "in": "header",
-        "name": "X-Admin-Token"
+        "in": "cookie",
+        "name": "lamoda.session_token",
+        "description": "Set by /api/auth sign-in; named `__Secure-lamoda.session_token` on https."
       }
     },
     "schemas": {

@@ -4,9 +4,8 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { signIn } from '../support/sign-in.js';
 import { createTestApp, type TestApp } from '../support/test-app.js';
-
-const ADMIN_TOKEN = 'test-admin-token-0123456789abcdef';
 
 interface SessionBody {
   id: string;
@@ -25,6 +24,7 @@ let counter = 0;
 
 beforeAll(async () => {
   testApp = await createTestApp();
+  userCookie = { Cookie: (await signIn(testApp.app)).cookie };
 });
 
 afterAll(async () => {
@@ -32,7 +32,8 @@ afterAll(async () => {
 });
 
 const http = () => request(testApp.app.getHttpServer());
-const admin = { 'X-Admin-Token': ADMIN_TOKEN };
+// The Cookie header of a signed-in user (the test app lets one through the closed routes).
+let userCookie: Record<string, string> = {};
 
 async function createUser(): Promise<string> {
   counter += 1;
@@ -44,11 +45,11 @@ async function createUser(): Promise<string> {
 }
 
 async function post(body: Record<string, unknown>): Promise<request.Response> {
-  return http().post('/fitting-sessions').set(admin).send(body);
+  return http().post('/fitting-sessions').set(userCookie).send(body);
 }
 
 async function patch(id: string, body: Record<string, unknown>): Promise<request.Response> {
-  return http().patch(`/fitting-sessions/${id}`).set(admin).send(body);
+  return http().patch(`/fitting-sessions/${id}`).set(userCookie).send(body);
 }
 
 async function create(
@@ -126,22 +127,22 @@ describe('fitting sessions: access', () => {
     }
   });
 
-  it('answers 401 for an Authorization header alone and for an empty X-Admin-Token', async () => {
+  it('answers 401 for an Authorization header alone and for an empty session cookie', async () => {
     expectError(
       await http().get('/fitting-sessions').set({ Authorization: 'Bearer x' }),
       401,
       'UNAUTHORIZED',
     );
     expectError(
-      await http().get('/fitting-sessions').set({ 'X-Admin-Token': '' }),
+      await http().get('/fitting-sessions').set({ Cookie: 'lamoda.session_token=' }),
       401,
       'UNAUTHORIZED',
     );
   });
 
-  it('refuses a wrong token with 401 UNAUTHORIZED', async () => {
+  it('refuses a garbage session cookie with 401 UNAUTHORIZED', async () => {
     expectError(
-      await http().get('/fitting-sessions').set({ 'X-Admin-Token': 'wrong-token' }),
+      await http().get('/fitting-sessions').set({ Cookie: 'lamoda.session_token=garbage' }),
       401,
       'UNAUTHORIZED',
     );
@@ -162,7 +163,7 @@ describe('fitting sessions: create, read, update, delete (AC2)', () => {
 
   it('reads one by id with 200', async () => {
     const session = await create(await createUser(), { title: 'A' });
-    const response = await http().get(`/fitting-sessions/${session.id}`).set(admin);
+    const response = await http().get(`/fitting-sessions/${session.id}`).set(userCookie);
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual(session);
@@ -179,20 +180,24 @@ describe('fitting sessions: create, read, update, delete (AC2)', () => {
 
   it('deletes with 204 and an empty body, then answers 404 NOT_FOUND', async () => {
     const session = await create(await createUser());
-    const response = await http().delete(`/fitting-sessions/${session.id}`).set(admin);
+    const response = await http().delete(`/fitting-sessions/${session.id}`).set(userCookie);
 
     expect(response.status).toBe(204);
     expect(response.text).toBe('');
-    expectError(await http().get(`/fitting-sessions/${session.id}`).set(admin), 404, 'NOT_FOUND');
+    expectError(
+      await http().get(`/fitting-sessions/${session.id}`).set(userCookie),
+      404,
+      'NOT_FOUND',
+    );
   });
 
   it('answers 404 NOT_FOUND for an unknown id on get, update and delete', async () => {
     const id = randomUUID();
 
-    expectError(await http().get(`/fitting-sessions/${id}`).set(admin), 404, 'NOT_FOUND');
+    expectError(await http().get(`/fitting-sessions/${id}`).set(userCookie), 404, 'NOT_FOUND');
     expectError(await patch(id, { title: 'x' }), 404, 'NOT_FOUND');
     expectError(await patch(id, { isActive: true }), 404, 'NOT_FOUND');
-    expectError(await http().delete(`/fitting-sessions/${id}`).set(admin), 404, 'NOT_FOUND');
+    expectError(await http().delete(`/fitting-sessions/${id}`).set(userCookie), 404, 'NOT_FOUND');
   });
 
   it('answers 404 NOT_FOUND for an empty PATCH of an unknown id', async () => {
@@ -200,9 +205,17 @@ describe('fitting sessions: create, read, update, delete (AC2)', () => {
   });
 
   it('answers 400 INVALID_ID for a malformed id on every id route', async () => {
-    expectError(await http().get('/fitting-sessions/not-a-uuid').set(admin), 400, 'INVALID_ID');
+    expectError(
+      await http().get('/fitting-sessions/not-a-uuid').set(userCookie),
+      400,
+      'INVALID_ID',
+    );
     expectError(await patch('not-a-uuid', { title: 'x' }), 400, 'INVALID_ID');
-    expectError(await http().delete('/fitting-sessions/not-a-uuid').set(admin), 400, 'INVALID_ID');
+    expectError(
+      await http().delete('/fitting-sessions/not-a-uuid').set(userCookie),
+      400,
+      'INVALID_ID',
+    );
   });
 
   it('lists the routes in the Swagger document with a uuid id', () => {
@@ -314,7 +327,7 @@ describe('fitting sessions: one active session per user (E48)', () => {
       },
     });
 
-    const response = await http().delete(`/fitting-sessions/${active.id}`).set(admin);
+    const response = await http().delete(`/fitting-sessions/${active.id}`).set(userCookie);
 
     expect(response.status).toBe(204);
     expect(await testApp.prisma.aiGeneration.count({ where: { sessionId: active.id } })).toBe(0);
@@ -512,7 +525,7 @@ describe('fitting sessions: list', () => {
 
     const response = await http()
       .get(`/fitting-sessions?userId=${userId}&limit=2&offset=1`)
-      .set(admin);
+      .set(userCookie);
 
     expect(response.status).toBe(200);
     const body = response.body as { items: SessionBody[]; total: number };
@@ -523,7 +536,7 @@ describe('fitting sessions: list', () => {
 
   it('refuses limit 101 with 400 VALIDATION_FAILED', async () => {
     expectError(
-      await http().get('/fitting-sessions?limit=101').set(admin),
+      await http().get('/fitting-sessions?limit=101').set(userCookie),
       400,
       'VALIDATION_FAILED',
       'limit',
@@ -548,7 +561,7 @@ describe('fitting sessions: list', () => {
       older.id,
     ];
 
-    const body = (await http().get(`/fitting-sessions?userId=${userId}`).set(admin)).body as {
+    const body = (await http().get(`/fitting-sessions?userId=${userId}`).set(userCookie)).body as {
       items: SessionBody[];
     };
 
@@ -561,7 +574,7 @@ describe('fitting sessions: list', () => {
     const mine = await create(userId);
     await create(otherId);
 
-    const body = (await http().get(`/fitting-sessions?userId=${userId}`).set(admin)).body as {
+    const body = (await http().get(`/fitting-sessions?userId=${userId}`).set(userCookie)).body as {
       items: SessionBody[];
       total: number;
     };
@@ -576,7 +589,7 @@ describe('fitting sessions: list', () => {
 
     const response = await http()
       .get(`/fitting-sessions?userId=${userId.toUpperCase()}`)
-      .set(admin);
+      .set(userCookie);
 
     expect(response.status).toBe(200);
     expect((response.body as { items: SessionBody[] }).items.map((item) => item.id)).toEqual([
@@ -585,7 +598,7 @@ describe('fitting sessions: list', () => {
   });
 
   it('answers an empty list for a well-formed userId of no user', async () => {
-    const response = await http().get(`/fitting-sessions?userId=${randomUUID()}`).set(admin);
+    const response = await http().get(`/fitting-sessions?userId=${randomUUID()}`).set(userCookie);
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ items: [], total: 0 });
@@ -595,19 +608,19 @@ describe('fitting sessions: list', () => {
     const id = randomUUID();
 
     expectError(
-      await http().get('/fitting-sessions?userId=').set(admin),
+      await http().get('/fitting-sessions?userId=').set(userCookie),
       400,
       'VALIDATION_FAILED',
       'userId',
     );
     expectError(
-      await http().get('/fitting-sessions?userId=not-a-uuid').set(admin),
+      await http().get('/fitting-sessions?userId=not-a-uuid').set(userCookie),
       400,
       'VALIDATION_FAILED',
       'userId',
     );
     expectError(
-      await http().get(`/fitting-sessions?userId=${id}&userId=${id}`).set(admin),
+      await http().get(`/fitting-sessions?userId=${id}&userId=${id}`).set(userCookie),
       400,
       'VALIDATION_FAILED',
       'userId',
@@ -616,7 +629,7 @@ describe('fitting sessions: list', () => {
 
   it('refuses an unknown query parameter', async () => {
     expectError(
-      await http().get('/fitting-sessions?isActive=true').set(admin),
+      await http().get('/fitting-sessions?isActive=true').set(userCookie),
       400,
       'VALIDATION_FAILED',
       'isActive',

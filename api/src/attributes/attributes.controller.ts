@@ -12,7 +12,7 @@ import {
 import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 
 import { ApiErrors } from '../common/errors/api-errors.decorator.js';
-import { AdminOnly, Public } from '../common/auth/access.decorators.js';
+import { Closed, Public } from '../common/auth/access.decorators.js';
 import { ApiPaginatedResponse, type Paginated } from '../common/pagination/paginated.js';
 import { PaginationQueryDto } from '../common/pagination/pagination-query.dto.js';
 import { UuidParam } from '../common/pipes/uuid.pipe.js';
@@ -21,7 +21,7 @@ import { AttributeResponseDto } from './dto/attribute-response.dto.js';
 import { CreateAttributeDto } from './dto/create-attribute.dto.js';
 import { UpdateAttributeDto } from './dto/update-attribute.dto.js';
 
-// Reads are public, writes need the admin token (spec 0004 E1).
+// Reads are public, writes are closed to everyone (spec 0013 N8).
 @ApiTags('attributes')
 @Controller('attributes')
 export class AttributesController {
@@ -42,7 +42,7 @@ export class AttributesController {
   }
 
   @Post()
-  @AdminOnly()
+  @Closed()
   @ApiCreatedResponse({ type: AttributeResponseDto })
   @ApiErrors('ALREADY_EXISTS')
   create(@Body() dto: CreateAttributeDto): Promise<AttributeResponseDto> {
@@ -50,7 +50,7 @@ export class AttributesController {
   }
 
   @Patch(':id')
-  @AdminOnly()
+  @Closed()
   @ApiOkResponse({ type: AttributeResponseDto })
   @ApiErrors('ALREADY_EXISTS')
   update(
@@ -61,7 +61,7 @@ export class AttributesController {
   }
 
   @Delete(':id')
-  @AdminOnly()
+  @Closed()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiNoContentResponse()
   @ApiErrors('IN_USE')
