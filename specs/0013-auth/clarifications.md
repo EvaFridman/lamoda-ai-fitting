@@ -3,7 +3,7 @@
 Status: accepted (2026-10-16); amended 2026-10-16 at the plan: no guests (N2, N9, N10 withdrawn),
 the first name is optional (N5), Better Auth's own error format (N17), a 5-minute session cache
 (N18); amended 2026-10-18 at the review of PR 1 (N31–N36); amended 2026-10-19 at T7 (N37–N39);
-amended 2026-10-19 at T8 (N40–N44); amended 2026-10-19 at T9 (N45–N49).
+amended 2026-10-19 at T8 (N40–N44); amended 2026-10-19 at T9 (N45–N49); amended 2026-10-19 at T9a (N50).
 
 The owner's decisions for this spec. Ids `N1`, `N2`, … are referred to by the spec, the plan and
 code comments. All decisions below: owner, 2026-10-16.
@@ -292,3 +292,14 @@ All decisions below: owner, 2026-10-18, on the review of the spec's pull request
   Locally the fake provider signs in; checking the real Google locally takes a separate client,
   `lamoda-ai-fitting-dev`, whose values stay in the local `.env`. Rejected: both redirects on one
   client (T9's first wording).
+- **N50. The cleanup of expired sign-in rows** (owner, 2026-10-19, at T9a). The schedule
+  `delete-expired-auth-rows` runs at 03:00 Europe/Moscow; the worker creates it at start, or brings
+  an existing one to the code's settings at every start (the code is the source of truth; a pause
+  set by hand stays). Batches of 1000 rows, no index on `expires_at` (small tables, one pass a day,
+  no migration). The activity is retried from 1 s up to 1 minute apart, at most 25 attempts, so it
+  gives up within the run's limit of 1 hour; what is left waits for the next day, and an
+  overlapping run is skipped. Its failures reach Sentry through `sentryActivityInterceptor` (first
+  and last attempt; the attempt limit is what lets it see the last one). The workflow is tested on
+  the throwaway Temporal (0011 M16), not `@temporalio/testing` (T9a's wording). Rejected: 03:00
+  UTC, every 24 hours from creation; leaving a differing schedule as it is; an index; retries
+  without a limit.

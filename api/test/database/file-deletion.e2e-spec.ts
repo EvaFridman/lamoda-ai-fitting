@@ -110,8 +110,8 @@ describe('files deleted through Temporal', () => {
     s3 = createTestS3Client();
     proxy = await startTcpProxy(testStorageSettings().endpoint);
     workerStorage = createTestStorageService(proxy.endpoint);
-    worker = await startTestWorker(settings, workerStorage);
     testApp = await createTestApp({ temporal: settings });
+    worker = await startTestWorker(settings, workerStorage, testApp.prisma);
   }, 120_000);
 
   afterAll(async () => {

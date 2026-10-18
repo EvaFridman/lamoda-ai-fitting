@@ -345,8 +345,8 @@ describe('DELETE /me starts the file deletion (AC12)', () => {
   beforeAll(async () => {
     s3 = createTestS3Client();
     workerStorage = createTestStorageService();
-    worker = await startTestWorker(settings, workerStorage);
     testApp = await createTestApp({ temporal: settings });
+    worker = await startTestWorker(settings, workerStorage, testApp.prisma);
   }, 120_000);
 
   afterAll(async () => {

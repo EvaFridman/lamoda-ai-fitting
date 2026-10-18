@@ -252,7 +252,11 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   answers are Better Auth's `{ code, message }` (N17), except their own rate limit's 429, which
   keeps the api's format (N32); no Nest guard, interceptor or filter sees them. A session is a row
   in `sessions` plus a signed cookie; its signed copy answers without the database for 5 minutes
-  (N18), so a sign-out or a deleted user may still pass for that long. Production needs
+  (N18), so a sign-out or a deleted user may still pass for that long. Expired `sessions` and
+  `verifications` rows are deleted, 1000 per statement, every day at 03:00 Moscow time by the
+  Temporal schedule `delete-expired-auth-rows` (workflow `deleteExpiredAuthRows`). The worker
+  creates it at start, or brings an existing one to the code's settings at every start; a pause
+  set by hand stays (N27, N50). Production needs
   `BETTER_AUTH_SECRET` (32+ letters or digits, not a proxy secret), `GOOGLE_CLIENT_ID` and
   `GOOGLE_CLIENT_SECRET`, and refuses the fake provider's `AUTH_FAKE_OIDC_*` (`assertServerEnv`).
 - `api` socket.io is set up by `SocketIoAdapter` (`realtime/`, used by `server.ts` and the socket
