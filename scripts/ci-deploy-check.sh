@@ -6,7 +6,7 @@
 #      nginx's security headers on api and web and on nginx's own errors (AC13);
 #      nginx's limits per address: a flood, a 2 MB body, an 11th socket (AC10–AC12), a 51st request
 #      in progress and an unfinished header (F36); the seed uploaded its photos and nginx serves
-#      them at /media/ (spec 0011 AC2, AC3);
+#      them at /media/ (spec 0011 AC2, AC3), from its cache while the storage answers 5xx (M36);
 #   2. deploy the same images as a second version (green) while scripts/request-loop.sh runs:
 #      no request may fail (AC26); smoke test of the new version; the second seed changed no
 #      counts (spec 0002, AC11) and uploaded no photo, no object changed (spec 0011 AC6);
@@ -372,6 +372,41 @@ check_media() {
   echo "nginx sent the storage $(wc -l <<< "$from_nginx" | tr -d ' ') requests: a key and its Host, nothing else"
 }
 
+# spec 0011 M36: while the storage answers 5xx, a photo nginx has cached is served from the cache
+# even when expired, and one it has not answers 503 in the api's format. The photo here is fresh
+# for a second (its own Cache-Control), then stays in the cache as an expired copy; it sits at the
+# top of media/ (no new folder) and is removed afterwards, so AC6's comparison of media/ after the
+# second deploy does not see it.
+check_media_stale() {
+  local key=media/stale-check.webp headers got asked
+  s3_admin -o /dev/null -X PUT -H 'Content-Type: image/webp' -H 'Cache-Control: public, max-age=1' \
+    --data-binary stale "http://localhost:8333/ai-fitting/$key"
+  headers="$(curl -sk --max-time 10 -o /dev/null -D - "https://localhost/$key" | tr -d '\r' || true)"
+  head -n 1 <<< "$headers" | grep -q '^HTTP/1.1 200 ' \
+    && grep -qix 'cache-control: public, max-age=1' <<< "$headers" \
+    || { printf 'ci-deploy-check: /%s answers:\n%s\nexpected 200 with Cache-Control: public, max-age=1\n' "$key" "$headers" >&2; return 1; }
+  sleep 2
+  docker exec "$probe_container" touch /tmp/fail
+  # The expired copy is served only after nginx asked the storage and got its 503: the probe logs
+  # that request, so a copy still fresh (a lost Cache-Control) cannot pass for a stale one.
+  probe_log
+  asked="$(grep -cF "\"url\":\"/ai-fitting/$key\"" "$work/probe.log" || true)"
+  got="$(curl -sk --max-time 10 -o "$work/media.txt" -w '%{http_code} %{content_type}' \
+    "https://localhost/$key" || true)"
+  [ "$got" = '200 image/webp' ] && [ "$(cat "$work/media.txt")" = stale ] \
+    || { echo "ci-deploy-check: an expired cached photo with the storage failing answers '$got', expected 200 image/webp from the cache" >&2; return 1; }
+  probe_log
+  [ "$(grep -cF "\"url\":\"/ai-fitting/$key\"" "$work/probe.log" || true)" -gt "$asked" ] \
+    || { echo "ci-deploy-check: nginx did not ask the storage for the expired /$key" >&2; return 1; }
+  echo "an expired cached photo with the storage answering 503 is served from nginx's cache"
+  got="$(curl -sk --max-time 10 -o "$work/media.json" -w "%{http_code} %{content_type} $security_w" \
+    https://localhost/media/check/never-cached.webp || true)"
+  expect_error "an uncached photo with the storage failing" "$got" "503 application/json $security" \
+    "$(cat "$work/media.json")" SERVICE_UNAVAILABLE
+  docker exec "$probe_container" rm /tmp/fail
+  s3_admin -o /dev/null -X DELETE "http://localhost:8333/ai-fitting/$key"
+}
+
 # A throwaway environment. The request loop comes from one address, so the per-client limit is
 # raised: this checks switching, not rate limiting.
 cat > "$env_file" <<EOF
@@ -471,14 +506,21 @@ done
 printf '%s' '{"Version":"2012-10-17","Statement":[{"Sid":"PublicReadMedia","Effect":"Allow","Principal":"*","Action":["s3:GetObject"],"Resource":["arn:aws:s3:::ai-fitting/media/*"]}]}' \
   | s3_admin -o /dev/null -X PUT --data-binary @- 'http://localhost:8333/ai-fitting?policy'
 # The probe that is `s3` for the api, the worker and nginx: it logs each request's method, path and
-# header names (never values: the api's carry its signature) and passes it on unchanged. Node from
-# the api image, which this machine has anyway.
+# header names (never values: the api's carry its signature) and passes it on unchanged; while
+# /tmp/fail exists it answers 503 instead (a failing storage, check_media_stale). Node from the api
+# image, which this machine has anyway.
 docker run -d --name "$probe_container" --network ai-fitting --network-alias s3 "ai-fitting-api:$tag" \
   node -e "
     const http = require('node:http');
+    const fs = require('node:fs');
     http.createServer((req, res) => {
       const { remoteAddress: from } = req.socket;
       console.log(JSON.stringify({ from, method: req.method, url: req.url, headers: Object.keys(req.headers) }));
+      if (fs.existsSync('/tmp/fail')) {
+        req.resume();
+        res.writeHead(503).end();
+        return;
+      }
       const upstream = http.request(
         { host: 's3-emulator', port: 8333, method: req.method, path: req.url, headers: req.headers },
         (answer) => { res.writeHead(answer.statusCode, answer.rawHeaders); answer.pipe(res); },
@@ -531,6 +573,7 @@ first_etags="$(media_etags)" \
   || { echo "ci-deploy-check: the seed uploaded '$(photos_uploaded "$work/deploy-1.log")' photos, the bucket holds $(wc -l <<< "$first_etags")" >&2; exit 1; }
 echo "the first seed uploaded $(photos_uploaded "$work/deploy-1.log") photos"
 check_media
+check_media_stale
 endgroup
 
 group "nginx's limits per address"

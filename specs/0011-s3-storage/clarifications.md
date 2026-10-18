@@ -247,3 +247,15 @@ code comments. All decisions below: owner, 2026-10-16.
 - **M35. The deploy check removes its work folder.** `ci-deploy-check.sh` deletes `$work`
   (`deploy.env`, `s3.env` with the run's one-off keys) on every exit: a trap set right after
   `mktemp`, then `teardown` outside CI, so local runs leave no keys in the temp folder (owner).
+
+## Decided at T12
+
+- **M36. A storage that answers 5xx gets nginx's cached copy too.** `proxy_cache_use_stale` of
+  `/media/` covered only a lost connection and a timeout, so a 500 or 503 of the storage answered
+  503 even for a photo nginx had cached. It now covers `http_500`, `http_502`, `http_503` and
+  `http_504`: a key always names the same photo (the seed never rewrites an object, a new photo
+  gets a new key), so the copy is never wrong. A refusal (403, a broken policy) is not a 5xx, so
+  the deploy's media check still catches it. `ci-deploy-check.sh` checks both answers with the
+  storage failing (owner). This holds while a `media/` key is never rewritten: a later spec that
+  lets the admin add photos gives each upload a new key, and a photo taken down is also cleared
+  from nginx's cache (`deploy/README.md`, "Хранилище S3").
