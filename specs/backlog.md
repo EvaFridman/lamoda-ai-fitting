@@ -187,6 +187,9 @@ Left for later specs by `0002-database-schema` (its `clarifications.md` has the 
 - **Backups outside Timeweb.** The server and the backup bucket of spec 0012 share one Timeweb
   account (0012 P8): losing the account or the provider loses the data and its copies. Before real
   users: a copy at a second provider, or one the owner downloads regularly.
+- **Deleted users in backups.** The copies of spec 0012 keep a deleted user's rows and files up to
+  7 days, an overwritten version up to 14 (0012 P14). Before real users: state the period in the
+  privacy policy (`/privacy`) and check it against the law on personal data (152-ФЗ).
 - **Category tree.** Categories are a flat list (0002 C4); the catalog's left-hand tree is nested
   (0004 E29).
 - **Sizes off the scale.** The size filter's order (0009 K13) knows `XXS … 3XL` (`XXXL` = `3XL`)

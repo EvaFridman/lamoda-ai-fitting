@@ -3,7 +3,7 @@
 Status: accepted (2026-10-19); amended at the plan: a custom role for the write key (P11) and
 versions in the backup bucket (P12), AC7 and AC8 extended, the Sentry monitor created by the job.
 
-Issue #42 and the backlog item "Storage backups". Decisions: `clarifications.md` (P1–P13); the
+Issue #42 and the backlog item "Storage backups". Decisions: `clarifications.md` (P1–P15); the
 frame comes from spec 0011 M6.
 
 ## Goal
@@ -85,9 +85,10 @@ copy is noticed, and the owner has a checked way back.
 - Rent a private bucket for backups in Timeweb Cloud, the cold class and the smallest size (M6);
   turn versioning on and add lifecycle rules: objects deleted after 7 days, old versions 7 days
   after they stop being current, unfinished uploads aborted after a day (P2, P12). Check the prices
-  in the panel first.
+  in the panel first, and that the cold class offers versioning and these rules.
 - Create an extra Timeweb user with a custom role that can only upload into the backup bucket
-  (M6, P11), and one that can only read the app bucket (P9); put their keys into GitHub
+  (M6, P11), and one with a custom role that can only list and read the app bucket (P9, P11); put
+  their keys into GitHub
   (Environment `production`), never into the chat.
 - Create the encryption key pair on the Mac, keep the private key in a password manager, and put
   only the public key into GitHub (P5).
@@ -96,8 +97,11 @@ copy is noticed, and the owner has a checked way back.
 
 ## Assumptions
 
-- Timeweb's custom roles take a policy allowing only uploads into one bucket (its documentation
-  says so; AC7 checks it).
+- Timeweb's custom roles take a policy allowing only uploads into one bucket, or only listing and
+  reading one (its documentation says so; AC6 and AC7 check them).
+- A cold bucket in Timeweb offers versioning and lifecycle rules that delete objects, delete old
+  versions and abort unfinished uploads (its documentation says so for buckets in general; checked
+  in the panel before renting, AC8 checks the rules).
 - The database and the bucket are small enough today that a full copy every night fits the night
   and the server's memory.
 - Sentry includes one cron monitor in every plan; the nightly run uses it, and nothing else does.

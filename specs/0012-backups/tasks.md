@@ -52,7 +52,8 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       `.env.example`, `README.md` (§7).
       Check: `npm run verify`; locally a `--once` run of the `backup` profile leaves both objects
       in the local backup bucket; a unit test with a fake clock shows the service runs once at
-      04:00 Moscow time and checks in with the monitor's config;
+      04:00 Moscow time, at once when started before 04:30 (P15), and checks in with the
+      monitor's config;
       `qa-tester` on the local profile.
       Commit: `feat(api): run the backups every night at 04:00 moscow time`
 - [ ] **T7. Copy before migrations.** `--pre-deploy` (§5) with database tests (a new migration →
