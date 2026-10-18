@@ -140,6 +140,8 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
 - `api/src/seed/`: the demo catalog. Its image columns hold keys, not URLs; the files are in
   `api/seed-media/<key>`, and the seed uploads the missing ones to the bucket's `media/<key>`
   (served at `/media/<key>`).
+- `api/src/storage/`: the S3 bucket (`StorageService`: `put`, `exists`, `deletePrefix`,
+  `signedUrl`) and `keys.ts`, the one place object keys are built and checked.
 - `web/`: `app/` holds routing only and re-exports pages from `src/_pages`. FSD layers in `web/src/`,
   imports only downward: `_app → _pages → widgets → features → entities → shared`. A slice or a
   `shared` segment exposes `index.ts` (browser-safe) and/or `server.ts`, which starts with
@@ -168,7 +170,14 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   `run --rm` container reaches neither the running services nor the next `run`.
 - Local database: `docker compose run --rm api npx prisma migrate dev`, then
   `docker compose run --rm api npm run seed:dev` (the demo catalog of `api/src/seed/`). The seed
-  only adds rows that are missing, found by natural keys, and never changes existing ones.
+  only adds rows that are missing, found by natural keys, and never changes existing ones; then it
+  uploads the photos missing from the bucket and never rewrites one that is there.
+- Local storage: SeaweedFS (service `s3`, port 8333, bucket `S3_BUCKET`, volume `s3data`) stands in
+  for Timeweb's S3; the one-shot `s3-init` (`api/src/storage/dev-setup.ts`) lets anyone read
+  `media/*` and expires `tmp/` after a day, and api, the worker and web start after it. Signed links carry `S3_PUBLIC_ENDPOINT`
+  (`http://localhost:<S3_HOST_PORT>`), the browser's address of the emulator. `next dev`
+  forwards `/media/` to the emulator (`rewrites()` in `next.config.ts`, development only); in
+  production nginx answers it. A fresh `s3data` holds no photos until `seed:dev` runs again.
 - Containers reach each other by service name, never `localhost`; addresses come from compose.
   Startup order uses health checks with `depends_on: service_healthy`, never sleeps.
 - `docker compose down -v` and `docker volume rm/prune` delete data; the Bash guard blocks them.
@@ -307,6 +316,29 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   as a decline until the page reloads); the banner and "Настройки cookies" render only with a token.
 - `web` data from the api renders at request time inside `<Suspense>`: the web image must build with
   no api, Redis or database running.
+- `api` storage (spec 0011): one private bucket. The first segment of a key is its class, since
+  Timeweb's lifecycle rules match prefixes only: `media/` (the catalog media, no expiry; the
+  database keeps the key without `media/`, nginx and the seed add it), `keep/users/<userId>/…`
+  (users' photos and generations, no expiry; the database keeps the whole key) and `tmp/` (deleted
+  after a day). Keys are built only by `storage/keys.ts`; the server names every private key, and
+  an admin write of `fittingProfileImageKey`, `userImageKey` or `resultImageKey` outside the row
+  owner's `keep/users/<userId>/` answers 400 `VALIDATION_FAILED` with the detail code `IN_OWNER_FOLDER`
+  (`owner-check.ts`; a new user has no folder yet, so any key is refused). Responses carry
+  a signed link instead (`*ImageUrl`, `S3_SIGNED_URL_TTL_SECONDS`, 15 min by default), signed only
+  for a key in the owner's folder, else `null` and a warning naming the row and the field. Deleting
+  a user, a fitting session or a generation commits, then `FileDeletion` starts the Temporal
+  workflow `deleteFiles` (id `delete-files-<kind>-<id>`), which clears the folders and retries a
+  failed storage request without limit; a folder outside `keys.ts`'s shapes fails at once, and the
+  workflow fails after all the other folders are done (M33). A failed start never fails the delete and is logged with the folders.
+  `StorageError` carries the operation, S3 code, status and request id, never a key; Sentry keeps no
+  storage paths (requests to `S3_ENDPOINT` are cut to method and origin, a failed deletion sends
+  only the kind and the id). `REQUEST_TIMEOUT_MS` stays at 6000 or more: a delete may wait up to
+  5 s for Temporal. `S3_ACCESS_KEY_ID` alone grants nothing (every signed link carries it),
+  but it stays a GitHub secret, is not logged and `check:web-bundle` refuses it;
+  `S3_SECRET_ACCESS_KEY` appears in no image, log line or bundle.
+- `web` has no files of its own under `public/`, and its image copies no `public/` (it comes back
+  with the first static file). Images from `/media/` skip Next's optimizer (`unoptimized`), or
+  `/_next/image` would fetch them from web itself.
 - Every new environment variable goes into `.env.example` with a comment.
 - Migrations stay compatible with the previous release: add in one release, remove in a later one.
   A bad migration is fixed by rolling forward.
@@ -314,8 +346,12 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
 ## Production and deploys
 
 A merge into `main` is the deploy (blue-green for api and web; the Temporal worker is replaced in
-place; a changed `infra.yml` service is recreated in place, with an outage). Before the new copy starts, the deploy runs the migrations, then the seed (the demo catalog,
-a no-op once loaded); a failure of either stops it, the running copy keeps serving. nginx limits
+place; a changed `infra.yml` service is recreated in place, with an outage). Before the new copy starts, the deploy runs the migrations, then the seed (the demo catalog
+and its photos, a no-op once loaded), then fetches one catalog photo from the bucket and through
+nginx; a failure of any stops it, the running copy keeps serving. nginx serves `/media/<key>` from
+the bucket's `media/<key>` (the bucket lets only the server's address read it, so a new address
+needs the policy updated first: `deploy/README.md`, "Хранилище S3"), with a cache, a 404 or 503 in
+the api's error format and nothing of the visitor's request passed on. nginx limits
 requests, sockets and requests in progress per client address above the api's own quotas, slow
 clients to 10 s, and bodies to 1 MB, and answers 429, 413 and
 `/api/`'s 502/504 (as 503) in the api's error format (`deploy/README.md`, "Лимиты nginx"). How deploys, rollbacks and images work: `.claude/rules/deploy.md`, loaded when you work on

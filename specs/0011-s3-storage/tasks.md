@@ -94,7 +94,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Check: `ci-deploy-check.sh` locally and in CI: 200 with `Cache-Control` and no `x-amz-*`, a
       missing key 404, `PUT`/`POST`/`DELETE` refused, `/media/` 404 (AC2, AC3, AC6 on the runner).
       Commit: `feat(deploy): serve the media from the storage through nginx`
-- [ ] **T12. Docs and backlog.** `CLAUDE.md`, `README.md`, `deploy/README.md` ("Хранилище S3",
+- [x] **T12. Docs and backlog.** `CLAUDE.md`, `README.md`, `deploy/README.md` ("Хранилище S3",
       plan §9), `.claude/rules/deploy.md`, the backlog items of plan "Backlog".
       Check: the `spec-finder` agent finds no doc that still says media live in `web/public/media`;
       `npm run format:check`.

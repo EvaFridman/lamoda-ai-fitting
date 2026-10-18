@@ -35,8 +35,9 @@ removes it from this list. Found by the agents' first security audit and trial r
   server's firewall (`ct count`, `deploy/ansible/base.yml`) closes it; the owner applies it, with
   a way back in case the rule cuts off the site or SSH.
 - **Rate limit for web pages.** `/` has no `limit_req` (spec 0006 F37). Add one after the catalog
-  pages of 0007: move `/_next/static/` and `/media/` to their own locations, measure how many
-  requests a page makes with Next's prefetch, and set the rate above that.
+  pages of 0007: move `/_next/static/` to its own location (`/media/` has one since spec 0011, with
+  no `limit_req` yet), measure how many requests a page makes with Next's prefetch, and set the rate
+  above that.
 - **HTTP/2.** nginx serves HTTP/1.1 only: with HTTP/2 every reload drops a few requests (spec 0004
   E38). Bringing it back needs nginx to stop reloading in normal work: blue-green switching through
   a DNS name nginx re-resolves (`resolve`) instead of a rewritten upstream and a reload, the
@@ -165,12 +166,14 @@ removes it from this list. Found by the agents' first security audit and trial r
 
 Left for later specs by `0002-database-schema` (its `clarifications.md` has the decisions).
 
-- **File storage.** Placeholders are static files of web (C9a). Photo upload and generation results
-  need real storage (object storage or a server folder), with backups and limits on size and type.
-  Deleting a user or a generation deletes its files too (the database cascade of C8 does not reach
-  storage), and old photo snapshots of C14 get a retention period. The server names a photo's key
-  (e.g. `users/<id>/…`) and writes `users.fitting_profile_image_key` itself; a key from the client
-  could point at another user's photo (0004 T13 security review).
+- **Photo upload limits.** Spec 0011 gave the storage, server-named keys and deletion of a user's
+  or a generation's files. What photo upload still owes: limits on size and type, re-encoding to
+  WebP, and a retention period for old photo snapshots of C14 (one more key class and lifecycle
+  rule, `storage/keys.ts`).
+- **Storage backups.** The bucket (spec 0011) has no backup: a deleted or overwritten object in
+  `keep/` (users' photos, generation results) is gone. The catalog's seed photos come back from
+  `api/seed-media/` with the next seed; photos added later would not. Choose between versioning
+  in Timeweb, a copy to a second bucket, or none, once users upload photos.
 - **Category tree.** Categories are a flat list (0002 C4); the catalog's left-hand tree is nested
   (0004 E29).
 - **Sizes off the scale.** The size filter's order (0009 K13) knows `XXS … 3XL` (`XXXL` = `3XL`)

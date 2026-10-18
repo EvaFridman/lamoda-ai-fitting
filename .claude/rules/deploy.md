@@ -34,14 +34,20 @@ Details and commands: `deploy/README.md`.
 - The server's `.env` is rewritten from GitHub on every deploy; values change in GitHub, not on the
   server.
 - Before the new copy starts, `deploy.sh` runs, from the new image, the migrations and then the seed
-  (`dist/seed/main.js`, the demo catalog: adds only missing rows, a no-op once loaded). A failed
-  migration or seed stops the deploy and the active copy keeps serving. An image without the seed
-  (a rollback to a version from before it) logs "seed skipped" and deploys. A rollback to the copy
-  that still runs only switches nginx: no migrations, no seed; compose recreates that copy first
+  (`dist/seed/main.js`, the demo catalog: adds only missing rows and uploads only the photos missing
+  from the bucket, a no-op once loaded), then checks one random catalog photo straight from the
+  bucket out of nginx's container (past its cache) and through nginx (spec 0011 M31). A failed
+  migration, seed or photo check stops the deploy and the active copy keeps serving. An image
+  without the seed (a rollback to a version from before it) logs "seed skipped" and deploys. A
+  rollback to the copy that still runs only switches nginx: no migrations, no seed, no photo check; compose recreates that copy first
   when `.env` or `app.yml` changed since it started (a rotated secret), and it must pass readiness.
 - A changed `PROXY_SECRET` recreates nginx; `deploy.sh` first checks that the serving api already
   trusts it (as `PROXY_SECRET_NEXT`) and stops otherwise. Rotation takes two deploys
   (`deploy/README.md`).
+- nginx serves `/media/` from the bucket, which lets only the server's address read `media/`
+  (`deploy/README.md`, "Хранилище S3"): a new server address needs the bucket policy updated first.
+  nginx has `S3_ENDPOINT` and `S3_BUCKET` in `infra.yml`, so changing either recreates it;
+  `deploy.sh` refuses an `S3_ENDPOINT` that is not `http(s)://host[:port]`.
 - Migrations must stay compatible with the running version (`specs/principles.md`): a rollback does
   not undo them.
 - The server is reached as `ssh ai-fitting` (the owner's SSH alias); CI logs in as `deploy`.
