@@ -120,7 +120,7 @@ given_name` (N5); or, when `AUTH_FAKE_OIDC_URL` is set, `genericOAuth` with `pro
   another user's session gives an empty list. `CreateFittingSessionDto` loses `userId` (the owner
   is the principal); a `userId` in the body is 400, as other unknown fields.
 - `GET /me` answers `UserResponseDto` (`phone` and `firstName` now nullable). `DELETE /me` calls
-  `UsersService.delete` (after 0011: also starts the deletion of the user's files, 0011 M11),
+  `UsersService.delete` (which also starts the deletion of the user's files, 0011 M11),
   which removes sessions and accounts by cascade, then clears the session cookies in its answer.
   Another browser's cached session names the deleted user for up to 5 minutes (N31): `GET /me`
   and `DELETE /me` finding no user and a write whose user reference fails (`RELATED_NOT_FOUND` on
@@ -251,23 +251,23 @@ patches every few days; the pin is moved on purpose, N33). Neither needs an inst
 
 ## How each criterion is verified
 
-| AC   | Check                                                                                                                                                                                                                                                   |
-| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| AC1  | e2e of the redirect flow through the fake provider; `qa-tester` in the browser on the local stack                                                                                                                                                       |
-| AC2  | e2e: two sign-ins of one account, one user row                                                                                                                                                                                                          |
-| AC3  | web tests of the menu (items, `aria-disabled`, name fallback); `qa-tester` screenshots, owner compares                                                                                                                                                  |
-| AC4  | e2e: sign-out → 401; revoke-sessions → the other session's cookie answers 401 after the cache window (test clock)                                                                                                                                       |
-| AC5  | e2e: `Set-Cookie` attributes; expiry and extension with a moved clock                                                                                                                                                                                   |
-| AC6  | `rg` for the admin names in the repo; OpenAPI snapshot without `admin`                                                                                                                                                                                  |
-| AC7  | e2e without a cookie on each `@SignedIn()` route; catalog reads still 200                                                                                                                                                                               |
-| AC8  | e2e with two users on every fitting session and generation route                                                                                                                                                                                        |
-| AC9  | e2e: closed routes 401 with a signed-in user; access-markers test                                                                                                                                                                                       |
-| AC10 | socket e2e (§7)                                                                                                                                                                                                                                         |
-| AC11 | e2e: a refused `/api/auth/*` request's body, its 429's body; an api error's body                                                                                                                                                                        |
-| AC12 | e2e: `DELETE /me`, then rows gone, both cookies cleared in its answer and the session token alone 401; a cached copy (another session, or both old cookies): `GET /me`, `DELETE /me` and a write 401 (N31); files: 0011's deletion e2e after the rebase |
-| AC13 | web tests of the analytics calls; `qa-tester` watches the requests with and without consent                                                                                                                                                             |
-| AC14 | env unit tests of `assertServerEnv`                                                                                                                                                                                                                     |
-| AC15 | `npm run verify`; CI                                                                                                                                                                                                                                    |
+| AC   | Check                                                                                                                                                                                                                                                          |
+| ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AC1  | e2e of the redirect flow through the fake provider; `qa-tester` in the browser on the local stack                                                                                                                                                              |
+| AC2  | e2e: two sign-ins of one account, one user row                                                                                                                                                                                                                 |
+| AC3  | web tests of the menu (items, `aria-disabled`, name fallback); `qa-tester` screenshots, owner compares                                                                                                                                                         |
+| AC4  | e2e: sign-out → 401; revoke-sessions → the other session's cookie answers 401 after the cache window (test clock)                                                                                                                                              |
+| AC5  | e2e: `Set-Cookie` attributes; expiry and extension with a moved clock                                                                                                                                                                                          |
+| AC6  | `rg` for the admin names in the repo; OpenAPI snapshot without `admin`                                                                                                                                                                                         |
+| AC7  | e2e without a cookie on each `@SignedIn()` route; catalog reads still 200                                                                                                                                                                                      |
+| AC8  | e2e with two users on every fitting session and generation route                                                                                                                                                                                               |
+| AC9  | e2e: closed routes 401 with a signed-in user; access-markers test                                                                                                                                                                                              |
+| AC10 | socket e2e (§7)                                                                                                                                                                                                                                                |
+| AC11 | e2e: a refused `/api/auth/*` request's body, its 429's body; an api error's body                                                                                                                                                                               |
+| AC12 | e2e: `DELETE /me`, then rows gone, both cookies cleared in its answer and the session token alone 401; a cached copy (another session, or both old cookies): `GET /me`, `DELETE /me` and a write 401 (N31); files: `DELETE /me` empties the user's folder (T7) |
+| AC13 | web tests of the analytics calls; `qa-tester` watches the requests with and without consent                                                                                                                                                                    |
+| AC14 | env unit tests of `assertServerEnv`                                                                                                                                                                                                                            |
+| AC15 | `npm run verify`; CI                                                                                                                                                                                                                                           |
 
 ## Pull requests
 
