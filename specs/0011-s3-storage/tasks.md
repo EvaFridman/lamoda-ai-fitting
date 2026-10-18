@@ -81,7 +81,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Check: `seed:dev` on an empty emulator uploads 78, a second run 0 (AC6, AC12); the seed
       e2e passes.
       Commit: `feat(api): upload the demo catalog's photos with the seed`
-- [ ] **T10. web without its media.** `web/public/media` gone with its header rule; the
+- [x] **T10. web without its media.** `web/public/media` gone with its header rule; the
       development rewrite of `/media/` to the emulator (plan §6).
       Check: `curl -I` of every seed key on :3001 (AC1); `qa-tester` on `/dev/catalog` and
       `/ui-kit` (AC4); the built web image has no `public/media` (AC5).

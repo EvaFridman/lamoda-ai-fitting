@@ -221,6 +221,25 @@ describe('Select', () => {
     for (const image of document.querySelectorAll('img')) expect(image).toHaveAttribute('alt', '');
   });
 
+  // In production /media/ is nginx's and web has no /_next/image for it (spec 0011 M29).
+  it('renders the thumbnail with its own path, not through the image optimizer', () => {
+    render(
+      <Select
+        aria-label="Цвет"
+        defaultValue="white"
+        options={[
+          { value: 'white', label: 'Белый', thumbnail: '/media/seed/products/BRS-TS-001/1.webp' },
+          { value: 'black', label: 'Черный' },
+        ]}
+      />,
+    );
+
+    const image = screen.getByRole('combobox', { name: 'Цвет' }).querySelector('img');
+    expect(image).toHaveAttribute('src', '/media/seed/products/BRS-TS-001/1.webp');
+    expect(image).not.toHaveAttribute('srcset');
+    expect(image?.outerHTML).not.toContain('/_next/image');
+  });
+
   it('does not open when disabled and leaves the Tab order', async () => {
     const user = userEvent.setup();
     render(

@@ -110,8 +110,16 @@ function OptionContent({
 }) {
   return (
     <>
+      {/* No optimizer: in production /media/ is nginx's and never reaches web (spec 0011 M29). */}
       {option.thumbnail ? (
-        <Image className={styles.thumbnail} src={option.thumbnail} alt="" width={23} height={32} />
+        <Image
+          className={styles.thumbnail}
+          src={option.thumbnail}
+          alt=""
+          width={23}
+          height={32}
+          unoptimized
+        />
       ) : null}
       <Text className={styles.label}>{option.label}</Text>
     </>
