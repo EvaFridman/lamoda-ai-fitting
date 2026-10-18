@@ -46,6 +46,11 @@ removes it from this list. Found by the agents' first security audit and trial r
   reload only when the rendered config changed. The owner weighs the costs: both copies serve for
   up to ~10 s during a switch, and if the name moves by disconnecting the old copy from a network,
   its WebSocket connections break.
+- **Encryption headers of `/media/`.** nginx hides the storage's headers by a list (0011 M39);
+  the `x-amz-server-side-encryption-*` family beyond the bare one (the KMS key id, customer key
+  algorithm and MD5, bucket key) is not in it: names that long need
+  `proxy_headers_hash_bucket_size 128` (at 64 nginx does not start). They appear only if the
+  bucket gets encryption; add both before that, checked by `ci-deploy-check.sh`.
 
 ## api
 

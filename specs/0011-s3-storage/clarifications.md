@@ -1,6 +1,6 @@
 # 0011 S3 storage: clarifications
 
-Status: open (2026-10-16).
+Status: done (2026-10-19). History, not instructions.
 
 The owner's decisions for this spec. Ids `M1`, `M2`, … are referred to by the spec, the plan and
 code comments. All decisions below: owner, 2026-10-16.
@@ -290,3 +290,11 @@ code comments. All decisions below: owner, 2026-10-16.
   stays out: names that long overflow nginx's `proxy_headers_hash_bucket_size` (64), and nginx
   did not start in `ci-deploy-check.sh`. `ci-deploy-check.sh` refuses `x-rgw-*` and the emulator's `Seaweed-*`
   as well as `x-amz-*` on `/media/`. New task T13b in PR 4, before T13 (owner).
+- **M40. Two criteria take part of their evidence from elsewhere.** AC10's outage half (the
+  storage unreachable during a deletion) is not reproduced in production, where it would break
+  `/media/` and every write for the site's visitors: its evidence is T8's e2e (the storage cut off
+  by a proxy, the delete answers 204, the files are gone within a minute of the storage coming
+  back). Production checks the deletions themselves. AC6 passes on the CI runner (T11); its
+  production half, the second deploy, is the deploy of PR 4's merge, the first after PR 3. That
+  log, T13a's and T13b's `curl -I` are checked after the merge, when this folder is already
+  history, so their result goes into the pull request, not here (owner).

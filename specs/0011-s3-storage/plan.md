@@ -1,6 +1,6 @@
 # 0011 S3 storage: plan
 
-Status: accepted (2026-10-16).
+Status: done (2026-10-19). History, not instructions.
 
 Implements [spec.md](spec.md); decisions in [clarifications.md](clarifications.md) (M1–M18).
 

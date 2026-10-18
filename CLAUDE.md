@@ -12,7 +12,9 @@ entities, Russian error texts, Sentry reports, the OpenAPI contract check, the b
 page `/dev/catalog`) by `0007-web-data-layer`; Mixpanel analytics behind a cookie consent banner,
 the page `/privacy` and Lamoda's footer by `0008-web-analytics`; attribute values' swatch colour,
 the catalog product card, filters and category list, and their sections on `/ui-kit` by
-`0009-entity-ui`; Lamoda's header by `0010-web-header` (all closed).
+`0009-entity-ui`; Lamoda's header by `0010-web-header`; the S3 bucket, the catalog photos served
+from it through nginx, users' files with signed links and their deletion through Temporal by
+`0011-s3-storage` (all closed).
 
 Keep this file true: update it in the same commit that changes what a section describes.
 
