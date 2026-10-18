@@ -88,7 +88,7 @@ link check in T7); amended 2026-10-19 at T7 (Temporal's retention in T9, N37).
       afterwards (AC12); a new session has no User-Agent;
       `npm run verify`.
       Commit: `feat(api): serve each user only their own fittings`
-- [ ] **T8. The socket knows the user.** `io.use` in `SocketIoAdapter` (plan §7).
+- [x] **T8. The socket knows the user.** `io.use` in `SocketIoAdapter` (plan §7).
       Check: socket e2e with and without a cookie (AC10); `npm run verify`.
       Commit: `feat(api): recognise the signed-in user on the socket`
 - [ ] **T9. Deploy and docs of the api.** `ADMIN_API_TOKEN` out of `docker-compose.yml`,

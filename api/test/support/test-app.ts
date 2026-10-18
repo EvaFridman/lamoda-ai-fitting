@@ -1,6 +1,6 @@
-import type { INestApplication } from '@nestjs/common';
+import type { INestApplication, WebSocketAdapter } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import { Test } from '@nestjs/testing';
+import { Test, type TestingModuleBuilder } from '@nestjs/testing';
 import type { ThrottlerStorage } from '@nestjs/throttler';
 
 import { AppModule } from '../../src/app.module.js';
@@ -37,14 +37,21 @@ const unlimited: Pick<ThrottlerStorage, 'increment'> = {
 // points at a closed port (vitest.config.ts); there is no rate limit, and a signed-in user
 // (sign-in.ts) passes the @Closed() routes too (test-access-guard.ts), unless
 // `access: 'production'` keeps the real guard (the access e2e, spec 0013 AC7, AC9).
+// `override` replaces more providers; `socketAdapter` is set before init(), as server.ts sets it
+// before listen() (the socket e2e then listens on a port of its own).
 // Call once per file in `beforeAll` and `close()` in `afterAll`.
 export async function createTestApp(
-  options: { temporal?: TemporalSettings; access?: 'test' | 'production' } = {},
+  options: {
+    temporal?: TemporalSettings;
+    access?: 'test' | 'production';
+    override?: (builder: TestingModuleBuilder) => TestingModuleBuilder;
+    socketAdapter?: (app: INestApplication) => WebSocketAdapter;
+  } = {},
 ): Promise<TestApp> {
   const temporal = options.temporal ?? testTemporalSettings();
   const prisma = await createTestDatabase();
   try {
-    const builder = Test.createTestingModule({ imports: [AppModule] })
+    let builder = Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(PrismaService)
       .useValue(prisma)
       .overrideProvider(STORAGE_SETTINGS)
@@ -56,12 +63,14 @@ export async function createTestApp(
     if (options.access !== 'production') {
       builder.overrideProvider(AccessGuard).useClass(TestAccessGuard);
     }
+    if (options.override !== undefined) builder = options.override(builder);
     const moduleRef = await builder.compile();
     const app = await createHttpApp(
       (adapter, options) =>
         moduleRef.createNestApplication<NestExpressApplication>(adapter, options),
       { logger: false },
     );
+    if (options.socketAdapter !== undefined) app.useWebSocketAdapter(options.socketAdapter(app));
     await app.init();
     return {
       app,

@@ -5,9 +5,13 @@ import { PinoLogger } from 'nestjs-pino';
 import type { Env } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { type Auth, createAuth } from './auth.js';
+import { sessionReader, type SharedSessionReader } from './session-reader.js';
 
 // The Better Auth instance: createHttpApp() mounts its handler at /api/auth.
 export const AUTH = Symbol('AUTH');
+// The one session reader of the process, for the request context and the socket adapter: they
+// share its cap on reads in progress (N29).
+export const SESSION_READER = Symbol('SESSION_READER');
 
 @Module({
   providers: [
@@ -34,7 +38,12 @@ export const AUTH = Symbol('AUTH');
         );
       },
     },
+    {
+      provide: SESSION_READER,
+      inject: [AUTH],
+      useFactory: (auth: Auth): SharedSessionReader => sessionReader(auth),
+    },
   ],
-  exports: [AUTH],
+  exports: [AUTH, SESSION_READER],
 })
 export class AuthModule {}

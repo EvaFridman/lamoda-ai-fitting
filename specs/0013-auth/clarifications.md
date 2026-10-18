@@ -2,7 +2,8 @@
 
 Status: accepted (2026-10-16); amended 2026-10-16 at the plan: no guests (N2, N9, N10 withdrawn),
 the first name is optional (N5), Better Auth's own error format (N17), a 5-minute session cache
-(N18); amended 2026-10-18 at the review of PR 1 (N31–N36); amended 2026-10-19 at T7 (N37–N39).
+(N18); amended 2026-10-18 at the review of PR 1 (N31–N36); amended 2026-10-19 at T7 (N37–N39);
+amended 2026-10-19 at T8 (N40–N44).
 
 The owner's decisions for this spec. Ids `N1`, `N2`, … are referred to by the spec, the plan and
 code comments. All decisions below: owner, 2026-10-16.
@@ -228,3 +229,36 @@ All decisions below: owner, 2026-10-18, on the review of the spec's pull request
   T7's review). A signed-in user can create sessions within the `write` quota and nothing removes
   archived ones; a per-user limit goes to the backlog for the generations spec, which defines how
   sessions are used. Rejected: a limit now, before sessions have a use.
+
+## Added at T8
+
+- **N40. The socket refuses another site's page** (owner, 2026-10-19, at T8's review). socket.io's
+  CORS binds long-polling only; a WebSocket opens from any page, and the browser sends the session
+  cookie whenever the page is same-site. A new connection whose `Origin` is not `WEB_ORIGIN` is
+  refused with 403 before its session is read; one without `Origin` (no browser) passes. Rejected:
+  later, with the first handler that reads the user (the `SameSite=Lax` cookie covers other sites
+  until then, not same-site ones).
+- **N41. Extra CONNECT packets of one connection go to the backlog** (owner, 2026-10-19, at T8's
+  review). The session is read once per connection, but every CONNECT a client sends while that
+  read runs (up to 2 s) still becomes a socket, held until the connection closes: socket.io's own
+  behavior, made longer by the read. A limit comes with the first real socket feature (0006 F8),
+  added to the backlog when this spec closes. Rejected: refusing a second CONNECT now.
+- **N42. Sockets take at most 5 of the 20 session reads** (owner, 2026-10-19, at T8's review; the
+  number is the agent's). Sockets and HTTP share N29's cap; without a share, a wave of sockets
+  (a slow database, nginx letting 10 handshakes a second through per address) could hold every
+  slot, and HTTP requests of signed-in users would answer 503. A socket's read holds its slot until
+  the read itself ends, as N29 counts; one more connects as anonymous at once, logged as a warning,
+  never reported. Five, since the cached copy (N18) answers in milliseconds and leaves 15 to HTTP.
+  Such a socket stays anonymous until it reconnects: harmless while no handler reads the user, so
+  the generations spec decides it with N36 (refuse it for a retry, or read again on demand).
+  Rejected: no share (the backlog).
+- **N43. `WEB_ORIGIN` is an exact origin** (owner, 2026-10-19, at T8's review). CORS and the
+  socket's Origin check (N40) compare it with the browser's `Origin` as a string, so a path, a
+  trailing slash or a default port (`https://host/`, `https://host:443`) would refuse every browser
+  while the site still loads. The api refuses to start unless the value equals its URL's origin.
+  Rejected: normalising the value (a typo would pass unseen).
+- **N44. Warnings about a socket's unread session: one line a minute** (owner, 2026-10-19, at T8's
+  review). Refused sockets (N42) come as fast as nginx lets handshakes through, from many addresses
+  at once; the adapter logs the first in a minute and counts the rest into the next line
+  (`alsoSinceLastLine`). Reported failures (N29) are not affected. Rejected: a line per socket, as
+  HTTP's 503 warnings have (HTTP requests are counted by the rate limit, handshakes are not).

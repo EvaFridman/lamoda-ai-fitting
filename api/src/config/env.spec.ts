@@ -33,6 +33,27 @@ describe('validateEnv', () => {
     },
   );
 
+  it.each(['http://localhost:3001', 'https://lamoda-ai-fitting.ru'])(
+    'accepts WEB_ORIGIN %s, an origin as a browser sends it',
+    (origin) => {
+      expect(validateEnv({ ...valid, WEB_ORIGIN: origin }).WEB_ORIGIN).toBe(origin);
+    },
+  );
+
+  it.each([
+    'not a url',
+    '',
+    'https://host/',
+    'https://host:443',
+    'http://host:80',
+    'https://host/path',
+    'https://host?x=1',
+  ])('refuses WEB_ORIGIN %s, which is not its own origin, naming the variable', (origin) => {
+    expect(thrownMessage(() => validateEnv({ ...valid, WEB_ORIGIN: origin }))).toMatch(
+      /WEB_ORIGIN/,
+    );
+  });
+
   it('defaults PROXY_SECRET to an empty string', () => {
     expect(validateEnv(valid).PROXY_SECRET).toBe('');
   });

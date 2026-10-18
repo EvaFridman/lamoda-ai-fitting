@@ -1,9 +1,9 @@
 # 0013 auth: plan
 
 Status: accepted (2026-10-16); amended 2026-10-18 at the review of PR 1 (N29, N31–N36); amended
-2026-10-19 at T7 (N37–N39).
+2026-10-19 at T7 (N37–N39); amended 2026-10-19 at T8 (§7, N40–N44).
 
-Implements [spec.md](spec.md); decisions in [clarifications.md](clarifications.md) (N1–N39).
+Implements [spec.md](spec.md); decisions in [clarifications.md](clarifications.md) (N1–N44).
 
 ## 1. Library and versions (N1)
 
@@ -140,6 +140,14 @@ given_name` (N5); or, when `AUTH_FAKE_OIDC_URL` is set, `genericOAuth` with `pro
 failure; the connection is never refused for it). The gateway stays `@Public()`. The e2e test
 connects with and without a cookie and checks `socket.data` through `fetchSockets()`.
 
+Amended at T8: the read goes through the request context's session reader, one per app
+(`SESSION_READER`), so sockets share N29's cap and timeout, with at most 5 of its 20 reads (the
+reader's `share`, N42), and a failure the reader marks for Sentry is reported by the adapter. A
+connection reads once, whatever number of CONNECT packets it sends (each would otherwise take a
+slot of the cap). The middleware covers namespaces added later. A new connection whose `Origin` is
+not `WEB_ORIGIN` is refused with 403 (N40); `WEB_ORIGIN` must be an exact origin (N43). Warnings
+about unread sessions are logged at most once a minute (N44).
+
 ## 8. Configuration (N14; AC6, AC14)
 
 | Variable                    | Local                                | Production      | Note                                                                        |
@@ -229,6 +237,8 @@ patches every few days; the pin is moved on purpose, N33). Neither needs an inst
   disconnects, for the generations spec to decide (N36).
 - Remove: "Users' ids in Temporal history" (the retention is set in T9, N37).
 - Add: a limit of fitting sessions per user, for the generations spec (N39).
+- Add: a limit on the sockets one connection opens while its session is read, with the first
+  real socket feature (N41).
 - Change: "Outbox for file deletion" is done with the photo upload spec, before the first user's
   file (N37).
 - Keep: "Email look-alikes" (spec non-goal).
