@@ -85,6 +85,8 @@ function split(line) {
   let word = null;
   let glob = false;
   let brace = false;
+  let expand = false; // a $ or backtick the shell expands: the word's text is not what runs
+  let quoted = false; // quotes or a backslash: the word as typed differs from its text
   let quote = null;
   let herestringNext = false;
 
@@ -92,11 +94,13 @@ function split(line) {
     if (word !== null) {
       if (herestringNext) herestrings.push({ segment, index: segment.length });
       herestringNext = false;
-      segment.push({ text: word, glob, brace });
+      segment.push({ text: word, glob, brace, expand, quoted });
     }
     word = null;
     glob = false;
     brace = false;
+    expand = false;
+    quoted = false;
   };
   const endSegment = () => {
     pushWord();
@@ -119,6 +123,7 @@ function split(line) {
       const end = closingParen(line, i + 1);
       code.push(line.slice(i + 2, end));
       append('$()');
+      expand = true;
       i = end;
       continue;
     }
@@ -126,22 +131,28 @@ function split(line) {
       const end = line.indexOf('`', i + 1);
       code.push(line.slice(i + 1, end === -1 ? line.length : end));
       append('``');
+      expand = true;
       i = end === -1 ? line.length : end;
       continue;
     }
     if (ch === '\\') {
       if (line[i + 1] === '\n')
         i++; // line continuation: nothing
-      else if (i + 1 < line.length) append(line[++i]);
+      else if (i + 1 < line.length) {
+        append(line[++i]);
+        quoted = true;
+      }
       continue;
     }
     if (quote === '"') {
       if (ch === '"') quote = null;
       else append(ch);
+      if (ch === '$') expand = true;
       continue;
     }
     if (ch === "'" || ch === '"') {
       quote = ch;
+      quoted = true;
       word ??= '';
     } else if (ch === ' ' || ch === '\t' || ch === '\r') {
       pushWord();
@@ -185,6 +196,7 @@ function split(line) {
     } else {
       if ('*?['.includes(ch)) glob = true;
       if (ch === '{') brace = true;
+      if (ch === '$') expand = true;
       append(ch);
     }
   }
@@ -393,7 +405,7 @@ function checkFindReaders(segments) {
 }
 const base = (w) => path.basename(w).replace(/@[^/]*$/, ''); // prisma@7 -> prisma
 
-function checkSegment(seg) {
+function checkSegment(seg, depth = 0) {
   const w = seg.map((x) => x.text);
   const all = w.map((x) => x.toLowerCase());
   // A word with spaces is a message or a pattern, not a command or a flag: rules do not see it
@@ -480,10 +492,38 @@ function checkSegment(seg) {
   if (
     has('gh') &&
     has('auth') &&
-    (has('token') || (has('status') && (has('-t') || has('--show-token'))))
+    (has('token') ||
+      (has('status') && lw.some((x) => short(x, 't') || /^--show-token(=|$)/.test(x))))
   ) {
     block('printing the GitHub token');
   }
+  // The token through git's credential helpers, which gh sets up (`gh auth setup-git`), and
+  // through the macOS keychain, where gh keeps it.
+  if (
+    (has('auth') && lw.includes('git-credential')) ||
+    (isGit && has('credential') && after('credential').some((x) => ['fill', 'get'].includes(x))) ||
+    (isGit && lw.some((x) => /^credential-/.test(x))) ||
+    lw.some(
+      (x, i) => /^git-credential-/.test(base(x)) && (i === 0 || WRAPPERS.has(base(lw[i - 1]))),
+    ) ||
+    (has('security') &&
+      ['find-generic-password', 'find-internet-password', 'dump-keychain'].some(has))
+  ) {
+    block('printing the GitHub token');
+  }
+  // gh runs these as commands (`gh pr view --web` starts the browser with the page's address).
+  w.forEach((x) => {
+    const m = /^(GH_BROWSER|BROWSER|GH_PAGER|PAGER|GH_EDITOR|EDITOR|VISUAL)=(.*)$/.exec(x);
+    if (m && !['', 'cat', 'less', 'more'].includes(m[2])) {
+      block(`${m[1]} set to a command: gh and git would run it`);
+    }
+  });
+  // A command whose name the shell builds ($(echo gh) pr merge) hides it from every rule here.
+  if (seg[0]?.expand && GH_COMMANDS.has(lw[1])) block('a command name built by the shell');
+  lw.forEach((x, i) => {
+    // zsh runs `=gh` as the gh found on PATH.
+    if (base(x).replace(/^=/, '') === 'gh') checkGh(seg, i, depth);
+  });
 
   // Docker: deleting volumes deletes the database, Redis data, Temporal history and certificates.
   if (has('volume') && after('volume').some((x) => ['rm', 'remove', 'prune'].includes(x))) {
@@ -600,10 +640,126 @@ function checkSegment(seg) {
   }
 }
 
+// gh (the apply-review skill pulls review text from GitHub into the context, so a write must not
+// slip past the owner). Its write commands ask (settings.json), and an ask rule sees only a
+// command's prefix: so a write is the segment's first word, a group's subcommand comes right after
+// it (`gh pr -R x merge` would not match `gh pr merge`), and only gh's own commands run (an alias
+// can stand for anything). Reads pass anywhere. `gh api` only reads: one path, --paginate and
+// --jq; it writes with -X/--method, fields (-f, -F, --field, --raw-field), --input and graphql.
+const GH_COMMANDS = new Set([
+  'api', 'alias', 'attestation', 'auth', 'browse', 'cache', 'codespace', 'completion', 'config',
+  'extension', 'ext', 'gist', 'gpg-key', 'help', 'issue', 'label', 'org', 'pr', 'project',
+  'release', 'repo', 'ruleset', 'run', 'search', 'secret', 'ssh-key', 'status', 'variable',
+  'version', 'workflow',
+]); // prettier-ignore
+const GH_SINGLE = new Set(['api', 'browse', 'completion', 'help', 'status', 'version']);
+const GH_READS = new Set([
+  'pr view', 'pr list', 'pr diff', 'pr checks', 'pr status', 'issue view', 'issue list',
+  'issue status', 'run view', 'run list', 'run watch', 'repo view', 'release view', 'release list',
+  'workflow view', 'workflow list', 'label list', 'gist view', 'gist list', 'cache list',
+  'secret list', 'variable list', 'variable get', 'ruleset list', 'ruleset view', 'search repos',
+  'search issues', 'search prs', 'search code', 'search commits', 'alias list', 'extension list',
+  'ext list', 'auth status', 'config get', 'config list', 'org list',
+]); // prettier-ignore
+// The writes that ask: exactly the gh entries of `ask` in settings.json (a group alone covers all
+// its subcommands; guards.test.mjs compares the two). Anything neither read nor here is refused.
+export const GH_WRITES = new Set([
+  'pr merge', 'pr create', 'pr review', 'pr comment', 'pr edit', 'pr close', 'pr reopen',
+  'pr ready', 'pr lock', 'pr unlock', 'pr update-branch', 'issue create', 'issue comment',
+  'issue edit', 'issue close', 'issue reopen', 'issue delete', 'issue transfer', 'issue lock',
+  'issue unlock', 'issue pin', 'issue unpin', 'issue develop', 'label', 'gist', 'variable',
+  'cache', 'ssh-key', 'gpg-key', 'project', 'codespace', 'attestation', 'run rerun', 'run cancel',
+  'run delete', 'workflow', 'release', 'repo', 'secret',
+]); // prettier-ignore
+// Groups whose only allowed use is a read above: anything else of theirs is refused, not asked.
+const GH_READ_ONLY_GROUPS = new Set(['alias', 'extension', 'ext', 'auth', 'config']);
+const HELP = ['--help', '-h'];
+// Words after which the next one runs as a command (`timeout 30 gh`, `find -exec gh`).
+const WRAPPERS = new Set([
+  'env', 'command', 'exec', 'builtin', 'xargs', 'parallel', 'timeout', 'nice', 'nohup', 'time',
+  'sudo', 'then', 'do', 'else', '!', '{', '-exec', '-execdir', '-ok', '-okdir', '--exec', '-x',
+]); // prettier-ignore
+// These add words to the command that the hook never sees.
+const ARG_ADDERS = new Set([
+  'xargs',
+  'parallel',
+  '-exec',
+  '-execdir',
+  '-ok',
+  '-okdir',
+  '--exec',
+  '-x',
+]);
+const shellBuiltWord = (x) =>
+  x.expand || x.glob || (x.brace && (expandBraces(x.text).length > 1 || x.text.includes('..')));
+
+function checkGh(seg, at, depth) {
+  const w = seg.map((x) => x.text);
+  const lw = w.map((x) => x.toLowerCase());
+  const before = lw.slice(0, at).map((x) => base(x));
+  // `gh` as an argument (`rg -n gh`, `brew info gh`) is not checked; after variable assignments
+  // (`GH_REPO=x gh`) or a wrapper it is the command.
+  const assignments = (x) => /^[a-z_][a-z0-9_]*=/.test(x);
+  if (at !== 0 && !lw.slice(0, at).every(assignments) && !before.some((x) => WRAPPERS.has(x))) {
+    return;
+  }
+  if (before.some((x) => ARG_ADDERS.has(x))) block('gh run by xargs, parallel or -exec');
+  const shellBuilt = seg.slice(at + 1).some(shellBuiltWord);
+  const [cmd, sub] = lw.slice(at + 1, at + 3);
+  if (cmd === undefined) return;
+  if (cmd.startsWith('-')) {
+    if (cmd === '--version' || HELP.includes(cmd)) return;
+    block('gh: a flag before the command hides it from the ask rules');
+  }
+  if (!GH_COMMANDS.has(cmd)) block(`gh ${cmd}: not a gh command (an alias can stand for anything)`);
+  if (cmd === 'api') {
+    if (shellBuilt) block('gh api: its words must be plain text here');
+    let paths = 0;
+    for (let i = at + 2; i < w.length; i++) {
+      const x = w[i];
+      if (x === '--paginate' || /^--jq=/.test(x)) continue;
+      if (x === '--jq' || x === '-q') {
+        i++;
+        continue;
+      }
+      if (
+        x.startsWith('-') ||
+        /^\/?graphql$/i.test(x) ||
+        !/^\/?[A-Za-z0-9_.{}/-]+(\?[A-Za-z0-9_=&%.,-]*)?$/.test(x) ||
+        ++paths > 1
+      ) {
+        block('gh api only reads here: a path, --paginate and --jq');
+      }
+    }
+    return;
+  }
+  if (GH_SINGLE.has(cmd)) return;
+  if (sub?.startsWith('-') && !HELP.includes(sub)) {
+    block(`gh ${cmd}: a flag before the subcommand hides it from the ask rules`);
+  }
+  if (sub === undefined || HELP.includes(sub)) return;
+  if (GH_READS.has(`${cmd} ${sub}`)) {
+    // gh config get oauth_token prints a token kept outside the keychain.
+    if (cmd === 'config' && lw.slice(at + 3).includes('oauth_token'))
+      block('printing the GitHub token');
+    return;
+  }
+  if (GH_READ_ONLY_GROUPS.has(cmd)) block(`gh ${cmd} ${sub}: only reads of gh ${cmd} run here`);
+  if (!GH_WRITES.has(`${cmd} ${sub}`) && !GH_WRITES.has(cmd)) {
+    block(`gh ${cmd} ${sub}: neither a known read nor a write that asks`);
+  }
+  // The ask rule compares the command's text: `gh <group> <subcommand>` typed as is, first in its
+  // command and not inside sh -c, eval or $(...), whose prefix is the outer command's.
+  const typed = seg.slice(at, at + 3).every((x) => !x.quoted && !shellBuiltWord(x));
+  if (at !== 0 || depth > 0 || w[at] !== 'gh' || !typed) {
+    block(`gh ${cmd} ${sub} writes: it starts the command, typed as is, so its ask rule applies`);
+  }
+}
+
 function checkLine(line, depth) {
   if (depth > MAX_DEPTH) throw new Blocked('command nested too deeply');
   const { segments, code } = split(line);
-  segments.forEach(checkSegment);
+  segments.forEach((seg) => checkSegment(seg, depth));
   checkFindReaders(segments);
   for (const c of code) checkLine(c, depth + 1);
 }
