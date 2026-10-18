@@ -166,6 +166,8 @@ const SIGNED_IN_HANDLERS = [
   'FittingSessionsController.get',
   'FittingSessionsController.list',
   'FittingSessionsController.update',
+  'MeController.delete',
+  'MeController.get',
 ];
 
 // Access is closed by default (spec 0006 F3, AC1): a route with no marker answers 401 to
@@ -190,6 +192,7 @@ describe('access markers', () => {
       expect(handlers.get('CategoriesController.list')).toBe('public');
       expect(handlers.get('CategoriesController.create')).toBe('closed');
       expect(handlers.get('FittingSessionsController.list')).toBe('user');
+      expect(handlers.get('MeController.get')).toBe('user');
 
       const unmarked = [...handlers].filter(([, access]) => access === undefined).map(([n]) => n);
       expect(unmarked).toEqual([]);

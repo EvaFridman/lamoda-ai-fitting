@@ -2,7 +2,7 @@
 
 Status: accepted (2026-10-16); amended 2026-10-18 at the review of PR 1 (T7, T10, T12: N31–N34,
 plan §10); amended 2026-10-19 after the rebase on 0011 (T10 before T7, AC12's files in T7, the `GET /me`
-link check in T7).
+link check in T7); amended 2026-10-19 at T7 (Temporal's retention in T9, N37).
 
 ## How the work flows
 
@@ -73,7 +73,7 @@ link check in T7).
       on closed routes, catalog reads 200 (AC7, AC9); `rg -i 'admin'` in `api/src` and `api/test`
       finds nothing of the admin; `npm run verify`.
       Commit: `feat(api): replace the admin token with signed-in users`
-- [ ] **T7. Own data only, and the current user.** Owner-scoped services and DTOs for fitting
+- [x] **T7. Own data only, and the current user.** Owner-scoped services and DTOs for fitting
       sessions and generations; `MeController` (`GET /me`, `DELETE /me` clearing the cookies);
       nullable `phone` and `firstName` in `UserResponseDto`; 401 for a deleted user's cached
       session (N31); the session hook drops the User-Agent (N34); `mount-auth.ts`'s comment on
@@ -94,7 +94,8 @@ link check in T7).
 - [ ] **T9. Deploy and docs of the api.** `ADMIN_API_TOKEN` out of `docker-compose.yml`,
       `deploy/compose/app.yml`, `cd.yml`, `ci-deploy-check.sh`, `scripts/init-env.sh` and
       `.env.example` (listed here at T6, when `env.ts` stopped reading it); the new variables in `cd.yml`
-      (`app.yml` and the deploy check have them since T4, N22);
+      (`app.yml` and the deploy check have them since T4, N22); the retention of production
+      Temporal's namespace checked and set to about 7 days (N37, added at T7);
       `deploy/README.md` (Google console, secrets, removing the old one); `README.md` (local
       sign-in, no admin token); `CLAUDE.md` (access, request context, error format exception,
       stack table, env); `specs/backlog.md` (plan "Backlog").

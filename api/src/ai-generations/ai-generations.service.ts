@@ -41,6 +41,9 @@ function assertWrite(triple: GenerationTriple, keys: ImageKeys, ownerId: string 
   }
 }
 
+// Reads and deletion take the signed-in user's id and see only the generations of that user's
+// sessions: someone else's is 404, as one that does not exist (spec 0013 N8, AC8); the closed
+// writes (the generation workflow's) see every row.
 // Records generations; nothing here starts an AI workflow (spec 0004 E12). The triple is checked
 // before any write (AC9); an update checks the stored row with the body merged in, and the links
 // are replaced in the same transaction. The triple is read before the row lock, so two parallel
@@ -59,8 +62,15 @@ export class AiGenerationsService {
     private readonly fileDeletion: FileDeletion,
   ) {}
 
-  async list(query: AiGenerationListQueryDto): Promise<Paginated<AiGenerationResponseDto>> {
-    const where: Prisma.AiGenerationWhereInput = { sessionId: query.sessionId };
+  // `sessionId` of someone else's session lists nothing.
+  async list(
+    userId: string,
+    query: AiGenerationListQueryDto,
+  ): Promise<Paginated<AiGenerationResponseDto>> {
+    const where: Prisma.AiGenerationWhereInput = {
+      sessionId: query.sessionId,
+      session: { userId },
+    };
     const [rows, total] = await this.prisma.$transaction([
       this.prisma.aiGeneration.findMany({
         where,
@@ -74,11 +84,12 @@ export class AiGenerationsService {
     return { items: await Promise.all(rows.map((row) => this.toResponse(row))), total };
   }
 
-  async get(id: string): Promise<AiGenerationResponseDto> {
-    const row = await this.prisma.aiGeneration.findUnique({
-      where: { id },
-      include: FOR_RESPONSE,
-    });
+  get(userId: string, id: string): Promise<AiGenerationResponseDto> {
+    return this.find({ id, session: { userId } });
+  }
+
+  private async find(where: Prisma.AiGenerationWhereUniqueInput): Promise<AiGenerationResponseDto> {
+    const row = await this.prisma.aiGeneration.findUnique({ where, include: FOR_RESPONSE });
     if (row === null) {
       throw new NotFoundError('AI generation not found');
     }
@@ -114,7 +125,7 @@ export class AiGenerationsService {
   // transaction run in turn, never in Promise.all (backlog "pg 9 and Prisma transactions").
   async update(id: string, dto: UpdateAiGenerationDto): Promise<AiGenerationResponseDto> {
     if (Object.keys(dto).length === 0) {
-      return this.get(id);
+      return this.find({ id });
     }
     const { productIds, ...fields } = dto;
     // Signed after the transaction: it holds the row lock until it ends.
@@ -158,10 +169,10 @@ export class AiGenerationsService {
   }
 
   // The files go after the row: its own folder only, so a key of it elsewhere in the owner's folder
-  // (the user's photo) stays (spec 0011 M24).
-  async delete(id: string): Promise<void> {
+  // (the user's photo) stays (spec 0011 M24). Someone else's generation is P2025, 404.
+  async delete(userId: string, id: string): Promise<void> {
     const generation = await this.prisma.aiGeneration.delete({
-      where: { id },
+      where: { id, session: { userId } },
       select: { id: true, session: { select: { userId: true } } },
     });
     await this.fileDeletion.startFileDeletion('generation', generation.id, [

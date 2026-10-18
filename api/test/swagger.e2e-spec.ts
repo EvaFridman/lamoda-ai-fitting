@@ -316,10 +316,10 @@ describe('OpenAPI document (e2e)', () => {
     expect(named['401']).toEqual(['UNAUTHORIZED']);
   });
 
-  it('lists ALREADY_EXISTS (409) and RELATED_NOT_FOUND (400) on POST /fitting-sessions', () => {
+  it('lists ALREADY_EXISTS (409) on POST /fitting-sessions but not RELATED_NOT_FOUND (no userId)', () => {
     const named = codesOf('post', '/fitting-sessions');
     expect(named['409']).toEqual(['ALREADY_EXISTS']);
-    expect(named['400']).toContain('RELATED_NOT_FOUND');
+    expect(named['400']).not.toContain('RELATED_NOT_FOUND');
   });
 
   it('lists ALREADY_EXISTS on PATCH /fitting-sessions/{id} but not RELATED_NOT_FOUND', () => {
@@ -357,6 +357,8 @@ describe('OpenAPI document (e2e)', () => {
         'get /ai-generations',
         'get /ai-generations/{id}',
         'delete /ai-generations/{id}',
+        'get /me',
+        'delete /me',
       ]),
     );
     for (const { method, path, operation } of signedInOps) {
@@ -382,9 +384,9 @@ describe('OpenAPI document (e2e)', () => {
   });
 
   // The public operations are named by shape, not read from the document's own 401s (that would be
-  // circular): every GET outside /health and the three resources whose reads are closed or
-  // signed-in only (access-markers.e2e-spec.ts pins that split). The rest must all carry a 401.
-  const NOT_PUBLIC_PREFIXES = ['/users', '/ai-generations', '/fitting-sessions'];
+  // circular): every GET outside /health and the resources whose reads are closed or signed-in
+  // only (access-markers.e2e-spec.ts pins that split). The rest must all carry a 401.
+  const NOT_PUBLIC_PREFIXES = ['/users', '/ai-generations', '/fitting-sessions', '/me'];
   const isHealth = (op: Op): boolean => op.path.startsWith('/health/');
   const isPublic = (op: Op): boolean =>
     op.method === 'get' &&

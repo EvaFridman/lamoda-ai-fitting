@@ -5099,6 +5099,129 @@
         ]
       }
     },
+    "/me": {
+      "get": {
+        "operationId": "MeController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error codes: `UNAUTHORIZED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error codes: `TOO_MANY_REQUESTS`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error codes: `INTERNAL_ERROR`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error codes: `SERVICE_UNAVAILABLE`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "tags": [
+          "me"
+        ]
+      },
+      "delete": {
+        "operationId": "MeController_delete",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "Expires the session cookies."
+          },
+          "401": {
+            "description": "Error codes: `UNAUTHORIZED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error codes: `TOO_MANY_REQUESTS`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error codes: `INTERNAL_ERROR`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error codes: `SERVICE_UNAVAILABLE`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "tags": [
+          "me"
+        ]
+      }
+    },
     "/fitting-sessions": {
       "get": {
         "operationId": "FittingSessionsController_list",
@@ -5123,16 +5246,6 @@
               "maximum": 2147483647,
               "default": 0,
               "type": "number"
-            }
-          },
-          {
-            "name": "userId",
-            "required": false,
-            "in": "query",
-            "description": "Only this user's sessions.",
-            "schema": {
-              "format": "uuid",
-              "type": "string"
             }
           }
         ],
@@ -5248,7 +5361,7 @@
             }
           },
           "400": {
-            "description": "Error codes: `VALIDATION_FAILED`, `BAD_JSON`, `RELATED_NOT_FOUND`",
+            "description": "Error codes: `VALIDATION_FAILED`, `BAD_JSON`",
             "content": {
               "application/json": {
                 "schema": {
@@ -7504,10 +7617,6 @@
       "CreateFittingSessionDto": {
         "type": "object",
         "properties": {
-          "userId": {
-            "type": "string",
-            "format": "uuid"
-          },
           "title": {
             "type": "string",
             "nullable": true,
@@ -7518,10 +7627,7 @@
             "type": "boolean",
             "description": "True when left out on create. Making a session active archives the user's active one."
           }
-        },
-        "required": [
-          "userId"
-        ]
+        }
       },
       "UpdateFittingSessionDto": {
         "type": "object",

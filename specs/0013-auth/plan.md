@@ -1,8 +1,9 @@
 # 0013 auth: plan
 
-Status: accepted (2026-10-16); amended 2026-10-18 at the review of PR 1 (N29, N31–N36).
+Status: accepted (2026-10-16); amended 2026-10-18 at the review of PR 1 (N29, N31–N36); amended
+2026-10-19 at T7 (N37–N39).
 
-Implements [spec.md](spec.md); decisions in [clarifications.md](clarifications.md) (N1–N36).
+Implements [spec.md](spec.md); decisions in [clarifications.md](clarifications.md) (N1–N39).
 
 ## 1. Library and versions (N1)
 
@@ -226,6 +227,10 @@ patches every few days; the pin is moved on purpose, N33). Neither needs an inst
   "Мои данные" page with editing and account deletion (N11, N12); dropping the empty
   `sessions.user_agent` column (N34); the socket keeping a revoked session's user until it
   disconnects, for the generations spec to decide (N36).
+- Remove: "Users' ids in Temporal history" (the retention is set in T9, N37).
+- Add: a limit of fitting sessions per user, for the generations spec (N39).
+- Change: "Outbox for file deletion" is done with the photo upload spec, before the first user's
+  file (N37).
 - Keep: "Email look-alikes" (spec non-goal).
 
 ## Docs

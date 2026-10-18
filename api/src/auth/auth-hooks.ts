@@ -10,9 +10,6 @@ import {
 // changes: Better Auth merges them over the row. A field set to `undefined` is not written, which
 // is how the fields we have no column for stay out (Prisma refuses an unknown one).
 
-// The `sessions.user_agent` column's length.
-export const USER_AGENT_MAX_LENGTH = 512;
-
 // Google's token fields: the api never calls Google after sign-in, so none is kept.
 const TOKEN_FIELDS = [
   'accessToken',
@@ -46,14 +43,9 @@ export function accountFields(): Record<string, unknown> {
   return Object.fromEntries(TOKEN_FIELDS.map((field) => [field, null]));
 }
 
-// No IP address: tracking is off and there is no column. A longer User-Agent would fail the insert,
-// and with it the sign-in.
-export function sessionFields(session: Record<string, unknown>): Record<string, unknown> {
-  const { userAgent } = session;
-  return {
-    ipAddress: undefined,
-    ...(typeof userAgent === 'string' && userAgent.length > USER_AGENT_MAX_LENGTH
-      ? { userAgent: userAgent.slice(0, USER_AGENT_MAX_LENGTH) }
-      : {}),
-  };
+// No IP address (tracking is off and there is no column) and no User-Agent: nothing reads it, and
+// with the user id it fingerprints a browser (spec 0013 N34). Its column stays empty until a later
+// release drops it.
+export function sessionFields(): Record<string, unknown> {
+  return { ipAddress: undefined, userAgent: undefined };
 }

@@ -14,6 +14,7 @@ import { CoreModule } from './core/core.module.js';
 import { FittingSessionsModule } from './fitting-sessions/fitting-sessions.module.js';
 import { HealthModule } from './health/health.module.js';
 import { HelloModule } from './hello/hello.module.js';
+import { MeModule } from './me/me.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { ProductsModule } from './products/products.module.js';
 import { RealtimeModule } from './realtime/realtime.module.js';
@@ -49,6 +50,7 @@ import { UsersModule } from './users/users.module.js';
     AttributesModule,
     ProductsModule,
     UsersModule,
+    MeModule,
     FittingSessionsModule,
     AiGenerationsModule,
   ],

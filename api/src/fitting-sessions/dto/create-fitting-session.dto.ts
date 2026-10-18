@@ -1,15 +1,13 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsOptional, IsUUID } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsBoolean, IsOptional } from 'class-validator';
 
 import { IsOmittable, IsTrimmedText, NAME_MAX_LENGTH } from '../../common/validation/rules.js';
 
 // `isActive` has no initializer: PartialType would copy it into the update DTO, where a field left
-// out keeps its value. The service treats a missing one as true (spec 0004 E48).
+// out keeps its value. The service treats a missing one as true (spec 0004 E48). No `userId`: the
+// session is the signed-in user's, and one in the body is 400 as any unknown field (spec 0013 plan
+// §6).
 export class CreateFittingSessionDto {
-  @ApiProperty({ format: 'uuid' })
-  @IsUUID()
-  userId: string;
-
   @ApiPropertyOptional({
     type: String,
     nullable: true,

@@ -8,5 +8,7 @@ import { UsersService } from './users.service.js';
   imports: [StorageModule],
   controllers: [UsersController],
   providers: [UsersService],
+  // For /me (MeModule).
+  exports: [UsersService],
 })
 export class UsersModule {}

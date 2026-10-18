@@ -2,7 +2,7 @@
 
 Status: accepted (2026-10-16); amended 2026-10-16 at the plan: no guests (N2, N9, N10 withdrawn),
 the first name is optional (N5), Better Auth's own error format (N17), a 5-minute session cache
-(N18); amended 2026-10-18 at the review of PR 1 (N31–N36).
+(N18); amended 2026-10-18 at the review of PR 1 (N31–N36); amended 2026-10-19 at T7 (N37–N39).
 
 The owner's decisions for this spec. Ids `N1`, `N2`, … are referred to by the spec, the plan and
 code comments. All decisions below: owner, 2026-10-16.
@@ -211,3 +211,20 @@ All decisions below: owner, 2026-10-18, on the review of the spec's pull request
   user at the handshake (plan §7); a sign-out or a revoke does not close an open socket. The
   gateway carries no user data in this spec, so the generations spec decides how long that trust
   lasts (a backlog item).
+- **N37. Account deletion: Temporal's retention now, the outbox with the photo upload** (owner,
+  2026-10-19, at T7). With `DELETE /me` any user can delete their account, and the id of each one
+  stays in `deleteFiles`' history, which production never expires: T9 checks the retention the
+  production Temporal sets and sets it (about 7 days). The outbox of file deletion (an api killed
+  between the delete's commit and the workflow's start leaves the files) matters only once users'
+  folders hold files, which no route writes yet: it stays in the backlog, for the photo upload spec,
+  before the first user's file. Rejected: both now (a migration and a table in PR 2 for folders
+  that are empty); both later (deleted users' ids kept from the first deletion).
+- **N38. A 401 of `/me` for a deleted user signs the browser out** (owner, 2026-10-19, at T7's
+  review). `GET /me` and `DELETE /me` that find the user gone (N31) expire the session cookies in
+  their answer, as `DELETE /me` does: get-session stops showing the browser signed in, and the
+  token no longer makes a database read on every request for up to 30 days. Rejected: keeping them
+  until they expire (N18 allows it, but nothing gains from it).
+- **N39. Fitting sessions per user are limited with the generations spec** (owner, 2026-10-19, at
+  T7's review). A signed-in user can create sessions within the `write` quota and nothing removes
+  archived ones; a per-user limit goes to the backlog for the generations spec, which defines how
+  sessions are used. Rejected: a limit now, before sessions have a use.

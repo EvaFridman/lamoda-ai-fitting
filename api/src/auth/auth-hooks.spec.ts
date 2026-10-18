@@ -68,22 +68,10 @@ describe('accountFields', () => {
 
 describe('sessionFields', () => {
   it('never writes an IP address', () => {
-    const fields = sessionFields({ ipAddress: '203.0.113.7', userAgent: 'curl' });
-
-    expect(fields).toHaveProperty('ipAddress', undefined);
+    expect(sessionFields()).toHaveProperty('ipAddress', undefined);
   });
 
-  it('leaves a User-Agent of up to 512 characters as it is', () => {
-    expect(sessionFields({ userAgent: 'x'.repeat(512) })).not.toHaveProperty('userAgent');
-  });
-
-  it('cuts a longer User-Agent to 512 characters', () => {
-    const fields = sessionFields({ userAgent: `${'x'.repeat(512)}tail` });
-
-    expect(fields.userAgent).toBe('x'.repeat(512));
-  });
-
-  it('leaves out a missing User-Agent', () => {
-    expect(sessionFields({ userAgent: null })).not.toHaveProperty('userAgent');
+  it('never writes a User-Agent (N34)', () => {
+    expect(sessionFields()).toHaveProperty('userAgent', undefined);
   });
 });

@@ -13,15 +13,17 @@ import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiTags } from
 
 import { ApiErrors } from '../common/errors/api-errors.decorator.js';
 import { SignedIn } from '../common/auth/access.decorators.js';
+import { CurrentUserId } from '../common/auth/current-principal.decorator.js';
 import { ApiPaginatedResponse, type Paginated } from '../common/pagination/paginated.js';
+import { PaginationQueryDto } from '../common/pagination/pagination-query.dto.js';
 import { UuidParam } from '../common/pipes/uuid.pipe.js';
 import { CreateFittingSessionDto } from './dto/create-fitting-session.dto.js';
-import { FittingSessionListQueryDto } from './dto/fitting-session-list-query.dto.js';
 import { FittingSessionResponseDto } from './dto/fitting-session-response.dto.js';
 import { UpdateFittingSessionDto } from './dto/update-fitting-session.dto.js';
 import { FittingSessionsService } from './fitting-sessions.service.js';
 
-// Every route, reads included, needs a signed-in user (spec 0013 N8).
+// Every route, reads included, needs a signed-in user and serves only that user's sessions (spec
+// 0013 N8).
 @ApiTags('fitting-sessions')
 @Controller('fitting-sessions')
 @SignedIn()
@@ -30,37 +32,47 @@ export class FittingSessionsController {
 
   @Get()
   @ApiPaginatedResponse(FittingSessionResponseDto)
-  list(@Query() query: FittingSessionListQueryDto): Promise<Paginated<FittingSessionResponseDto>> {
-    return this.sessions.list(query);
+  list(
+    @CurrentUserId() userId: string,
+    @Query() query: PaginationQueryDto,
+  ): Promise<Paginated<FittingSessionResponseDto>> {
+    return this.sessions.list(userId, query);
   }
 
   @Get(':id')
   @ApiOkResponse({ type: FittingSessionResponseDto })
-  get(@UuidParam('id') id: string): Promise<FittingSessionResponseDto> {
-    return this.sessions.get(id);
+  get(
+    @CurrentUserId() userId: string,
+    @UuidParam('id') id: string,
+  ): Promise<FittingSessionResponseDto> {
+    return this.sessions.get(userId, id);
   }
 
   @Post()
   @ApiCreatedResponse({ type: FittingSessionResponseDto })
-  @ApiErrors('ALREADY_EXISTS', 'RELATED_NOT_FOUND')
-  create(@Body() dto: CreateFittingSessionDto): Promise<FittingSessionResponseDto> {
-    return this.sessions.create(dto);
+  @ApiErrors('ALREADY_EXISTS')
+  create(
+    @CurrentUserId() userId: string,
+    @Body() dto: CreateFittingSessionDto,
+  ): Promise<FittingSessionResponseDto> {
+    return this.sessions.create(userId, dto);
   }
 
   @Patch(':id')
   @ApiOkResponse({ type: FittingSessionResponseDto })
   @ApiErrors('ALREADY_EXISTS')
   update(
+    @CurrentUserId() userId: string,
     @UuidParam('id') id: string,
     @Body() dto: UpdateFittingSessionDto,
   ): Promise<FittingSessionResponseDto> {
-    return this.sessions.update(id, dto);
+    return this.sessions.update(userId, id, dto);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiNoContentResponse()
-  delete(@UuidParam('id') id: string): Promise<void> {
-    return this.sessions.delete(id);
+  delete(@CurrentUserId() userId: string, @UuidParam('id') id: string): Promise<void> {
+    return this.sessions.delete(userId, id);
   }
 }

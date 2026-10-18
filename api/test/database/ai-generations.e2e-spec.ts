@@ -4,7 +4,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { generationInputKey, generationResultKey } from '../../src/storage/keys.js';
-import { signIn } from '../support/sign-in.js';
+import { signIn, type SignedIn } from '../support/sign-in.js';
 import { createTestApp, type TestApp } from '../support/test-app.js';
 
 interface GenerationBody {
@@ -56,7 +56,8 @@ let categoryId: string;
 
 beforeAll(async () => {
   testApp = await createTestApp();
-  session = { Cookie: (await signIn(testApp.app)).cookie };
+  signedIn = await signIn(testApp.app);
+  session = { Cookie: signedIn.cookie };
   brandId = (await testApp.prisma.brand.create({ data: { name: 'Generations brand' } })).id;
   categoryId = (
     await testApp.prisma.category.create({
@@ -72,6 +73,7 @@ afterAll(async () => {
 const http = () => request(testApp.app.getHttpServer());
 // The Cookie header of a signed-in user (the test app lets one through the closed routes).
 let session: Record<string, string> = {};
+let signedIn: SignedIn;
 
 function next(): number {
   counter += 1;
@@ -80,14 +82,14 @@ function next(): number {
 
 const owners = new Map<string, string>();
 
-async function createSession(): Promise<string> {
-  const n = String(next()).padStart(9, '0');
-  const user = await testApp.prisma.user.create({
-    data: { phone: `+79${n}`.slice(0, 12), email: `gen${n}@mail.ru`, firstName: 'Анна' },
+// The reads and the delete see the signed-in user's sessions only, so the sessions are theirs
+// (archived: a user has one active session at most).
+async function createSession(owner: string = signedIn.userId): Promise<string> {
+  const created = await testApp.prisma.fittingSession.create({
+    data: { userId: owner, isActive: false },
   });
-  const session = await testApp.prisma.fittingSession.create({ data: { userId: user.id } });
-  owners.set(session.id, user.id);
-  return session.id;
+  owners.set(created.id, owner);
+  return created.id;
 }
 
 // The keys a write to this session may carry: in the folder of the session's user.
@@ -840,5 +842,59 @@ describe('ai generations: list', () => {
       'VALIDATION_FAILED',
       'limit',
     );
+  });
+});
+
+describe('ai generations: own data only (AC8)', () => {
+  it('answers 404 NOT_FOUND to another user on get and delete and changes nothing', async () => {
+    const generation = await create(await createSession(), await createProducts(1));
+    const stranger = { Cookie: (await signIn(testApp.app)).cookie };
+    const stored = await testApp.prisma.aiGeneration.findUniqueOrThrow({
+      where: { id: generation.id },
+    });
+
+    expectError(
+      await http().get(`/ai-generations/${generation.id}`).set(stranger),
+      404,
+      'NOT_FOUND',
+    );
+    expectError(
+      await http().delete(`/ai-generations/${generation.id}`).set(stranger),
+      404,
+      'NOT_FOUND',
+    );
+
+    expect(
+      await testApp.prisma.aiGeneration.findUniqueOrThrow({ where: { id: generation.id } }),
+    ).toEqual(stored);
+    expect(await links(generation.id)).toHaveLength(1);
+    expect((await get(generation.id)).status).toBe(200);
+  });
+
+  it('lists only the own generations, also with the sessionId of another user', async () => {
+    const mine = await create(await createSession(), await createProducts(1));
+    const stranger = await signIn(testApp.app);
+    const theirSession = await createSession(stranger.userId);
+    const theirs = await create(theirSession, await createProducts(1));
+    const strangerCookie = { Cookie: stranger.cookie };
+
+    const own = (await http().get('/ai-generations').set(session)).body as {
+      items: GenerationBody[];
+    };
+    const theirList = (await http().get('/ai-generations').set(strangerCookie)).body as {
+      items: GenerationBody[];
+      total: number;
+    };
+    const crossed = await http()
+      .get(`/ai-generations?sessionId=${mine.sessionId}`)
+      .set(strangerCookie);
+
+    const ownIds = own.items.map((item) => item.id);
+    expect(ownIds).toContain(mine.id);
+    expect(ownIds).not.toContain(theirs.id);
+    expect(theirList.items.map((item) => item.id)).toEqual([theirs.id]);
+    expect(theirList.total).toBe(1);
+    expect(crossed.status).toBe(200);
+    expect(crossed.body).toEqual({ items: [], total: 0 });
   });
 });
