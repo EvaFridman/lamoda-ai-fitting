@@ -108,34 +108,63 @@ apply_nginx_config() {
   '
 }
 
-# One catalog photo (spec 0011 M15, M31): the bucket lets only this server's address read media/,
-# so a new address or a broken policy shows here. Straight from the bucket out of nginx's
-# container, past its cache (which keeps a photo a day and a refusal a minute), then through nginx,
-# as visitors get it. A random image of the catalog; none (an empty catalog) is not checked. Three
+# One catalog photo (spec 0011 M15, M31, M38): the bucket lets only this server's address read
+# media/, so a new address or a broken policy shows here. First straight from the bucket, before
+# nginx changes: from a throwaway container of the new api image on this server (the server's
+# address, no cache). A random image of the catalog; none (an empty catalog) is not checked. Three
 # tries, a second apart, for a storage that fails or times out.
-check_media() {
-  local key status="" direct=""
-  key="$(infra exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tA \
+media_key=""
+check_bucket() {
+  local status=""
+  media_key="$(infra exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tA \
     -c 'SELECT image_key FROM product_images ORDER BY random() LIMIT 1')" \
     || { log "cannot read an image key from the database"; return 1; }
-  if [ -z "$key" ]; then
+  if [ -z "$media_key" ]; then
     log "media not checked: the catalog has no image"
     return 0
   fi
-  [[ "$key" =~ ^[A-Za-z0-9._/-]+$ ]] || { log "unexpected image key '$key'"; return 1; }
+  # The database's CHECK on image keys: every segment starts with a letter or digit, no `..`.
+  [[ "$media_key" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*(/[A-Za-z0-9][A-Za-z0-9._-]*)*$ && "$media_key" != *..* ]] \
+    || { log "unexpected image key '$media_key'"; return 1; }
+  # The key goes in the environment: as an argument node could take it for one of its options.
+  status="$(app "$target" "$tag" run --rm --no-deps -T -e MEDIA_KEY="$media_key" api node -e '
+    const url = `${process.env.S3_ENDPOINT.replace(/\/$/, "")}/${process.env.S3_BUCKET}/media/${process.env.MEDIA_KEY}`;
+    (async () => {
+      let status = 0;
+      for (let i = 0; i < 3 && status !== 200; i++) {
+        if (i > 0) await new Promise((resolve) => setTimeout(resolve, 1000));
+        status = await fetch(url, { signal: AbortSignal.timeout(10000) })
+          .then(async (r) => { await r.arrayBuffer(); return r.status; })
+          .catch(() => 0);
+      }
+      console.log(status);
+    })();
+  ' || true)"
+  [ "$status" = 200 ] && { log "media: media/$media_key answers 200 from the bucket"; return 0; }
+  log "media/$media_key answers ${status:-nothing} from the bucket; expected 200"
+  return 1
+}
+
+# The same photo through nginx, as visitors get it, after the nginx step. nginx keeps a refusal a
+# minute: a fixed policy shows through it only after that.
+check_media_through_nginx() {
+  local status=""
+  [ -n "$media_key" ] || return 0
   for _ in 1 2 3; do
-    status=""
-    # X-Deploy-Check tells this request from nginx's own in ci-deploy-check's storage probe.
-    direct="$(infra exec -T nginx sh -c 'curl -s --max-time 10 -o /dev/null -w "%{http_code}" \
-      -H "X-Deploy-Check: media" "${S3_ENDPOINT%/}/$S3_BUCKET/media/$1"' check_media "$key" || true)"
-    [ "$direct" = 200 ] && status="$(curl -sk --max-time 10 -o /dev/null -w '%{http_code}' \
-      --resolve "$SITE_DOMAIN:443:127.0.0.1" "https://$SITE_DOMAIN/media/$key" || true)"
-    [ "$status" = 200 ] && { log "media: media/$key answers 200 from the bucket and through nginx"; return 0; }
+    status="$(curl -sk --max-time 10 -o /dev/null -w '%{http_code}' \
+      --resolve "$SITE_DOMAIN:443:127.0.0.1" "https://$SITE_DOMAIN/media/$media_key" || true)"
+    [ "$status" = 200 ] && { log "media: media/$media_key answers 200 through nginx"; return 0; }
     sleep 1
   done
-  # nginx keeps a refusal a minute: a fixed policy shows through it only after that.
-  log "media/$key answers ${direct:-nothing} from the bucket, ${status:-not asked} through nginx (a refusal stays in its cache a minute); expected 200"
+  log "media/$media_key answers ${status:-nothing} through nginx (a refusal stays in its cache a minute); expected 200"
   return 1
+}
+
+# nginx changes last (spec 0011 M38): recreated when its infra.yml service changed (a new
+# PROXY_SECRET, S3_ENDPOINT), then the deployed templates applied; a no-op when nothing changed.
+update_nginx() {
+  infra "${profile_args[@]}" up -d --wait || fail "nginx did not become healthy"
+  apply_nginx_config || fail "the deployed nginx config was not applied (see above); nginx keeps its previous one"
 }
 
 image_tag_of() {
@@ -159,9 +188,9 @@ else
   done
 fi
 
-# 1b. A changed PROXY_SECRET recreates nginx below, before anything can fail. The running api must
-#     already accept it (as PROXY_SECRET_NEXT, spec 0006 F21), or a deploy failing after that leaves
-#     every visitor of /api/ in one quota. Skipped, with a log line, when nginx is not running or
+# 1b. A changed PROXY_SECRET recreates nginx at the nginx step, before the new copy starts. The
+#     running api must already accept it (as PROXY_SECRET_NEXT, spec 0006 F21), or a deploy failing
+#     after that leaves every visitor of /api/ in one quota. Checked here, before anything changes. Skipped, with a log line, when nginx is not running or
 #     has no secret yet (the first deploy with it) and when the serving copy is not healthy (the
 #     site is down: the deploy is the way back). A running nginx whose secret cannot be read stops
 #     the deploy. The secret goes over stdin, never into a command line or log.
@@ -194,11 +223,11 @@ else
   unset nginx_secret
 fi
 
-# 2. Data stores, Temporal, nginx: a no-op when nothing changed.
+# 2. Data stores and Temporal: a no-op when nothing changed. nginx and its certificates wait for
+#    the nginx step (update_nginx).
 profile_args=()
 [ "${DEPLOY_PROFILE:-}" = server ] && profile_args=(--profile server)
-infra "${profile_args[@]}" up -d --wait || fail "infrastructure did not become healthy"
-apply_nginx_config || fail "the deployed nginx config was not applied (see above); nginx keeps its previous one"
+infra up -d --wait postgres redis temporal || fail "infrastructure did not become healthy"
 
 if [ "$(image_tag_of "$target")" = "$tag" ] && is_healthy "$target" api && is_healthy "$target" web; then
   # 3a. Rollback to the version that ran before: it is still running, only the switch is left.
@@ -206,6 +235,7 @@ if [ "$(image_tag_of "$target")" = "$tag" ] && is_healthy "$target" api && is_he
   #     ADMIN_API_TOKEN, a new variable): then compose recreates it, or nginx's new secret would
   #     not match its old one and every visitor of /api/ would share one quota (spec 0006 F18).
   log "$target already runs $tag and is healthy: switching only, recreated if its config changed"
+  update_nginx
   if ! app "$target" "$tag" up -d --wait --remove-orphans; then
     app "$target" "$tag" stop >&2 || true
     fail "$target with $tag did not become healthy; stopped it, ${active:-nothing} keeps serving"
@@ -234,8 +264,11 @@ else
   esac
 
   # The seed has uploaded its photos. Not on a rollback (3a): it is the way back, and a broken
-  # bucket is not fixed by refusing it (spec 0011 M31).
-  check_media || fail "nginx does not serve the media (deploy/README.md, \"Хранилище S3\"); ${active:-nothing} keeps serving"
+  # bucket is not fixed by refusing it (spec 0011 M31). Up to here a failure leaves nginx, its
+  # config and /media/ as they were (M38).
+  check_bucket || fail "the server cannot read the media from the bucket (deploy/README.md, \"Хранилище S3\"); nginx was not changed, ${active:-nothing} keeps serving"
+  update_nginx
+  check_media_through_nginx || fail "nginx does not serve the media (deploy/README.md, \"Хранилище S3\"); ${active:-nothing} keeps serving"
 
   log "starting $target with $tag"
   if ! app "$target" "$tag" up -d --wait --remove-orphans; then

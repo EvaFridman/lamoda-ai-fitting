@@ -25,8 +25,8 @@ Details and commands: `deploy/README.md`.
 - Blue-green: the new copy of api and web starts next to the running one, nginx switches only when
   it is healthy; the previous copy stays as the rollback. The Temporal worker is replaced in place.
 - Infrastructure (`deploy/compose/infra.yml`) is not blue-green: a deploy that changes a service's
-  definition there recreates it in place, before the migrations; for postgres, redis, temporal or
-  nginx that is an outage (seconds for a config change, longer for an image upgrade). Such a change
+  definition there recreates it in place, postgres, redis and temporal before the migrations, nginx
+  after the seed and the bucket check (spec 0011 M38); for any of them that is an outage (seconds for a config change, longer for an image upgrade). Such a change
   is the owner's decision and is merged at a quiet time.
 - Every change to deploy files is tested the way it reaches production: on a copy of `deploy/`
   updated as CD updates the server, and in CI by `scripts/ci-deploy-check.sh`. nginx config changes
@@ -36,10 +36,13 @@ Details and commands: `deploy/README.md`.
 - Before the new copy starts, `deploy.sh` runs, from the new image, the migrations and then the seed
   (`dist/seed/main.js`, the demo catalog: adds only missing rows and uploads only the photos missing
   from the bucket, a no-op once loaded), then checks one random catalog photo straight from the
-  bucket out of nginx's container (past its cache) and through nginx (spec 0011 M31). A failed
-  migration, seed or photo check stops the deploy and the active copy keeps serving. An image
+  bucket from a throwaway container of the new api image (the server's address, no cache), then
+  changes nginx (recreated if its service changed, the new config applied), then checks the photo
+  through nginx (spec 0011 M31, M38). A failed migration, seed or photo check stops the deploy and
+  the active copy keeps serving; one before the nginx step leaves nginx and its config as they
+  were. An image
   without the seed (a rollback to a version from before it) logs "seed skipped" and deploys. A
-  rollback to the copy that still runs only switches nginx: no migrations, no seed, no photo check; compose recreates that copy first
+  rollback to the copy that still runs applies nginx and switches it: no migrations, no seed, no photo check; compose recreates that copy first
   when `.env` or `app.yml` changed since it started (a rotated secret), and it must pass readiness.
 - A changed `PROXY_SECRET` recreates nginx; `deploy.sh` first checks that the serving api already
   trusts it (as `PROXY_SECRET_NEXT`) and stops otherwise. Rotation takes two deploys
