@@ -1,7 +1,7 @@
 # 0013 auth: tasks
 
 Status: accepted (2026-10-16); amended 2026-10-18 at the review of PR 1 (T7, T10, T12: N31–N34,
-plan §10).
+plan §10); amended 2026-10-19 after the rebase on 0011 (T10 before T7, AC12's files in T7).
 
 ## How the work flows
 
@@ -81,7 +81,8 @@ plan §10).
       Check: e2e with two users on every fitting session and generation route (AC8); `GET /me`;
       `DELETE /me` removes the rows, clears both cookies in its answer and the session token alone
       then answers 401; a cached copy (another session, or both old cookies) gets 401 on `GET /me`,
-      `DELETE /me` and a write (AC12 without files); a new session has no User-Agent;
+      `DELETE /me` and a write; `DELETE /me` starts the file deletion and the user's folder is empty
+      afterwards (AC12); a new session has no User-Agent;
       `npm run verify`.
       Commit: `feat(api): serve each user only their own fittings`
 - [ ] **T8. The socket knows the user.** `io.use` in `SocketIoAdapter` (plan §7).
@@ -102,13 +103,14 @@ plan §10).
       Check: activity e2e on the database (expired rows go, live ones stay); workflow test with
       the Temporal test environment; `temporal-reviewer`; `npm run verify`.
       Commit: `feat(api): delete expired sessions and sign-in states`
-- [ ] **T10. Account files (after `feat/0011-storage` is in `main`).** Rebase; `DELETE /me` goes
-      through 0011's user deletion; 0011's admin-based e2e (M8, M9; its T7) rewritten for a
-      signed-in user and the test guard (N15). 0011's storage and user deletion are in `main`
-      since #77.
-      Check: e2e: `DELETE /me` starts the file deletion and the user's folder is empty afterwards
-      (AC12); 0011's link and key-folder checks pass; `npm run verify`.
-      Commit: `feat(api): delete an account's files with it`
+- [ ] **T10. 0011's checks without the admin token (done right after the rebase, before T7).**
+      0011's admin-based e2e (`owner-check-links`, `file-deletion`, `file-deletion-close`; M8, M9,
+      M11) rewritten for a signed-in user and the test guard (N15). The branch was rebased on
+      `main` with all of 0011 (#77, #78) on 2026-10-19; the owner moved this task before T7 so the
+      branch is green again first. `DELETE /me` gets the files from T7: `UsersService.delete`
+      already starts their deletion (0011 M11).
+      Check: 0011's link, key-folder and file-deletion checks pass; `npm run verify`.
+      Commit: `test(api): run the storage checks as a signed-in user`
 - 👤 before the merge: creates the Google OAuth client (redirect URIs
   `http://localhost:3001/api/auth/callback/google` and
   `https://lamoda-ai-fitting.ru/api/auth/callback/google`), puts `GOOGLE_CLIENT_ID`,
