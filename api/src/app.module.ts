@@ -5,6 +5,7 @@ import { SentryModule } from '@sentry/nestjs/setup';
 
 import { AiGenerationsModule } from './ai-generations/ai-generations.module.js';
 import { AttributesModule } from './attributes/attributes.module.js';
+import { AuthModule } from './auth/auth.module.js';
 import { BrandsModule } from './brands/brands.module.js';
 import { CategoriesModule } from './categories/categories.module.js';
 import { AccessGuard } from './common/auth/access.guard.js';
@@ -34,6 +35,8 @@ import { UsersModule } from './users/users.module.js';
     // browsers.
     EventEmitterModule.forRoot(),
     PrismaModule,
+    // Sign-in at /api/auth, mounted by createHttpApp() (spec 0013).
+    AuthModule,
     RedisModule,
     StorageModule,
     TemporalClientModule,

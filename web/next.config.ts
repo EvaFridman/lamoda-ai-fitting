@@ -22,11 +22,18 @@ const nextConfig: NextConfig = {
   // drops it, M30: `?response-content-type=` changes the answer locally only); the objects carry
   // their own Content-Type and Cache-Control. The
   // production image has no rewrite: outside `next dev` this returns none, so it proxies nothing.
+  // Sign-in keeps its prefix, as nginx's /api/auth/ does: Better Auth in the api answers at
+  // /api/auth (spec 0013 plan §9). The first rule that matches wins, so it comes first.
   async rewrites() {
     if (process.env.NODE_ENV !== 'development') return [];
     const { API_URL: apiUrl, S3_ENDPOINT: s3Endpoint, S3_BUCKET: s3Bucket } = process.env;
     return [
-      ...(apiUrl ? [{ source: '/api/:path*', destination: `${apiUrl}/:path*` }] : []),
+      ...(apiUrl
+        ? [
+            { source: '/api/auth/:path*', destination: `${apiUrl}/api/auth/:path*` },
+            { source: '/api/:path*', destination: `${apiUrl}/:path*` },
+          ]
+        : []),
       ...(s3Endpoint && s3Bucket
         ? [{ source: '/media/:path*', destination: `${s3Endpoint}/${s3Bucket}/media/:path*` }]
         : []),

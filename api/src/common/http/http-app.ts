@@ -2,6 +2,7 @@ import type { NestApplicationOptions } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 
+import { mountAuth } from '../../auth/mount-auth.js';
 import type { Env } from '../../config/env.js';
 import { createValidationPipe } from '../validation/validation-pipe.js';
 import { AppExpressAdapter } from './app-express.adapter.js';
@@ -34,6 +35,9 @@ export async function createHttpApp(
   // PAYLOAD_TOO_LARGE) still gets a request id.
   useRequestContext(app);
   app.enableCors({ origin: config.get('WEB_ORIGIN', { infer: true }), credentials: true });
+  // Better Auth reads its own body, so it comes before the JSON parser; after the request context
+  // (its rate limit reads the client address) and CORS.
+  await mountAuth(app);
   // After CORS, so a refused body still answers with the CORS headers the browser needs to read it.
   app.useBodyParser('json', { limit: config.get('BODY_LIMIT', { infer: true }) });
   app.useGlobalPipes(createValidationPipe());

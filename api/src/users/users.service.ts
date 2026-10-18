@@ -94,7 +94,11 @@ export class UsersService {
     await this.fileDeletion.startFileDeletion('user', user.id, userFolders(user.id));
   }
 
-  private async toResponse(user: User): Promise<UserResponseDto> {
+  // `emailVerified` is Better Auth's (always true from Google), not part of the answer.
+  private async toResponse({
+    emailVerified: _emailVerified,
+    ...user
+  }: User): Promise<UserResponseDto> {
     return {
       ...user,
       dateOfBirth: user.dateOfBirth?.toISOString().slice(0, 10) ?? null,

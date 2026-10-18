@@ -194,6 +194,19 @@ server {
     return 404 '{"error":{"code":"ROUTE_NOT_FOUND","message":"Route not found","details":[]}}';
   }
 
+  # Sign-in (Better Auth in the api, spec 0013 plan §9) keeps its prefix: no URI in proxy_pass, so
+  # /api/auth/… reaches the api unchanged, where Better Auth matches it against its base URL. The
+  # longer prefix wins over /api/ below, whose limits and error pages it repeats (error_page here
+  # would replace the server's).
+  location /api/auth/ {
+    limit_req zone=edge_api burst=40 nodelay;
+    proxy_pass http://api;
+    proxy_read_timeout 60s;
+    error_page 413 @payload_too_large;
+    error_page 429 @too_many_requests;
+    error_page 502 504 =503 @api_unavailable;
+  }
+
   # The api without its /api prefix: /api/hello → /hello. Liveness above has its own zone, so the
   # deploy's request loop is never refused.
   location /api/ {

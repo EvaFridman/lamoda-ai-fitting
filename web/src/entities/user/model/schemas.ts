@@ -8,9 +8,9 @@ export const genderSchema = z.enum(['male', 'female']);
 // UserResponseDto.
 export const userSchema = z.object({
   id: z.uuid(),
-  phone: z.string(),
+  phone: z.string().nullable(),
   email: z.string(),
-  firstName: z.string(),
+  firstName: z.string().nullable(),
   lastName: z.string().nullable(),
   patronymic: z.string().nullable(),
   dateOfBirth: z.iso.date().nullable(),
