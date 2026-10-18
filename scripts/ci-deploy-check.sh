@@ -297,11 +297,24 @@ probe_log() {
   docker logs "$probe_container" > "$work/probe.log" 2>&1 \
     || { echo "ci-deploy-check: cannot read the storage probe's log" >&2; return 1; }
 }
-# "key etag" of every object under media/, sorted (the seed's photos are far below one page).
+# "key etag" of every object under media/, sorted (the seed's photos are far below one page). Each
+# <Contents> is read whole, so the order of its tags (S3 puts <LastModified> between <Key> and
+# <ETag>, SeaweedFS does not) does not matter; a failed request, an entry without both tags or a
+# listing that yields nothing fails here. Callers run it in `$(…)` or before `||`, where set -e
+# is off, so every failure returns 1 itself.
 media_etags() {
-  s3_admin 'http://localhost:8333/ai-fitting?list-type=2&prefix=media/' \
-    | grep -o '<Key>[^<]*</Key><ETag>[^<]*</ETag>' | sed 's/<Key>\(.*\)<\/Key><ETag>\(.*\)<\/ETag>/\1 \2/' \
-    | sort
+  local listing
+  listing="$(s3_admin 'http://localhost:8333/ai-fitting?list-type=2&prefix=media/' \
+    | awk -v RS='<Contents>' 'NR > 1 {
+        if (index($0, "<Key>") == 0 || index($0, "<ETag>") == 0) exit 1
+        key = $0; sub(/.*<Key>/, "", key); sub(/<\/Key>.*/, "", key)
+        etag = $0; sub(/.*<ETag>/, "", etag); sub(/<\/ETag>.*/, "", etag)
+        print key, etag
+      }' | sort)" \
+    || { echo "ci-deploy-check: cannot list media/ in the storage emulator, or an entry lacks <Key> or <ETag>" >&2; return 1; }
+  [ -n "$listing" ] \
+    || { echo "ci-deploy-check: the listing of media/ holds no object (or a form this does not read)" >&2; return 1; }
+  printf '%s\n' "$listing"
 }
 # How many photos the seed of a deploy log uploaded ("Seed done: ..., N photos uploaded").
 photos_uploaded() { grep -o '[0-9]* photos uploaded' "$1" | sed 's/ .*//'; }

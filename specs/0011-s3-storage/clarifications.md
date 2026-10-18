@@ -259,3 +259,11 @@ code comments. All decisions below: owner, 2026-10-16.
   storage failing (owner). This holds while a `media/` key is never rewritten: a later spec that
   lets the admin add photos gives each upload a new key, and a photo taken down is also cleared
   from nginx's cache (`deploy/README.md`, "Хранилище S3").
+
+## Decided at the review of PR 3
+
+- **M37. The deploy check reads S3 listings in any tag order.** `media_etags` in
+  `ci-deploy-check.sh` reads each `<Contents>` whole, as S3 and SeaweedFS order its tags
+  differently, and fails with its own message on a listing that yields nothing. The development
+  rewrite of `/media/` keeps passing the query string to the emulator, unlike nginx (M30): only
+  its comment says so (owner).
