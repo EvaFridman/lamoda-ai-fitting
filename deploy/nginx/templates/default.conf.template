@@ -301,7 +301,9 @@ server {
     proxy_cache_key $proxy_host$uri;
     proxy_cache_valid 200 1d;
     proxy_cache_valid 403 404 1m;
-    proxy_cache_use_stale error timeout updating;
+    # A failing storage (no connection, a timeout, a 5xx) gets the cached copy, expired or not: a key
+    # always names the same photo (the seed never rewrites one), so the copy is never wrong (M36).
+    proxy_cache_use_stale error timeout updating http_500 http_502 http_503 http_504;
     proxy_cache_lock on;
   }
   # limit_except's 403 lands here too: told apart by the method (M30).
