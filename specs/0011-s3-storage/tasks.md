@@ -114,6 +114,14 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       seed, the nginx container id and its rendered config are unchanged, `/media/` answers 200;
       every earlier step still passes. `security-reviewer` joins the review (deploy).
       Commit: `fix(deploy): change nginx only after the media check`
+- [x] **T13b. Hide Timeweb's `x-rgw-object-type`.** `/media/` in production passes the storage's
+      `x-rgw-object-type` on (seen in T13's AC2 check); nginx's list of hidden storage headers gets
+      it; `ci-deploy-check.sh`
+      refuses `x-rgw-*` and `Seaweed-*` on `/media/` too (M39). Check: `ci-deploy-check.sh`
+      locally (the emulator sends `Seaweed-*`, not `x-rgw-*`); in production `curl -I` of a seed
+      key after PR 4's merge shows no `x-amz-*` and no `x-rgw-object-type` (another `x-rgw-*`
+      would be a finding for the list). `security-reviewer` joins the review (nginx).
+      Commit: `fix(deploy): hide the storage's x-rgw-object-type header`
 - [ ] **T13. Close the spec.** The production checks (AC2, AC3, AC4, AC6–AC8, AC10, AC11, AC14,
       with the owner where the server or the panel is needed), the acceptance record below, every
       file gets `Status: done`. T13a's evidence is its CI run and the deploy log of PR 4's merge.
