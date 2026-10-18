@@ -61,8 +61,10 @@ key that can only write there, encrypted, with a restore check; never into the a
   into the backup bucket, set by the owner with `aws-cli` following `deploy/README.md`. M6 rejected
   such policies for the app bucket because their mistakes go unnoticed; here AC7 checks the
   policy at acceptance (reading, listing and deleting are refused). «Чтение и запись» was rejected:
-  whoever reads the server's `.env` could delete every copy. The app bucket's read key uses the
-  preset «Чтение» if it can list objects, else a custom role allowing only listing and reading.
+  whoever reads the server's `.env` could delete every copy. The app bucket's read key is a custom
+  role too, allowing only listing and reading the app bucket (amended at the review of PR 1: the
+  preset «Чтение» does not list objects in Timeweb's documentation, and one way for both keys
+  keeps the README without a branch).
 - **P12. The backup bucket keeps versions.** A write-only key can still overwrite a copy under the
   same name. With versioning on, an overwritten copy stays as a version that this key cannot
   delete; a lifecycle rule removes versions 7 days after they stop being current, so an
@@ -73,6 +75,18 @@ key that can only write there, encrypted, with a restore check; never into the a
   server's disk. It is tested with Vitest against real PostgreSQL and SeaweedFS (Testcontainers),
   up to a restore. A shell script on the `postgres` image was rejected: the bucket copy would need
   the photos on disk, and it would have almost no automatic tests.
+
+## Decided at the review of PR 1
+
+- **P14. Deleted users' data in the copies goes to the backlog.** The copies hold a deleted user's
+  rows and files up to 7 days (an overwritten version up to 14, P12). Accepted for the demo; before
+  real users the period is written into the privacy policy and checked against the law on personal
+  data (backlog item "Deleted users in backups").
+- **P15. A service started in the half hour after 04:00 runs at once.** A deploy replaces the
+  backup container; one restarted between 04:00 and 04:30 Moscow time (the monitor's margin) would
+  otherwise sleep until the next night and skip this one. It runs a copy at once instead; when the
+  night's copy had already finished, the second one is only one more object. The service cannot
+  tell, since its key may not list the backup bucket (P11).
 
 ## Delivery
 

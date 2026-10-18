@@ -2,7 +2,7 @@
 
 Status: accepted (2026-10-19).
 
-Implements [spec.md](spec.md); decisions in [clarifications.md](clarifications.md) (P1–P13).
+Implements [spec.md](spec.md); decisions in [clarifications.md](clarifications.md) (P1–P15).
 
 ## 1. Configuration (P5, P11, P13; AC9, AC13)
 
@@ -46,7 +46,13 @@ pg_dump --format=custom ──┬──> pg_restore --list > /dev/null        (t
 
 - `pg_dump`'s output is split: one branch feeds `pg_restore --list` (reading a custom-format dump
   from a pipe works; tested on `postgres:18.6-trixie`), the other is encrypted to
-  `BACKUP_AGE_RECIPIENT` and uploaded.
+  `BACKUP_AGE_RECIPIENT` and uploaded. `pg_restore --list` may exit after the table of contents
+  without reading the rest: once it has exited, its branch is dropped (no more writes, its `EPIPE`
+  ignored) so the other branch neither fails nor waits on it; a unit test closes the check's input
+  early.
+- What the check proves: `pg_dump` exiting 0 says the dump is complete; `pg_restore --list` only
+  says it is a readable dump and not something else. Whether it restores is proven by AC11 and the
+  database test, not by the check.
 - **The gate** holds back the end of the encrypted stream until `pg_dump` and `pg_restore` have
   both exited 0. If either fails, the stream is destroyed with the error: `Upload` aborts its
   multipart upload, or never sends its single `PutObject` (a small body is sent only when the
@@ -57,7 +63,9 @@ pg_dump --format=custom ──┬──> pg_restore --list > /dev/null        (t
 - `pg_dump`'s stderr goes to the log line by line (it holds no secrets: the password is in the
   environment).
 - Keys: `daily/<UTC stamp>/database.dump.age` and `pre-deploy/<UTC stamp>-<image tag>/database.dump.age`;
-  the stamp is `YYYY-MM-DDTHH-mm-ssZ`, so names never repeat and sort by time.
+  the stamp is `YYYY-MM-DDTHH-mm-ssZ`, so names never repeat and sort by time. The image tag must
+  match `^[0-9a-f]{7,40}$` (the deploy's tags are commit SHAs), else `--pre-deploy` exits 1 before
+  dumping.
 
 ## 3. Bucket copy (P9; AC5, AC6, AC10)
 
@@ -85,8 +93,10 @@ Nest context), three modes:
 
 - **No argument — the service.** Sleeps until the next 04:00 Moscow time (`nextRun(now)`, a pure
   function, `Intl` with `Europe/Moscow`), runs the database copy, then the bucket copy (the second
-  runs even when the first failed; the run fails if either did), and sleeps again. On `SIGTERM` it
-  stops at once; a run cut off by a deploy at 04:00 ends as a failure in Sentry (Risks).
+  runs even when the first failed; the run fails if either did), and sleeps again. Started
+  between 04:00 and 04:30 Moscow time (after a deploy), it runs at once instead of waiting a day
+  (P15). On `SIGTERM` it stops at once; a run cut off by a deploy at 04:00 ends as a failure in
+  Sentry, and the restarted service runs again (Risks).
 - **`--once`**: one database and bucket copy now, for a manual run and the acceptance; no
   check-in, so the monitor's schedule stays clean.
 - **`--pre-deploy <tag>`**: §5.
@@ -138,8 +148,10 @@ DSN no check-in is sent.
   target), the dev S3 key for both sides; `docker compose --profile backup run --rm backup node
 dist/backup/main.js --once` makes a local copy. `storage/dev-setup.ts` also creates the
   `BACKUP_BUCKET` bucket in SeaweedFS.
-- Unit tests (`api/test/unit/backup/`): `nextRun` around midnight and the new year, key names, the
-  gate (a failing check destroys the stream, a passing one ends it), config errors.
+- Unit tests (`api/test/unit/backup/`): `nextRun` around midnight and the new year, a start at
+  04:10 runs at once and one at 04:40 waits (P15), key names and the tag's format, the gate (a
+  failing check destroys the stream, a passing one ends it, a check that stops reading early does
+  not stall the upload), config errors.
 - Database tests (`api/test/database/backup.e2e-spec.ts`, the existing PostgreSQL and SeaweedFS
   containers): a copy of a seeded database, downloaded, decrypted with a key pair made in the test
   and restored into an empty database has every table's row count (AC11's procedure in code); a
@@ -166,13 +178,15 @@ dist/backup/main.js --once` makes a local copy. `storage/dev-setup.ts` also crea
 In `deploy/README.md`, «Бэкапы», before PR 2 is merged:
 
 1. A private cold bucket, the smallest size; versioning on; lifecycle rules: objects after 7 days,
-   noncurrent versions after 7 days, unfinished uploads after 1 day.
+   noncurrent versions after 7 days, unfinished uploads after 1 day. Before renting, check in the
+   panel that the cold class offers versioning and these three rules; if not, stop and decide with
+   the owner.
 2. User `backup-writer` with a custom role: `s3:PutObject`, `s3:AbortMultipartUpload` (and the
    multipart parts it implies) on `arn:aws:s3:::<backup bucket>/*`, nothing else; applied with
    `aws iam put-user-policy` in the one-off `aws-cli` container of «Хранилище S3», with the main
    user's key typed in and kept nowhere.
-3. User `backup-reader` with «Чтение» on the app bucket, or a custom role with `s3:ListBucket` and
-   `s3:GetObject` there if «Чтение» cannot list.
+3. User `backup-reader` with a custom role: `s3:ListBucket` on the app bucket and `s3:GetObject`
+   on its objects, nothing else (P11), applied the same way.
 4. `age-keygen` on the Mac; the identity into the password manager; the recipient into GitHub.
 5. The four keys and three variables into GitHub (Environment `production`) with `gh secret set`
    / `gh variable set`, read from files, never on screen.
@@ -203,16 +217,17 @@ project replaced in place, the copy before migrations), `README.md` (the local p
 
 ## Risks
 
-| Risk                                                                   | Answer                                                                                       |
-| ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| Timeweb refuses the SDK's checksums or multipart                       | `WHEN_REQUIRED` from `createS3Client`; the first `--once` at acceptance fails loudly         |
-| A mistake in a custom role goes unnoticed                              | AC7 tries reading, listing and deleting with the write key; AC6 writing with the read key    |
-| A deploy near 04:00 cuts off the nightly run                           | Sentry reports the failure; the owner runs `--once`                                          |
-| The database or the bucket grows                                       | streams end to end, one 8 MiB part in flight, 512 MB limit; revisit when a run nears an hour |
-| `age-encryption` holds a large input in memory                         | a database test encrypts 200 MB and checks the process's memory                              |
-| Objects change while the bucket is copied                              | a vanished object is skipped and counted; a row and a file may disagree (spec, Assumptions)  |
-| The backup container holds the database password and reads every photo | the same reach as the worker's; no ports, its own project, no write key for the app bucket   |
-| One Sentry cron monitor in the plan                                    | only the nightly run checks in                                                               |
+| Risk                                                                   | Answer                                                                                          |
+| ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Timeweb refuses the SDK's checksums or multipart                       | `WHEN_REQUIRED` from `createS3Client`; the first `--once` at acceptance fails loudly            |
+| A mistake in a custom role goes unnoticed                              | AC7 tries reading, listing and deleting with the write key; AC6 writing with the read key       |
+| A deploy near 04:00 cuts off the nightly run                           | Sentry reports the failure; the restarted service runs again before 04:30 (P15), else `--once`  |
+| Seven full copies cost seven times the data                            | the job logs each copy's size; revisit (incremental copies) when the backup bucket passes 10 GB |
+| The database or the bucket grows                                       | streams end to end, one 8 MiB part in flight, 512 MB limit; revisit when a run nears an hour    |
+| `age-encryption` holds a large input in memory                         | a database test encrypts 200 MB and checks the process's memory                                 |
+| Objects change while the bucket is copied                              | a vanished object is skipped and counted; a row and a file may disagree (spec, Assumptions)     |
+| The backup container holds the database password and reads every photo | the same reach as the worker's; no ports, its own project, no write key for the app bucket      |
+| One Sentry cron monitor in the plan                                    | only the nightly run checks in                                                                  |
 
 ## How each criterion is verified
 
