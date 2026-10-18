@@ -340,13 +340,22 @@ commands that change the server (`ssh ai-fitting`) need the owner's confirmation
 - No `Co-Authored-By` lines in commit messages.
 - Hooks: pre-commit (lint-staged, then gitleaks on staged changes), commit-msg (commitlint),
   pre-push (`npm run verify`). Never skip them; the main session's guard blocks `--no-verify`.
-- The Bash guard (`.claude/hooks/main-rules.mjs`) blocks data deletion, skipped hooks, force pushes
-  and printing secrets; for recursive search use `rg`. Quoted strings and heredocs no shell reads
+- The Bash guard (`.claude/hooks/main-rules.mjs`) blocks data deletion, skipped hooks, force pushes,
+  printing secrets and `gh` beyond its own commands, with `gh api` only reading (a path,
+  `--paginate`, `--jq`) and a write starting its command so its `ask` rule applies; for recursive search use `rg`. Quoted strings and heredocs no shell reads
   are data, so a commit message may mention a blocked command. A real need for a blocked command:
   the owner runs it by hand; a false positive: fix the rule and add a case to `guards.test.mjs`.
 - A gitleaks hit is a real secret until proven otherwise: unstage it. Only a value confirmed to be a
   placeholder goes into the `.gitleaks.toml` allowlist, with a description.
 - One branch and pull request per phase of `tasks.md`; merged with "Rebase and merge".
   After a merge, start the next branch from a fresh `main`.
+- A review bot reviews a pull request when it opens and again on every push to it, and each run
+  costs tokens; a branch with no pull request costs nothing. So a pull request is opened once its
+  phase is done, and an open one gets one push per round: every fix of a review, and anything else
+  meant for the pull request, is committed first, then pushed together. Review fixes are not pushed
+  one by one, and before a push to an open pull request ask the owner whether anything else is
+  pending. The one exception: a fix for a failed check of the pull request (CI, a conflict with
+  `main`) when nothing else is pending, pushed alone with the owner's OK. A round's fixes are one `fix(...)` commit, outside `tasks.md`; a pushed commit is never
+  amended. The bot's reviews are handled with the `apply-review` skill.
 
 @CONTRIBUTING.md

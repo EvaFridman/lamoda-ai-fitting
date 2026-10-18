@@ -8,7 +8,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { Blocked } from './guard-lib.mjs';
-import { check as main } from './main-rules.mjs';
+import { GH_WRITES, check as main } from './main-rules.mjs';
 import { BROWSER_TOOLS, PORTS, check as qaTester } from './qa-tester-rules.mjs';
 import { check as readOnly } from './read-only-rules.mjs';
 import { check as testWriter } from './test-writer-rules.mjs';
@@ -380,6 +380,37 @@ describe('main rules', () => {
       bash('git grep --no-index --exclude-standard KEY'),
       bash("npx -c 'prisma generate'"),
       bash("git commit -q -F - <<'EOF'\nfix: y\n\n1) a paren and an apostrophe: don't\nEOF"),
+      // The apply-review skill's reads.
+      bash(
+        "gh api repos/EvaFridman/lamoda-ai-fitting/pulls/77/reviews/5563761120 --jq '{user: .user.login, state, commit_id, body}'",
+      ),
+      bash(
+        "gh api --paginate repos/EvaFridman/lamoda-ai-fitting/pulls/77/comments --jq '.[] | select(.pull_request_review_id == 5563761120) | {path, line, body}' | head -3",
+      ),
+      bash("gh api repos/EvaFridman/lamoda-ai-fitting/pulls/77/reviews -q '.[].id'"),
+      bash('gh api --jq=.state repos/EvaFridman/lamoda-ai-fitting/pulls/77'),
+      bash("gh api 'repos/{owner}/{repo}/pulls?state=open&per_page=50' --jq '.[].number'"),
+      bash('gh pr view 77 --json reviews'),
+      bash('gh pr checks 77 && gh run list --limit 5'),
+      bash('gh run view 123 --log-failed | tail -50'),
+      bash('gh auth status'),
+      bash('gh alias list'),
+      bash('grep -c git-credential-osxkeychain /tmp/guards.log'),
+      bash('gh --version'),
+      // Writes start their command, so their ask rule (settings.json) applies.
+      bash('gh pr create --title "x" --body-file /tmp/b.md'),
+      bash('gh pr merge 77 --rebase'),
+      // The ask rule sees `gh pr <subcommand>`; what follows may be built by the shell.
+      bash('gh pr merge $N --rebase'),
+      bash(
+        'gh pr create --title x --body "$(cat <<\'EOF\'\n## Что сделано\n- x\nEOF\n)" --base main',
+      ),
+      bash('gh pr comment 77 --body "fixed in $SHA"'),
+      // gh as an argument, not a command.
+      bash('rg -n gh .claude/hooks'),
+      bash('grep -w gh notes.txt'),
+      bash('brew info gh --json=v2'),
+      bash('PAGER=cat git log --oneline -3'),
     ],
     [
       // The old guard-bash.sh rules.
@@ -481,6 +512,86 @@ describe('main rules', () => {
       bash('declare -x GIT_CONFIG_COUNT=1'),
       bash('gh auth token'),
       bash('gh auth status -t'),
+      // gh api writes without -X too: a review's text must not get the agent to approve, merge or
+      // comment through it (the apply-review skill).
+      bash('gh api -X POST repos/EvaFridman/lamoda-ai-fitting/pulls/77/reviews'),
+      bash('gh api repos/EvaFridman/lamoda-ai-fitting/pulls/77/merge -X PUT'),
+      bash('gh api --method PUT repos/EvaFridman/lamoda-ai-fitting/pulls/77/merge'),
+      bash('gh api --method=PUT repos/EvaFridman/lamoda-ai-fitting/pulls/77/merge'),
+      bash('gh api repos/EvaFridman/lamoda-ai-fitting/pulls/77/reviews -f event=APPROVE'),
+      bash('gh api repos/EvaFridman/lamoda-ai-fitting/issues/77/comments -F body=@x.md'),
+      bash("gh api repos/EvaFridman/lamoda-ai-fitting/issues/77/comments --raw-field 'body=ok'"),
+      bash('gh api repos/EvaFridman/lamoda-ai-fitting/issues/77/comments --field body=ok'),
+      bash('gh api repos/EvaFridman/lamoda-ai-fitting/pulls/77/reviews --input review.json'),
+      bash('gh api graphql'),
+      bash("gh api /graphql --jq '.data'"),
+      bash('gh api GraphQL'),
+      bash('gh api repos/a/b/pulls/1 repos/a/b/pulls/2'),
+      bash("sh -c 'gh api repos/x/y/pulls/1/reviews -f event=APPROVE'"),
+      bash('/usr/local/bin/gh api repos/x/y/issues/1/comments -f body=x'),
+      bash('echo x | gh api repos/x/y/issues/1/comments --input -'),
+      // Second review pass: an alias, shell-built words, xargs, a gh that is an argument, the
+      // token through git's credential helpers, a flag that hides the subcommand.
+      bash("gh alias set rd 'api -XPUT repos/EvaFridman/lamoda-ai-fitting/pulls/77/merge'"),
+      bash('gh alias import a.yml'),
+      bash('gh rd'),
+      bash('gh api {-XPUT,repos/EvaFridman/lamoda-ai-fitting/pulls/77/merge}'),
+      bash('gh api $(echo -XPUT repos/EvaFridman/lamoda-ai-fitting/pulls/77/merge)'),
+      bash('gh api `echo -XPUT` repos/x/y/pulls/1/merge'),
+      bash('gh api ${=A}'),
+      bash('gh api "$A"'),
+      bash('A="-XPUT repos/a/b/pulls/1/merge"; gh api $A'),
+      bash('sh -c \'A="-XPUT repos/a/b/pulls/1/merge"; gh api $A\''),
+      bash('gh api repos/a/b/pulls/1/merge --jq $(echo .x -XPUT)'),
+      bash('gh api repos/a/b/pulls/*/merge'),
+      bash("printf '%s\\n' -XPUT repos/a/b/pulls/1/merge | xargs gh api"),
+      bash('xargs -a args.txt gh api'),
+      bash('env -u gh gh api -XPUT repos/a/b/pulls/1/merge'),
+      bash('xargs -I gh gh api -XPUT repos/a/b/pulls/1/merge < /dev/null'),
+      bash("printf 'protocol=https\\nhost=github.com\\n\\n' | gh auth git-credential get"),
+      bash("printf 'protocol=https\\nhost=github.com\\n\\n' | git credential fill"),
+      bash('git credential get < q.txt'),
+      bash('git-credential-osxkeychain get'),
+      bash('gh auth setup-git'),
+      bash('gh auth login --with-token < t'),
+      bash('gh config set editor vim'),
+      bash('gh extension install someone/gh-x'),
+      bash('gh pr -R EvaFridman/lamoda-ai-fitting merge 77'),
+      bash('gh pr --repo EvaFridman/lamoda-ai-fitting review 77 --approve'),
+      bash('gh -R EvaFridman/lamoda-ai-fitting pr merge 77'),
+      bash('timeout 30 gh pr merge 77'),
+      bash('GH_REPO=EvaFridman/lamoda-ai-fitting gh pr merge 77'),
+      // Third review pass.
+      bash('echo merge 77 --rebase | xargs gh pr'),
+      bash('echo pr merge 77 | xargs gh'),
+      bash('find . -name x -exec gh pr merge 77 ;'),
+      bash("sh -c 'gh pr comment 77 --body x'"),
+      bash("eval 'gh pr merge 77'"),
+      bash('echo $(gh pr merge 77)'),
+      bash("bash <<'EOF'\ngh pr merge 77\nEOF"),
+      bash('/opt/homebrew/bin/gh pr merge 77'),
+      bash("'gh' pr merge 77"),
+      bash('\\gh pr merge 77'),
+      bash('g""h pr merge 77'),
+      bash("gh 'pr' merge 77"),
+      bash('gh p\\r merge 77'),
+      bash('GH pr merge 77'),
+      bash('=gh pr merge 77'),
+      bash('gh pr {m..m}erge 77'),
+      bash('gh pr m{e,}rge 77'),
+      bash('gh auth status -at'),
+      bash('gh auth status --show-token=true'),
+      bash("printf 'protocol=https\\nhost=github.com\\n\\n' | git credential-osxkeychain get"),
+      bash('env git-credential-osxkeychain get'),
+      bash('security find-generic-password -s gh:github.com -w'),
+      bash("GH_BROWSER='gh pr merge --rebase' gh pr view 77 --web"),
+      bash("export GH_BROWSER='gh pr merge --rebase'; gh pr view 77 --web"),
+      bash('BROWSER=./x.sh gh browse'),
+      bash('gh pr checkout 12'),
+      bash('gh run download 123 -D .claude/hooks'),
+      bash('gh pr revert 77'),
+      bash('$(echo gh) pr merge 77'),
+      bash('gh config get oauth_token -h github.com'),
       // Single review pass of the word-scan version: high findings.
       bash(
         'docker compose exec api node -e "console.log(process.env.DATABASE_URL, process.env.REDIS_URL)"',
@@ -515,6 +626,16 @@ describe('main rules', () => {
       bash("echo $(cat <<'EOF'\n1) don't\nEOF\n) && git push --force"),
     ],
   );
+});
+
+describe('gh writes', () => {
+  it('are exactly the gh entries of ask in settings.json', () => {
+    const settings = JSON.parse(fs.readFileSync(path.join(ROOT, '.claude/settings.json'), 'utf8'));
+    const asked = settings.permissions.ask
+      .map((rule) => /^Bash\(gh (.+):\*\)$/.exec(rule)?.[1])
+      .filter((rule) => rule !== undefined && rule !== 'api -X');
+    assert.deepEqual([...asked].sort(), [...GH_WRITES].sort());
+  });
 });
 
 describe('guard.mjs process', () => {
