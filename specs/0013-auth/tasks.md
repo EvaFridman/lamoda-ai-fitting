@@ -2,7 +2,7 @@
 
 Status: accepted (2026-10-16); amended 2026-10-18 at the review of PR 1 (T7, T10, T12: N31–N34,
 plan §10); amended 2026-10-19 after the rebase on 0011 (T10 before T7, AC12's files in T7, the `GET /me`
-link check in T7); amended 2026-10-19 at T7 (Temporal's retention in T9, N37).
+link check in T7); amended 2026-10-19 at T7 (Temporal's retention in T9, N37); amended 2026-10-19 at T9 (N45–N49).
 
 ## How the work flows
 
@@ -91,15 +91,18 @@ link check in T7); amended 2026-10-19 at T7 (Temporal's retention in T9, N37).
 - [x] **T8. The socket knows the user.** `io.use` in `SocketIoAdapter` (plan §7).
       Check: socket e2e with and without a cookie (AC10); `npm run verify`.
       Commit: `feat(api): recognise the signed-in user on the socket`
-- [ ] **T9. Deploy and docs of the api.** `ADMIN_API_TOKEN` out of `docker-compose.yml`,
+- [x] **T9. Deploy and docs of the api.** `ADMIN_API_TOKEN` out of `docker-compose.yml`,
       `deploy/compose/app.yml`, `cd.yml`, `ci-deploy-check.sh`, `scripts/init-env.sh` and
       `.env.example` (listed here at T6, when `env.ts` stopped reading it); the new variables in `cd.yml`
-      (`app.yml` and the deploy check have them since T4, N22); the retention of production
-      Temporal's namespace checked and set to about 7 days (N37, added at T7);
+      (`app.yml` and the deploy check have them since T4, N22), checked by CD before the server
+      (N47); the retention of production Temporal's namespace checked and set by `deploy.sh` to 24
+      hours, read back by the deploy check (N37, added at T7; N45);
       `deploy/README.md` (Google console, secrets, removing the old one); `README.md` (local
       sign-in, no admin token); `CLAUDE.md` (access, request context, error format exception,
       stack table, env); `specs/backlog.md` (plan "Backlog").
-      Check: `rg -i 'admin_api_token|x-admin-token'` finds only specs (AC6); `npm run verify`.
+      `deploy/README.md` also says `SITE_DOMAIN` is a lower-case host in punycode (N48).
+      Check: `rg -i 'admin_api_token|x-admin-token'` finds only specs and the tests that check the
+      retired names are ignored (AC6, N46); `npm run verify`.
       Commit: `docs(docs): describe sign-in and the end of the admin token`
 - [ ] **T9a. Expired sign-in rows are deleted (added at T5, N27).** A Temporal schedule, created by
       the worker at start if missing, runs once a day a workflow whose activity deletes
@@ -115,9 +118,8 @@ link check in T7); amended 2026-10-19 at T7 (Temporal's retention in T9, N37).
       already starts their deletion (0011 M11).
       Check: 0011's link, key-folder and file-deletion checks pass; `npm run verify`.
       Commit: `test(api): run the storage checks as a signed-in user`
-- 👤 before the merge: creates the Google OAuth client (redirect URIs
-  `http://localhost:3001/api/auth/callback/google` and
-  `https://lamoda-ai-fitting.ru/api/auth/callback/google`), puts `GOOGLE_CLIENT_ID`,
+- 👤 before the merge: creates the Google OAuth client (redirect URI
+  `https://lamoda-ai-fitting.ru/api/auth/callback/google` only, N49), puts `GOOGLE_CLIENT_ID`,
   `GOOGLE_CLIENT_SECRET` and `BETTER_AUTH_SECRET` into GitHub Environment `production`; merges
   PR 2; after the deploy deletes `ADMIN_API_TOKEN` there.
 

@@ -42,11 +42,13 @@ jobs:
     env:
       IMAGE_TAG: ${{ inputs.image_tag }}
     steps:
-      - name: Check the image tag, the proxy secret and the storage settings
+      - name: Check the image tag, the secrets and the storage settings
         env:
           PROXY_SECRET: ${{ secrets.PROXY_SECRET }}
           PROXY_SECRET_NEXT: ${{ secrets.PROXY_SECRET_NEXT }}
-          ADMIN_API_TOKEN: ${{ secrets.ADMIN_API_TOKEN }}
+          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+          GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           S3_ENDPOINT: ${{ vars.S3_ENDPOINT }}
           S3_BUCKET: ${{ vars.S3_BUCKET }}
           S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
@@ -61,22 +63,22 @@ jobs:
             echo "::error::secret PROXY_SECRET in GitHub Environment production is missing or not 32+ letters or digits (deploy/README.md)"
             exit 1
           fi
-          # The api would refuse it only after nginx was recreated with it (F19).
-          if [ "$PROXY_SECRET" = "$ADMIN_API_TOKEN" ]; then
-            echo "::error::secrets PROXY_SECRET and ADMIN_API_TOKEN must differ (spec 0006 F19)"
-            exit 1
-          fi
           # Set only while the secret is rotated (F21); checked here so a bad one fails before
           # anything reaches the server, not at the new copy's start.
-          if [ -n "$PROXY_SECRET_NEXT" ]; then
-            if ! [[ "$PROXY_SECRET_NEXT" =~ ^[A-Za-z0-9]{32,}$ ]]; then
-              echo "::error::secret PROXY_SECRET_NEXT in GitHub Environment production is not 32+ letters or digits (deploy/README.md)"
-              exit 1
-            fi
-            if [ "$PROXY_SECRET_NEXT" = "$ADMIN_API_TOKEN" ]; then
-              echo "::error::secrets PROXY_SECRET_NEXT and ADMIN_API_TOKEN must differ (spec 0006 F19)"
-              exit 1
-            fi
+          if [ -n "$PROXY_SECRET_NEXT" ] && ! [[ "$PROXY_SECRET_NEXT" =~ ^[A-Za-z0-9]{32,}$ ]]; then
+            echo "::error::secret PROXY_SECRET_NEXT in GitHub Environment production is not 32+ letters or digits (deploy/README.md)"
+            exit 1
+          fi
+          # Sign-in (spec 0013 N47): the api refuses to start without them in production, so a
+          # missing or bad one would fail only the new copy. The secret is letters and digits, as
+          # the proxy secret (N21), and differs from both proxy secrets.
+          if ! [[ "$BETTER_AUTH_SECRET" =~ ^[A-Za-z0-9]{32,}$ ]]; then
+            echo "::error::secret BETTER_AUTH_SECRET in GitHub Environment production is missing or not 32+ letters or digits (deploy/README.md)"
+            exit 1
+          fi
+          if [ "$BETTER_AUTH_SECRET" = "$PROXY_SECRET" ] || [ "$BETTER_AUTH_SECRET" = "$PROXY_SECRET_NEXT" ]; then
+            echo "::error::secret BETTER_AUTH_SECRET must differ from PROXY_SECRET and PROXY_SECRET_NEXT (spec 0013 N47)"
+            exit 1
           fi
           # The api and the worker refuse to start without them (spec 0011 M19); checked here so a
           # bad one fails before anything reaches the server. An https address of a host (users'
@@ -91,13 +93,13 @@ jobs:
             echo "::error::variable S3_BUCKET in GitHub Environment production is missing or not an S3 bucket name (deploy/README.md)"
             exit 1
           fi
-          # The keys have no format of ours (M19), but they go into the .env that deploy.sh sources
-          # and compose reads: only characters both take as they are (bash expands a ~ after = or
-          # :). The message never shows them.
+          # The keys and Google's client have no format of ours (M19), but they go into the .env
+          # that deploy.sh sources and compose reads: only characters both take as they are (bash
+          # expands a ~ after = or :). The message never shows them.
           unsafe="[[:space:]\$\`\"'\\\\;&|<>()#~]"
-          for name in S3_ACCESS_KEY_ID S3_SECRET_ACCESS_KEY; do
+          for name in S3_ACCESS_KEY_ID S3_SECRET_ACCESS_KEY GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET; do
             if [ -z "${!name}" ] || [[ "${!name}" =~ $unsafe ]]; then
-              echo "::error::secret $name in GitHub Environment production is missing or holds a space or one of \$\`\"'\\;&|<>()#~ (deploy/README.md)"
+              echo "::error::$name in GitHub Environment production is missing or holds a space or one of \$\`\"'\\;&|<>()#~ (deploy/README.md)"
               exit 1
             fi
           done
@@ -164,9 +166,11 @@ jobs:
           SITE_DOMAIN: ${{ vars.SITE_DOMAIN }}
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
           API_SENTRY_DSN: ${{ secrets.API_SENTRY_DSN }}
-          ADMIN_API_TOKEN: ${{ secrets.ADMIN_API_TOKEN }}
           PROXY_SECRET: ${{ secrets.PROXY_SECRET }}
           PROXY_SECRET_NEXT: ${{ secrets.PROXY_SECRET_NEXT }}
+          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+          GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           MEDIA_BASE_URL: ${{ vars.MEDIA_BASE_URL }}
           S3_ENDPOINT: ${{ vars.S3_ENDPOINT }}
           S3_BUCKET: ${{ vars.S3_BUCKET }}
@@ -181,9 +185,11 @@ jobs:
             echo "SITE_DOMAIN=$SITE_DOMAIN"
             echo "SENTRY_DSN=$SENTRY_DSN"
             echo "API_SENTRY_DSN=$API_SENTRY_DSN"
-            echo "ADMIN_API_TOKEN=$ADMIN_API_TOKEN"
             echo "PROXY_SECRET=$PROXY_SECRET"
             echo "PROXY_SECRET_NEXT=$PROXY_SECRET_NEXT"
+            echo "BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET"
+            echo "GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID"
+            echo "GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET"
             echo "MEDIA_BASE_URL=$MEDIA_BASE_URL"
             echo "S3_ENDPOINT=$S3_ENDPOINT"
             echo "S3_BUCKET=$S3_BUCKET"

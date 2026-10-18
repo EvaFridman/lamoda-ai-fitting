@@ -94,15 +94,15 @@ What each agent may do, how the guard hooks work, the owner's decisions and the 
 
 Pinned on purpose; each "not newer" has a reason and a condition to move on.
 
-| What       | Version                                                                                                       | Why                                                                                                                                                          |
-| ---------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Node / npm | 26 / 12                                                                                                       | Node 26 is LTS from 2026-10-28. npm 12 runs install scripts only from `allowScripts` in `package.json`; Node images ship npm 11, so images and CI install 12 |
-| TypeScript | 6.0                                                                                                           | 7.0 has no JS API (typescript-eslint, Nest Swagger plugin, Next need it). Move when they support 7                                                           |
-| ESLint     | 10                                                                                                            | React/a11y rules from `@eslint-react/eslint-plugin` and `eslint-plugin-jsx-a11y-x`; the classic plugins do not run on 10                                     |
-| Prisma     | 7.10                                                                                                          | install as `prisma@7`: npm's `latest` tag points at an 8.0 release candidate                                                                                 |
-| api        | NestJS 12, PostgreSQL 18, Redis 8 (ioredis), Temporal (SDK 1.x), pino, socket.io, Sentry, Vitest              |                                                                                                                                                              |
-| web        | Next 16, React 19, TanStack Query 5, Zustand 5, zod, SCSS, Base UI, Sentry, Mixpanel, Vitest, Testing Library |                                                                                                                                                              |
-| Server     | Docker Compose, nginx + certbot, blue-green deploys                                                           | `deploy/README.md`                                                                                                                                           |
+| What       | Version                                                                                                           | Why                                                                                                                                                          |
+| ---------- | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Node / npm | 26 / 12                                                                                                           | Node 26 is LTS from 2026-10-28. npm 12 runs install scripts only from `allowScripts` in `package.json`; Node images ship npm 11, so images and CI install 12 |
+| TypeScript | 6.0                                                                                                               | 7.0 has no JS API (typescript-eslint, Nest Swagger plugin, Next need it). Move when they support 7                                                           |
+| ESLint     | 10                                                                                                                | React/a11y rules from `@eslint-react/eslint-plugin` and `eslint-plugin-jsx-a11y-x`; the classic plugins do not run on 10                                     |
+| Prisma     | 7.10                                                                                                              | install as `prisma@7`: npm's `latest` tag points at an 8.0 release candidate                                                                                 |
+| api        | NestJS 12, PostgreSQL 18, Redis 8 (ioredis), Temporal (SDK 1.x), Better Auth 1.7, pino, socket.io, Sentry, Vitest |                                                                                                                                                              |
+| web        | Next 16, React 19, TanStack Query 5, Zustand 5, zod, SCSS, Base UI, Sentry, Mixpanel, Vitest, Testing Library     |                                                                                                                                                              |
+| Server     | Docker Compose, nginx + certbot, blue-green deploys                                                               | `deploy/README.md`                                                                                                                                           |
 
 ## Commands (from the root)
 
@@ -222,7 +222,7 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   e2e spec repeats one; a unit spec of a single piece (the middleware, Swagger metadata) may build
   a bare app. Database e2e get such an app from `createTestApp()` (`test/support/test-app.ts`).
   Node's server timeouts are set only by `server.ts`, after `listen()` (`common/http/server-timeouts.ts`). Swagger error responses: `swagger.ts` adds the
-  ones a route's shape implies (body, query, `@UuidParam`, admin, 429/500/503); a route that can
+  ones a route's shape implies (body, query, `@UuidParam`, `@SignedIn()`/`@Closed()`'s 401, 429/500/503); a route that can
   answer 409 `ALREADY_EXISTS`/`IN_USE` or 400 `RELATED_NOT_FOUND`/`CONSTRAINT_VIOLATION` declares
   them with `@ApiErrors(...)` (`common/errors/`). The OpenAPI document is committed as
   `api/openapi.json`, a snapshot `test/openapi-snapshot.e2e-spec.ts` checks: a route or DTO change
@@ -232,17 +232,29 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   `.default()` or transforms, and dates stay ISO strings: the check reports all but
   `z.preprocess` and codecs.
 - `api` access is closed by default: the global `AccessGuard` (`common/auth/`) answers 401
-  `UNAUTHORIZED` on a route that carries neither `@Public()` nor `@AdminOnly()` (per controller or
-  route). `test/access-markers.e2e-spec.ts` fails on such a route, on a public route missing from
-  its list `PUBLIC_HANDLERS` (a new one is added there on purpose), on `@Public()` inside an
-  `@AdminOnly()` controller and on `@AdminOnly()` on a socket handler.
-  `@Public()` serves anyone, a wrong token too (catalog reads, `/health/*`, hello, the socket
-  gateway); `@AdminOnly()` (writes and every route of users, fitting sessions and generations) lets
-  through the principal `admin`, which the request context gives when `X-Admin-Token` equals
-  `ADMIN_API_TOKEN` (empty closes them). Both global guards are registered in `AppModule`, the
-  throttler first, so a wrong token is counted against that route's limit before it is refused
-  (counters are per route, spec 0006 F22). Lists take `PaginationQueryDto` and answer
-  `Paginated<T>` (`common/pagination/`).
+  `UNAUTHORIZED` on a route that carries none of `@Public()`, `@SignedIn()` and `@Closed()` (per
+  controller or route; a route's marker overrides its controller's). `@Public()` serves anyone, a
+  broken or expired session cookie too (catalog reads, `/health/*`, hello, the socket gateway);
+  `@SignedIn()` lets through the principal `user` (`/me`, the user's own fitting sessions and
+  generations: someone else's row answers 404, as a missing one, spec 0013 N8); `@Closed()`
+  answers 401 to everyone (catalog writes, other users' routes, writing generations) and stays for
+  the tests and a later spec that opens it. `test/access-markers.e2e-spec.ts` fails on a route
+  with no marker, on a route missing from its lists `PUBLIC_HANDLERS` and
+  `SIGNED_IN_HANDLERS` (a new one is added there on purpose), on `@Public()` under a `@Closed()` or
+  `@SignedIn()` controller and on either on a socket handler. There is no admin token (spec 0013
+  AC6). Both global guards are registered in `AppModule`, the throttler first, so a refused request
+  is counted against that route's limit (counters are per route, spec 0006 F22). Lists take
+  `PaginationQueryDto` and answer `Paginated<T>` (`common/pagination/`).
+- `api` sign-in (spec 0013): Better Auth (`auth/`) with Google only (locally the fake provider of
+  the compose service `oidc`), mounted by `mountAuth()` (from `createHttpApp()`) at `/api/auth`
+  as an Express route ahead of Nest's; only the routes in `AUTH_ROUTES` (`auth-routes.ts`) answer,
+  anything else there is 404. These routes are the second exception to the error format: their
+  answers are Better Auth's `{ code, message }` (N17), except their own rate limit's 429, which
+  keeps the api's format (N32); no Nest guard, interceptor or filter sees them. A session is a row
+  in `sessions` plus a signed cookie; its signed copy answers without the database for 5 minutes
+  (N18), so a sign-out or a deleted user may still pass for that long. Production needs
+  `BETTER_AUTH_SECRET` (32+ letters or digits, not a proxy secret), `GOOGLE_CLIENT_ID` and
+  `GOOGLE_CLIENT_SECRET`, and refuses the fake provider's `AUTH_FAKE_OIDC_*` (`assertServerEnv`).
 - `api` socket.io is set up by `SocketIoAdapter` (`realtime/`, used by `server.ts` and the socket
   e2e): CORS for `WEB_ORIGIN` and `maxHttpBufferSize` from `SOCKET_MAX_MESSAGE_BYTES` (64 KB, at
   most 1 MB, spec 0006 F30). A bigger message never reaches the gateway: over WebSocket the server
@@ -267,7 +279,10 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   (`expensive-minute`), not `default`; that test fails on any other name.
 - `api` request context (`common/http/request-context.ts`): a middleware ahead of the body parser
   sets the client address, the request id (answered in `X-Request-Id`, on log lines and Sentry
-  events) and the principal (`@CurrentPrincipal()`, `common/auth/`). Code reads them with
+  events) and the principal (`@CurrentPrincipal()`, `common/auth/`): `user` from a valid session
+  cookie, read by the session reader (`auth/session-reader.ts`; not on `/api/auth`, which reads its
+  own), else `anonymous`. A read that fails, takes over its timeout or finds 20 reads in progress
+  answers 503 `SERVICE_UNAVAILABLE` (spec 0013 N29). Code reads them with
   `requestContextOf(req)`, never `req.ip` or the headers: `X-Forwarded-For` and `X-Request-Id`
   count only on requests that carry `X-Proxy-Secret` equal to `PROXY_SECRET` (nginx, web) or, while
   it is rotated, to `PROXY_SECRET_NEXT` (api only; rotation in two deploys: `deploy/README.md`).
@@ -333,7 +348,7 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   database keeps the key without `media/`, nginx and the seed add it), `keep/users/<userId>/…`
   (users' photos and generations, no expiry; the database keeps the whole key) and `tmp/` (deleted
   after a day). Keys are built only by `storage/keys.ts`; the server names every private key, and
-  an admin write of `fittingProfileImageKey`, `userImageKey` or `resultImageKey` outside the row
+  a write (of a `@Closed()` route for now) of `fittingProfileImageKey`, `userImageKey` or `resultImageKey` outside the row
   owner's `keep/users/<userId>/` answers 400 `VALIDATION_FAILED` with the detail code `IN_OWNER_FOLDER`
   (`owner-check.ts`; a new user has no folder yet, so any key is refused). Responses carry
   a signed link instead (`*ImageUrl`, `S3_SIGNED_URL_TTL_SECONDS`, 15 min by default), signed only
@@ -358,7 +373,9 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
 ## Production and deploys
 
 A merge into `main` is the deploy (blue-green for api and web; the Temporal worker is replaced in
-place; a changed `infra.yml` service is recreated in place, with an outage). Before the new copy starts, the deploy runs the migrations, then the seed (the demo catalog
+place; a changed `infra.yml` service is recreated in place, with an outage). After the infrastructure is up, the deploy sets
+Temporal's `default` namespace retention to 24 hours (spec 0013 N45, read back by
+`ci-deploy-check.sh`). Before the new copy starts, the deploy runs the migrations, then the seed (the demo catalog
 and its photos, a no-op once loaded), then fetches one catalog photo from the bucket and through
 nginx; a failure of any stops it, the running copy keeps serving. nginx serves `/media/<key>` from
 the bucket's `media/<key>` (the bucket lets only the server's address read it, so a new address

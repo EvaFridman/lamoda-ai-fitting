@@ -1,9 +1,10 @@
 # 0013 auth: plan
 
 Status: accepted (2026-10-16); amended 2026-10-18 at the review of PR 1 (N29, N31–N36); amended
-2026-10-19 at T7 (N37–N39); amended 2026-10-19 at T8 (§7, N40–N44).
+2026-10-19 at T7 (N37–N39); amended 2026-10-19 at T8 (§7, N40–N44); amended 2026-10-19 at T9
+(Backlog, N45).
 
-Implements [spec.md](spec.md); decisions in [clarifications.md](clarifications.md) (N1–N44).
+Implements [spec.md](spec.md); decisions in [clarifications.md](clarifications.md) (N1–N49).
 
 ## 1. Library and versions (N1)
 
@@ -235,7 +236,7 @@ patches every few days; the pin is moved on purpose, N33). Neither needs an inst
   "Мои данные" page with editing and account deletion (N11, N12); dropping the empty
   `sessions.user_agent` column (N34); the socket keeping a revoked session's user until it
   disconnects, for the generations spec to decide (N36).
-- Remove: "Users' ids in Temporal history" (the retention is set in T9, N37).
+- Remove: "Users' ids in Temporal history" (the retention is set in T9, N37, N45).
 - Add: a limit of fitting sessions per user, for the generations spec (N39).
 - Add: a limit on the sockets one connection opens while its session is read, with the first
   real socket feature (N41).

@@ -29,7 +29,6 @@ x-api-env: &api-env
   REQUEST_TIMEOUT_MS: ${REQUEST_TIMEOUT_MS:-10000}
   # Largest socket.io message in bytes (spec 0006 F8); the default is the api's own.
   SOCKET_MAX_MESSAGE_BYTES: ${SOCKET_MAX_MESSAGE_BYTES:-65536}
-  ADMIN_API_TOKEN: ${ADMIN_API_TOKEN:-}
   # Required in .env (may be empty): a .env made before spec 0006 lacks it, see README.
   PROXY_SECRET: ${PROXY_SECRET?add PROXY_SECRET to .env (openssl rand -hex 32), see README}
   # Optional: trusted as well while PROXY_SECRET is rotated (spec 0006 F21).
