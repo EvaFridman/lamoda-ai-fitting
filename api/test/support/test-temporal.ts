@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { NativeConnection, Runtime, Worker } from '@temporalio/worker';
 import { inject } from 'vitest';
 
+import type { PrismaClient } from '../../src/generated/prisma/client.js';
 import type { StorageService } from '../../src/storage/storage.service.js';
 import { createActivities } from '../../src/temporal/activities/index.js';
 import type { TemporalSettings } from '../../src/temporal/temporal-settings.js';
@@ -23,13 +24,15 @@ export interface TestWorker {
 let runtimeInstalled = false;
 
 // A worker of the app's workflows and activities on `settings.taskQueue`, as run-worker.ts builds
-// it, with the activities' services given by the test (a StorageService on the emulator). Bundling
-// the workflows takes seconds: start it in `beforeAll` with a long timeout, `stop()` in `afterAll`.
+// it, with the activities' services given by the test (a StorageService on the emulator, the
+// client of the throwaway database, such as a TestApp's `prisma`). Bundling the workflows takes
+// seconds: start it in `beforeAll` with a long timeout, `stop()` in `afterAll`.
 export function startTestWorker(
   settings: TemporalSettings,
   storage: StorageService,
+  prisma: PrismaClient,
 ): Promise<TestWorker> {
-  return startTestWorkerWith(settings, createActivities(storage));
+  return startTestWorkerWith(settings, createActivities(storage, prisma));
 }
 
 // The same worker with activities of the test, e.g. stubs, to check a workflow's own logic apart

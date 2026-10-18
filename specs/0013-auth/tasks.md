@@ -2,7 +2,7 @@
 
 Status: accepted (2026-10-16); amended 2026-10-18 at the review of PR 1 (T7, T10, T12: N31–N34,
 plan §10); amended 2026-10-19 after the rebase on 0011 (T10 before T7, AC12's files in T7, the `GET /me`
-link check in T7); amended 2026-10-19 at T7 (Temporal's retention in T9, N37); amended 2026-10-19 at T9 (N45–N49).
+link check in T7); amended 2026-10-19 at T7 (Temporal's retention in T9, N37); amended 2026-10-19 at T9 (N45–N49); amended 2026-10-19 at T9a (N50; T9a's check on the throwaway Temporal).
 
 ## How the work flows
 
@@ -104,11 +104,12 @@ link check in T7); amended 2026-10-19 at T7 (Temporal's retention in T9, N37); a
       Check: `rg -i 'admin_api_token|x-admin-token'` finds only specs and the tests that check the
       retired names are ignored (AC6, N46); `npm run verify`.
       Commit: `docs(docs): describe sign-in and the end of the admin token`
-- [ ] **T9a. Expired sign-in rows are deleted (added at T5, N27).** A Temporal schedule, created by
+- [x] **T9a. Expired sign-in rows are deleted (added at T5, N27).** A Temporal schedule, created by
       the worker at start if missing, runs once a day a workflow whose activity deletes
-      `verifications` and `sessions` with `expires_at < now()` in batches (plan §12).
-      Check: activity e2e on the database (expired rows go, live ones stay); workflow test with
-      the Temporal test environment; `temporal-reviewer`; `npm run verify`.
+      `verifications` and `sessions` with `expires_at < now()` in batches (plan §12; time, update
+      of a changed schedule, batches and retries: N50).
+      Check: activity e2e on the database (expired rows go, live ones stay); workflow test on the
+      throwaway Temporal (0011 M16, N50); `temporal-reviewer`; `npm run verify`.
       Commit: `feat(api): delete expired sessions and sign-in states`
 - [x] **T10. 0011's checks without the admin token (done right after the rebase, before T7).**
       0011's admin-based e2e (`owner-check-links`, `file-deletion`, `file-deletion-close`; M8, M9,
