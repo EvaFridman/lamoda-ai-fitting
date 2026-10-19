@@ -122,15 +122,7 @@ describe('StorageService shutdown', () => {
 describe('createS3Client', () => {
   it('uses path-style addresses and sends checksums only when required', async () => {
     const client = createS3Client(
-      {
-        endpoint: 'http://s3:8333',
-        publicEndpoint: 'http://s3:8333',
-        region: 'ru-1',
-        bucket: 'bucket',
-        accessKeyId: 'k',
-        secretAccessKey: 's',
-        signedUrlTtlSeconds: 900,
-      },
+      { region: 'ru-1', accessKeyId: 'k', secretAccessKey: 's' },
       'http://s3:8333',
     );
     const resolve = async (value: unknown): Promise<unknown> =>
@@ -144,15 +136,7 @@ describe('createS3Client', () => {
 
   it('limits the connection and the silence on the socket', async () => {
     const client = createS3Client(
-      {
-        endpoint: 'http://s3:8333',
-        publicEndpoint: 'http://s3:8333',
-        region: 'ru-1',
-        bucket: 'bucket',
-        accessKeyId: 'k',
-        secretAccessKey: 's',
-        signedUrlTtlSeconds: 900,
-      },
+      { region: 'ru-1', accessKeyId: 'k', secretAccessKey: 's' },
       'http://s3:8333',
     );
     const handler = client.config.requestHandler as unknown as {
@@ -179,15 +163,7 @@ describe('createS3Client', () => {
     const address = server.address() as AddressInfo;
     const endpoint = `http://127.0.0.1:${String(address.port)}`;
     const client = createS3Client(
-      {
-        endpoint,
-        publicEndpoint: endpoint,
-        region: 'ru-1',
-        bucket: 'bucket',
-        accessKeyId: 'k',
-        secretAccessKey: 's',
-        signedUrlTtlSeconds: 900,
-      },
+      { region: 'ru-1', accessKeyId: 'k', secretAccessKey: 's' },
       endpoint,
     );
     // The SDK's own retries would repeat the wait; one attempt shows the bound.

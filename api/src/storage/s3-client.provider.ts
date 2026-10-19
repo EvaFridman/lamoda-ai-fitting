@@ -41,7 +41,12 @@ export function storageSettings(config: ConfigService<Env, true>): StorageSettin
 export const S3_CONNECTION_TIMEOUT_MS = 5000;
 export const S3_SOCKET_TIMEOUT_MS = 10_000;
 
-export function createS3Client(settings: StorageSettings, endpoint: string): S3Client {
+// The keys and the region only: the backup job (backup/config.ts) builds its clients with keys of
+// its own (spec 0012 plan §1).
+export function createS3Client(
+  settings: Pick<StorageSettings, 'region' | 'accessKeyId' | 'secretAccessKey'>,
+  endpoint: string,
+): S3Client {
   return new S3Client({
     endpoint,
     region: settings.region,
