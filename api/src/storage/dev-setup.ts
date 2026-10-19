@@ -1,4 +1,7 @@
 import {
+  BucketAlreadyExists,
+  BucketAlreadyOwnedByYou,
+  CreateBucketCommand,
   PutBucketLifecycleConfigurationCommand,
   PutBucketPolicyCommand,
   type S3Client,
@@ -47,4 +50,17 @@ export async function setUpBucket(client: S3Client, bucket: string): Promise<voi
       },
     }),
   );
+}
+
+// The backup job's bucket (spec 0012 plan §7), private: no policy, so only the emulator's key reads
+// it. The emulator creates no bucket on a write (`-s3.autoCreateBucket=false`); one that exists is
+// left as it is.
+export async function createBackupBucket(client: S3Client, bucket: string): Promise<void> {
+  try {
+    await client.send(new CreateBucketCommand({ Bucket: bucket }));
+  } catch (error) {
+    if (!(error instanceof BucketAlreadyOwnedByYou || error instanceof BucketAlreadyExists)) {
+      throw error;
+    }
+  }
 }

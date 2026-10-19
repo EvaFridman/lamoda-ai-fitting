@@ -4,9 +4,9 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { Logger } from 'nestjs-pino';
 
-import type { Env } from '../config/env.js';
+import { type Env, envSchema } from '../config/env.js';
 import { CoreModule } from '../core/core.module.js';
-import { setUpBucket } from './dev-setup.js';
+import { createBackupBucket, setUpBucket } from './dev-setup.js';
 import { createS3Client, storageSettings } from './s3-client.provider.js';
 import { StorageError } from './storage.error.js';
 
@@ -25,16 +25,31 @@ async function bootstrap(): Promise<void> {
     await app.close();
     return;
   }
+  // The backup job's bucket (spec 0012), set by compose for this service only: api, web and the
+  // worker get no BACKUP_*. The same rule as the api's bucket name.
+  const backupBucket = envSchema.shape.S3_BUCKET.optional().safeParse(process.env['BACKUP_BUCKET']);
+  if (!backupBucket.success) {
+    logger.error(`BACKUP_BUCKET: ${backupBucket.error.issues.map((i) => i.message).join('; ')}`);
+    process.exitCode = 1;
+    await app.close();
+    return;
+  }
   const settings = storageSettings(config);
   const { bucket } = settings;
   const client = createS3Client(settings, settings.endpoint);
 
+  let operation = 'setUpBucket';
   try {
     await setUpBucket(client, bucket);
     logger.log(`Bucket ${bucket}: media/ readable by anyone, tmp/ expires after a day`);
+    if (backupBucket.data !== undefined && backupBucket.data !== bucket) {
+      operation = 'createBackupBucket';
+      await createBackupBucket(client, backupBucket.data);
+      logger.log(`Bucket ${backupBucket.data}: the backup job's, private`);
+    }
   } catch (error) {
     // Not the SDK's error itself: it holds the access key id (spec 0011 M22).
-    logger.error(StorageError.from('setUpBucket', error));
+    logger.error(StorageError.from(operation, error));
     process.exitCode = 1;
   } finally {
     client.destroy();

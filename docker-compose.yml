@@ -155,7 +155,10 @@ services:
       context: ./api
       target: dev
     command: ['npm', 'run', 'storage:setup:dev']
-    environment: *api-env
+    environment:
+      <<: *api-env
+      # It also creates the backup job's bucket (the profile `backup` below).
+      BACKUP_BUCKET: ${BACKUP_BUCKET:-ai-fitting-backups}
     volumes: *api-volumes
     depends_on:
       s3:
@@ -240,6 +243,39 @@ services:
     environment: *api-env
     volumes: *api-volumes
     depends_on: *infra-healthy
+
+  # The backup job (spec 0012), only under the profile `backup` and only by hand:
+  #   docker compose --profile backup run --rm --build backup node dist/backup/main.js --once
+  # The production image's stage (compiled dist/, pg_dump 18), so no sources are mounted: rebuild it
+  # (`--build`) after a change. It reads the app bucket and writes the backup bucket with the
+  # emulator's key; production has a read-only and a write-only key (P11). Its own environment, not
+  # the api's: no Redis, Temporal or api S3 key (plan §1).
+  backup:
+    profiles: [backup]
+    build:
+      context: ./api
+      target: backup
+    image: ${COMPOSE_PROJECT_NAME:-ai-fitting}-backup:dev
+    environment:
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      APP_VERSION: dev
+      DATABASE_URL: postgresql://${POSTGRES_USER:?run scripts/init-env.sh}:${POSTGRES_PASSWORD:?run scripts/init-env.sh}@postgres:5432/${POSTGRES_DB:?run scripts/init-env.sh}
+      S3_ENDPOINT: http://s3:8333
+      S3_BUCKET: ${S3_BUCKET:-ai-fitting}
+      BACKUP_READ_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?add S3_ACCESS_KEY_ID to .env (openssl rand -hex 10), see README}
+      BACKUP_READ_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?add S3_SECRET_ACCESS_KEY to .env (openssl rand -hex 20), see README}
+      BACKUP_BUCKET: ${BACKUP_BUCKET:-ai-fitting-backups}
+      BACKUP_WRITE_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?add S3_ACCESS_KEY_ID to .env (openssl rand -hex 10), see README}
+      BACKUP_WRITE_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?add S3_SECRET_ACCESS_KEY to .env (openssl rand -hex 20), see README}
+      # Your own age public key (README); empty stops the job at start with a message.
+      BACKUP_AGE_RECIPIENT: ${BACKUP_AGE_RECIPIENT:-}
+      # Off: a local service would check in with the nightly-backup monitor of the api's project.
+      SENTRY_DSN: ''
+    depends_on:
+      postgres:
+        condition: service_healthy
+      s3-init:
+        condition: service_completed_successfully
 
   web:
     build:
