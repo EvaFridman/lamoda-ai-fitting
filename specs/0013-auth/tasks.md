@@ -143,7 +143,7 @@ link check in T7); amended 2026-10-19 at T7 (Temporal's retention in T9, N37); a
       (AC1), sign-out and sign-out everywhere with two browsers (AC4), screenshots of the menu for
       the owner; `npm run verify`.
       Commit: `feat(web): sign in with google from the header`
-- [ ] **T13. Analytics of sign-in.** `identify`, `reset` in `client.ts`; the events and elements in
+- [x] **T13. Analytics of sign-in.** `identify`, `reset` in `client.ts`; the events and elements in
       `events.ts`; the `sessionStorage` flag (plan §10), which also gates the `SignInFailed` report
       of a sign-in that came back with `error` (N54). The tracked handlers of "Выйти" and "Выйти со
       всех устройств" join their `onClick` in `SignOutItems`.

@@ -7,8 +7,11 @@ import { authClient, authFailure } from '@/shared/auth';
 
 import { sessionSchema, type SessionUser } from '../model/schemas';
 
+// `failed`: the read failed or its answer did not match, so the session may still be there.
 export type SessionState =
-  { status: 'pending' } | { status: 'signed-out' } | { status: 'signed-in'; user: SessionUser };
+  | { status: 'pending' }
+  | { status: 'signed-out'; failed: boolean }
+  | { status: 'signed-in'; user: SessionUser };
 
 const TEMPLATE = `${AUTH_TEMPLATE_PREFIX}get-session`;
 
@@ -40,10 +43,15 @@ export function useSession(): SessionState {
   // The client marks every new read pending while it has no session, the ones it makes when the tab
   // comes back into view too: a visitor without a session stays signed out through them, so the
   // login modal and its text stay open.
+  // The client also drops the last read's error while a new one runs: a failed read stays failed
+  // until a new read answers.
   const [answered, setAnswered] = useState(false);
+  const [lastFailed, setLastFailed] = useState(false);
+  const failed = isPending ? lastFailed : parsed?.success === false || Boolean(error);
   if (!isPending && !answered) setAnswered(true);
+  if (failed !== lastFailed) setLastFailed(failed);
 
   if (isPending && !answered) return { status: 'pending' };
-  if (!parsed?.success) return { status: 'signed-out' };
+  if (!parsed?.success) return { status: 'signed-out', failed };
   return { status: 'signed-in', user: parsed.data.user };
 }

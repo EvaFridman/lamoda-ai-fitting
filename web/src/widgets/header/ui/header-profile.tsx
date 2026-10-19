@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react';
 
 import { SessionUserBadge, useSession } from '@/entities/session';
-import { DropSignInError, LoginModal, SignOutItems } from '@/features/auth';
+import { DropSignInError, LoginModal, SignOutItems, useSignInAnalytics } from '@/features/auth';
 import { IconButton, Menu, MenuHeader, MenuItem, MenuSeparator, ProfileIcon } from '@/shared/ui';
 
 import styles from './header.module.scss';
@@ -17,6 +17,7 @@ const pages = ['Мои заказы', 'Магазины', 'Мои данные',
 // reads the query.
 export function HeaderProfile() {
   const session = useSession();
+  useSignInAnalytics(session);
   const iconRef = useRef<HTMLButtonElement>(null);
   const wasSignedInRef = useRef(false);
 

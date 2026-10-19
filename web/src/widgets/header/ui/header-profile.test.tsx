@@ -2,21 +2,25 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { SessionState } from '@/entities/session';
+
 import { HeaderProfile } from './header-profile';
 
 const mocks = vi.hoisted(() => ({
-  session: { status: 'pending' } as
-    | { status: 'pending' }
-    | { status: 'signed-out' }
-    | {
-        status: 'signed-in';
-        user: { id: string; email: string; name: string | null };
-      },
+  session: { status: 'pending' } as SessionState,
   signOut: vi.fn(),
   signOutEverywhere: vi.fn(),
   signInWithGoogle: vi.fn(),
   replace: vi.fn(),
   params: new URLSearchParams(),
+  identify: vi.fn(),
+  reset: vi.fn(),
+}));
+
+vi.mock('@/shared/analytics/client', () => ({
+  identify: mocks.identify,
+  track: vi.fn(),
+  reset: mocks.reset,
 }));
 
 vi.mock('@/entities/session', async (importOriginal) => ({
@@ -66,7 +70,45 @@ describe('HeaderProfile', () => {
     mocks.signOutEverywhere.mockReset().mockResolvedValue(undefined);
     mocks.signInWithGoogle.mockReset().mockResolvedValue(undefined);
     mocks.replace.mockReset();
+    mocks.identify.mockReset();
+    mocks.reset.mockReset();
     mocks.params = new URLSearchParams();
+    window.sessionStorage.clear();
+  });
+
+  it('identifies a signed-in user by the id alone, not the email or name', () => {
+    signedIn(NAME);
+    render(<HeaderProfile />);
+    expect(mocks.identify).toHaveBeenCalledExactlyOnceWith('u1', { signedIn: false });
+  });
+
+  it('identifies with signedIn when this tab started the sign-in', () => {
+    window.sessionStorage.setItem('sign-in-started', String(Date.now()));
+    signedIn(NAME);
+    render(<HeaderProfile />);
+    expect(mocks.identify).toHaveBeenCalledExactlyOnceWith('u1', { signedIn: true });
+  });
+
+  it('does not identify while loading or signed out, and resets only once signed out', () => {
+    const { rerender } = render(<HeaderProfile />);
+    expect(mocks.reset).not.toHaveBeenCalled();
+    mocks.session = { status: 'signed-out', failed: false };
+    rerender(<HeaderProfile />);
+    expect(mocks.identify).not.toHaveBeenCalled();
+    expect(mocks.reset).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not reset when signed out because the read failed', () => {
+    mocks.session = { status: 'signed-out', failed: true };
+    render(<HeaderProfile />);
+    expect(mocks.reset).not.toHaveBeenCalled();
+    expect(mocks.identify).not.toHaveBeenCalled();
+  });
+
+  it('does not reset while signed in', () => {
+    signedIn(NAME);
+    render(<HeaderProfile />);
+    expect(mocks.reset).not.toHaveBeenCalled();
   });
 
   it('drops a failed sign-in left in the address when signed in, without the modal', () => {
@@ -96,7 +138,7 @@ describe('HeaderProfile', () => {
   });
 
   it('opens the login modal when signed out', async () => {
-    mocks.session = { status: 'signed-out' };
+    mocks.session = { status: 'signed-out', failed: false };
     const user = userEvent.setup({ pointerEventsCheck: 0 });
     render(<HeaderProfile />);
     const button = screen.getByRole('button', { name: 'Профиль' });
@@ -208,7 +250,7 @@ describe('HeaderProfile', () => {
       signedIn(NAME);
       const { rerender } = render(<HeaderProfile />);
       expect(document.body).toHaveFocus();
-      mocks.session = { status: 'signed-out' };
+      mocks.session = { status: 'signed-out', failed: false };
       rerender(<HeaderProfile />);
       expect(screen.getByRole('button', { name: 'Профиль' })).toHaveFocus();
     });
@@ -223,7 +265,7 @@ describe('HeaderProfile', () => {
       );
       const other = screen.getByRole('button', { name: 'Другая кнопка' });
       other.focus();
-      mocks.session = { status: 'signed-out' };
+      mocks.session = { status: 'signed-out', failed: false };
       rerender(
         <>
           <button type="button">Другая кнопка</button>
@@ -237,7 +279,7 @@ describe('HeaderProfile', () => {
     it('is not taken when the visitor was never signed in', () => {
       mocks.session = { status: 'pending' };
       const { rerender } = render(<HeaderProfile />);
-      mocks.session = { status: 'signed-out' };
+      mocks.session = { status: 'signed-out', failed: false };
       rerender(<HeaderProfile />);
       expect(document.body).toHaveFocus();
     });

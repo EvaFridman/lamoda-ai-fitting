@@ -42,6 +42,13 @@ let active: Mixpanel | undefined;
 // The last call: a `stopAnalytics()` during the load wins over the `startAnalytics()` before it,
 // and the SDK is then never initialized.
 let wanted = false;
+// The signed-in user of this page, identified by every start (spec 0013 plan §10), and a sign-in
+// that came back to it while consent was given, sent once the SDK has started.
+let userId: string | undefined;
+let signedIn = false;
+// The page saw the visitor signed out: every start drops an identity the SDK still keeps, from a
+// session that ended in another tab or browser, or expired (N13).
+let signedOut = false;
 
 async function load(): Promise<Mixpanel | undefined> {
   try {
@@ -80,6 +87,51 @@ export async function startAnalytics(): Promise<void> {
     mixpanel.track_pageview();
   }
   active = mixpanel;
+  if (signedOut) forgetIdentity();
+  else sendIdentity();
+}
+
+// The user's id only, never the email or name (spec 0013 N13).
+function sendIdentity(): void {
+  if (active === undefined || userId === undefined) return;
+  // Someone else's identity this page never saw end: `identify` would tie it to this user.
+  const stored: unknown = active.get_property('$user_id');
+  if (stored !== undefined && stored !== userId) active.reset();
+  active.identify(userId);
+  if (signedIn) {
+    signedIn = false;
+    active.track('Signed In', {});
+  }
+}
+
+// `identify` keeps `$user_id` in the SDK's storage until `reset`; an anonymous visitor's SDK is not
+// reset, or every page load would make it a new device.
+function forgetIdentity(): void {
+  if (active?.get_property('$user_id') !== undefined) active?.reset();
+}
+
+/**
+ * Identifies the signed-in user now or at the next start, and with `signedIn` sends `Signed In`
+ * after it. A sign-in seen without consent is not kept: a later consent sends only the identity.
+ * Consent is known first: `AnalyticsGate` reads it as the page hydrates, the session comes later
+ * from a request.
+ */
+export function identify(id: string, options: { signedIn?: boolean } = {}): void {
+  userId = id;
+  signedOut = false;
+  if (options.signedIn && wanted) signedIn = true;
+  sendIdentity();
+}
+
+/**
+ * The visitor is signed out: forgets the user, and the SDK's identity with it now or at the next
+ * start, wherever the session ended (spec 0013 N13). Without an identity it changes nothing.
+ */
+export function reset(): void {
+  userId = undefined;
+  signedIn = false;
+  signedOut = true;
+  forgetIdentity();
 }
 
 // What the SDK keeps in the browser: its storage keys and IndexedDB databases (the names in
@@ -125,6 +177,7 @@ function clearSdkStorage(): void {
  */
 export function stopAnalytics(): void {
   wanted = false;
+  signedIn = false;
   if (active !== undefined) {
     active.stop_session_recording();
     active.opt_out_tracking();

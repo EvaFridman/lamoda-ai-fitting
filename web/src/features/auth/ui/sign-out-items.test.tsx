@@ -11,7 +11,11 @@ const mocks = vi.hoisted(() => ({
   signOut: vi.fn(),
   signOutEverywhere: vi.fn(),
   reportFailure: vi.fn(),
+  track: vi.fn(),
+  reset: vi.fn(),
 }));
+
+vi.mock('@/shared/analytics/client', () => ({ track: mocks.track, reset: mocks.reset }));
 
 vi.mock('../model/auth-actions', () => ({
   signOut: mocks.signOut,
@@ -45,6 +49,59 @@ describe('SignOutItems', () => {
     mocks.signOut.mockReset().mockResolvedValue(undefined);
     mocks.signOutEverywhere.mockReset().mockResolvedValue(undefined);
     mocks.reportFailure.mockReset();
+    mocks.track.mockReset();
+    mocks.reset.mockReset();
+  });
+
+  describe('analytics (spec 0013 N13)', () => {
+    it.each([
+      ['Выйти', 'profile-menu.sign-out'],
+      ['Выйти со всех устройств', 'profile-menu.sign-out-everywhere'],
+    ] as const)(
+      'tracks the click on "%s", then Signed Out and the identity reset after success',
+      async (name, element) => {
+        const user = await openMenu();
+        await user.click(screen.getByRole('menuitem', { name }));
+        await vi.waitFor(() => expect(mocks.reset).toHaveBeenCalledTimes(1));
+        expect(mocks.track.mock.calls).toEqual([
+          ['Element Clicked', { element }],
+          ['Signed Out', {}],
+        ]);
+        expect(mocks.track.mock.invocationCallOrder[1]).toBeLessThan(
+          mocks.reset.mock.invocationCallOrder[0] ?? 0,
+        );
+      },
+    );
+
+    it.each([
+      ['Выйти', 'signOut', 'profile-menu.sign-out'],
+      ['Выйти со всех устройств', 'signOutEverywhere', 'profile-menu.sign-out-everywhere'],
+    ] as const)(
+      'sends no Signed Out and keeps the identity when "%s" fails, and still shows the toast',
+      async (name, action, element) => {
+        mocks[action].mockRejectedValue(new Error('boom'));
+        const user = await openMenu();
+        await user.click(screen.getByRole('menuitem', { name }));
+        const region = await screen.findByRole('region', { name: 'Уведомления' });
+        expect(
+          await within(region).findByText('Что-то пошло не так, попробуйте позже'),
+        ).toBeInTheDocument();
+        expect(mocks.track.mock.calls).toEqual([['Element Clicked', { element }]]);
+        expect(mocks.reset).not.toHaveBeenCalled();
+      },
+    );
+
+    it('tracks a hover of 500 ms on "Выйти"', async () => {
+      const user = await openMenu();
+      await user.hover(screen.getByRole('menuitem', { name: 'Выйти' }));
+      await vi.waitFor(
+        () =>
+          expect(mocks.track).toHaveBeenCalledWith('Element Hovered', {
+            element: 'profile-menu.sign-out',
+          }),
+        { timeout: 3000 },
+      );
+    });
   });
 
   it('lists "Выйти" and "Выйти со всех устройств" in this order', async () => {
