@@ -798,17 +798,40 @@ describe('copyBucket', () => {
     // Neither side touches the emulator: the source makes the 200 MiB in memory and the target
     // counts what it is sent.
     const total = 200 * 1024 * 1024;
-    const objects = fakeObjects([{ key: `keep/users/${randomUUID()}/big.bin`, size: total }]);
+    const objects = fakeObjects([{ key: `keep/users/${randomUUID()}/big.bin`, size: total }], true);
     const source = intercepting({ answer: objects.answer });
     let uploaded = 0;
+
+    // The copy streams: with a queue of one, one 8 MiB part is uploading while the next is being
+    // filled, plus the encryption and tar buffers. Every read of the source is a fresh buffer, so a
+    // copy that held its input would keep at least 200 MB alive, and age's buffered
+    // copy and the tar's would come on top. The measure is live memory (heap and array buffers),
+    // with a full collection right before the baseline and before each sample, so garbage the
+    // collector has not freed yet (what made rss grow on a loaded machine) does not count.
+    // A timer cannot sample: the copy keeps the event loop busy and none fires, so the target
+    // samples whenever it is handed a part, which is when that part is held in memory.
+    const collect = (globalThis as { gc?: () => void }).gc;
+    if (!collect) throw new Error('run with --expose-gc (vitest.config.ts, project database)');
+    const live = (): number => {
+      collect();
+      const usage = process.memoryUsage();
+      return usage.heapUsed + usage.arrayBuffers;
+    };
+    const baseline = live();
+    let peak = baseline;
+    const sample = (): void => {
+      peak = Math.max(peak, live());
+    };
     const target = intercepting({
       answer: async (command) => {
         if (command instanceof CreateMultipartUploadCommand) return { UploadId: 'fake' };
         if (command instanceof UploadPartCommand) {
+          sample();
           uploaded += await sizeOf(command.input.Body);
           return { ETag: `"${command.input.PartNumber}"` };
         }
         if (command instanceof PutObjectCommand) {
+          sample();
           uploaded += await sizeOf(command.input.Body);
           return { ETag: '"single"' };
         }
@@ -818,31 +841,18 @@ describe('copyBucket', () => {
     });
     const key = uniqueStorageKey();
 
-    // The copy streams one part at a time (about 8 MiB in flight, plus garbage the collector has
-    // not freed yet). A copy that held its input would grow by at least 200 MB, and age's buffered
-    // copy and the tar's would come on top, so 150 MB of growth separates the two with room for
-    // collector lag. rss is the process's, sampled every 20 ms from the baseline after the setup.
-    const baseline = process.memoryUsage().rss;
-    let peak = baseline;
-    const sampler = setInterval(() => {
-      peak = Math.max(peak, process.memoryUsage().rss);
-    }, 20);
-    let copy;
-    try {
-      copy = await copyBucket({
-        ...bucketOptions('fake-source', key),
-        source: source.client,
-        target: target.client,
-      });
-    } finally {
-      clearInterval(sampler);
-    }
-    peak = Math.max(peak, process.memoryUsage().rss);
+    const copy = await copyBucket({
+      ...bucketOptions('fake-source', key),
+      source: source.client,
+      target: target.client,
+    });
+    sample();
 
     expect(copy).toMatchObject({ objects: 1, objectBytes: total });
     expect(uploaded).toBe(copy.bytes);
     expect(copy.bytes).toBeGreaterThan(total);
-    expect(peak - baseline).toBeLessThan(150 * 1024 * 1024);
+    // A streaming copy peaks near 70 MB of live memory; one holding the input is above 200 MB.
+    expect(peak - baseline).toBeLessThan(128 * 1024 * 1024);
   }, 300_000);
 });
 
@@ -937,7 +947,9 @@ function intercepting(
 const GENERATED_CHUNK = randomBytes(1024 * 1024);
 
 // `size` bytes made in memory; Infinity never ends.
-function generated(size: number, autoDestroy = true): Readable {
+// `fresh` hands out a new buffer on every read, so a reader that keeps the chunks keeps `size`
+// bytes; otherwise every read shares one buffer.
+function generated(size: number, autoDestroy = true, fresh = false): Readable {
   let left = size;
   return new Readable({
     autoDestroy,
@@ -948,6 +960,10 @@ function generated(size: number, autoDestroy = true): Readable {
       }
       const length = Math.min(left, GENERATED_CHUNK.length);
       left -= length;
+      if (fresh) {
+        this.push(Buffer.alloc(length, 7));
+        return;
+      }
       this.push(
         length === GENERATED_CHUNK.length ? GENERATED_CHUNK : GENERATED_CHUNK.subarray(0, length),
       );
@@ -962,7 +978,7 @@ interface FakeObjects {
   bodies: Readable[];
 }
 
-function fakeObjects(objects: { key: string; size: number }[]): FakeObjects {
+function fakeObjects(objects: { key: string; size: number }[], fresh = false): FakeObjects {
   const bodies: Readable[] = [];
   const answer = (command: unknown): unknown => {
     if (command instanceof ListObjectsV2Command) {
@@ -982,7 +998,7 @@ function fakeObjects(objects: { key: string; size: number }[]): FakeObjects {
     if (command instanceof GetObjectCommand) {
       const object = objects.find((candidate) => candidate.key === command.input.Key);
       if (object === undefined) return undefined;
-      const body = generated(object.size);
+      const body = generated(object.size, true, fresh);
       bodies.push(body);
       return { Body: body, ContentLength: object.size, LastModified: new Date(0), $metadata: {} };
     }
