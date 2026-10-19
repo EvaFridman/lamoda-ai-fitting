@@ -72,6 +72,8 @@ export function LoginModal({ trigger }: LoginModalProps) {
     }
   }
 
+  // The visitor's own opening only: the modal open after a failed sign-in (N54) never passes here,
+  // so it sends no `Login Opened` (N56).
   function changeOpen(next: boolean) {
     setOpen(next);
     if (next) track('Login Opened', {});
