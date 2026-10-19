@@ -28,7 +28,12 @@ function Probe() {
   return <p>{session.status}</p>;
 }
 
-function answer(value: { data?: unknown; error?: unknown; isPending?: boolean }) {
+function answer(value: {
+  data?: unknown;
+  error?: unknown;
+  isPending?: boolean;
+  isRefetching?: boolean;
+}) {
   mocks.useSession.mockReturnValue({ data: null, error: null, isPending: false, ...value });
 }
 
@@ -140,6 +145,39 @@ describe('useSession', () => {
     answer({ data: null, error: null, isPending: false });
     rerender(<Probe />);
     expect(screen.getByText('signed-out failed:false')).toBeInTheDocument();
+  });
+
+  describe('while Better Auth reads an existing session again', () => {
+    const data = {
+      user: { id: 'u1', email: 'anna@example.com', name: 'Анна', image: 'x' },
+      session: { token: 't' },
+    };
+
+    it.each([
+      ['pending', { isPending: true, isRefetching: true }],
+      ['not pending', { isPending: false, isRefetching: true }],
+    ])('stays signed in with the user when the new read is %s', (_name, flags) => {
+      answer({ data });
+      const { rerender } = render(<Probe />);
+      expect(screen.getByText('in:anna@example.com')).toBeInTheDocument();
+      answer({ data, ...flags });
+      rerender(<Probe />);
+      expect(screen.getByText('in:anna@example.com')).toBeInTheDocument();
+      expect(screen.queryByText('pending')).not.toBeInTheDocument();
+      expect(mocks.reportApiError).not.toHaveBeenCalled();
+    });
+
+    it('stays signed in when the new read fails with a non-401 error and keeps the data', () => {
+      const error = { status: 503 };
+      answer({ data });
+      const { rerender } = render(<Probe />);
+      answer({ data, error: null, isPending: false, isRefetching: true });
+      rerender(<Probe />);
+      answer({ data, error, isPending: false, isRefetching: false });
+      rerender(<Probe />);
+      expect(screen.getByText('in:anna@example.com')).toBeInTheDocument();
+      expect(mocks.authFailure).toHaveBeenCalledExactlyOnceWith(error, 'get-session', 'GET');
+    });
   });
 
   it('reports a failure once while it stays the same', () => {

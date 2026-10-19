@@ -382,7 +382,7 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   every page load with a session, `reset` whenever the session is `signed-out` and not `failed`, so
   every real end (a sign-out here, in another tab or browser, an expiry) forgets the user and a
   failed read does not. An identity left by another user is reset before `identify`. Events, without
-  properties: `Login Opened` (the modal opens), `Signed In`, `Signed Out` (after either sign-out
+  properties: `Login Opened` (the visitor opens the modal; not its opening by itself after a failed sign-in, N56), `Signed In`, `Signed Out` (after either sign-out
   succeeds, before `reset`); tracked elements: "Войти через Google" and the two sign-outs.
   `Signed In` is sent once, on the page a sign-in of this tab came back to: `markSignInStarted()`
   (`features/auth`) puts the time in `sessionStorage` (`sign-in-started`, not an `mp_`/`__mp` key

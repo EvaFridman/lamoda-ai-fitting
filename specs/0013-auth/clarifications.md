@@ -4,7 +4,8 @@ Status: accepted (2026-10-16); amended 2026-10-16 at the plan: no guests (N2, N9
 the first name is optional (N5), Better Auth's own error format (N17), a 5-minute session cache
 (N18); amended 2026-10-18 at the review of PR 1 (N31–N36); amended 2026-10-19 at T7 (N37–N39);
 amended 2026-10-19 at T8 (N40–N44); amended 2026-10-19 at T9 (N45–N49); amended 2026-10-19 at T9a (N50); amended 2026-10-19 at PR 2's review (N51); amended 2026-10-19 at T11 (N52); amended
-2026-10-19 at T12 (N53, N54); amended 2026-10-19 at T13 (N55).
+2026-10-19 at T12 (N53, N54); amended 2026-10-19 at T13 (N55); amended 2026-10-19 at PR 3's
+review (N56).
 
 The owner's decisions for this spec. Ids `N1`, `N2`, … are referred to by the spec, the plan and
 code comments. All decisions below: owner, 2026-10-16.
@@ -344,3 +345,7 @@ All decisions below: owner, 2026-10-18, on the review of the spec's pull request
   accepted at T13: `Signed Out` is sent after either sign-out succeeds; a sign-in whose session read
   fails on the way back loses its `Signed In`; the tracked elements are "Войти через Google" and the
   two sign-outs only.
+- **N56. `Login Opened` counts only the visitor's own opening** (owner, 2026-10-19, at PR 3's
+  review). The login modal that opens by itself after a sign-in failed at Google (N54) sends no
+  `Login Opened`: it is not the visitor's action, and the SDK has usually not started yet as the page
+  loads. Rejected: sending it there too, queued until the SDK starts.
