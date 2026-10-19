@@ -190,7 +190,17 @@ dist/backup/main.js --once` makes a local copy. `storage/dev-setup.ts` also crea
 - **Бакет:** `age -d | tar -x` into an empty directory, never with `-P` (P19, amended at T5),
   then `aws s3 sync` of the tree into an empty bucket (or back into the app bucket); the listing
   compared with production's (a key with `..` or a leading `/` shows as a difference).
-- **Смена ключа age:** new pair, new `BACKUP_AGE_RECIPIENT`, the old private key kept 7 days more.
+- **Возврат базы на продакшен** (P31, added at T9): CI and CD disabled, the deploy lock taken; api and the worker stopped,
+  the containers that ran remembered; the ids of `deleteFiles` workflows by kind, `--once` and the
+  ids of users, fitting sessions and generations of the old database if it can be read; the backup job stopped; `dropdb --force`,
+  `createdb`, `age -d` on the Mac piped over ssh into `pg_restore --single-transaction`;
+  `prisma migrate deploy` from the running release's image; `sessions` and `verifications`
+  emptied; users, fitting sessions and generations deleted after the copy deleted by SQL (the
+  cascade removes their rows), rows missing from the old database only by hand; uuid-named
+  `keep/users/` folders with no user removed with the main key; the containers started again,
+  readiness checked inside the api container, then the lock released and CI and CD enabled.
+- **Смена ключа age:** new pair, new `BACKUP_AGE_RECIPIENT`, effective with the next merge into
+  `main` (P30); the old private key kept 14 days after that deploy (P29, amended at T9).
 
 ## 9. Production setup (owner; M6, P11, P12)
 

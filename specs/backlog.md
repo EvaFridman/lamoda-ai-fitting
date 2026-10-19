@@ -178,6 +178,12 @@ removes it from this list. Found by the agents' first security audit and trial r
   Users can delete their accounts since 0013 (`DELETE /me`), but no route writes into users'
   folders yet (0013 N37). With the photo upload spec, before the first user's file: write the
   deletion into a table in the delete's transaction and start workflows from it.
+- **Deletions after a restored copy.** Returning a database copy to production (0012 P31) finds
+  what was deleted after the copy in `deleteFiles`' history (24 hours) or by comparing with the old
+  database; a fitting session with no generations starts no workflow and a failed start leaves only
+  a Sentry event, so both are added by hand. Files uploaded after the copy by users the copy holds
+  stay in their folders with no row. With the outbox above, the restore can read the deletions from
+  the old database's table; with the photo upload spec, remove a user's files no row refers to.
 - **Heartbeats for long activities.** No activity heartbeats: a cancelled workflow's running
   attempt goes on until its timeout (`deletePrefix`: at most 30 s, harmless, the delete is
   idempotent), and a dead worker is noticed only then. With the photo upload and AI generation
