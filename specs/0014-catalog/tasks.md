@@ -2,7 +2,7 @@
 
 Status: accepted (2026-10-19); amended 2026-10-19 after the check against 0012, 0013 and 0015
 (T5, T9, T12, T13, T13a, T20, T23); amended 2026-10-19 at the review of PR 1 (T6, T10, T11, T24,
-O40–O48).
+O40–O48) and its second round (T10).
 Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## How the work flows
@@ -24,7 +24,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## PR 1 · `docs/0014-catalog` · documents
 
-- [x] **T1. Spec and clarifications.** `spec.md`, `clarifications.md` (O1–O48).
+- [x] **T1. Spec and clarifications.** `spec.md`, `clarifications.md` (O1–O50).
       Check: owner's acceptance of `spec.md` (given 2026-10-19).
       Commit: `docs(specs): add spec 0014 catalog page and its decisions`
 - [x] **T2. Plan.** `plan.md`; O33–O39 recorded at the plan and after the check against 0012,
@@ -87,7 +87,8 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       local catalog); the count argument (O43); `EXPLAIN` of every sort and a search on 50 000
       products after `ANALYZE`, recorded in this file (AC14); backlog "Product list cost".
       Check: the script twice adds nothing the second time; each `EXPLAIN` uses an index with the
-      planner not forced; `npm run verify`.
+      planner not forced, and a later batch of each sort shows its cursor as an `Index Cond`;
+      `npm run verify`.
       Commit: `feat(api): add a large development catalog`
 - 👤 merges PR 2; after the deploy, `GET /products?q=платье` on production answers.
 
