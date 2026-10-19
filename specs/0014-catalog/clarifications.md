@@ -3,7 +3,8 @@
 Status: accepted (2026-10-19); amended 2026-10-19 at the plan: the whole greeting goes (O33), web's
 own health route (O34), Lamoda's layout of applied filters and the breadcrumbs (O5), search by
 article (O14); amended 2026-10-19 after the check against 0012, 0013 and 0015 (O35–O39);
-amended 2026-10-19 at the review of PR 1 (O40–O48).
+amended 2026-10-19 at the review of PR 1 (O40–O48) and its second round (O5's description, O46,
+O49, O50).
 
 The owner's decisions for this spec. Ids `O1`, `O2`, … are referred to by the spec, the plan and
 code comments. All decisions below: owner, 2026-10-19.
@@ -30,8 +31,9 @@ code comments. All decisions below: owner, 2026-10-19.
   temporary redirect (307), so browsers do not keep it if `/` gets its own page later (amended by
   O42).
 - **O4. Unknown category.** A slug that names no category, or an inactive one, answers 404.
-- **O5. Layout, desktop.** As on Lamoda's catalog (the owner's screenshots and saved page of
-  2026-10-19), from top to bottom:
+- **O5. Layout, desktop.** As on Lamoda's catalog. The owner showed screenshots and a saved page on
+  2026-10-19. They stay outside the repository (O50); the owner gives them again when a task needs
+  them. From top to bottom:
   - breadcrumbs: "Каталог" (a link to `/catalog`), then the category; on `/catalog`, "Каталог"
     alone, without a link;
   - the title with the number of products ("Платья 128 товаров", the count small and grey, the
@@ -45,8 +47,31 @@ code comments. All decisions below: owner, 2026-10-19.
     the link "Очистить фильтры", which clears every filter and the search and keeps the category
     and the sort;
   - a grid of four cards per row.
+
+  What the references show, so that the layout can be checked without them:
+  - **Header.** The header of 0010 above everything.
+  - **Breadcrumbs and title.** Small grey breadcrumbs separated by "/". Below them, the title in a
+    large font with the count after it in a small grey font.
+  - **Category list.** In the left column, one category per line in a large font with its count in
+    small grey. The chosen one is a black rounded row with white text, its count and a chevron.
+  - **Chips.** Outlined rounded rectangles with the filter's name and a chevron, wrapping onto
+    several lines. An applied chip is black with white text and a × instead of the chevron.
+  - **Sort dropdown.** A list of radio buttons; choosing one applies it at once.
+  - **Checkbox dropdowns** (brand, size, material, season, style). Lines with a checkbox, the value
+    and its count on the right, then a full-width "Применить" button. The button is grey and
+    inactive until the choice changes, then black.
+  - **Colour dropdown.** As a checkbox dropdown, plus a search field ("Найдите цвет") on top,
+    "Выбрать все", and a round swatch before each colour.
+  - **Price dropdown.** A two-handle slider, the fields "Мин. цена" and "Макс. цена" under it, and
+    "Применить".
+  - **Card.** A photo in about 3:4 with the discount badge ("−40%", red) at its bottom left. Under it
+    the old price struck through, the new price in red, the brand, the name and the rating
+    ("★ 4.8 (21)"). The heart in the photo's corner, the club badge and labels such as "только у
+    нас" are Lamoda features this spec does not build (the card's action slot stays empty, 0009
+    K10).
     The kit's `FilterDropdown` and 0009's filters already draw these chips. (Amended at the plan,
     after the owner's references: no row of chips under the filters.)
+
 - **O6. Layout, phone.** A "Фильтры" button opens the filters in a bottom sheet as an accordion.
   The grid has two columns. This builds backlog "Mobile filters" and lifts 0009 K16 (desktop
   dropdowns only).
@@ -216,9 +241,22 @@ The review of PR 1 (#87) was posted as a comment on 2026-10-19.
   start. T24 checks the browser console locally with a token of a Mixpanel development project,
   which the owner puts into `.env`. (Note 6.)
 - **O46. Some tasks of PR 3 may go ahead alone.** If the web phase drags on, T11 and T12 (routes,
-  redirect and removals) may ship as their own pull request before the rest of PR 3. (Note 9.)
+  redirect and removals) may ship as their own pull request before the rest of PR 3. Such a pull
+  request keeps PR 3's release conditions: PR 2 in production (T11 needs the category by slug), and
+  the `/hello` window of O48 happens at its deploy. (Note 9; the conditions added at the second
+  round.)
 - **O47. Lighthouse 100 for this spec's code.** A point lost to the UI kit or the header is fixed
   in this spec when the fix is small. Otherwise it goes to the backlog, and AC23 is accepted with
   the reason recorded. (Note 10.)
 - **O48. The `/hello` window is accepted.** During PR 3's blue-green switch, the old release's home
   page may show the greeting's error for a few seconds; the switch ends it. (Note 11.)
+
+Second round, on the review of `4817711`:
+
+- **O49. The title's count comes from the filter counts.** The number in the title ("128 товаров")
+  and the list's `aria-setsize` come from the facets' `total`. The page loads the facets on every
+  address, a batch page (`?cursor=`) included, and they are cached (O18). The list's own `total`
+  (first batch only, O44) is then not needed by web.
+- **O50. The references are described, not stored.** The Lamoda screenshots and saved page are
+  not committed. The saved page holds the owner's personal data, and the pictures are someone
+  else's. O5 describes what they show; when a task needs them, the owner gives them again.

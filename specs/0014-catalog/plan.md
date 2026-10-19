@@ -3,9 +3,10 @@
 Status: accepted (2026-10-19); amended 2026-10-19 after the owner's Lamoda references (O5, O14)
 and after the check against 0012, 0013 and 0015 (O35–O39, §1, §2.7, §3.2, §3.6, §3.7, §5, §8);
 amended 2026-10-19 at the review of PR 1 (O40–O48; the article test inside `toProductSql` and
-the price indexes, §2.2, §2.4).
+the price indexes, §2.2, §2.4) and its second round (the cursor conditions' index bounds, §2.3;
+the count from the facets, O49, §3.3, §3.4).
 
-How `spec.md` (AC1–AC24) is built. Decisions: `clarifications.md` (O1–O48).
+How `spec.md` (AC1–AC24) is built. Decisions: `clarifications.md` (O1–O50).
 
 ## 1. Pull requests and release order
 
@@ -78,11 +79,15 @@ backed by an index on `lower(article)` in the same migration. Because both condi
     `VALIDATION_FAILED` on `cursor`.
 - **Condition per sort.** Rows equal on the key fall back to `id desc`:
   - `new`: `(p.created_at, p.id) < (k, id)`.
-  - `price_asc`: `p.price > k OR (p.price = k AND p.id < id)`. Not a row comparison: the key goes up
-    and the id goes down.
+  - `price_asc`: `p.price >= k AND (p.price > k OR p.id < id)`. Not a row comparison: the key goes
+    up and the id goes down. The redundant `p.price >= k` gives the index scan its start (an
+    `Index Cond`), so a deep batch does not read the index from its beginning.
   - `price_desc` and `discount`: `(key, p.id) < (k, id)`.
-  - `rating desc nulls last`: while `k` is not null, `p.rating < k OR (p.rating = k AND p.id < id)
-OR p.rating IS NULL`. Once `k` is null, `p.rating IS NULL AND p.id < id`.
+  - `rating desc nulls last`: while `k` is not null,
+    `(p.rating <= k OR p.rating IS NULL) AND (p.rating < k OR p.rating IS NULL OR p.id < id)`.
+    Once `k` is null, `p.rating IS NULL AND p.id < id`.
+  - Every condition returns the same rows as its plain form. AC14 checks that each one is an
+    `Index Cond` in the plan, not only that an index is used.
 - **Query and answer.** `?cursor=` and `?limit=`. The answer is `{ items, total: number | null,
 nextCursor: string | null }`; `total` is a number only without `cursor` (O44).
   - A new `CursorPaginated<T>` and `ApiCursorPaginatedResponse` sit in `common/pagination/`.
@@ -235,7 +240,8 @@ test renders a client component given the secret and expects the error.
     - `getNextPageParam: (last) => last.nextCursor`.
       It lives in `entities/product/api/queries.ts`, with a server twin in `server-queries.ts`.
   - `productListSchema` gains `nextCursor` and a nullable `total`, and the contract test follows the
-    OpenAPI document. The page takes the total from the first page (`pages[0].total`, O44).
+    OpenAPI document. The page does not use the list's `total`: the count in the title and
+    `aria-setsize` come from the facets' `total` on every address, `?cursor=` included (O49).
   - `prefetch` (`@/shared/api/server`) gains `prefetchInfinite`: the first page only, with the same
     "returns a failure" rule.
 - **Grid.** `useWindowVirtualizer` over rows:
@@ -264,7 +270,7 @@ test renders a client component given the secret and expects the error.
 - The landmarks come from the existing `<Header>` (header), the footer and the breadcrumbs
   (`<nav><ol>`, already in the kit). The page adds `<main>` and `<aside aria-label="Категории">`.
   There is one `<h1>`: the category name or "Каталог".
-- The grid is `<ul aria-label="Товары">`, each card in an `<li aria-setsize={total} aria-posinset={i+1}>`.
+- The grid is `<ul aria-label="Товары">`, each card in an `<li aria-setsize={facets.total} aria-posinset={i+1}>` (O49).
   The rows are positioned with `transform`, so the reading order is the DOM order.
 - A visually hidden `<p aria-live="polite">` says "Найдено N товаров" after a change, and "Загружаем
   ещё" while a batch loads.
@@ -412,31 +418,31 @@ in production, so no deployed web sends it.
 
 ## 7. How each criterion is verified
 
-| AC    | Check                                                                                                      |
-| ----- | ---------------------------------------------------------------------------------------------------------- |
-| AC1   | `curl -I /` → 307 `/catalog`; Vitest of the page with and without a slug                                   |
-| AC2   | `curl -I /catalog/nope` and an inactive slug → 404 (local and production)                                  |
-| AC3–4 | `qa-tester` screenshots at 1440 and 375 px; owner compares                                                 |
-| AC5   | Vitest: card `href`                                                                                        |
-| AC6   | `rg` finds no `hello`/`greeting`/`dev-catalog`; snapshot has no `/hello`                                   |
-| AC7   | Vitest of `url-state` round trips; `qa-tester` applies, reloads, opens in a new tab                        |
-| AC8   | database e2e with the real stemmer: "платья", "плат", brand, category, "плтье"                             |
-| AC9   | Vitest of `header-search` and `header-categories`; `qa-tester` from `/privacy`                             |
-| AC10  | Vitest of the empty state                                                                                  |
-| AC11  | `qa-tester` on the dev catalog: scroll to the end, count the DOM `li`                                      |
-| AC12  | database e2e per sort: insert between batches, no repeat or gap                                            |
-| AC13  | `qa-tester`: scroll 3 batches, open a card, back                                                           |
-| AC14  | `EXPLAIN` of each sort and a search on the 50 000-product dev catalog after `ANALYZE`, in `tasks.md`       |
-| AC15  | e2e: the second call does not hit the database (spy); `pg_sleep` past the timeout → 503, `/health` answers |
-| AC16  | production: the owner's `ab`/curl loop over the limit → 429 JSON; the scripted visit stays under           |
-| AC17  | production browser console with and without consent; `curl -I` shows the header                            |
-| AC18  | Vitest with a mocked `track`; Mixpanel live events in production                                           |
-| AC19  | Vitest of `generateMetadata`; `curl` the HTML for the meta tags; opening the OG image                      |
-| AC20  | Vitest of `sitemap.ts` and `robots.ts`; `curl` in production                                               |
-| AC21  | Rich Results and Yandex validator on production, recorded on the PR                                        |
-| AC22  | `curl /catalog` contains the first batch and the "Дальше" link; follow it                                  |
-| AC23  | Lighthouse in production (SEO, Accessibility = 100); `qa-tester` keyboard pass; Vitest of the live region  |
-| AC24  | `npm run verify`; `docker build` of web with no services running                                           |
+| AC    | Check                                                                                                                                           |
+| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| AC1   | `curl -I /` → 307 `/catalog`; Vitest of the page with and without a slug                                                                        |
+| AC2   | `curl -I /catalog/nope` and an inactive slug → 404 (local and production)                                                                       |
+| AC3–4 | `qa-tester` screenshots at 1440 and 375 px; owner compares                                                                                      |
+| AC5   | Vitest: card `href`                                                                                                                             |
+| AC6   | `rg` finds no `hello`/`greeting`/`dev-catalog`; snapshot has no `/hello`                                                                        |
+| AC7   | Vitest of `url-state` round trips; `qa-tester` applies, reloads, opens in a new tab                                                             |
+| AC8   | database e2e with the real stemmer: "платья", "плат", brand, category, "плтье"                                                                  |
+| AC9   | Vitest of `header-search` and `header-categories`; `qa-tester` from `/privacy`                                                                  |
+| AC10  | Vitest of the empty state                                                                                                                       |
+| AC11  | `qa-tester` on the dev catalog: scroll to the end, count the DOM `li`                                                                           |
+| AC12  | database e2e per sort: insert between batches, no repeat or gap                                                                                 |
+| AC13  | `qa-tester`: scroll 3 batches, open a card, back                                                                                                |
+| AC14  | `EXPLAIN` of each sort, a later batch of each sort (`Index Cond`) and a search on the 50 000-product dev catalog after `ANALYZE`, in `tasks.md` |
+| AC15  | e2e: the second call does not hit the database (spy); `pg_sleep` past the timeout → 503, `/health` answers                                      |
+| AC16  | production: the owner's `ab`/curl loop over the limit → 429 JSON; the scripted visit stays under                                                |
+| AC17  | production browser console with and without consent; `curl -I` shows the header                                                                 |
+| AC18  | Vitest with a mocked `track`; Mixpanel live events in production                                                                                |
+| AC19  | Vitest of `generateMetadata`; `curl` the HTML for the meta tags; opening the OG image                                                           |
+| AC20  | Vitest of `sitemap.ts` and `robots.ts`; `curl` in production                                                                                    |
+| AC21  | Rich Results and Yandex validator on production, recorded on the PR                                                                             |
+| AC22  | `curl /catalog` contains the first batch and the "Дальше" link; follow it                                                                       |
+| AC23  | Lighthouse in production (SEO, Accessibility = 100); `qa-tester` keyboard pass; Vitest of the live region                                       |
+| AC24  | `npm run verify`; `docker build` of web with no services running                                                                                |
 
 ## 8. Docs closed with the spec
 

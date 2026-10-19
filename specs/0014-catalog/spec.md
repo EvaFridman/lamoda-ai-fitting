@@ -3,9 +3,10 @@
 Status: accepted (2026-10-19); amended 2026-10-19 at the plan after the owner's Lamoda references:
 the row of applied filters and the breadcrumbs (AC3, AC7, O5), search by article (AC8, O14);
 amended 2026-10-19 after the check against 0012, 0013 and 0015 (AC6, AC15, AC18, O33–O39);
-amended 2026-10-19 at the review of PR 1 (AC1, AC14, AC23, O40–O48).
+amended 2026-10-19 at the review of PR 1 (AC1, AC14, AC23, O40–O48) and its second round (AC14,
+O49, O50).
 
-Issues #68 and #71. Decisions: `clarifications.md` (O1–O48).
+Issues #68 and #71. Decisions: `clarifications.md` (O1–O50).
 
 ## Goal
 
@@ -90,8 +91,9 @@ page goes.
 ### Performance and protection
 
 - **AC14.** On a local catalog of 50 000 products, after `ANALYZE`, every sort and a search over the
-  list use an index without the planner being forced. This is checked with the query plan,
-  recorded in `tasks.md`.
+  list use an index without the planner being forced, and a request for a later batch starts the
+  index scan at its cursor (an `Index Cond`). This is checked with the query plan, recorded in
+  `tasks.md`.
 - **AC15.** A second identical request for filter counts within the cache period does not reach the
   database. With the database's statement timeout reached, or no free connection within the
   connection timeout, the request fails with the api's 503 and `/health` still answers.
