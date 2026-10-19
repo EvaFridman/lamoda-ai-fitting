@@ -150,7 +150,7 @@ link check in T7); amended 2026-10-19 at T7 (Temporal's retention in T9, N37); a
       Check: web tests of the calls with and without consent (AC13); `qa-tester` watches the
       requests; `npm run verify`.
       Commit: `feat(web): count sign-ins in analytics`
-- [ ] **T14. Docs of web.** `CLAUDE.md` (web's auth client, the header, analytics), `README.md`.
+- [x] **T14. Docs of web.** `CLAUDE.md` (web's auth client, the header, analytics), `README.md`.
       Check: `npm run format:check`.
       Commit: `docs(docs): describe sign-in in web`
 - 👤 merges PR 3.
