@@ -12,7 +12,8 @@
 [0005-faster-ci](specs/0005-faster-ci/), [0006-api-guards](specs/0006-api-guards/),
 [0007-web-data-layer](specs/0007-web-data-layer/), [0008-web-analytics](specs/0008-web-analytics/),
 [0009-entity-ui](specs/0009-entity-ui/), [0010-web-header](specs/0010-web-header/),
-[0011-s3-storage](specs/0011-s3-storage/), [0013-auth](specs/0013-auth/).
+[0011-s3-storage](specs/0011-s3-storage/), [0012-backups](specs/0012-backups/),
+[0013-auth](specs/0013-auth/).
 
 ## Требования
 

@@ -1,6 +1,7 @@
 # 0012 Backups: clarifications
 
-Status: open (2026-10-19).
+Status: done (2026-10-19). History, not instructions. The production checks went to the backlog
+(P32).
 
 The owner's decisions for this spec. Ids `P1`, `P2`, … are referred to by the spec, the plan and
 code comments. All decisions below: owner, 2026-10-19. The frame is spec 0011 M6: database backups
@@ -199,6 +200,16 @@ key that can only write there, encrypted, with a restore check; never into the a
   are a backlog item ("Deletions after a restored copy"). With the old database
   unreadable and more than a day gone, such data cannot be found (backlog "Deleted users in
   backups").
+
+## Decided at the review of PR 2
+
+- **P32. The production checks leave this spec** (owner, 2026-10-19). They need the merged
+  deploy and a night in production, so they cannot sit in PR 2, and the owner does them in a later
+  spec. The spec closes with PR 2 (T10 is the closing only, `Closes #42` stays there): what the
+  tests and `ci-deploy-check.sh` prove is recorded as passed; a manual `--once` on the server, AC1, AC6–AC8, AC10,
+  AC11 and AC12 on production, AC9's and AC13's look at the server and its logs after a run, and
+  the Sentry alert rule of plan §9 (step 6, only possible after the first nightly check-in creates
+  the monitor) become the backlog item "Production checks of the backups".
 
 ## Delivery
 

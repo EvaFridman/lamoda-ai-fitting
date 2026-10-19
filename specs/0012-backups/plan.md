@@ -1,8 +1,9 @@
 # 0012 Backups: plan
 
-Status: accepted (2026-10-19).
+Status: done (2026-10-19). History, not instructions. Accepted 2026-10-19; amended at the review
+of PR 2: the production checks and §9's alert rule went to the backlog (P32).
 
-Implements [spec.md](spec.md); decisions in [clarifications.md](clarifications.md) (P1–P15).
+Implements [spec.md](spec.md); decisions in [clarifications.md](clarifications.md) (P1–P32).
 
 ## 1. Configuration (P5, P11, P13; AC9, AC13)
 
@@ -279,5 +280,5 @@ project replaced in place, the copy before migrations), `README.md` (the local p
 ## Pull requests (P10)
 
 1. `docs/0012-backups`: the four documents and the backlog items.
-2. `feat/0012-backups`, after spec 0011 is closed: the whole implementation, ending with the
-   production checks and closing the spec.
+2. `feat/0012-backups`, after spec 0011 is closed: the whole implementation, ending with closing
+   the spec; the production checks are a backlog item (P32, amended at the review of PR 2).

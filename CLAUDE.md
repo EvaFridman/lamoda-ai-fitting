@@ -15,8 +15,10 @@ the catalog product card, filters and category list, and their sections on `/ui-
 `0009-entity-ui`; Lamoda's header by `0010-web-header`; the S3 bucket, the catalog photos served
 from it through nginx, users' files with signed links and their deletion through Temporal by
 `0011-s3-storage`; sign-in with Google, sessions, the admin token's removal, user routes that serve
-only the signed-in user's own data, account deletion and the header's profile menu by `0013-auth`
-(all closed).
+only the signed-in user's own data, account deletion and the header's profile menu by `0013-auth`;
+nightly encrypted copies of the database and the bucket, a database copy before a deploy migrates
+and the restore procedures by `0012-backups`, whose production checks are a backlog item (all
+closed).
 
 Keep this file true: update it in the same commit that changes what a section describes.
 
