@@ -112,6 +112,24 @@ docker compose run --rm api npm run seed:dev
 
 `docker compose down` останавливает и удаляет контейнеры, данные остаются в томах.
 
+### Бэкап локально
+
+Задание бэкапа (спека 0012) копирует базу и бакет эмулятора, зашифрованные ключом age, в бакет
+`BACKUP_BUCKET` эмулятора (по умолчанию `ai-fitting-backups`, его создаёт `s3-init`). Локально оно
+запускается только руками, в профиле `backup`. Нужна своя пара ключей age, не продовая:
+`mkdir -p ~/.config/age && age-keygen -o ~/.config/age/ai-fitting-dev.txt` (`brew install age`;
+файл с закрытым ключом не кладите в репозиторий), открытый ключ (`age1…`) из её вывода записать в
+`.env` как `BACKUP_AGE_RECIPIENT`. Затем одна копия сейчас:
+
+```bash
+docker compose --profile backup run --rm --build backup node dist/backup/main.js --once
+```
+
+В бакете появляются `daily/<время UTC>/database.dump.age` и `daily/<время UTC>/storage.tar.age`.
+Без `--once` задание работает как на сервере: спит до 04:00 по Москве и копирует каждую ночь.
+Sentry в локальном профиле выключен, чтобы локальные запуски не отмечались в мониторе
+`nightly-backup` продового проекта.
+
 ### Вторая копия стека (git worktree)
 
 Контейнеры, тома и образы api/web называются по имени проекта Compose (`ai-fitting` по умолчанию).

@@ -119,6 +119,14 @@ key that can only write there, encrypted, with a restore check; never into the a
   costs more, which the 10 GB threshold of the plan's Risks covers. The bucket has versioning and
   the three lifecycle rules all the same (P2, P12).
 
+## Decided at T6
+
+- **P21. A run cut off by a stop fails in Sentry at once.** `Sentry.withMonitor` closes a check-in
+  only when its callback ends, so a run a deploy cut off would fail only when `maxRuntime` ran out,
+  about 06:00, after the restarted service's run (P15) had already succeeded. The job sends its
+  check-ins by hand instead and, on `SIGTERM` during a nightly run, closes the run's check-in as
+  failed; the restarted run's success then resolves the issue.
+
 ## Delivery
 
 - **P10. Two pull requests.** The first holds this spec's documents and can be merged while spec

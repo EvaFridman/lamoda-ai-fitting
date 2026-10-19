@@ -100,13 +100,14 @@ Nest context), three modes:
   runs even when the first failed; the run fails if either did), and sleeps again. Started
   between 04:00 and 04:30 Moscow time (after a deploy), it runs at once instead of waiting a day
   (P15). On `SIGTERM` it stops at once; a run cut off by a deploy at 04:00 ends as a failure in
-  Sentry, and the restarted service runs again (Risks).
+  Sentry at once (P21, amended at T6), and the restarted service runs again (Risks).
 - **`--once`**: one database and bucket copy now, for a manual run and the acceptance; no
   check-in, so the monitor's schedule stays clean.
 - **`--pre-deploy <tag>`**: §5.
 
-The nightly run is wrapped in `Sentry.withMonitor('nightly-backup', …)` (`@sentry/nestjs` re-exports
-it from `@sentry/node`) with the monitor's config sent from code, so Sentry creates the monitor on
+The nightly run checks in with the monitor `nightly-backup` by hand (`Sentry.captureCheckIn`:
+in progress, then ok or error; not `withMonitor`, which cannot fail a run cut off by a stop, P21)
+with the monitor's config sent from code, so Sentry creates the monitor on
 the first check-in: `schedule` `0 4 * * *`, `timezone` `Europe/Moscow`, `checkinMargin` 30 min,
 `maxRuntime` 120 min, `failureIssueThreshold` 1, `recoveryThreshold` 1. A run that failed or
 never started becomes an issue, and the owner's alert rule in Sentry mails it (AC10). With an empty

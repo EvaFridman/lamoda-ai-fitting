@@ -1,11 +1,14 @@
 import {
+  BucketAlreadyExists,
+  BucketAlreadyOwnedByYou,
+  CreateBucketCommand,
   PutBucketLifecycleConfigurationCommand,
   PutBucketPolicyCommand,
   type S3Client,
 } from '@aws-sdk/client-s3';
 import { describe, expect, it, vi } from 'vitest';
 
-import { mediaReadPolicy, setUpBucket } from './dev-setup.js';
+import { createBackupBucket, mediaReadPolicy, setUpBucket } from './dev-setup.js';
 
 function stubClient(send = vi.fn().mockResolvedValue({})) {
   return { send, client: { send } as unknown as S3Client };
@@ -81,5 +84,36 @@ describe('setUpBucket', () => {
     const { client } = stubClient(vi.fn().mockRejectedValue(new Error('AccessDenied')));
 
     await expect(setUpBucket(client, 'my-bucket')).rejects.toThrow('AccessDenied');
+  });
+});
+
+describe('createBackupBucket', () => {
+  const owned = new BucketAlreadyOwnedByYou({ message: 'owned', $metadata: {} });
+  const exists = new BucketAlreadyExists({ message: 'exists', $metadata: {} });
+
+  it('creates the bucket and sets no policy', async () => {
+    const { client, send } = stubClient();
+
+    await createBackupBucket(client, 'backups');
+
+    expect(send).toHaveBeenCalledOnce();
+    const command = send.mock.calls[0]![0] as unknown;
+    expect(command).toBeInstanceOf(CreateBucketCommand);
+    expect((command as CreateBucketCommand).input).toEqual({ Bucket: 'backups' });
+  });
+
+  it.each([
+    ['BucketAlreadyOwnedByYou', owned],
+    ['BucketAlreadyExists', exists],
+  ])('leaves a bucket that exists (%s)', async (_name, error) => {
+    const { client } = stubClient(vi.fn().mockRejectedValue(error));
+
+    await expect(createBackupBucket(client, 'backups')).resolves.toBeUndefined();
+  });
+
+  it('rejects on any other error', async () => {
+    const { client } = stubClient(vi.fn().mockRejectedValue(new Error('AccessDenied')));
+
+    await expect(createBackupBucket(client, 'backups')).rejects.toThrow('AccessDenied');
   });
 });

@@ -49,8 +49,9 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       at T5). Removes "Storage backups" from `specs/backlog.md`.
       Check: `npm run verify`.
       Commit: `feat(api): copy the app bucket encrypted into the backup bucket`
-- [ ] **T6. The service, its schedule and the Sentry monitor.** `main.ts` with the service,
-      `--once` (§4), `nextRun` and its unit tests, `Sentry.withMonitor` with the config of §4;
+- [x] **T6. The service, its schedule and the Sentry monitor.** `main.ts` with the service,
+      `--once` (§4), `nextRun` and its unit tests, the check-ins with the config of §4 (by hand,
+      not `Sentry.withMonitor`: P21, amended at T6);
       the `backup` profile in `docker-compose.yml` (with `BACKUP_BUCKET`'s default
       `ai-fitting-backups`), the backup bucket in `storage/dev-setup.ts`, `README.md` (§7);
       `.env.example` got the variables at T4.
