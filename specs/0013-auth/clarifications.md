@@ -4,7 +4,7 @@ Status: accepted (2026-10-16); amended 2026-10-16 at the plan: no guests (N2, N9
 the first name is optional (N5), Better Auth's own error format (N17), a 5-minute session cache
 (N18); amended 2026-10-18 at the review of PR 1 (N31–N36); amended 2026-10-19 at T7 (N37–N39);
 amended 2026-10-19 at T8 (N40–N44); amended 2026-10-19 at T9 (N45–N49); amended 2026-10-19 at T9a (N50); amended 2026-10-19 at PR 2's review (N51); amended 2026-10-19 at T11 (N52); amended
-2026-10-19 at T12 (N53, N54).
+2026-10-19 at T12 (N53, N54); amended 2026-10-19 at T13 (N55).
 
 The owner's decisions for this spec. Ids `N1`, `N2`, … are referred to by the spec, the plan and
 code comments. All decisions below: owner, 2026-10-16.
@@ -337,3 +337,10 @@ All decisions below: owner, 2026-10-18, on the review of the spec's pull request
   per tab; reporting only a sign-in started in this tab waits for T13's `sessionStorage` flag
   (owner). Rejected: keeping `/api/auth/error` with a backlog item;
   back to the home page without a text.
+- **N55. The sign-in flag lasts 10 minutes** (owner, 2026-10-19, at T13, after `security-reviewer`
+  found that a sign-in abandoned at Google leaves the flag for someone else's `?error=` link in the
+  same tab). The `sessionStorage` flag set before leaving for Google holds its time; a flag older
+  than 10 minutes counts as none, so it neither counts `Signed In` nor reports `SignInFailed`. Also
+  accepted at T13: `Signed Out` is sent after either sign-out succeeds; a sign-in whose session read
+  fails on the way back loses its `Signed In`; the tracked elements are "Войти через Google" and the
+  two sign-outs only.

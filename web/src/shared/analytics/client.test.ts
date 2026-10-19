@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+// What the SDK's storage holds as `$user_id`: identify sets it, reset clears it.
+let storedUserId: string | undefined;
+
 const sdk = {
+  get_property: vi.fn((name: string) => (name === '$user_id' ? storedUserId : undefined)),
   init: vi.fn(),
   track: vi.fn(),
   track_pageview: vi.fn(),
@@ -9,6 +13,12 @@ const sdk = {
   has_opted_out_tracking: vi.fn(() => false),
   start_session_recording: vi.fn(),
   stop_session_recording: vi.fn(),
+  identify: vi.fn((id: string) => {
+    storedUserId = id;
+  }),
+  reset: vi.fn(() => {
+    storedUserId = undefined;
+  }),
 };
 
 type Client = typeof import('./client');
@@ -29,6 +39,7 @@ async function load(token: string, importFails = false): Promise<Client> {
 describe('analytics client', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    storedUserId = undefined;
     sdk.has_opted_out_tracking.mockReturnValue(false);
   });
 
@@ -301,6 +312,227 @@ describe('analytics client', () => {
     expect(sdk.init).toHaveBeenCalledTimes(1);
     client.track('Element Clicked', { element: 'ui-kit.button-primary' });
     expect(sdk.track).not.toHaveBeenCalled();
+  });
+
+  describe('identity of a signed-in user (spec 0013 N13)', () => {
+    it('sends nothing for identify before the SDK has started', async () => {
+      const client = await load('tok');
+      client.identify('u1');
+      expect(sdk.identify).not.toHaveBeenCalled();
+      expect(sdk.track).not.toHaveBeenCalled();
+    });
+
+    it('identifies by the id alone once the SDK has started, and when it is already running', async () => {
+      const client = await load('tok');
+      client.identify('u1');
+      await client.startAnalytics();
+      expect(sdk.identify).toHaveBeenCalledExactlyOnceWith('u1');
+      client.identify('u2');
+      expect(sdk.reset).toHaveBeenCalledTimes(1);
+      expect(sdk.identify).toHaveBeenLastCalledWith('u2');
+      expect(sdk.reset.mock.invocationCallOrder[0]).toBeLessThan(
+        sdk.identify.mock.invocationCallOrder[1] ?? 0,
+      );
+      expect(sdk.track).not.toHaveBeenCalled();
+    });
+
+    it('identifies again at a restart after stop', async () => {
+      const client = await load('tok');
+      await client.startAnalytics();
+      client.identify('u1');
+      client.stopAnalytics();
+      await client.startAnalytics();
+      expect(sdk.identify).toHaveBeenCalledTimes(2);
+      expect(sdk.identify).toHaveBeenLastCalledWith('u1');
+    });
+
+    it('sends Signed In once, after identify, when consent is wanted but the SDK still loads', async () => {
+      const client = await load('tok');
+      const started = client.startAnalytics();
+      client.identify('u1', { signedIn: true });
+      expect(sdk.identify).not.toHaveBeenCalled();
+      await started;
+      expect(sdk.identify).toHaveBeenCalledExactlyOnceWith('u1');
+      expect(sdk.track).toHaveBeenCalledExactlyOnceWith('Signed In', {});
+      expect(sdk.identify.mock.invocationCallOrder[0]).toBeLessThan(
+        sdk.track.mock.invocationCallOrder[0] ?? 0,
+      );
+      await client.startAnalytics();
+      client.identify('u1');
+      client.identify('u1', { signedIn: false });
+      expect(sdk.track).toHaveBeenCalledTimes(1);
+    });
+
+    it('sends Signed In at once when the SDK is already running', async () => {
+      const client = await load('tok');
+      await client.startAnalytics();
+      client.identify('u1', { signedIn: true });
+      expect(sdk.identify).toHaveBeenCalledExactlyOnceWith('u1');
+      expect(sdk.track).toHaveBeenCalledExactlyOnceWith('Signed In', {});
+    });
+
+    it('does not send Signed In for a sign-in seen before any start, only the identity later', async () => {
+      const client = await load('tok');
+      client.identify('u1', { signedIn: true });
+      await client.startAnalytics();
+      expect(sdk.identify).toHaveBeenCalledExactlyOnceWith('u1');
+      expect(sdk.track).not.toHaveBeenCalled();
+    });
+
+    it('drops a pending Signed In when analytics is stopped', async () => {
+      const client = await load('tok');
+      const started = client.startAnalytics();
+      client.identify('u1', { signedIn: true });
+      client.stopAnalytics();
+      await started;
+      await client.startAnalytics();
+      expect(sdk.track).not.toHaveBeenCalled();
+      expect(sdk.identify).toHaveBeenCalledExactlyOnceWith('u1');
+    });
+
+    it('calls nothing with an empty token', async () => {
+      const client = await load('');
+      await client.startAnalytics();
+      client.identify('u1', { signedIn: true });
+      client.reset();
+      expect(sdk.identify).not.toHaveBeenCalled();
+      expect(sdk.reset).not.toHaveBeenCalled();
+      expect(sdk.track).not.toHaveBeenCalled();
+    });
+
+    it('reset clears the SDK identity of an identified user, once', async () => {
+      const client = await load('tok');
+      await client.startAnalytics();
+      client.identify('u1');
+      client.reset();
+      expect(sdk.reset).toHaveBeenCalledTimes(1);
+      client.reset();
+      expect(sdk.reset).toHaveBeenCalledTimes(1);
+    });
+
+    it('reset clears an identity the SDK kept from an earlier page load', async () => {
+      storedUserId = 'old';
+      const client = await load('tok');
+      await client.startAnalytics();
+      client.reset();
+      expect(sdk.reset).toHaveBeenCalledTimes(1);
+    });
+
+    it('reset never resets the SDK of an anonymous visitor', async () => {
+      const client = await load('tok');
+      await client.startAnalytics();
+      client.reset();
+      client.reset();
+      expect(sdk.reset).not.toHaveBeenCalled();
+    });
+
+    it('reset while the SDK loads resets at start, with a stored identity, and does not identify', async () => {
+      storedUserId = 'old';
+      const client = await load('tok');
+      const started = client.startAnalytics();
+      client.reset();
+      expect(sdk.reset).not.toHaveBeenCalled();
+      await started;
+      expect(sdk.reset).toHaveBeenCalledTimes(1);
+      expect(sdk.identify).not.toHaveBeenCalled();
+    });
+
+    it('reset while the SDK loads does not reset at start without a stored identity', async () => {
+      const client = await load('tok');
+      const started = client.startAnalytics();
+      client.reset();
+      await started;
+      expect(sdk.reset).not.toHaveBeenCalled();
+      expect(sdk.identify).not.toHaveBeenCalled();
+    });
+
+    it('reset before any start makes the first start reset a stored identity, not identify', async () => {
+      storedUserId = 'old';
+      const client = await load('tok');
+      client.identify('u1');
+      client.reset();
+      await client.startAnalytics();
+      expect(sdk.identify).not.toHaveBeenCalled();
+      expect(sdk.reset).toHaveBeenCalledTimes(1);
+    });
+
+    it('reset before any start, with no stored identity, starts without identify or reset', async () => {
+      const client = await load('tok');
+      client.identify('u1');
+      client.reset();
+      await client.startAnalytics();
+      expect(sdk.identify).not.toHaveBeenCalled();
+      expect(sdk.reset).not.toHaveBeenCalled();
+    });
+
+    it('identify after reset, before start, resets a different stored identity and then identifies', async () => {
+      storedUserId = 'old';
+      const client = await load('tok');
+      client.reset();
+      client.identify('u2');
+      await client.startAnalytics();
+      expect(sdk.reset).toHaveBeenCalledTimes(1);
+      expect(sdk.identify).toHaveBeenCalledExactlyOnceWith('u2');
+      expect(sdk.reset.mock.invocationCallOrder[0]).toBeLessThan(
+        sdk.identify.mock.invocationCallOrder[0] ?? 0,
+      );
+    });
+
+    it('identify after reset, before start, does not reset when the stored id is the same', async () => {
+      storedUserId = 'u2';
+      const client = await load('tok');
+      client.reset();
+      client.identify('u2');
+      await client.startAnalytics();
+      expect(sdk.reset).not.toHaveBeenCalled();
+      expect(sdk.identify).toHaveBeenCalledExactlyOnceWith('u2');
+    });
+
+    it('resets a stored identity of another user before identifying at start', async () => {
+      storedUserId = 'A';
+      const client = await load('tok');
+      client.identify('B');
+      await client.startAnalytics();
+      expect(sdk.reset).toHaveBeenCalledTimes(1);
+      expect(sdk.identify).toHaveBeenCalledExactlyOnceWith('B');
+      expect(sdk.reset.mock.invocationCallOrder[0]).toBeLessThan(
+        sdk.identify.mock.invocationCallOrder[0] ?? 0,
+      );
+    });
+
+    it('does not reset when the stored identity is the same user', async () => {
+      storedUserId = 'A';
+      const client = await load('tok');
+      client.identify('A');
+      await client.startAnalytics();
+      expect(sdk.reset).not.toHaveBeenCalled();
+      expect(sdk.identify).toHaveBeenCalledExactlyOnceWith('A');
+    });
+
+    it('does not reset when the SDK stores no identity', async () => {
+      const client = await load('tok');
+      client.identify('A');
+      await client.startAnalytics();
+      expect(sdk.reset).not.toHaveBeenCalled();
+    });
+
+    it('reset drops a pending Signed In', async () => {
+      const client = await load('tok');
+      const started = client.startAnalytics();
+      client.identify('u1', { signedIn: true });
+      client.reset();
+      await started;
+      expect(sdk.track).not.toHaveBeenCalled();
+      expect(sdk.identify).not.toHaveBeenCalled();
+    });
+
+    it('reset without a user or an SDK does nothing and does not throw', async () => {
+      const client = await load('tok');
+      expect(() => client.reset()).not.toThrow();
+      client.identify('u1');
+      expect(() => client.reset()).not.toThrow();
+      expect(sdk.reset).not.toHaveBeenCalled();
+    });
   });
 
   it('does not retry after init threw', async () => {

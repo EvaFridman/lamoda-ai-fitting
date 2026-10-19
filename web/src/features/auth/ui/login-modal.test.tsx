@@ -4,14 +4,21 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ApiError } from '@/shared/api';
 
+import { SIGN_IN_FLAG_MS } from '../lib/sign-in-flag';
+
 import { LoginModal } from './login-modal';
 
 const mocks = vi.hoisted(() => ({
   signInWithGoogle: vi.fn(),
   reportFailure: vi.fn(),
   replace: vi.fn(),
+  track: vi.fn(),
   navigation: { pathname: '/catalog', params: new URLSearchParams() },
 }));
+
+vi.mock('@/shared/analytics/client', () => ({ track: mocks.track }));
+
+const FLAG = 'sign-in-started';
 
 vi.mock('next/navigation', () => ({
   usePathname: () => mocks.navigation.pathname,
@@ -52,6 +59,8 @@ describe('LoginModal', () => {
     mocks.signInWithGoogle.mockReset().mockResolvedValue(undefined);
     mocks.reportFailure.mockReset();
     mocks.replace.mockReset();
+    mocks.track.mockReset();
+    window.sessionStorage.clear();
     mocks.navigation.pathname = '/catalog';
     mocks.navigation.params = new URLSearchParams();
   });
@@ -189,7 +198,82 @@ describe('LoginModal', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
+  describe('analytics and the sign-in flag', () => {
+    it('tracks "Login Opened" once when the trigger opens the modal, and not when it closes', async () => {
+      const user = setup();
+      await openModal(user);
+      expect(mocks.track).toHaveBeenCalledExactlyOnceWith('Login Opened', {});
+      await user.click(screen.getByRole('button', { name: 'Закрыть' }));
+      await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      expect(mocks.track).toHaveBeenCalledTimes(1);
+    });
+
+    it('sets the flag before leaving for Google and tracks the click on login.google', async () => {
+      let flagAtCall: string | null = null;
+      mocks.signInWithGoogle.mockImplementation(() => {
+        flagAtCall = window.sessionStorage.getItem(FLAG);
+        return new Promise(() => {});
+      });
+      const user = setup();
+      await openModal(user);
+      await user.click(screen.getByRole('button', { name: 'Войти через Google' }));
+      expect(flagAtCall).not.toBeNull();
+      expect(mocks.track).toHaveBeenCalledWith('Element Clicked', { element: 'login.google' });
+      expect(window.sessionStorage.getItem(FLAG)).not.toBeNull();
+    });
+
+    it('removes the flag when the sign-in call fails', async () => {
+      mocks.signInWithGoogle.mockRejectedValue(httpError(503, 'SERVICE_UNAVAILABLE'));
+      const user = setup();
+      await openModal(user);
+      await user.click(screen.getByRole('button', { name: 'Войти через Google' }));
+      await screen.findByRole('alert');
+      expect(window.sessionStorage.getItem(FLAG)).toBeNull();
+    });
+
+    it('removes the flag after a page restored from the cache, and keeps it for a fresh load', async () => {
+      mocks.signInWithGoogle.mockReturnValue(new Promise(() => {}));
+      const user = setup();
+      await openModal(user);
+      await user.click(screen.getByRole('button', { name: 'Войти через Google' }));
+      act(() => {
+        window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: false }));
+      });
+      expect(window.sessionStorage.getItem(FLAG)).not.toBeNull();
+      act(() => {
+        window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
+      });
+      expect(window.sessionStorage.getItem(FLAG)).toBeNull();
+    });
+
+    it('removes a flag left by an abandoned sign-in when the page has no error code', () => {
+      window.sessionStorage.setItem(FLAG, String(Date.now()));
+      setup();
+      expect(window.sessionStorage.getItem(FLAG)).toBeNull();
+      expect(mocks.reportFailure).not.toHaveBeenCalled();
+    });
+  });
+
   describe('after a sign-in that failed at Google', () => {
+    it('opens with the text but reports nothing for a made-up link without the flag', async () => {
+      mocks.navigation.params = new URLSearchParams('error=server_error');
+      setup();
+      const dialog = await screen.findByRole('dialog', { name: 'Вход' });
+      expect(within(dialog).getByRole('alert')).toHaveTextContent(
+        'Не удалось войти, попробуйте ещё раз',
+      );
+      expect(mocks.reportFailure).not.toHaveBeenCalled();
+    });
+
+    it('takes the flag and does not report access_denied', async () => {
+      window.sessionStorage.setItem(FLAG, String(Date.now()));
+      mocks.navigation.params = new URLSearchParams('error=access_denied');
+      setup();
+      await screen.findByRole('dialog', { name: 'Вход' });
+      expect(window.sessionStorage.getItem(FLAG)).toBeNull();
+      expect(mocks.reportFailure).not.toHaveBeenCalled();
+    });
+
     it('does not touch the address or report anything without an error param', () => {
       mocks.navigation.params = new URLSearchParams('a=1');
       setup();
@@ -207,6 +291,7 @@ describe('LoginModal', () => {
     });
 
     it('opens with the failed text for another code and reports a SignInFailed error', async () => {
+      window.sessionStorage.setItem(FLAG, String(Date.now()));
       mocks.navigation.params = new URLSearchParams('error=server_error');
       setup();
       const dialog = await screen.findByRole('dialog', { name: 'Вход' });
@@ -221,7 +306,17 @@ describe('LoginModal', () => {
       );
     });
 
+    it('reports nothing for a flag older than 10 minutes, and removes it', async () => {
+      window.sessionStorage.setItem(FLAG, String(Date.now() - SIGN_IN_FLAG_MS - 1000));
+      mocks.navigation.params = new URLSearchParams('error=server_error');
+      setup();
+      await screen.findByRole('dialog', { name: 'Вход' });
+      expect(mocks.reportFailure).not.toHaveBeenCalled();
+      expect(window.sessionStorage.getItem(FLAG)).toBeNull();
+    });
+
     it('treats a value that is not a code as "unknown"', async () => {
+      window.sessionStorage.setItem(FLAG, String(Date.now()));
       mocks.navigation.params = new URLSearchParams({ error: '<b>x</b>' });
       setup();
       await screen.findByRole('dialog', { name: 'Вход' });
