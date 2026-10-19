@@ -2,9 +2,10 @@
 
 Status: accepted (2026-10-19); amended 2026-10-19 at the plan after the owner's Lamoda references:
 the row of applied filters and the breadcrumbs (AC3, AC7, O5), search by article (AC8, O14);
-amended 2026-10-19 after the check against 0012, 0013 and 0015 (AC6, AC15, AC18, O33–O39).
+amended 2026-10-19 after the check against 0012, 0013 and 0015 (AC6, AC15, AC18, O33–O39);
+amended 2026-10-19 at the review of PR 1 (AC1, AC14, AC23, O40–O48).
 
-Issues #68 and #71. Decisions: `clarifications.md` (O1–O39).
+Issues #68 and #71. Decisions: `clarifications.md` (O1–O48).
 
 ## Goal
 
@@ -43,7 +44,7 @@ page goes.
 
 ### Address and page
 
-- **AC1.** `GET /` answers a permanent redirect to `/catalog`. `/catalog` shows every active
+- **AC1.** `GET /` answers a temporary redirect (307) to `/catalog`. `/catalog` shows every active
   product. `/catalog/<slug>` shows one category, with its name in the breadcrumbs and the title.
 - **AC2.** `/catalog/<unknown slug>` and the slug of an inactive category answer 404.
 - **AC3.** At 1440 px the page shows, in this order:
@@ -88,8 +89,9 @@ page goes.
 
 ### Performance and protection
 
-- **AC14.** On the large local catalog, every sort and a search over the list use an index. This is
-  checked with the query plan, recorded in `tasks.md`.
+- **AC14.** On a local catalog of 50 000 products, after `ANALYZE`, every sort and a search over the
+  list use an index without the planner being forced. This is checked with the query plan,
+  recorded in `tasks.md`.
 - **AC15.** A second identical request for filter counts within the cache period does not reach the
   database. With the database's statement timeout reached, or no free connection within the
   connection timeout, the request fails with the api's 503 and `/health` still answers.
@@ -119,7 +121,7 @@ page goes.
 - **AC22.** With JavaScript off, `/catalog` shows its first batch. "Дальше" opens the next batch as a
   page from the server.
 - **AC23.** In production, Lighthouse gives 100 for SEO and 100 for Accessibility on `/catalog` and on
-  one category. Screen readers and the keyboard:
+  one category. A point lost outside this spec's code follows O47. Screen readers and the keyboard:
   - a screen reader announces the result count after a filter is applied;
   - every filter, chip and the bottom sheet can be used with the keyboard alone;
   - focus does not jump when a batch loads.

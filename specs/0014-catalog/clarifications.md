@@ -2,7 +2,8 @@
 
 Status: accepted (2026-10-19); amended 2026-10-19 at the plan: the whole greeting goes (O33), web's
 own health route (O34), Lamoda's layout of applied filters and the breadcrumbs (O5), search by
-article (O14); amended 2026-10-19 after the check against 0012, 0013 and 0015 (O35–O39).
+article (O14); amended 2026-10-19 after the check against 0012, 0013 and 0015 (O35–O39);
+amended 2026-10-19 at the review of PR 1 (O40–O48).
 
 The owner's decisions for this spec. Ids `O1`, `O2`, … are referred to by the spec, the plan and
 code comments. All decisions below: owner, 2026-10-19.
@@ -25,7 +26,9 @@ code comments. All decisions below: owner, 2026-10-19.
 ## Address and page
 
 - **O3. Address.** The catalog is at `/catalog`, and a category at `/catalog/<slug>` (its `slug`).
-  Filters, the sort and the search are query parameters. `/` redirects permanently to `/catalog`.
+  Filters, the sort and the search are query parameters. `/` redirects to `/catalog` with a
+  temporary redirect (307), so browsers do not keep it if `/` gets its own page later (amended by
+  O42).
 - **O4. Unknown category.** A slug that names no category, or an inactive one, answers 404.
 - **O5. Layout, desktop.** As on Lamoda's catalog (the owner's screenshots and saved page of
   2026-10-19), from top to bottom:
@@ -66,15 +69,16 @@ code comments. All decisions below: owner, 2026-10-19.
   the list. Only the rows near the screen are in the page's DOM. There are no page numbers.
 - **O11. Keyset paging for the product list.** The product list pages by a cursor that continues
   after the last product shown, not by offset. A product added or removed while the visitor scrolls
-  makes no product repeat or go missing. The answer carries the total and the next cursor (none on
-  the last batch). Only the product list changes; the other lists keep limit and offset. The list
+  makes no product repeat or go missing. The answer carries the next cursor (none on the last
+  batch) and, for the first batch only, the total (amended by O44). Only the product list changes; the other lists keep limit and offset. The list
   accepts offset until the web that uses the cursor is deployed, and a later release removes it.
   This amends 0004 E5 and E45 for the product list.
 - **O12. Back to the same place.** Going back to the catalog (from a product, for example) shows the
   batches already loaded, at the same scroll position.
 - **O13. A large catalog for testing only.** The production seed stays as it is (33 products). A
-  separate development-only script fills the local database with about 2000 generated products made
-  from the existing photos, for QA of scrolling and for measuring the indexes.
+  separate development-only script fills the local database with generated products made from the
+  existing photos, for QA of scrolling and for measuring the indexes: about 2000 by default, and
+  50 000 for the index check (O43).
 
 ## Search
 
@@ -133,7 +137,8 @@ code comments. All decisions below: owner, 2026-10-19.
   - Canonical address: the catalog or category address without filters.
   - `noindex` on any address with a search or a filter.
   - `sitemap.xml` lists the catalog and the active categories.
-  - `robots.txt` points to the sitemap and keeps `/ui-kit` out.
+  - `robots.txt` points to the sitemap and keeps `/ui-kit` out. Batch addresses (`?cursor=`) stay
+    open to crawlers, with `noindex, follow` (O41).
 - **O27. Structured data.** JSON-LD:
   - on every catalog page, the breadcrumbs and the products of the first batch (name, price, link);
   - on `/catalog`, the site with its search and the organization.
@@ -154,7 +159,7 @@ code comments. All decisions below: owner, 2026-10-19.
 - **O32. How SEO is checked.**
   - Tests check the metadata, the structured data, the sitemap and robots.
   - After the web deploy, Lighthouse gives 100 for SEO and 100 for Accessibility on `/catalog` and
-    one category.
+    one category (O47 for points lost outside this spec's code).
   - The structured data passes Yandex's validator and Google's Rich Results test.
   - The results are posted on the pull request.
 
@@ -188,3 +193,32 @@ code comments. All decisions below: owner, 2026-10-19.
 - **O39. A rate limit for `/media/`.** PR 4 also limits `/media/` per client address, from the same
   measured visit (O24). A virtual grid loads many photos, so the threshold has to allow them. This
   is the first step of backlog "Rate limit for web pages" (random keys reach the bucket).
+
+## Decided at the review of PR 1
+
+The review of PR 1 (#87) was posted as a comment on 2026-10-19.
+
+- **O40. PR 3 waits for 0015.** T20 stays in PR 3, and PR 3 merges only once spec 0015's event
+  catalog is on `main` and T20 is done. Its entries follow 0015 as merged, which may differ from
+  the names in plan §3.6. (Review note 1.)
+- **O41. Batch addresses stay open to crawlers.** `robots.txt` does not block `?cursor=`. Those
+  pages carry `noindex, follow`, so a crawler walks the "Дальше" chain and finds every product link,
+  but no batch page is indexed. (Note 5; amends O26 and O29.)
+- **O42. A temporary redirect on `/`.** `/` → `/catalog` is a 307, not a 308: a later page on `/`
+  needs no browser cache to clear. (Note 7; amends O3 and AC1.)
+- **O43. The index check runs on 50 000 products.** The dev catalog script takes a count (2000 by
+  default). AC14 runs it with 50 000, then `ANALYZE`, and each `EXPLAIN` must choose the index on
+  its own, without `enable_seqscan = off`. (Note 3.)
+- **O44. The total only in the first batch.** A request with `cursor` does not count. Its `total`
+  is `null`, and web keeps the first batch's total. The offset answer stays as it is until PR 4
+  removes it. (Note 8; amends O11.)
+- **O45. The CSP allows the recorder's worker.** The policy has `worker-src 'self' blob:` from the
+  start. T24 checks the browser console locally with a token of a Mixpanel development project,
+  which the owner puts into `.env`. (Note 6.)
+- **O46. Some tasks of PR 3 may go ahead alone.** If the web phase drags on, T11 and T12 (routes,
+  redirect and removals) may ship as their own pull request before the rest of PR 3. (Note 9.)
+- **O47. Lighthouse 100 for this spec's code.** A point lost to the UI kit or the header is fixed
+  in this spec when the fix is small. Otherwise it goes to the backlog, and AC23 is accepted with
+  the reason recorded. (Note 10.)
+- **O48. The `/hello` window is accepted.** During PR 3's blue-green switch, the old release's home
+  page may show the greeting's error for a few seconds; the switch ends it. (Note 11.)

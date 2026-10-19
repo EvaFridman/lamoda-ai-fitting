@@ -1,14 +1,19 @@
 # 0014 catalog page: plan
 
 Status: accepted (2026-10-19); amended 2026-10-19 after the owner's Lamoda references (O5, O14)
-and after the check against 0012, 0013 and 0015 (O35–O39, §1, §2.7, §3.2, §3.6, §3.7, §5, §8).
+and after the check against 0012, 0013 and 0015 (O35–O39, §1, §2.7, §3.2, §3.6, §3.7, §5, §8);
+amended 2026-10-19 at the review of PR 1 (O40–O48; the article test inside `toProductSql` and
+the price indexes, §2.2, §2.4).
 
-How `spec.md` (AC1–AC24) is built. Decisions: `clarifications.md` (O1–O39).
+How `spec.md` (AC1–AC24) is built. Decisions: `clarifications.md` (O1–O48).
 
 ## 1. Pull requests and release order
 
 Four pull requests (O2). Each one leaves production working with the previous release on either
-side of a blue-green switch. Once spec 0012 is on `main`, PR 2's deploy, which brings a migration,
+side of a blue-green switch. One window is accepted: during PR 3's switch the old release's home
+page may show the greeting's error for a few seconds (O48). PR 3 merges only after spec 0015's
+event catalog is on `main` and T20 is done (O40); T11–T12 may ship ahead as their own pull request
+(O46). Once spec 0012 is on `main`, PR 2's deploy, which brings a migration,
 stores a database copy before migrating, and a failed copy stops it (0012 P3). PR 2 and later edit
 `ci-deploy-check.sh` and `CLAUDE.md`, which 0012 also edits. Whichever lands second rebases.
 
@@ -54,12 +59,13 @@ conditions do not fit Prisma's `where`. So the list moves to the same raw builde
 2. `findMany({ where: { id: { in: ids } }, include: LIST_ITEM_INCLUDE })`, reordered in JS to the ids'
    order.
 3. `total`: `SELECT count(*)` with the same filter, in the same transaction (repeatable read, as
-   today's `$transaction`).
+   today's `$transaction`). It runs only for the first batch, a request without `cursor`. A
+   request with `cursor` answers `total: null` (O44).
 
-`toProductWhere` is deleted once nothing uses it. Besides the vector, `q` also matches
-`lower(p.article) = lower(q)` (O14), backed by an index on `lower(article)` in the same migration.
-`q` in `toProductSql` becomes
-`p.search_vector @@ to_tsquery(…)`, so the facets search the same way.
+`toProductWhere` is deleted once nothing uses it. `q` in `toProductSql` becomes
+`(p.search_vector @@ to_tsquery(…) OR lower(p.article) = lower(q))` (O14). The article test is
+backed by an index on `lower(article)` in the same migration. Because both conditions live in
+`toProductSql`, the list, its `total` and the facets agree for every `q`.
 
 ### 2.3 Keyset cursor (O11)
 
@@ -77,8 +83,8 @@ conditions do not fit Prisma's `where`. So the list moves to the same raw builde
   - `price_desc` and `discount`: `(key, p.id) < (k, id)`.
   - `rating desc nulls last`: while `k` is not null, `p.rating < k OR (p.rating = k AND p.id < id)
 OR p.rating IS NULL`. Once `k` is null, `p.rating IS NULL AND p.id < id`.
-- **Query and answer.** `?cursor=` and `?limit=`. The answer is `Paginated<T>` plus
-  `nextCursor: string | null`.
+- **Query and answer.** `?cursor=` and `?limit=`. The answer is `{ items, total: number | null,
+nextCursor: string | null }`; `total` is a number only without `cursor` (O44).
   - A new `CursorPaginated<T>` and `ApiCursorPaginatedResponse` sit in `common/pagination/`.
   - `offset` stays accepted until PR 4. A request with both `cursor` and `offset` answers 400.
   - Other lists keep `PaginationQueryDto`.
@@ -88,7 +94,8 @@ OR p.rating IS NULL`. Once `k` is null, `p.rating IS NULL AND p.id < id`.
 The same migration as 2.1 adds:
 
 - `(created_at DESC, id DESC)`;
-- `(price, id)`;
+- `(price ASC, id DESC)` for `price_asc` and `(price DESC, id DESC)` for `price_desc`. Both sorts
+  end with `id desc` (0004 E45), so one index scanned both ways cannot serve them both;
 - `(discount DESC, id DESC)`;
 - `(rating DESC NULLS LAST, id DESC)`.
 
@@ -140,9 +147,10 @@ transaction and the table is small. A later large table would need a separate st
 ### 2.8 Development catalog (O13)
 
 `api/src/seed/dev-catalog.ts`, run as `npm run seed:dev-large` (`nest start --entryFile
-seed/dev-catalog`), creates about 2000 products:
+seed/dev-catalog`), creates the number of products given as its argument, 2000 by default
+(`npm run seed:dev-large -- 50000` for AC14, O43):
 
-- the articles are `DEV-0001…`;
+- the articles are `DEV-00001…`;
 - names, brands, categories, prices, discounts, ratings and sizes are combinations of the seed's;
 - the image keys are the seed's existing ones, so nothing is uploaded.
 
@@ -153,14 +161,14 @@ not in the runtime image's commands.
 
 ### 3.1 Routes
 
-| Route                         | Source                                                                       |
-| ----------------------------- | ---------------------------------------------------------------------------- |
-| `/`                           | `redirects()` in `next.config.ts`: `/` → `/catalog`, `permanent: true` (308) |
-| `/catalog`                    | `app/catalog/page.tsx` → `_pages/catalog`                                    |
-| `/catalog/[slug]`             | `app/catalog/[slug]/page.tsx` → same page with a category                    |
-| `/catalog/opengraph-image`    | `app/catalog/opengraph-image.tsx` (`next/og`)                                |
-| `/sitemap.xml`, `/robots.txt` | `app/sitemap.ts`, `app/robots.ts`                                            |
-| `/healthz`                    | `app/healthz/route.ts`, plain 200 (O34). nginx answers 404 for it in PR 4    |
+| Route                         | Source                                                                             |
+| ----------------------------- | ---------------------------------------------------------------------------------- |
+| `/`                           | `redirects()` in `next.config.ts`: `/` → `/catalog`, `permanent: false` (307, O42) |
+| `/catalog`                    | `app/catalog/page.tsx` → `_pages/catalog`                                          |
+| `/catalog/[slug]`             | `app/catalog/[slug]/page.tsx` → same page with a category                          |
+| `/catalog/opengraph-image`    | `app/catalog/opengraph-image.tsx` (`next/og`)                                      |
+| `/sitemap.xml`, `/robots.txt` | `app/sitemap.ts`, `app/robots.ts`                                                  |
+| `/healthz`                    | `app/healthz/route.ts`, plain 200 (O34). nginx answers 404 for it in PR 4          |
 
 The root layout gets `metadataBase` (from a new server env `SITE_URL`, `https://lamoda-ai-fitting.ru` in
 production, `http://localhost:3000` in `.env.example`) and the title template `%s — Виртуальная примерка | Lamoda AI Fitting` (O25).
@@ -226,7 +234,8 @@ test renders a client component given the secret and expects the error.
     - `initialPageParam: null`;
     - `getNextPageParam: (last) => last.nextCursor`.
       It lives in `entities/product/api/queries.ts`, with a server twin in `server-queries.ts`.
-  - `productListSchema` gains `nextCursor`, and the contract test follows the OpenAPI document.
+  - `productListSchema` gains `nextCursor` and a nullable `total`, and the contract test follows the
+    OpenAPI document. The page takes the total from the first page (`pages[0].total`, O44).
   - `prefetch` (`@/shared/api/server`) gains `prefetchInfinite`: the first page only, with the same
     "returns a failure" rule.
 - **Grid.** `useWindowVirtualizer` over rows:
@@ -289,8 +298,8 @@ test renders a client component given the secret and expects the error.
 - **`sitemap.ts`.** It renders at request time (`connection()`), so the build needs no api. It
   lists `/catalog` and the active categories (`getCategories`). A failed request answers only
   `/catalog`.
-- **`robots.ts`.** It allows everything, disallows `/ui-kit`, `/healthz` and `/*?*cursor=`, and
-  names the sitemap.
+- **`robots.ts`.** It allows everything, disallows `/ui-kit` and `/healthz`, and names the
+  sitemap. Batch addresses stay open, with `noindex, follow` from the metadata (O41).
 - **CSP.** The policy needs nonces on Next's inline scripts and the JSON-LD; this is PR 4 (§5).
 
 ### 3.6 Analytics (O22, O23)
@@ -318,7 +327,7 @@ description and frequency per visit (0015 R9).
 
 ### 3.7 Scripts and checks touched by the removals
 
-- `scripts/smoke-test.sh`: `/` → 308 to `/catalog`; `/catalog` contains `<h1`.
+- `scripts/smoke-test.sh`: `/` → 307 to `/catalog`; `/catalog` contains `<h1`.
 - `scripts/request-loop.sh` follows the same change.
 - `scripts/ci-deploy-check.sh`: every `/api/hello` becomes `/api/categories?limit=1` (O33). The rest
   of its checks stay. Unlike `/hello`, that route reads the database. The flood, request-id and
@@ -371,15 +380,17 @@ in production, so no deployed web sends it.
   default-src 'self'; script-src 'self' 'nonce-<n>' 'strict-dynamic';
   style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:;
   connect-src 'self' https://api-eu.mixpanel.com <sentry ingest origin>;
-  font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';
-  object-src 'none'
+  font-src 'self'; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self';
+  form-action 'self'; object-src 'none'
   ```
   - Styles need `'unsafe-inline'`: Next and Base UI inject style attributes.
   - nginx keeps `frame-ancestors 'none'` for non-page answers. For pages it passes web's header
     through and does not add its own, since two CSP headers intersect.
   - The JSON-LD `<script>` takes the nonce.
   - Mixpanel's recording worker and its CDN load come from the npm package (bundled), so no extra
-    origin is needed. This is checked in the browser console (AC17).
+    origin is needed. The recorder runs in a `blob:` worker, hence `worker-src 'self' blob:` (O45).
+    The local check uses a Mixpanel development project's token in `.env` (the owner's), since an
+    empty token loads no SDK. Production is checked in the browser console (AC17).
 - `deploy/README.md` "Лимиты nginx" gains the page limit and the CSP.
 
 ## 6. Risks
@@ -403,7 +414,7 @@ in production, so no deployed web sends it.
 
 | AC    | Check                                                                                                      |
 | ----- | ---------------------------------------------------------------------------------------------------------- |
-| AC1   | `curl -I /` → 308 `/catalog`; Vitest of the page with and without a slug                                   |
+| AC1   | `curl -I /` → 307 `/catalog`; Vitest of the page with and without a slug                                   |
 | AC2   | `curl -I /catalog/nope` and an inactive slug → 404 (local and production)                                  |
 | AC3–4 | `qa-tester` screenshots at 1440 and 375 px; owner compares                                                 |
 | AC5   | Vitest: card `href`                                                                                        |
@@ -415,7 +426,7 @@ in production, so no deployed web sends it.
 | AC11  | `qa-tester` on the dev catalog: scroll to the end, count the DOM `li`                                      |
 | AC12  | database e2e per sort: insert between batches, no repeat or gap                                            |
 | AC13  | `qa-tester`: scroll 3 batches, open a card, back                                                           |
-| AC14  | `EXPLAIN` of each sort and a search on the dev catalog, recorded in `tasks.md`                             |
+| AC14  | `EXPLAIN` of each sort and a search on the 50 000-product dev catalog after `ANALYZE`, in `tasks.md`       |
 | AC15  | e2e: the second call does not hit the database (spy); `pg_sleep` past the timeout → 503, `/health` answers |
 | AC16  | production: the owner's `ab`/curl loop over the limit → 429 JSON; the scripted visit stays under           |
 | AC17  | production browser console with and without consent; `curl -I` shows the header                            |

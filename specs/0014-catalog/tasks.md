@@ -1,7 +1,8 @@
 # 0014 catalog page: tasks
 
 Status: accepted (2026-10-19); amended 2026-10-19 after the check against 0012, 0013 and 0015
-(T5, T9, T12, T13, T13a, T20, T23).
+(T5, T9, T12, T13, T13a, T20, T23); amended 2026-10-19 at the review of PR 1 (T6, T10, T11, T24,
+O40–O48).
 Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## How the work flows
@@ -17,12 +18,13 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
   `temporal-reviewer` joins T12. The web tasks get `fsd-reviewer`.
 - The documents of PR 1 are committed only once the 0013 session no longer uses the shared worktree
   (O1; 0013 closed on 2026-10-19).
-- T20 starts after spec 0015's event catalog is on `main` (O35).
+- T20 starts after spec 0015's event catalog is on `main` (O35), and PR 3 merges only after T20
+  (O40). T11–T12 may ship ahead as their own pull request if the web phase drags on (O46).
 - The pull request of PR 4 carries `Closes #68` and `Closes #71` under "Что сделано".
 
 ## PR 1 · `docs/0014-catalog` · documents
 
-- [x] **T1. Spec and clarifications.** `spec.md`, `clarifications.md` (O1–O39).
+- [x] **T1. Spec and clarifications.** `spec.md`, `clarifications.md` (O1–O48).
       Check: owner's acceptance of `spec.md` (given 2026-10-19).
       Commit: `docs(specs): add spec 0014 catalog page and its decisions`
 - [x] **T2. Plan.** `plan.md`; O33–O39 recorded at the plan and after the check against 0012,
@@ -53,12 +55,13 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       e2e made stable under load (O38, backlog "Flaky facets test"); `npm run verify`.
       Commit: `feat(api): search products by words of their name, brand and category`
 - [ ] **T6. Cursor paging of the product list.** `cursor` in `ProductListQueryDto`,
-      `CursorPaginated<T>` with `nextCursor`, the condition per sort, 400 for a broken cursor, a
-      cursor of another sort or `cursor` with `offset` (plan §2.3); `openapi.json`; web's contract test
-      and `productListSchema` accept `nextCursor`.
+      `CursorPaginated<T>` with `nextCursor` and a `total` counted only without `cursor` (O44), the
+      condition per sort, 400 for a broken cursor, a cursor of another sort or `cursor` with
+      `offset` (plan §2.3); `openapi.json`; web's contract test and `productListSchema` accept
+      `nextCursor` and a nullable `total`.
       Check: database e2e for each sort: rows inserted and deleted between batches never repeat or
-      go missing; ties in the sort key and null ratings are paged through (AC12); `offset` still
-      works; `npm run verify`.
+      go missing; ties in the sort key and null ratings are paged through (AC12); a cursor request
+      runs no count and answers `total: null`; `offset` still works; `npm run verify`.
       Commit: `feat(api): page the product list by cursor`
 - [ ] **T7. Category by slug.** `GET /categories/by-slug/:slug` (plan §2.5), `PUBLIC_HANDLERS`,
       `openapi.json`.
@@ -81,10 +84,10 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Commit: `feat(api): limit the database pool and slow statements`
 - [ ] **T10. Development catalog and the query plans.** `seed/dev-catalog.ts`,
       `npm run seed:dev-large`, its refusal in production (plan §2.8); `README.md` (how to fill the
-      local catalog); `EXPLAIN` of every sort and a search on 2000 products recorded in this file
-      (AC14); backlog "Product list cost".
-      Check: the script twice adds nothing the second time; each `EXPLAIN` uses an index;
-      `npm run verify`.
+      local catalog); the count argument (O43); `EXPLAIN` of every sort and a search on 50 000
+      products after `ANALYZE`, recorded in this file (AC14); backlog "Product list cost".
+      Check: the script twice adds nothing the second time; each `EXPLAIN` uses an index with the
+      planner not forced; `npm run verify`.
       Commit: `feat(api): add a large development catalog`
 - 👤 merges PR 2; after the deploy, `GET /products?q=платье` on production answers.
 
@@ -95,7 +98,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       redirect of `/`, `/healthz`, `SITE_URL` in the server env and `.env.example`, `metadataBase`
       and the title template (plan §3.1). The fallback through `proxy.ts` is taken only if the status
       check fails, and then it is recorded in `plan.md`.
-      Check: `curl -I` locally: `/` → 308 `/catalog`, `/catalog` → 200, unknown and inactive slugs →
+      Check: `curl -I` locally: `/` → 307 `/catalog`, `/catalog` → 200, unknown and inactive slugs →
       404 (AC1, AC2), `/healthz` → 200 with the api stopped; `npm run verify`.
       Commit: `feat(web): add the catalog routes`
 - [ ] **T12. The greeting and the dev page go.** Removals of plan §3.2 in web and api, with the
@@ -184,7 +187,8 @@ verify`; `check:web-bundle` still passes.
       header handling for pages (plan §5); `CLAUDE.md`; backlog "Full CSP for web".
       Check: Vitest of the header; the deploy check sees the header on `/catalog` and only
       `frame-ancestors` on `/api/`; the browser console shows no violation locally, with and without
-      consent; `npm run verify`.
+      consent, with the owner's development Mixpanel token in `.env` so the SDK and its recorder
+      load (O45); `npm run verify`.
       Commit: `feat(web): add a content security policy`
 - [ ] **T25. Close the spec.** The production checks with the owner (AC16, AC17 after the deploy,
       and the evidence of PR 3's checks), the acceptance record below, every file gets
