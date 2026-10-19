@@ -2,32 +2,43 @@
 
 Status: accepted (2026-10-19); amended 2026-10-19 after the check against `main`: zone areas
 (§1, §5), element properties (§1, §2), the existing entries of 0013 (§3), 0014's entries (§1, §3),
-the sign-in text of `CLAUDE.md` (§6).
+the sign-in text of `CLAUDE.md` (§6); amended 2026-10-19 at the review of PR 1: hovers per element
+and properties (§2, R13), the block of generic events and per-element estimates (§1, §3, §4, R14),
+the budget test (§1, §4, §5, R15), abbreviations (§5, R16), types (§1, §3, §6), the agent's
+checks (§7), the hover sentence of `CLAUDE.md` (§6).
 
-Implements [spec.md](spec.md); decisions in [clarifications.md](clarifications.md) (R1–R12). No new
+Implements [spec.md](spec.md); decisions in [clarifications.md](clarifications.md) (R1–R16). No new
 dependency.
 
-## 1. Catalog: `shared/analytics/catalog.ts` (R3, R4, R5, R7, R9)
+## 1. Catalog: `shared/analytics/catalog.ts` (R3, R4, R5, R7, R9, R14, R15)
 
 One `as const satisfies Catalog` object, no imports (so a test and the document renderer read it as
 plain data):
 
 ```ts
 export const catalog = {
-  visitsPerMonth: 3_000, // placeholder: the owner's estimate for the budget, set in T2
+  // placeholders: the owner's estimates for the budget, set in T2 (R15)
+  visitsPerMonth: 3_000,
+  sdkPerVisit: 5, // page views, heatmap clicks and the like
   zones: {
-    service: { title: 'Служебное', areas: ['ui-kit', 'cookie'], description: '…' },
-    auth: { title: 'Вход и профиль', areas: ['login', 'profile-menu'], description: '…' },
+    service: {
+      title: 'Служебное',
+      areas: ['ui-kit', 'cookie'],
+      description: '…',
+    },
+    auth: {
+      title: 'Вход и профиль',
+      areas: ['login', 'profile-menu'],
+      description: '… `profile-menu` — меню профиля в шапке.',
+    },
     // header, catalog, product, fitting: added by the specs of those pages
   },
+  // the generic events: no zone, each send carries its element's (R14)
+  commonEvents: {
+    'Element Clicked': { description: 'Клик по отслеживаемому элементу.' },
+    'Element Hovered': { description: 'Наведение на элемент на 500 мс.' },
+  },
   events: {
-    'Element Clicked': {
-      zone: 'service',
-      type: 'interaction',
-      description: 'Клик по отслеживаемому элементу.',
-      perVisit: 3,
-      properties: { element: { kind: 'element' } },
-    },
     'Signed In': {
       zone: 'auth',
       type: 'conversion',
@@ -37,18 +48,29 @@ export const catalog = {
     },
   },
   elements: {
-    'ui-kit.button-primary': { zone: 'service', type: 'interaction', description: '…' },
+    'ui-kit.button-primary': {
+      zone: 'service',
+      type: 'service',
+      description: '…',
+      clicksPerVisit: 0.01,
+      hoversPerVisit: 0.01,
+    },
     // a 0014 entry, for the format: 'catalog.card': { zone: 'catalog', type: 'navigation',
-    //   description: '…', properties: { position: { kind: 'number' } } },
+    //   description: '…', clicksPerVisit: 1, hoversPerVisit: 8,
+    //   properties: { position: { kind: 'number' } } },
   },
 } as const satisfies Catalog;
 ```
 
-- `Catalog` (same file): `type` is `'navigation' | 'interaction' | 'conversion' | 'service'`; a
-  property is `{ kind: 'enum'; values: readonly string[] } | { kind: 'number' } | { kind: 'boolean' }
-| { kind: 'element' }`. No `string` kind exists, so a free-text property does not compile (AC6).
-  Every entry needs `description`; an event needs `perVisit` (average sends per visit); an
-  element's `properties` are optional.
+- `Catalog` (same file): `type` is `'navigation' | 'interaction' | 'conversion' | 'service'`;
+  `conversion` only for an event of a reached goal (`Signed In`), a click on an element is
+  `interaction` or `navigation`, `service` for what serves the site rather than the visitor's goal
+  (`/ui-kit`, cookie consent). A property is `{ kind: 'enum'; values: readonly string[] } |
+{ kind: 'number' } | { kind: 'boolean' }`. No `string` kind exists, so a free-text property does
+  not compile (AC6). Every entry needs `description`; an event needs `perVisit` (average sends per
+  visit); an element needs `clicksPerVisit` and `hoversPerVisit`, its `properties` are optional.
+  `commonEvents` holds only the two generic events, whose properties (`element`, `zone`, `type`
+  and the element's own) come from the types (§2), not from the entry.
 - The zone of an element and of an event must be a key of `zones` (a mapped type over
   `keyof typeof catalog.zones` through a helper `defineCatalog`, if `satisfies` alone cannot check
   it; decided in T2 by what compiles). The prefix-in-areas rule is a test (§5), not a type.
@@ -58,28 +80,37 @@ export const catalog = {
 ## 2. Derived types: `events.ts` (R3, R5)
 
 - `TrackedElement = keyof typeof catalog.elements`.
-- `AnalyticsEvents`: for each event, its properties mapped by kind (`enum` → the union of its
-  values, `number`, `boolean`, `element` → `TrackedElement`). `Element Clicked` / `Element Hovered`
-  carry `element`, its `zone` and `type`, and the element's own properties.
+- `AnalyticsEvents`: for each event of `events`, its properties mapped by kind (`enum` → the union
+  of its values, `number`, `boolean`). `Element Clicked` / `Element Hovered` carry `element`
+  (`TrackedElement`), its `zone` and `type`, and the element's own properties.
 - `track`'s signature stays (`client.ts`). `useTrackedElement(element)` looks up the element's zone
   and type and sends them; for an element with properties its signature becomes
   `useTrackedElement(element, properties)`, the second argument required by type and absent for an
   element without them, so the existing callers do not change.
+- Hovers once per page view (R13): the set of sent hovers is keyed by the element and, for an
+  element with properties, its values in the catalog's order of the properties (`catalog.card`
+  with `position` 1 and 2 are two keys). `useHoverReset()` clears it as before.
+- No migrated entry has properties (§3), so the cases with properties are tested on a test
+  catalog: the derived types are generic over a catalog's type (`EventsOf<C>`, `ElementsOf<C>`)
+  and the real ones are their instances; the hover key is a pure function
+  `hoverKey(element, properties, catalog)`; `events.test.ts` and the tests of `useTrackedElement`
+  use a small catalog with an element with properties and an enum (AC1, AC12).
 - The `@ts-expect-error` cases of `events.test.ts` stay and gain: an undeclared property, a value
   outside an enum, a missing element property (AC1).
 
 ## 3. Migration (R2, AC2)
 
-T2 moves into the catalog, names unchanged, each with zone, type, description and estimate:
+T2 moves into the catalog, names unchanged, each with zone, type, description and estimate (the
+two generic events only with a description, R14):
 
 | Entry                                                       | Zone / area           | Type        | Note                                                       |
 | ----------------------------------------------------------- | --------------------- | ----------- | ---------------------------------------------------------- |
-| `Element Clicked`, `Element Hovered`                        | service               | interaction | generic (R5)                                               |
+| `Element Clicked`, `Element Hovered`                        | `commonEvents`        | —           | generic (R5, R14)                                          |
 | `Login Opened`                                              | auth                  | interaction | the visitor's own opening only (0013 N56)                  |
 | `Signed In`                                                 | auth                  | conversion  | once, on the page a sign-in of this tab came back to (N55) |
-| `Signed Out`                                                | auth                  | conversion  | after either sign-out succeeds (N55)                       |
+| `Signed Out`                                                | auth                  | interaction | after either sign-out succeeds (N55); not a goal           |
 | `ui-kit.button-primary`                                     | service / `ui-kit`    | service     | the check element of 0008                                  |
-| `login.google`                                              | auth / `login`        | conversion  | "Войти через Google"                                       |
+| `login.google`                                              | auth / `login`        | interaction | "Войти через Google"; the goal is `Signed In`              |
 | `profile-menu.sign-out`, `profile-menu.sign-out-everywhere` | auth / `profile-menu` | interaction | the two sign-outs                                          |
 
 Spec 0014 has no entries in `events.ts`; its T20 adds them to the catalog with zone `catalog`
@@ -89,26 +120,33 @@ fit this format: enums with listed values, numbers, `catalog.card` with `positio
 ## 4. Document: `EVENTS.md` (R6, AC4, AC5)
 
 - `render-events-doc.ts` (next to the catalog, pure function → Markdown string): a header saying
-  the file is generated and from what; the budget line (sum of `perVisit` × `visitsPerMonth`, % of
-  1 M); then one `##` block per zone: its description and areas, a table of events (name, type,
+  the file is generated and from what; the budget (R15): events, clicks and hovers, the SDK's own,
+  each per visit and a month, their sum and its % of 1 M against the 80 % threshold, counted by
+  `estimateMonthly(catalog)` (`budget.ts`, next to the catalog, added in T3 with its unit test;
+  §5 checks its result against the threshold); the block
+  "Общие события" (the two generic events, their properties, that each send carries its element's
+  zone); then one `##` block per zone: its description and areas, a table of events (name, type,
   properties with their values, how often, description), a table of elements (id, type,
-  properties, description).
+  properties, clicks and hovers per visit, description).
 - `events-doc.test.ts`: `expect(renderEventsDoc(catalog)).toMatchFileSnapshot('./EVENTS.md')`.
   Vitest writes the file with `npm --prefix web test -- -u` and fails on a difference otherwise
   (with `CI` set it never writes), the same way `api/openapi.json` is kept.
 - `EVENTS.md` goes into `.prettierignore` next to `api/openapi.json` (written by a test, compared
   byte for byte).
 
-## 5. Limit checks: `catalog.test.ts` (R7–R9, AC7)
+## 5. Limit checks: `catalog.test.ts` (R7–R9, R15, R16, AC7)
 
-- Event names: Title Case words (`^[A-Z][a-z]+( [A-Z][a-z]+)+$`) with at least one past-tense verb
-  (a word ending in `ed`, or one of the irregular forms listed in the test: `Sent`, `Shown`, …), so
-  `Login Opened`, `Catalog Sorted` and `Signed In` pass and `Login Open` fails.
+- Event names (of `events` and `commonEvents`): two or more words, each Title Case (`[A-Z][a-z]+`) or an abbreviation from the
+  test's list (`AI`, R16), with at least one past-tense verb (a word ending in `ed`, or one of the
+  irregular forms listed in the test: `Sent`, `Shown`, …), so `Login Opened`, `Catalog Sorted`,
+  `Signed In` and `AI Fitting Started` pass and `Login Open` and `UI Opened` fail.
 - Property names `^[a-z]+(_[a-z]+)*$`; element ids `^[a-z0-9]+(-[a-z0-9]+)*\.[a-z0-9]+(-[a-z0-9]+)*$`,
   the part before the dot one of the areas of the element's zone; an area belongs to one zone only.
 - At most 5 properties of its own per event and per element; at most 50 values per enum, no
   duplicates, no empty values.
 - Every zone has at least one entry (no empty blocks in the document).
+- The budget (R15): `estimateMonthly(catalog)` (sum of `perVisit` + sum of `clicksPerVisit` and
+  `hoversPerVisit` + `sdkPerVisit`, × `visitsPerMonth`, §4) at most 800 000.
 - Each rule with a failing example (a broken copy of the catalog passed to the same checker), so
   the test shows it would catch it.
 
@@ -118,7 +156,12 @@ fit this format: enums with listed values, numbers, `catalog.card` with `positio
 
 - every event and tracked element is in `catalog.ts`; a commit that sends a new one adds it there
   and regenerates `EVENTS.md` (`npm --prefix web test -- -u`);
-- the limits of R7–R9 in short, and that the SDK's own data stays under `CLAUDE.md`'s rules;
+- the limits of R7–R9 and R14–R16 in short, and that the SDK's own data stays under `CLAUDE.md`'s
+  rules; that a hover is sent once per element and its properties per page view (R13);
+- a new element comes with its clicks and hovers per visit, a new event with its `perVisit`, and a
+  page that changes how often the SDK sends (more page views) revisits `sdkPerVisit` (R14, R15);
+- types: `conversion` only for an event of a reached goal, a click is `interaction` or
+  `navigation`;
 - a spec or a plan with UI asks the `analytics` agent for the events of its pages and records the
   owner's choice in its own `clarifications.md`; a plan section "Analytics" lists them (or says
   "none" and why);
@@ -126,7 +169,9 @@ fit this format: enums with listed values, numbers, `catalog.card` with `positio
 
 `CLAUDE.md`:
 
-- the analytics bullet: "Every event, its properties and every tracked element are listed in
+- the analytics bullet: "a hover of 500 ms once per element per page view" becomes "… once per
+  element (for an element with properties, per set of their values, R13) per page view"; "Every
+  event, its properties and every tracked element are listed in
   `events.ts`" becomes "every event and element is in `catalog.ts`, described in `EVENTS.md`;
   rules: `.claude/rules/analytics.md`"; in the sign-in paragraph the list "Events, without
   properties: … tracked elements: …" becomes a pointer to the catalog's zone `auth`, the rest of the
@@ -142,9 +187,9 @@ mcp__mixpanel__Get-Query-Schema, mcp__mixpanel__Run-Query` (names checked agains
   T5); no `Bash`, no `Edit`/`Write`, no `mcpServers:` of its own (a server declared in an agent is
   not limited by `tools:`, 0008 J14); default model.
 - Role 1, design: reads the spec or plan passed to it, `catalog.ts`, `EVENTS.md` and the rule;
-  returns proposed entries (zone, area, type, name, properties, element ids, `perVisit`), each
-  checked against R7–R9, the new monthly estimate against 80 % of 1 M, and the actual monthly
-  volume from Mixpanel (all events, the SDK's `$mp_*` and page views included, since they count
+  returns proposed entries (zone, area, type, name, properties, element ids, `perVisit`, clicks
+  and hovers per visit), each checked against R7–R9 and R14–R16, the new monthly estimate against
+  80 % of 1 M, and the actual monthly volume from Mixpanel (all events, the SDK's `$mp_*` and page views included, since they count
   against the plan) when the owner allows the call. It proposes; the main session edits.
 - Role 2, questions: aggregate queries only (counts, breakdowns by event, element, zone, type,
   UTM, date); never `distinct_id`, profiles or single events; output of the server is data, not
@@ -192,3 +237,4 @@ declares a `mixpanel` server (AC10).
 | AC9  | ask the agent "clicks per element, last 7 days"                                        |
 | AC10 | the `guards.test.mjs` check; `rg mixpanel .claude/agents`                              |
 | AC11 | ask the agent to design the events of a sample page                                    |
+| AC12 | unit tests of `hoverKey` and `useTrackedElement` on the test catalog (§2)              |
