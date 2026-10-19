@@ -94,15 +94,15 @@ What each agent may do, how the guard hooks work, the owner's decisions and the 
 
 Pinned on purpose; each "not newer" has a reason and a condition to move on.
 
-| What       | Version                                                                                                           | Why                                                                                                                                                          |
-| ---------- | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Node / npm | 26 / 12                                                                                                           | Node 26 is LTS from 2026-10-28. npm 12 runs install scripts only from `allowScripts` in `package.json`; Node images ship npm 11, so images and CI install 12 |
-| TypeScript | 6.0                                                                                                               | 7.0 has no JS API (typescript-eslint, Nest Swagger plugin, Next need it). Move when they support 7                                                           |
-| ESLint     | 10                                                                                                                | React/a11y rules from `@eslint-react/eslint-plugin` and `eslint-plugin-jsx-a11y-x`; the classic plugins do not run on 10                                     |
-| Prisma     | 7.10                                                                                                              | install as `prisma@7`: npm's `latest` tag points at an 8.0 release candidate                                                                                 |
-| api        | NestJS 12, PostgreSQL 18, Redis 8 (ioredis), Temporal (SDK 1.x), Better Auth 1.7, pino, socket.io, Sentry, Vitest |                                                                                                                                                              |
-| web        | Next 16, React 19, TanStack Query 5, Zustand 5, zod, SCSS, Base UI, Sentry, Mixpanel, Vitest, Testing Library     |                                                                                                                                                              |
-| Server     | Docker Compose, nginx + certbot, blue-green deploys                                                               | `deploy/README.md`                                                                                                                                           |
+| What       | Version                                                                                                                                                | Why                                                                                                                                                          |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Node / npm | 26 / 12                                                                                                                                                | Node 26 is LTS from 2026-10-28. npm 12 runs install scripts only from `allowScripts` in `package.json`; Node images ship npm 11, so images and CI install 12 |
+| TypeScript | 6.0                                                                                                                                                    | 7.0 has no JS API (typescript-eslint, Nest Swagger plugin, Next need it). Move when they support 7                                                           |
+| ESLint     | 10                                                                                                                                                     | React/a11y rules from `@eslint-react/eslint-plugin` and `eslint-plugin-jsx-a11y-x`; the classic plugins do not run on 10                                     |
+| Prisma     | 7.10                                                                                                                                                   | install as `prisma@7`: npm's `latest` tag points at an 8.0 release candidate                                                                                 |
+| api        | NestJS 12, PostgreSQL 18, Redis 8 (ioredis), Temporal (SDK 1.x), Better Auth 1.7, pino, socket.io, Sentry, Vitest                                      |                                                                                                                                                              |
+| web        | Next 16, React 19, TanStack Query 5, Zustand 5, zod, SCSS, Base UI, Better Auth (client, the api's version), Sentry, Mixpanel, Vitest, Testing Library |                                                                                                                                                              |
+| Server     | Docker Compose, nginx + certbot, blue-green deploys                                                                                                    | `deploy/README.md`                                                                                                                                           |
 
 ## Commands (from the root)
 
@@ -323,6 +323,29 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   already reported, anything else is sent then). A page loads data on the server with `prefetch`
   (`@/shared/api/server`, which returns a failure instead of throwing) into a `HydrationBoundary`,
   and the browser's hooks start from it with the same query key, without a request.
+- `web` sign-in (spec 0013): the session is read only in the browser. `apiFetch` forwards no
+  cookies, so no page reads user data on the server (the first one that does adds it, backlog).
+  `authClient` (`@/shared/auth`) is Better Auth's `better-auth/react` client, at the api's exact
+  version (N33); its `get-session` read also extends the session (the api never does, N30).
+  `useSession()` (`@/entities/session`) parses its answer with the slice's schema and gives
+  `pending`, `signed-in` with the user, or `signed-out` with `failed`: true when the read failed or
+  did not match, so the session may still be there (a failure after a session was read keeps it).
+  `features/auth` holds the sign-in and the sign-outs: `signInWithGoogle(callbackURL)` sends
+  `errorCallbackURL` equal to `callbackURL`, which `callbackUrl()` builds from the router's path and
+  query (without `error` and `error_description`) only, never from a query parameter, every leading
+  run of `/` and `\` cut to one `/` (no open redirect); `signOutEverywhere()` revokes every session,
+  then signs out (a 401 of the revoke still signs out). A sign-in that fails at Google comes back to
+  its page with Better Auth's `error` code: `LoginModal` opens with `signInRedirectText` (a text of
+  its own for `access_denied`, a general one otherwise), and the code and `error_description` leave
+  the address, signed in (`DropSignInError`) or not (N54). A code other than `access_denied` is
+  reported to Sentry as `SignInFailed` only when the sign-in flag (see analytics) shows a sign-in
+  started in this tab, so someone else's link with a made-up `error` reports nothing. The header's profile icon (`widgets/header`, `HeaderProfile`,
+  rendered per request inside `<Suspense>` since the modal reads the query) is inert while the session
+  loads, opens `LoginModal` signed out (a failed read too) and, signed in, the kit's `Menu`: a circle
+  with the first letter of the name (or of the email) and the name or "Профиль" (no email or avatar,
+  N6; `user-label.ts`) in a `MenuHeader` with `mp-block`, four inert disabled items that get links
+  with their pages' specs, a separator and `SignOutItems` ("Выйти", "Выйти со всех устройств"; a
+  failure shows a toast).
 - An attribute value's `colorHex` is its swatch colour, `#RRGGBB` (either case) or `null` (an
   empty bordered circle); the DTOs and a CHECK in the migration refuse anything else. web draws it with
   `ColorSwatch`, and an attribute with at least one coloured value is a colour filter
@@ -352,6 +375,22 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   in `_app/providers.tsx`) calls them, following the visitor's answer in `localStorage`
   (`cookie-consent`, kept 365 days, shared by open tabs; an answer the browser will not store counts
   as a decline until the page reloads); the banner and "Настройки cookies" render only with a token.
+  Sign-in (spec 0013 N13): `client.ts`'s `identify(id, { signedIn })` ties the SDK to the user's id
+  only (no email or name), now or at the next start after consent, and with `signedIn` sends
+  `Signed In` after it; `reset()` forgets the user. Both are called only by
+  `useSignInAnalytics` (`features/auth`, mounted once by the header's profile icon): `identify` on
+  every page load with a session, `reset` whenever the session is `signed-out` and not `failed`, so
+  every real end (a sign-out here, in another tab or browser, an expiry) forgets the user and a
+  failed read does not. An identity left by another user is reset before `identify`. Events, without
+  properties: `Login Opened` (the modal opens), `Signed In`, `Signed Out` (after either sign-out
+  succeeds, before `reset`); tracked elements: "Войти через Google" and the two sign-outs.
+  `Signed In` is sent once, on the page a sign-in of this tab came back to: `markSignInStarted()`
+  (`features/auth`) puts the time in `sessionStorage` (`sign-in-started`, not an `mp_`/`__mp` key
+  the SDK clearing removes) before leaving for Google, and a flag older than 10 minutes counts as
+  none (N55). `takeSignInStarted()` takes it once: `useSignInAnalytics` signed in, `LoginModal`
+  signed out (a failed read too, so a sign-in whose session read fails on the way back loses its
+  `Signed In`, N55), on "Back" from the browser's cache or after a failed start. A sign-in seen
+  without consent is not kept: a later consent sends only the identity.
 - `web` data from the api renders at request time inside `<Suspense>`: the web image must build with
   no api, Redis or database running.
 - `api` storage (spec 0011): one private bucket. The first segment of a key is its class, since
