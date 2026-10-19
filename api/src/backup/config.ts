@@ -19,7 +19,11 @@ function isToolDatabaseUrl(value: string): boolean {
   return (
     url.hostname !== '' &&
     url.pathname.length > 1 &&
-    [...url.searchParams.keys()].every((name) => name === 'schema')
+    // One segment: `/db/extra` would reach the tools as the database `db/extra`.
+    !url.pathname.slice(1).includes('/') &&
+    // The tools use the default `search_path`, so only `public`: under another schema the
+    // pre-deploy check would miss `_prisma_migrations` and copy on every deploy.
+    [...url.searchParams].every(([name, value]) => name === 'schema' && value === 'public')
   );
 }
 
@@ -34,10 +38,11 @@ export const backupEnvSchema = z
     LOG_LEVEL: api.LOG_LEVEL,
     APP_VERSION: api.APP_VERSION,
     // Also a URL the tools' variables can be parsed from (postgresEnv), checked at start rather
-    // than in the night's run; only Prisma's `schema` parameter is allowed, as any other (e.g.
-    // `sslmode`) would be dropped for the tools.
+    // than in the night's run; only Prisma's `schema=public` is allowed, as any other parameter
+    // (e.g. `sslmode`) would be dropped for the tools.
     DATABASE_URL: api.DATABASE_URL.refine(isToolDatabaseUrl, {
-      message: 'must be a postgresql://user:password@host/db URL with no parameter but schema',
+      message:
+        'must be a postgresql://user:password@host/db URL with no parameter but schema=public',
     }),
 
     // Shared by both buckets.
