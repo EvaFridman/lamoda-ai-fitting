@@ -31,6 +31,9 @@ declare module 'vitest' {
     // Address of the container's `postgres` database: test files connect there to create theirs.
     adminDatabaseUrl: string;
     templateDatabase: string;
+    // For `docker exec`: the backup tests run the container's pg_dump 18, which the host lacks
+    // (spec 0012 plan §7).
+    postgresContainerId: string;
   }
 }
 
@@ -80,6 +83,7 @@ export default async function setup(project: TestProject): Promise<() => Promise
 
   project.provide('adminDatabaseUrl', adminUrl);
   project.provide('templateDatabase', TEMPLATE_DATABASE);
+  project.provide('postgresContainerId', container.getId());
 
   return async () => {
     await container.stop();

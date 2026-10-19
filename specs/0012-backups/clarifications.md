@@ -88,6 +88,16 @@ key that can only write there, encrypted, with a restore check; never into the a
   night's copy had already finished, the second one is only one more object. The service cannot
   tell, since its key may not list the backup bucket (P11).
 
+## Decided at T4
+
+- **P16. The PostgreSQL client has an exact version.** `postgresql-client-18` and its `libpq5` are pinned in
+  `api/Dockerfile` and raised together with the `postgres` image, so two builds of one commit hold
+  the same `pg_dump`, and a new PGDG release reaches the image that reads the whole database only
+  by a commit. A build fails once PGDG drops the pinned version, until it is raised.
+- **P17. The tools' stderr is cut before the log.** A server's `DETAIL:` or `CONTEXT:` line, or a
+  tool's own `detail:` line, can quote a table's values (names, e-mails) and would reach the log
+  and, through it, Sentry: such lines are dropped, and every other line is cut to 500 characters.
+
 ## Delivery
 
 - **P10. Two pull requests.** The first holds this spec's documents and can be merged while spec

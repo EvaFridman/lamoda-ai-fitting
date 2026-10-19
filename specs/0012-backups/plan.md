@@ -60,8 +60,9 @@ pg_dump --format=custom ──┬──> pg_restore --list > /dev/null        (t
   is left to the rule that aborts unfinished uploads after a day (P12).
 - `Upload`: part size 8 MiB, one part in flight; memory stays bounded whatever the size.
 - Nothing touches the disk: no temporary file, encrypted or not (P13, AC9).
-- `pg_dump`'s stderr goes to the log line by line (it holds no secrets: the password is in the
-  environment).
+- The tools' stderr goes to the log line by line (the password is in the environment), but a
+  server's `DETAIL:`/`CONTEXT:` line (any case) is dropped and every line is cut to 500 characters: they can quote table
+  values (P17, amended at T4).
 - Keys: `daily/<UTC stamp>/database.dump.age` and `pre-deploy/<UTC stamp>-<image tag>/database.dump.age`;
   the stamp is `YYYY-MM-DDTHH-mm-ssZ`, so names never repeat and sort by time. The image tag must
   match `^[0-9a-f]{7,40}$` (the deploy's tags are commit SHAs), else `--pre-deploy` exits 1 before
@@ -125,8 +126,9 @@ DSN no check-in is sent.
 ## 6. Image and production (P4, P13; AC1, AC7, AC13)
 
 - `api/Dockerfile`: a stage `backup` from `runtime`: as root, `postgresql-common` from Debian, its
-  script adds the PGDG repository, then `postgresql-client-18` (trixie has only 17; `pg_dump`
-  refuses a newer server, so the client is 18 like the server); apt lists removed; back to
+  script adds the PGDG repository, then `postgresql-client-18` at an exact version, raised with
+  the `postgres` image (P16; trixie has only 17; `pg_dump` refuses a newer server, so the client is
+  18 like the server); apt lists removed; back to
   `USER node`; `CMD ["node", "dist/backup/main.js"]`. The `runtime` image (api, worker) does not
   change.
 - `scripts/ci-build-images.sh` builds the target as `ai-fitting-backup:<tag>`;
@@ -148,7 +150,8 @@ DSN no check-in is sent.
   target), the dev S3 key for both sides; `docker compose --profile backup run --rm backup node
 dist/backup/main.js --once` makes a local copy. `storage/dev-setup.ts` also creates the
   `BACKUP_BUCKET` bucket in SeaweedFS.
-- Unit tests (`api/test/unit/backup/`): `nextRun` around midnight and the new year, a start at
+- Unit tests (`api/src/backup/*.spec.ts`, next to their code: the `unit` project runs no other
+  `*.spec.ts`; amended at T4): `nextRun` around midnight and the new year, a start at
   04:10 runs at once and one at 04:40 waits (P15), key names and the tag's format, the gate (a
   failing check destroys the stream, a passing one ends it, a check that stops reading early does
   not stall the upload), config errors.
@@ -196,13 +199,13 @@ In `deploy/README.md`, «Бэкапы», before PR 2 is merged:
 
 Checked on npm 2026-10-19; none has install scripts.
 
-| Package                | Version  | Released   | Why                                                                      |
-| ---------------------- | -------- | ---------- | ------------------------------------------------------------------------ |
-| `age-encryption`       | 0.3.1    | 2026-08-28 | age by its author (typage); streams; deps only `@noble/*`, `@scure/base` |
-| `tar-stream`           | 3.2.2    | 2026-10-02 | a tar entry from a stream of known size                                  |
-| `@types/tar-stream`    | 3.1.5    | 2026-10-04 | dev                                                                      |
-| `@aws-sdk/lib-storage` | 3.1148.0 | —          | multipart upload of a stream; the same version as `@aws-sdk/client-s3`   |
-| `postgresql-client-18` | 18.x     | PGDG apt   | in the `backup` image only                                               |
+| Package                | Version               | Released   | Why                                                                      |
+| ---------------------- | --------------------- | ---------- | ------------------------------------------------------------------------ |
+| `age-encryption`       | 0.3.1                 | 2026-08-28 | age by its author (typage); streams; deps only `@noble/*`, `@scure/base` |
+| `tar-stream`           | 3.2.2                 | 2026-10-02 | a tar entry from a stream of known size                                  |
+| `@types/tar-stream`    | 3.1.5                 | 2026-10-04 | dev                                                                      |
+| `@aws-sdk/lib-storage` | 3.1148.0              | —          | multipart upload of a stream; the same version as `@aws-sdk/client-s3`   |
+| `postgresql-client-18` | 18.6-1.pgdg13+2 (P16) | PGDG apt   | in the `backup` image only                                               |
 
 ## Backlog
 

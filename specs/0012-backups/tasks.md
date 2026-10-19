@@ -31,8 +31,9 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 - 👤 Before T8 is merged: the production setup of plan §9 (bucket, versioning and rules, the two
   users, the age key pair, GitHub secrets and variables). Before T4: nothing.
-- [ ] **T4. Database copy.** `age-encryption`, `@aws-sdk/lib-storage` (plan, Dependencies);
-      `api/src/backup/config.ts` (plan §1), the two S3 clients from `createS3Client`,
+- [x] **T4. Database copy.** `age-encryption`, `@aws-sdk/lib-storage` (plan, Dependencies);
+      `api/src/backup/config.ts` (plan §1) and its variables in `.env.example`, the two S3 clients
+      from `createS3Client`,
       `database.ts` with the check and the gate (§2); the PostgreSQL tools' command prefix (§7);
       the `backup` stage of `api/Dockerfile` with `postgresql-client-18` (§6); unit tests (gate,
       key names, config) and `api/test/database/backup.e2e-spec.ts` (copy, decrypt, restore, row
@@ -48,8 +49,9 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Commit: `feat(api): copy the app bucket encrypted into the backup bucket`
 - [ ] **T6. The service, its schedule and the Sentry monitor.** `main.ts` with the service,
       `--once` (§4), `nextRun` and its unit tests, `Sentry.withMonitor` with the config of §4;
-      the `backup` profile in `docker-compose.yml`, the backup bucket in `storage/dev-setup.ts`,
-      `.env.example`, `README.md` (§7).
+      the `backup` profile in `docker-compose.yml` (with `BACKUP_BUCKET`'s default
+      `ai-fitting-backups`), the backup bucket in `storage/dev-setup.ts`, `README.md` (§7);
+      `.env.example` got the variables at T4.
       Check: `npm run verify`; locally a `--once` run of the `backup` profile leaves both objects
       in the local backup bucket; a unit test with a fake clock shows the service runs once at
       04:00 Moscow time, at once when started before 04:30 (P15), and checks in with the

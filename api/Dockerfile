@@ -111,3 +111,21 @@ USER node
 EXPOSE 3000
 # The temporal-worker runs the same image with ["node", "dist/temporal/worker.js"].
 CMD ["node", "dist/main.js"]
+
+# The backup job (spec 0012 plan §6): the runtime plus PostgreSQL's client tools. pg_dump refuses a
+# server newer than itself and trixie has only 17, so version 18 comes from PostgreSQL's own
+# repository (PGDG), which Debian's postgresql-common adds with its signing key; HTTPS to it needs
+# ca-certificates. The client's and its libpq's exact version (P16): raise it with the postgres
+# image of docker-compose.yml and deploy/compose/infra.yml; a build fails once PGDG drops it.
+# The runtime image (api, worker) does not change.
+FROM runtime AS backup
+ARG POSTGRES_CLIENT_VERSION=18.6-1.pgdg13+2
+USER root
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates postgresql-common \
+    && /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y \
+    && apt-get install -y --no-install-recommends \
+      "postgresql-client-18=${POSTGRES_CLIENT_VERSION}" "libpq5=${POSTGRES_CLIENT_VERSION}" \
+    && rm -rf /var/lib/apt/lists/*
+USER node
+CMD ["node", "dist/backup/main.js"]
