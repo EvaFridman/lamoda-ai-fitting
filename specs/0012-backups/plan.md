@@ -119,10 +119,14 @@ DSN no check-in is sent.
   `SELECT migration_name FROM _prisma_migrations WHERE finished_at IS NOT NULL` (through `psql`;
   a missing table counts every migration as new). No new migration: one log line, exit 0, no
   copy (AC3). Otherwise the database copy of §2 under `pre-deploy/`; a failure exits 1.
-- `deploy/scripts/deploy.sh`, a `backup()` helper like `worker()`, and right before the migrations
-  (`deploy.sh:246`):
+- `deploy/scripts/deploy.sh`, a `backup()` helper like `worker()` (on `deploy/compose/backup.yml`
+  of §6, which comes with this step, P22), and right before the migrations of step 3b, not on a
+  rollback to the copy that still runs (3a migrates nothing):
   `backup run --rm -T backup node dist/backup/main.js --pre-deploy "$tag" || fail "the database copy failed; $active keeps serving"`.
-  It runs the new image, so its list of migrations is the release's.
+  It runs the new image, so its list of migrations is the release's. No timeout and no Sentry
+  report of its own: the S3 clients' socket timeout bounds it, the deploy's log shows a failure
+  (P23). A version from before the job (no backup image, no `dist/backup/pre-deploy.js` in its
+  api image) skips the copy; one with the job but no backup image stops (P24).
 - `scripts/ci-deploy-check.sh` covers it: a deploy with a new migration stores a copy in the
   emulator before migrating; a deploy whose copy fails (a refused upload) stops before the
   migrations, and the running copy keeps answering.
@@ -135,7 +139,8 @@ DSN no check-in is sent.
   18 like the server); apt lists removed; back to
   `USER node`; `CMD ["node", "dist/backup/main.js"]`. The `runtime` image (api, worker) does not
   change.
-- `scripts/ci-build-images.sh` builds the target as `ai-fitting-backup:<tag>`;
+- `scripts/ci-build-images.sh` builds the target as `ai-fitting-backup:<tag>` (with
+  `backup.yml` at T7, which needs both for §5, P22);
   `.github/workflows/images.yml` publishes it from `main` with api and web (it shares the runtime's
   layers, so the push is small).
 - `deploy/compose/backup.yml`: project `ai-fitting-backup`, service `backup`, image

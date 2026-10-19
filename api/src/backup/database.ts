@@ -60,12 +60,7 @@ export async function copyDatabase(options: DatabaseCopyOptions): Promise<Databa
   // on a full pipe for good, holding a connection and a snapshot.
   const encrypter = new Encrypter();
   encrypter.addRecipient(options.recipient);
-  const env = {
-    PATH: process.env['PATH'],
-    HOME: process.env['HOME'],
-    ...options.toolEnv,
-    ...postgresEnv(options.databaseUrl),
-  };
+  const env = toolEnvironment(options.databaseUrl, options.toolEnv);
   const prefix = options.toolPrefix ?? [];
   const dump = startTool('pg_dump', ['--format=custom'], { prefix, env, logger, output: true });
   const check = startTool('pg_restore', ['--list'], { prefix, env, logger, input: true });
@@ -113,7 +108,18 @@ export async function copyDatabase(options: DatabaseCopyOptions): Promise<Databa
   return { key: options.key, bytes };
 }
 
-interface StartOptions {
+// The PostgreSQL tools' environment: only PATH and HOME of the job's own, so they never see its S3
+// keys, then `extra` and the connection (plan §1).
+export function toolEnvironment(databaseUrl: string, extra?: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  return {
+    PATH: process.env['PATH'],
+    HOME: process.env['HOME'],
+    ...extra,
+    ...postgresEnv(databaseUrl),
+  };
+}
+
+export interface StartOptions {
   prefix: readonly string[];
   env: NodeJS.ProcessEnv;
   logger: Logger;
@@ -122,7 +128,8 @@ interface StartOptions {
   output?: boolean;
 }
 
-function startTool(name: string, args: string[], options: StartOptions): Tool {
+// Starts a PostgreSQL tool; its stderr goes to the log through toolLogLine (P17).
+export function startTool(name: string, args: string[], options: StartOptions): Tool {
   const [command = name, ...rest] = [...options.prefix, name, ...args];
   const child = spawn(command, rest, {
     env: options.env,

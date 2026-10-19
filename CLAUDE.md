@@ -427,7 +427,10 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
 A merge into `main` is the deploy (blue-green for api and web; the Temporal worker is replaced in
 place; a changed `infra.yml` service is recreated in place, with an outage). After the infrastructure is up, the deploy sets
 Temporal's `default` namespace retention to 24 hours (spec 0013 N45, read back by
-`ci-deploy-check.sh`). Before the new copy starts, the deploy runs the migrations, then the seed (the demo catalog
+`ci-deploy-check.sh`). Before the new copy starts, the deploy stores an encrypted database copy in
+the backup bucket's `pre-deploy/` if the release brings a migration not yet applied (spec 0012 P3;
+a throwaway container of the `ai-fitting-backup` image, `deploy/compose/backup.yml`; a version from
+before that image skips it, P24), runs the migrations, then the seed (the demo catalog
 and its photos, a no-op once loaded), then fetches one catalog photo from the bucket and through
 nginx; a failure of any stops it, the running copy keeps serving. nginx serves `/media/<key>` from
 the bucket's `media/<key>` (the bucket lets only the server's address read it, so a new address

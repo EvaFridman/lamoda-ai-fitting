@@ -1,5 +1,8 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
+import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { Readable, Writable } from 'node:stream';
 
 import {
@@ -27,7 +30,13 @@ import { afterAll, afterEach, beforeAll, describe, expect, inject, it, vi } from
 import { copyBucket } from '../../src/backup/bucket.js';
 import { copyDatabase, DatabaseCopyError, PART_SIZE } from '../../src/backup/database.js';
 import { postgresEnv } from '../../src/backup/config.js';
-import { dailyDatabaseKey, dailyStorageKey } from '../../src/backup/keys.js';
+import { backupStamp, dailyDatabaseKey, dailyStorageKey } from '../../src/backup/keys.js';
+import {
+  copyBeforeMigrations,
+  IMAGE_MIGRATIONS_DIR,
+  newMigrations,
+  type PreDeployCopyOptions,
+} from '../../src/backup/pre-deploy.js';
 import { PrismaClient } from '../../src/generated/prisma/client.js';
 import { SeedService } from '../../src/seed/seed.service.js';
 import { createS3Client } from '../../src/storage/s3-client.provider.js';
@@ -291,6 +300,195 @@ describe('copyDatabase', () => {
     expect(await status(copyOptions.key)).toBe(404);
     expect(await unfinishedUploads(copyOptions.key)).toBe(0);
   }, 180_000);
+});
+
+describe('copyBeforeMigrations', () => {
+  const tempDirs: string[] = [];
+
+  afterAll(async () => {
+    for (const dir of tempDirs.splice(0)) await rm(dir, { recursive: true, force: true });
+  });
+
+  // The names of the release's folders are all the copy reads, so empty folders stand in for them.
+  async function releaseDir(extraFolders: string[], files: string[] = []): Promise<string> {
+    const dir = await mkdtemp(join(tmpdir(), 'pre-deploy-'));
+    tempDirs.push(dir);
+    const real = await readdir(IMAGE_MIGRATIONS_DIR, { withFileTypes: true });
+    for (const entry of real.filter((item) => item.isDirectory())) {
+      await mkdir(join(dir, entry.name));
+    }
+    for (const name of extraFolders) await mkdir(join(dir, name));
+    for (const name of files) await writeFile(join(dir, name), 'x');
+    return dir;
+  }
+
+  function preDeployOptions(overrides: Partial<PreDeployCopyOptions> = {}): PreDeployCopyOptions {
+    const { key: _key, ...rest } = options();
+    return {
+      ...rest,
+      tag: randomBytes(20).toString('hex'),
+      at: new Date(Date.now() + Math.floor(Math.random() * 1e9) * 1000),
+      ...overrides,
+    };
+  }
+
+  async function storedUnder(at: Date, tag: string): Promise<string[]> {
+    const listed = await client.send(
+      new ListObjectsV2Command({
+        Bucket: BACKUP_BUCKET,
+        Prefix: `pre-deploy/${backupStamp(at)}-${tag}/`,
+      }),
+    );
+    return (listed.Contents ?? []).flatMap((object) =>
+      object.Key === undefined ? [] : [object.Key],
+    );
+  }
+
+  function track(key: string): string {
+    createdKeys.push(key);
+    return key;
+  }
+
+  it('stores a restorable copy when the release has a migration the database lacks', async () => {
+    const migrationsDir = await releaseDir(['29990101000000_not_applied_yet']);
+    const copyOptions = preDeployOptions({ migrationsDir });
+
+    const copy = await copyBeforeMigrations(copyOptions);
+
+    if (copy === undefined) throw new Error('no copy was made');
+    track(copy.key);
+    expect(copy.key).toBe(
+      `pre-deploy/${backupStamp(copyOptions.at)}-${copyOptions.tag}/database.dump.age`,
+    );
+    expect(await storedUnder(copyOptions.at, copyOptions.tag)).toEqual([copy.key]);
+
+    const object = await client.send(
+      new GetObjectCommand({ Bucket: BACKUP_BUCKET, Key: copy.key }),
+    );
+    const encrypted = await object.Body?.transformToByteArray();
+    if (encrypted === undefined) throw new Error('no body');
+    const decrypter = new Decrypter();
+    decrypter.addIdentity(identity);
+    const plain = await decrypter.decrypt(encrypted);
+    expect(Buffer.from(plain.subarray(0, 5)).toString()).toBe('PGDMP');
+
+    const restoredUrl = await createEmptyDatabase();
+    const restoredPrisma = prismaOf(restoredUrl);
+    try {
+      await restore(plain, insideContainer(restoredUrl));
+      const original = await counts(sourcePrisma);
+      expect(Object.values(original).some((n) => n > 0)).toBe(true);
+      expect(await counts(restoredPrisma)).toEqual(original);
+    } finally {
+      await restoredPrisma.$disconnect();
+    }
+  }, 120_000);
+
+  it('stores nothing and says so when every migration is applied', async () => {
+    const captured = lines();
+    const copyOptions = preDeployOptions({
+      logger: pino({ level: 'trace' }, captured.destination),
+    });
+
+    const copy = await copyBeforeMigrations(copyOptions);
+
+    expect(copy).toBeUndefined();
+    expect(await storedUnder(copyOptions.at, copyOptions.tag)).toEqual([]);
+    expect(captured.output.join('\n')).toContain('No new migration, no copy before the deploy');
+  }, 120_000);
+
+  it('does not count a file among the migration folders', async () => {
+    const migrationsDir = await releaseDir([], ['migration_lock.toml', '29990101000000_a_file']);
+
+    expect(await newMigrations({ ...preDeployOptions(), migrationsDir })).toEqual([]);
+  }, 60_000);
+
+  it('counts a migration that did not finish as new', async () => {
+    const url = await createTestDatabaseUrl();
+    const prisma = prismaOf(url);
+    try {
+      const rows = await prisma.$queryRawUnsafe<{ migration_name: string }[]>(
+        'SELECT migration_name FROM _prisma_migrations ORDER BY migration_name LIMIT 1',
+      );
+      const unfinished = rows[0]?.migration_name;
+      if (unfinished === undefined) throw new Error('the template has no migration');
+      await prisma.$executeRawUnsafe(
+        `UPDATE _prisma_migrations SET finished_at = NULL WHERE migration_name = '${unfinished}'`,
+      );
+
+      expect(
+        await newMigrations({
+          ...preDeployOptions({ databaseUrl: insideContainer(url) }),
+          migrationsDir: await releaseDir([]),
+        }),
+      ).toEqual([unfinished]);
+    } finally {
+      await prisma.$disconnect();
+    }
+  }, 60_000);
+
+  it('copies a database that has no migrations table', async () => {
+    const url = await createEmptyDatabase();
+    const migrationsDir = await releaseDir([]);
+    const copyOptions = preDeployOptions({ databaseUrl: insideContainer(url), migrationsDir });
+
+    const copy = await copyBeforeMigrations(copyOptions);
+
+    if (copy === undefined) throw new Error('no copy was made');
+    track(copy.key);
+    expect(await storedUnder(copyOptions.at, copyOptions.tag)).toEqual([copy.key]);
+  }, 120_000);
+
+  it('refuses a tag that is not a commit SHA before dumping when a copy is due', async () => {
+    const migrationsDir = await releaseDir(['29990101000000_not_applied_yet']);
+    const copyOptions = preDeployOptions({ migrationsDir, tag: '../evil' });
+
+    await expect(copyBeforeMigrations(copyOptions)).rejects.toThrow('commit SHA');
+    const listed = await client.send(
+      new ListObjectsV2Command({
+        Bucket: BACKUP_BUCKET,
+        Prefix: `pre-deploy/${backupStamp(copyOptions.at)}`,
+      }),
+    );
+    expect(listed.Contents ?? []).toEqual([]);
+  }, 60_000);
+
+  it('does not look at the tag when no copy is due', async () => {
+    const copy = await copyBeforeMigrations(preDeployOptions({ tag: 'abc123-next' }));
+
+    expect(copy).toBeUndefined();
+  }, 60_000);
+
+  it('rejects, stores nothing and leaks no password when psql fails', async () => {
+    const password = decodeURIComponent(new URL(sourceUrl).password);
+    expect(password).not.toBe('');
+    const missing = new URL(insideContainer(sourceUrl));
+    missing.pathname = '/no_such_database';
+    const captured = lines();
+    const copyOptions = preDeployOptions({
+      databaseUrl: missing.toString(),
+      migrationsDir: await releaseDir(['29990101000000_not_applied_yet']),
+      logger: pino({ level: 'trace' }, captured.destination),
+    });
+
+    const error = await copyBeforeMigrations(copyOptions).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(DatabaseCopyError);
+    expect(await storedUnder(copyOptions.at, copyOptions.tag)).toEqual([]);
+    expect([...captured.output, everything(error)].join('\n')).not.toContain(password);
+  }, 60_000);
+
+  it('rejects when the psql prefix is unusable', async () => {
+    const copyOptions = preDeployOptions({
+      toolPrefix: ['docker', 'exec', '-i', 'no-such-container-for-the-test'],
+      migrationsDir: await releaseDir(['29990101000000_not_applied_yet']),
+    });
+
+    const error = await copyBeforeMigrations(copyOptions).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(DatabaseCopyError);
+    expect(await storedUnder(copyOptions.at, copyOptions.tag)).toEqual([]);
+  }, 60_000);
 });
 
 describe('copyBucket', () => {

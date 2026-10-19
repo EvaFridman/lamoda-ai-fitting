@@ -57,6 +57,7 @@ app() {
     docker compose -p "ai-fitting-$color" -f "$compose_dir/app.yml" --env-file "$env_file" "$@"
 }
 worker() { IMAGE_TAG="$tag" docker compose -f "$compose_dir/worker.yml" --env-file "$env_file" "$@"; }
+backup() { IMAGE_TAG="$tag" docker compose -f "$compose_dir/backup.yml" --env-file "$env_file" "$@"; }
 
 # The version the public endpoint reports, through this host's nginx (works before the real
 # certificate exists, hence -k: this checks which copy answers, not the certificate).
@@ -188,7 +189,7 @@ prune_app_images() {
   images="$(docker image ls --no-trunc --format '{{.ID}} {{.Repository}}:{{.Tag}}')" || return 1
   # Tagged names first: removing them may already remove an id that also shows as untagged.
   while read -r id ref; do
-    [[ "$ref" == "$prefix"api:* || "$ref" == "$prefix"web:* ]] || continue
+    [[ "$ref" == "$prefix"api:* || "$ref" == "$prefix"web:* || "$ref" == "$prefix"backup:* ]] || continue
     [[ "$ref" == *:dev ]] && continue
     grep -qxF "$id" <<<"$used" && continue
     if [[ "$ref" == *:\<none\> ]]; then
@@ -276,7 +277,36 @@ if [ "$(image_tag_of "$target")" = "$tag" ] && is_healthy "$target" api && is_he
   fi
 else
   # 3b. Migrations first, from the new image. They must stay compatible with the running version
-  #     (specs/principles.md), which keeps serving until the switch.
+  #     (specs/principles.md), which keeps serving until the switch. Before them, a database copy
+  #     into the backup bucket if this release brings a migration not yet applied (spec 0012 P3):
+  #     the job compares its image's migrations, which are the release's, with the database's.
+  #     Not on a rollback to the copy that still runs (3a): it migrates nothing. A missing variable
+  #     stops here, before the image is looked for, so it is not taken for a missing image.
+  backup config --quiet \
+    || fail "deploy/compose/backup.yml does not resolve with $env_file; ${active:-nothing} keeps serving"
+  backup_image=1
+  if [ -n "$IMAGE_REGISTRY" ]; then
+    backup pull --quiet backup || backup_image=""
+  else
+    docker image inspect "ai-fitting-backup:$tag" >/dev/null 2>&1 || backup_image=""
+  fi
+  if [ -n "$backup_image" ]; then
+    log "copying the database before the migrations of $tag, if any"
+    backup run --rm -T backup node dist/backup/main.js --pre-deploy "$tag" >&2 \
+      || fail "the database copy failed; ${active:-nothing} keeps serving"
+  else
+    # Only a version from before the backup job has no backup image, and its migrations are all
+    # applied: the copy is skipped (P24). One with the job in its api image must have it too. Exit
+    # code 3 as for the seed below: docker compose itself exits with 1 on many of its errors.
+    job_status=0
+    app "$target" "$tag" run --rm --no-deps -T api sh -c 'test -f dist/backup/pre-deploy.js || exit 3' \
+      || job_status=$?
+    case "$job_status" in
+      0) fail "$tag has the backup job, but ai-fitting-backup:$tag cannot be found or pulled; ${active:-nothing} keeps serving" ;;
+      3) log "copy skipped: $tag predates the backup job (no backup image)" ;;
+      *) fail "cannot check $tag for the backup job (exit $job_status); ${active:-nothing} keeps serving" ;;
+    esac
+  fi
   log "migrating the database with $tag"
   app "$target" "$tag" run --rm --no-deps -T api npx --no-install prisma migrate deploy >&2 \
     || fail "migrations failed; $active keeps serving"

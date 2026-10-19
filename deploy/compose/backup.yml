@@ -1,0 +1,37 @@
+# Production backup job (spec 0012, compose project ai-fitting-backup): the nightly copies of the
+# database and the app bucket into the backup bucket, encrypted to the owner's age key. deploy.sh
+# runs it once with `--pre-deploy <tag>` before the migrations (plan §5). Its own environment, not
+# the api's: no Redis, Temporal or the api's read-write S3 key (plan §1).
+
+name: ai-fitting-backup
+
+networks:
+  ai-fitting:
+    external: true
+
+services:
+  backup:
+    restart: unless-stopped
+    image: ${IMAGE_REGISTRY:-}ai-fitting-backup:${IMAGE_TAG:?set IMAGE_TAG}
+    environment:
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      APP_VERSION: ${IMAGE_TAG}
+      DATABASE_URL: postgresql://${POSTGRES_USER:?set POSTGRES_USER}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:?set POSTGRES_DB}
+      S3_ENDPOINT: ${S3_ENDPOINT:?set S3_ENDPOINT}
+      S3_REGION: ${S3_REGION:-ru-1}
+      # The app's bucket, read with a key that can only list and read it (P11).
+      S3_BUCKET: ${S3_BUCKET:?set S3_BUCKET}
+      BACKUP_READ_ACCESS_KEY_ID: ${BACKUP_READ_ACCESS_KEY_ID:?set BACKUP_READ_ACCESS_KEY_ID}
+      BACKUP_READ_SECRET_ACCESS_KEY: ${BACKUP_READ_SECRET_ACCESS_KEY:?set BACKUP_READ_SECRET_ACCESS_KEY}
+      # The backup bucket, written with a key that can only upload there (P11).
+      BACKUP_BUCKET: ${BACKUP_BUCKET:?set BACKUP_BUCKET}
+      BACKUP_WRITE_ACCESS_KEY_ID: ${BACKUP_WRITE_ACCESS_KEY_ID:?set BACKUP_WRITE_ACCESS_KEY_ID}
+      BACKUP_WRITE_SECRET_ACCESS_KEY: ${BACKUP_WRITE_SECRET_ACCESS_KEY:?set BACKUP_WRITE_SECRET_ACCESS_KEY}
+      # The owner's public key; the private key never reaches the server (P5).
+      BACKUP_AGE_RECIPIENT: ${BACKUP_AGE_RECIPIENT:?set BACKUP_AGE_RECIPIENT}
+      # The api's own Sentry project, with the nightly-backup monitor; empty turns it off.
+      SENTRY_DSN: ${API_SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
+    networks:
+      - ai-fitting
+    mem_limit: 512m

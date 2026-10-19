@@ -7,19 +7,25 @@
 #      nginx's limits per address: a flood, a 2 MB body, an 11th socket (AC10–AC12), a 51st request
 #      in progress and an unfinished header (F36); the seed uploaded its photos and nginx serves
 #      them at /media/ (spec 0011 AC2, AC3), from its cache while the storage answers 5xx (M36);
-#      Temporal's retention is 24 hours (spec 0013 N45), then changed for the next deploy;
+#      Temporal's retention is 24 hours (spec 0013 N45), then changed for the next deploy; the
+#      database had no migrations yet, so a copy went to the backup bucket before they ran (spec
+#      0012 AC2);
 #   2. deploy the same images as a second version (green) while scripts/request-loop.sh runs:
 #      no request may fail (AC26); smoke test of the new version; the second seed changed no
 #      counts (spec 0002, AC11) and uploaded no photo, no object changed (spec 0011 AC6); the
-#      retention is 24 hours again;
+#      retention is 24 hours again; no new migration, no copy (spec 0012 AC3);
 #   2b. a deploy that would recreate nginx with a changed config, against a storage that refuses
 #      writes and lacks one photo: it stops at the seed, nginx's container and rendered config are
 #      unchanged and /media/ answers 200 (spec 0011 M38);
+#   2c. a deploy with a new migration stops before the migrations, and green keeps serving, when
+#      its backup image is missing (spec 0012 P24) and when the storage refuses its copy (AC2);
 #   3. rotate PROXY_SECRET in two deploys (spec 0006 F21), with a failed one in between:
 #      a. set PROXY_SECRET_NEXT and roll back to <tag>, still running in blue: deploy.sh recreates
 #         it, so it accepts the next secret too;
 #      b. make the next secret PROXY_SECRET and deploy an image whose api is never ready: nginx is
 #         recreated with the new secret, the deploy fails, and blue still trusts nginx and web;
+#         that version has neither the backup job nor its image, so its deploy skips the copy
+#         (spec 0012 P24);
 #      c. a third secret, unknown to blue, is refused by deploy.sh before nginx is recreated;
 #      d. deploy <tag>-next (green) with the new secret only; an app image no container uses is
 #         removed, the images of blue and green stay;
@@ -32,13 +38,23 @@
 # exit, the stacks it started with their volumes, and refuses to start next to an existing one
 # (spec 0002, C25).
 #
-#   IMAGE_TAG=<tag> scripts/ci-deploy-check.sh
+#   IMAGE_TAG=<short commit hash> scripts/ci-deploy-check.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 tag="${IMAGE_TAG:?set IMAGE_TAG}"
+# The copy before migrations is named by the tag, which must be a commit hash (spec 0012 plan §2);
+# a few more hex digits make the tag of the version with a new migration (2c).
+[[ "$tag" =~ ^[0-9a-f]{7,37}$ ]] \
+  || { echo "ci-deploy-check: IMAGE_TAG must be a short commit hash, not '$tag'" >&2; exit 1; }
 second="$tag-next"
 broken="$tag-broken"
+migrating="${tag}abc"
+# deploy.sh removes the app images no container uses, the backup image after each deploy too: this
+# name, outside its prefix, keeps the image for the later deploys' tags.
+backup_source="deploy-check-backup:$tag"
+# The backup image of a later deploy's tag (the same image as <tag>'s).
+backup_image_for() { docker tag "$backup_source" "ai-fitting-backup:$1"; }
 # The images just built on this machine, under their local names. The CI job sets IMAGE_REGISTRY for
 # publishing; with it, deploy.sh would pull from the registry, where nothing is pushed before this
 # check passes (and never from a pull request). On the server deploy.sh does pull from GHCR.
@@ -436,8 +452,24 @@ check_media_stale() {
   s3_admin -o /dev/null -X DELETE "http://localhost:8333/ai-fitting/$key"
 }
 
+# The keys under pre-deploy/ in the backup bucket, one per line (none: empty).
+pre_deploy_copies() {
+  s3_admin 'http://localhost:8333/ai-fitting-backups?list-type=2&prefix=pre-deploy/' \
+    | grep -o '<Key>[^<]*</Key>' | sed -e 's/<Key>//' -e 's/<\/Key>//' || true
+}
+# Number of lines, 0 for an empty string.
+count_lines() { if [ -z "$1" ]; then echo 0; else wc -l <<< "$1" | tr -d ' '; fi; }
+
+# A throwaway age public key for the backup job; its private key is never kept, the database tests
+# decrypt copies (spec 0012 plan §7). From the api image, which has age-encryption.
+backup_recipient="$(docker run --rm --entrypoint node "ai-fitting-api:$tag" --input-type=module -e \
+  "const age = await import('age-encryption'); console.log(await age.identityToRecipient(await age.generateIdentity()));")"
+s3_key_id="$(openssl rand -hex 10)"
+s3_secret="$(openssl rand -hex 20)"
+
 # A throwaway environment. The request loop comes from one address, so the per-client limit is
-# raised: this checks switching, not rate limiting.
+# raised: this checks switching, not rate limiting. The backup job uses the emulator's admin keys
+# for both of its keys; production has a read-only and a write-only key (spec 0012 P11).
 cat > "$env_file" <<EOF
 POSTGRES_USER=ai_fitting
 POSTGRES_PASSWORD=$(openssl rand -hex 16)
@@ -449,12 +481,19 @@ THROTTLE_READ_MINUTE=1000000
 PROXY_SECRET=$(openssl rand -hex 32)
 S3_ENDPOINT=http://s3:8333
 S3_BUCKET=ai-fitting
-S3_ACCESS_KEY_ID=$(openssl rand -hex 10)
-S3_SECRET_ACCESS_KEY=$(openssl rand -hex 20)
+S3_ACCESS_KEY_ID=$s3_key_id
+S3_SECRET_ACCESS_KEY=$s3_secret
 BETTER_AUTH_SECRET=$(openssl rand -hex 32)
 GOOGLE_CLIENT_ID=deploy-check.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=deploy-check-google-client-secret
+BACKUP_BUCKET=ai-fitting-backups
+BACKUP_READ_ACCESS_KEY_ID=$s3_key_id
+BACKUP_READ_SECRET_ACCESS_KEY=$s3_secret
+BACKUP_WRITE_ACCESS_KEY_ID=$s3_key_id
+BACKUP_WRITE_SECRET_ACCESS_KEY=$s3_secret
+BACKUP_AGE_RECIPIENT=$backup_recipient
 EOF
+unset s3_key_id s3_secret
 # The emulator's admin user, from the same keys; in a file, so they stay off its command line.
 sed -n -e 's/^S3_ACCESS_KEY_ID=/AWS_ACCESS_KEY_ID=/p' -e 's/^S3_SECRET_ACCESS_KEY=/AWS_SECRET_ACCESS_KEY=/p' \
   "$env_file" > "$work/s3.env"
@@ -463,7 +502,7 @@ probe_container=ai-fitting-check-s3-probe
 
 # Outside CI: remove what this run starts, so the next run gets a fresh database. Only what it
 # starts: an existing stack is an earlier run or a real deploy, and its volumes may hold data.
-projects=(ai-fitting-infra ai-fitting-blue ai-fitting-green ai-fitting-worker)
+projects=(ai-fitting-infra ai-fitting-blue ai-fitting-green ai-fitting-worker ai-fitting-backup)
 teardown() {
   echo "==> removing the deploy check stacks"
   # A failed second deploy exits before the request loop is stopped.
@@ -473,6 +512,7 @@ teardown() {
       --env-file "$env_file" down --remove-orphans || true
   done
   IMAGE_TAG="$tag" docker compose -f deploy/compose/worker.yml --env-file "$env_file" down || true
+  IMAGE_TAG="$tag" docker compose -f deploy/compose/backup.yml --env-file "$env_file" down || true
   # Before infra: the network is removed only once nothing is attached to it.
   docker rm -f -v "$probe_container" "$s3_container" > /dev/null 2>&1 || true
   docker compose -f deploy/compose/infra.yml --env-file "$env_file" --profile server down --volumes \
@@ -481,7 +521,9 @@ teardown() {
   # It holds the run's env files with their one-off keys (spec 0011 M35).
   rm -rf "$work"
   docker image rm "ai-fitting-api:$second" "ai-fitting-web:$second" "ai-fitting-api:$broken" \
-    "ai-fitting-web:$broken" "ai-fitting-api:$tag-stale" > /dev/null 2>&1 || true
+    "ai-fitting-web:$broken" "ai-fitting-api:$tag-stale" "ai-fitting-api:$migrating" \
+    "ai-fitting-web:$migrating" "ai-fitting-backup:$migrating" "ai-fitting-backup:$second" \
+    "$backup_source" > /dev/null 2>&1 || true
 }
 if [ -z "${GITHUB_ACTIONS:-}" ]; then
   # Each docker call on its own line, so a docker error stops the script instead of passing the check.
@@ -510,6 +552,7 @@ fi
 for app in api web; do
   docker tag "ai-fitting-$app:$tag" "ai-fitting-$app:$second"
 done
+docker tag "ai-fitting-backup:$tag" "$backup_source"
 
 group "storage emulator"
 # The api needs the storage from its first deploy on (the seed uploads its photos, spec 0011 T9),
@@ -537,6 +580,8 @@ done
 # production image refuses that setup). In production only the server's address reads it (M15).
 printf '%s' '{"Version":"2012-10-17","Statement":[{"Sid":"PublicReadMedia","Effect":"Allow","Principal":"*","Action":["s3:GetObject"],"Resource":["arn:aws:s3:::ai-fitting/media/*"]}]}' \
   | s3_admin -o /dev/null -X PUT --data-binary @- 'http://localhost:8333/ai-fitting?policy'
+# The backup bucket of the copy before migrations (spec 0012).
+s3_admin -o /dev/null -X PUT 'http://localhost:8333/ai-fitting-backups'
 # The probe that is `s3` for the api, the worker and nginx: it logs each request's method, path and
 # header names (never values: the api's carry its signature) and passes it on unchanged, adding
 # to each answer it passes on the x-rgw-object-type Timeweb's storage sends, which nginx must hide
@@ -608,6 +653,19 @@ check_security_headers '/socket.io/?EIO=4&transport=polling'
 check_security_headers /api/health/ready
 endgroup
 
+group "the copy before the first migrations"
+# spec 0012 AC2: a fresh database has no _prisma_migrations, so every migration is new; the job
+# stored one copy named by the tag, and its log line comes before the migrations'.
+copies="$(pre_deploy_copies)"
+[ "$(count_lines "$copies")" = 1 ] && grep -qE "^pre-deploy/[0-9TZ-]+-$tag/database\.dump\.age\$" <<< "$copies" \
+  || { printf 'ci-deploy-check: the first deploy left these copies under pre-deploy/:\n%s\n' "$copies" >&2; exit 1; }
+stored="$(grep -n 'Database copy stored' "$work/deploy-1.log" | head -n 1 | cut -d: -f1)"
+migrated="$(grep -n "migrating the database with $tag" "$work/deploy-1.log" | head -n 1 | cut -d: -f1)"
+[ -n "$stored" ] && [ -n "$migrated" ] && [ "$stored" -lt "$migrated" ] \
+  || { echo "ci-deploy-check: the copy was not stored before the migrations ran (lines '$stored', '$migrated')" >&2; exit 1; }
+echo "the first deploy stored $copies before migrating"
+endgroup
+
 group "the catalog media through nginx"
 # AC6: the first deploy uploaded every photo of the catalog.
 first_etags="$(media_etags)" \
@@ -633,6 +691,7 @@ echo "the first deploy set 24 hours; changed to 72 hours for the next deploy to 
 endgroup
 
 group "deploy $second (green) under a request loop"
+backup_image_for "$second"
 scripts/request-loop.sh https://localhost > "$work/loop.out" 2>&1 &
 loop=$!
 ENV_FILE="$env_file" deploy/scripts/deploy.sh "$second" 2>&1 | tee "$work/deploy-2.log"
@@ -659,6 +718,11 @@ echo "the second seed uploaded no photo and changed no object"
 [ "$(temporal_retention)" = 86400s ] \
   || { echo "ci-deploy-check: the second deploy left Temporal's retention at '$(temporal_retention)'" >&2; exit 1; }
 echo "the second deploy set Temporal's retention back to 24 hours"
+# spec 0012 AC3: the same migrations, all applied: the job ran and stored nothing.
+grep -qF 'No new migration, no copy before the deploy' "$work/deploy-2.log" \
+  && [ "$(pre_deploy_copies)" = "$copies" ] \
+  || { echo "ci-deploy-check: the second deploy, with no new migration, did not run the job or stored a copy" >&2; exit 1; }
+echo "the second deploy, with no new migration, made no copy"
 
 group "a refused write stops the deploy before nginx changes"
 # spec 0011 M38. S3_ENDPOINT with the trailing slash CD allows changes nginx's environment and its
@@ -675,6 +739,7 @@ docker exec "$probe_container" touch /tmp/read-only
 cp "$env_file" "$work/kept.env"
 grep -v '^S3_ENDPOINT=' "$work/kept.env" > "$env_file"
 echo 'S3_ENDPOINT=http://s3:8333/' >> "$env_file"
+backup_image_for "$second"
 if ENV_FILE="$env_file" deploy/scripts/deploy.sh "$second" 2>&1 | tee "$work/deploy-refused.log"; then
   echo "ci-deploy-check: the deploy against a storage that refuses writes was expected to fail" >&2
   exit 1
@@ -693,6 +758,52 @@ grep -qF "\"method\":\"PUT\",\"url\":\"/ai-fitting/$missing" "$work/probe.log" \
 got="$(curl -sk --max-time 10 -o /dev/null -w '%{http_code}' "https://localhost/$kept" || true)"
 [ "$got" = 200 ] || { echo "ci-deploy-check: /$kept answers '$got' after the failed deploy, expected 200" >&2; exit 1; }
 echo "the refused upload of $missing stopped the deploy at the seed; nginx and /media/ are as they were"
+endgroup
+
+group "a refused copy stops a deploy with a new migration before the migrations"
+# spec 0012 AC2: <tag> plus a migration the database has not applied; the probe refuses the copy's
+# upload, so the deploy stops before migrating and green keeps serving.
+new_migration=29991231000000_deploy_check
+docker tag "ai-fitting-api:$tag" "ai-fitting-api:$migrating"
+docker tag "ai-fitting-web:$tag" "ai-fitting-web:$migrating"
+# P24: its api image has the backup job, so a missing backup image stops the deploy instead of
+# skipping the copy.
+if ENV_FILE="$env_file" deploy/scripts/deploy.sh "$migrating" 2>&1 | tee "$work/deploy-no-backup.log"; then
+  echo "ci-deploy-check: the deploy of a version with the backup job but no backup image was expected to fail" >&2
+  exit 1
+fi
+grep -qF "$migrating has the backup job, but ai-fitting-backup:$migrating cannot be found" \
+  "$work/deploy-no-backup.log" \
+  && ! grep -qF "migrating the database with $migrating" "$work/deploy-no-backup.log" \
+  || { echo "ci-deploy-check: the deploy with no backup image failed, but not before the migrations for it" >&2; exit 1; }
+echo "a version with the backup job but no backup image stops before the migrations"
+docker build -q -t "ai-fitting-backup:$migrating" - > /dev/null <<EOF
+FROM $backup_source
+USER root
+RUN mkdir prisma/migrations/$new_migration && echo 'SELECT 1;' > prisma/migrations/$new_migration/migration.sql
+USER node
+EOF
+docker exec "$probe_container" touch /tmp/read-only
+if ENV_FILE="$env_file" deploy/scripts/deploy.sh "$migrating" 2>&1 | tee "$work/deploy-copy-refused.log"; then
+  echo "ci-deploy-check: the deploy whose copy the storage refuses was expected to fail" >&2
+  exit 1
+fi
+docker exec "$probe_container" rm /tmp/read-only
+grep -qF 'the database copy failed' "$work/deploy-copy-refused.log" \
+  && ! grep -qF "migrating the database with $migrating" "$work/deploy-copy-refused.log" \
+  || { echo "ci-deploy-check: the deploy failed, but not at the copy, or it migrated" >&2; exit 1; }
+probe_log
+grep -qE "\"method\":\"PUT\",\"url\":\"/ai-fitting-backups/pre-deploy/[^\"]*-$migrating/database\.dump\.age" \
+  "$work/probe.log" \
+  || { echo "ci-deploy-check: the job did not try to upload the copy of $migrating" >&2; exit 1; }
+[ "$(pre_deploy_copies)" = "$copies" ] \
+  || { echo "ci-deploy-check: a refused copy left an object under pre-deploy/" >&2; exit 1; }
+applied="$(docker compose -f deploy/compose/infra.yml --env-file "$env_file" exec -T postgres \
+  psql -U ai_fitting -d ai_fitting -tA -c "SELECT count(*) FROM _prisma_migrations WHERE migration_name = '$new_migration'")"
+[ "$applied" = 0 ] \
+  || { echo "ci-deploy-check: $new_migration reached the database after a refused copy" >&2; exit 1; }
+scripts/smoke-test.sh https://localhost "$second"
+echo "the refused copy stopped the deploy of $migrating before the migrations; $second keeps serving"
 endgroup
 
 # Sets the proxy secrets in the env file, as CD writes them from GitHub.
@@ -716,10 +827,13 @@ group "rotation, deploy 2 fails: PROXY_SECRET is the new one, the api of $broken
 # The api image of <tag> whose server answers everything but readiness: the migrations, the seed
 # (it uploads the photo the refused deploy left out) and the media checks pass, nginx is recreated
 # with the new secret (spec 0011 M38: it changes last), and the deploy stops before the switch.
+# Without dist/backup and with no backup image, it also stands for a version from before the
+# backup job (spec 0012 P24).
 docker build -q -t "ai-fitting-api:$broken" - > /dev/null <<EOF
 FROM ai-fitting-api:$tag
 USER root
-RUN echo "import { createServer } from 'node:http'; createServer((req, res) => res.writeHead(req.url === '/health/ready' ? 503 : 200).end()).listen(3000);" > dist/main.js
+RUN echo "import { createServer } from 'node:http'; createServer((req, res) => res.writeHead(req.url === '/health/ready' ? 503 : 200).end()).listen(3000);" > dist/main.js \
+  && rm -r dist/backup
 USER node
 EOF
 docker tag "ai-fitting-web:$tag" "ai-fitting-web:$broken"
@@ -733,6 +847,9 @@ cat "$work/broken.err" >&2
 # The image is ESM ("type": "module"): a server that crashed would fail the health check instead.
 grep -qF 'is not ready' "$work/broken.err" \
   || { echo "ci-deploy-check: the deploy of $broken failed, but not at readiness" >&2; exit 1; }
+# spec 0012 P24: a version from before the backup job deploys without the copy.
+grep -qF "copy skipped: $broken predates the backup job" "$work/broken.err" \
+  || { echo "ci-deploy-check: the deploy of $broken, which has no backup job, did not skip the copy" >&2; exit 1; }
 # nginx sends the new secret now, or the checks below would only show that blue trusts the old one.
 # Compared, never printed.
 [ "$(docker compose -f deploy/compose/infra.yml --env-file "$env_file" exec -T nginx \
@@ -769,6 +886,7 @@ docker build -q -t "ai-fitting-api:$tag-stale" - > /dev/null <<EOF
 FROM ai-fitting-api:$tag
 LABEL stale=1
 EOF
+backup_image_for "$second"
 ENV_FILE="$env_file" deploy/scripts/deploy.sh "$second"
 scripts/smoke-test.sh https://localhost "$second"
 check_request_id /api/hello green
