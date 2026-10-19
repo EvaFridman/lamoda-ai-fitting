@@ -1,6 +1,8 @@
 # 0012 Backups: tasks
 
-Status: accepted (2026-10-19).
+Status: done (2026-10-19): what the tests prove passes (record below), the production checks
+are a backlog item (P32). History, not instructions. Accepted 2026-10-19; amended at the
+review of PR 2: T10 closes the spec without the production checks (P32).
 Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## How the work flows
@@ -87,14 +89,34 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       restore into a throwaway `postgres:18.6-trixie`, compare counts; the bucket into a fresh
       SeaweedFS bucket); `npm run format:check`.
       Commit: `docs(deploy): describe restoring the database and the bucket`
-- 👤 merges PR 2 at a quiet time; the deploy runs the first `--pre-deploy` check.
-- [ ] **T10. Production checks and closing.** 👤 `--once` on the server, AC6–AC8 with `aws-cli`,
-      AC10 (a refused run, a stopped container), AC11 and AC12 by the README; the morning after,
-      AC1. The record below; every file `Status: done`; `CLAUDE.md` and `README.md` in line
-      (principles, "Closing a spec").
-      Check: all 13 criteria recorded with evidence.
+- [x] **T10. Closing** (amended at the review of PR 2, P32). The record below; every file
+      `Status: done`; `CLAUDE.md` and `README.md` in line (principles, "Closing a spec"); the
+      production checks (`--once` on the server, AC1, AC6–AC8, AC10–AC12, the Sentry alert rule)
+      into the backlog item "Production checks of the backups".
+      Check: all 13 criteria recorded, each with its evidence or its backlog item.
       Commit: `docs(specs): close spec 0012 backups`
+- 👤 merges PR 2 at a quiet time; the deploy runs the first `--pre-deploy` check (no new migration
+  in this release: one log line, no copy, AC3).
 
 ## Acceptance record
 
-Filled in by T10.
+Recorded 2026-10-19 on `feat/0012-backups` (PR #85): `npm run verify` on `b306cd2`, the last
+code commit, passed (api 3105 tests, web 1886, guards and scripts 594), and CI runs
+`ci-deploy-check.sh`. "Backlog" means the production check of the backlog item "Production checks
+of the backups" (P32); "part" means the tests prove the criterion except what is named there.
+
+| AC   | Result  | Evidence                                                                                                                                                                                                                                                                                                                             |
+| ---- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| AC1  | backlog | `service.spec.ts`: a service started at 03:00 Moscow runs once at 04:00, then the next day at 04:00; `schedule.spec.ts`: the monitor's 04:00 Moscow config. `ci-deploy-check.sh`: the deploy leaves the job running from the release's image                                                                                         |
+| AC2  | pass    | `ci-deploy-check.sh`: a deploy onto a database with no migrations stores a copy under `pre-deploy/` before them; a refused upload stops the deploy and the running copy answers. `backup.e2e-spec.ts` "stores a restorable copy when the release has a migration the database lacks"                                                 |
+| AC3  | pass    | `ci-deploy-check.sh`: a deploy with no new migration stores nothing. `backup.e2e-spec.ts` "stores nothing and says so when every migration is applied"                                                                                                                                                                               |
+| AC4  | pass    | `backup.e2e-spec.ts` "stores nothing when the check fails", "stores nothing when pg_dump fails", "leaves no unfinished multipart upload when a copy over one part fails its check"; `service.spec.ts` "sends error with the same id and rethrows when the backup fails"                                                              |
+| AC5  | pass    | `backup.e2e-spec.ts` "stores media/ and keep/ whole across listing pages and never tmp/"                                                                                                                                                                                                                                             |
+| AC6  | backlog | The reader's role at the production setup (plan §9, step 3); refusals not yet checked with `aws-cli`                                                                                                                                                                                                                                 |
+| AC7  | backlog | The writer's role and the bucket's versioning at the production setup (plan §9, steps 1–2); refusals and the old version not yet checked                                                                                                                                                                                             |
+| AC8  | backlog | The lifecycle rules set at the production setup (plan §9, step 1); not yet read back                                                                                                                                                                                                                                                 |
+| AC9  | part    | Tests: `backup.e2e-spec.ts` checks the stored copy starts with age's header. Code review at T4–T5: every copy streams from the tools through age into the upload, no file written. Setup: the private key only in the owner's password manager. Backlog: a look at the server's disk after a run                                     |
+| AC10 | backlog | `service.spec.ts`: an in-progress check-in, error on a failed run, error at once on a cut-off run (P21). The alert rule and both cases on production: backlog                                                                                                                                                                        |
+| AC11 | backlog | The procedure ran at T9 against the local profile's copies (a throwaway `postgres:18.6-trixie`, counts compared); `backup.e2e-spec.ts` "stores an age-encrypted dump that restores to the same rows". On production: backlog                                                                                                         |
+| AC12 | backlog | The procedure ran at T9 against the local profile's copy into a fresh SeaweedFS bucket. On production: backlog                                                                                                                                                                                                                       |
+| AC13 | part    | Tests: `check:web-bundle` refuses the four backup key names; `backup.e2e-spec.ts` "puts no credential in a log line or an error" (database) and "puts no credential and no object key in a log line or an error" (bucket). Gitleaks on every commit. Setup: secrets set in GitHub from files. Backlog: the server's logs after a run |

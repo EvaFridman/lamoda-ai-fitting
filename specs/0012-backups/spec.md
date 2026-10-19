@@ -1,10 +1,12 @@
 # 0012 Backups
 
-Status: accepted (2026-10-19); amended at the plan: a custom role for the write key (P11) and
+Status: done (2026-10-19): what the tests prove passes, the production checks are the
+backlog item "Production checks of the backups" (P32; [tasks.md](tasks.md), acceptance record).
+History, not instructions. Accepted 2026-10-19; amended at the plan: a custom role for the write key (P11) and
 versions in the backup bucket (P12), AC7 and AC8 extended, the Sentry monitor created by the job;
 amended at the production setup: a standard bucket instead of a cold one (P20).
 
-Issue #42 and the backlog item "Storage backups". Decisions: `clarifications.md` (P1–P15); the
+Issue #42 and the backlog item "Storage backups". Decisions: `clarifications.md` (P1–P32); the
 frame comes from spec 0011 M6.
 
 ## Goal

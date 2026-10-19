@@ -210,6 +210,18 @@ Left for later specs by `0002-database-schema` (its `clarifications.md` has the 
   or a generation's files. What photo upload still owes: limits on size and type, re-encoding to
   WebP, and a retention period for old photo snapshots of C14 (one more key class and lifecycle
   rule, `storage/keys.ts`).
+- **Production checks of the backups.** Spec 0012 closed on its tests and `ci-deploy-check.sh`
+  (0012 P32); what needs production is left. A `--once` on the server (`deploy/README.md`,
+  «Бэкапы») gives the first copies before any night. After the first night: the backup bucket's listing
+  and the job's log line (0012 AC1), then the Sentry alert rule mailing the owner on the monitor
+  `nightly-backup`'s issues, which the first check-in creates (plan §9, step 6). With `aws-cli`:
+  the read key cannot write or delete in the app bucket (AC6); the write key cannot read, list or
+  delete in the backup bucket nor reach the app bucket, and an overwrite leaves the old version
+  (AC7); the lifecycle rules and versioning read back (AC8). A run with a refused upload and the
+  container stopped past 04:30 both reach the owner (AC10). The latest copies restored by
+  `deploy/README.md`, «Бэкапы»: the row count of every table and the bucket's keys and sizes match
+  production's (AC11, AC12). After a run: nothing unencrypted on the server's disk (AC9) and no key
+  in its logs (AC13). The tasks and the record's format: 0012's `tasks.md`, acceptance record.
 - **Backups outside Timeweb.** The server and the backup bucket of spec 0012 share one Timeweb
   account (0012 P8): losing the account or the provider loses the data and its copies. Before real
   users: a copy at a second provider, or one the owner downloads regularly.
