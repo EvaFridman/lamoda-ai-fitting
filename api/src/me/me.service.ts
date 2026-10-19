@@ -10,7 +10,13 @@ import { UsersService } from '../users/users.service.js';
 // A cookie Better Auth sets, with the attributes it sets it with.
 export interface AuthCookie {
   name: string;
-  attributes: { path?: string; domain?: string; secure?: boolean; sameSite?: string };
+  // `sameSite` as Better Auth types it, in either case.
+  attributes: {
+    path?: string;
+    domain?: string;
+    secure?: boolean;
+    sameSite?: 'Strict' | 'Lax' | 'None' | 'strict' | 'lax' | 'none';
+  };
 }
 
 // The signed-in user's own row (spec 0013 plan §6). A session copy cached in a cookie (N18) can

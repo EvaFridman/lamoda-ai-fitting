@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 import { NotFoundError, UnauthorizedError } from '../common/errors/app.exception.js';
 import type { Paginated } from '../common/pagination/paginated.js';
+import { violatedConstraint } from '../common/filters/to-app-exception.js';
 import type { PaginationQueryDto } from '../common/pagination/pagination-query.dto.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -84,8 +85,12 @@ export class FittingSessionsService {
         return tx.fittingSession.create({ data: { ...dto, userId } });
       });
     } catch (error) {
-      // The user is the session's only reference.
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
+      // The signed-in user deleted meanwhile; any other reference goes on as RELATED_NOT_FOUND.
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2003' &&
+        violatedConstraint(error) === 'fitting_sessions_user_id_fkey'
+      ) {
         throw new UnauthorizedError('The signed-in user no longer exists');
       }
       throw error;

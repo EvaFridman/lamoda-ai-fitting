@@ -175,3 +175,14 @@ export function assertServerEnv(env: ServerEnv): void {
   ];
   if (problems.length > 0) throw new Error(`Invalid environment: ${problems.join('; ')}`);
 }
+
+// What the server logs as a warning at start outside production, where assertServerEnv lets it
+// pass: with no auth secret Better Auth signs cookies with its own default one, which anyone can
+// read in its source (spec 0013 PR 2 review).
+export function serverEnvWarnings(env: ServerEnv): string[] {
+  if (env.NODE_ENV === 'production' || env.BETTER_AUTH_SECRET !== '') return [];
+  return [
+    "BETTER_AUTH_SECRET is empty: session cookies are signed with Better Auth's public default " +
+      'secret; run scripts/init-env.sh to set one',
+  ];
+}

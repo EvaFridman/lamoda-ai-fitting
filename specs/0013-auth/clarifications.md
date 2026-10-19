@@ -3,7 +3,7 @@
 Status: accepted (2026-10-16); amended 2026-10-16 at the plan: no guests (N2, N9, N10 withdrawn),
 the first name is optional (N5), Better Auth's own error format (N17), a 5-minute session cache
 (N18); amended 2026-10-18 at the review of PR 1 (N31–N36); amended 2026-10-19 at T7 (N37–N39);
-amended 2026-10-19 at T8 (N40–N44); amended 2026-10-19 at T9 (N45–N49); amended 2026-10-19 at T9a (N50).
+amended 2026-10-19 at T8 (N40–N44); amended 2026-10-19 at T9 (N45–N49); amended 2026-10-19 at T9a (N50); amended 2026-10-19 at PR 2's review (N51).
 
 The owner's decisions for this spec. Ids `N1`, `N2`, … are referred to by the spec, the plan and
 code comments. All decisions below: owner, 2026-10-16.
@@ -303,3 +303,8 @@ All decisions below: owner, 2026-10-18, on the review of the spec's pull request
   the throwaway Temporal (0011 M16), not `@temporalio/testing` (T9a's wording). Rejected: 03:00
   UTC, every 24 hours from creation; leaving a differing schedule as it is; an index; retries
   without a limit.
+- **N51. An empty auth secret outside production is a warning** (owner, 2026-10-19, at PR 2's
+  review). Better Auth then signs cookies with its own default secret, public in its source, and
+  says nothing (that secret passes its length and entropy checks). The api logs one warning at
+  start naming `scripts/init-env.sh` (`serverEnvWarnings`, next to `assertServerEnv`); production
+  still refuses to start. Rejected: only the README; a backlog item.
