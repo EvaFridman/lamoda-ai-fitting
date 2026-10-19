@@ -61,15 +61,19 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       monitor's config;
       `qa-tester` on the local profile.
       Commit: `feat(api): run the backups every night at 04:00 moscow time`
-- [ ] **T7. Copy before migrations.** `--pre-deploy` (§5) with database tests (a new migration →
+- [x] **T7. Copy before migrations.** `--pre-deploy` (§5) with database tests (a new migration →
       a copy under `pre-deploy/`; none → no object; a missing `_prisma_migrations` → a copy);
-      `deploy.sh`'s `backup()` helper and its step before the migrations; `ci-deploy-check.sh`.
+      `deploy.sh`'s `backup()` helper and its step before the migrations; `ci-deploy-check.sh`;
+      `deploy/compose/backup.yml` and the backup image in `scripts/ci-build-images.sh` (§6, moved
+      from T8 at T7, P22); the copy step and the backup image's pruning in the deploy steps of
+      `CLAUDE.md`, `.claude/rules/deploy.md` and `deploy/README.md` (owner, at T7: "Keep this file
+      true"; the «Бэкапы» section stays with T8/T9).
       Check: `npm run verify`; `ci-deploy-check.sh` locally and in CI: a new migration → a copy
       before migrating; a refused upload → the deploy stops before the migrations, the running copy
       answers; no new migration → no copy.
       Commit: `feat(deploy): copy the database before a deploy migrates it`
-- [ ] **T8. Delivery to production.** `scripts/ci-build-images.sh`, `images.yml` (the backup
-      image), `deploy/compose/backup.yml`, `deploy.sh` replacing the backup project (§6);
+- [ ] **T8. Delivery to production.** `images.yml` (the backup image), `deploy.sh` replacing the
+      backup project (§6);
       `cd.yml` writing and checking the new variables; `check:web-bundle` with the two secrets'
       names; `deploy/README.md` «Бэкапы»: the production setup (§9).
       Check: `npm run verify`; `ci-deploy-check.sh` starts the backup project; CD's check refuses a

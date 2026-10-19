@@ -24,8 +24,8 @@ Details and commands: `deploy/README.md`.
   run by hand refuses a hash whose commit has no successful `CD / Deploy to production` check run.
 - Blue-green: the new copy of api and web starts next to the running one, nginx switches only when
   it is healthy; the previous copy stays as the rollback. The Temporal worker is replaced in place.
-  Before pulling (with a registry) and after the switch, `deploy.sh` removes the app images no
-  container uses (they once filled the server's disk); a rollback to an older version pulls its
+  Before pulling (with a registry) and after the switch, `deploy.sh` removes the app images (api,
+  web, backup) no container uses (they once filled the server's disk); a rollback to an older version pulls its
   images again.
 - Infrastructure (`deploy/compose/infra.yml`) is not blue-green: a deploy that changes a service's
   definition there recreates it in place, postgres, redis and temporal before the migrations, nginx
@@ -39,6 +39,13 @@ Details and commands: `deploy/README.md`.
 - After the infrastructure is up, every deploy (a rollback too) sets the retention of Temporal's
   `default` namespace to 24 hours (spec 0013 N45): a deleted user's id stays in `deleteFiles`'
   history no longer. `ci-deploy-check.sh` reads it back; the step is not removed.
+- Before the migrations, `deploy.sh` runs `--pre-deploy <tag>` in a throwaway container of the
+  release's `ai-fitting-backup` image (`deploy/compose/backup.yml`, spec 0012 §5): if the release
+  brings a migration the database has not applied, it stores an encrypted database copy under the
+  backup bucket's `pre-deploy/`; a failed copy stops the deploy, the active copy keeps serving. A
+  version whose api image has no `dist/backup/pre-deploy.js` (from before spec 0012) and no backup
+  image skips the copy; one with the job but no backup image stops (P24). A rollback to the copy
+  that still runs makes none.
 - Before the new copy starts, `deploy.sh` runs, from the new image, the migrations and then the seed
   (`dist/seed/main.js`, the demo catalog: adds only missing rows and uploads only the photos missing
   from the bucket, a no-op once loaded), then checks one random catalog photo straight from the

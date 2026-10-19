@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds the production images of api and web, tagged with an image tag (the short commit hash in CI).
+# Builds the production images of api, the backup job and web, tagged with an image tag (the short commit hash in CI).
 # Each image gets two names: a local one (ai-fitting-<app>:<tag>, what deploy.sh uses without a
 # registry) and, if IMAGE_REGISTRY is set, the registry one that CI pushes from main.
 #
@@ -50,6 +50,17 @@ if [ -n "$maps" ]; then
 fi
 endgroup
 
+# The backup job (spec 0012): the api's runtime plus the PostgreSQL client, from the same build
+# cache, so it carries the api's code without its source maps.
+group "backup image $tag"
+mapfile -t backup_names < <(names backup)
+docker build --target backup "${backup_names[@]}" "${labels[@]}" "${secret[@]}" \
+  --build-arg SENTRY_ORG="${SENTRY_ORG:-}" \
+  --build-arg SENTRY_PROJECT="${SENTRY_PROJECT_API:-}" \
+  --build-arg SENTRY_RELEASE="$tag" \
+  api
+endgroup
+
 group "web image $tag"
 mapfile -t web_names < <(names web)
 docker build --target runtime "${web_names[@]}" "${labels[@]}" "${secret[@]}" \
@@ -62,7 +73,7 @@ docker build --target runtime "${web_names[@]}" "${labels[@]}" "${secret[@]}" \
   web
 endgroup
 
-for app in api web; do
+for app in api backup web; do
   size="$(docker image inspect --format '{{.Size}}' "ai-fitting-$app:$tag")"
   echo "ai-fitting-$app:$tag  $((size / 1024 / 1024)) MB"
 done

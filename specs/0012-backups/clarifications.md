@@ -127,6 +127,29 @@ key that can only write there, encrypted, with a restore check; never into the a
   check-ins by hand instead and, on `SIGTERM` during a nightly run, closes the run's check-in as
   failed; the restarted run's success then resolves the issue.
 
+## Decided at T7
+
+- **P22. The backup image and its compose file come with the copy before migrations.** The deploy's
+  `--pre-deploy` step runs the service `backup` of `deploy/compose/backup.yml` from the image
+  `ai-fitting-backup:<tag>`, which only the `backup` stage has (`pg_dump` and `psql` 18; the api
+  image does not change, P13). So `backup.yml` and the image's build in `scripts/ci-build-images.sh`
+  move from T8 to T7, and `ci-deploy-check.sh` can test the step; T8 keeps publishing the image,
+  starting the backup project at every deploy, `cd.yml`, `check:web-bundle` and the docs.
+- **P23. `--pre-deploy` has no timeout and no Sentry report of its own.** The S3 clients' socket
+  timeout (P18) bounds a silent upload, and `deploy.sh` sets no timeout on its other steps. A
+  failure shows in the deploy's log and stops it (`fail`); the nightly monitor's check-ins stay the
+  only Sentry report of this job. A rollback to the copy that still runs migrates nothing, so it
+  makes no copy.
+- **P24. A version from before the backup job skips the copy.** A rollback to a version from before
+  this spec has no `ai-fitting-backup:<tag>`, and its migrations are all applied: when the backup
+  image cannot be found or pulled and the tag's api image has no `dist/backup/pre-deploy.js`, the
+  deploy logs "copy skipped" and goes on, like the seed of an image without one. Stopping would
+  make such a rollback manual. A version whose api image has the job must have its backup image:
+  one that cannot be found or pulled stops the deploy before the migrations (amended at the review
+  of T7: a registry failing on that image alone would otherwise let a new migration through
+  without a copy). The variables of `backup.yml` are checked first, so a missing one is not taken
+  for a missing image; a rollback to the copy that still runs checks neither.
+
 ## Delivery
 
 - **P10. Two pull requests.** The first holds this spec's documents and can be merged while spec

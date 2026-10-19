@@ -4,6 +4,7 @@ import { pino } from 'pino';
 import { copyBucket } from './bucket.js';
 import { createBackupClients, validateBackupEnv } from './config.js';
 import { copyDatabase } from './database.js';
+import { copyBeforeMigrations } from './pre-deploy.js';
 import {
   type BackupJob,
   type NightlyRun,
@@ -15,15 +16,18 @@ import {
 } from './service.js';
 
 // The backup job's process, loaded by main.ts once Sentry has started (plan §4). No argument: the
-// nightly service. `--once`: one copy now, with no check-in. Exits 0 when done, 1 on an error.
+// nightly service. `--once`: one copy now, with no check-in. `--pre-deploy <tag>`: the database
+// copy before a deploy migrates, if it brings a new migration (§5). Exits 0 when done, 1 on an
+// error.
 async function bootstrap(): Promise<void> {
   const args = process.argv.slice(2);
   const once = args.length === 1 && args[0] === '--once';
+  const preDeployTag = args.length === 2 && args[0] === '--pre-deploy' ? args[1] : undefined;
   // Plain JSON lines: the backup image has no pino-pretty, and no Nest context is built.
   // LOG_LEVEL is applied once validated: pino throws on an unknown level.
   const logger = pino({ level: 'info', base: { job: 'backup' } });
-  if (args.length > 0 && !once) {
-    logger.error('Usage: main.js [--once]');
+  if (args.length > 0 && !once && preDeployTag === undefined) {
+    logger.error('Usage: main.js [--once | --pre-deploy <image tag>]');
     process.exitCode = 1;
     return;
   }
@@ -81,7 +85,19 @@ async function bootstrap(): Promise<void> {
   process.once('SIGINT', stop);
 
   try {
-    if (once) {
+    if (preDeployTag !== undefined) {
+      running = true;
+      // No check-in: the deploy's log shows a failure, and the deploy stops (P23).
+      await copyBeforeMigrations({
+        databaseUrl: env.DATABASE_URL,
+        recipient: env.BACKUP_AGE_RECIPIENT,
+        client: clients.write,
+        bucket: env.BACKUP_BUCKET,
+        tag: preDeployTag,
+        at: new Date(),
+        logger,
+      });
+    } else if (once) {
       running = true;
       await runBackup(new Date(), job);
     } else {
@@ -101,8 +117,9 @@ async function bootstrap(): Promise<void> {
         },
       });
     }
-  } catch {
-    // runBackup logged each failed copy.
+  } catch (error) {
+    // runBackup logged each failed copy; the copy before a deploy is logged here.
+    if (preDeployTag !== undefined) logger.error({ err: error }, 'Copy before the deploy failed');
     process.exitCode = 1;
   } finally {
     clients.read.destroy();
