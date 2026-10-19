@@ -176,6 +176,30 @@ key that can only write there, encrypted, with a restore check; never into the a
   (P11, plan §9 amended): the panel offers custom roles per user, and no main key leaves it. AC7
   still checks them at acceptance.
 
+## Decided at T9
+
+- **P29. The old age key is kept 14 days after the deploy that replaces it** (owner, 2026-10-19).
+  A copy lives 7 days, and the version an overwrite leaves behind 7 more (P12), so a key kept only
+  7 days could leave such a version unreadable (plan §8 amended).
+- **P30. A new age key takes effect with the next merge into `main`** (owner, 2026-10-19). The
+  procedure does not describe running CD by hand to apply it sooner, even after a leak: the copies
+  stay unreadable without the main key, which alone can list and read the backup bucket.
+- **P31. Returning a copy to production is written down too** (owner, 2026-10-19). CI and CD are
+  turned off for the time (CD runs inside CI) and `deploy.sh`'s lock is taken on the server; api and the worker are stopped first, then the ids of the last 24 hours'
+  `deleteFiles` workflows (N45) are saved and, if the old database can be read, a `--once` copy of
+  it and the ids of its users, fitting sessions and generations; then the backup job stops, the database is dropped and created again, and
+  the copy restored into it in one transaction from the Mac over ssh (the private key stays on the
+  Mac); the running release's migrations; every session deleted (everyone signs in again); the
+  users, fitting sessions and generations deleted after the copy deleted again (P14); users, fitting
+  sessions and generations missing from the old database are listed and deleted only by hand
+  (owner, at the review), since a damaged old database would list living rows too; every `keep/users/<uuid>/` folder with no user row removed; then the
+  containers that ran are started and, once api is ready, the lock released and CI and CD turned
+  back on (plan §8 amended). Deletions missing from Temporal's history (a fitting session with no
+  generations, a failed start) are added by hand from Sentry; they and files uploaded after the copy
+  are a backlog item ("Deletions after a restored copy"). With the old database
+  unreadable and more than a day gone, such data cannot be found (backlog "Deleted users in
+  backups").
+
 ## Delivery
 
 - **P10. Two pull requests.** The first holds this spec's documents and can be merged while spec

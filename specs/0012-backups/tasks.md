@@ -80,7 +80,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       missing or malformed variable (a CI case or a local run of the check step);
       `scripts/check-web-bundle.mjs` tests.
       Commit: `feat(deploy): deliver the backup service with every deploy`
-- [ ] **T9. Restore procedures and docs.** `deploy/README.md` «Бэкапы»: restoring the database and
+- [x] **T9. Restore procedures and docs.** `deploy/README.md` «Бэкапы»: restoring the database and
       the bucket, the row-count query, replacing the age key (§8); `deploy/README.md:183`;
       `CLAUDE.md`, `.claude/rules/deploy.md` (plan, Docs).
       Check: the procedures run against the local profile's copies (decrypt with a local key pair,

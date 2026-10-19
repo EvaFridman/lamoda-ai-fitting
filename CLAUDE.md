@@ -149,6 +149,10 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   (served at `/media/<key>`).
 - `api/src/storage/`: the S3 bucket (`StorageService`: `put`, `exists`, `deletePrefix`,
   `signedUrl`) and `keys.ts`, the one place object keys are built and checked.
+- `api/src/backup/`: the backup job (spec 0012), a plain Node process outside Nest, run as
+  `dist/backup/main.js` from the `backup` target of `api/Dockerfile` (image `ai-fitting-backup`):
+  a nightly service, `--once`, and `--pre-deploy <tag>` for the deploy. Its object names are
+  built only by `backup/keys.ts`.
 - `api/scripts/`: development-only scripts, not in the runtime image: `fake-oidc.mjs`, the fake
   Google of the compose service `oidc` and of e2e (spec 0013 N14, N19, N20).
 - `web/`: `app/` holds routing only and re-exports pages from `src/_pages`. FSD layers in `web/src/`,
@@ -416,6 +420,21 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   5 s for Temporal. `S3_ACCESS_KEY_ID` alone grants nothing (every signed link carries it),
   but it stays a GitHub secret, is not logged and `check:web-bundle` refuses it;
   `S3_SECRET_ACCESS_KEY` appears in no image, log line or bundle.
+- `api` backups (spec 0012): every night at 04:00 Moscow time the job copies the database
+  (`pg_dump --format=custom`, stored only after `pg_restore --list` reads it) and the app bucket's
+  `media/` and `keep/` (one tar, `tmp/` skipped) into the backup bucket `BACKUP_BUCKET` as
+  `daily/<UTC stamp>-<16 random hex>/database.dump.age` and `storage.tar.age`, encrypted with age
+  to the owner's public key `BACKUP_AGE_RECIPIENT`. The private key is only in the owner's password
+  manager: never on the server, in GitHub or the chat. Everything streams, nothing unencrypted
+  touches a disk. The job reads the app bucket with `BACKUP_READ_*` (list, and read `media/*` and
+  `keep/*`: a new key class needs that role widened, P26) and writes with `BACKUP_WRITE_*` (upload
+  only), never the api's key. Neither can list or read the backup bucket, and log lines show
+  `<suffix>` in place of the random part, so a copy is found only by listing with the owner's main
+  key (P27). The bucket keeps versions; its lifecycle deletes copies after 7 days. Each nightly run
+  checks in with the Sentry monitor `nightly-backup`; `--once` does not. The image's
+  `postgresql-client-18` moves together with the `postgres` image (P16). Restoring, returning a
+  copy to production (the site stopped, every session deleted, users deleted after the copy
+  deleted again, P31) and replacing the age key: `deploy/README.md`, «Бэкапы»; running it locally: `README.md`, «Бэкап локально».
 - `web` has no files of its own under `public/`, and its image copies no `public/` (it comes back
   with the first static file). Images from `/media/` skip Next's optimizer (`unoptimized`), or
   `/_next/image` would fetch them from web itself.

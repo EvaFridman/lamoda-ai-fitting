@@ -47,7 +47,8 @@ Details and commands: `deploy/README.md`.
   backup bucket's `pre-deploy/`; a failed copy stops the deploy, the active copy keeps serving. A
   version whose api image has no `dist/backup/pre-deploy.js` (from before spec 0012) and no backup
   image skips the copy; one with the job but no backup image stops (P24). A rollback to the copy
-  that still runs makes none.
+  that still runs makes none. Restoring a copy, returning it to production and replacing the age key are the owner's steps on
+  the Mac (`deploy/README.md`, «Бэкапы»): the server never holds the private key.
 - Before the new copy starts, `deploy.sh` runs, from the new image, the migrations and then the seed
   (`dist/seed/main.js`, the demo catalog: adds only missing rows and uploads only the photos missing
   from the bucket, a no-op once loaded), then checks one random catalog photo straight from the

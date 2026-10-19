@@ -194,7 +194,8 @@ Host ai-fitting
 `media/` — фото каталога, без срока; `keep/users/<id>/…` — фото пользователей и результаты
 генераций, без срока; `tmp/` — незаконченные загрузки, удаляются через сутки. Ничего не публично:
 `media/` читает без ключа только адрес сервера, остальное — только api со своим ключом или по
-подписанной ссылке (15 минут). Бэкапы базы и этого бакета лежат в отдельном бакете («Бэкапы»).
+подписанной ссылке (15 минут). Бэкапы базы и этого бакета лежат в отдельном бакете; там же, в
+«Бэкапах», — как их восстановить.
 
 nginx отдаёт `/media/<ключ>` из `media/<ключ>` бакета на том же домене (`MEDIA_BASE_URL`
 остаётся `https://lamoda-ai-fitting.ru/media/`). В хранилище уходят только ключ и `Host`: ни
@@ -357,6 +358,353 @@ api): упавший или не начавшийся запуск — пись�
    утёкший `.env` удалил бы копии. CD отказывает, если любые два из трёх ключей совпадают.
 6. В Sentry, после первой ночи (монитор появляется с первым запуском): правило оповещения на
    issues монитора `nightly-backup` с письмом владельцу.
+
+### Восстановление
+
+Восстанавливает владелец на Mac (`brew install age`, Docker запущен), в обычном терминале, не в
+сессии агента: нужны закрытый ключ age из менеджера паролей и ключ главного пользователя Timeweb.
+Ни один ключ задачи для этого не годится: `backup-writer` не читает и не видит список,
+`backup-reader` не видит бакет бэкапов. Имя копии кончается случайной частью, которой нет ни в
+одном логе (спека 0012 P27), поэтому копию находят только по списку. Расшифрованная база живёт
+только в одноразовом контейнере, расшифрованные файлы бакета — в папке `~/restore.noindex`, которая в
+конце удаляется. Процедура восстанавливает копию в пустую базу и пустой бакет; возврат файлов в
+бакет приложения описан в шаге 7, возврат базы на продакшен — в «Возврате базы на продакшен» ниже. Шаги «при проверке» (приёмка
+спеки 0012, AC11 и AC12) сверяют копию с продакшеном.
+
+1. **Оболочка и папка.** Все блоки — в одном терминале, по одному, в bash без настроек: в zsh,
+   оболочке терминала Mac по умолчанию, `read -rsp` не читает ключ, и вставленный следом ключ
+   уходит в командную строку и историю. Сначала одна эта строка, отдельно: вставленная вместе с
+   остальными, она запустит bash, а остальное zsh выполнит только после выхода из него:
+
+   ```bash
+   bash --noprofile --norc
+   ```
+
+   Папка — вне Time Machine и Spotlight (`.noindex`): в ней окажутся расшифрованные файлы
+   пользователей. В ней же запрос, который считает строки каждой таблицы, и скрипт расшифровки
+   (шаг 5; он записывается заранее, потому что, пока в буфере обмена ключ age, вставлять нечем;
+   буфер он очищает и тогда, когда прерван):
+
+   ```bash
+   unset HISTFILE
+   mkdir -p ~/restore.noindex/data/storage && tmutil addexclusion ~/restore.noindex && cd ~/restore.noindex
+   cat > decrypt.sh <<'SH'
+   set -eo pipefail
+   trap 'pbcopy < /dev/null' EXIT
+   cd ~/restore.noindex/data
+   age -d -i <(pbpaste) database.dump.age | docker exec -i restore-db pg_restore --no-owner --exit-on-error -U postgres -d postgres
+   if [ -f storage.tar.age ]; then age -d -i <(pbpaste) storage.tar.age | tar -x -C storage; fi
+   echo "расшифровано"
+   SH
+   cat > row-counts.sql <<'SQL'
+   SELECT format('%I.%I', table_schema, table_name),
+          (xpath('/row/n/text()', query_to_xml(
+            format('SELECT count(*) AS n FROM %I.%I', table_schema, table_name), false, true, '')))[1]::text
+   FROM information_schema.tables
+   WHERE table_type = 'BASE TABLE' AND table_schema NOT IN ('pg_catalog', 'information_schema')
+   ORDER BY 1;
+   SQL
+   ```
+
+2. **При проверке — снимок продакшена.** Строки продакшена и сразу за ними копия вне расписания
+   (`--once` в работающем контейнере задачи; в мониторе Sentry она не отмечается). Не с 03:50 по Москве до
+   конца ночной копии (`ssh ai-fitting 'docker logs --tail 5 ai-fitting-backup-backup-1'`): две
+   копии сразу делят один лимит памяти контейнера.
+
+   ```bash
+   ssh ai-fitting "docker exec -i ai-fitting-infra-postgres-1 sh -c 'psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -AtX'" < row-counts.sql > production.txt
+   ssh ai-fitting 'docker exec ai-fitting-backup-backup-1 node dist/backup/main.js --once'
+   ```
+
+   Вход через Google между этими двумя командами добавит строку в `sessions` или `verifications`:
+   разница только в этих таблицах — не ошибка восстановления.
+
+3. **Ключ главного пользователя.** Строки вставлять по одной (почему — «Хранилище S3», шаг 2):
+
+   ```bash
+   read -rsp 'Access key ID: ' AWS_ACCESS_KEY_ID; echo
+   read -rsp 'Secret key: ' AWS_SECRET_ACCESS_KEY; echo
+   export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+   ```
+
+   `aws-cli` в одноразовом контейнере (образ закреплён по дайджесту: он получает главный ключ),
+   ему видна только папка `data` (как `/aws`): скачанное из бакета бэкапов не может заменить
+   скрипты шага 1 рядом с ней:
+
+   ```bash
+   s3() { docker run --rm -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY --mount type=bind,src="$HOME/restore.noindex/data",dst=/aws amazon/aws-cli:2.17.0@sha256:643507c10ada7964ca6157b3d799f030b90577643da9955d319a77399ed80d73 --endpoint-url https://s3.twcstorage.ru --region ru-1 "$@"; }
+   ```
+
+   При проверке — сразу список ключей и размеров `media/` и `keep/` бакета приложения (фото,
+   загруженное после копии, покажется лишней строкой продакшена, удалённое — лишней строкой
+   восстановленного):
+
+   ```bash
+   for p in media/ keep/; do s3 s3api list-objects-v2 --bucket <бакет приложения> --prefix "$p" --query 'Contents[].[Key,Size]' --output text; done | grep -vx None | sort > production-bucket.txt
+   ```
+
+4. **Найти копию.** Ночные копии лежат в `daily/`, копии перед миграциями — в `pre-deploy/`
+   (там только база). Имя папки начинается временем UTC, поэтому самая свежая — последняя; за одну
+   ночь их может быть две (спека 0012 P15). Ключ записи с сервера может добавить и свою папку с
+   любым именем: папка не ко времени ночной копии (около 01:00 UTC) или деплоя подозрительна, а
+   скачиваются только два известных файла, по имени (для `pre-deploy/` — только первый):
+
+   ```bash
+   s3 s3 ls s3://<бакет бэкапов>/daily/
+   s3 s3 cp --only-show-errors s3://<бакет бэкапов>/daily/<папка>/database.dump.age /aws/
+   s3 s3 cp --only-show-errors s3://<бакет бэкапов>/daily/<папка>/storage.tar.age /aws/
+   ```
+
+   Без терминала копию можно скачать и в панели Timeweb, в `~/restore.noindex/data`. Бакет для восстановления (новый, пустой,
+   приватный; при проверке — удалить после неё) создать в панели сейчас: следующий шаг занимает
+   буфер обмена.
+
+5. **Расшифровка.** Пустой PostgreSQL той же версии, что на сервере, в одноразовом контейнере без
+   сети (с `--rm` данные уходят вместе с ним):
+
+   ```bash
+   docker run -d --rm --network none --name restore-db -e POSTGRES_PASSWORD=restore postgres:18.6-trixie
+   until docker exec restore-db pg_isready -q -h 127.0.0.1 -U postgres; do sleep 1; done
+   ```
+
+   Закрытый ключ age — скопировать из записи менеджера паролей в буфер обмена (Handoff и историю
+   буфера выключить, как в шаге 4 настройки), затем набрать вручную (не вставлять: в буфере ключ)
+   `bash decrypt.sh`. Скрипт из шага 1 ведёт базу прямо в контейнер, бакет — в пустую папку
+   `data/storage`, никогда с `-P`: tar пропускает ключ с `..` и убирает ведущий `/`, так что ничего
+   не пишется вне папки (спека 0012 P19). Неверный ключ age отвечает:
+   `no identity matched any of the recipients`.
+
+6. **При проверке — база:** те же строки, что на продакшене.
+
+   ```bash
+   docker exec -i restore-db psql -U postgres -d postgres -AtX < row-counts.sql > restored.txt
+   diff production.txt restored.txt && echo "строки совпадают"
+   ```
+
+7. **Бакет.** Дерево — в бакет из шага 4. `.DS_Store`, которые Finder оставляет в открытых папках,
+   не загружаются; символьные ссылки тоже (в бакете их не бывает, а ссылка из подложенной копии
+   выгрузила бы файл, на который указывает):
+
+   ```bash
+   s3 s3 sync --only-show-errors --no-follow-symlinks --exclude '*.DS_Store' /aws/storage/ s3://<новый бакет>/
+   ```
+
+   При проверке — те же ключи с теми же размерами. Ключи с `..` или ведущим `/`, пустые «папки» с
+   `/` на конце и ключи, отличающиеся только регистром (файловая система Mac его не различает), не
+   возвращаются как были и покажутся разницей:
+
+   ```bash
+   for p in media/ keep/; do s3 s3api list-objects-v2 --bucket <новый бакет> --prefix "$p" --query 'Contents[].[Key,Size]' --output text; done | grep -vx None | sort > restored-bucket.txt
+   diff production-bucket.txt restored-bucket.txt && echo "ключи и размеры совпадают"
+   ```
+
+   Только при настоящей потере файлов, не при проверке — возврат в бакет приложения. В копии нет
+   метаданных объектов: `sync` ставит `Content-Type` по расширению и не ставит `Cache-Control`.
+   Поэтому возврат — двумя командами, без `--delete`: `media/`
+   с `Cache-Control` сида, `keep/` без него (нет `keep/` в копии — вторая команда скажет, что
+   папки нет). Вместе с файлами возвращаются и пользователи, удалённые после копии (спека 0012
+   P14).
+
+   ```bash
+   s3 s3 sync --only-show-errors --no-follow-symlinks --exclude '*.DS_Store' --cache-control 'public, max-age=86400' /aws/storage/media/ s3://<бакет приложения>/media/
+   s3 s3 sync --only-show-errors --no-follow-symlinks --exclude '*.DS_Store' /aws/storage/keep/ s3://<бакет приложения>/keep/
+   ```
+
+8. **Уборка** — и после прерванного шага (последняя строка закрывает bash шага 1). При проверке
+   затем удалить в панели бакет из шага 4.
+
+   ```bash
+   pbcopy < /dev/null
+   docker rm -fv restore-db
+   unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+   unset -f s3
+   cd ~ && rm -r ~/restore.noindex
+   exit
+   ```
+
+   Если какой-то ключ мог попасть в историю или на экран: главный — перевыпустить в панели, age —
+   сменить (ниже).
+
+### Возврат базы на продакшен
+
+Когда база продакшена потеряна или испорчена (спека 0012 P31). Всё это время сайт не работает.
+Если причина — неудачная миграция, сначала откатить код на версию до неё (CD вручную, «Откат»), а
+копию взять из `pre-deploy/` того деплоя. Сначала шаги 1 и 3 «Восстановления» (оболочка, главный
+ключ) и из шага 4 — только поиск и скачивание копии в `data/`; дальше — в том же bash, в конце — его
+уборка (шаг 8).
+
+Копия возвращает и то, что удалили после неё (спека 0012 P14): пользователей, примерки и
+генерации. Удалённое за последние сутки видно по истории `deleteFiles` в Temporal (спека 0013 N45)
+и удаляется снова; в истории нет удалённых примерок без генераций (им нечего удалять в бакете) и
+удалений, чей запуск `deleteFiles` не удался (они — в Sentry и логе api, «Could not start the
+deletion of files», с видом и id: их добавить в списки шага 4 вручную). Пользователей, примерки и
+генерации, которых нет в старой базе (если она читается), процедура показывает отдельными списками:
+это удалённые позже или потерянные порчей, их проверяют глазами. Без старой базы удалённое раньше
+суток возвращается. Пользователи,
+созданные после копии, пропадают: они войдут через Google заново, как новые, а их папки удаляет шаг 7. Файлы, загруженные после копии пользователями, которые в ней есть, остаются в их папках без
+строк.
+
+1. **Скрипты** — до ключа age в буфере, как `decrypt.sh`: возврат копии с Mac по ssh одной
+   транзакцией (закрытый ключ на сервер не попадает), `psql` базы продакшена, читающий SQL из
+   stdin, и две функции: `uuids` пропускает только строки-uuid, `del` удаляет строки таблицы по
+   файлу с id. Сортировка — `LC_ALL=C`, как у PostgreSQL для uuid, иначе `comm` сравнит неверно:
+
+   ```bash
+   cd ~/restore.noindex
+   export LC_ALL=C
+   cat > to-production.sh <<'SH'
+   set -eo pipefail
+   trap 'pbcopy < /dev/null' EXIT
+   cd ~/restore.noindex/data
+   age -d -i <(pbpaste) database.dump.age | ssh ai-fitting "docker exec -i ai-fitting-infra-postgres-1 sh -c 'pg_restore --no-owner --exit-on-error --single-transaction -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\"'"
+   echo "копия на продакшене"
+   SH
+   cat > psql.sh <<'SH'
+   ssh ai-fitting "docker exec -i ai-fitting-infra-postgres-1 sh -c 'psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -AtX -v ON_ERROR_STOP=1'"
+   SH
+   uuids() { grep -xE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | sort -u; }
+   del() { [ -s "$2" ] && sed "s/.*/'&'/" "$2" | paste -sd, - | sed "s/.*/DELETE FROM $1 WHERE id IN (&);/" | bash psql.sh; }
+   ```
+
+2. **Деплои выключить**, чтобы слияние в `main` не задеплоило посреди работы. CD вызывается из CI,
+   поэтому выключаются оба. В списке запусков не должно быть `in_progress`, `queued`, `waiting` или
+   `pending`: такой отменить (`gh run cancel <id> -R EvaFridman/lamoda-ai-fitting`) или дождаться.
+   Затем на сервере берётся замок, которым `deploy.sh` не даёт идти двум деплоям сразу; если он не
+   взялся, деплой идёт сейчас — дождаться и повторить:
+
+   ```bash
+   gh workflow disable ci.yml -R EvaFridman/lamoda-ai-fitting
+   gh workflow disable cd.yml -R EvaFridman/lamoda-ai-fitting
+   gh run list --branch main --limit 5 -R EvaFridman/lamoda-ai-fitting
+   ssh -n ai-fitting 'mkdir /opt/ai-fitting/.deploy-lock' && echo "замок взят"
+   ```
+
+3. **Остановка api и воркера.** Сначала запоминается, что работало (после неудачного деплоя один
+   цвет уже остановлен, и запускать его не надо), затем api и воркер останавливаются: с этой минуты
+   никто ничего не удаляет:
+
+   ```bash
+   ssh -n ai-fitting "docker ps --format '{{.Names}}'" | grep -xE 'ai-fitting-(blue|green)-api-1|ai-fitting-worker-temporal-worker-1|ai-fitting-backup-backup-1' > running.txt
+   cat running.txt
+   ssh -n ai-fitting "docker stop $(grep -v backup running.txt | paste -sd' ' -)"
+   ```
+
+4. **Что сохранить из старого.** Удалённое за сутки — из истории Temporal, по видам:
+
+   ```bash
+   ssh -n ai-fitting "docker exec ai-fitting-infra-temporal-1 temporal workflow list -q \"WorkflowType='deleteFiles'\" --limit 10000" > workflows.txt
+   for kind in user session generation; do grep -o "delete-files-$kind-[0-9a-f-]*" workflows.txt | sed "s/^delete-files-$kind-//" | uuids > "deleted-$kind.txt"; done
+   wc -l deleted-*.txt
+   ```
+
+   Если старая база ещё читается — её копия (не с 03:50 по Москве до конца ночной: шаг 2
+   «Восстановления») и id её пользователей, примерок и генераций. Файл `before-<таблица>.txt`
+   появляется, только если запрос прошёл (пустая таблица даёт пустой файл):
+
+   ```bash
+   ssh -n ai-fitting 'docker exec ai-fitting-backup-backup-1 node dist/backup/main.js --once'
+   for t in users fitting_sessions ai_generations; do echo "SELECT id FROM $t;" | bash psql.sh > "before-$t.raw" && uuids < "before-$t.raw" > "before-$t.txt"; done
+   ls before-*.txt
+   ```
+
+   Нет задачи бэкапов в `running.txt` — копию вместо первой строки делает одноразовый контейнер,
+   как в деплое:
+
+   ```bash
+   ssh -n ai-fitting 'cd /opt/ai-fitting && . ./.deploy-state && IMAGE_TAG="$TAG" docker compose -f deploy/compose/backup.yml --env-file .env run --rm -T backup node dist/backup/main.js --once'
+   ```
+
+   Затем задача бэкапов тоже останавливается:
+
+   ```bash
+   ssh -n ai-fitting 'docker stop ai-fitting-backup-backup-1'
+   ```
+
+5. **Копия.** База пересоздаётся пустой:
+
+   ```bash
+   ssh -n ai-fitting "docker exec ai-fitting-infra-postgres-1 sh -c 'dropdb -U \"\$POSTGRES_USER\" --force \"\$POSTGRES_DB\" && createdb -U \"\$POSTGRES_USER\" \"\$POSTGRES_DB\"'"
+   ```
+
+   Закрытый ключ age — в буфер обмена (как в шаге 5 «Восстановления»), затем набрать вручную
+   `bash to-production.sh`. Не напечаталось «копия на продакшене» — транзакция откатилась, база
+   пуста: повторить оба действия. Потом миграции работающей версии, из её образа, как в деплое
+   (копия свежая — им нечего применять):
+
+   ```bash
+   ssh -n ai-fitting 'cd /opt/ai-fitting && . ./.deploy-state && COLOR="$COLOR" IMAGE_TAG="$TAG" docker compose -p "ai-fitting-$COLOR" -f deploy/compose/app.yml --env-file .env run --rm --no-deps -T api npx --no-install prisma migrate deploy'
+   ```
+
+6. **Сессии и удалённое после копии.** Все сессии удаляются: иначе вернулись бы и те, из которых
+   вышли после копии; кто входил, войдёт заново (подписанная копия сессии в cookie живёт ещё до
+   5 минут, спека 0013 N18). Затем удалённое за сутки — пользователи каскадом, с сессиями,
+   аккаунтами, примерками и генерациями:
+
+   ```bash
+   printf 'DELETE FROM sessions;\nDELETE FROM verifications;\n' | bash psql.sh
+   del users deleted-user.txt
+   del fitting_sessions deleted-session.txt
+   del ai_generations deleted-generation.txt
+   ```
+
+   Если есть файлы `before-*.txt` — строки, которых не было в старой базе, по таблицам:
+
+   ```bash
+   for t in users fitting_sessions ai_generations; do [ -f "before-$t.txt" ] && echo "SELECT id FROM $t;" | bash psql.sh | uuids | comm -23 - "before-$t.txt" > "maybe-$t.txt"; done
+   wc -l maybe-*.txt
+   ```
+
+   Их удалять, только если старая база была цела (не после неудачной миграции или порчи, иначе в
+   списках и потерянные ею живые строки) и список похож на удалённое за время после копии; каждую
+   таблицу — своей командой, после проверки её списка:
+
+   ```bash
+   del users maybe-users.txt
+   del fitting_sessions maybe-fitting_sessions.txt
+   del ai_generations maybe-ai_generations.txt
+   ```
+
+7. **Папки без пользователя.** Их файлы `deleteFiles` уже не удалит: это удалённые снова и
+   созданные после копии. Имя папки, которое не uuid, печатается и не удаляется; при пустом
+   `users-final.txt` (запрос не прошёл) не удаляется ничего:
+
+   ```bash
+   echo 'SELECT id FROM users;' | bash psql.sh | uuids > users-final.txt
+   s3 s3 ls s3://<бакет приложения>/keep/users/ | awk '$1 == "PRE" { print $2 }' | sed 's,/$,,' > folders-all.txt
+   uuids < folders-all.txt > folders.txt
+   grep -vxFf folders.txt folders-all.txt | tr -c '[:print:]\n' '?'
+   comm -23 folders.txt users-final.txt > orphans.txt
+   wc -l < orphans.txt
+   [ -s users-final.txt ] && while read -r id; do s3 s3 rm --recursive --only-show-errors "s3://<бакет приложения>/keep/users/$id/"; done < orphans.txt
+   ```
+
+8. **Запуск** того, что работало, и проверка: готовность api видна только изнутри контейнера, как в
+   деплое, и приходит не сразу (до минуты):
+
+   ```bash
+   ssh -n ai-fitting "docker start $(paste -sd' ' running.txt)"
+   ssh -n ai-fitting '. /opt/ai-fitting/.deploy-state && for i in $(seq 1 30); do docker exec "ai-fitting-$COLOR-api-1" node -e "fetch(\"http://127.0.0.1:3000/health/ready\").then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))" && exit 0; sleep 2; done; exit 1' && echo "api готов"
+   curl -fsS --retry 10 --retry-all-errors --retry-delay 2 https://lamoda-ai-fitting.ru/api/health/live && echo
+   ```
+
+   Только если напечаталось «api готов» — замок снять и деплои включить (иначе смотреть
+   `docker logs` api, «На сервере»):
+
+   ```bash
+   ssh -n ai-fitting 'rmdir /opt/ai-fitting/.deploy-lock'
+   gh workflow enable ci.yml -R EvaFridman/lamoda-ai-fitting
+   gh workflow enable cd.yml -R EvaFridman/lamoda-ai-fitting
+   ```
+
+### Смена ключа age
+
+Когда закрытый ключ мог утечь или запись в менеджере паролей под угрозой. Шаг 4 настройки целиком:
+новая пара, новая запись в менеджере (старую не трогать), новый открытый ключ в
+`BACKUP_AGE_RECIPIENT`. Он действует со следующего деплоя (слияния в `main`): `.env` сервера
+переписывается, задача заменяется; до того копии шифруются старым ключом. Старый закрытый ключ
+хранится ещё 14 дней после этого деплоя — копия живёт 7 дней, а версия, оставшаяся после её
+перезаписи, ещё 7 (спека 0012 P29), — затем его запись удаляется. Копии, зашифрованные утёкшим ключом, читает и тот, у кого он есть, если получит доступ
+к бакету бэкапов (список и чтение — только у главного ключа): поэтому менять сразу.
 
 ## Настройки GitHub и Sentry
 
