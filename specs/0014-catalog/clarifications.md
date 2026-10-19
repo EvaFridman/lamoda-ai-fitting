@@ -262,3 +262,11 @@ Second round, on the review of `4817711`:
 - **O50. The references are described, not stored.** The Lamoda screenshots and saved page are
   not committed. The saved page holds the owner's personal data, and the pictures are someone
   else's. O5 describes what they show; when a task needs them, the owner gives them again.
+
+## Decided at T4
+
+- **O51. The search migration waits for its locks at most 5 s.** The migration `…_product_search`
+  starts with `SET lock_timeout = '5s'` and ends with `RESET lock_timeout`. Behind a long query of
+  the running release it fails, rolls back whole and stops the deploy, while the running copy keeps
+  serving, instead of queueing every read of `products` behind it until they time out (503). A plain
+  `SET`, not `SET LOCAL`, so it holds however Prisma sends the script. (security-reviewer, T4.)
