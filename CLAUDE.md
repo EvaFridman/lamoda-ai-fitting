@@ -121,7 +121,8 @@ Pinned on purpose; each "not newer" has a reason and a condition to move on.
 `build`, `check:web-bundle` (`scripts/check-web-bundle.mjs`) fails when a file under
 `web/.next/static` (the browser bundle) contains `x-proxy-secret` (any case), `PROXY_SECRET`,
 `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `BETTER_AUTH_SECRET` or `GOOGLE_CLIENT_SECRET`, or
-when that directory is missing or empty. Docker must be running for `verify` and
+when that directory is missing or empty; the one exception is Better Auth's env getter of
+`BETTER_AUTH_SECRET` in its browser client, cut out in exactly its shape (spec 0013 N53). Docker must be running for `verify` and
 `npm test`: the Vitest project `database` (`api/test/database/`) starts a throwaway PostgreSQL,
 SeaweedFS and Temporal with Testcontainers (`api/test/support/`), never the development ones; without Docker it fails
 with a message to start it. The project `unit` (everything else) needs no Docker. `web` tests
@@ -305,14 +306,19 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   the image, so rebuild web after changing it), and all browser calls share the web container's
   quota. With the api stopped that rewrite answers a plain 500, not nginx's 503: the local 503 text
   is checked with a stubbed answer. Queries retry only a network error or a 503, at most twice
-  (`shouldRetry`, `_app/providers.tsx`); a request cancelled by its caller is not an error.
+  (`shouldRetry`, `_app/providers.tsx`); a request cancelled by its caller is not an error. The
+  one other browser client is Better Auth's (`@/shared/auth`, the site's own `/api/auth`, spec
+  0013): its calls go through `callAuth`, and `useSession` (`@/entities/session`) turns a failed
+  read into one with `authFailure`, so their failures are `ApiError`s too.
 - `web` reads every api answer through a zod schema of its entity slice (an extra field is dropped,
   an unknown enum value is an `ApiError` of kind `schema`). Errors show Russian text only through
   `errorText` / `detailText` (`@/shared/api`, `error-text.ts`: one text per api code, a general one
-  for the rest; a contract test fails on an `ErrorCode` missing there). Both clients report a
+  for the rest, a table of its own for `/api/auth`, and `signInRedirectText` for a sign-in that
+  failed at Google; a contract test fails on an `ErrorCode` missing there). All clients report a
   network error, a timeout, a schema failure, a 5xx or a 401 to Sentry (`report.ts`), one event per
   cause (kind, method, route template, and an `http` answer's status) per 60 s, counted per server
-  process or browser tab; other 4xx, 429 and refused paths are not reported. A component that
+  process or browser tab; other 4xx, 429, refused paths and a status the caller expects
+  (`callAuth`'s `acceptStatus`: the 401 of `revoke-sessions`) are not reported. A component that
   catches an error renders it with `errorText` and passes it to `reportFailure` (an `ApiError` is
   already reported, anything else is sent then). A page loads data on the server with `prefetch`
   (`@/shared/api/server`, which returns a failure instead of throwing) into a `HydrationBoundary`,

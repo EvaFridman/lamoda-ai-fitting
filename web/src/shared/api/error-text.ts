@@ -31,6 +31,31 @@ export const ERROR_TEXTS = {
   INTERNAL_ERROR: 'Ошибка на сервере, попробуйте позже',
 } as const satisfies Record<string, string>;
 
+// The template of every sign-in route: the client of Better Auth calls them by their full path,
+// while the api's own templates never start with /api.
+export const AUTH_TEMPLATE_PREFIX = '/api/auth/';
+
+// The codes of /api/auth (spec 0013 N17, N26, N28, N32) with a text of their own: the limits'
+// answers, in the api's format or Better Auth's, and Better Auth's unexpected failure. Its other
+// codes (a refused callback, an unknown provider, a route outside the list, a body it cannot read)
+// mean a bug in web: the general text. Kept apart from ERROR_TEXTS, whose `NOT_FOUND` and
+// `UNAUTHORIZED` mean something else there.
+export const AUTH_ERROR_TEXTS = {
+  PAYLOAD_TOO_LARGE: ERROR_TEXTS.PAYLOAD_TOO_LARGE,
+  SERVICE_UNAVAILABLE: ERROR_TEXTS.SERVICE_UNAVAILABLE,
+  INTERNAL_SERVER_ERROR: ERROR_TEXTS.INTERNAL_ERROR,
+} as const satisfies Record<string, string>;
+
+// A sign-in that failed after leaving for Google comes back to its page with Better Auth's `error`
+// code in the address (spec 0013 N54): the visitor's own refusal at Google (`access_denied`) has a
+// text of its own, any other code means the sign-in broke.
+const SIGN_IN_CANCELLED_TEXT = 'Вход отменён';
+const SIGN_IN_FAILED_TEXT = 'Не удалось войти, попробуйте ещё раз';
+
+export function signInRedirectText(code: string): string {
+  return code === 'access_denied' ? SIGN_IN_CANCELLED_TEXT : SIGN_IN_FAILED_TEXT;
+}
+
 // The api code an answer without the envelope stands for, a fallback: on `/api/` nginx answers
 // these in the api's format, but another nginx page or the local dev rewrite may not (H27).
 const STATUS_CODES = new Map<number, keyof typeof ERROR_TEXTS>([
@@ -56,8 +81,11 @@ export function errorText(error: unknown): string {
       // By status, envelope or not: nginx's own limit answers 429 too, without `Retry-After`,
       // which is not read anyway (H25).
       if (error.status === 429) return TOO_MANY_REQUESTS_TEXT;
+      const texts = error.template.startsWith(AUTH_TEMPLATE_PREFIX)
+        ? AUTH_ERROR_TEXTS
+        : ERROR_TEXTS;
       const code = error.code ?? STATUS_CODES.get(error.status ?? 0);
-      return textOf(ERROR_TEXTS, code) ?? GENERAL_TEXT;
+      return textOf(texts, code) ?? GENERAL_TEXT;
     }
     case 'schema':
     case 'path':

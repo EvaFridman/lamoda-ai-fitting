@@ -3,7 +3,8 @@
 Status: accepted (2026-10-16); amended 2026-10-16 at the plan: no guests (N2, N9, N10 withdrawn),
 the first name is optional (N5), Better Auth's own error format (N17), a 5-minute session cache
 (N18); amended 2026-10-18 at the review of PR 1 (N31–N36); amended 2026-10-19 at T7 (N37–N39);
-amended 2026-10-19 at T8 (N40–N44); amended 2026-10-19 at T9 (N45–N49); amended 2026-10-19 at T9a (N50); amended 2026-10-19 at PR 2's review (N51).
+amended 2026-10-19 at T8 (N40–N44); amended 2026-10-19 at T9 (N45–N49); amended 2026-10-19 at T9a (N50); amended 2026-10-19 at PR 2's review (N51); amended 2026-10-19 at T11 (N52); amended
+2026-10-19 at T12 (N53, N54).
 
 The owner's decisions for this spec. Ids `N1`, `N2`, … are referred to by the spec, the plan and
 code comments. All decisions below: owner, 2026-10-16.
@@ -314,3 +315,25 @@ All decisions below: owner, 2026-10-18, on the review of the spec's pull request
   `aria-*` attribute either (personal data, 0008). A disabled item keeps the highlight, so a keyboard
   user sees the focus on it. The menu's look is compared with Lamoda's in T12 (AC3), not T11.
   Rejected: `Group` with a `GroupLabel` holding the name.
+- **N53. Better Auth's env getter may name its secret in the browser bundle** (owner, 2026-10-19,
+  at T12). Its browser client imports its shared env module, whose getter
+  `get BETTER_AUTH_SECRET(){return f("BETTER_AUTH_SECRET")}` reads the environment, empty in a
+  browser: the name, never the value. `check:web-bundle` cuts out exactly that shape before the
+  search; the name anywhere else still fails it. Rejected: web's own client over `clientFetch`
+  without Better Auth (against plan §10 and N33); aliasing the module to a stub in `next.config.ts`
+  (breaks silently on an update); requiring the shape in exactly one file (owner, at T12's review:
+  it adds nothing against a leak, the name never brings the value, and a different chunk split
+  after an update would fail the deploy for nothing).
+- **N54. A sign-in that fails at Google comes back to its page** (owner, 2026-10-19, at T12, after
+  `qa-tester` found the visitor stranded on Better Auth's English `/api/auth/error`). The sign-in
+  sends `errorCallbackURL` equal to its `callbackURL`; Better Auth adds its `error` code to that
+  page's query. web opens the login modal with "Вход отменён" for `access_denied` (the visitor's own
+  refusal, not reported) or "Не удалось войти, попробуйте ещё раз" for any other code (reported to
+  Sentry, the code only when it is letters, digits and `_`), and drops `error` and
+  `error_description` from the address. Failures Better Auth sends to its default page whatever the
+  request said (a missing or broken `state`) still land on `/api/auth/error`. A provider that does
+  not answer at all leaves the visitor on the browser's own error page: the site cannot know before
+  the page leaves (owner: left as it is). A link with a made-up `error` reports `SignInFailed` once
+  per tab; reporting only a sign-in started in this tab waits for T13's `sessionStorage` flag
+  (owner). Rejected: keeping `/api/auth/error` with a backlog item;
+  back to the home page without a text.

@@ -82,6 +82,32 @@ describe('check-web-bundle', () => {
     });
   }
 
+  it("passes Better Auth's env getter of BETTER_AUTH_SECRET (N53)", () => {
+    put(
+      'chunks/auth.js',
+      'Object.freeze({get BETTER_AUTH_SECRET(){return m("BETTER_AUTH_SECRET")},get AUTH_SECRET(){return m("AUTH_SECRET")}})',
+    );
+    const result = check();
+    assert.equal(result.status, 0, result.stderr);
+  });
+
+  for (const [what, content] of [
+    [
+      'next to the getter',
+      'get BETTER_AUTH_SECRET(){return m("BETTER_AUTH_SECRET")};process.env.BETTER_AUTH_SECRET',
+    ],
+    ['in a getter returning a value', 'get BETTER_AUTH_SECRET(){return "BETTER_AUTH_SECRET"}'],
+    ['in a getter of another name', 'get AUTH(){return m("BETTER_AUTH_SECRET")}'],
+    ['in a getter reading another name', 'get BETTER_AUTH_SECRET(){return m("PROXY_SECRET")}'],
+  ]) {
+    it(`fails on BETTER_AUTH_SECRET ${what}`, () => {
+      put('chunks/auth.js', content);
+      const result = check();
+      assert.equal(result.status, 1, result.stderr);
+      assert.match(result.stderr, /auth\.js: (BETTER_AUTH_SECRET|PROXY_SECRET)/);
+    });
+  }
+
   it('passes the public GOOGLE_CLIENT_ID', () => {
     put('chunks/auth.js', 'process.env.GOOGLE_CLIENT_ID');
     const result = check();

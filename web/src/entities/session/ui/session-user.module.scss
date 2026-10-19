@@ -1,0 +1,33 @@
+// The top of Lamoda's profile menu: a 48px grey circle with the initial in medium weight, and the
+// name in 16px medium beside it, cut with an ellipsis when it is too long for the menu.
+
+.user {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  min-width: 0;
+}
+
+.initials {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-full);
+
+  font-size: var(--font-size-headline-s);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-headline-s);
+
+  background-color: var(--color-background-secondary);
+}
+
+.name {
+  overflow: hidden;
+  min-width: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

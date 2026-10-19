@@ -2,9 +2,9 @@
 
 Status: accepted (2026-10-16); amended 2026-10-18 at the review of PR 1 (N29, N31–N36); amended
 2026-10-19 at T7 (N37–N39); amended 2026-10-19 at T8 (§7, N40–N44); amended 2026-10-19 at T9
-(Backlog, N45).
+(Backlog, N45); amended 2026-10-19 at T12 (§8, §10, N53, N54).
 
-Implements [spec.md](spec.md); decisions in [clarifications.md](clarifications.md) (N1–N49).
+Implements [spec.md](spec.md); decisions in [clarifications.md](clarifications.md) (N1–N54).
 
 ## 1. Library and versions (N1)
 
@@ -165,7 +165,8 @@ get the three production variables in T4, with the rules that require them (N22)
 
 `assertServerEnv` (production only) refuses a set fake provider and an empty secret, client id or
 client secret (AC14). The worker does not need these. `check:web-bundle` also fails on the names
-`BETTER_AUTH_SECRET` and `GOOGLE_CLIENT_SECRET`. pino's redaction drops `x-admin-token` and keeps
+`BETTER_AUTH_SECRET` and `GOOGLE_CLIENT_SECRET`, except Better Auth's env getter in its browser
+client (N53). pino's redaction drops `x-admin-token` and keeps
 `cookie` and `set-cookie`.
 
 ## 9. nginx and web's local proxy
@@ -180,9 +181,11 @@ client secret (AC14). The worker does not need these. `check:web-bundle` also fa
 ## 10. web (N12, N13; AC1, AC3, AC4, AC13)
 
 - `shared/auth`: `authClient = createAuthClient()` from `better-auth/react` (same origin, base
-  path `/api/auth`), and `useSession()`. The session it returns is parsed with a zod schema
-  (`entities/session`) before use, like every api answer. Its errors map to Russian texts in
-  `errorText` (N17).
+  path `/api/auth`), and `callAuth`, which turns its failures into `ApiError`s (template
+  `/api/auth/<route>`) and reports them as `callApi` does. Its errors map to Russian texts in
+  `errorText` (N17). `entities/session`: `useSession()` over the client's hook, its answer parsed
+  with a zod schema like every api answer (in `entities`, since `shared` cannot import its
+  schema).
 - `shared/ui/menu`: a `Menu` on Base UI's Menu (items, disabled items, separator), with its section
   on `/ui-kit`.
 - `features/auth`: `LoginModal` (the kit's `Modal`, one button "Войти через Google",
@@ -190,7 +193,9 @@ client secret (AC14). The worker does not need these. `check:web-bundle` also fa
   actions (`signOut`, `revokeSessions` + `signOut`). `callbackURL` is always a path on the site
   built from the router (`usePathname()`, `useSearchParams()`) and normalised to start with a
   single `/` (every leading run of `/` and `\` becomes a single `/`); it is never taken from a query
-  parameter (no open redirect).
+  parameter (no open redirect). `errorCallbackURL` is the same path: a sign-in that fails at Google
+  comes back with Better Auth's `error` code, and the modal opens with its text and drops the code
+  from the address (N54).
 - `widgets/header`: the profile icon becomes a client component: no session → it opens
   `LoginModal`; a session → the `Menu` of N12 (initials circle, name or "Профиль", four inert items
   with `aria-disabled`, separator, the two sign-outs), its top block with `mp-block`. While the

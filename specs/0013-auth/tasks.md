@@ -130,7 +130,7 @@ link check in T7); amended 2026-10-19 at T7 (Temporal's retention in T9, N37); a
       separator) and its section on `/ui-kit` (plan §10).
       Check: web tests (keyboard, `aria-disabled`); `qa-tester` on `/ui-kit`; `npm run verify`.
       Commit: `feat(web): add a menu to the ui kit`
-- [ ] **T12. Sign-in in the header.** `better-auth` in web at the api's exact pin (N33); `shared/auth`,
+- [x] **T12. Sign-in in the header.** `better-auth` in web at the api's exact pin (N33); `shared/auth`,
       `entities/session`, `features/auth` (`LoginModal`, sign-outs); the profile icon as a client
       component with the modal and the menu of N12; `errorText` for Better Auth's codes and for the
       api-format 429 and nginx answers of `/api/auth` (N32); `/privacy`'s line (plan §10). The
@@ -144,7 +144,9 @@ link check in T7); amended 2026-10-19 at T7 (Temporal's retention in T9, N37); a
       the owner; `npm run verify`.
       Commit: `feat(web): sign in with google from the header`
 - [ ] **T13. Analytics of sign-in.** `identify`, `reset` in `client.ts`; the events and elements in
-      `events.ts`; the `sessionStorage` flag (plan §10).
+      `events.ts`; the `sessionStorage` flag (plan §10), which also gates the `SignInFailed` report
+      of a sign-in that came back with `error` (N54). The tracked handlers of "Выйти" and "Выйти со
+      всех устройств" join their `onClick` in `SignOutItems`.
       Check: web tests of the calls with and without consent (AC13); `qa-tester` watches the
       requests; `npm run verify`.
       Commit: `feat(web): count sign-ins in analytics`

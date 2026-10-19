@@ -2,7 +2,8 @@
 // file under `web/.next/static` that contains `x-proxy-secret` (any case), the header `apiFetch`
 // sends, or `PROXY_SECRET`, its env name, or the env names of the storage keys, `S3_ACCESS_KEY_ID`
 // and `S3_SECRET_ACCESS_KEY` (spec 0011 AC14, plan §1), or the auth secrets' names
-// `BETTER_AUTH_SECRET` and `GOOGLE_CLIENT_SECRET` (spec 0013 plan §8). Importing `server-only` from
+// `BETTER_AUTH_SECRET` and `GOOGLE_CLIENT_SECRET` (spec 0013 plan §8), except Better Auth's env
+// getter (`ALLOWED`, N53). Importing `server-only` from
 // a client component already fails `next build`; this catches the rest, e.g. a client file that
 // copies the header by hand.
 // Root `verify` runs it after `build`. A missing or empty directory fails too, so the check never
@@ -23,6 +24,12 @@ const PATTERNS = [
   /BETTER_AUTH_SECRET/,
   /GOOGLE_CLIENT_SECRET/,
 ];
+
+// The one place a name may stand, cut out before the search (spec 0013 N53): Better Auth's browser
+// client imports its shared env module (`@better-auth/core/env`), whose minified getter reads
+// `BETTER_AUTH_SECRET` from the environment, empty in a browser. Exactly that shape, so the name
+// anywhere else, or that getter returning anything but the environment's value, still fails.
+const ALLOWED = [/get BETTER_AUTH_SECRET\(\)\{return [\w$]+\("BETTER_AUTH_SECRET"\)\}/g];
 
 /** Every file under a directory, recursively. Throws on a symbolic link. */
 function listFiles(dir) {
@@ -47,7 +54,10 @@ export function findLeaks(dir) {
   const leaks = [];
   for (const file of files) {
     // latin1 maps every byte to one character, so binary files (fonts) are searched as well.
-    const text = fs.readFileSync(file, 'latin1');
+    const text = ALLOWED.reduce(
+      (rest, allowed) => rest.replace(allowed, ''),
+      fs.readFileSync(file, 'latin1'),
+    );
     for (const pattern of PATTERNS) {
       const match = pattern.exec(text);
       if (match) leaks.push({ file, found: match[0] });
