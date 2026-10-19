@@ -131,7 +131,9 @@ acceptance criteria of this spec marked with its name. The open items of `specs/
    - "Fitting sessions per user" (N39);
    - "A revoked session on an open socket".
 4. **Try-on and history.** Single item and outfit, colour, scene, size in the picture and the size
-   recommendation (S19), regenerate with a reason, share, history.
+   recommendation (S19), regenerate with a reason, share, history. It decides where the usual size
+   asked at the first try-on is kept and whether the twin's onboarding takes it over. Until the twin,
+   scenes are picked by the items alone, without the user's style.
 5. **Digital twin.** Onboarding, clean base, body and size, style.
 6. **Later.** Try-on of looks from a wardrobe and "my things", "buy the rest of the look", a daily feed
    of looks on the twin, short videos, a virtual photo studio for sellers.
