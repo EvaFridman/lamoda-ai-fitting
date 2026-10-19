@@ -56,6 +56,10 @@ export default defineConfig({
         test: {
           name: 'database',
           include: ['test/database/**/*.e2e-spec.ts'],
+          // global.gc for the memory test of the bucket copy (backup.e2e-spec.ts): it collects
+          // before each sample, so the collector's lag under a loaded machine does not count. The
+          // default pool (forks) passes it on; worker threads would refuse a V8 flag.
+          execArgv: ['--expose-gc'],
           globalSetup: [
             'test/support/database.ts',
             'test/support/storage.ts',
