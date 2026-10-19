@@ -38,10 +38,10 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## PR 2 · `feat/0014-catalog-api` · search, cursor and limits in the api
 
-- [ ] **T4. Search column and sort indexes.** The migration `…_product_search`:
-      `products.search_vector`, its triggers on `products`, `brands` and `categories`, the GIN index
-      and the four sort indexes (plan §2.1, §2.4); `searchVector Unsupported("tsvector")?` and the
-      note in `schema.prisma`.
+- [x] **T4. Search column and sort indexes.** The migration `…_product_search`:
+      `products.search_vector`, its triggers on `products`, `brands` and `categories`, the GIN index,
+      the `lower(article)` index of plan §2.2 and the five sort indexes (plan §2.1, §2.4);
+      `searchVector`, the indexes and the note in `schema.prisma`.
       Check: database e2e of the migration (as `migration-color-hex`): a new product's vector holds
       its name, brand and category, and renaming a brand or a category updates its products' vectors;
       `npm run verify`.

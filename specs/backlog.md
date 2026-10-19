@@ -245,6 +245,13 @@ Left for later specs by `0002-database-schema` (its `clarifications.md` has the 
   to 2^31, so a deep page sorts everything. Free on the demo catalog; if the catalog grows, cap the
   list's `offset` (e.g. 10 000) and add indexes `(price, id)`, `(created_at, id)`, `(discount, id)`
   and a trigram index on `name` (0004 T11 security review).
+- **Catalog renames when catalog writes open.** The search vector's triggers (0014 T4, migration
+  `20261019120000_product_search`) rebuild every product of a renamed brand or category in the
+  rename's transaction, and a product write takes `FOR SHARE` on its brand and category, so two
+  transactions that mix product writes with renames may deadlock (40P01, answered as 500). Harmless
+  while brand, category and product writes are `@Closed()`; the spec that opens them gives renames
+  a quota or batches the refresh, and retries or orders the locks (brand before category) in any
+  multi-step write (0014 T4 reviews).
 
 ## Agents' guards
 

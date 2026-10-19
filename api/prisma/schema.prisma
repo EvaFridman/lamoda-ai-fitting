@@ -142,17 +142,22 @@ model Brand {
 }
 
 model Product {
-  id          String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  article     String   @unique @db.VarChar(255)
-  name        String   @db.VarChar(255)
-  description String?  @db.Text
-  rating      Decimal? @db.Decimal(2, 1)
-  price       Decimal  @db.Decimal(10, 2)
-  discount    Int      @default(0)
-  brandId     String   @map("brand_id") @db.Uuid
-  categoryId  String   @map("category_id") @db.Uuid
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id           String                  @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  article      String                  @unique @db.VarChar(255)
+  name         String                  @db.VarChar(255)
+  description  String?                 @db.Text
+  rating       Decimal?                @db.Decimal(2, 1)
+  price        Decimal                 @db.Decimal(10, 2)
+  discount     Int                     @default(0)
+  brandId      String                  @map("brand_id") @db.Uuid
+  categoryId   String                  @map("category_id") @db.Uuid
+  createdAt    DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime                @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  // The words of the name, the brand and the category (spec 0014, O14). The triggers of migration
+  // 20261019120000_product_search own it, on writes to products, brands and categories: queries
+  // never write it, and the client does not see it. The default only satisfies NOT NULL until the
+  // trigger runs.
+  searchVector Unsupported("tsvector") @default(dbgenerated("''::tsvector")) @map("search_vector")
 
   brand              Brand                   @relation(fields: [brandId], references: [id], onDelete: Restrict)
   category           Category                @relation(fields: [categoryId], references: [id], onDelete: Restrict)
@@ -163,6 +168,16 @@ model Product {
 
   @@index([brandId])
   @@index([categoryId])
+  // The search's GIN index, then one index per sort of the list, each ending with its `id desc`
+  // tie-break (spec 0014, O17). The migration alone holds what Prisma does not model: `rating`'s NULLS LAST and the index on
+  // `lower(article)`. They are built without CONCURRENTLY (a migration runs in a transaction); on a
+  // large table a new one needs a separate step.
+  @@index([searchVector], type: Gin, map: "products_search_vector_idx")
+  @@index([createdAt(sort: Desc), id(sort: Desc)], map: "products_created_at_id_idx")
+  @@index([price, id(sort: Desc)], map: "products_price_asc_id_idx")
+  @@index([price(sort: Desc), id(sort: Desc)], map: "products_price_desc_id_idx")
+  @@index([discount(sort: Desc), id(sort: Desc)], map: "products_discount_id_idx")
+  @@index([rating(sort: Desc), id(sort: Desc)], map: "products_rating_id_idx")
   @@map("products")
 }
 

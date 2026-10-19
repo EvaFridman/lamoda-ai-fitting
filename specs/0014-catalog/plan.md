@@ -40,8 +40,10 @@ A migration `…_product_search`:
     A generated column cannot read other tables, hence the triggers.
 - creates the index `products_search_vector_idx USING GIN (search_vector)`.
 
-Prisma models the column as `searchVector Unsupported("tsvector")?` (an optional mapping, so Prisma's
-`create` does not need it). `schema.prisma` notes that the triggers own it.
+Prisma models the column as `searchVector Unsupported("tsvector") @default(dbgenerated("''::tsvector"))`:
+the column's own NOT NULL and default, so `prisma migrate diff` finds no drift, and Prisma's `create`
+does not need it (found at T4: an optional mapping made the diff drop NOT NULL). `schema.prisma`
+notes that the triggers own it.
 
 The query: `q` is split into tokens of letters and digits (`\p{L}\p{N}`, others are separators).
 Each token becomes a lexeme, the last one with `:*`, joined by `&`. The result goes to
@@ -111,8 +113,12 @@ The same migration as 2.1 adds:
 - `(rating DESC NULLS LAST, id DESC)`.
 
 Each list index is a plain b-tree; there is no `CONCURRENTLY`, because a Prisma migration runs in a
-transaction and the table is small. A later large table would need a separate step, noted in
-`schema.prisma`. AC14 is checked with `EXPLAIN` on the dev catalog (2.8).
+transaction and the table is small; it waits for its locks at most 5 s (`lock_timeout`, O51), then
+fails and stops the deploy. A later large table would need a separate step, noted in
+`schema.prisma`. The GIN index and the five sort indexes are also `@@index` entries in `schema.prisma`
+(with their names, `map`), or the next `prisma migrate dev` would drop them; `rating`'s NULLS LAST
+and the `lower(article)` index of 2.2 live in the migration only (found at T4). AC14 is checked
+with `EXPLAIN` on the dev catalog (2.8).
 
 ### 2.5 Category by slug (O3, O4)
 
