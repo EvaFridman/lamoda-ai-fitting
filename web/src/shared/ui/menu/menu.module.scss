@@ -1,0 +1,75 @@
+// Lamoda's profile menu: a white box at least 280px wide, 8px under its control, with the box shadow
+// and a 4px radius, 8px of padding above and below the items. An item is 16px text with 12px 24px
+// padding and #f5f5f5 when highlighted (pointer or arrows); a disabled one has grey text. The
+// separator is a #e5e5e5 line 8px from the items. Base UI sets data-highlighted
+// and data-disabled on the items and data-starting-style / data-ending-style while the menu fades.
+
+.positioner {
+  z-index: var(--z-popover);
+}
+
+.popup {
+  overflow-y: auto;
+
+  box-sizing: border-box;
+  min-width: 280px;
+  max-width: var(--available-width);
+  max-height: var(--available-height);
+  padding: var(--space-2) 0;
+  border-radius: var(--radius-s);
+
+  color: var(--color-text);
+
+  background-color: var(--color-background);
+  outline: none;
+  box-shadow: var(--shadow-box);
+
+  transition: opacity var(--duration-fast);
+
+  &[data-starting-style],
+  &[data-ending-style] {
+    opacity: 0;
+  }
+}
+
+.item {
+  cursor: pointer;
+  user-select: none;
+
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+
+  padding: var(--space-3) var(--space-6);
+
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+
+  outline: none;
+
+  &[data-highlighted] {
+    background-color: var(--color-background-secondary);
+  }
+
+  // The arrows stop on a disabled item too, so it keeps the highlight: a keyboard user sees where
+  // the focus is.
+  &[data-disabled] {
+    cursor: default;
+    color: var(--color-text-secondary);
+  }
+}
+
+// A block above the items, its text lined up with theirs.
+.header {
+  padding: var(--space-3) var(--space-6);
+  font-size: var(--font-size-body-m);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-body-m);
+}
+
+.separator {
+  height: var(--border-width);
+  margin: var(--space-2) 0;
+  border: 0;
+  background-color: var(--color-border);
+}

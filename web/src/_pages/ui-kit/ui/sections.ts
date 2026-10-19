@@ -9,6 +9,7 @@ import { FieldsSection } from './fields-section';
 import { FiltersSection } from './filters-section';
 import { IconsSection } from './icons-section';
 import { LinksSection } from './links-section';
+import { MenuSection } from './menu-section';
 import { NavigationSection } from './navigation-section';
 import { OverlaysSection } from './overlays-section';
 import { ProductSection } from './product-section';
@@ -38,6 +39,7 @@ export const sections: UiKitSection[] = [
   { id: 'filters', title: 'Фильтры', Content: FiltersSection },
   { id: 'sizes-colors', title: 'Размеры и цвета', Content: SizesColorsSection },
   { id: 'select', title: 'Выпадающий список', Content: SelectSection },
+  { id: 'menu', title: 'Меню', Content: MenuSection },
   { id: 'product', title: 'Товар и заказ', Content: ProductSection },
   { id: 'catalog-card', title: 'Карточка товара в каталоге', Content: CatalogCardSection },
   { id: 'catalog-filters', title: 'Фильтры каталога', Content: CatalogFiltersSection },
