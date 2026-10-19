@@ -6,7 +6,7 @@ the first name is optional (N5), Better Auth's own error format (N17), a 5-minut
 (N18); amended 2026-10-18 at the review of PR 1 (N31–N36); amended 2026-10-19 at T7 (N37–N39);
 amended 2026-10-19 at T8 (N40–N44); amended 2026-10-19 at T9 (N45–N49); amended 2026-10-19 at T9a (N50); amended 2026-10-19 at PR 2's review (N51); amended 2026-10-19 at T11 (N52); amended
 2026-10-19 at T12 (N53, N54); amended 2026-10-19 at T13 (N55); amended 2026-10-19 at PR 3's
-review (N56).
+review (N56); amended 2026-10-19 at T15 (N57).
 
 The owner's decisions for this spec. Ids `N1`, `N2`, … are referred to by the spec, the plan and
 code comments. All decisions below: owner, 2026-10-16.
@@ -350,3 +350,8 @@ All decisions below: owner, 2026-10-18, on the review of the spec's pull request
   review). The login modal that opens by itself after a sign-in failed at Google (N54) sends no
   `Login Opened`: it is not the visitor's action, and the SDK has usually not started yet as the page
   loads. Rejected: sending it there too, queued until the SDK starts.
+- **N57. AC4's cache window has no test-clock e2e** (owner, 2026-10-19, at T15). The plan's e2e
+  "revoke-sessions → the other session's cookie answers 401 after the cache window (test clock)"
+  was not written. The 5-minute bound rests on the production check of T15 (the other browser
+  signed out in about 3 minutes) and N31's cached-copy tests in `me.e2e-spec.ts`. Rejected: writing
+  it now, and a backlog item for it.

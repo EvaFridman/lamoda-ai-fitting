@@ -7,7 +7,7 @@ within 5 minutes (N18); criteria renumbered. Amended 2026-10-18 at the review of
 account is signed out elsewhere within 5 minutes (AC12, N31), `/api/auth/*`'s 429 and nginx's
 answers keep the api's format (AC11, N32).
 
-Issue #38. Decisions: `clarifications.md` (N1–N56; N9 and N10 withdrawn).
+Issue #38. Decisions: `clarifications.md` (N1–N57; N9 and N10 withdrawn).
 
 ## Goal
 
