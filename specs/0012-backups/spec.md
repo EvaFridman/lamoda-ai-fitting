@@ -1,7 +1,8 @@
 # 0012 Backups
 
 Status: accepted (2026-10-19); amended at the plan: a custom role for the write key (P11) and
-versions in the backup bucket (P12), AC7 and AC8 extended, the Sentry monitor created by the job.
+versions in the backup bucket (P12), AC7 and AC8 extended, the Sentry monitor created by the job;
+amended at the production setup: a standard bucket instead of a cold one (P20).
 
 Issue #42 and the backlog item "Storage backups". Decisions: `clarifications.md` (P1–P15); the
 frame comes from spec 0011 M6.
@@ -82,10 +83,10 @@ copy is noticed, and the owner has a checked way back.
 
 ## Owner actions (Claude cannot do them)
 
-- Rent a private bucket for backups in Timeweb Cloud, the cold class and the smallest size (M6);
-  turn versioning on and add lifecycle rules: objects deleted after 7 days, old versions 7 days
-  after they stop being current, unfinished uploads aborted after a day (P2, P12). Check the prices
-  in the panel first, and that the cold class offers versioning and these rules.
+- Rent a private bucket for backups in Timeweb Cloud, the standard class (P20; M6 named cold) and
+  the smallest size; turn versioning on and add lifecycle rules: objects deleted after 7 days, old
+  versions 7 days after they stop being current, unfinished uploads aborted after a day (P2, P12).
+  Check the prices in the panel first, and that the class offers versioning and these rules.
 - Create an extra Timeweb user with a custom role that can only upload into the backup bucket
   (M6, P11), and one with a custom role that can only list and read the app bucket (P9, P11); put
   their keys into GitHub
@@ -99,7 +100,7 @@ copy is noticed, and the owner has a checked way back.
 
 - Timeweb's custom roles take a policy allowing only uploads into one bucket, or only listing and
   reading one (its documentation says so; AC6 and AC7 check them).
-- A cold bucket in Timeweb offers versioning and lifecycle rules that delete objects, delete old
+- A standard bucket in Timeweb (P20) offers versioning and lifecycle rules that delete objects, delete old
   versions and abort unfinished uploads (its documentation says so for buckets in general; checked
   in the panel before renting, AC8 checks the rules).
 - The database and the bucket are small enough today that a full copy every night fits the night
