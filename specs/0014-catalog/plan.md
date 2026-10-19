@@ -46,7 +46,8 @@ does not need it (found at T4: an optional mapping made the diff drop NOT NULL).
 notes that the triggers own it.
 
 The query: `q` is split into tokens of letters and digits (`\p{L}\p{N}`, others are separators).
-Each token becomes a lexeme, the last one with `:*`, joined by `&`. The result goes to
+Each token becomes a lexeme, the last one with `:*` when it has two characters or more (O53), joined by
+`&`; stop words drop out (O52). The input is NFC-normalized first. The result goes to
 `to_tsquery('russian', $1)` as a bound parameter. Only those characters reach it, so no tsquery
 syntax can be injected. A `q` with no token answers an empty list (the DTO keeps the 1–100
 character rule, 0004 E45 / 0010 L11). "плат:*" matches "платье" because the stemmer cuts both to
@@ -133,8 +134,9 @@ with `EXPLAIN` on the dev catalog (2.8).
 
 `ProductFacetsCache` (`products/listing/facets-cache.ts`) wraps `countFacets`:
 
-- **Key.** `facets:v1:<sha256 of the normalized filter JSON>`. The arrays are sorted and the `q`
-  tokens are joined.
+- **Key.** `facets:v1:<sha256 of the normalized filter JSON>`. The arrays are sorted; `q` gives its
+  tokens joined and itself in lower case, since the article test compares the whole `q` ("AB-12"
+  and "ab 12" have the same tokens but not the same answer; found at T5).
 - **Value.** The JSON answer, kept for `FACETS_CACHE_TTL_SECONDS` (default 60).
 - **Redis.** The shared client (`REDIS`, `redis/redis.module.ts`; 1 s `commandTimeout`).
 - **Redis failure.** A failed read or write is logged once per minute and counted as a miss, so

@@ -46,7 +46,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       its name, brand and category, and renaming a brand or a category updates its products' vectors;
       `npm run verify`.
       Commit: `feat(api): keep a search vector and sort indexes for products`
-- [ ] **T5. One SQL builder and full-text search.** The list goes through `toProductSql` (ids, then
+- [x] **T5. One SQL builder and full-text search.** The list goes through `toProductSql` (ids, then
       `findMany`, then `count`) and `toProductWhere` is deleted; `q` becomes the tsquery of plan §2.1
       in the list and the facets; the DTO's description of `q`; `openapi.json`.
       Check: the existing listing and facets e2e still pass with their `q` cases moved to word
@@ -75,7 +75,10 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Commit: `feat(api): cache the product filter counts in redis`
 - [ ] **T9. Database pool and its timeouts.** `DATABASE_POOL_MAX`,
       `DATABASE_STATEMENT_TIMEOUT_MS`, `DATABASE_CONNECTION_TIMEOUT_MS` (plan §2.7, O36): `env.ts` with
-      its refines, `PrismaPg`, the 503 mapping of `57014` and of a pool timeout, compose files,
+      its refines, `PrismaPg`, the 503 mapping of `57014` and of a pool timeout (also Prisma's
+      `P2028`, which the product list's interactive transaction throws when it waits for a
+      connection longer than `maxWait` or runs longer than `timeout`; both set explicitly from the
+      new timeouts, below `REQUEST_TIMEOUT_MS`; found at T5), compose files,
       `.env.example`, `CLAUDE.md`; the rest of backlog "Cache for filter counts" and backlog
       "Timeouts of the database pool".
       Check: env unit tests; database e2e: a statement over the timeout and a request with the pool
@@ -85,10 +88,12 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 - [ ] **T10. Development catalog and the query plans.** `seed/dev-catalog.ts`,
       `npm run seed:dev-large`, its refusal in production (plan §2.8); `README.md` (how to fill the
       local catalog); the count argument (O43); `EXPLAIN` of every sort and a search on 50 000
-      products after `ANALYZE`, recorded in this file (AC14); backlog "Product list cost".
+      products after `ANALYZE`, among them a two-character beginning (`q=пл`, O53) with its time
+      for the list and the facets, recorded in this file (AC14); if it is too slow,
+      `MIN_PREFIX_LENGTH` goes up with the owner; backlog "Product list cost".
       Check: the script twice adds nothing the second time; each `EXPLAIN` uses an index with the
-      planner not forced, and a later batch of each sort shows its cursor as an `Index Cond`;
-      `npm run verify`.
+      planner not forced, and a later batch of each sort shows its cursor as an `Index Cond`; the
+      two-character search's plan and time are recorded; `npm run verify`.
       Commit: `feat(api): add a large development catalog`
 - 👤 merges PR 2; after the deploy, `GET /products?q=платье` on production answers.
 

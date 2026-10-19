@@ -82,11 +82,6 @@ removes it from this list. Found by the agents' first security audit and trial r
 - **Fitting sessions per user.** A signed-in user can create fitting sessions within the `write`
   quota, and nothing removes archived ones (0013 N39). The generations spec, which defines how
   sessions are used, sets a per-user limit.
-- **Flaky facets test.** `test/database/product-facets.e2e-spec.ts`, "holds for every listed value,
-  and every value with products is listed", takes about 1 s alone but timed out at Vitest's 5 s
-  twice in a row in `npm run verify` on the development machine while other work loaded it
-  (2026-10-15, spec 0005); the same tests passed before and after. Find what makes it slow under
-  load (requests one after another for every value) and give it a time budget or fewer requests.
 - **Request headers in the log.** pino-http writes every request header in full (found in 0006
   T4): a client's 9000-character header goes into the log line as is. Node caps a request's
   headers at 16 KB and the throttler caps the requests, so the size is bounded, but the lines carry

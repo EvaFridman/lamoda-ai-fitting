@@ -4,12 +4,12 @@ import type { PrismaService } from '../../prisma/prisma.service.js';
 import { ProductListQueryDto } from '../dto/product-list-query.dto.js';
 import {
   attributeGroupSql,
-  escapeLike,
   joinOrNull,
   loadValueAttributes,
+  searchSql,
+  searchTokens,
   toProductFilter,
   toProductSql,
-  toProductWhere,
 } from './product-filter.js';
 
 function query(fields: Partial<ProductListQueryDto> = {}): ProductListQueryDto {
@@ -159,19 +159,6 @@ describe('loadValueAttributes', () => {
   });
 });
 
-describe('escapeLike', () => {
-  it.each([
-    ['dress', 'dress'],
-    ['100%', '100\\%'],
-    ['a_b', 'a\\_b'],
-    ['a\\b', 'a\\\\b'],
-    ['%_\\', '\\%\\_\\\\'],
-    ['', ''],
-  ])('turns %j into %j', (text, expected) => {
-    expect(escapeLike(text)).toBe(expected);
-  });
-});
-
 describe('joinOrNull', () => {
   it('is NULL for an empty list, which matches nothing in IN', () => {
     const sql = joinOrNull([]);
@@ -211,7 +198,8 @@ describe('toProductSql', () => {
       'b2',
       "M'; DROP TABLE products; --",
       'v1',
-      '50\\%',
+      '50:*',
+      '50%',
       '10.5',
       '20',
     ]);
@@ -250,6 +238,101 @@ describe('toProductSql', () => {
   });
 });
 
+describe('searchTokens', () => {
+  it('lower-cases Cyrillic and Latin words', () => {
+    expect(searchTokens('Платье RED Dress')).toEqual(['платье', 'red', 'dress']);
+  });
+
+  it('keeps digits, alone or inside a word', () => {
+    expect(searchTokens('50 jeans501 A4')).toEqual(['50', 'jeans501', 'a4']);
+  });
+
+  it('splits on any other character, a run of them counting once', () => {
+    expect(searchTokens('red,  dress/blue-green_a%b\\c')).toEqual([
+      'red',
+      'dress',
+      'blue',
+      'green',
+      'a',
+      'b',
+      'c',
+    ]);
+  });
+
+  it('keeps a letter typed as a base and a combining mark as one letter (NFC)', () => {
+    const breve = String.fromCodePoint(0x306);
+    const diaeresis = String.fromCodePoint(0x308);
+
+    expect(searchTokens(`маи${breve}ка`)).toEqual(['майка']);
+    expect(searchTokens(`Е${diaeresis}ЖИК`)).toEqual(['ёжик']);
+    expect(searchTokens(`и${breve}`)).toEqual(['й']);
+  });
+
+  it('is empty for a text with no letter or digit', () => {
+    expect(searchTokens('%%')).toEqual([]);
+    expect(searchTokens("--- _ \\ &|!():*<>'")).toEqual([]);
+    expect(searchTokens('')).toEqual([]);
+  });
+});
+
+describe('searchSql', () => {
+  it('is FALSE, with no parameters, when q has no word', () => {
+    for (const q of ['%%', '---', "'"]) {
+      const sql = searchSql(q);
+
+      expect(sql.sql, q).toBe('FALSE');
+      expect(sql.values, q).toEqual([]);
+    }
+  });
+
+  it('binds the tsquery with the last word as a beginning, and the raw q for the article', () => {
+    const sql = searchSql('Красное Плат');
+
+    expect(sql.values).toEqual(['красное & плат:*', 'Красное Плат']);
+    expect(sql.sql).toContain("to_tsquery('russian', ?)");
+    expect(sql.sql).toContain('p.search_vector @@');
+    expect(sql.sql).toContain('lower(p.article) = lower(?)');
+    expect(sql.sql).not.toContain('Плат');
+  });
+
+  it('lets no tsquery syntax character into the tsquery parameter', () => {
+    const q = "a&b|c!d(e)f:g*h<i>j'k";
+
+    const sql = searchSql(q);
+
+    expect(sql.values).toEqual(['a & b & c & d & e & f & g & h & i & j & k', q]);
+    expect(sql.values[0]).toMatch(/^[\p{L}\p{N} &:*]+$/u);
+  });
+
+  // O53: a last word shorter than MIN_PREFIX_LENGTH is an exact lexeme.
+  it.each([
+    ['плат', 'плат:*'],
+    ['пл', 'пл:*'],
+    ['платье м', 'платье & м'],
+    ['м', 'м'],
+    ['5', '5'],
+    ['платье 5', 'платье & 5'],
+    ['52', '52:*'],
+  ])('writes q=%s as the tsquery %s (O53)', (q, tsquery) => {
+    expect(searchSql(q).values[0]).toBe(tsquery);
+  });
+
+  it('counts a letter outside the basic plane as one character', () => {
+    const astral = String.fromCodePoint(0x1d4d0);
+
+    expect(astral).toHaveLength(2);
+    expect(searchSql(astral).values[0]).toBe(astral);
+    expect(searchSql(`${astral}${astral}`).values[0]).toBe(`${astral}${astral}:*`);
+  });
+
+  it('keeps q out of the text of the query', () => {
+    const sql = searchSql("x'; DROP TABLE products; --");
+
+    expect(sql.sql).not.toContain('DROP');
+    expect(sql.sql).not.toContain("x'");
+  });
+});
+
 describe('attributeGroupSql', () => {
   it('passes the value ids as parameters', () => {
     const sql = attributeGroupSql({ attributeId: 'a1', valueIds: ['v1', 'v2'] });
@@ -263,71 +346,5 @@ describe('attributeGroupSql', () => {
 
     expect(sql.sql).toBe('FALSE');
     expect(sql.values).toEqual([]);
-  });
-});
-
-describe('toProductWhere', () => {
-  it('does not filter without filters', () => {
-    expect(toProductWhere({})).toEqual({ AND: [] });
-  });
-
-  it('filters by categories', () => {
-    expect(toProductWhere({ categoryIds: ['c1', 'c2'] })).toEqual({
-      AND: [{ categoryId: { in: ['c1', 'c2'] } }],
-    });
-  });
-
-  it('filters by brands', () => {
-    expect(toProductWhere({ brandIds: ['b1'] })).toEqual({ AND: [{ brandId: { in: ['b1'] } }] });
-  });
-
-  it('filters by sizes in stock', () => {
-    expect(toProductWhere({ sizes: ['M', 'L'] })).toEqual({
-      AND: [{ variations: { some: { size: { in: ['M', 'L'] }, stock: { gt: 0 } } } }],
-    });
-  });
-
-  it('makes one condition per attribute group', () => {
-    expect(
-      toProductWhere({
-        attributeGroups: [
-          { attributeId: 'a1', valueIds: ['v1', 'v2'] },
-          { attributeId: null, valueIds: ['x'] },
-        ],
-      }),
-    ).toEqual({
-      AND: [
-        { attributeValues: { some: { attributeValueId: { in: ['v1', 'v2'] } } } },
-        { attributeValues: { some: { attributeValueId: { in: ['x'] } } } },
-      ],
-    });
-  });
-
-  it('searches the name case-insensitively with the text escaped', () => {
-    expect(toProductWhere({ q: '50%_off' })).toEqual({
-      AND: [{ name: { contains: '50\\%\\_off', mode: 'insensitive' } }],
-    });
-  });
-
-  it('filters by the price range, each bound alone and 0 included', () => {
-    expect(toProductWhere({ minPrice: 0 })).toEqual({ AND: [{ price: { gte: 0 } }] });
-    expect(toProductWhere({ maxPrice: 100 })).toEqual({ AND: [{ price: { lte: 100 } }] });
-    expect(toProductWhere({ minPrice: 10, maxPrice: 20 })).toEqual({
-      AND: [{ price: { gte: 10 } }, { price: { lte: 20 } }],
-    });
-  });
-
-  it('keeps discounted products for hasDiscount true', () => {
-    expect(toProductWhere({ hasDiscount: true })).toEqual({ AND: [{ discount: { gt: 0 } }] });
-  });
-
-  it('keeps products without a discount for hasDiscount false', () => {
-    expect(toProductWhere({ hasDiscount: false })).toEqual({ AND: [{ discount: { equals: 0 } }] });
-  });
-
-  it('skips a filter that is undefined', () => {
-    expect(
-      toProductWhere({ categoryIds: undefined, q: undefined, hasDiscount: undefined }),
-    ).toEqual({ AND: [] });
   });
 });

@@ -2424,7 +2424,7 @@
             "name": "q",
             "required": false,
             "in": "query",
-            "description": "Part of the name, case ignored.",
+            "description": "Words of the name, brand or category, in any form; the last word may be a beginning of two letters or digits or more. Letters and digits only count, so a query with none finds nothing. An article, case ignored, finds its product too.",
             "schema": {
               "minLength": 1,
               "maxLength": 100,
@@ -2714,7 +2714,7 @@
             "name": "q",
             "required": false,
             "in": "query",
-            "description": "Part of the name, case ignored.",
+            "description": "Words of the name, brand or category, in any form; the last word may be a beginning of two letters or digits or more. Letters and digits only count, so a query with none finds nothing. An article, case ignored, finds its product too.",
             "schema": {
               "minLength": 1,
               "maxLength": 100,
