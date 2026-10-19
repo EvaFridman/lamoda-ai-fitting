@@ -4,7 +4,8 @@ Status: accepted (2026-10-19); amended 2026-10-19 after the owner's Lamoda refer
 and after the check against 0012, 0013 and 0015 (O35–O39, §1, §2.7, §3.2, §3.6, §3.7, §5, §8);
 amended 2026-10-19 at the review of PR 1 (O40–O48; the article test inside `toProductSql` and
 the price indexes, §2.2, §2.4) and its second round (the cursor conditions' index bounds, §2.3;
-the count from the facets, O49, §3.3, §3.4).
+the count from the facets, O49, §3.3, §3.4) and its third round (the rating cursor in two
+branches, §2.3; `aria-setsize` bounded by the loaded cards, §3.4).
 
 How `spec.md` (AC1–AC24) is built. Decisions: `clarifications.md` (O1–O50).
 
@@ -83,9 +84,14 @@ backed by an index on `lower(article)` in the same migration. Because both condi
     up and the id goes down. The redundant `p.price >= k` gives the index scan its start (an
     `Index Cond`), so a deep batch does not read the index from its beginning.
   - `price_desc` and `discount`: `(key, p.id) < (k, id)`.
-  - `rating desc nulls last`: while `k` is not null,
-    `(p.rating <= k OR p.rating IS NULL) AND (p.rating < k OR p.rating IS NULL OR p.id < id)`.
-    Once `k` is null, `p.rating IS NULL AND p.id < id`.
+  - `rating desc nulls last`: while `k` is not null, two queries in turn, since an `OR` with
+    `IS NULL` gives the scan no start:
+    1. `p.rating <= k AND (p.rating < k OR p.id < id)`, limited to `limit+1`;
+    2. if that returns fewer rows than `limit+1`, `p.rating IS NULL` for the rest, from the
+       beginning of the unrated rows.
+       Unrated rows come strictly after every rated one, so the order and the answer are those of one
+       query. Once `k` is null, a single `p.rating IS NULL AND p.id < id`. Each branch is an
+       `Index Cond` on `(rating DESC NULLS LAST, id DESC)`.
   - Every condition returns the same rows as its plain form. AC14 checks that each one is an
     `Index Cond` in the plan, not only that an index is used.
 - **Query and answer.** `?cursor=` and `?limit=`. The answer is `{ items, total: number | null,
@@ -270,7 +276,7 @@ test renders a client component given the secret and expects the error.
 - The landmarks come from the existing `<Header>` (header), the footer and the breadcrumbs
   (`<nav><ol>`, already in the kit). The page adds `<main>` and `<aside aria-label="Категории">`.
   There is one `<h1>`: the category name or "Каталог".
-- The grid is `<ul aria-label="Товары">`, each card in an `<li aria-setsize={facets.total} aria-posinset={i+1}>` (O49).
+- The grid is `<ul aria-label="Товары">`, each card in an `<li aria-setsize={max(facets.total, loaded)} aria-posinset={i+1}>` (O49). The cached count can lag behind the live list for the cache's lifetime; the `max` keeps a position from exceeding the size.
   The rows are positioned with `transform`, so the reading order is the DOM order.
 - A visually hidden `<p aria-live="polite">` says "Найдено N товаров" after a change, and "Загружаем
   ещё" while a batch loads.
