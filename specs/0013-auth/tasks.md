@@ -126,7 +126,7 @@ link check in T7); amended 2026-10-19 at T7 (Temporal's retention in T9, N37); a
 
 ## PR 3 · `feat/0013-auth-web` · the login modal and the profile menu
 
-- [ ] **T11. The kit's menu.** `shared/ui/menu` on Base UI's Menu (items, disabled items,
+- [x] **T11. The kit's menu.** `shared/ui/menu` on Base UI's Menu (items, disabled items,
       separator) and its section on `/ui-kit` (plan §10).
       Check: web tests (keyboard, `aria-disabled`); `qa-tester` on `/ui-kit`; `npm run verify`.
       Commit: `feat(web): add a menu to the ui kit`

@@ -308,3 +308,9 @@ All decisions below: owner, 2026-10-18, on the review of the spec's pull request
   says nothing (that secret passes its length and entropy checks). The api logs one warning at
   start naming `scripts/init-env.sh` (`serverEnvWarnings`, next to `assertServerEnv`); production
   still refuses to start. Rejected: only the README; a backlog item.
+- **N52. The menu's top block is not read in the menu** (owner, 2026-10-19, at T11). The kit's
+  `MenuHeader` is `role="none"`: a menu may own only items, groups and separators, so a screen
+  reader inside the menu reads the items, not the name above them; the name cannot go into an
+  `aria-*` attribute either (personal data, 0008). A disabled item keeps the highlight, so a keyboard
+  user sees the focus on it. The menu's look is compared with Lamoda's in T12 (AC3), not T11.
+  Rejected: `Group` with a `GroupLabel` holding the name.
