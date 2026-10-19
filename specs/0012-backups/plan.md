@@ -184,10 +184,10 @@ dist/backup/main.js --once` makes a local copy. `storage/dev-setup.ts` also crea
 
 In `deploy/README.md`, «Бэкапы», before PR 2 is merged:
 
-1. A private cold bucket, the smallest size; versioning on; lifecycle rules: objects after 7 days,
-   noncurrent versions after 7 days, unfinished uploads after 1 day. Before renting, check in the
-   panel that the cold class offers versioning and these three rules; if not, stop and decide with
-   the owner.
+1. A private standard bucket (P20), the smallest size; versioning on; lifecycle rules: objects
+   after 7 days, noncurrent versions after 7 days, unfinished uploads after 1 day. Before renting,
+   check in the panel that the class offers versioning and these three rules; if not, stop and
+   decide with the owner.
 2. User `backup-writer` with a custom role: `s3:PutObject`, `s3:AbortMultipartUpload` (and the
    multipart parts it implies) on `arn:aws:s3:::<backup bucket>/*`, nothing else; applied with
    `aws iam put-user-policy` in the one-off `aws-cli` container of «Хранилище S3», with the main

@@ -111,6 +111,14 @@ key that can only write there, encrypted, with a restore check; never into the a
   outside it: tar skips an entry with `..` and strips a leading `/`, so such keys do not come back
   as they were and show as a difference when the listings are compared (plan §8).
 
+## Decided at the production setup
+
+- **P20. The backup bucket is of the standard class, not cold.** Timeweb had sold out the cold
+  class when the bucket was rented. Nothing in the job depends on the class (the same S3 API, keys
+  and rules), and a 7-day expiry runs no risk of a cold class's minimum storage period; a gigabyte
+  costs more, which the 10 GB threshold of the plan's Risks covers. The bucket has versioning and
+  the three lifecycle rules all the same (P2, P12).
+
 ## Delivery
 
 - **P10. Two pull requests.** The first holds this spec's documents and can be merged while spec
