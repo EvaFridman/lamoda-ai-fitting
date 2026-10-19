@@ -1,6 +1,6 @@
 # 0016 AI fitting: clarifications
 
-Status: open (2026-10-19).
+Status: open (2026-10-19): decisions are added while the spec stays accepted (S18).
 
 The owner's decisions for this spec. Ids `S1`, `S2`, … are referred to by the spec, the research and
 later specs. All decisions below: owner, 2026-10-19.
@@ -105,4 +105,14 @@ later specs. All decisions below: owner, 2026-10-19.
   and top-ups in the prototype.
 - **S13. No budget cap for the prototype.** The owner pays the providers and sets no monthly budget
   or overall spending fuse; costs are held by the per-user limits of S12 and the `expensive` rate
-  limit tier. Rejected: caps of $20, $50 or $200 a month.
+  limit tier. Rejected: caps of $20, $50 or $200 a month; spending alerts in the providers' accounts
+  as an owner action (owner, 2026-10-19, at the review of PR #86).
+
+## Review of PR #86
+
+- **S19. Size and scene come with the try-on, not the twin.** The main differences from Lamoda's
+  try-on should show before the last spec of the core. The size in the picture, the size
+  recommendation and the scene (AC12, AC13) move from the digital twin's spec to the try-on's; a
+  user without a twin is asked for the usual size at the first try-on. The twin keeps onboarding,
+  the clean base, body and size, and style (owner, 2026-10-19, at the review of PR #86). Amends S15's
+  order. Rejected: keeping them in the twin's spec.
