@@ -8,6 +8,11 @@ import { Header } from './header';
 // Async server components, rendered on the server only; the header's own parts are tested here.
 // The search stays pending, so its fallback field is what renders.
 vi.mock('./header-categories', () => ({ HeaderCategories: () => null }));
+// The profile slot stays pending too (it waits for the request): its fallback is the inert icon.
+vi.mock('./header-profile-slot', () => {
+  const pending = new Promise<never>(() => {});
+  return { HeaderProfileSlot: () => use(pending) };
+});
 vi.mock('./header-search-slot', () => {
   const pending = new Promise<never>(() => {});
   return { HeaderSearchSlot: () => use(pending) };

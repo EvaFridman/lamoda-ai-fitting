@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
 import { ApiError } from './api-error';
-import { DETAIL_TEXTS, ERROR_TEXTS, GENERAL_TEXT, detailText, errorText } from './error-text';
+import {
+  AUTH_TEMPLATE_PREFIX,
+  DETAIL_TEXTS,
+  ERROR_TEXTS,
+  GENERAL_TEXT,
+  detailText,
+  errorText,
+  signInRedirectText,
+} from './error-text';
 
 function httpError(status: number | undefined, code?: string): ApiError {
   return new ApiError('m', { kind: 'http', template: '/t', status, code });
@@ -89,6 +97,69 @@ describe('errorText', () => {
   it.each(PROTOTYPE_KEYS)('gives the general text for the code %s', (code) => {
     expect(errorText(httpError(400, code))).toBe(GENERAL_TEXT);
   });
+});
+
+describe('errorText of /api/auth routes', () => {
+  function authError(status: number | undefined, code?: string): ApiError {
+    return new ApiError('m', {
+      kind: 'http',
+      template: `${AUTH_TEMPLATE_PREFIX}sign-in/social`,
+      status,
+      code,
+    });
+  }
+
+  it.each([
+    ['PAYLOAD_TOO_LARGE', 413, ERROR_TEXTS.PAYLOAD_TOO_LARGE],
+    ['SERVICE_UNAVAILABLE', 503, ERROR_TEXTS.SERVICE_UNAVAILABLE],
+    ['INTERNAL_SERVER_ERROR', 500, ERROR_TEXTS.INTERNAL_ERROR],
+  ])('gives the text of %s', (code, status, text) => {
+    expect(errorText(authError(status, code))).toBe(text);
+  });
+
+  it.each([undefined, 'NOT_FOUND', 'TOO_MANY_REQUESTS'])(
+    'gives the 429 text by status with code %s',
+    (code) => {
+      expect(errorText(authError(429, code))).toBe(ERROR_TEXTS.TOO_MANY_REQUESTS);
+    },
+  );
+
+  it.each([
+    [413, ERROR_TEXTS.PAYLOAD_TOO_LARGE],
+    [502, ERROR_TEXTS.SERVICE_UNAVAILABLE],
+    [503, ERROR_TEXTS.SERVICE_UNAVAILABLE],
+    [504, ERROR_TEXTS.SERVICE_UNAVAILABLE],
+  ])('gives the text status %s stands for when there is no code', (status, text) => {
+    expect(errorText(authError(status))).toBe(text);
+  });
+
+  it.each(['NOT_FOUND', 'UNAUTHORIZED', 'BAD_REQUEST', 'INVALID_CALLBACKURL', 'constructor'])(
+    'gives the general text for Better Auth code %s',
+    (code) => {
+      expect(errorText(authError(400, code))).toBe(GENERAL_TEXT);
+    },
+  );
+
+  it('keeps the api codes for an api template', () => {
+    expect(errorText(httpError(404, 'NOT_FOUND'))).toBe(ERROR_TEXTS.NOT_FOUND);
+  });
+
+  it('does not use api-only texts under an auth template', () => {
+    expect(errorText(authError(400, 'VALIDATION_FAILED'))).toBe(GENERAL_TEXT);
+  });
+});
+
+describe('signInRedirectText', () => {
+  it('says the sign-in was cancelled for access_denied', () => {
+    expect(signInRedirectText('access_denied')).toBe('Вход отменён');
+  });
+
+  it.each(['server_error', 'unknown', 'constructor', ''])(
+    'says the sign-in failed for the code %j',
+    (code) => {
+      expect(signInRedirectText(code)).toBe('Не удалось войти, попробуйте ещё раз');
+    },
+  );
 });
 
 describe('detailText', () => {

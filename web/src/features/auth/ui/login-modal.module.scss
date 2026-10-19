@@ -1,0 +1,15 @@
+// The button over the modal's width and the failure's text under it, in the kit's error colour.
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 280px;
+}
+
+.error {
+  margin: 0;
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  color: var(--color-error);
+}

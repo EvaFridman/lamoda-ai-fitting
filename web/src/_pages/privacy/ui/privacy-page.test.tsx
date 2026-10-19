@@ -33,6 +33,12 @@ describe('PrivacyPage', () => {
     ).toBeInTheDocument();
   });
 
+  it('says the Google email and name are kept and the photo is not', () => {
+    render(<PrivacyPage />);
+    expect(screen.getByText(/адрес почты и имя из вашего аккаунта Google/)).toBeInTheDocument();
+    expect(screen.getByText(/Фотографию профиля мы не храним/)).toBeInTheDocument();
+  });
+
   it('reopens the consent banner with "Настройки cookies" after an answer', async () => {
     const user = userEvent.setup();
     window.localStorage.setItem(

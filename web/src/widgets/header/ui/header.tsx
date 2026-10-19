@@ -12,19 +12,20 @@ import {
 
 import styles from './header.module.scss';
 import { HeaderCategories } from './header-categories';
+import { HeaderProfileSlot } from './header-profile-slot';
 import { HeaderSearchSlot } from './header-search-slot';
 import { Logo } from './logo';
 
 const userNav = [
-  { label: 'Профиль', Icon: ProfileIcon },
   { label: 'Избранное', Icon: HeartIcon },
   { label: 'Корзина', Icon: BagIcon },
 ];
 
 // Lamoda's site header without the announcement bar (spec 0010 L2): the gender switch and the city,
 // the logo, the profile, favourites and cart; under them the category row and the search field.
-// The switch, the city and the icons are drawn as on Lamoda and do nothing yet (L5): they say so to
-// assistive technology with `aria-disabled`, have no handler and stay in the tab order.
+// The switch, the city, favourites and the cart are drawn as on Lamoda and do nothing yet (L5): they
+// say so to assistive technology with `aria-disabled`, have no handler and stay in the tab order.
+// The profile icon signs in and opens the profile menu (spec 0013 N12).
 export function Header() {
   return (
     <header className={styles.header}>
@@ -52,6 +53,16 @@ export function Header() {
         </NextLink>
 
         <div className={styles.userNav}>
+          {/* The fallback is the profile icon as it is while the session loads. */}
+          <Suspense
+            fallback={
+              <IconButton aria-label="Профиль" aria-disabled="true" className={styles.iconButton}>
+                <ProfileIcon />
+              </IconButton>
+            }
+          >
+            <HeaderProfileSlot />
+          </Suspense>
           {userNav.map(({ label, Icon }) => (
             <IconButton
               key={label}
