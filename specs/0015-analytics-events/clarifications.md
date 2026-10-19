@@ -8,9 +8,10 @@ code comments. All decisions below: owner, 2026-10-19.
 ## Order
 
 - **R1. Two pull requests, the implementation right after the documents.** The documents go first;
-  the implementation starts from a fresh `main` once they are merged. Specs 0012, 0013 and 0016
-  are closed; spec 0014's catalog analytics (its T20 and PR 3) wait for this spec's catalog on
-  `main` (0014 O35, O40), so this spec's PR 2 comes before them.
+  the implementation starts from a fresh `main` once they are merged. Specs 0012 and 0013 are
+  closed, and spec 0016's documents are merged (the spec itself stays accepted, 0016 S18); spec
+  0014's catalog analytics (its T20 and PR 3) wait for this spec's catalog on `main` (0014 O35,
+  O40), so this spec's PR 2 comes before them.
 - **R2. Events of other specs move into or follow the catalog.** The first implementation task
   moves everything `events.ts` lists into the catalog: 0008's `ui-kit.button-primary`, and 0013's
   `Login Opened`, `Signed In`, `Signed Out` with the elements `login.google`,
@@ -77,3 +78,28 @@ code comments. All decisions below: owner, 2026-10-19.
   `List-Properties`, `Get-Query-Schema`, `Run-Query`); no live events, profiles, replays or write
   tools. Every call still asks for permission. This replaces 0008 J14 ("no agent gets it") for this
   agent only.
+
+## Decided at the review of PR 1
+
+- **R13. A hover is sent once per element and its properties per page view.** An element with
+  properties counts as one element per set of values: hovering the cards at positions 1 and 2
+  sends two hovers, hovering position 1 twice sends one. An element without properties keeps
+  0008 J8 as it is.
+- **R14. The two generic events form a block of their own.** `Element Clicked` and
+  `Element Hovered` sit in a block "Общие события" with no zone, which says that each send carries
+  the zone of its element. Every element carries its own estimate of clicks and hovers per visit,
+  and the generic events' volume is the sum of those, not one number of their own. A new element
+  comes with its estimates (R10's rule says so).
+- **R15. The budget is a test.** The catalog also carries an estimate of what the SDK sends by
+  itself per visit (page views, heatmap clicks: `$mp_web_page_view`, `$mp_click` and the like),
+  set by the owner with the visits a month. A test fails when the catalog's events, its elements'
+  clicks and hovers and the SDK's estimate, times the visits a month, pass 80 % of 1 M events; the
+  document shows the same sum with its parts. The agent still checks the actual volume (R9).
+- **R16. Abbreviations in event names from a list.** The name test accepts a word in capitals only
+  from a list kept in the test (`AI` at first), like the list of irregular past forms; a new entry
+  in either list is the owner's decision.
+- **Fixed at the review (no decision needed).** Types: `conversion` marks only an event of a
+  reached goal (`Signed In`); a click on an element is `interaction` or `navigation`, so
+  `login.google` and `Signed Out` are `interaction` (plan §3). Zone descriptions say where their areas sit on the
+  page (`profile-menu` is in the header, its zone is sign-in and profile). The restart of Claude
+  Code comes after T6, when both the agent and the rule exist.
