@@ -42,7 +42,7 @@ jobs:
     env:
       IMAGE_TAG: ${{ inputs.image_tag }}
     steps:
-      - name: Check the image tag, the secrets and the storage settings
+      - name: Check the image tag, the secrets and the storage and backup settings
         env:
           PROXY_SECRET: ${{ secrets.PROXY_SECRET }}
           PROXY_SECRET_NEXT: ${{ secrets.PROXY_SECRET_NEXT }}
@@ -53,6 +53,12 @@ jobs:
           S3_BUCKET: ${{ vars.S3_BUCKET }}
           S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
           S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+          BACKUP_BUCKET: ${{ vars.BACKUP_BUCKET }}
+          BACKUP_AGE_RECIPIENT: ${{ vars.BACKUP_AGE_RECIPIENT }}
+          BACKUP_READ_ACCESS_KEY_ID: ${{ secrets.BACKUP_READ_ACCESS_KEY_ID }}
+          BACKUP_READ_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_READ_SECRET_ACCESS_KEY }}
+          BACKUP_WRITE_ACCESS_KEY_ID: ${{ secrets.BACKUP_WRITE_ACCESS_KEY_ID }}
+          BACKUP_WRITE_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_WRITE_SECRET_ACCESS_KEY }}
         # Before anything reaches the server: the synced nginx template needs the secret too, and an
         # nginx restarted without it would not start (spec 0006 F18).
         run: |
@@ -93,16 +99,37 @@ jobs:
             echo "::error::variable S3_BUCKET in GitHub Environment production is missing or not an S3 bucket name (deploy/README.md)"
             exit 1
           fi
+          # The backup job (spec 0012 plan §6): deploy.sh stops before the migrations without its
+          # variables, and the job refuses to start with a bad one. Its bucket follows the same
+          # rule and is not the app's; the recipient is the owner's age public key (P5).
+          if ! [[ "$BACKUP_BUCKET" =~ $bucket_format ]] || [ "$BACKUP_BUCKET" = "$S3_BUCKET" ]; then
+            echo "::error::variable BACKUP_BUCKET in GitHub Environment production is missing, not an S3 bucket name or the same as S3_BUCKET (deploy/README.md)"
+            exit 1
+          fi
+          if ! [[ "$BACKUP_AGE_RECIPIENT" =~ ^age1[0-9a-z]{58}$ ]]; then
+            echo "::error::variable BACKUP_AGE_RECIPIENT in GitHub Environment production is missing or not an age public key, age1… (deploy/README.md)"
+            exit 1
+          fi
           # The keys and Google's client have no format of ours (M19), but they go into the .env
           # that deploy.sh sources and compose reads: only characters both take as they are (bash
           # expands a ~ after = or :). The message never shows them.
           unsafe="[[:space:]\$\`\"'\\\\;&|<>()#~]"
-          for name in S3_ACCESS_KEY_ID S3_SECRET_ACCESS_KEY GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET; do
+          for name in S3_ACCESS_KEY_ID S3_SECRET_ACCESS_KEY GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET \
+            BACKUP_READ_ACCESS_KEY_ID BACKUP_READ_SECRET_ACCESS_KEY \
+            BACKUP_WRITE_ACCESS_KEY_ID BACKUP_WRITE_SECRET_ACCESS_KEY; do
             if [ -z "${!name}" ] || [[ "${!name}" =~ $unsafe ]]; then
               echo "::error::$name in GitHub Environment production is missing or holds a space or one of \$\`\"'\\;&|<>()#~ (deploy/README.md)"
               exit 1
             fi
           done
+          # Three users, three keys (spec 0012 P11): the app's key in a backup variable would let a
+          # leaked .env delete the copies.
+          if [ "$BACKUP_READ_ACCESS_KEY_ID" = "$BACKUP_WRITE_ACCESS_KEY_ID" ] \
+            || [ "$BACKUP_READ_ACCESS_KEY_ID" = "$S3_ACCESS_KEY_ID" ] \
+            || [ "$BACKUP_WRITE_ACCESS_KEY_ID" = "$S3_ACCESS_KEY_ID" ]; then
+            echo "::error::S3_ACCESS_KEY_ID, BACKUP_READ_ACCESS_KEY_ID and BACKUP_WRITE_ACCESS_KEY_ID in GitHub Environment production must be keys of three different users (deploy/README.md, «Бэкапы»)"
+            exit 1
+          fi
 
       # By hand only: CI calls CD after every check of the push passed. Images of main are published
       # before the checks end, so GHCR holds tags that never went live; a tag is deployed by hand only
@@ -176,6 +203,12 @@ jobs:
           S3_BUCKET: ${{ vars.S3_BUCKET }}
           S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
           S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+          BACKUP_BUCKET: ${{ vars.BACKUP_BUCKET }}
+          BACKUP_AGE_RECIPIENT: ${{ vars.BACKUP_AGE_RECIPIENT }}
+          BACKUP_READ_ACCESS_KEY_ID: ${{ secrets.BACKUP_READ_ACCESS_KEY_ID }}
+          BACKUP_READ_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_READ_SECRET_ACCESS_KEY }}
+          BACKUP_WRITE_ACCESS_KEY_ID: ${{ secrets.BACKUP_WRITE_ACCESS_KEY_ID }}
+          BACKUP_WRITE_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_WRITE_SECRET_ACCESS_KEY }}
           IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}/
         run: |
           {
@@ -195,6 +228,12 @@ jobs:
             echo "S3_BUCKET=$S3_BUCKET"
             echo "S3_ACCESS_KEY_ID=$S3_ACCESS_KEY_ID"
             echo "S3_SECRET_ACCESS_KEY=$S3_SECRET_ACCESS_KEY"
+            echo "BACKUP_BUCKET=$BACKUP_BUCKET"
+            echo "BACKUP_AGE_RECIPIENT=$BACKUP_AGE_RECIPIENT"
+            echo "BACKUP_READ_ACCESS_KEY_ID=$BACKUP_READ_ACCESS_KEY_ID"
+            echo "BACKUP_READ_SECRET_ACCESS_KEY=$BACKUP_READ_SECRET_ACCESS_KEY"
+            echo "BACKUP_WRITE_ACCESS_KEY_ID=$BACKUP_WRITE_ACCESS_KEY_ID"
+            echo "BACKUP_WRITE_SECRET_ACCESS_KEY=$BACKUP_WRITE_SECRET_ACCESS_KEY"
             echo "SENTRY_ENVIRONMENT=production"
             echo "IMAGE_REGISTRY=${IMAGE_REGISTRY,,}"
             echo "LOG_LEVEL=info"

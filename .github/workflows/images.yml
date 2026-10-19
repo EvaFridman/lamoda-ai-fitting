@@ -1,6 +1,6 @@
 name: Images
 
-# Builds the api and web images, checks a blue-green deploy of them on the runner and, when asked,
+# Builds the api, backup job and web images, checks a blue-green deploy of them on the runner and, when asked,
 # publishes them to GHCR. Called by CI twice: for pull requests without publishing, for pushes to
 # main with publishing.
 on:
@@ -43,7 +43,7 @@ jobs:
           echo "IMAGE_REGISTRY=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/" >> "$GITHUB_ENV"
           echo "image_tag=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
-      - name: Build api and web images
+      - name: Build api, backup and web images
         env:
           IMAGE_SOURCE: ${{ github.server_url }}/${{ github.repository }}
           # Browser-side Sentry and analytics are baked in at build time; empty values turn them off.
@@ -72,4 +72,6 @@ jobs:
           echo "$REGISTRY_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
           docker push "${IMAGE_REGISTRY}ai-fitting-api:${IMAGE_TAG}"
           docker push "${IMAGE_REGISTRY}ai-fitting-web:${IMAGE_TAG}"
+          # The nightly backup job (spec 0012 plan §6); it shares the api's layers, so the push is small.
+          docker push "${IMAGE_REGISTRY}ai-fitting-backup:${IMAGE_TAG}"
           docker logout ghcr.io

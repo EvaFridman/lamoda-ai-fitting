@@ -10,6 +10,7 @@ import type { Logger } from 'pino';
 
 import { StorageError } from '../storage/storage.error.js';
 import { postgresEnv } from './config.js';
+import { loggedKey } from './keys.js';
 
 // One part in memory at a time, whatever the database's size (plan §2).
 export const PART_SIZE = 8 * 1024 * 1024;
@@ -104,7 +105,7 @@ export async function copyDatabase(options: DatabaseCopyOptions): Promise<Databa
     // Before the stream exists the failure is age's, which carries no key.
     throw toolError ?? (encrypted === undefined ? error : StorageError.from('upload', error));
   }
-  logger.info({ key: options.key, bytes }, 'Database copy stored');
+  logger.info({ key: loggedKey(options.key), bytes }, 'Database copy stored');
   return { key: options.key, bytes };
 }
 

@@ -35,15 +35,50 @@ function stubJob(overrides: Partial<Pick<BackupJob, 'copyDatabase' | 'copyBucket
 const AT = new Date('2026-10-19T01:00:00Z');
 
 describe('runBackup', () => {
-  it('copies the database and the bucket under keys of the same stamp', async () => {
+  const SUFFIX = 'fedcba9876543210';
+
+  it('copies the database and the bucket under keys of the same stamp and suffix', async () => {
+    const { job, copyDatabase, copyBucket } = stubJob();
+
+    await runBackup(AT, job, SUFFIX);
+
+    expect(copyDatabase).toHaveBeenCalledWith(dailyDatabaseKey(AT, SUFFIX));
+    expect(copyBucket).toHaveBeenCalledWith(dailyStorageKey(AT, SUFFIX));
+    expect(dailyDatabaseKey(AT, SUFFIX)).toContain('2026-10-19T01-00-00Z-fedcba9876543210/');
+  });
+
+  it('puts both copies of a run in one folder with a fresh suffix when none is given', async () => {
     const { job, copyDatabase, copyBucket } = stubJob();
 
     await runBackup(AT, job);
 
-    expect(copyDatabase).toHaveBeenCalledWith(dailyDatabaseKey(AT));
-    expect(copyBucket).toHaveBeenCalledWith(dailyStorageKey(AT));
-    expect(dailyDatabaseKey(AT)).toContain('2026-10-19T01-00-00Z');
-    expect(dailyStorageKey(AT)).toContain('2026-10-19T01-00-00Z');
+    const databaseKey = copyDatabase.mock.calls[0]![0] as string;
+    const bucketKey = copyBucket.mock.calls[0]![0] as string;
+    expect(databaseKey).toMatch(/^daily\/2026-10-19T01-00-00Z-[0-9a-f]{16}\/database\.dump\.age$/);
+    expect(bucketKey).toMatch(/^daily\/2026-10-19T01-00-00Z-[0-9a-f]{16}\/storage\.tar\.age$/);
+    expect(databaseKey.split('/')[1]).toBe(bucketKey.split('/')[1]);
+  });
+
+  it('gives two runs different suffixes', async () => {
+    const first = stubJob();
+    const second = stubJob();
+
+    await runBackup(AT, first.job);
+    await runBackup(AT, second.job);
+
+    expect(first.copyDatabase.mock.calls[0]![0]).not.toBe(second.copyDatabase.mock.calls[0]![0]);
+    expect(first.copyBucket.mock.calls[0]![0]).not.toBe(second.copyBucket.mock.calls[0]![0]);
+  });
+
+  it('names a later run after an earlier one', async () => {
+    const first = stubJob();
+    const second = stubJob();
+
+    await runBackup(new Date('2026-10-19T01:00:00Z'), first.job);
+    await runBackup(new Date('2026-10-20T01:00:00Z'), second.job);
+
+    const names = [second, first].map((run) => run.copyDatabase.mock.calls[0]![0] as string);
+    expect([...names].sort()).toEqual([names[1], names[0]]);
   });
 
   it('copies the database first', async () => {

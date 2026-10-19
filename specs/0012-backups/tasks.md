@@ -72,7 +72,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       before migrating; a refused upload → the deploy stops before the migrations, the running copy
       answers; no new migration → no copy.
       Commit: `feat(deploy): copy the database before a deploy migrates it`
-- [ ] **T8. Delivery to production.** `images.yml` (the backup image), `deploy.sh` replacing the
+- [x] **T8. Delivery to production.** `images.yml` (the backup image), `deploy.sh` replacing the
       backup project (§6);
       `cd.yml` writing and checking the new variables; `check:web-bundle` with the two secrets'
       names; `deploy/README.md` «Бэкапы»: the production setup (§9).

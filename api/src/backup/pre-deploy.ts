@@ -9,7 +9,7 @@ import {
   startTool,
   toolEnvironment,
 } from './database.js';
-import { preDeployDatabaseKey } from './keys.js';
+import { backupSuffix, preDeployDatabaseKey } from './keys.js';
 
 export interface PreDeployCopyOptions extends Omit<DatabaseCopyOptions, 'key'> {
   // The image tag being deployed, a commit SHA: part of the copy's name (plan §2).
@@ -39,7 +39,7 @@ export async function copyBeforeMigrations(
     logger.info({ tag }, 'No new migration, no copy before the deploy');
     return undefined;
   }
-  const key = preDeployDatabaseKey(at, tag);
+  const key = preDeployDatabaseKey(at, tag, backupSuffix());
   logger.info({ tag, migrations }, 'New migrations: copying the database before the deploy');
   return copyDatabase({ ...copy, logger, key });
 }

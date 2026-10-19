@@ -58,7 +58,7 @@ key that can only write there, encrypted, with a restore check; never into the a
 - **P11. The write-only key is a custom role.** Timeweb's per-bucket presets are «Управление»,
   «Чтение и запись», «Чтение» and «Нет доступа»; there is no write-only one. The backup user gets
   a custom role instead: an IAM policy that allows only uploading objects (single and multipart)
-  into the backup bucket, set by the owner with `aws-cli` following `deploy/README.md`. M6 rejected
+  into the backup bucket, set by the owner following `deploy/README.md` (in Timeweb's panel, P28). M6 rejected
   such policies for the app bucket because their mistakes go unnoticed; here AC7 checks the
   policy at acceptance (reading, listing and deleting are refused). «Чтение и запись» was rejected:
   whoever reads the server's `.env` could delete every copy. The app bucket's read key is a custom
@@ -118,6 +118,10 @@ key that can only write there, encrypted, with a restore check; never into the a
   and rules), and a 7-day expiry runs no risk of a cold class's minimum storage period; a gigabyte
   costs more, which the 10 GB threshold of the plan's Risks covers. The bucket has versioning and
   the three lifecycle rules all the same (P2, P12).
+- **P26. The read key reads only `media/` and `keep/`.** `backup-reader`'s role allows `GetObject`
+  on the app bucket's `media/*` and `keep/*`, not on all its objects: the job skips `tmp/`, and
+  `storage/keys.ts` builds no other class. A new class of keys needs the role widened, or its
+  objects fail the night's bucket copy.
 
 ## Decided at T6
 
@@ -149,6 +153,28 @@ key that can only write there, encrypted, with a restore check; never into the a
   of T7: a registry failing on that image alone would otherwise let a new migration through
   without a copy). The variables of `backup.yml` are checked first, so a missing one is not taken
   for a missing image; a rollback to the copy that still runs checks neither.
+
+## Decided at T8
+
+- **P25. All four backup keys' names are refused in the browser bundle; no `S3_REGION` in CD.**
+  `check:web-bundle` refuses the names of both key ids, not only of the two secret keys: a key id
+  alone grants nothing, but it stays out of the bundle like `S3_ACCESS_KEY_ID`, at no cost. CD
+  writes two new variables, `BACKUP_BUCKET` and `BACKUP_AGE_RECIPIENT`; `S3_REGION` is not
+  written, and the compose files keep its default `ru-1`, as for the api and the worker.
+- **P27. Every copy's name ends in a random suffix.** Found at T8's security review: the write key
+  cannot list the bucket, but the names `daily/<stamp>/…` were guessable (04:00 Moscow time, a few
+  seconds in), so a leaked `.env` could overwrite the last nights' copies with garbage; the
+  originals would live on only as noncurrent versions for 7 days, and the nightly monitor would
+  see nothing. Each run's folder now ends in 16 random hex digits (`daily/<stamp>-<suffix>/`,
+  `pre-deploy/<stamp>-<tag>-<suffix>/`): a copy can be found only by listing, which only the
+  owner's main key can do. The job's log lines show the key with `<suffix>` in its place: the
+  copy before migrations is logged into the deploy's log on GitHub, and the nightly ones into the
+  container's log on the server. Restoring therefore starts with a listing (plan §8). Versioning
+  (P12) stays the second line.
+- **P28. The custom roles are set in Timeweb's panel.** The owner set both users' roles in each
+  user's settings (Timeweb, «Хранилище» → «Пользователи»), not with `aws iam put-user-policy`
+  (P11, plan §9 amended): the panel offers custom roles per user, and no main key leaves it. AC7
+  still checks them at acceptance.
 
 ## Delivery
 

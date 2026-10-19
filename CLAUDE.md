@@ -122,9 +122,10 @@ Pinned on purpose; each "not newer" has a reason and a condition to move on.
 `next build`), the agents' guard hooks and root `scripts/*.mjs` (lint, `node --test`). Last, after
 `build`, `check:web-bundle` (`scripts/check-web-bundle.mjs`) fails when a file under
 `web/.next/static` (the browser bundle) contains `x-proxy-secret` (any case), `PROXY_SECRET`,
-`S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `BETTER_AUTH_SECRET` or `GOOGLE_CLIENT_SECRET`, or
-when that directory is missing or empty; the one exception is Better Auth's env getter of
-`BETTER_AUTH_SECRET` in its browser client, cut out in exactly its shape (spec 0013 N53). Docker must be running for `verify` and
+`S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_SECRET` or the
+backup job's `BACKUP_{READ,WRITE}_{ACCESS_KEY_ID,SECRET_ACCESS_KEY}`, or when that directory is
+missing or empty; the one exception is Better Auth's env getter of `BETTER_AUTH_SECRET` in its
+browser client, cut out in exactly its shape (spec 0013 N53). Docker must be running for `verify` and
 `npm test`: the Vitest project `database` (`api/test/database/`) starts a throwaway PostgreSQL,
 SeaweedFS and Temporal with Testcontainers (`api/test/support/`), never the development ones; without Docker it fails
 with a message to start it. The project `unit` (everything else) needs no Docker. `web` tests
@@ -424,8 +425,8 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
 
 ## Production and deploys
 
-A merge into `main` is the deploy (blue-green for api and web; the Temporal worker is replaced in
-place; a changed `infra.yml` service is recreated in place, with an outage). After the infrastructure is up, the deploy sets
+A merge into `main` is the deploy (blue-green for api and web; the Temporal worker and the nightly
+backup job, `deploy/compose/backup.yml`, are replaced in place; a changed `infra.yml` service is recreated in place, with an outage). After the infrastructure is up, the deploy sets
 Temporal's `default` namespace retention to 24 hours (spec 0013 N45, read back by
 `ci-deploy-check.sh`). Before the new copy starts, the deploy stores an encrypted database copy in
 the backup bucket's `pre-deploy/` if the release brings a migration not yet applied (spec 0012 P3;
