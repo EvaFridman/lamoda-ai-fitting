@@ -106,13 +106,17 @@ export function postgresEnv(databaseUrl: string): Record<string, string> {
 }
 
 // The job's two clients, both built like the api's (forcePathStyle, checksums only when required,
-// timeouts). `destroy()` them when the job ends.
+// the connection timeout) but with a longer socket timeout. `destroy()` them when the job ends.
 export interface BackupClients {
   // Lists and reads the app bucket.
   read: S3Client;
   // Uploads into the backup bucket.
   write: S3Client;
 }
+
+// The bucket copy reads an object while a part uploads, and the read's socket is silent until the
+// part is sent: the api's 10 s would end the copy whenever a part takes longer (P18).
+export const BACKUP_S3_SOCKET_TIMEOUT_MS = 60_000;
 
 export function createBackupClients(env: BackupEnv): BackupClients {
   return {
@@ -123,6 +127,7 @@ export function createBackupClients(env: BackupEnv): BackupClients {
         secretAccessKey: env.BACKUP_READ_SECRET_ACCESS_KEY,
       },
       env.S3_ENDPOINT,
+      BACKUP_S3_SOCKET_TIMEOUT_MS,
     ),
     write: createS3Client(
       {
@@ -131,6 +136,7 @@ export function createBackupClients(env: BackupEnv): BackupClients {
         secretAccessKey: env.BACKUP_WRITE_SECRET_ACCESS_KEY,
       },
       env.S3_ENDPOINT,
+      BACKUP_S3_SOCKET_TIMEOUT_MS,
     ),
   };
 }

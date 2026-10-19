@@ -42,10 +42,11 @@ export const S3_CONNECTION_TIMEOUT_MS = 5000;
 export const S3_SOCKET_TIMEOUT_MS = 10_000;
 
 // The keys and the region only: the backup job (backup/config.ts) builds its clients with keys of
-// its own (spec 0012 plan §1).
+// its own and a longer socket timeout (spec 0012 plan §1, P18).
 export function createS3Client(
   settings: Pick<StorageSettings, 'region' | 'accessKeyId' | 'secretAccessKey'>,
   endpoint: string,
+  socketTimeout = S3_SOCKET_TIMEOUT_MS,
 ): S3Client {
   return new S3Client({
     endpoint,
@@ -66,7 +67,7 @@ export function createS3Client(
     // goes on). Not requestTimeout: without throwOnRequestTimeout it only logs a warning.
     requestHandler: {
       connectionTimeout: S3_CONNECTION_TIMEOUT_MS,
-      socketTimeout: S3_SOCKET_TIMEOUT_MS,
+      socketTimeout,
     },
   });
 }

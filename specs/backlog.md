@@ -204,10 +204,6 @@ Left for later specs by `0002-database-schema` (its `clarifications.md` has the 
   or a generation's files. What photo upload still owes: limits on size and type, re-encoding to
   WebP, and a retention period for old photo snapshots of C14 (one more key class and lifecycle
   rule, `storage/keys.ts`).
-- **Storage backups.** The bucket (spec 0011) has no backup: a deleted or overwritten object in
-  `keep/` (users' photos, generation results) is gone. The catalog's seed photos come back from
-  `api/seed-media/` with the next seed; photos added later would not. Choose between versioning
-  in Timeweb, a copy to a second bucket, or none, once users upload photos.
 - **Backups outside Timeweb.** The server and the backup bucket of spec 0012 share one Timeweb
   account (0012 P8): losing the account or the provider loses the data and its copies. Before real
   users: a copy at a second provider, or one the owner downloads regularly.

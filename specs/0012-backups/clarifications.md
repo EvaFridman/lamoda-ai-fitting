@@ -98,6 +98,19 @@ key that can only write there, encrypted, with a restore check; never into the a
   tool's own `detail:` line, can quote a table's values (names, e-mails) and would reach the log
   and, through it, Sentry: such lines are dropped, and every other line is cut to 500 characters.
 
+## Decided at T5
+
+- **P18. The job's S3 clients wait longer on a silent socket.** The bucket copy reads an object
+  while one 8 MiB part uploads, and the read's socket stays silent until the part is sent; the
+  api's 10 s would end the whole copy whenever a part takes longer (below about 6.7 Mbit/s). Both
+  of the job's clients get 60 s; the connection timeout stays the api's.
+- **P19. The bucket copy keeps every key as it is.** A key with a `..` or empty segment, a leading
+  `/`, or a zero-size "folder" ending in `/` (made by a console, never by the api, whose keys
+  `storage/keys.ts` checks) is copied like any other, so the copy stays complete. The restore
+  extracts into an empty directory and never with `-P` (`--absolute-names`), so nothing is written
+  outside it: tar skips an entry with `..` and strips a leading `/`, so such keys do not come back
+  as they were and show as a difference when the listings are compared (plan §8).
+
 ## Delivery
 
 - **P10. Two pull requests.** The first holds this spec's documents and can be merged while spec
