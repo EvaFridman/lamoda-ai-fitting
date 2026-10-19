@@ -1,12 +1,13 @@
 # 0013 auth
 
-Status: accepted (2026-10-16); amended 2026-10-16 at the plan: guests dropped (N9), the first name
+Status: done (2026-10-19): all 15 criteria pass ([tasks.md](tasks.md), acceptance record).
+History, not instructions. Accepted 2026-10-16; amended 2026-10-16 at the plan: guests dropped (N9), the first name
 is optional (N5), `/api/auth/*` keeps its own error format (N17), other browsers are signed out
 within 5 minutes (N18); criteria renumbered. Amended 2026-10-18 at the review of PR 1: a deleted
 account is signed out elsewhere within 5 minutes (AC12, N31), `/api/auth/*`'s 429 and nginx's
 answers keep the api's format (AC11, N32).
 
-Issue #38. Decisions: `clarifications.md` (N1–N36; N9 and N10 withdrawn).
+Issue #38. Decisions: `clarifications.md` (N1–N56; N9 and N10 withdrawn).
 
 ## Goal
 

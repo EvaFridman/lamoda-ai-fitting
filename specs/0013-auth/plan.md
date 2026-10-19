@@ -1,6 +1,6 @@
 # 0013 auth: plan
 
-Status: accepted (2026-10-16); amended 2026-10-18 at the review of PR 1 (N29, N31–N36); amended
+Status: done (2026-10-19). History, not instructions. Accepted 2026-10-16; amended 2026-10-18 at the review of PR 1 (N29, N31–N36); amended
 2026-10-19 at T7 (N37–N39); amended 2026-10-19 at T8 (§7, N40–N44); amended 2026-10-19 at T9
 (Backlog, N45); amended 2026-10-19 at T12 (§8, §10, N53, N54).
 
