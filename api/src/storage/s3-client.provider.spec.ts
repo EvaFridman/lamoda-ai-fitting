@@ -152,6 +152,23 @@ describe('createS3Client', () => {
     client.destroy();
   });
 
+  it('uses an explicit socket timeout and keeps the connection timeout', async () => {
+    const client = createS3Client(
+      { region: 'ru-1', accessKeyId: 'k', secretAccessKey: 's' },
+      'http://s3:8333',
+      60_000,
+    );
+    const handler = client.config.requestHandler as unknown as {
+      configProvider: Promise<{ connectionTimeout?: number; socketTimeout?: number }>;
+    };
+
+    const options = await handler.configProvider;
+
+    expect(options.socketTimeout).toBe(60_000);
+    expect(options.connectionTimeout).toBe(S3_CONNECTION_TIMEOUT_MS);
+    client.destroy();
+  });
+
   it('fails a request to a server that accepts the connection and never answers', async () => {
     const sockets = new Set<Socket>();
     const server = createServer((socket) => {

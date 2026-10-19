@@ -30,8 +30,9 @@ schema would demand them.
   `PGPASSWORD`, `PGDATABASE` in their environment, parsed from `DATABASE_URL`, never on the
   command line (visible in `ps`).
 - Both S3 clients come from `createS3Client` (`storage/s3-client.provider.ts`), so they get the
-  same `forcePathStyle`, `WHEN_REQUIRED` checksums and timeouts as the api's; errors go through
-  `StorageError.from` (no keys, no paths).
+  same `forcePathStyle`, `WHEN_REQUIRED` checksums and connection timeout as the api's, but a
+  60 s socket timeout (P18, amended at T5); errors go through `StorageError.from` (no keys, no
+  paths).
 - Every new variable goes into `.env.example` with a comment; the two secrets' names join
   `check:web-bundle`'s list.
 
@@ -83,7 +84,9 @@ ListObjectsV2 media/, keep/ ──> for each: GetObject ──> tar entry ──
   other error fails the run.
 - The tar stream is encrypted and uploaded as `daily/<UTC stamp>/storage.tar.age`; the log line
   gives the number of objects, the bytes and the skipped count.
-- Restoring is `age -d | tar -x`, then uploading the tree as is: the paths are the keys.
+- Restoring is `age -d | tar -x` into an empty directory, never `-P` (§8, P19), then uploading
+  the tree as is: the paths are the keys, except keys with `..` or a leading `/`, which tar skips
+  or strips.
 - Long keys: `tar-stream` writes the ustar prefix or a PAX header past 100 characters; a test
   uses a key longer than 100.
 
@@ -172,8 +175,9 @@ dist/backup/main.js --once` makes a local copy. `storage/dev-setup.ts` also crea
   on the Mac, `pg_restore --no-owner` into an empty `postgres:18.6-trixie` container; the query
   that counts every table's rows, run on production right before a `--once` copy and on the
   restored database.
-- **Бакет:** `age -d | tar -x`, then `aws s3 sync` of the tree into an empty bucket (or back into
-  the app bucket); the listing compared with production's.
+- **Бакет:** `age -d | tar -x` into an empty directory, never with `-P` (P19, amended at T5),
+  then `aws s3 sync` of the tree into an empty bucket (or back into the app bucket); the listing
+  compared with production's (a key with `..` or a leading `/` shows as a difference).
 - **Смена ключа age:** new pair, new `BACKUP_AGE_RECIPIENT`, the old private key kept 7 days more.
 
 ## 9. Production setup (owner; M6, P11, P12)
@@ -209,7 +213,7 @@ Checked on npm 2026-10-19; none has install scripts.
 
 ## Backlog
 
-- Removed by the bucket copy's task: "Storage backups" (`specs/backlog.md:174-177`).
+- Removed by the bucket copy's task: "Storage backups" (done at T5).
 - Added in PR 1: "Temporal history backup" (P1) and "Backups outside Timeweb" (P8).
 
 ## Docs

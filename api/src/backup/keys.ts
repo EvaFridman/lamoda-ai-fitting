@@ -20,6 +20,11 @@ export function dailyDatabaseKey(at: Date): string {
   return `daily/${backupStamp(at)}/database.dump.age`;
 }
 
+// The app bucket's copy of the same night (plan §3).
+export function dailyStorageKey(at: Date): string {
+  return `daily/${backupStamp(at)}/storage.tar.age`;
+}
+
 // A tag that is not a SHA would put anything into the key; `--pre-deploy` refuses it before
 // dumping.
 export function preDeployDatabaseKey(at: Date, tag: string): string {

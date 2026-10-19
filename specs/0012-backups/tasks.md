@@ -41,10 +41,12 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Check: `npm run verify`; `docker build --target backup api` succeeds and
       `pg_dump --version` in it says 18; the size the stage adds to `runtime` is in the summary.
       Commit: `feat(api): copy the database encrypted into the backup bucket`
-- [ ] **T5. Bucket copy.** `tar-stream`, `@types/tar-stream`; `bucket.ts` (§3); database tests:
+- [x] **T5. Bucket copy.** `tar-stream`, `@types/tar-stream`; `bucket.ts` (§3); database tests:
       the restored archive holds the same keys and sizes, no `tmp/`, a vanished object skipped and
       counted, a key longer than 100 characters intact; a 200 MB input checks the process's memory
-      (Risks). Removes "Storage backups" from `specs/backlog.md`.
+      (Risks); a database copy over 8 MiB whose check fails, and a bucket copy over 8 MiB whose
+      read fails midway, store nothing and leave no unfinished multipart upload (plan §2, added
+      at T5). Removes "Storage backups" from `specs/backlog.md`.
       Check: `npm run verify`.
       Commit: `feat(api): copy the app bucket encrypted into the backup bucket`
 - [ ] **T6. The service, its schedule and the Sentry monitor.** `main.ts` with the service,

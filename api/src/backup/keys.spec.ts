@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { backupStamp, dailyDatabaseKey, isImageTag, preDeployDatabaseKey } from './keys.js';
+import {
+  backupStamp,
+  dailyDatabaseKey,
+  dailyStorageKey,
+  isImageTag,
+  preDeployDatabaseKey,
+} from './keys.js';
 
 describe('backupStamp', () => {
   it('formats a UTC time without milliseconds', () => {
@@ -38,6 +44,17 @@ describe('database keys', () => {
       expect(() => preDeployDatabaseKey(at, tag)).toThrow('commit SHA');
     },
   );
+});
+
+describe('dailyStorageKey', () => {
+  const at = new Date('2026-10-19T03:04:05.678Z');
+
+  it('names the storage archive by the UTC stamp, next to the database copy', () => {
+    expect(dailyStorageKey(at)).toBe('daily/2026-10-19T03-04-05Z/storage.tar.age');
+    expect(dailyStorageKey(at).split('/').slice(0, 2)).toEqual(
+      dailyDatabaseKey(at).split('/').slice(0, 2),
+    );
+  });
 });
 
 describe('isImageTag', () => {

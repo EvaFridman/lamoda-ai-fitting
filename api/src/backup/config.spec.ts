@@ -1,7 +1,12 @@
 import { generateHybridIdentity, generateIdentity, identityToRecipient } from 'age-encryption';
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { createBackupClients, postgresEnv, validateBackupEnv } from './config.js';
+import {
+  BACKUP_S3_SOCKET_TIMEOUT_MS,
+  createBackupClients,
+  postgresEnv,
+  validateBackupEnv,
+} from './config.js';
 
 let recipient: string;
 let identity: string;
@@ -213,6 +218,24 @@ describe('createBackupClients', () => {
       expect(write.accessKeyId).toBe('write-key-id');
       expect(write.secretAccessKey).toBe('write-secret-value');
       expect(await clients.read.config.region()).toBe('ru-1');
+    } finally {
+      clients.read.destroy();
+      clients.write.destroy();
+    }
+  });
+
+  it('gives both clients a 60 s socket timeout and a 5 s connection timeout', async () => {
+    const clients = createBackupClients(validateBackupEnv(validEnv()));
+    try {
+      expect(BACKUP_S3_SOCKET_TIMEOUT_MS).toBe(60_000);
+      for (const client of [clients.read, clients.write]) {
+        const handler = client.config.requestHandler as unknown as {
+          configProvider: Promise<{ connectionTimeout?: number; socketTimeout?: number }>;
+        };
+        const options = await handler.configProvider;
+        expect(options.socketTimeout).toBe(BACKUP_S3_SOCKET_TIMEOUT_MS);
+        expect(options.connectionTimeout).toBe(5000);
+      }
     } finally {
       clients.read.destroy();
       clients.write.destroy();
