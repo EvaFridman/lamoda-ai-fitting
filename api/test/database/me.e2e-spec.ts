@@ -75,6 +75,7 @@ describe('GET /me and DELETE /me', () => {
       const header = headers.find((line) => line.startsWith(`${name}=;`));
       expect(header, name).toBeDefined();
       expect(header).toMatch(/Expires=Thu, 01 Jan 1970/);
+      expect(header).toMatch(/SameSite=Lax/);
     }
   }
 

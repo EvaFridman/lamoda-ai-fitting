@@ -49,6 +49,14 @@ function constraintName(cause: DriverAdapterCause): string | undefined {
   return cause.constraint?.index ?? /constraint "([^"]+)"/.exec(cause.originalMessage ?? '')?.[1];
 }
 
+// The constraint a database error broke, for a service that tells one of a table's constraints from
+// the others.
+export function violatedConstraint(
+  error: Prisma.PrismaClientKnownRequestError,
+): string | undefined {
+  return constraintName(adapterCause(error));
+}
+
 function fieldDetails(cause: DriverAdapterCause, code: ErrorCode, message: string): ErrorDetail[] {
   return constraintFields(constraintName(cause)).map((field) => ({ field, code, message }));
 }

@@ -8,7 +8,7 @@ import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module.js';
 import { createHttpApp } from './common/http/http-app.js';
 import { setServerTimeouts } from './common/http/server-timeouts.js';
-import { assertServerEnv, type Env } from './config/env.js';
+import { assertServerEnv, type Env, type ServerEnv, serverEnvWarnings } from './config/env.js';
 import { SocketIoAdapter } from './realtime/socket-io.adapter.js';
 import { setupSwagger } from './swagger.js';
 
@@ -18,9 +18,10 @@ async function bootstrap(): Promise<void> {
     (adapter, options) => NestFactory.create<NestExpressApplication>(AppModule, adapter, options),
     { bufferLogs: true },
   );
-  app.useLogger(app.get(Logger));
+  const logger = app.get(Logger);
+  app.useLogger(logger);
   const config = app.get<ConfigService<Env, true>>(ConfigService);
-  assertServerEnv({
+  const serverEnv: ServerEnv = {
     NODE_ENV: config.get('NODE_ENV', { infer: true }),
     PROXY_SECRET: config.get('PROXY_SECRET', { infer: true }),
     BETTER_AUTH_SECRET: config.get('BETTER_AUTH_SECRET', { infer: true }),
@@ -28,7 +29,11 @@ async function bootstrap(): Promise<void> {
     GOOGLE_CLIENT_SECRET: config.get('GOOGLE_CLIENT_SECRET', { infer: true }),
     AUTH_FAKE_OIDC_URL: config.get('AUTH_FAKE_OIDC_URL', { infer: true }),
     AUTH_FAKE_OIDC_PUBLIC_URL: config.get('AUTH_FAKE_OIDC_PUBLIC_URL', { infer: true }),
-  });
+  };
+  assertServerEnv(serverEnv);
+  for (const warning of serverEnvWarnings(serverEnv)) {
+    logger.warn(warning);
+  }
 
   app.useWebSocketAdapter(
     new SocketIoAdapter(

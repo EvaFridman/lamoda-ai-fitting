@@ -258,7 +258,8 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   creates it at start, or brings an existing one to the code's settings at every start; a pause
   set by hand stays (N27, N50). Production needs
   `BETTER_AUTH_SECRET` (32+ letters or digits, not a proxy secret), `GOOGLE_CLIENT_ID` and
-  `GOOGLE_CLIENT_SECRET`, and refuses the fake provider's `AUTH_FAKE_OIDC_*` (`assertServerEnv`).
+  `GOOGLE_CLIENT_SECRET`, and refuses the fake provider's `AUTH_FAKE_OIDC_*` (`assertServerEnv`);
+  elsewhere an empty `BETTER_AUTH_SECRET` logs a warning at start (`serverEnvWarnings`, N51).
 - `api` socket.io is set up by `SocketIoAdapter` (`realtime/`, used by `server.ts` and the socket
   e2e): CORS for `WEB_ORIGIN` and `maxHttpBufferSize` from `SOCKET_MAX_MESSAGE_BYTES` (64 KB, at
   most 1 MB, spec 0006 F30). A bigger message never reaches the gateway: over WebSocket the server

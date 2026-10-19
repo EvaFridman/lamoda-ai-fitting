@@ -6,7 +6,7 @@ import { SignedIn } from '../common/auth/access.decorators.js';
 import { CurrentUserId } from '../common/auth/current-principal.decorator.js';
 import { UnauthorizedError } from '../common/errors/app.exception.js';
 import { UserResponseDto } from '../users/dto/user-response.dto.js';
-import { MeService } from './me.service.js';
+import { type AuthCookie, MeService } from './me.service.js';
 
 // The signed-in user's own data (spec 0013 N8, N11). A deleted user's cached session gets 401 on
 // both routes (N31), and that answer expires the session cookies too (N38).
@@ -59,7 +59,9 @@ export class MeController {
         path: attributes.path,
         domain: attributes.domain,
         secure: attributes.secure,
-        sameSite: attributes.sameSite as 'lax' | 'strict' | 'none' | undefined,
+        // Express's types take lower case only (its `cookie` lower-cases the value either way).
+        sameSite: attributes.sameSite?.toLowerCase() as
+          Lowercase<NonNullable<AuthCookie['attributes']['sameSite']>> | undefined,
         httpOnly: true,
       });
     }

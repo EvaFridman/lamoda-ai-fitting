@@ -19,7 +19,7 @@ import {
   UnauthorizedError,
   ValidationError,
 } from '../errors/app.exception.js';
-import { toAppException } from './to-app-exception.js';
+import { toAppException, violatedConstraint } from './to-app-exception.js';
 
 function prismaError(code: string, meta: Record<string, unknown> = {}) {
   return new Prisma.PrismaClientKnownRequestError('prisma failed', {
@@ -36,6 +36,43 @@ function withCause(cause: Record<string, unknown>) {
 function bodyParserError(type: string, status: number): Error {
   return Object.assign(new Error(type), { type, status });
 }
+
+describe('violatedConstraint', () => {
+  it('reads the name from the adapter error constraint index', () => {
+    const error = prismaError(
+      'P2003',
+      withCause({
+        constraint: { index: 'fitting_sessions_user_id_fkey' },
+        originalMessage: 'violates foreign key constraint "other_fkey"',
+      }),
+    );
+    expect(violatedConstraint(error)).toBe('fitting_sessions_user_id_fkey');
+  });
+
+  it('falls back to the name quoted in the original message', () => {
+    const error = prismaError(
+      'P2039',
+      withCause({
+        originalMessage:
+          'new row for relation "brands" violates check constraint "brands_name_check"',
+      }),
+    );
+    expect(violatedConstraint(error)).toBe('brands_name_check');
+  });
+
+  it('is undefined when the error names no constraint', () => {
+    expect(violatedConstraint(prismaError('P2003', withCause({ kind: 'postgres' })))).toBe(
+      undefined,
+    );
+    expect(violatedConstraint(prismaError('P2003', withCause({ originalMessage: 'failed' })))).toBe(
+      undefined,
+    );
+  });
+
+  it('is undefined when the error has no adapter error at all', () => {
+    expect(violatedConstraint(prismaError('P2003'))).toBe(undefined);
+  });
+});
 
 describe('toAppException, one case per row of E20', () => {
   it('invalid body or query: 400 VALIDATION_FAILED, details kept', () => {

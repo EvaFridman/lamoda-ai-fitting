@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { assertServerEnv, type ServerEnv, validateEnv } from './env.js';
+import { assertServerEnv, type ServerEnv, serverEnvWarnings, validateEnv } from './env.js';
 
 const valid = {
   WEB_ORIGIN: 'http://localhost:3001',
@@ -420,6 +420,40 @@ describe('assertServerEnv', () => {
       ).not.toThrow();
     },
   );
+});
+
+describe('serverEnvWarnings', () => {
+  const base: ServerEnv = {
+    NODE_ENV: 'development',
+    PROXY_SECRET: '',
+    BETTER_AUTH_SECRET: '',
+    GOOGLE_CLIENT_ID: '',
+    GOOGLE_CLIENT_SECRET: '',
+    AUTH_FAKE_OIDC_URL: '',
+    AUTH_FAKE_OIDC_PUBLIC_URL: '',
+  };
+
+  it.each(['development', 'test'] as const)(
+    'warns once about an empty BETTER_AUTH_SECRET with NODE_ENV=%s, pointing to init-env.sh',
+    (nodeEnv) => {
+      const warnings = serverEnvWarnings({ ...base, NODE_ENV: nodeEnv });
+
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]).toMatch(/BETTER_AUTH_SECRET/);
+      expect(warnings[0]).toMatch(/scripts\/init-env\.sh/);
+    },
+  );
+
+  it('does not warn in production, even with an empty secret', () => {
+    expect(serverEnvWarnings({ ...base, NODE_ENV: 'production' })).toEqual([]);
+  });
+
+  it('does not warn when the secret is set, and never repeats its value', () => {
+    expect(serverEnvWarnings({ ...base, BETTER_AUTH_SECRET: 'b'.repeat(32) })).toEqual([]);
+    expect(serverEnvWarnings({ ...base, PROXY_SECRET: 'p'.repeat(32) }).join(' ')).not.toContain(
+      'p'.repeat(32),
+    );
+  });
 });
 
 describe('validateEnv auth', () => {
