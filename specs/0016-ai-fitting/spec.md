@@ -2,7 +2,7 @@
 
 Status: accepted (2026-10-19).
 
-Issue #84. Decisions: `clarifications.md` (S1–S18). Research (in Russian): `research.md`.
+Issue #84. Decisions: `clarifications.md` (S1–S19). Research (in Russian): `research.md`.
 
 ## Goal
 
@@ -70,7 +70,8 @@ and measured, and the follow-up specs that build it.
   replaces are removed; the rest stays.
 - **Size (S10).** The picture reflects the chosen size relative to the user's usual one (for example one
   size larger). Next to the result: a size recommendation from the item's measurements and the user's
-  size, and a plain note that the fit in the picture is approximate.
+  size, and a plain note that the fit in the picture is approximate. The usual size comes from the twin
+  or, for a user without one, is asked at the first try-on.
 - **Waiting.** A progress indicator and an estimate of the time left; leaving the page does not lose the
   result.
 - **Result.** The picture, the items with their prices and chosen sizes, "Add to cart" for the item or
@@ -109,7 +110,8 @@ Follow-up specs, in this order (preliminary, S15). Each one gets its number when
 acceptance criteria of this spec marked with its name. The open items of `specs/backlog.md` in this area
 (named by their titles there) go to the spec named next to them.
 
-1. **Product page.** The page every card links to (0014 O7), with the gallery, sizes, a size chart with
+1. **Product page.** The page every catalog card links to (the catalog page's spec points the cards
+   to it), with the gallery, sizes, a size chart with
    garment measurements (S10, measurements added to the demo catalog) and the "Try on" entry. Backlog:
    "Product card link".
 2. **Photos.** Upload, checks, consent, saved photos, deletion. Backlog:
@@ -119,16 +121,18 @@ acceptance criteria of this spec marked with its name. The open items of `specs/
    - "Storage backups": the bucket's backup once users upload photos;
    - "Deleted users in backups": the retention period checked against 152-ФЗ.
 3. **Generation.** The three models (S7), each replaceable by another, generation in the background, results reused
-   for repeats, moderation, limits and the counter, live status. Backlog:
+   for repeats, moderation, limits and the counter, live status. It decides how the prototype reaches
+   the models (S7), the size of the monthly limit (S12), and what makes two try-ons the same when the
+   scene is picked by the try-on (a repeat spends nothing). Backlog:
    - "Long writes after a timeout": starting a paid generation answers at once and is never repeated
      by a retried request;
    - "Heartbeats for long activities": a cancellation stops a paid call;
    - "Temporal history backup";
    - "Fitting sessions per user" (N39);
    - "A revoked session on an open socket".
-4. **Try-on and history.** Single item and outfit, colour, regenerate with a reason, share, history.
-5. **Digital twin.** Onboarding, clean base, body and size, style, scenes, size in the picture and the
-   size recommendation.
+4. **Try-on and history.** Single item and outfit, colour, scene, size in the picture and the size
+   recommendation (S19), regenerate with a reason, share, history.
+5. **Digital twin.** Onboarding, clean base, body and size, style.
 6. **Later.** Try-on of looks from a wardrobe and "my things", "buy the rest of the look", a daily feed
    of looks on the twin, short videos, a virtual photo studio for sellers.
 
@@ -190,9 +194,9 @@ the follow-up spec named in brackets, and the spec of the digital twin closes th
 - **AC11 (digital twin).** A user completes onboarding with photos, height, usual size and a style
   description; asking for a clean base of a photo shows it, and keeping it adds it to the saved
   photos.
-- **AC12 (digital twin).** Trying on a winter photo with a summer item, with "scene suited to the
+- **AC12 (try-on).** Trying on a winter photo with a summer item, with "scene suited to the
   items", gives a picture without the outerwear and with a summer background.
-- **AC13 (digital twin).** Choosing a size larger than the usual one changes the picture, and a size
+- **AC13 (try-on).** Choosing a size larger than the usual one changes the picture, and a size
   recommendation with the note about approximate fit is shown next to it.
 - **AC14 (generation).** At the monthly limit, a try-on is refused with the renewal date and no model
   is called.
