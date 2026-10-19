@@ -2,9 +2,10 @@
 
 Status: done (2026-10-19). History, not instructions. Accepted 2026-10-16; amended 2026-10-18 at the review of PR 1 (N29, N31–N36); amended
 2026-10-19 at T7 (N37–N39); amended 2026-10-19 at T8 (§7, N40–N44); amended 2026-10-19 at T9
-(Backlog, N45); amended 2026-10-19 at T12 (§8, §10, N53, N54).
+(Backlog, N45); amended 2026-10-19 at T12 (§8, §10, N53, N54); amended 2026-10-19 at T15 (AC4's
+test-clock e2e not written, N57).
 
-Implements [spec.md](spec.md); decisions in [clarifications.md](clarifications.md) (N1–N54).
+Implements [spec.md](spec.md); decisions in [clarifications.md](clarifications.md) (N1–N57).
 
 ## 1. Library and versions (N1)
 
@@ -277,7 +278,7 @@ patches every few days; the pin is moved on purpose, N33). Neither needs an inst
 | AC1  | e2e of the redirect flow through the fake provider; `qa-tester` in the browser on the local stack                                                                                                                                                              |
 | AC2  | e2e: two sign-ins of one account, one user row                                                                                                                                                                                                                 |
 | AC3  | web tests of the menu (items, `aria-disabled`, name fallback); `qa-tester` screenshots, owner compares                                                                                                                                                         |
-| AC4  | e2e: sign-out → 401; revoke-sessions → the other session's cookie answers 401 after the cache window (test clock)                                                                                                                                              |
+| AC4  | e2e: sign-out → 401; revoke-sessions → the other session's cookie answers 401 after the cache window (test clock; not written, N57)                                                                                                                            |
 | AC5  | e2e: `Set-Cookie` attributes; expiry and extension with a moved clock                                                                                                                                                                                          |
 | AC6  | `rg` for the admin names in the repo; OpenAPI snapshot without `admin`                                                                                                                                                                                         |
 | AC7  | e2e without a cookie on each `@SignedIn()` route; catalog reads still 200                                                                                                                                                                                      |
