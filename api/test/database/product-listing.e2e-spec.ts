@@ -206,7 +206,7 @@ describe('product list: category and brand', () => {
 });
 
 describe('product list: q', () => {
-  it('finds a substring of the name, ignoring case', async () => {
+  it('finds the words of the name, ignoring case and their order', async () => {
     const scope = await newScope();
     const red = await product(scope, { name: 'Red Dress' });
     const blue = await product(scope, { name: 'blue DRESS shirt' });
@@ -214,10 +214,11 @@ describe('product list: q', () => {
 
     expect(await idSet(`${scope.query}&q=dress`)).toEqual(sorted(red, blue));
     expect(await idSet(`${scope.query}&q=DrEsS`)).toEqual(sorted(red, blue));
-    expect(await idSet(`${scope.query}&q=${encodeURIComponent('e dress s')}`)).toEqual([blue]);
+    expect(await idSet(`${scope.query}&q=${encodeURIComponent('shirt Blue')}`)).toEqual([blue]);
+    expect(await ids(`${scope.query}&q=${encodeURIComponent('red shirt')}`)).toEqual([]);
   });
 
-  it('searches the name only, not the article or the description', async () => {
+  it('does not search the description or a part of the article', async () => {
     const scope = await newScope();
     await product(scope, { name: 'Plain', article: 'NEEDLE-1', description: 'needle in text' });
     const named = await product(scope, { name: 'The Needle' });
@@ -225,38 +226,231 @@ describe('product list: q', () => {
     expect(await idSet(`${scope.query}&q=needle`)).toEqual([named]);
   });
 
-  it('treats % as a plain character', async () => {
+  it('treats % as a separator, not a wildcard', async () => {
     const scope = await newScope();
-    const percent = await product(scope, { name: 'Sale 50% off' });
-    await product(scope, { name: 'Sale 500 off' });
+    const sale = await product(scope, { name: 'Sale 50% off' });
+    const other = await product(scope, { name: 'Sale 70 off' });
 
-    expect(await idSet(`${scope.query}&q=${encodeURIComponent('50%')}`)).toEqual([percent]);
-    expect(await idSet(`${scope.query}&q=${encodeURIComponent('%')}`)).toEqual([percent]);
+    expect(await idSet(`${scope.query}&q=${encodeURIComponent('50%')}`)).toEqual([sale]);
+    expect(await idSet(`${scope.query}&q=${encodeURIComponent('sale%off')}`)).toEqual(
+      sorted(sale, other),
+    );
+    expect(await ids(`${scope.query}&q=${encodeURIComponent('sal%f')}`)).toEqual([]);
   });
 
-  it('treats _ as a plain character', async () => {
+  // Words like "a", "s" or "it" are English stop words of the search configuration and would be
+  // dropped, so the fixtures use words that are not.
+  it('treats _ as a separator, not a one-character wildcard', async () => {
     const scope = await newScope();
-    const underscore = await product(scope, { name: 'Item a_b' });
-    await product(scope, { name: 'Item axb' });
+    const underscore = await product(scope, { name: 'Item zkq_vqz' });
+    await product(scope, { name: 'Item zkqxvqz' });
 
-    expect(await idSet(`${scope.query}&q=a_b`)).toEqual([underscore]);
-    expect(await idSet(`${scope.query}&q=_`)).toEqual([underscore]);
+    expect(await idSet(`${scope.query}&q=zkq_vqz`)).toEqual([underscore]);
+    expect(await ids(`${scope.query}&q=${encodeURIComponent('zkq_xvq')}`)).toEqual([]);
   });
 
-  it('treats a backslash as a plain character', async () => {
+  it('treats a backslash as a separator', async () => {
     const scope = await newScope();
-    const slash = await product(scope, { name: String.raw`Item a\b` });
-    await product(scope, { name: 'Item ab' });
+    const slash = await product(scope, { name: String.raw`Item zkq\vqz` });
+    await product(scope, { name: 'Item zkqvqz' });
 
-    expect(await idSet(`${scope.query}&q=${encodeURIComponent('\\')}`)).toEqual([slash]);
-    expect(await idSet(`${scope.query}&q=${encodeURIComponent(String.raw`a\b`)}`)).toEqual([slash]);
-    expect(await ids(`${scope.query}&q=${encodeURIComponent(String.raw`a\\b`)}`)).toEqual([]);
+    expect(await idSet(`${scope.query}&q=${encodeURIComponent(String.raw`zkq\vqz`)}`)).toEqual([
+      slash,
+    ]);
+    expect(await idSet(`${scope.query}&q=${encodeURIComponent(String.raw`zkq\\vqz`)}`)).toEqual([
+      slash,
+    ]);
+  });
+
+  it('finds nothing for a q of stop words only', async () => {
+    const scope = await newScope();
+    await product(scope, { name: 'Платье и юбка' });
+
+    expect(await get(`${scope.query}&q=${encodeURIComponent('и')}`)).toEqual({
+      items: [],
+      total: 0,
+    });
+  });
+
+  it('lets no tsquery syntax through: it only separates words, with no error', async () => {
+    const scope = await newScope();
+    const ab = await product(scope, { name: 'Item ab' });
+    await product(scope, { name: 'Item cd' });
+
+    expect(await ids(`${scope.query}&q=${encodeURIComponent('ab | cd')}`)).toEqual([]);
+    expect(await ids(`${scope.query}&q=${encodeURIComponent('!ab')}`)).toEqual([ab]);
+    for (const q of ["ab'", '(ab', 'ab)', 'ab:*', 'ab&', '<->ab', 'a\\', "'", '&|!():*<>']) {
+      const response = await http().get(`/products?${scope.query}&q=${encodeURIComponent(q)}`);
+
+      expect(response.status, q).toBe(200);
+    }
+  });
+
+  it('answers 200 with an empty list for a q with no letter or digit', async () => {
+    for (const q of ['%25%25', '---', '_', '%5C', '.']) {
+      const response = await http().get(`/products?q=${q}`);
+
+      expect(response.status, q).toBe(200);
+      expect(response.body, q).toEqual({ items: [], total: 0 });
+    }
   });
 
   it('accepts 100 characters', async () => {
     const response = await http().get(`/products?q=${'a'.repeat(100)}`);
 
     expect(response.status).toBe(200);
+  });
+});
+
+// The real Russian stemmer of the search vector (spec 0014 AC8). The database holds other
+// products with such words, so each test narrows by its own brand or category.
+describe('product list: Russian search', () => {
+  const token = () => `tk${randomUUID().replaceAll('-', '')}`;
+  const q = (text: string) => `q=${encodeURIComponent(text)}`;
+
+  it('finds a product by another form of its word', async () => {
+    const scope = await newScope();
+    const dress = await product(scope, { name: 'Платье вечернее' });
+    await product(scope, { name: 'Джинсы' });
+
+    expect(await ids(`${scope.query}&${q('платья')}`)).toEqual([dress]);
+    expect(await ids(`${scope.query}&${q('ПЛАТЬЕ')}`)).toEqual([dress]);
+  });
+
+  it('finds a product by the beginning of its last word', async () => {
+    const scope = await newScope();
+    const dress = await product(scope, { name: 'Платье вечернее' });
+    await product(scope, { name: 'Джинсы' });
+
+    expect(await ids(`${scope.query}&${q('плат')}`)).toEqual([dress]);
+    expect(await ids(`${scope.query}&${q('платье вече')}`)).toEqual([dress]);
+  });
+
+  it('finds a product by a two-letter beginning of its word (O53)', async () => {
+    const scope = await newScope();
+    const dress = await product(scope, { name: 'Платье вечернее' });
+    const latin = await product(scope, { name: 'Zkqvx coat' });
+    await product(scope, { name: 'Джинсы' });
+
+    expect(await ids(`${scope.query}&${q('пл')}`)).toEqual([dress]);
+    expect(await ids(`${scope.query}&${q('zk')}`)).toEqual([latin]);
+  });
+
+  it('takes a one-character last word as a whole word, not a beginning (O53)', async () => {
+    const scope = await newScope();
+    const own = await product(scope, { name: 'Модель 7' });
+    await product(scope, { name: 'Модель 70' });
+    const spaced = await product(scope, { name: 'Платье 7 вечернее' });
+    await product(scope, { name: 'Платье 70' });
+
+    expect(await idSet(`${scope.query}&${q('7')}`)).toEqual(sorted(own, spaced));
+    expect(await ids(`${scope.query}&${q('платье 7')}`)).toEqual([spaced]);
+    expect(await ids(`${scope.query}&${q('модель 7')}`)).toEqual([own]);
+  });
+
+  it('needs every word, and finds nothing for a misspelling', async () => {
+    const scope = await newScope();
+    await product(scope, { name: 'Платье вечернее' });
+
+    expect(await get(`${scope.query}&${q('плтье')}`)).toEqual({ items: [], total: 0 });
+    expect(await get(`${scope.query}&${q('платье джинсы')}`)).toEqual({ items: [], total: 0 });
+  });
+
+  it("finds the products of a brand by the brand's name", async () => {
+    const word = token();
+    const brand = await testApp.prisma.brand.create({ data: { name: `Маркиза ${word}` } });
+    const category = await newCategory();
+    const scope = { brandId: brand.id, categoryId: category };
+    const mine = await product(scope);
+    const otherBrand = await product({ ...scope, brandId: await newBrand() });
+
+    const found = await idSet(`categoryId=${category}&${q(`маркиза ${word}`)}`);
+
+    expect(found).toEqual([mine]);
+    expect(found).not.toContain(otherBrand);
+  });
+
+  it("finds the products of a category by the category's name", async () => {
+    const word = token();
+    const category = await testApp.prisma.category.create({
+      data: { name: `Куртки ${word}`, slug: randomUUID(), isActive: true },
+    });
+    const brandId = await newBrand();
+    const scope = { brandId, categoryId: category.id };
+    const mine = await product(scope);
+    const otherCategory = await product({ ...scope, categoryId: await newCategory() });
+
+    const found = await idSet(`brandId=${brandId}&${q(`куртка ${word}`)}`);
+
+    expect(found).toEqual([mine]);
+    expect(found).not.toContain(otherCategory);
+  });
+
+  it('finds a product by its article in any letter case, with a hyphen too', async () => {
+    const scope = await newScope();
+    const article = `Ab-${token()}-Xy`;
+    const target = await product(scope, { article });
+    await product(scope);
+
+    for (const text of [
+      article,
+      article.toLowerCase(),
+      article.toUpperCase(),
+      `aB-${article.slice(3)}`,
+    ]) {
+      expect(await ids(`${scope.query}&${q(text)}`), text).toEqual([target]);
+    }
+    expect(await ids(`${scope.query}&${q(article.slice(0, -1))}`)).toEqual([]);
+  });
+
+  it('finds a precomposed letter by the same letter typed as a base and a combining mark', async () => {
+    const scope = await newScope();
+    const shirt = await product(scope, { name: 'Майка летняя' });
+    await product(scope, { name: 'Джинсы' });
+    const decomposed = `маи${String.fromCodePoint(0x306)}ка`;
+
+    expect(decomposed).not.toBe('майка');
+    expect(await ids(`${scope.query}&${q(decomposed)}`)).toEqual([shirt]);
+    expect(await ids(`${scope.query}&${q('майка')}`)).toEqual([shirt]);
+  });
+
+  it('finds nothing by a part of an article, or by it with the hyphens as spaces', async () => {
+    const scope = await newScope();
+    const word = token();
+    const article = `Ab-${word}-Xy`;
+    const target = await product(scope, { article });
+
+    expect(await ids(`${scope.query}&${q(article)}`)).toEqual([target]);
+    expect(await ids(`${scope.query}&${q(word)}`)).toEqual([]);
+    expect(await ids(`${scope.query}&${q(`Ab ${word} Xy`)}`)).toEqual([]);
+    expect(await ids(`${scope.query}&${q(`${word}-Xy`)}`)).toEqual([]);
+  });
+
+  it('ignores a stop word, the last one too: alone it finds nothing (O52)', async () => {
+    const scope = await newScope();
+    await product(scope, { name: 'Платье и юбка' });
+    const dress = await product(scope, { name: 'Платье вечернее' });
+
+    const alone = await idSet(`${scope.query}&${q('платье')}`);
+    const withStop = await idSet(`${scope.query}&${q('платье и')}`);
+    const stopFirst = await idSet(`${scope.query}&${q('и платье')}`);
+
+    expect(alone).toHaveLength(2);
+    expect(alone).toContain(dress);
+    expect(withStop).toEqual(alone);
+    expect(stopFirst).toEqual(alone);
+    expect(await get(`${scope.query}&${q('и')}`)).toEqual({ items: [], total: 0 });
+  });
+
+  it('keeps the total of a search, over its pages', async () => {
+    const scope = await newScope();
+    for (let n = 0; n < 3; n += 1) await product(scope, { name: `Платье ${n}`, createdAt: at(n) });
+    await product(scope, { name: 'Джинсы' });
+
+    const page = await get(`${scope.query}&${q('платье')}&limit=2&offset=0`);
+
+    expect(page.total).toBe(3);
+    expect(page.items).toHaveLength(2);
   });
 });
 
@@ -465,6 +659,37 @@ describe('product list: combining and paging', () => {
     const query = `${scope.query}&q=blue&maxPrice=100&hasDiscount=true&size=M`;
 
     expect(await ids(query)).toEqual([match]);
+  });
+
+  it('the total of the list equals the total of the facets for a q with other filters', async () => {
+    const scope = await newScope();
+    const otherBrand = await newBrand();
+    await product(scope, { name: 'Платье красное', price: 50, discount: 10, sizes: [['M', 1]] });
+    await product(scope, { name: 'Платье синее', price: 80, discount: 5, sizes: [['M', 2]] });
+    await product(scope, { name: 'Платье чёрное', price: 500, discount: 5, sizes: [['M', 2]] });
+    await product(scope, { name: 'Платье белое', price: 60, discount: 0, sizes: [['M', 2]] });
+    await product(scope, { name: 'Платье зелёное', price: 60, discount: 5, sizes: [['L', 2]] });
+    await product(scope, { name: 'Платье жёлтое', price: 60, discount: 5, brandId: otherBrand });
+    await product(scope, { name: 'Джинсы', price: 60, discount: 5, sizes: [['M', 2]] });
+    const word = encodeURIComponent('платья');
+    const queries = [
+      `${scope.query}&q=${word}`,
+      `${scope.query}&q=${word}&brandId=${scope.brandId}&size=M`,
+      `${scope.query}&q=${word}&minPrice=50&maxPrice=100`,
+      `${scope.query}&q=${word}&hasDiscount=true`,
+      `${scope.query}&q=${word}&size=M&minPrice=50&maxPrice=100&hasDiscount=true`,
+      `categoryId=${scope.categoryId}&brandId=${scope.brandId},${otherBrand}&q=${word}&hasDiscount=true`,
+    ];
+    const expectedTotals = [5, 4, 4, 4, 2, 5];
+
+    for (const [index, query] of queries.entries()) {
+      const page = await get(query);
+      const response = await http().get(`/products/facets?${query}`);
+
+      expect(response.status, query).toBe(200);
+      expect(page.total, query).toBe(expectedTotals[index]);
+      expect((response.body as { total: number }).total, query).toBe(page.total);
+    }
   });
 
   it('total is the filtered count and limit and offset page through it', async () => {
@@ -700,13 +925,17 @@ describe('product list: 400 VALIDATION_FAILED', () => {
     expectInvalid(await http().get('/products?sort=new&sort=price_asc'), 'sort');
   });
 
-  it('does not match a double space in q with a single space in a name', async () => {
+  it('takes a double space in q, or in a name, as one separator', async () => {
     const scope = await newScope();
     const single = await product(scope, { name: 'Red dress' });
     const double = await product(scope, { name: 'Red  dress double' });
 
-    expect(await ids(`${scope.query}&q=${encodeURIComponent('Red  dress')}`)).toEqual([double]);
-    expect(await ids(`${scope.query}&q=${encodeURIComponent('Red dress')}`)).toEqual([single]);
+    expect(await idSet(`${scope.query}&q=${encodeURIComponent('Red  dress')}`)).toEqual(
+      sorted(single, double),
+    );
+    expect(await idSet(`${scope.query}&q=${encodeURIComponent('Red dress')}`)).toEqual(
+      sorted(single, double),
+    );
   });
 
   it('refuses an unknown parameter', async () => {

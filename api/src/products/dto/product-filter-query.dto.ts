@@ -53,7 +53,11 @@ export class ProductFilterQueryDto {
   @ApiPropertyOptional({
     minLength: 1,
     maxLength: SEARCH_MAX_LENGTH,
-    description: 'Part of the name, case ignored.',
+    description:
+      'Words of the name, brand or category, in any form; the last word may be a beginning ' +
+      'of two letters or digits or more. ' +
+      'Letters and digits only count, so a query with none finds nothing. ' +
+      'An article, case ignored, finds its product too.',
   })
   @IsOptional()
   @IsTrimmedText(SEARCH_MAX_LENGTH)

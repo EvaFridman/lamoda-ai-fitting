@@ -2,9 +2,9 @@ import { Prisma } from '../../generated/prisma/client.js';
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import type { ProductFilterQueryDto } from '../dto/product-filter-query.dto.js';
 
-// The filters of the product list, parsed once (spec 0004 E13, E45). The list turns them into a
-// Prisma `where`; the filter counts (T12) into SQL. A field left undefined does not filter, so a
-// count can drop its own group.
+// The filters of the product list, parsed once (spec 0004 E13, E45). The list and the filter counts
+// turn them into SQL (`toProductSql`). A field left undefined does not filter, so a count can drop
+// its own group.
 export interface ProductFilter {
   categoryIds?: string[];
   brandIds?: string[];
@@ -87,44 +87,40 @@ function uniqueIds(values: string[] | undefined): string[] | undefined {
   return unique(values?.map((value) => value.toLowerCase()));
 }
 
-// `contains` becomes ILIKE with the text as is, so `%` and `_` would be wildcards. PostgreSQL's
-// default LIKE escape is the backslash; escaping it too keeps a `\` in the text literal (E45).
-export function escapeLike(text: string): string {
-  return text.replaceAll(/[\\%_]/g, '\\$&');
+// The words of a search, lower case: runs of letters and digits, anything else separates them (spec
+// 0014 plan §2.1). Only these characters reach `to_tsquery`, so no tsquery syntax gets in. NFC
+// first, so a letter typed as a base and a combining mark ("й" pasted from macOS) stays one letter.
+export function searchTokens(q: string): string[] {
+  return (
+    q
+      .normalize('NFC')
+      .toLowerCase()
+      .match(/[\p{L}\p{N}]+/gu) ?? []
+  );
 }
 
-// Filters AND together; the values of one filter OR (E45). A size counts only in stock (E13b).
-export function toProductWhere(filter: ProductFilter): Prisma.ProductWhereInput {
-  const and: Prisma.ProductWhereInput[] = [];
-  if (filter.categoryIds) {
-    and.push({ categoryId: { in: filter.categoryIds } });
+// The last word is a beginning only from this many characters (O53): one would match nearly every
+// word in the index.
+export const MIN_PREFIX_LENGTH = 2;
+
+// Every word as a Russian lexeme, the last one as a beginning (O14): "плат" finds "платье". Stop
+// words drop out, the last one too (O52). The article, case ignored, finds its product (the index on
+// `lower(article)`). A `q` with no word finds nothing.
+export function searchSql(q: string): Prisma.Sql {
+  const tokens = searchTokens(q);
+  if (tokens.length === 0) {
+    return Prisma.sql`FALSE`;
   }
-  if (filter.brandIds) {
-    and.push({ brandId: { in: filter.brandIds } });
-  }
-  if (filter.sizes) {
-    and.push({ variations: { some: { size: { in: filter.sizes }, stock: { gt: 0 } } } });
-  }
-  for (const group of filter.attributeGroups ?? []) {
-    and.push({ attributeValues: { some: { attributeValueId: { in: group.valueIds } } } });
-  }
-  if (filter.q !== undefined) {
-    and.push({ name: { contains: escapeLike(filter.q), mode: 'insensitive' } });
-  }
-  if (filter.minPrice !== undefined) {
-    and.push({ price: { gte: filter.minPrice } });
-  }
-  if (filter.maxPrice !== undefined) {
-    and.push({ price: { lte: filter.maxPrice } });
-  }
-  if (filter.hasDiscount !== undefined) {
-    and.push({ discount: filter.hasDiscount ? { gt: 0 } : { equals: 0 } });
-  }
-  return { AND: and };
+  const last = tokens.at(-1) ?? '';
+  const prefix = [...last].length >= MIN_PREFIX_LENGTH ? ':*' : '';
+  const query = `${tokens.join(' & ')}${prefix}`;
+  return Prisma.sql`(p.search_vector @@ to_tsquery('russian', ${query}) OR lower(p.article) = lower(${q}))`;
 }
 
-// The same filters as `toProductWhere`, as a condition on `products p` for the filter counts. Every
-// value is a parameter; lists go through `Prisma.join` (plan "Facets").
+// The filters of the list, its total and the filter counts, as a condition on `products p`: one
+// builder, so they agree (spec 0014 plan §2.2). Filters AND together; the values of one filter OR
+// (0004 E45). A size counts only in stock (E13b). Every value is a parameter; lists go through
+// `Prisma.join`.
 export function toProductSql(filter: ProductFilter): Prisma.Sql {
   const and: Prisma.Sql[] = [];
   if (filter.categoryIds) {
@@ -142,7 +138,7 @@ export function toProductSql(filter: ProductFilter): Prisma.Sql {
     and.push(attributeGroupSql(group));
   }
   if (filter.q !== undefined) {
-    and.push(Prisma.sql`p.name ILIKE '%' || ${escapeLike(filter.q)} || '%'`);
+    and.push(searchSql(filter.q));
   }
   // As text, so the comparison stays exact in numeric.
   if (filter.minPrice !== undefined) {

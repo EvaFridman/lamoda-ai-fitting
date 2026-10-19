@@ -655,33 +655,52 @@ describe('GET /products/facets: order', () => {
 });
 
 describe('GET /products/facets: q', () => {
-  it('treats %, _ and a backslash as plain characters, as the list does', async () => {
+  it('searches words as the list does: %, _ and a backslash only separate them', async () => {
     const f = await arrange();
-    const { brandId, categoryId } = {
-      brandId: f.brands.a,
-      categoryId: f.categories.dress,
-    };
-    for (const name of ['50% off', '500 off', 'a_b', 'axb', String.raw`a\b`, 'ab']) {
-      await newProduct(f.token, { name, categoryId, brandId, price: 10 });
-    }
 
-    // No other product of this file has these characters in its name.
-    const texts = [`${f.token} 50%`, `${f.token} a_b`, String.raw`${f.token} a\b`, '%', '_', '\\'];
-    for (const q of texts) {
-      const body = await facets(`q=${encodeURIComponent(q)}`);
-      const expected = (await list(`q=${encodeURIComponent(q)}`)).total;
+    const cases: [string, number][] = [
+      [`${f.token} DRESS`, 2],
+      [`${f.token} %shirt%`, 3],
+      [`${f.token}_red\\dress`, 1],
+      [`${f.token} d_ress`, 0],
+      [`${f.token} d%ress`, 0],
+      [`${f.token} red | shirt`, 0],
+      ['%', 0],
+      ['_', 0],
+      ['\\', 0],
+    ];
+    for (const [q, total] of cases) {
+      const query = `q=${encodeURIComponent(q)}`;
+      const body = await facets(query);
 
-      expect(body.total, q).toBe(expected);
-      expect(body.total, q).toBe(1);
+      expect(body.total, q).toBe(total);
+      expect(body.total, q).toBe((await list(query)).total);
     }
-    const percentOnly = await facets(`q=${encodeURIComponent(`${f.token} 50%`)}`);
-    expect(percentOnly.categories).toEqual([
-      { id: f.categories.dress, name: `Dress-${f.token}`, count: 1 },
+    const shirts = await facets(`q=${encodeURIComponent(`${f.token} %shirt%`)}`);
+    expect(shirts.categories).toEqual([
+      { id: f.categories.shirt, name: `Shirt-${f.token}`, count: 3 },
     ]);
+  });
+
+  it('finds the products of a brand by its name, in the counts as in the list', async () => {
+    const f = await arrange();
+    await testApp.prisma.brand.update({
+      where: { id: f.brands.a },
+      data: { name: `Zebra ${f.token}` },
+    });
+    const query = `q=${encodeURIComponent(`zebra ${f.token}`)}`;
+
+    const body = await facets(query);
+
+    expect(body.total).toBe(2);
+    expect(body.total).toBe((await list(query)).total);
+    expect(body.brands.map(({ id, count }) => [id, count])).toEqual([[f.brands.a, 2]]);
   });
 });
 
 describe('GET /products/facets: the counts equal the list totals', () => {
+  const CONCURRENCY = 6;
+
   const combos = (f: Fixture): [string, Choice][] => [
     ['no filters', {}],
     ['a brand', { brandId: [f.brands.a] }],
@@ -733,60 +752,66 @@ describe('GET /products/facets: the counts equal the list totals', () => {
     const totalOf = async (choice: Choice) => (await list(toQuery(scoped(choice)))).total;
 
     for (const [label, choice] of combos(f)) {
+      // The checks of one combination wait for the answers together, a few at a time.
+      const checks: (() => Promise<void>)[] = [];
       const body = await facets(toQuery(scoped(choice)));
 
-      expect(body.total, `${label}: total`).toBe(await totalOf(choice));
-      expect(body.discounted, `${label}: discounted`).toBe(
-        await totalOf({ ...choice, hasDiscount: true }),
-      );
-      const priced = (await list(toQuery(scoped(withoutPrice(choice))))).items.map(
-        (item) => item.price,
-      );
+      const [total, discounted, priced] = await Promise.all([
+        totalOf(choice),
+        totalOf({ ...choice, hasDiscount: true }),
+        list(toQuery(scoped(withoutPrice(choice)))).then((page) =>
+          page.items.map((item) => item.price),
+        ),
+      ]);
+      expect(body.total, `${label}: total`).toBe(total);
+      expect(body.discounted, `${label}: discounted`).toBe(discounted);
       expect(body.price, `${label}: price`).toEqual(
         priced.length === 0 ? null : { min: Math.min(...priced), max: Math.max(...priced) },
       );
 
       const listed = (rows: { id: string; count: number }[]) =>
         new Map(rows.map((row) => [row.id, row.count]));
-      const check = async (
+      const check = (
         kind: string,
         key: string,
         actual: Map<string, number>,
         chosen: string[] | undefined,
         replace: (id: string) => Choice,
       ) => {
-        const expected = await totalOf(replace(key));
-        const isListed = actual.has(key);
-        expect(isListed, `${label}: ${kind} ${key} listed`).toBe(
-          expected > 0 || (chosen ?? []).includes(key),
-        );
-        if (isListed) expect(actual.get(key), `${label}: ${kind} ${key}`).toBe(expected);
+        checks.push(async () => {
+          const expected = await totalOf(replace(key));
+          const isListed = actual.has(key);
+          expect(isListed, `${label}: ${kind} ${key} listed`).toBe(
+            expected > 0 || (chosen ?? []).includes(key),
+          );
+          if (isListed) expect(actual.get(key), `${label}: ${kind} ${key}`).toBe(expected);
+        });
       };
 
       const categoryCounts = listed(body.categories);
       for (const id of categories) {
-        await check('category', id, categoryCounts, choice.categoryId, (value) => ({
+        check('category', id, categoryCounts, choice.categoryId, (value) => ({
           ...choice,
           categoryId: [value],
         }));
       }
       const brandCounts = listed(body.brands);
       for (const id of brands) {
-        await check('brand', id, brandCounts, choice.brandId, (value) => ({
+        check('brand', id, brandCounts, choice.brandId, (value) => ({
           ...choice,
           brandId: [value],
         }));
       }
       const sizeCounts = new Map(body.sizes.map((row) => [row.size, row.count]));
       for (const size of sizes) {
-        await check('size', size, sizeCounts, choice.size, (value) => ({
+        check('size', size, sizeCounts, choice.size, (value) => ({
           ...choice,
           size: [value],
         }));
       }
       const valueCounts = listed(body.attributes.flatMap((attribute) => attribute.values));
       for (const id of allValues) {
-        await check('value', id, valueCounts, choice.attributeValueId, (value) => {
+        check('value', id, valueCounts, choice.attributeValueId, (value) => {
           const attributeId = f.valueAttribute.get(value);
           const others = (choice.attributeValueId ?? []).filter(
             (other) => f.valueAttribute.get(other) !== attributeId,
@@ -794,10 +819,14 @@ describe('GET /products/facets: the counts equal the list totals', () => {
           return { ...choice, attributeValueId: [...others, value] };
         });
       }
+      for (let start = 0; start < checks.length; start += CONCURRENCY) {
+        await Promise.all(checks.slice(start, start + CONCURRENCY).map((run) => run()));
+      }
     }
-    // Hundreds of requests one after another: about 1 s alone, over the default 5 s while the web
-    // tests run at the same time (`npm test`).
-  }, 30_000);
+    // Hundreds of requests one after another took over Vitest's 5 s while the web tests ran at the
+    // same time (`npm test`). They now go CONCURRENCY at a time, and the test has a budget of its
+    // own (a failure shows which combination and value broke, not a timeout).
+  }, 60_000);
 });
 
 describe('GET /products/facets: repeated and odd values', () => {

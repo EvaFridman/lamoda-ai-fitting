@@ -270,3 +270,17 @@ Second round, on the review of `4817711`:
   the running release it fails, rolls back whole and stops the deploy, while the running copy keeps
   serving, instead of queueing every read of `products` behind it until they time out (503). A plain
   `SET`, not `SET LOCAL`, so it holds however Prisma sends the script. (security-reviewer, T4.)
+
+## Decided at T5
+
+- **O52. Stop words drop out of a search, the last word too.** The Russian dictionary drops words
+  like "на", "по", "без" (and English "a", "it") from the query, as it does from the names. So
+  "платье без" finds what "платье" finds, and "на" alone finds nothing, not "наволочка". The header
+  search runs on submit (O15), so a stop word typed as a beginning is rare; a search as you type
+  would revisit this. (code-reviewer, T5.)
+- **O53. The last word is a beginning only from two characters.** Letters or digits: "пл" finds
+  "платье", "52" finds "520"; a single letter or digit is a whole word (unless a stop word, O52).
+  One letter as a beginning matches nearly
+  every word in the index and gives nothing useful, while each facets request runs seven such
+  queries. T10 measures a two-letter beginning on 50 000 products (AC14); if it is too slow, the
+  threshold goes up. (security-reviewer, T5.)
