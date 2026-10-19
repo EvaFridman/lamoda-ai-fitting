@@ -177,8 +177,8 @@ is_healthy() {
 
 # Removes the app images no container uses: every deploy adds an api and a web image (~1.7 GB), and
 # on 2026-10-16 they filled the server's disk, so the next pull failed. Kept: every image a
-# container (running or stopped) was created from: the serving copy, the rollback copy and the
-# worker; a rollback to an older version pulls its images again. Only this deploy's names count
+# container (running or stopped) was created from: the serving copy, the rollback copy, the
+# worker and the backup job; a rollback to an older version pulls its images again. Only this deploy's names count
 # (the registry prefix compared as text), never the tag `dev` of the development stack. A tagged
 # image is removed by its name (its other tags stay), an untagged one by its id. Removes nothing
 # when the containers' images cannot be listed. Exit 1 when anything was not removed.
@@ -376,6 +376,14 @@ fi
 # 5. The worker is replaced in place (not blue-green, see worker.yml).
 log "replacing the Temporal worker with $tag"
 worker up -d --remove-orphans >&2 || log "WARNING: the worker did not start; the site is fine, background jobs are not"
+
+# 5b. So is the nightly backup job (spec 0012 plan §6). Like the worker's, the warning covers only
+#     what compose refuses (no image, a variable missing); a job that refuses its config at start
+#     restarts in a loop, seen in its log and, once the monitor exists (its first night), in
+#     Sentry. compose looks for the image before it touches the running job, so a version from
+#     before the job (no backup image, P24) leaves the old one.
+log "replacing the backup job with $tag"
+backup up -d --remove-orphans >&2 || log "WARNING: the backup job did not start with $tag; the site is fine, the nightly copies are not"
 
 printf 'COLOR=%s\nTAG=%s\nPREVIOUS_COLOR=%s\nPREVIOUS_TAG=%s\n' \
   "$target" "$tag" "$active" "$active_tag" > "$state_file"

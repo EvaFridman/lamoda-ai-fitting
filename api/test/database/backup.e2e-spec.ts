@@ -30,7 +30,12 @@ import { afterAll, afterEach, beforeAll, describe, expect, inject, it, vi } from
 import { copyBucket } from '../../src/backup/bucket.js';
 import { copyDatabase, DatabaseCopyError, PART_SIZE } from '../../src/backup/database.js';
 import { postgresEnv } from '../../src/backup/config.js';
-import { backupStamp, dailyDatabaseKey, dailyStorageKey } from '../../src/backup/keys.js';
+import {
+  backupStamp,
+  backupSuffix,
+  dailyDatabaseKey,
+  dailyStorageKey,
+} from '../../src/backup/keys.js';
 import {
   copyBeforeMigrations,
   IMAGE_MIGRATIONS_DIR,
@@ -84,7 +89,24 @@ function lines(): { destination: Writable; output: string[] } {
 }
 
 function uniqueKey(): string {
-  return dailyDatabaseKey(new Date(Date.now() + Math.floor(Math.random() * 1e9) * 1000));
+  return dailyDatabaseKey(
+    new Date(Date.now() + Math.floor(Math.random() * 1e9) * 1000),
+    backupSuffix(),
+  );
+}
+
+// The 16 hex digits at the end of a copy's folder name (spec 0012 P27).
+function suffixOf(key: string): string {
+  const suffix = /-([0-9a-f]{16})\//.exec(key)?.[1];
+  if (suffix === undefined) throw new Error('the key has no suffix');
+  return suffix;
+}
+
+function expectSuffixHidden(output: string[], suffix: string): void {
+  const text = output.join('\n');
+  expect(output.length).toBeGreaterThan(0);
+  expect(text).not.toContain(suffix);
+  expect(text).toContain('-<suffix>/');
 }
 
 function quietLogger() {
@@ -267,6 +289,17 @@ describe('copyDatabase', () => {
     }
   }, 120_000);
 
+  it('logs the copy without the suffix of its name and returns the real key', async () => {
+    const captured = lines();
+    const copyOptions = options({ logger: pino({ level: 'trace' }, captured.destination) });
+
+    const copy = await copyDatabase(copyOptions);
+
+    expect(copy.key).toBe(copyOptions.key);
+    expectSuffixHidden(captured.output, suffixOf(copy.key));
+    expect(await status(copy.key)).toBe(200);
+  }, 120_000);
+
   it('leaves no unfinished multipart upload when a copy over one part fails its check', async () => {
     const bigUrl = await createTestDatabaseUrl();
     const bigPrisma = prismaOf(bigUrl);
@@ -336,7 +369,7 @@ describe('copyBeforeMigrations', () => {
     const listed = await client.send(
       new ListObjectsV2Command({
         Bucket: BACKUP_BUCKET,
-        Prefix: `pre-deploy/${backupStamp(at)}-${tag}/`,
+        Prefix: `pre-deploy/${backupStamp(at)}-${tag}-`,
       }),
     );
     return (listed.Contents ?? []).flatMap((object) =>
@@ -357,8 +390,10 @@ describe('copyBeforeMigrations', () => {
 
     if (copy === undefined) throw new Error('no copy was made');
     track(copy.key);
-    expect(copy.key).toBe(
-      `pre-deploy/${backupStamp(copyOptions.at)}-${copyOptions.tag}/database.dump.age`,
+    expect(copy.key).toMatch(
+      new RegExp(
+        `^pre-deploy/${backupStamp(copyOptions.at)}-${copyOptions.tag}-[0-9a-f]{16}/database\\.dump\\.age$`,
+      ),
     );
     expect(await storedUnder(copyOptions.at, copyOptions.tag)).toEqual([copy.key]);
 
@@ -382,6 +417,25 @@ describe('copyBeforeMigrations', () => {
     } finally {
       await restoredPrisma.$disconnect();
     }
+  }, 120_000);
+
+  it('logs the copy without the suffix of its name and returns the real key', async () => {
+    const captured = lines();
+    const copyOptions = preDeployOptions({
+      migrationsDir: await releaseDir(['29990101000000_not_applied_yet']),
+      logger: pino({ level: 'trace' }, captured.destination),
+    });
+
+    const copy = await copyBeforeMigrations(copyOptions);
+
+    if (copy === undefined) throw new Error('no copy was made');
+    track(copy.key);
+    expect(await storedUnder(copyOptions.at, copyOptions.tag)).toEqual([copy.key]);
+    expectSuffixHidden(captured.output, suffixOf(copy.key));
+    // The tag is not secret and stays in the line.
+    expect(captured.output.join('\n')).toContain(
+      `pre-deploy/${backupStamp(copyOptions.at)}-${copyOptions.tag}-<suffix>/database.dump.age`,
+    );
   }, 120_000);
 
   it('stores nothing and says so when every migration is applied', async () => {
@@ -546,6 +600,22 @@ describe('copyBucket', () => {
     for (const [name, body] of Object.entries(objects)) {
       expect(restored[name]?.equals(body), name).toBe(true);
     }
+  }, 120_000);
+
+  it('logs the copy without the suffix of its name and returns the real key', async () => {
+    const bucket = await freshSourceBucket();
+    await put(bucket, 'media/a.jpg', Buffer.from('one'));
+    const captured = lines();
+    const key = uniqueStorageKey();
+
+    const copy = await copyBucket({
+      ...bucketOptions(bucket, key),
+      logger: pino({ level: 'trace' }, captured.destination),
+    });
+
+    expect(copy.key).toBe(key);
+    expectSuffixHidden(captured.output, suffixOf(key));
+    expect(await status(key)).toBe(200);
   }, 120_000);
 
   it('skips an object deleted after the listing and counts it', async () => {
@@ -1076,7 +1146,10 @@ async function within(run: Promise<unknown>): Promise<unknown> {
 }
 
 function uniqueStorageKey(): string {
-  const key = dailyStorageKey(new Date(Date.now() + Math.floor(Math.random() * 1e9) * 1000));
+  const key = dailyStorageKey(
+    new Date(Date.now() + Math.floor(Math.random() * 1e9) * 1000),
+    backupSuffix(),
+  );
   createdKeys.push(key);
   return key;
 }

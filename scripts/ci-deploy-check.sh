@@ -9,11 +9,12 @@
 #      them at /media/ (spec 0011 AC2, AC3), from its cache while the storage answers 5xx (M36);
 #      Temporal's retention is 24 hours (spec 0013 N45), then changed for the next deploy; the
 #      database had no migrations yet, so a copy went to the backup bucket before they ran (spec
-#      0012 AC2);
+#      0012 AC2), and the nightly backup job runs (plan §6);
 #   2. deploy the same images as a second version (green) while scripts/request-loop.sh runs:
 #      no request may fail (AC26); smoke test of the new version; the second seed changed no
 #      counts (spec 0002, AC11) and uploaded no photo, no object changed (spec 0011 AC6); the
-#      retention is 24 hours again; no new migration, no copy (spec 0012 AC3);
+#      retention is 24 hours again; no new migration, no copy (spec 0012 AC3); the backup job was
+#      replaced by the new version's;
 #   2b. a deploy that would recreate nginx with a changed config, against a storage that refuses
 #      writes and lacks one photo: it stops at the seed, nginx's container and rendered config are
 #      unchanged and /media/ answers 200 (spec 0011 M38);
@@ -460,6 +461,22 @@ pre_deploy_copies() {
 # Number of lines, 0 for an empty string.
 count_lines() { if [ -z "$1" ]; then echo 0; else wc -l <<< "$1" | tr -d ' '; fi; }
 
+# spec 0012 plan §6: the deploy left the nightly backup job running from the image of <tag>, never
+# restarted, and it has started: it logged its next run, or its run when started between 04:00 and
+# 04:30 Moscow time (P15). Its config is checked at start, so a refused one would restart it.
+check_backup_job() {
+  local container=ai-fitting-backup-backup-1 logs="" started=""
+  for _ in $(seq 1 30); do
+    logs="$(docker logs "$container" 2>&1 || true)"
+    if grep -qE 'Next backup run|Backup run started' <<< "$logs"; then started=1; break; fi
+    sleep 1
+  done
+  [ -n "$started" ] \
+    && [ "$(docker inspect --format '{{.Config.Image}} {{.State.Running}} {{.RestartCount}}' "$container")" = "ai-fitting-backup:$1 true 0" ] \
+    || { printf 'ci-deploy-check: the backup job does not run from ai-fitting-backup:%s; its log:\n%s\n' "$1" "$logs" >&2; exit 1; }
+  echo "the backup job runs from ai-fitting-backup:$1"
+}
+
 # A throwaway age public key for the backup job; its private key is never kept, the database tests
 # decrypt copies (spec 0012 plan §7). From the api image, which has age-encryption.
 backup_recipient="$(docker run --rm --entrypoint node "ai-fitting-api:$tag" --input-type=module -e \
@@ -657,13 +674,18 @@ group "the copy before the first migrations"
 # spec 0012 AC2: a fresh database has no _prisma_migrations, so every migration is new; the job
 # stored one copy named by the tag, and its log line comes before the migrations'.
 copies="$(pre_deploy_copies)"
-[ "$(count_lines "$copies")" = 1 ] && grep -qE "^pre-deploy/[0-9TZ-]+-$tag/database\.dump\.age\$" <<< "$copies" \
+[ "$(count_lines "$copies")" = 1 ] && grep -qE "^pre-deploy/[0-9TZ-]+-$tag-[0-9a-f]{16}/database\.dump\.age\$" <<< "$copies" \
   || { printf 'ci-deploy-check: the first deploy left these copies under pre-deploy/:\n%s\n' "$copies" >&2; exit 1; }
 stored="$(grep -n 'Database copy stored' "$work/deploy-1.log" | head -n 1 | cut -d: -f1)"
 migrated="$(grep -n "migrating the database with $tag" "$work/deploy-1.log" | head -n 1 | cut -d: -f1)"
 [ -n "$stored" ] && [ -n "$migrated" ] && [ "$stored" -lt "$migrated" ] \
   || { echo "ci-deploy-check: the copy was not stored before the migrations ran (lines '$stored', '$migrated')" >&2; exit 1; }
+# P27: the name's random suffix is in no line of the deploy's log, which CD shows on GitHub.
+suffix="$(sed -E 's|.*-([0-9a-f]{16})/.*|\1|' <<< "$copies")"
+! grep -qF "$suffix" "$work/deploy-1.log" \
+  || { echo "ci-deploy-check: the deploy's log shows the suffix of the copy's name" >&2; exit 1; }
 echo "the first deploy stored $copies before migrating"
+check_backup_job "$tag"
 endgroup
 
 group "the catalog media through nginx"
@@ -723,6 +745,7 @@ grep -qF 'No new migration, no copy before the deploy' "$work/deploy-2.log" \
   && [ "$(pre_deploy_copies)" = "$copies" ] \
   || { echo "ci-deploy-check: the second deploy, with no new migration, did not run the job or stored a copy" >&2; exit 1; }
 echo "the second deploy, with no new migration, made no copy"
+check_backup_job "$second"
 
 group "a refused write stops the deploy before nginx changes"
 # spec 0011 M38. S3_ENDPOINT with the trailing slash CD allows changes nginx's environment and its
@@ -793,7 +816,7 @@ grep -qF 'the database copy failed' "$work/deploy-copy-refused.log" \
   && ! grep -qF "migrating the database with $migrating" "$work/deploy-copy-refused.log" \
   || { echo "ci-deploy-check: the deploy failed, but not at the copy, or it migrated" >&2; exit 1; }
 probe_log
-grep -qE "\"method\":\"PUT\",\"url\":\"/ai-fitting-backups/pre-deploy/[^\"]*-$migrating/database\.dump\.age" \
+grep -qE "\"method\":\"PUT\",\"url\":\"/ai-fitting-backups/pre-deploy/[^\"]*-$migrating-[0-9a-f]{16}/database\.dump\.age" \
   "$work/probe.log" \
   || { echo "ci-deploy-check: the job did not try to upload the copy of $migrating" >&2; exit 1; }
 [ "$(pre_deploy_copies)" = "$copies" ] \

@@ -125,7 +125,8 @@ docker compose run --rm api npm run seed:dev
 docker compose --profile backup run --rm --build backup node dist/backup/main.js --once
 ```
 
-В бакете появляются `daily/<время UTC>/database.dump.age` и `daily/<время UTC>/storage.tar.age`.
+В бакете появляются `daily/<время UTC>-<16 случайных hex>/database.dump.age` и `storage.tar.age`
+рядом.
 Без `--once` задание работает как на сервере: спит до 04:00 по Москве и копирует каждую ночь.
 Sentry в локальном профиле выключен, чтобы локальные запуски не отмечались в мониторе
 `nightly-backup` продового проекта.

@@ -3,7 +3,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import * as Sentry from '@sentry/nestjs';
 import type { Logger } from 'pino';
 
-import { dailyDatabaseKey, dailyStorageKey } from './keys.js';
+import { backupSuffix, dailyDatabaseKey, dailyStorageKey } from './keys.js';
 import { MONITOR_CONFIG, MONITOR_SLUG, nextRun, runsAtOnce } from './schedule.js';
 
 // One night's copies, bound to their clients and settings by run.ts; each takes its key.
@@ -18,20 +18,21 @@ export class BackupRunError extends Error {
   override readonly name = 'BackupRunError';
 }
 
-// The database copy, then the bucket copy, both named by the run's start (plan §4). The second runs
-// even when the first failed; the run fails if either did. Each copy logs what it stored.
-export async function runBackup(at: Date, job: BackupJob): Promise<void> {
+// The database copy, then the bucket copy, both named by the run's start and one random suffix
+// (plan §4, P27). The second runs even when the first failed; the run fails if either did. Each
+// copy logs what it stored.
+export async function runBackup(at: Date, job: BackupJob, suffix = backupSuffix()): Promise<void> {
   const { logger } = job;
   logger.info('Backup run started');
   const failed: string[] = [];
   try {
-    await job.copyDatabase(dailyDatabaseKey(at));
+    await job.copyDatabase(dailyDatabaseKey(at, suffix));
   } catch (error) {
     logger.error({ err: error }, 'Database copy failed');
     failed.push('database');
   }
   try {
-    await job.copyBucket(dailyStorageKey(at));
+    await job.copyBucket(dailyStorageKey(at, suffix));
   } catch (error) {
     logger.error({ err: error }, 'Bucket copy failed');
     failed.push('bucket');

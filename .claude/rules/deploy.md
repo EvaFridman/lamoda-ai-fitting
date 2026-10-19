@@ -23,7 +23,9 @@ Details and commands: `deploy/README.md`.
   (an image of a push whose Checks failed is published but was never deployed); CD
   run by hand refuses a hash whose commit has no successful `CD / Deploy to production` check run.
 - Blue-green: the new copy of api and web starts next to the running one, nginx switches only when
-  it is healthy; the previous copy stays as the rollback. The Temporal worker is replaced in place.
+  it is healthy; the previous copy stays as the rollback. The Temporal worker and then the nightly
+  backup job (`deploy/compose/backup.yml`, spec 0012) are replaced in place after the switch; a
+  failed start of either is a warning, not a failed deploy.
   Before pulling (with a registry) and after the switch, `deploy.sh` removes the app images (api,
   web, backup) no container uses (they once filled the server's disk); a rollback to an older version pulls its
   images again.

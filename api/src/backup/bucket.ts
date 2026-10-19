@@ -9,6 +9,7 @@ import { pack, type Pack } from 'tar-stream';
 
 import { StorageError } from '../storage/storage.error.js';
 import { PART_SIZE } from './database.js';
+import { loggedKey } from './keys.js';
 
 // The key classes that are copied; `tmp/` expires in a day and is never listed (P9, AC5).
 export const COPIED_PREFIXES = ['media/', 'keep/'] as const;
@@ -102,7 +103,7 @@ export async function copyBucket(options: BucketCopyOptions): Promise<BucketCopy
     throw StorageError.from('upload', error);
   }
   const copy = { key: options.key, ...counts, bytes };
-  options.logger.info(copy, 'Bucket copy stored');
+  options.logger.info({ ...copy, key: loggedKey(copy.key) }, 'Bucket copy stored');
   return copy;
 }
 

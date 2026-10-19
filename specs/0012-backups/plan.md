@@ -33,8 +33,8 @@ schema would demand them.
   same `forcePathStyle`, `WHEN_REQUIRED` checksums and connection timeout as the api's, but a
   60 s socket timeout (P18, amended at T5); errors go through `StorageError.from` (no keys, no
   paths).
-- Every new variable goes into `.env.example` with a comment; the two secrets' names join
-  `check:web-bundle`'s list.
+- Every new variable goes into `.env.example` with a comment; the four keys' names join
+  `check:web-bundle`'s list (P25, amended at T8).
 
 ## 2. Database copy (P3, P5, P7; AC1, AC4, AC9)
 
@@ -64,8 +64,10 @@ pg_dump --format=custom ──┬──> pg_restore --list > /dev/null        (t
 - The tools' stderr goes to the log line by line (the password is in the environment), but a
   server's `DETAIL:`/`CONTEXT:` line (any case) is dropped and every line is cut to 500 characters: they can quote table
   values (P17, amended at T4).
-- Keys: `daily/<UTC stamp>/database.dump.age` and `pre-deploy/<UTC stamp>-<image tag>/database.dump.age`;
-  the stamp is `YYYY-MM-DDTHH-mm-ssZ`, so names never repeat and sort by time. The image tag must
+- Keys: `daily/<UTC stamp>-<suffix>/database.dump.age` and
+  `pre-deploy/<UTC stamp>-<image tag>-<suffix>/database.dump.age`; the stamp is
+  `YYYY-MM-DDTHH-mm-ssZ`, so names never repeat and sort by time; the suffix is 16 random hex
+  digits per run, so the write key cannot guess a copy to overwrite (P27, amended at T8). The image tag must
   match `^[0-9a-f]{7,40}$` (the deploy's tags are commit SHAs), else `--pre-deploy` exits 1 before
   dumping.
 
@@ -82,7 +84,7 @@ ListObjectsV2 media/, keep/ ──> for each: GetObject ──> tar entry ──
   `ContentLength` and the time from `LastModified`; objects are read one after another.
 - An object deleted between the listing and the read (`NoSuchKey`) is skipped and counted; any
   other error fails the run.
-- The tar stream is encrypted and uploaded as `daily/<UTC stamp>/storage.tar.age`; the log line
+- The tar stream is encrypted and uploaded as `daily/<UTC stamp>-<suffix>/storage.tar.age`, next to the night's database copy; the log line
   gives the number of objects, the bytes and the skipped count.
 - Restoring is `age -d | tar -x` into an empty directory, never `-P` (§8, P19), then uploading
   the tree as is: the paths are the keys, except keys with `..` or a leading `/`, which tar skips
@@ -177,7 +179,11 @@ dist/backup/main.js --once` makes a local copy. `storage/dev-setup.ts` also crea
 
 `deploy/README.md`, section «Бэкапы», in Russian:
 
-- **База:** download a copy with a read key typed in by hand (not stored), `age -d -i <identity>`
+- **Finding a copy:** its name has a random suffix that no log shows (P27), and neither backup
+  user can list the backup bucket: the owner lists `daily/` or `pre-deploy/` and downloads with
+  the main user's key typed in by hand (not stored), or in the panel; the latest folder sorts last
+  (amended at T8).
+- **База:** download a copy with the main key typed in by hand (not stored), `age -d -i <identity>`
   on the Mac, `pg_restore --no-owner` into an empty `postgres:18.6-trixie` container; the query
   that counts every table's rows, run on production right before a `--once` copy and on the
   restored database.
@@ -195,13 +201,13 @@ In `deploy/README.md`, «Бэкапы», before PR 2 is merged:
    check in the panel that the class offers versioning and these three rules; if not, stop and
    decide with the owner.
 2. User `backup-writer` with a custom role: `s3:PutObject`, `s3:AbortMultipartUpload` (and the
-   multipart parts it implies) on `arn:aws:s3:::<backup bucket>/*`, nothing else; applied with
-   `aws iam put-user-policy` in the one-off `aws-cli` container of «Хранилище S3», with the main
-   user's key typed in and kept nowhere.
+   multipart parts it implies) on `arn:aws:s3:::<backup bucket>/*`, nothing else; set in the
+   user's settings in Timeweb's panel (P28, amended at T8).
 3. User `backup-reader` with a custom role: `s3:ListBucket` on the app bucket and `s3:GetObject`
-   on its objects, nothing else (P11), applied the same way.
+   on its `media/*` and `keep/*`, nothing else (P11, P26), set the same way.
 4. `age-keygen` on the Mac; the identity into the password manager; the recipient into GitHub.
-5. The four keys and three variables into GitHub (Environment `production`) with `gh secret set`
+5. The four keys and two variables (`BACKUP_BUCKET`, `BACKUP_AGE_RECIPIENT`; `S3_REGION` keeps
+   its default `ru-1`, P25) into GitHub (Environment `production`) with `gh secret set`
    / `gh variable set`, read from files, never on screen.
 6. In Sentry, an alert rule mailing the owner on the `nightly-backup` monitor's issues.
 

@@ -108,6 +108,26 @@ describe('check-web-bundle', () => {
     });
   }
 
+  for (const name of [
+    'BACKUP_READ_ACCESS_KEY_ID',
+    'BACKUP_READ_SECRET_ACCESS_KEY',
+    'BACKUP_WRITE_ACCESS_KEY_ID',
+    'BACKUP_WRITE_SECRET_ACCESS_KEY',
+  ]) {
+    it(`fails on the env name ${name}`, () => {
+      put('chunks/backup.js', `process.env.${name}`);
+      const result = check();
+      assert.equal(result.status, 1, result.stderr);
+      assert.match(result.stderr, new RegExp(`backup\\.js: ${name}`));
+    });
+  }
+
+  it('passes the other backup settings', () => {
+    put('chunks/backup.js', 'process.env.BACKUP_BUCKET+process.env.BACKUP_AGE_RECIPIENT');
+    const result = check();
+    assert.equal(result.status, 0, result.stderr);
+  });
+
   it('passes the public GOOGLE_CLIENT_ID', () => {
     put('chunks/auth.js', 'process.env.GOOGLE_CLIENT_ID');
     const result = check();

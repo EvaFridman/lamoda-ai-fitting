@@ -3,7 +3,8 @@
 // sends, or `PROXY_SECRET`, its env name, or the env names of the storage keys, `S3_ACCESS_KEY_ID`
 // and `S3_SECRET_ACCESS_KEY` (spec 0011 AC14, plan §1), or the auth secrets' names
 // `BETTER_AUTH_SECRET` and `GOOGLE_CLIENT_SECRET` (spec 0013 plan §8), except Better Auth's env
-// getter (`ALLOWED`, N53). Importing `server-only` from
+// getter (`ALLOWED`, N53), or the backup job's four
+// `BACKUP_{READ,WRITE}_{ACCESS_KEY_ID,SECRET_ACCESS_KEY}` (spec 0012 P25). Importing `server-only` from
 // a client component already fails `next build`; this catches the rest, e.g. a client file that
 // copies the header by hand.
 // Root `verify` runs it after `build`. A missing or empty directory fails too, so the check never
@@ -23,6 +24,10 @@ const PATTERNS = [
   /S3_SECRET_ACCESS_KEY/,
   /BETTER_AUTH_SECRET/,
   /GOOGLE_CLIENT_SECRET/,
+  /BACKUP_READ_ACCESS_KEY_ID/,
+  /BACKUP_READ_SECRET_ACCESS_KEY/,
+  /BACKUP_WRITE_ACCESS_KEY_ID/,
+  /BACKUP_WRITE_SECRET_ACCESS_KEY/,
 ];
 
 // The one place a name may stand, cut out before the search (spec 0013 N53): Better Auth's browser
