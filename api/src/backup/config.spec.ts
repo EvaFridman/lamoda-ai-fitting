@@ -138,13 +138,31 @@ describe('validateBackupEnv', () => {
     expect(env.DATABASE_URL).toContain('schema=public');
   });
 
+  it('accepts a database URL with no parameter', () => {
+    const url = 'postgresql://app:pw@postgres/app';
+    expect(validateBackupEnv({ ...validEnv(), DATABASE_URL: url }).DATABASE_URL).toBe(url);
+  });
+
+  it('accepts a percent-encoded slash inside the one database segment', () => {
+    const url = 'postgresql://app:pw@postgres/a%2Fb';
+    const env = validateBackupEnv({ ...validEnv(), DATABASE_URL: url });
+    expect(postgresEnv(env.DATABASE_URL).PGDATABASE).toBe('a/b');
+  });
+
   it.each([
     ['another query parameter', 'postgresql://app:db-pw-2@postgres/app?sslmode=require'],
-    ['schema with another parameter', 'postgresql://app:db-pw-2@postgres/app?schema=a&sslmode=x'],
+    [
+      'schema with another parameter',
+      'postgresql://app:db-pw-2@postgres/app?schema=public&sslmode=x',
+    ],
     ['a host with a space', 'postgresql://app:db-pw-2@ho st/app'],
     ['no database', 'postgresql://app:db-pw-2@postgres'],
     ['an empty database', 'postgresql://app:db-pw-2@postgres/'],
     ['no host', 'postgresql://app:db-pw-2@/app'],
+    ['a path of two segments', 'postgresql://app:db-pw-2@postgres/app/extra'],
+    ['a trailing slash', 'postgresql://app:db-pw-2@postgres/app/'],
+    ['another schema', 'postgresql://app:db-pw-2@postgres/app?schema=other'],
+    ['two schemas', 'postgresql://app:db-pw-2@postgres/app?schema=public&schema=other'],
   ])('refuses a database URL with %s, naming it and never the password', (_label, url) => {
     const message = messageOf({ ...validEnv(), DATABASE_URL: url });
     expect(message).toContain('DATABASE_URL');
