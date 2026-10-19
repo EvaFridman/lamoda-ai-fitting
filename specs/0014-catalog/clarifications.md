@@ -3,8 +3,8 @@
 Status: accepted (2026-10-19); amended 2026-10-19 at the plan: the whole greeting goes (O33), web's
 own health route (O34), Lamoda's layout of applied filters and the breadcrumbs (O5), search by
 article (O14); amended 2026-10-19 after the check against 0012, 0013 and 0015 (O35–O39);
-amended 2026-10-19 at the review of PR 1 (O40–O48) and its second round (O5's description, O46,
-O49, O50).
+amended 2026-10-19 at the review of PR 1 (O40–O48), its second round (O5's description, O46,
+O49, O50) and its third round (O49's lag).
 
 The owner's decisions for this spec. Ids `O1`, `O2`, … are referred to by the spec, the plan and
 code comments. All decisions below: owner, 2026-10-19.
@@ -256,7 +256,9 @@ Second round, on the review of `4817711`:
 - **O49. The title's count comes from the filter counts.** The number in the title ("128 товаров")
   and the list's `aria-setsize` come from the facets' `total`. The page loads the facets on every
   address, a batch page (`?cursor=`) included, and they are cached (O18). The list's own `total`
-  (first batch only, O44) is then not needed by web.
+  (first batch only, O44) is then not needed by web. The count comes from the cache, so after a
+  catalog change it may lag behind the list for the cache's lifetime (60 s); this is accepted and
+  is not a defect at AC3 or AC23. (The lag noted at the third round.)
 - **O50. The references are described, not stored.** The Lamoda screenshots and saved page are
   not committed. The saved page holds the owner's personal data, and the pictures are someone
   else's. O5 describes what they show; when a task needs them, the owner gives them again.
