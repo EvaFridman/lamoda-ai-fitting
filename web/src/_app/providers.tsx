@@ -1,7 +1,7 @@
 'use client';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, Suspense, useState } from 'react';
 
 import { AnalyticsGate, ConsentBanner } from '@/features/cookie-consent';
 import { retryDelay, shouldRetry } from '@/shared/api';
@@ -35,7 +35,12 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
-        <AnalyticsGate />
+        {/* It reads the path, which a route with a dynamic segment (`/catalog/[slug]`) knows only
+            per request; without its own boundary that would block the whole page's prerender. It
+            renders nothing, so the fallback is nothing too. */}
+        <Suspense fallback={null}>
+          <AnalyticsGate />
+        </Suspense>
         <ConsentBanner />
         {children}
       </ToastProvider>

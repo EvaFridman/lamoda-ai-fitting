@@ -93,10 +93,12 @@ counts() {
 count_of() { sed -n "s/^$1=//p" <<< "$2"; }
 
 # AC14 (spec 0006 F10): a request to <path> that sends its own X-Request-Id gets exactly one back,
-# nginx's (32 hex characters), and that id is on nginx's and the api's log lines. Through `/` the
-# api's line is web's call to the api, so it checks the proxy secret web sends as well.
+# nginx's (32 hex characters), and that id is on at least <api lines> (default 1) of the api's
+# log lines and on nginx's. Through a category page (`/catalog/dresses`, 2 lines) the api's lines
+# are web's calls, one from its proxy (the request's headers) and one from the page (`headers()`),
+# so it checks that both send the proxy secret.
 check_request_id() {
-  local path="$1" color="$2" ids id i nginx_log api_log
+  local path="$1" color="$2" lines="${3:-1}" ids id i nginx_log api_log
   ids="$(curl -sk --max-time 10 -o /dev/null -D - -H 'X-Request-Id: chosen-by-the-client' \
     "https://localhost$path" | tr -d '\r' | awk -F': ' 'tolower($1) == "x-request-id" { print $2 }')" \
     || { echo "ci-deploy-check: $path: the request failed" >&2; return 1; }
@@ -110,11 +112,12 @@ check_request_id() {
     api_log="$(docker logs "ai-fitting-$color-api-1" 2>&1)"
     # The api's own id ("req":{"id":...}), not the x-request-id header it also logs: an untrusted
     # request has nginx's id only in the header.
-    grep -qF "request_id=$id" <<< "$nginx_log" && grep -qF "\"id\":\"$id\"" <<< "$api_log" \
-      && { echo "request id $id of $path is on nginx's and the api's log lines"; return 0; }
+    grep -qF "request_id=$id" <<< "$nginx_log" \
+      && [ "$(grep -cF "\"id\":\"$id\"" <<< "$api_log")" -ge "$lines" ] \
+      && { echo "request id $id of $path is on nginx's and $lines+ of the api's log lines"; return 0; }
     sleep 1
   done
-  echo "ci-deploy-check: request id $id of $path is missing from nginx's or the api's log" >&2
+  echo "ci-deploy-check: request id $id of $path is missing from nginx's log or from $lines of the api's lines" >&2
   return 1
 }
 
@@ -662,7 +665,7 @@ echo "$first_counts"
   || { echo "ci-deploy-check: the seed did not load the demo catalog" >&2; exit 1; }
 # /api/hello, not /api/health/live: the api does not log health checks.
 check_request_id /api/hello blue
-check_request_id / blue
+check_request_id /catalog/dresses blue 2
 check_security_headers /api/hello
 check_security_headers /
 # The socket location and nginx's 403 for readiness: a location's own add_header would drop them.
@@ -843,7 +846,7 @@ set_proxy_secrets "$old_secret" "$new_secret"
 ENV_FILE="$env_file" deploy/scripts/deploy.sh "$tag"
 scripts/smoke-test.sh https://localhost "$tag"
 check_request_id /api/hello blue
-check_request_id / blue
+check_request_id /catalog/dresses blue 2
 endgroup
 
 group "rotation, deploy 2 fails: PROXY_SECRET is the new one, the api of $broken is never ready"
@@ -879,10 +882,10 @@ grep -qF "copy skipped: $broken predates the backup job" "$work/broken.err" \
   printenv PROXY_SECRET)" = "$new_secret" ] \
   || { echo "ci-deploy-check: nginx was not recreated with the new PROXY_SECRET" >&2; exit 1; }
 # blue keeps serving, started with the old secret and the new one as PROXY_SECRET_NEXT: it trusts
-# nginx (the new secret, /api/hello) and its own web (the old one, /).
+# nginx (the new secret, /api/hello) and its own web (the old one, /catalog/dresses).
 scripts/smoke-test.sh https://localhost "$tag"
 check_request_id /api/hello blue
-check_request_id / blue
+check_request_id /catalog/dresses blue 2
 endgroup
 
 group "a secret blue does not accept is refused before nginx is recreated"
@@ -913,7 +916,7 @@ backup_image_for "$second"
 ENV_FILE="$env_file" deploy/scripts/deploy.sh "$second"
 scripts/smoke-test.sh https://localhost "$second"
 check_request_id /api/hello green
-check_request_id / green
+check_request_id /catalog/dresses green 2
 if docker image inspect "ai-fitting-api:$tag-stale" > /dev/null 2>&1; then
   echo "ci-deploy-check: the deploy kept an app image no container uses" >&2
   exit 1

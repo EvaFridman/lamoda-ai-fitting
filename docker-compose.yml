@@ -293,6 +293,8 @@ services:
       API_URL: http://api:3000
       REDIS_URL: redis://redis:6379
       APP_VERSION: dev
+      # The browser's address of web, the base of absolute links in metadata (spec 0014 O68).
+      SITE_URL: ${SITE_URL:-http://localhost:${WEB_HOST_PORT:-3001}}
       # Locally there is no nginx: web is the only one that sends the secret to the api.
       PROXY_SECRET: ${PROXY_SECRET?add PROXY_SECRET to .env (openssl rand -hex 32), see README}
       # Empty turns analytics off; a dummy token in .env is for local checks only.

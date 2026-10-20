@@ -192,6 +192,48 @@ describe('apiFetch request id', () => {
   });
 });
 
+describe("apiFetch with the request's own headers", () => {
+  it('takes the address and the request id from them, not from headers()', async () => {
+    state.incoming = new Headers({ 'x-real-ip': '198.51.100.9', 'x-request-id': 'f'.repeat(32) });
+    await apiFetch(
+      THINGS,
+      schema,
+      undefined,
+      new Headers({ 'x-real-ip': '203.0.113.7', 'x-request-id': ID }),
+    );
+    const sent = (fetchMock.mock.calls[0]?.[1] as RequestInit).headers as Headers;
+    expect(sent.get('x-forwarded-for')).toBe('203.0.113.7');
+    expect(sent.get('x-request-id')).toBe(ID);
+  });
+
+  it('uses x-forwarded-for of the given headers', async () => {
+    await apiFetch(
+      THINGS,
+      schema,
+      undefined,
+      new Headers({ 'x-forwarded-for': '6.6.6.6, 198.51.100.1' }),
+    );
+    const sent = (fetchMock.mock.calls[0]?.[1] as RequestInit).headers as Headers;
+    expect(sent.get('x-forwarded-for')).toBe('198.51.100.1');
+  });
+
+  it('does not call headers() when they are given', async () => {
+    state.incoming = new Proxy(new Headers(), {
+      get() {
+        throw new Error('headers() was read');
+      },
+    });
+    await expect(apiFetch(THINGS, schema, undefined, new Headers())).resolves.toEqual({ ok: true });
+  });
+
+  it('still sends its own secret and drops the given one', async () => {
+    state.env.PROXY_SECRET = SECRET;
+    await apiFetch(THINGS, schema, undefined, new Headers({ 'x-proxy-secret': 'evil' }));
+    const sent = (fetchMock.mock.calls[0]?.[1] as RequestInit).headers as Headers;
+    expect(sent.get('x-proxy-secret')).toBe(SECRET);
+  });
+});
+
 describe('apiFetch path origin', () => {
   it.each(['//evil.example/x', 'https://evil.example/x', '/\\evil.example/x'])(
     'refuses %s before calling fetch',

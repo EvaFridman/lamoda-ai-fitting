@@ -15,6 +15,11 @@ const nextConfig: NextConfig = {
   // Cache Components: the build prerenders a static shell; uncached data (anything from the api)
   // renders per request inside <Suspense>. So the image builds with no api, Redis or database.
   cacheComponents: true,
+  // The catalog is the home page for now (spec 0014 O3). Temporary (307, O42): a later page on `/`
+  // needs no browser cache cleared.
+  async redirects() {
+    return [{ source: '/', destination: '/catalog', permanent: false }];
+  },
   // The browser calls the site's own /api (spec 0007 H6) and loads the catalog media from its own
   // /media/ (spec 0011 M3). In production nginx serves both before Next: /api/ with the prefix
   // stripped, /media/<key> from the bucket's media/<key>. Locally there is no nginx, so `next dev`

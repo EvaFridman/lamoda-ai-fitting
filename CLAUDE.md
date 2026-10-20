@@ -353,7 +353,8 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   container. A direct `fetch` to the api would put all visitors into one limit. Paths come only
   from `buildPath('/products/:id', { id }, query)` (`@/shared/api`): each param is encoded into one
   segment, and an empty, `.` or `..` param, like a path off the api's origin, is an `ApiError` of
-  kind `path` before any request.
+  kind `path` before any request. It reads the visitor's request from `headers()`; `proxy.ts`, which
+  has no `headers()`, passes the request's headers as its fourth argument.
 - `web` calls the api from the browser only through `clientFetch` (`@/shared/api`): the site's own
   `/api` (no public api address, no cross-origin calls), no secret, a 15 s timeout, the same
   response step and errors as `apiFetch`. In production nginx serves `/api/`; locally `next dev`
@@ -494,7 +495,18 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   `Signed In`, N55), on "Back" from the browser's cache or after a failed start. A sign-in seen
   without consent is not kept: a later consent sends only the identity.
 - `web` data from the api renders at request time inside `<Suspense>`: the web image must build with
-  no api, Redis or database running.
+  no api, Redis or database running. So a page has sent its static shell with 200 before it reads
+  anything, and a `notFound()` there is a soft 404 (the not-found page with `noindex`). A real 404
+  is decided in `web/proxy.ts` before routing: `/catalog/<slug>` of an unknown or inactive category
+  is rewritten to a path no route matches (spec 0014 O65); an api failure lets the request through.
+  A `<Link>` prefetch skips that check. A client component of the root layout that reads the URL
+  (`usePathname`, `useSearchParams`) sits inside its own `<Suspense>`, or every route with a dynamic
+  segment fails the build.
+- `web` routes (spec 0014): `/` redirects to `/catalog` (307, `redirects()` in `next.config.ts`);
+  `/healthz` answers 200 without calling the api. The root layout's title template is
+  `%s — Виртуальная примерка | Lamoda AI Fitting`; a page with a full title of its own sets it as
+  `absolute`. `metadataBase` comes from the server env `SITE_URL` and is set by the pages that
+  render per request, never the root layout, whose metadata is built with the static pages (O67).
 - `api` storage (spec 0011): one private bucket. The first segment of a key is its class, since
   Timeweb's lifecycle rules match prefixes only: `media/` (the catalog media, no expiry; the
   database keeps the key without `media/`, nginx and the seed add it), `keep/users/<userId>/…`

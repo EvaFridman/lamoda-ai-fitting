@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Checks a running site through its entry point (nginx): the page shows the greeting from the api,
-# and the api reports the expected version. Used by CI after a deploy and by hand.
+# Checks a running site through its entry point (nginx): `/` sends to the catalog, whose page has
+# its heading, a category page shows its name from the api, and the api reports the expected
+# version. Used by CI after a deploy and by hand.
 #
 #   scripts/smoke-test.sh <base-url> [expected-version]     e.g. https://localhost a1b2c3d
 #
@@ -10,8 +11,17 @@ set -euo pipefail
 base="${1:?usage: smoke-test.sh <base-url> [expected-version]}"
 expected="${2:-}"
 
-page="$(curl -sk --max-time 10 "$base/")"
-grep -q 'Hello, world!' <<<"$page" || { echo "smoke: the page at $base/ has no greeting" >&2; exit 1; }
+# A temporary redirect (spec 0014 O42); curl prints the Location resolved against the request.
+root="$(curl -sk --max-time 10 -o /dev/null -w '%{http_code} %{redirect_url}' "$base/")"
+[ "$root" = "307 $base/catalog" ] ||
+  { echo "smoke: $base/ answers '$root', expected '307 $base/catalog'" >&2; exit 1; }
+page="$(curl -sk --max-time 10 "$base/catalog")"
+grep -q '<h1' <<<"$page" || { echo "smoke: the page at $base/catalog has no heading" >&2; exit 1; }
+# `/catalog`'s heading is static: a category's comes from the api through web, so this one shows
+# that web reaches the api. The seed's "Платья", which the seed never renames (spec 0014 O69).
+page="$(curl -sk --max-time 10 "$base/catalog/dresses")"
+grep -q '>Платья</h1>' <<<"$page" ||
+  { echo "smoke: the page at $base/catalog/dresses has no heading from the api" >&2; exit 1; }
 
 live="$(curl -sk --max-time 10 --fail "$base/api/health/live")" ||
   { echo "smoke: $base/api/health/live does not answer 200" >&2; exit 1; }

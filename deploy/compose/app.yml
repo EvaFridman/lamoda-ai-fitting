@@ -89,6 +89,9 @@ services:
       API_URL: http://api-${COLOR:?set COLOR}:3000
       REDIS_URL: redis://redis:6379
       APP_VERSION: ${IMAGE_TAG}
+      # The base of absolute links in metadata (spec 0014 O68), the same address as the api's
+      # WEB_ORIGIN.
+      SITE_URL: https://${SITE_DOMAIN:?set SITE_DOMAIN}
       # Sent with the visitor's address to the api (spec 0006 F13). Without it web would not start
       # and the running copy keeps serving (F20).
       PROXY_SECRET: ${PROXY_SECRET:?set PROXY_SECRET}

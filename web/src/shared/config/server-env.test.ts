@@ -3,7 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('server-only', () => ({}));
 
-const BASE = { API_URL: 'http://api:3000', REDIS_URL: 'redis://redis:6379' };
+const BASE = {
+  API_URL: 'http://api:3000',
+  SITE_URL: 'https://lamoda-ai-fitting.ru',
+  REDIS_URL: 'redis://redis:6379',
+};
 
 async function load(env: Record<string, string>) {
   vi.resetModules();
@@ -31,6 +35,29 @@ describe('getServerEnv API_URL', () => {
   it.each(['https://api', 'http://api:3000'])('accepts %s', async (url) => {
     const getServerEnv = await load({ API_URL: url });
     expect(getServerEnv().API_URL).toBe(url);
+  });
+});
+
+describe('getServerEnv SITE_URL', () => {
+  it('is required', async () => {
+    vi.resetModules();
+    vi.unstubAllEnvs();
+    vi.stubEnv('PROXY_SECRET', undefined);
+    vi.stubEnv('SITE_URL', undefined);
+    vi.stubEnv('API_URL', BASE.API_URL);
+    vi.stubEnv('REDIS_URL', BASE.REDIS_URL);
+    const { getServerEnv } = await import('./server-env');
+    expect(() => getServerEnv()).toThrow(/SITE_URL/);
+  });
+
+  it.each(['foo://site', 'ftp://site', 'lamoda-ai-fitting.ru', ''])('rejects %j', async (url) => {
+    const getServerEnv = await load({ SITE_URL: url });
+    expect(() => getServerEnv()).toThrow(/SITE_URL/);
+  });
+
+  it.each(['https://lamoda-ai-fitting.ru', 'http://localhost:3000'])('accepts %s', async (url) => {
+    const getServerEnv = await load({ SITE_URL: url });
+    expect(getServerEnv().SITE_URL).toBe(url);
   });
 });
 

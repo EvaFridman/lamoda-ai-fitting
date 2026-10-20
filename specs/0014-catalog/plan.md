@@ -7,7 +7,8 @@ the price indexes, §2.2, §2.4) and its second round (the cursor conditions' in
 the count from the facets, O49, §3.3, §3.4) and its third round (the rating cursor in two
 branches, §2.3; `aria-setsize` bounded by the loaded cards, §3.4).
 
-How `spec.md` (AC1–AC24) is built. Decisions: `clarifications.md` (O1–O50).
+How `spec.md` (AC1–AC24) is built. Decisions: `clarifications.md` (O1–O69; §3.1 and §3.7 amended
+at T11 by O65–O69).
 
 ## 1. Pull requests and release order
 
@@ -189,19 +190,24 @@ not in the runtime image's commands.
 | `/sitemap.xml`, `/robots.txt` | `app/sitemap.ts`, `app/robots.ts`                                                  |
 | `/healthz`                    | `app/healthz/route.ts`, plain 200 (O34). nginx answers 404 for it in PR 4          |
 
-The root layout gets `metadataBase` (from a new server env `SITE_URL`, `https://lamoda-ai-fitting.ru` in
-production, `http://localhost:3000` in `.env.example`) and the title template `%s — Виртуальная примерка | Lamoda AI Fitting` (O25).
+The root layout gets the title template `%s — Виртуальная примерка | Lamoda AI Fitting` (O25).
+`metadataBase` comes from a new server env `SITE_URL` (`https://${SITE_DOMAIN}` in production,
+`http://localhost:<WEB_HOST_PORT>` locally, O68) and is set by the catalog's `generateMetadata`,
+the sitemap and robots, which render per request, not by the root layout (O67).
 
 **404 status (AC2).** A page that streams has already sent 200 before it learns the slug is
-unknown. So the slug is resolved before anything streams:
+unknown, and with `cacheComponents` every dynamic route streams its static shell first (O65). So
+the slug is resolved before Next renders:
 
-- `generateMetadata` and the page call `getCategoryBySlug`, a server function cached per request
-  with `React.cache`, outside `<Suspense>`;
-- `notFound()` is called there;
-- the page awaits `connection()` first, so the build does not reach the api.
+- `web/proxy.ts`, matcher `/catalog/:slug`, calls `findCategoryBySlug` with the incoming
+  request's headers (passed on to `apiFetch`); a `<Link>` prefetch passes unchecked;
+- an unknown or inactive category is rewritten to a path no route matches, which answers 404 with
+  the site's not-found page;
+- an api failure lets the request through unchanged: the page shows the error.
 
-This is the main risk of the plan (§6). If Next 16 with `cacheComponents` still streams the shell
-first, `proxy.ts` resolves the slug through `apiFetch` and rewrites to the 404 page.
+The page reads the category again (`getCategoryBySlug`, cached per request with `React.cache` for
+`generateMetadata` and the page) inside `<Suspense>`, and calls `notFound()` for a category
+deactivated between the two reads (a soft 404). Two reads per page view are accepted (O66).
 
 ### 3.2 FSD slices
 
@@ -347,10 +353,14 @@ description and frequency per visit (0015 R9).
 
 ### 3.7 Scripts and checks touched by the removals
 
-- `scripts/smoke-test.sh`: `/` → 307 to `/catalog`; `/catalog` contains `<h1`.
-- `scripts/request-loop.sh` follows the same change.
-- `scripts/ci-deploy-check.sh`: every `/api/hello` becomes `/api/categories?limit=1` (O33). The rest
-  of its checks stay. Unlike `/hello`, that route reads the database. The flood, request-id and
+- `scripts/smoke-test.sh`: `/` → 307 to `/catalog`; `/catalog` contains `<h1`; `/catalog/dresses`
+  contains `>Платья</h1>`, read from the api, since `/catalog`'s heading is static. T11, with the
+  redirect (O69). T13 revisits the last two once `/catalog` renders products from the api.
+- `scripts/request-loop.sh` requests `/catalog/dresses` and wants its heading `Платья`, which the page
+  reads from the api. T11 (O69).
+- `scripts/ci-deploy-check.sh`: `check_request_id` runs on `/catalog/dresses` instead of `/`, where
+  proxy and page call the api with the request id and the secret. T11 (O69). In T12 every
+  `/api/hello` becomes `/api/categories?limit=1` (O33). The rest of its checks stay. Unlike `/hello`, that route reads the database. The flood, request-id and
   security-header checks then also need PostgreSQL up, which the deploy check already starts.
 - The comment in `deploy/nginx/templates/default.conf.template` that names `/api/hello` changes to
   `/api/categories`.
@@ -416,8 +426,8 @@ in production, so no deployed web sends it.
 ## 6. Risks
 
 - **404 after streaming (AC2).** With `cacheComponents`, a `notFound()` inside Suspense keeps the 200
-  and only adds `noindex`. The fallback is in §3.1. The first web task proves the status with
-  `curl -I` before the rest is built on it.
+  and only adds `noindex`. T11 proved the page's own check fails and took the `proxy.ts` fallback
+  (§3.1, O65).
 - **Keyset and decimals.** A price key compared as text would sort wrongly. The cursor's value is
   bound as `::numeric`, `::int` or `::timestamptz` by sort. An e2e inserts rows between batches for
   each sort (AC12).
