@@ -38,14 +38,15 @@ for PR 2 (0014 O35, O40). Each task is one commit, reviewed by the owner first. 
 - [x] **T4. The limit checks.** `catalog.test.ts` (plan §5).
       Check: each rule's broken copy fails (AC7); `npm run verify`.
       Commit: `test(web): check the names, sizes and budget of analytics events`
-- [ ] **T5. The analytics agent.** `.claude/agents/analytics.md`, the agents check in
+- [x] **T5. The analytics agent.** `.claude/agents/analytics.md`, the agents check in
       `guards.test.mjs`, `.claude/README.md` (plan §7); tool names checked against the server.
       Check: `npm test` (AC10); `rg mixpanel .claude/agents`.
       Commit: `feat(tooling): add the analytics agent`
 - [ ] **T6. The rule and the docs.** `.claude/rules/analytics.md` (with no user data in
-      properties, even as numbers), `CLAUDE.md` (analytics bullet: `EVENTS.md` and the rule, the
-      hover sentence, the sign-in list; "Agents", `.mcp.json` line, the spec list
-      in the header), `README.md` (plan §6, §8).
+      properties, even as numbers; a data question to the agent passes the Mixpanel project id,
+      which the agent has no tool to find, owner at T5's review), `CLAUDE.md` (analytics bullet:
+      `EVENTS.md` and the rule, the hover sentence, the sign-in list; "Agents", the spec list in
+      the header; the `.mcp.json` line moved to T5), `README.md` (plan §6, §8).
       Check: `npm run format:check`.
       Commit: `docs(tooling): add the analytics rules`
 - 👤 restarts Claude Code (agent and rule files load at start).

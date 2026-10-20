@@ -755,4 +755,64 @@ describe('agent files', () => {
       [...PORTS].sort(),
     );
   });
+
+  // Spec 0015 R12, AC10: only `analytics` gets Mixpanel, through the main session's server and
+  // exactly these aggregate tools; a server declared in an agent is not limited by its `tools:`.
+  // An agent with no `tools:` (or with `disallowedTools:` only) would inherit every tool of the
+  // main session, Mixpanel's included, so every agent lists its tools by name.
+  const MIXPANEL_TOOLS = ['Get-Events', 'List-Properties', 'Get-Query-Schema', 'Run-Query'];
+  const AGENTS = path.join(ROOT, '.claude/agents');
+  const agentFiles = fs
+    .readdirSync(AGENTS)
+    .filter((file) => file.endsWith('.md'))
+    .map((file) => {
+      const frontmatter = fs
+        .readFileSync(path.join(AGENTS, file), 'utf8')
+        .match(/^---\n([\s\S]*?)\n---/)[1];
+      const tools = frontmatter.match(/^tools: (.*)$/m)?.[1].split(/,\s*/) ?? [];
+      return { file, frontmatter, tools };
+    });
+
+  it('every agent lists its tools by name', () => {
+    for (const { file, frontmatter, tools } of agentFiles) {
+      assert.ok(tools.length > 0, `${file} has no tools: line`);
+      // A second `tools:` key could replace the first one when the YAML is read.
+      assert.equal(frontmatter.match(/^["']?tools["']?\s*:/gm).length, 1, file);
+      for (const tool of tools) assert.match(tool, /^[\w-]+$/, `${file}: ${tool}`);
+      assert.doesNotMatch(frontmatter, /^["']?disallowedTools/m, file);
+    }
+  });
+
+  it('only analytics names Mixpanel tools', () => {
+    const naming = agentFiles.filter(({ frontmatter }) => /mixpanel/i.test(frontmatter));
+    assert.deepEqual(
+      naming.map(({ file }) => file),
+      ['analytics.md'],
+    );
+  });
+
+  it('analytics lists exactly its read tools and the aggregate Mixpanel tools', () => {
+    const { frontmatter, tools } = agentFiles.find(({ file }) => file === 'analytics.md');
+    assert.deepEqual(
+      [...tools].sort(),
+      ['Read', 'Grep', 'Glob', ...MIXPANEL_TOOLS.map((tool) => `mcp__mixpanel__${tool}`)].sort(),
+    );
+    assert.doesNotMatch(frontmatter, /^["']?(hooks|permissionMode)["']?\s*:/m);
+  });
+
+  it('only qa-tester declares an MCP server, and only playwright', () => {
+    for (const { file, frontmatter } of agentFiles) {
+      const declares = /^["']?mcpServers["']?\s*:/m.test(frontmatter);
+      assert.equal(declares, file === 'qa-tester.md', file);
+    }
+    const { frontmatter } = agentFiles.find(({ file }) => file === 'qa-tester.md');
+    const servers = frontmatter.match(/^mcpServers:\n((?:[ \t].*\n)*)/m)[1];
+    // An item may be a server's definition or just the name of a configured one (`- mixpanel`).
+    assert.deepEqual(servers.match(/^ {2}\S.*$/gm), ['  - playwright:']);
+  });
+
+  it('no allow rule opens Mixpanel tools', () => {
+    const settings = JSON.parse(fs.readFileSync(path.join(ROOT, '.claude/settings.json'), 'utf8'));
+    for (const rule of settings.permissions.allow ?? []) assert.doesNotMatch(rule, /mixpanel/i);
+  });
 });
