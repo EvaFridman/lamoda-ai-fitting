@@ -54,10 +54,20 @@ afterAll(async () => {
 
 const http = () => request(testApp.app.getHttpServer());
 
+// Brand and category names are in the search vector, and the last word of a q matches as a prefix.
+// A uuid has letter-and-digit words ("ab3f") that such a q ("ab", "cd") would find, so these names
+// are digits only: every q in this file is made of letters or is the one-digit "7", which these
+// numbers never equal.
+let uniqueCounter = 0;
+function unique(): string {
+  uniqueCounter += 1;
+  return `${Date.now()}${uniqueCounter}`;
+}
+
 async function newScope(): Promise<Scope & { query: string }> {
-  const brand = await testApp.prisma.brand.create({ data: { name: `Brand ${randomUUID()}` } });
+  const brand = await testApp.prisma.brand.create({ data: { name: `Brand ${unique()}` } });
   const category = await testApp.prisma.category.create({
-    data: { name: `Category ${randomUUID()}`, slug: randomUUID(), isActive: true },
+    data: { name: `Category ${unique()}`, slug: randomUUID(), isActive: true },
   });
   return {
     brandId: brand.id,
@@ -67,13 +77,13 @@ async function newScope(): Promise<Scope & { query: string }> {
 }
 
 async function newBrand(): Promise<string> {
-  return (await testApp.prisma.brand.create({ data: { name: `Brand ${randomUUID()}` } })).id;
+  return (await testApp.prisma.brand.create({ data: { name: `Brand ${unique()}` } })).id;
 }
 
 async function newCategory(): Promise<string> {
   return (
     await testApp.prisma.category.create({
-      data: { name: `Category ${randomUUID()}`, slug: randomUUID(), isActive: true },
+      data: { name: `Category ${unique()}`, slug: randomUUID(), isActive: true },
     })
   ).id;
 }
