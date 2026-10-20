@@ -300,6 +300,14 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   only on the classes in `SKIPPED` of `test/throttle-markers.e2e-spec.ts` (health, the gateway; a new one is
   added there on purpose). A per-route `@Throttle()` names one of its tier's two throttlers
   (`expensive-minute`), not `default`; that test fails on any other name.
+- `api` filter counts (`GET /products/facets`) are cached in Redis by `ProductFacetsCache`
+  (`products/listing/facets-cache.ts`, spec 0014 plan §2.6) for `FACETS_CACHE_TTL_SECONDS` (60 s),
+  under `facets:v1:<sha256>` of the normalized filter, `q` as sent (O58) (`facetsCacheKey`, which names every field of
+  `ProductFilterQueryDto`: a new filter goes into the key; `v1` goes up with any change to the
+  answer's shape or to how counts are made, since blue and green share Redis). Nothing invalidates
+  it: a catalog change shows within the TTL (O49). The cache is skipped while the client is not
+  connected; a failed Redis command is a miss, logged at most once a minute, and the cache is then
+  skipped for 10 s (O56), so the counts answer without Redis. The write after a miss is not awaited.
 - `api` request context (`common/http/request-context.ts`): a middleware ahead of the body parser
   sets the client address, the request id (answered in `X-Request-Id`, on log lines and Sentry
   events) and the principal (`@CurrentPrincipal()`, `common/auth/`): `user` from a valid session

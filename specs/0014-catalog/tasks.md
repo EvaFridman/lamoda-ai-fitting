@@ -68,7 +68,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Check: e2e: active and inactive categories answer, unknown → 404, a bad slug → 400;
       `access-markers`; `npm run verify`.
       Commit: `feat(api): find a category by its slug`
-- [ ] **T8. Filter-count cache.** `ProductFacetsCache` (plan §2.6), `FACETS_CACHE_TTL_SECONDS` in
+- [x] **T8. Filter-count cache.** `ProductFacetsCache` (plan §2.6), `FACETS_CACHE_TTL_SECONDS` in
       `env.ts`, compose files and `.env.example`; backlog "Cache for filter counts" (its cache half).
       Check: e2e: a second identical request does not query the database; a Redis failure still
       answers the counts (AC15); `npm run verify`.

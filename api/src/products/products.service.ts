@@ -12,6 +12,7 @@ import type { ProductFilterQueryDto } from './dto/product-filter-query.dto.js';
 import type { ProductListQueryDto } from './dto/product-list-query.dto.js';
 import type { ProductDetailDto, ProductListItemDto } from './dto/product-response.dto.js';
 import type { UpdateProductDto } from './dto/update-product.dto.js';
+import { ProductFacetsCache } from './listing/facets-cache.js';
 import { countFacets } from './listing/product-facets.js';
 import { loadValueAttributes, toProductFilter, toProductSql } from './listing/product-filter.js';
 import {
@@ -33,6 +34,7 @@ export class ProductsService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly facetsCache: ProductFacetsCache,
     config: ConfigService<Env, true>,
   ) {
     this.mediaBaseUrl = config.get('MEDIA_BASE_URL', { infer: true });
@@ -93,8 +95,10 @@ export class ProductsService {
   }
 
   async facets(query: ProductFilterQueryDto): Promise<ProductFacetsDto> {
-    const valueAttributes = await loadValueAttributes(this.prisma, query.attributeValueId);
-    return countFacets(this.prisma, toProductFilter(query, valueAttributes));
+    return this.facetsCache.get(query, async () => {
+      const valueAttributes = await loadValueAttributes(this.prisma, query.attributeValueId);
+      return countFacets(this.prisma, toProductFilter(query, valueAttributes));
+    });
   }
 
   async get(id: string): Promise<ProductDetailDto> {

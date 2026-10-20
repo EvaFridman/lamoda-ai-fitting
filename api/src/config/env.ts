@@ -64,6 +64,9 @@ export const envSchema = z
     // WebSocket and answers 413 on long-polling (spec 0006 F8). nginx does not limit WebSocket
     // frames; at most 1 MB (F30).
     SOCKET_MAX_MESSAGE_BYTES: z.coerce.number().int().positive().max(1_048_576).default(65_536),
+    // Seconds the filter counts stay in Redis (spec 0014 plan §2.6); a catalog change shows within
+    // it (O49). At most an hour (O57).
+    FACETS_CACHE_TTL_SECONDS: z.coerce.number().int().min(1).max(3600).default(60),
 
     // Sent in the X-Proxy-Secret header by nginx and web (spec 0006 F13): only such a request names
     // the client's address (X-Forwarded-For) and the request id. Empty trusts no request.
