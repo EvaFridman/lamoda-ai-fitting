@@ -1,8 +1,9 @@
 # 0018 page cache and warm-up on deploy
 
-Status: accepted (2026-10-20); amended 2026-10-20 at the plan (V15).
+Status: accepted (2026-10-20); amended 2026-10-20 at the plan (V15) and at the review of PR 1
+(AC11, AC14).
 
-Issue #41. Decisions: `clarifications.md` (V1–V15).
+Issue #41. Decisions: `clarifications.md` (V1–V18).
 
 ## Goal
 
@@ -73,9 +74,10 @@ fails to render stops the deploy instead of reaching a visitor.
   the new copy is stopped and the running copy keeps serving the site.
 - **AC10.** A rollback to the copy that still runs warms it up the same way before the switch; a
   failure stops the rollback and the current copy keeps serving.
-- **AC11.** The warm-up addresses cover `/`, `/catalog`, every active category's page, `/privacy`,
-  `/sitemap.xml` and `/robots.txt`, and the api's GET routes those pages read. A category added to
-  the database is warmed up by the next deploy with no change to the code.
+- **AC11.** The warm-up addresses cover `/`, `/catalog`, the page of every active category (up to
+  50; the deploy log counts the ones skipped, V16), `/privacy`, `/sitemap.xml` and `/robots.txt`;
+  through those pages, the api's GET routes they read are warmed up too. A category added to the
+  database is warmed up by the next deploy with no change to the code.
 - **AC12.** A page route added under `web/app` that is neither in the warm-up list nor in its
   exclusions fails `npm run verify`.
 - **AC13.** Warm-up requests are not counted against any visitor's rate limit.
@@ -83,8 +85,9 @@ fails to render stops the deploy instead of reaching a visitor.
 ### Speed
 
 - **AC14.** In production, the first request for `/catalog` and for a category page after a deploy's
-  switch takes at most twice the median of five later requests. The numbers of a deploy before this
-  spec and after it are recorded in `tasks.md`.
+  switch takes at most twice the median of five later requests. Three measurements are recorded in
+  `tasks.md`: after a deploy with neither cache nor warm-up, after PR 2's (the cache, no warm-up)
+  and after PR 3's (both); the threshold holds on the last (V17).
 
 ### Deploy and build
 
@@ -95,7 +98,7 @@ fails to render stops the deploy instead of reaching a visitor.
 ## Owner actions (Claude cannot do them)
 
 - Send the server's memory figures (`free -h`, `docker stats --no-stream`) before the plan sets the
-  memory limits (V10).
+  memory limits (V10; done 2026-10-20).
 - Merge the pull request that adds the caches' Redis at a quiet time: it recreates the
   infrastructure's Redis, a short outage (V12).
 - Check AC14 on production after the deploys, and AC9's stop on the deploy log.

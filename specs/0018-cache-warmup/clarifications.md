@@ -1,6 +1,7 @@
 # 0018 page cache and warm-up on deploy: clarifications
 
-Status: accepted (2026-10-20); amended 2026-10-20 at the plan (V10's figures, V15).
+Status: accepted (2026-10-20); amended 2026-10-20 at the plan (V10's figures, V15) and at the
+review of PR 1 (V7, V9, V12, V15, V16–V18).
 
 The owner's decisions for this spec. Ids `V1`, `V2`, … are referred to by the spec, the plan and
 code comments. All decisions below: owner, 2026-10-20.
@@ -66,7 +67,8 @@ warning on api routes.
 **V7. Every active category is warmed up.** The warm-up addresses: `/`, `/catalog`, the page of
 every active category read from the api at the step (bounded in number), `/privacy`,
 `/sitemap.xml`, `/robots.txt`, and the api's GET routes those pages read (the product list and the
-filter counts with no filters for each category). A category added to the database is warmed up by
+filter counts with no filters for each category), warmed up through the pages. The bound is 50
+categories (V16). A category added to the database is warmed up by
 the next deploy without a code change. Sign-in and the account pages (spec 0017) are not requested.
 The owner weighed a fixed list of addresses kept in `deploy/`.
 
@@ -85,7 +87,7 @@ would give thousands of addresses.
 after a deploy against later ones. The first task of the warm-up's pull request logs, for every
 warm-up address, the time of its first and of a repeated request; the numbers show in
 `ci-deploy-check.sh` on the runner and in production. Before the warm-up lands, the numbers of a
-deploy without it are recorded. The criterion (AC14): after a deploy's switch, the first outside
+deploy without it are recorded (three measurements, V17). The criterion (AC14): after a deploy's switch, the first outside
 request for `/catalog` and for a category page takes at most twice the median of five later ones.
 The owner weighed measuring in production before the plan (the documents would wait for spec 0014's
 merge) and no threshold (numbers only).
@@ -108,6 +110,9 @@ tens a minute. A read with a filter, a sort, a search or a cursor goes as today,
 address (its filter counts are cached by the api, 0014 O18). The api does not change. The owner
 weighed a quota tier of its own for web's cached reads, which would let filtered reads be cached
 too: a new rule in the api and in its throttle test, and more trust behind the proxy secret.
+Revisited when the active categories pass 50: each key refreshes at most once a minute, so with
+about 100 categories all visited within a minute the misses would reach the tier's 300 (review of
+PR 1); a tier of its own or a higher limit is then the owner's choice.
 
 ## Deploy and delivery
 
@@ -115,10 +120,12 @@ too: a new rule in the api and in its throttle test, and more trust behind the p
 job gets a time limit above the slowest normal deploy (backlog "No time limit on the deploy step").
 A deploy stopped by it leaves the running copy serving.
 
-**V12. Three pull requests.** The documents; then the caches' Redis, both memory limits and the page
-cache, deployed and checked in production on their own; then the warm-up, its measurement, the
-time limit and the closing. The second one recreates the infrastructure's Redis, a short outage,
-so it is merged at a quiet time. The owner weighed two pull requests (the documents, then all the
+**V12. Four pull requests.** The documents; then the caches' Redis, both memory limits and the page
+cache, deployed and checked in production on their own; then the warm-up, its measurement and the
+time limit; then the closing. The owner first chose three (the closing inside the warm-up's pull
+request) and accepted four at the plan: AC14 and AC9's production half are read from the warm-up's
+deploy, after its merge (plan §1). The second recreates the infrastructure's Redis, a short
+outage, so it is merged at a quiet time. The owner weighed two pull requests (the documents, then all the
 code at once): one deploy would change web, the infrastructure and `deploy.sh` together, and the
 measurement would first run without the cache.
 
@@ -128,3 +135,22 @@ measurement would first run without the cache.
 (issue #41)", "Redis memory limit" and "No time limit on the deploy step". Each is removed from
 `specs/backlog.md` by the commit that closes it. This takes back 0014 O21, which left the first two
 in the backlog until a measurement: V9 makes the measurement part of this spec.
+
+## Added at the review of PR 1
+
+**V16. Up to 50 categories, with room in the quota.** A cold category page makes about three api
+reads, and the `read` tier allows 300 a minute. The warm-up requests the pages of at most 50 active
+categories, at most one page a second in its cold pass and at most 200 api reads a minute, within
+120 s for the whole step; the categories over 50 are not requested, and the log says how many were
+skipped. The owner weighed 100 categories warmed in batches by the quota's minute window (the step
+up to 4 minutes) and no bound at all.
+
+**V17. Three measurements for AC14.** Before PR 2 is merged, the measurement script from its branch
+is run against production right after a deploy (neither cache nor warm-up: plain outside GETs);
+then PR 2's deploy (the cache, empty at the switch, no warm-up); then PR 3's (both). The threshold
+of AC14 holds on the third. The owner weighed taking PR 2's deploy alone as the baseline.
+
+**V18. A `redis-cache` that does not start stops the deploy.** `deploy.sh` brings it up with
+`postgres`, `redis` and `temporal` (`infra up --wait`): infrastructure that fails at a deploy stops
+it and the running copy keeps serving. V5 is about serving without that Redis, not about deploying
+without it. The owner weighed starting it apart, with a warning only.

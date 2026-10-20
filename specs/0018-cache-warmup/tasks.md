@@ -1,6 +1,7 @@
 # 0018 page cache and warm-up on deploy: tasks
 
-Status: accepted (2026-10-20).
+Status: accepted (2026-10-20); amended 2026-10-20 at the review of PR 1 (V17's measurement before
+PR 2's merge, T10's bound, T15's three measurements).
 
 Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
 
@@ -69,6 +70,8 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       run by `cd.yml` after `smoke-test.sh` and by `ci-deploy-check.sh` (plan §5).
       Check: its tests; its output in `ci-deploy-check.sh` in CI; `npm run verify`.
       Commit: `feat(ci): measure the first request after a deploy`
+- Before the merge, the script from PR 2's branch runs against production right after a deploy:
+  the first measurement, neither cache nor warm-up (V17), kept for the acceptance record.
 - 👤 merges PR 2 at a quiet time; the deploy's measurement (cache, no warm-up) is kept for the
   acceptance record (AC14).
 
@@ -83,7 +86,8 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       Commit: `feat(web): list the routes to warm up on deploy`
 - [ ] **T10. The warm-up script.** `deploy/scripts/warmup.mjs` and `warmup.test.mjs`; the root `test`
       and `lint` globs gain `deploy/scripts/*.mjs` (plan §4).
-      Check: its tests (a 500, a timeout, the budget, a 404 list, the 307, the pace);
+      Check: its tests (a 500, a timeout, the budget, a 404 list, the 307, one page a second, the
+      bound of 50 and the skipped count, V16);
       `npm run verify`.
       Commit: `feat(deploy): add the warm-up script`
 - [ ] **T11. The warm-up step.** `deploy.sh` after readiness and before the switch, the stop and the
@@ -110,7 +114,7 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       file are amended with the owner first, or a new spec is opened.
       Check: owner's decision recorded.
       Commit: `docs(specs): record the markup cache decision of spec 0018`
-- [ ] **T15. Close the spec.** The production checks with the owner: AC14's numbers before and after,
+- [ ] **T15. Close the spec.** The production checks with the owner: AC14's three measurements (V17),
       AC9 from the deploy log (a failed warm-up, if one happened, or `ci-deploy-check.sh`'s run);
       the acceptance record below; every file gets `Status: done`; `CLAUDE.md` and `README.md`
       checked against what was built.
