@@ -1,6 +1,6 @@
 # 0015 analytics events: plan
 
-Status: accepted (2026-10-19); amended 2026-10-19 after the check against `main`: zone areas
+Status: done (2026-10-20). History, not instructions. Accepted 2026-10-19; amended 2026-10-19 after the check against `main`: zone areas
 (§1, §5), element properties (§1, §2), the existing entries of 0013 (§3), 0014's entries (§1, §3),
 the sign-in text of `CLAUDE.md` (§6); amended 2026-10-19 at the review of PR 1: hovers per element
 and properties (§2, R13), the block of generic events and per-element estimates (§1, §3, §4, R14),
