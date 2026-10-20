@@ -17,6 +17,7 @@
     "start:worker:prod": "node dist/temporal/worker.js",
     "seed": "node dist/seed/main.js",
     "seed:dev": "nest start --entryFile seed/main",
+    "seed:dev-large": "nest start --entryFile seed/large-catalog --",
     "storage:setup:dev": "nest start --entryFile storage/dev-setup.main",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

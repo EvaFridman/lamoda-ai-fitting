@@ -229,11 +229,6 @@ Left for later specs by `0002-database-schema` (its `clarifications.md` has the 
   `infra.yml` (an eviction policy would drop the throttler's counters too: a way around the limit);
   a full Redis then fails the cache's write (back-off, O56) and the throttler counts in memory
   (0006 F28). Recreates Redis on deploy: merge at a quiet time.
-- **Product list cost.** The sorts of 0004 E14 and the name search scan the whole table: `price`,
-  `discount`, `rating` and `created_at` have no indexes, `q` is `ILIKE '%…%'`, and `offset` goes up
-  to 2^31, so a deep page sorts everything. Free on the demo catalog; if the catalog grows, cap the
-  list's `offset` (e.g. 10 000) and add indexes `(price, id)`, `(created_at, id)`, `(discount, id)`
-  and a trigram index on `name` (0004 T11 security review).
 - **Catalog renames when catalog writes open.** The search vector's triggers (0014 T4, migration
   `20261019120000_product_search`) rebuild every product of a renamed brand or category in the
   rename's transaction, and a product write takes `FOR SHARE` on its brand and category, so two

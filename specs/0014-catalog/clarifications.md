@@ -350,3 +350,16 @@ Second round, on the review of `4817711`:
   makes every miss several times slower. The browser keeps retrying a 503 (0007 H24): a 503 of a
   statement timeout is not told apart, which would need a new error code. A transaction is not
   bounded more strictly than O59. (security-reviewer, owner, T9.)
+
+## Decided at T10
+
+- **O63. What "too slow" means for a two-character beginning.** On the 50 000-product dev catalog
+  after `ANALYZE`, `q=пл` is fast enough when the list's first batch answers in under 300 ms and the
+  facets with the cache missed (a `q` not asked before) in under 1 s, as measured over HTTP on the
+  local stack. Slower, and the measured numbers go to the owner, who decides whether
+  `MIN_PREFIX_LENGTH` goes up (O53). The plans' own times come from `EXPLAIN (ANALYZE, BUFFERS)` in
+  psql, since a statement over `DATABASE_STATEMENT_TIMEOUT_MS` answers 503 instead of a time. (Owner,
+  T10.)
+- **O64. The development catalog's file is `seed/large-catalog.ts`.** Plan §2.8 named it
+  `dev-catalog.ts`, which T12's check (`rg -i '…|dev-catalog|…'` finds only specs and history)
+  would catch. The command stays `npm run seed:dev-large`. (Owner, T10.)

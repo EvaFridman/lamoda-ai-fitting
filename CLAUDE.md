@@ -154,7 +154,9 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   `migration.sql` (Prisma does not model them); `schema.prisma` notes the rules queries must follow.
 - `api/src/seed/`: the demo catalog. Its image columns hold keys, not URLs; the files are in
   `api/seed-media/<key>`, and the seed uploads the missing ones to the bucket's `media/<key>`
-  (served at `/media/<key>`).
+  (served at `/media/<key>`). `seed/large-catalog.ts` (`npm run seed:dev-large -- <count>`, spec
+  0014 plan §2.8) adds development products `DEV-00001…` made of the demo catalog's, with its photo
+  keys; it refuses to run in production.
 - `api/src/storage/`: the S3 bucket (`StorageService`: `put`, `exists`, `deletePrefix`,
   `signedUrl`) and `keys.ts`, the one place object keys are built and checked.
 - `api/src/backup/`: the backup job (spec 0012), a plain Node process outside Nest, run as

@@ -165,8 +165,8 @@ with `EXPLAIN` on the dev catalog (2.8).
 
 ### 2.8 Development catalog (O13)
 
-`api/src/seed/dev-catalog.ts`, run as `npm run seed:dev-large` (`nest start --entryFile
-seed/dev-catalog`), creates the number of products given as its argument, 2000 by default
+`api/src/seed/large-catalog.ts` (O64), run as `npm run seed:dev-large` (`nest start --entryFile
+seed/large-catalog`), creates the number of products given as its argument, 2000 by default
 (`npm run seed:dev-large -- 50000` for AC14, O43):
 
 - the articles are `DEV-00001…`;
