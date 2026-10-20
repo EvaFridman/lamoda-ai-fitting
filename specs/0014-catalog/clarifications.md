@@ -299,3 +299,17 @@ Second round, on the review of `4817711`:
 - **O55. A refused slug.** A slug in `GET /categories/by-slug/:slug` that breaks the slug rule
   answers 400 `VALIDATION_FAILED` with a detail on `slug`, as a malformed query parameter does, not
   `INVALID_ID`: a slug is not an id. (Owner, T7.)
+
+## Decided at T8
+
+- **O56. The facet cache backs off after a Redis failure.** Plan §2.6 only logs a failure, so a
+  Redis that holds the connection but does not answer would add up to 1 s (the shared client's
+  `commandTimeout`) to every facets request. As the throttler does (0006 F28), after a failed command
+  the cache is skipped for 10 s, then one request tries Redis again; while the client is not
+  connected it is skipped at once. The write after a miss is not awaited. (Owner, T8.)
+- **O57. The facet cache lives 1 s to an hour.** `FACETS_CACHE_TTL_SECONDS` is a whole number from 1
+  to 3600, default 60; anything else stops the api at start. (Owner, T8.)
+- **O58. The facet cache keys `q` as sent.** Plan §2.6 had `q`'s tokens and `q` in lower case, but
+  JavaScript's lower case differs from the database's `lower()` for a few letters (a final "Σ",
+  "İ"), so two `q` could share a key and not an answer. `q` goes into the key as it is; "Платье" and
+  "платье" are two keys, one more miss each. (code-reviewer and security-reviewer, owner, T8.)

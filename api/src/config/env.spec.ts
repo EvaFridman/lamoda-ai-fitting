@@ -114,6 +114,30 @@ describe('validateEnv', () => {
     },
   );
 
+  it('defaults FACETS_CACHE_TTL_SECONDS to 60', () => {
+    expect(validateEnv(valid).FACETS_CACHE_TTL_SECONDS).toBe(60);
+  });
+
+  it.each([
+    ['1', 1],
+    ['3600', 3600],
+  ])('accepts FACETS_CACHE_TTL_SECONDS %s', (value, expected) => {
+    expect(
+      validateEnv({ ...valid, FACETS_CACHE_TTL_SECONDS: value }).FACETS_CACHE_TTL_SECONDS,
+    ).toBe(expected);
+  });
+
+  it.each(['0', '3601', '1.5', 'abc'])(
+    'refuses FACETS_CACHE_TTL_SECONDS %j, naming the variable',
+    (value) => {
+      const message = thrownMessage(() =>
+        validateEnv({ ...valid, FACETS_CACHE_TTL_SECONDS: value }),
+      );
+
+      expect(message).toMatch(/FACETS_CACHE_TTL_SECONDS/);
+    },
+  );
+
   it('defaults PROXY_SECRET_NEXT to an empty string', () => {
     expect(validateEnv(valid).PROXY_SECRET_NEXT).toBe('');
   });

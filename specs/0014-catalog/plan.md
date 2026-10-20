@@ -134,9 +134,9 @@ with `EXPLAIN` on the dev catalog (2.8).
 
 `ProductFacetsCache` (`products/listing/facets-cache.ts`) wraps `countFacets`:
 
-- **Key.** `facets:v1:<sha256 of the normalized filter JSON>`. The arrays are sorted; `q` gives its
-  tokens joined and itself in lower case, since the article test compares the whole `q` ("AB-12"
-  and "ab 12" have the same tokens but not the same answer; found at T5).
+- **Key.** `facets:v1:<sha256 of the normalized filter JSON>`. The arrays are sorted; `q` goes in
+  as sent (O58), since the article test compares the whole `q` ("AB-12" and "ab 12" have the same
+  tokens but not the same answer; found at T5) and JavaScript's lower case is not the database's.
 - **Value.** The JSON answer, kept for `FACETS_CACHE_TTL_SECONDS` (default 60).
 - **Redis.** The shared client (`REDIS`, `redis/redis.module.ts`; 1 s `commandTimeout`).
 - **Redis failure.** A failed read or write is logged once per minute and counted as a miss, so

@@ -1,9 +1,13 @@
 import { randomUUID } from 'node:crypto';
 
 import request from 'supertest';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { createTestApp, type TestApp } from '../support/test-app.js';
+
+// Every test arranges its own fixture with ~20 sequential inserts, and some send dozens of
+// requests: Vitest's 5 s default broke under a loaded machine (spec 0014 O38).
+vi.setConfig({ testTimeout: 30_000, hookTimeout: 60_000 });
 
 interface Facets {
   total: number;

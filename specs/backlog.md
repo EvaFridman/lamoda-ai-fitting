@@ -228,13 +228,19 @@ Left for later specs by `0002-database-schema` (its `clarifications.md` has the 
 - **Sizes off the scale.** The size filter's order (0009 K13) knows `XXS … 3XL` (`XXXL` = `3XL`)
   and plain numbers; `2XL`, `4XL` and up, ranges (`44-46`, `42/44`) and jeans sizes (`W28 L32`) go
   after all numbers, by text. Rank them once the catalog has such sizes.
-- **Cache for filter counts.** Spec 0004 computes the product filter counts on every request, which
-  holds for the small demo catalog; cache them (Redis) if the catalog grows. One request runs 7
-  queries in parallel, and the api's pg pool has the default 10 connections with no
-  `statement_timeout`, so a few slow public requests could hold the whole pool, `/health` included
-  (0004 T12 security review): with the cache, set a pool size and a statement timeout from env.
+- **Cache for filter counts.** The counts are cached in Redis (spec 0014 T8); the rest remains. A
+  facets miss runs 7 queries in parallel, and the api's pg pool has the default 10 connections with
+  no `statement_timeout`, so a few slow public requests could hold the whole pool, `/health`
+  included (0004 T12 security review): set a pool size and a statement timeout from env.
   The browser retries a 503 twice (0007 H24) while the timed-out handler keeps running, so one
   slow visitor can hold three requests' worth of queries.
+- **Redis memory limit.** The facet cache (spec 0014 T8) stores one key per distinct filter, and an
+  anonymous client can vary `maxPrice` or `q` for up to its read quota (300 a minute) of keys of up
+  to tens of KB each, held for `FACETS_CACHE_TTL_SECONDS`. Redis has no `maxmemory` and is shared
+  with the rate-limit counters (0014 T8 security review). Set `maxmemory` with `noeviction` in
+  `infra.yml` (an eviction policy would drop the throttler's counters too: a way around the limit);
+  a full Redis then fails the cache's write (back-off, O56) and the throttler counts in memory
+  (0006 F28). Recreates Redis on deploy: merge at a quiet time.
 - **Product list cost.** The sorts of 0004 E14 and the name search scan the whole table: `price`,
   `discount`, `rating` and `created_at` have no indexes, `q` is `ILIKE '%…%'`, and `offset` goes up
   to 2^31, so a deep page sorts everything. Free on the demo catalog; if the catalog grows, cap the
