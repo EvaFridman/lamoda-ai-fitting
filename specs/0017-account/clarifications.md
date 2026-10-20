@@ -1,6 +1,7 @@
 # 0017 account: clarifications
 
-Status: accepted (2026-10-20); amended 2026-10-20 at the plan (U18, U19).
+Status: accepted (2026-10-20); amended 2026-10-20 at the plan (U18, U19) and at the review of PR 1
+(U20, U14's budget).
 
 The owner's decisions for this spec. Ids `U1`, `U2`, … are referred to by the spec, the plan and
 code comments. All decisions below: owner, 2026-10-20.
@@ -96,7 +97,8 @@ enum `orders`, `stores`, `data`, `fittings`, names a section in both menus.
   errors (an "under 14" or "before 1900" error reveals the age), field values and which fields
   changed, save and delete failures (they go to Sentry), "Сохранить" as an element (it repeats
   `Account Data Saved`), the invitation, toasts and stubs being shown.
-- Budget: 31 185 events a month before, 31 989 after, 4.0 % of the free plan.
+- Budget: 31 185 events a month before, 31 989 after: 3.2 % of the free plan's 1 M events, 4.0 %
+  of the 80 % budget (`.claude/rules/analytics.md`).
 
 ## Backlog
 
@@ -120,6 +122,12 @@ against.
 the generic `IS_STRING`, `MIN_LENGTH`, `MAX_LENGTH` and `MATCHES`, so a name field shows a text that
 says what a name may hold. The rule itself does not change (0013 N5). Every DTO with a name answers
 the new code, the closed `/users` routes too.
+
+## Added at the review of PR 1
+
+**U20. The date of birth's error states the rule.** `IS_DATE_OF_BIRTH`'s text becomes
+"Дата с 01.01.1900, возраст не меньше 14 лет" instead of "Неверная дата рождения", as U19 does for
+names. The api's code and rule do not change.
 
 **U17. A deleted user's history in Mixpanel stays.** After `DELETE /me` the user's events stay in
 Mixpanel under their id. Deleting them through Mixpanel's API is not in this spec: it goes into the

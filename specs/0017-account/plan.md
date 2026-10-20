@@ -1,8 +1,9 @@
 # 0017 account: plan
 
-Status: accepted (2026-10-20); amended 2026-10-20 at the tasks (pull requests, §11).
+Status: accepted (2026-10-20); amended 2026-10-20 at the tasks (pull requests, §11) and at the
+review of PR 1 (§1 `gender`, §3, §4, §5 the beacon, `MenuLinkItem` and U20, §6, §12).
 
-How [spec.md](spec.md) is built. Decisions: [clarifications.md](clarifications.md) (U1–U19).
+How [spec.md](spec.md) is built. Decisions: [clarifications.md](clarifications.md) (U1–U20).
 No new dependencies.
 
 ## 1. api: `PATCH /me`
@@ -16,7 +17,9 @@ No new dependencies.
     cleared here, unlike `UpdateUserDto` (0004 E47): since 0013 N5 the column is nullable and
     Better Auth's `name` may be empty.
   - `dateOfBirth`: `@IsOptional() @IsDateOfBirth()`; `null` clears.
-  - `gender`: `@IsEnum(Gender)`, optional, `null` refused with 400 (U9: chosen once, never cleared).
+  - `gender`: `@ValidateIf((_, value) => value !== undefined) @IsEnum(Gender)`: left out it is
+    not checked, `null` fails `IsEnum` with 400 (U9: chosen once, never cleared). Not
+    `@IsOptional()`, which lets `null` through.
   - Any other field (`email`, `phone`, `fittingProfileImageKey`, `id`) is refused by
     `createValidationPipe()`'s whitelist like every unknown field (AC11). An empty body answers 200
     unchanged (E40).
@@ -45,7 +48,9 @@ the new code.
 
 Closes the backlog item "Texts of new validation rules" (0007 H28).
 
-- An api unit test reads class-validator's metadata storage for every DTO class of the app, turns
+- An api unit test reads class-validator's metadata storage for every DTO class of the app (it
+  imports `AppModule` first, since only an imported DTO registers its rules, and fails if a known
+  code such as `IS_DATE_OF_BIRTH` is missing, so the list cannot shrink unnoticed), turns
   each constraint name into the `details` code the error filter answers (`isDateOfBirth` →
   `IS_DATE_OF_BIRTH`) and compares the sorted list with a committed snapshot,
   `api/validation-codes.json`: a new rule fails the test until `npm --prefix api test -- -u`
@@ -72,9 +77,9 @@ Closes the backlog item "Texts of new validation rules" (0007 H28).
 - **Session after a save.** The header shows Better Auth's `name` (= `firstName`), whose signed copy
   lives 5 minutes (0013 N18). After a save that changes `firstName` the browser reads the session
   once with Better Auth's cookie cache skipped (`getSession({ query: { disableCookieCache: true } })`
-  through `callAuth`), which also refreshes the copy (AC8). Risk: the option is checked against
-  Better Auth 1.7 at the task; without it, the header keeps the old name up to 5 minutes and the
-  spec is amended with the owner.
+  through `callAuth`), which also refreshes the copy (AC8). Checked in Better Auth 1.7.10 at the
+  review of PR 1: `get-session` takes `disableCookieCache`, reads the database and writes the
+  cookie cache again.
 - No user data is read on the server (U11); every account page renders its data in the browser,
   inside `<Suspense>`.
 
@@ -111,7 +116,8 @@ follow: false }`, titles) and `{children}`; `page.tsx`, `account/page.tsx`, `ord
   - Date mask (`lib/date-mask.ts`): only digits reach the field, dots are put in by the mask, at
     most `ДД.ММ.ГГГГ`; a full value turns into `YYYY-MM-DD`. The browser checks only that a full
     date is a real one ("Введите дату полностью" / "Такой даты нет"); the range (1900, 14 years) is
-    the api's, its 400 shown under the field.
+    the api's, its 400 shown under the field with `IS_DATE_OF_BIRTH`'s text, which states the rule
+    (U20).
   - "Сохранить" (`Button`, primary) is disabled while the values, trimmed, with empty = `null`,
     equal the saved ones, and `loading` while saving (U8). Only changed fields are sent.
   - Success: `showToast({ title: 'Данные сохранены' })`, `track('Account Data Saved', {})`, the
@@ -123,13 +129,16 @@ follow: false }`, titles) and `{children}`; `page.tsx`, `account/page.tsx`, `ord
   - "Удалить аккаунт": a `<button>` styled as the kit's `Link`, the `Modal`'s trigger.
   - The modal: title "Удалить аккаунт?", the text of U18, footer "Удалить" (primary,
     `loading`) and "Отмена" (`ModalClose`).
-  - Confirm: `deleteMe()`; then `track('Account Deleted', {})`, `reset()`, and
+  - Confirm: `deleteMe()`; then `track('Account Deleted', {}, { sendNow: true })`, `reset()`, and
     `window.location.assign('/')`: a full load, so no cached query or session copy of the deleted
     user survives in the tab. A failure shows `errorText` in the modal and keeps it open.
+  - The SDK sends events in batches, so an event tracked just before a full load may wait in its
+    queue. `track` (`shared/analytics/client.ts`) gets an optional third argument `{ sendNow }`
+    that passes `{ transport: 'sendBeacon', send_immediately: true }` to the SDK: the browser
+    delivers a beacon even while the page unloads. Only `Account Deleted` uses it.
 - **Header (`widgets/header`)**: the four items become links (AC2). The kit's `MenuItem` has no
-  link form: the kit gets `MenuLinkItem` (Base UI's `Menu.LinkItem` rendering `next/link`, checked
-  in Base UI 1.8 at the task; else a `MenuItem` that navigates with the router), with its example on
-  `/ui-kit`. A widget does not import another widget, so the section list lives in
+  link form: the kit gets `MenuLinkItem` (Base UI's `Menu.LinkItem`, in 1.8.0, rendering
+  `next/link`), with its example on `/ui-kit`. A widget does not import another widget, so the section list lives in
   `shared/config/account-sections.ts` (not in `account-shell`'s `config`), read by both.
 - **`robots.txt`**: no `app/robots.ts` exists yet; spec 0014's T19 creates it (`/ui-kit`,
   `/healthz`, the sitemap). Whichever lands first creates the file, the other adds its lines at
@@ -149,7 +158,8 @@ lists grow:
 
 Where they are sent: `useTrackedElement` on each link and button above; `Account Data Saved` after
 the PATCH succeeded; `Account Deleted` after the DELETE succeeded and before `reset()`. The
-invitation's button also sends `LoginModal`'s own `Login Opened`. Budget: 4.0 % of the free plan.
+invitation's button also sends `LoginModal`'s own `Login Opened`. Budget: 31 989 events a month,
+3.2 % of the free plan's 1 M, 4.0 % of the 80 % budget.
 `account-data` has no element yet (U14: "Сохранить" is not tracked); it is declared for the zone's
 description and later fields.
 
@@ -189,7 +199,7 @@ the value only in the input, which recordings mask). Names and the email never r
 ## 10. Texts
 
 The owner's texts are U18 (the invitation, the stub, the toast, the deletion modal, the way back)
-and U19's name text (§2).
+and U19's name text (§2), U20's date text.
 
 ## 11. Pull requests
 
@@ -203,8 +213,8 @@ A pull request holds documents only or code (the review bot checks them differen
 
 ## 12. Risks
 
-- Better Auth's cookie-cache skip (§4) may differ in 1.7: checked first in its task.
-- `Menu.LinkItem` in Base UI 1.8 (§5): checked in its task; the fallback is known.
+- `Account Deleted` lost to the full load after deletion (§5): sent by beacon; `qa-tester` sees it
+  arrive in T11.
 - `robots.ts` written by two specs at once (§5): a rebase conflict, resolved by hand.
 - `IS_PERSON_NAME` replaces four codes on the closed `/users` routes too (U19): their e2e change
   with it; no client uses them.
