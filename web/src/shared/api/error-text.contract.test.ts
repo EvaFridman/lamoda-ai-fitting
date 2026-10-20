@@ -1,13 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
-import { contractDiff, openApiDocument, type ContractCheck } from '@/shared/contract';
+import {
+  contractDiff,
+  openApiDocument,
+  validationCodes,
+  type ContractCheck,
+} from '@/shared/contract';
 
 import { errorDetailSchema } from './api-error';
-import { ERROR_TEXTS } from './error-text';
+import { DETAIL_TEXTS, ERROR_TEXTS } from './error-text';
 
 // The dictionary's codes against the api's `ErrorCode` (plan §6): a code on one side only fails,
-// named. `details` codes are a plain string in the document; only unit tests cover their texts.
+// named. `details` codes are a plain string in the document, so their texts are checked against
+// the api's other snapshot, validation-codes.json, below.
 const checks: ContractCheck[] = [
   {
     name: 'ERROR_TEXTS codes',
@@ -45,5 +51,24 @@ describe('the contract check catches a dictionary out of step', () => {
     });
     expect(diff.length).toBeGreaterThan(0);
     expect(JSON.stringify(diff)).toContain('NOT_IN_THE_API');
+  });
+});
+
+// Every code a DTO rule can answer has a text of its own (spec 0017 U15). One way only: the other
+// codes of DETAIL_TEXTS (an unknown field, database rules, the owner check) are not DTO rules.
+function withoutText(texts: Record<string, string>): string[] {
+  return validationCodes().filter((code) => !Object.hasOwn(texts, code));
+}
+
+describe('detail texts match the api', () => {
+  it('cover every validation code', () => {
+    expect(withoutText(DETAIL_TEXTS)).toEqual([]);
+  });
+
+  it('fail for a code without a text, naming it', () => {
+    const [missing, ...rest] = validationCodes();
+    expect(missing).toBeDefined();
+    const texts = Object.fromEntries(rest.map((code) => [code, 'текст']));
+    expect(withoutText(texts)).toEqual([missing]);
   });
 });

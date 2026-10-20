@@ -6,7 +6,20 @@ import { IsInt, IsNotEmpty, IsString, Min, ValidateNested } from 'class-validato
 import { describe, expect, it } from 'vitest';
 
 import { type ErrorDetail, ValidationError } from '../errors/app.exception.js';
-import { capDetails, createValidationPipe, toDetails } from './validation-pipe.js';
+import { capDetails, createValidationPipe, toDetails, toUpperSnake } from './validation-pipe.js';
+
+describe('toUpperSnake', () => {
+  it.each([
+    ['isDateOfBirth', 'IS_DATE_OF_BIRTH'],
+    ['maxDecimalPlaces', 'MAX_DECIMAL_PLACES'],
+    ['whitelistValidation', 'WHITELIST_VALIDATION'],
+    ['isNotEmpty', 'IS_NOT_EMPTY'],
+    ['min', 'MIN'],
+    ['isISO8601', 'IS_ISO8601'],
+  ])('turns %s into %s', (name, code) => {
+    expect(toUpperSnake(name)).toBe(code);
+  });
+});
 
 interface ValidationErrorShape {
   property: string;
