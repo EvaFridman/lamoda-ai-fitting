@@ -35,7 +35,7 @@ for PR 2 (0014 O35, O40). Each task is one commit, reviewed by the owner first. 
       Check: a changed description without `-u` fails the test (AC5); `EVENTS.md` read (AC4);
       `npm run verify`.
       Commit: `feat(web): generate the events document from the catalog`
-- [ ] **T4. The limit checks.** `catalog.test.ts` (plan §5).
+- [x] **T4. The limit checks.** `catalog.test.ts` (plan §5).
       Check: each rule's broken copy fails (AC7); `npm run verify`.
       Commit: `test(web): check the names, sizes and budget of analytics events`
 - [ ] **T5. The analytics agent.** `.claude/agents/analytics.md`, the agents check in
