@@ -293,3 +293,9 @@ Second round, on the review of `4817711`:
   detail on `offset`. `cursor` belongs to the list's query only, so the facets answer it 400 (0004
   E46). The offset answer gains `nextCursor` too (an added field; the deployed web drops it), and
   `limit` keeps its default 60 and maximum 100. (Owner, T6.)
+
+## Decided at T7
+
+- **O55. A refused slug.** A slug in `GET /categories/by-slug/:slug` that breaks the slug rule
+  answers 400 `VALIDATION_FAILED` with a detail on `slug`, as a malformed query parameter does, not
+  `INVALID_ID`: a slug is not an id. (Owner, T7.)

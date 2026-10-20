@@ -43,6 +43,14 @@ export class CategoriesService {
     return category;
   }
 
+  async getBySlug(slug: string): Promise<Category> {
+    const category = await this.prisma.category.findUnique({ where: { slug } });
+    if (category === null) {
+      throw new NotFoundError('Category not found');
+    }
+    return category;
+  }
+
   create(dto: CreateCategoryDto): Promise<Category> {
     return this.prisma.category.create({ data: dto });
   }

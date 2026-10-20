@@ -437,6 +437,72 @@ describe('categories: update rules (E40)', () => {
   });
 });
 
+describe('categories: read by slug (spec 0014 T7)', () => {
+  it('reads an active category by slug with the same body as by id', async () => {
+    const category = await create({ isActive: true });
+    const response = await http().get(`/categories/by-slug/${category.slug}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual(category);
+    expect(response.body).toEqual((await http().get(`/categories/${category.id}`)).body);
+  });
+
+  it('reads an inactive category by slug too', async () => {
+    const category = await create({ isActive: false });
+    const response = await http().get(`/categories/by-slug/${category.slug}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual(category);
+  });
+
+  it('answers 200 to an anonymous request with a broken session cookie', async () => {
+    const category = await create();
+    const response = await http()
+      .get(`/categories/by-slug/${category.slug}`)
+      .set({ Cookie: 'lamoda.session_token=garbage' });
+
+    expect(response.status).toBe(200);
+  });
+
+  it('answers 404 NOT_FOUND for a valid unknown slug', async () => {
+    expectError(await http().get(`/categories/by-slug/unknown-${randomUUID()}`), 404, 'NOT_FOUND');
+  });
+
+  it('passes validation for a 255-character slug and answers 404 NOT_FOUND', async () => {
+    expectError(await http().get(`/categories/by-slug/${'a'.repeat(255)}`), 404, 'NOT_FOUND');
+  });
+
+  it.each([
+    ['an encoded slash', 'a%2Fb'],
+    ['an encoded NUL', 'a%00b'],
+    ['an encoded space', 'a%20b'],
+  ])('refuses a slug with %s with 400 VALIDATION_FAILED on slug', async (_label, slug) => {
+    expectError(await http().get(`/categories/by-slug/${slug}`), 400, 'VALIDATION_FAILED', 'slug');
+  });
+
+  it('answers 200 to HEAD on an existing slug', async () => {
+    const category = await create();
+
+    expect((await http().head(`/categories/by-slug/${category.slug}`)).status).toBe(200);
+  });
+
+  it('answers 404 ROUTE_NOT_FOUND for a slug with a further segment', async () => {
+    expectError(await http().get('/categories/by-slug/a/b'), 404, 'ROUTE_NOT_FOUND');
+  });
+
+  it.each([
+    ['upper case', 'Dresses'],
+    ['a double hyphen', 'a--b'],
+    ['a leading hyphen', '-a'],
+    ['a trailing hyphen', 'a-'],
+    ['256 characters', 'a'.repeat(256)],
+    ['non-Latin letters', encodeURIComponent('платья')],
+    ['an underscore', 'a_b'],
+  ])('refuses a slug with %s with 400 VALIDATION_FAILED on slug', async (_label, slug) => {
+    expectError(await http().get(`/categories/by-slug/${slug}`), 400, 'VALIDATION_FAILED', 'slug');
+  });
+});
+
 describe('categories: errors', () => {
   it('refuses a duplicate name on create with 409 ALREADY_EXISTS', async () => {
     const category = await create();

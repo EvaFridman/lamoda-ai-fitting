@@ -54,6 +54,19 @@ function hasUuidPathParam(operation: OperationObject): boolean {
   );
 }
 
+function hasNonUuidPathParam(operation: OperationObject): boolean {
+  return (operation.parameters ?? []).some(
+    (parameter) =>
+      'in' in parameter &&
+      parameter.in === 'path' &&
+      !(
+        parameter.schema !== undefined &&
+        'format' in parameter.schema &&
+        parameter.schema.format === 'uuid'
+      ),
+  );
+}
+
 function hasQueryParam(operation: OperationObject): boolean {
   return (operation.parameters ?? []).some(
     (parameter) => 'in' in parameter && parameter.in === 'query',
@@ -73,6 +86,10 @@ function shapeCodes(operation: OperationObject): Set<ErrorCode> {
   if (hasUuidPathParam(operation)) {
     codes.add('INVALID_ID');
     codes.add('NOT_FOUND');
+  }
+  // A 404 for such a param comes from the route's @ApiErrors('NOT_FOUND'), not from the shape.
+  if (hasNonUuidPathParam(operation)) {
+    codes.add('VALIDATION_FAILED');
   }
   if (operation.security?.some((requirement) => 'session' in requirement) === true) {
     codes.add('UNAUTHORIZED');
@@ -229,13 +246,23 @@ describe('OpenAPI document (e2e)', () => {
     }
   });
 
-  it('gives operations with no request body, query or uuid id no validation or id answers', () => {
+  it('lists VALIDATION_FAILED and NOT_FOUND, not INVALID_ID, on GET /categories/by-slug/{slug}', () => {
+    const named = codesOf('get', '/categories/by-slug/{slug}');
+
+    expect(named['400']).toContain('VALIDATION_FAILED');
+    expect(named['400']).not.toContain('INVALID_ID');
+    expect(named['404']).toContain('NOT_FOUND');
+    expect(Object.values(named).flat()).not.toContain('INVALID_ID');
+  });
+
+  it('gives operations with no request body, query, path param no validation or id answers', () => {
     const plain = ops.filter(
       (op) =>
         !op.path.startsWith('/health/') &&
         op.operation.requestBody === undefined &&
         !hasQueryParam(op.operation) &&
-        !hasUuidPathParam(op.operation),
+        !hasUuidPathParam(op.operation) &&
+        !hasNonUuidPathParam(op.operation),
     );
     for (const { method, path, operation } of plain) {
       const listed = Object.values(namedCodes(operation)).flat();

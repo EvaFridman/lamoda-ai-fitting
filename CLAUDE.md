@@ -238,9 +238,11 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   e2e spec repeats one; a unit spec of a single piece (the middleware, Swagger metadata) may build
   a bare app. Database e2e get such an app from `createTestApp()` (`test/support/test-app.ts`).
   Node's server timeouts are set only by `server.ts`, after `listen()` (`common/http/server-timeouts.ts`). Swagger error responses: `swagger.ts` adds the
-  ones a route's shape implies (body, query, `@UuidParam`, `@SignedIn()`/`@Closed()`'s 401, 429/500/503); a route that can
-  answer 409 `ALREADY_EXISTS`/`IN_USE` or 400 `RELATED_NOT_FOUND`/`CONSTRAINT_VIOLATION` declares
-  them with `@ApiErrors(...)` (`common/errors/`). The OpenAPI document is committed as
+  ones a route's shape implies (body, query, `@UuidParam`, another path parameter's 400
+  `VALIDATION_FAILED`, `@SignedIn()`/`@Closed()`'s 401, 429/500/503); a route that can
+  answer 409 `ALREADY_EXISTS`/`IN_USE`, 400 `RELATED_NOT_FOUND`/`CONSTRAINT_VIOLATION` or, by a
+  non-uuid path parameter such as a slug, 404 `NOT_FOUND` declares them with `@ApiErrors(...)`
+  (`common/errors/`). A non-uuid path parameter is checked by a param DTO (`@Param() dto`). The OpenAPI document is committed as
   `api/openapi.json`, a snapshot `test/openapi-snapshot.e2e-spec.ts` checks: a route or DTO change
   fails it until `npm --prefix api test -- -u` rewrites it, committed with the change. web's
   `*.contract.test.ts` compare its response schemas with that file through `@/shared/contract`

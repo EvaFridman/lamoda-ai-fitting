@@ -5,6 +5,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Param,
   Patch,
   Post,
   Query,
@@ -17,6 +18,7 @@ import { ApiPaginatedResponse, type Paginated } from '../common/pagination/pagin
 import { UuidParam } from '../common/pipes/uuid.pipe.js';
 import { CategoriesService } from './categories.service.js';
 import { CategoryResponseDto } from './dto/category-response.dto.js';
+import { CategorySlugParamDto } from './dto/category-slug-param.dto.js';
 import { CreateCategoryDto } from './dto/create-category.dto.js';
 import { ListCategoriesQueryDto } from './dto/list-categories-query.dto.js';
 import { UpdateCategoryDto } from './dto/update-category.dto.js';
@@ -32,6 +34,15 @@ export class CategoriesController {
   @ApiPaginatedResponse(CategoryResponseDto)
   list(@Query() query: ListCategoriesQueryDto): Promise<Paginated<CategoryResponseDto>> {
     return this.categories.list(query);
+  }
+
+  // Inactive categories answer too; web turns them into a 404 (spec 0014 O4).
+  @Get('by-slug/:slug')
+  @Public()
+  @ApiOkResponse({ type: CategoryResponseDto })
+  @ApiErrors('NOT_FOUND')
+  getBySlug(@Param() params: CategorySlugParamDto): Promise<CategoryResponseDto> {
+    return this.categories.getBySlug(params.slug);
   }
 
   @Get(':id')
