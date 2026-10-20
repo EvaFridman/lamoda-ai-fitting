@@ -70,8 +70,9 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       run by `cd.yml` after `smoke-test.sh` and by `ci-deploy-check.sh` (plan §5).
       Check: its tests; its output in `ci-deploy-check.sh` in CI; `npm run verify`.
       Commit: `feat(ci): measure the first request after a deploy`
-- Before the merge, the script from PR 2's branch runs against production right after a deploy:
-  the first measurement, neither cache nor warm-up (V17), kept for the acceptance record.
+- 👤 Before the merge, with the owner, who picks the moment: the script from PR 2's branch runs
+  against production right after the nearest deploy, the first measurement, neither cache nor
+  warm-up (V17), kept for the acceptance record.
 - 👤 merges PR 2 at a quiet time; the deploy's measurement (cache, no warm-up) is kept for the
   acceptance record (AC14).
 
@@ -86,8 +87,8 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       Commit: `feat(web): list the routes to warm up on deploy`
 - [ ] **T10. The warm-up script.** `deploy/scripts/warmup.mjs` and `warmup.test.mjs`; the root `test`
       and `lint` globs gain `deploy/scripts/*.mjs` (plan §4).
-      Check: its tests (a 500, a timeout, the budget, a 404 list, the 307, one page a second, the
-      bound of 50 and the skipped count, V16);
+      Check: its tests (a 500, a timeout, the budget, a 404 list, the 307, one page a second in the
+      cold pass and no pause in the repeated one, the bound of 50 and the skipped count, V16);
       `npm run verify`.
       Commit: `feat(deploy): add the warm-up script`
 - [ ] **T11. The warm-up step.** `deploy.sh` after readiness and before the switch, the stop and the

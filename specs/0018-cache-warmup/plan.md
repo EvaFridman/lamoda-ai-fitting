@@ -103,7 +103,8 @@ ${REDIS_CACHE_MAXMEMORY:-128mb} --maxmemory-policy allkeys-lru`, no volume, `mem
 - **The step.** `deploy/scripts/warmup.mjs`, piped into the target's web container:
   `app "$target" "$tag" exec -T web node --input-type=module - < "$here/warmup.mjs"`. It reads the
   list from `http://127.0.0.1:3001/healthz/warmup`, then requests each address twice: a cold pass,
-  one page at a time and at most one a second, then a repeated pass. The cold pass makes about
+  one page at a time and at most one a second, then a repeated pass, one at a time with no pause
+  (it reads the warm cache and barely touches the quota). The cold pass makes about
   three api reads a category page, so 50 categories and the other pages stay under 200 api reads a
   minute, two thirds of the `read` tier's 300, and under its 10 a second (V16). Each request has a
   10 s timeout and the whole step 120 s. It prints one line per address (status, first and
