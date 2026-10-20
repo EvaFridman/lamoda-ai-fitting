@@ -1,6 +1,7 @@
 # 0017 account: tasks
 
-Status: accepted (2026-10-20).
+Status: accepted (2026-10-20); amended 2026-10-20 at the review of PR 1 (T4, T5, T6, T8, T10,
+T11).
 
 ## How the work flows
 
@@ -15,8 +16,9 @@ Status: accepted (2026-10-20).
   api and web, is one (PR 2): the web tasks need `PATCH /me`, and one pull request means one
   review round and one deploy. Its cost: a large diff (the api e2e, `openapi.json`, the web tests),
   so the review bot sees more at once, and a longer-lived branch, rebased at each merge of spec
-  0014 (`CLAUDE.md`, `catalog.ts`, `EVENTS.md`, `robots.ts`). If the diff grows past what a review
-  can hold, the owner may split it after T6 (api, then web).
+  0014 (`CLAUDE.md`, `catalog.ts`, `EVENTS.md`, `robots.ts`). Right after T6 the diff is measured
+  and shown to the owner, before the web tasks (T9–T11) make it grow fastest: the owner may then
+  split it (api, then web).
 - If spec 0014's `app/robots.ts` (its T19) lands on `main` first, the branch of PR 2 is rebased and
   T9 adds its line to that file instead of creating it (plan §5).
 - The pull request of PR 3 carries `Closes #72` under "Что сделано".
@@ -38,7 +40,8 @@ Status: accepted (2026-10-20).
 
 - [ ] **T4. The name rule's own code (U19).** `IsPersonName` as one `ValidateBy` named
       `isPersonName` over an exported `isPersonName(value)`; `auth/auth-hooks.ts` uses that
-      function; web's `DETAIL_TEXTS` gets `IS_PERSON_NAME` (plan §2).
+      function; web's `DETAIL_TEXTS` gets `IS_PERSON_NAME`, and `IS_DATE_OF_BIRTH`'s text states the
+      rule (plan §2, U20).
       Check: `rules.spec.ts` (each failure gives the one code, the rule accepts and refuses what it
       did), the users e2e and the auth hook's tests expect the new code; `error-text` test;
       `npm run verify`.
@@ -47,7 +50,8 @@ Status: accepted (2026-10-20).
       constraint names into the snapshot `api/validation-codes.json`; web's
       `error-text.contract.test.ts` fails on a code missing from `DETAIL_TEXTS` (plan §3). The
       backlog item "Texts of new validation rules" is removed.
-      Check: the api test fails on a rule added to a DTO until `-u`; the web test fails with a text
+      Check: the api test fails on a rule added to a DTO until `-u`, and on a known code missing;
+      the web test fails with a text
       removed from `DETAIL_TEXTS` (both tried, then undone); `npm run verify`.
       Commit: `test(api): check validation codes against web's texts`
 - [ ] **T6. `PATCH /me` (U1, U2, U9).** `UpdateMeDto`, `MeService.update`, `MeController.update`
@@ -55,7 +59,7 @@ Status: accepted (2026-10-20).
       Check: database e2e of plan §1 (change and clear each field, `gender: null`, bad name and date,
       forbidden fields, empty body, 401 signed out, 401 with expired cookies for a deleted user)
       (AC9–AC11); `qa-tester` with `curl` and a session cookie from the fake provider;
-      `npm run verify`.
+      `npm run verify`. Then the diff of PR 2 so far is shown to the owner (see above).
       Commit: `feat(api): let a user edit their own data`
 - [ ] **T7. The current user in web.** `clientFetch` and `callApi` with a `null` schema for a 204;
       `entities/user`: `userKeys`, `useMe`, `updateMe`, `deleteMe`, `profileInitials`,
@@ -65,7 +69,7 @@ Status: accepted (2026-10-20).
       `npm run verify`.
       Commit: `feat(web): read and change the current user`
 - [ ] **T8. The profile menu leads to the account (U6).** The kit's `MenuLinkItem` (Base UI's
-      `Menu.LinkItem` checked first; plan §5) and its section on `/ui-kit`;
+      `Menu.LinkItem`; plan §5) and its section on `/ui-kit`;
       `shared/config/account-sections.ts`; the header's four items as links; the element
       `profile-menu.section` in the catalog, `EVENTS.md` regenerated.
       Check: kit tests (keyboard, a click navigates); header test (four links, hrefs, none
@@ -81,9 +85,9 @@ Status: accepted (2026-10-20).
       way back, browser "Back", sign-in from `/customer/orders` and back on it, screenshots for the
       owner (AC1, AC4, AC5); `npm run verify`.
       Commit: `feat(web): add the account pages`
-- [ ] **T10. "Мои данные" (U2, U3, U8, U9, U11).** Better Auth's cookie-cache skip checked first
-      (plan §4, §12); `features/edit-profile`: `ProfileForm`, the date mask; `_pages/account-data`
-      with `UserInitials`, loading and failed states; the session refresh after a save;
+- [ ] **T10. "Мои данные" (U2, U3, U8, U9, U11).** `features/edit-profile`: `ProfileForm`, the date mask; `_pages/account-data`
+      with `UserInitials`, loading and failed states; the session refresh after a save
+      (`disableCookieCache`, plan §4);
       `Account Data Saved` in the catalog.
       Check: unit tests of the date mask; form tests (filled from the user, "Сохранить" disabled
       until a change, only changed fields sent, cleared as `null`, no way back to no gender, 400
@@ -91,13 +95,15 @@ Status: accepted (2026-10-20).
       (AC7–AC10, AC12); `qa-tester`: save, reload, the header's name, the api stopped, attributes
       free of personal data (AC8, AC12, AC15); `npm run verify`.
       Commit: `feat(web): let a user edit their own data`
-- [ ] **T11. Account deletion (U4, U17).** `features/delete-account`; `account-delete.open`,
+- [ ] **T11. Account deletion (U4, U17).** `features/delete-account`; `track`'s `{ sendNow }`
+      (a beacon, plan §5); `account-delete.open`,
       `account-delete.cancel`, `Account Deleted` in the catalog. The backlog loses "The "Мои
       данные" page" and gains "A deleted user's history in Mixpanel" (plan §8).
       Check: tests (cancel changes nothing; confirm calls `DELETE /me`, then `track` before
-      `reset`, then the home page; a failure keeps the modal open with its text); `qa-tester`:
-      delete, the home page signed out, a new user on the next sign-in, the events in the requests
-      after consent (AC13, AC14); `npm run verify`.
+      `reset`, then the home page; `sendNow` passes the beacon options; a failure keeps the modal
+      open with its text); `qa-tester`: delete, the home page signed out, a new user on the next
+      sign-in, the events in the requests after consent, `Account Deleted` among them with the
+      user's id (AC13, AC14); `npm run verify`.
       Commit: `feat(web): delete the account from its page`
 - [ ] **T12. Docs.** `CLAUDE.md` (the account pages, `PATCH /me`, the name code, the validation
       codes snapshot, `clientFetch` with no body, the first mutations, `MenuLinkItem`),
