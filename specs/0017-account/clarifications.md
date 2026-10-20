@@ -140,3 +140,11 @@ names. The api's code and rule do not change.
 answers every failure, a wrong length too, so it becomes "must be 2 to 50 Cyrillic or Latin
 letters, with a space, apostrophe or hyphen only between letters" instead of plan §2's current
 message, which says nothing of the length.
+
+## Added in T7
+
+**U22. The user's data leaves the browser's cache at a sign-out.** A sign-out does not reload the
+page, and the query cache keeps `/me` (personal data) for up to 5 minutes. Whenever the session
+becomes `signed-out` and not `failed` (a sign-out here or in another tab, an expiry; the same
+moment `reset()` of analytics follows), the browser removes every query of `userKeys.all`, so the
+next person at this tab never sees it. Found by the security review of T7; done in T10.

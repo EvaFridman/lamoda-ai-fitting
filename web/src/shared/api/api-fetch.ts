@@ -8,7 +8,7 @@ import type { z } from 'zod';
 import { getServerEnv } from '@/shared/config/server';
 
 import { ApiError } from './api-error';
-import { callApi } from './call-api';
+import { callApi, type Parsed } from './call-api';
 import type { ApiPath } from './path';
 
 const TIMEOUT_MS = 5000;
@@ -44,7 +44,7 @@ export async function apiFetch<Schema extends z.ZodType>(
   path: ApiPath,
   schema: Schema,
   init?: RequestInit,
-): Promise<z.infer<Schema>> {
+): Promise<Parsed<Schema>> {
   const env = getServerEnv();
   const url = new URL(path.path, env.API_URL);
   // `buildPath` makes only paths on the api's origin; this holds even for a forged ApiPath, since

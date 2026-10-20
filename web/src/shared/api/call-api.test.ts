@@ -224,6 +224,49 @@ describe('callApi error envelope', () => {
   });
 });
 
+describe('callApi with a null schema', () => {
+  async function nullFailure(): Promise<ApiError> {
+    const error = await callApi(URL_, PATH, null, { method: 'DELETE' }).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ApiError);
+    return error as ApiError;
+  }
+
+  it('resolves a 204 to undefined without reading the body', async () => {
+    const response = new Response(null, { status: 204 });
+    const json = vi.spyOn(response, 'json');
+    fetchMock.mockResolvedValue(response);
+    await expect(callApi(URL_, PATH, null, { method: 'DELETE' })).resolves.toBeUndefined();
+    expect(json).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['a 200 with a JSON body', () => new Response('{"ok":true}')],
+    ['a 200 with no body', () => new Response(null, { status: 200 })],
+    ['a 201 with a JSON body', () => new Response('{}', { status: 201 })],
+  ])('fails as schema for %s', async (_name, response) => {
+    fetchMock.mockResolvedValue(response());
+    expect(await nullFailure()).toMatchObject({ kind: 'schema', template: '/things/:id' });
+  });
+
+  it('keeps the http path with code and details for an error status', async () => {
+    const details = [{ field: 'firstName', code: 'MAX_LENGTH', message: 'too long' }];
+    fetchMock.mockResolvedValue(
+      new Response(envelope('VALIDATION_FAILED', details), { status: 400 }),
+    );
+    expect(await nullFailure()).toMatchObject({
+      kind: 'http',
+      status: 400,
+      code: 'VALIDATION_FAILED',
+      details,
+    });
+  });
+
+  it('keeps today path for a 204 with a real schema: schema failure', async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+    expect(await failure()).toMatchObject({ kind: 'schema' });
+  });
+});
+
 describe('callApi', () => {
   it('passes the url and options to fetch and returns the parsed body', async () => {
     fetchMock.mockResolvedValue(new Response(JSON.stringify({ ok: true, extra: 1 })));

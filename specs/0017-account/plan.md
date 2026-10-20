@@ -80,6 +80,8 @@ Closes the backlog item "Texts of new validation rules" (0007 H28).
   through `callAuth`), which also refreshes the copy (AC8). Checked in Better Auth 1.7.10 at the
   review of PR 1: `get-session` takes `disableCookieCache`, reads the database and writes the
   cookie cache again.
+- **Cache after a sign-out (U22).** When the session becomes `signed-out` and not `failed`, the
+  browser removes the queries of `userKeys.all` (`queryClient.removeQueries`).
 - No user data is read on the server (U11); every account page renders its data in the browser,
   inside `<Suspense>`.
 

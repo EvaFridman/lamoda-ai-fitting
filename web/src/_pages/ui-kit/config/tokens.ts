@@ -64,6 +64,8 @@ export const colorGroups: ColorGroup[] = [
       { token: '--color-snackbar', name: 'Уведомление', value: '#363636' },
       { token: '--color-snackbar-error', name: 'Уведомление, ошибка', value: '#d13100' },
       { token: '--color-skeleton-pulse', name: 'Скелетон, пульс', value: '#e7e7e7' },
+      { token: '--color-initials', name: 'Инициалы', value: '#4174a7' },
+      { token: '--color-initials-text', name: 'Инициалы, текст', value: '#fff' },
     ],
   },
   {

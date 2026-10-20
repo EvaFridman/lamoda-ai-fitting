@@ -61,7 +61,7 @@ T11).
       (AC9–AC11); `qa-tester` with `curl` and a session cookie from the fake provider;
       `npm run verify`. Then the diff of PR 2 so far is shown to the owner (see above).
       Commit: `feat(api): let a user edit their own data`
-- [ ] **T7. The current user in web.** `clientFetch` and `callApi` with a `null` schema for a 204;
+- [x] **T7. The current user in web.** `clientFetch` and `callApi` with a `null` schema for a 204;
       `entities/user`: `userKeys`, `useMe`, `updateMe`, `deleteMe`, `profileInitials`,
       `UserInitials` (plan §4).
       Check: web tests (a 204 resolves to `undefined`, any other status keeps today's path; the
@@ -85,13 +85,14 @@ T11).
       way back, browser "Back", sign-in from `/customer/orders` and back on it, screenshots for the
       owner (AC1, AC4, AC5); `npm run verify`.
       Commit: `feat(web): add the account pages`
-- [ ] **T10. "Мои данные" (U2, U3, U8, U9, U11).** `features/edit-profile`: `ProfileForm`, the date mask; `_pages/account-data`
+- [ ] **T10. "Мои данные" (U2, U3, U8, U9, U11, U22).** `features/edit-profile`: `ProfileForm`, the date mask; `_pages/account-data`
       with `UserInitials`, loading and failed states; the session refresh after a save
-      (`disableCookieCache`, plan §4);
+      (`disableCookieCache`, plan §4); the user's queries removed at a sign-out (U22);
       `Account Data Saved` in the catalog.
       Check: unit tests of the date mask; form tests (filled from the user, "Сохранить" disabled
       until a change, only changed fields sent, cleared as `null`, no way back to no gender, 400
-      details under fields, a 503 and a network error keep the values, the toast and the event)
+      details under fields, a 503 and a network error keep the values, the toast and the event;
+      no `['users', 'me']` in the cache after a sign-out, none removed after a failed read)
       (AC7–AC10, AC12); `qa-tester`: save, reload, the header's name, the api stopped, attributes
       free of personal data (AC8, AC12, AC15); `npm run verify`.
       Commit: `feat(web): let a user edit their own data`
