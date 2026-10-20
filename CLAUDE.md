@@ -17,8 +17,9 @@ from it through nginx, users' files with signed links and their deletion through
 `0011-s3-storage`; sign-in with Google, sessions, the admin token's removal, user routes that serve
 only the signed-in user's own data, account deletion and the header's profile menu by `0013-auth`;
 nightly encrypted copies of the database and the bucket, a database copy before a deploy migrates
-and the restore procedures by `0012-backups`, whose production checks are a backlog item (all
-closed).
+and the restore procedures by `0012-backups`, whose production checks are a backlog item (all closed); the analytics events'
+catalog, its document `EVENTS.md`, their checks, the rule `.claude/rules/analytics.md` and the
+`analytics` agent by `0015-analytics-events` (in progress).
 
 Keep this file true: update it in the same commit that changes what a section describes.
 
@@ -85,6 +86,11 @@ instead of doing their job in the main context.
 - `code-reviewer`, `security-reviewer`, `fsd-reviewer`, `temporal-reviewer`: review a diff
   (read-only). `fsd-reviewer` and `temporal-reviewer` use the skills `fsd` and
   `temporal-developer`; use them when writing that code too.
+- `analytics`: proposes the events of a spec's or plan's pages against the catalog's rules, and
+  answers questions about the collected data with aggregate Mixpanel queries only (pass the
+  project id, `4073843`). Every such question goes to it: the main session and the built-in agents
+  never query the data through Mixpanel themselves (spec 0015 R25).
+  Not a step of `finish-task`.
 
 What each agent may do, how the guard hooks work, the owner's decisions and the accepted risks:
 [.claude/README.md](.claude/README.md). Working rules:
@@ -140,8 +146,8 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
 ## Structure
 
 - Root: shared tooling (Prettier, ESLint, commitlint, lint-staged, gitleaks), `.githooks/`,
-  `.claude/`, `.mcp.json` (the Mixpanel MCP server: the main session and the `analytics` agent's
-  four aggregate tools, `.claude/README.md`), `specs/`.
+  `.claude/`, `.mcp.json` (the Mixpanel MCP server: the main session, which leaves data questions
+  to the `analytics` agent, and that agent's four aggregate tools, `.claude/README.md`), `specs/`.
 - `api/src/<module>/`: controller (thin) → service (logic) → Prisma. Imports go downward only.
   Generated Prisma client in `api/src/generated/` (git-ignored, never edited by hand).
 - `api/prisma/`: `schema.prisma` and migrations. CHECK constraints live only in the migrations'
@@ -364,11 +370,12 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   `noindex`, linked from nowhere and shows only the public catalog. The catalog page spec removes
   it.
 - `web` analytics (Mixpanel, spec 0008) go only through `@/shared/analytics`: `track` and
-  `useTrackedElement` (a click, and a hover of 500 ms once per element per page view; a page view
+  `useTrackedElement` (a click, and a hover of 500 ms once per element, for an element with
+  properties per set of their values, per page view; a page view
   for hovers ends on a path change, seen by `useHoverReset()`, mounted once in the consent gate). Every event,
   its properties and every tracked element are listed in `catalog.ts` (`events.ts` derives the
-  types from it, spec 0015); anything else fails
-  `typecheck`. The SDK sends its own page views and, for heatmaps, `$mp_click`-style events, from
+  types from it, spec 0015) and described in `EVENTS.md` (generated from it); anything else fails
+  `typecheck`. Rules for new events and elements: `.claude/rules/analytics.md`. The SDK sends its own page views and, for heatmaps, `$mp_click`-style events, from
   which `strip-attributes.ts` drops element attributes, ids, links and text. Recordings mask all
   text and inputs and block image elements and inline `url(...)` styles, but keep attributes and
   stylesheets as they are: personal data never goes into attributes (`title`, `aria-*`, `alt`,
@@ -391,9 +398,8 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   `useSignInAnalytics` (`features/auth`, mounted once by the header's profile icon): `identify` on
   every page load with a session, `reset` whenever the session is `signed-out` and not `failed`, so
   every real end (a sign-out here, in another tab or browser, an expiry) forgets the user and a
-  failed read does not. An identity left by another user is reset before `identify`. Events, without
-  properties: `Login Opened` (the visitor opens the modal; not its opening by itself after a failed sign-in, N56), `Signed In`, `Signed Out` (after either sign-out
-  succeeds, before `reset`); tracked elements: "Войти через Google" and the two sign-outs.
+  failed read does not. An identity left by another user is reset before `identify`. Its events
+  and tracked elements are the catalog's zone `auth` (`Signed Out` goes before `reset`).
   `Signed In` is sent once, on the page a sign-in of this tab came back to: `markSignInStarted()`
   (`features/auth`) puts the time in `sessionStorage` (`sign-in-started`, not an `mp_`/`__mp` key
   the SDK clearing removes) before leaving for Google, and a flag older than 10 minutes counts as
