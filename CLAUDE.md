@@ -381,8 +381,8 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   rendered per request inside `<Suspense>` since the modal reads the query) is inert while the session
   loads, opens `LoginModal` signed out (a failed read too) and, signed in, the kit's `Menu`: a circle
   with the first letter of the name (or of the email) and the name or "Профиль" (no email or avatar,
-  N6; `user-label.ts`) in a `MenuHeader` with `mp-block`, four inert disabled items that get links
-  with their pages' specs, a separator and `SignOutItems` ("Выйти", "Выйти со всех устройств"; a
+  N6; `user-label.ts`) in a `MenuHeader` with `mp-block`, the account's four sections as links
+  (`shared/config/account-sections.ts`, spec 0017 AC2), a separator and `SignOutItems` ("Выйти", "Выйти со всех устройств"; a
   failure shows a toast).
 - An attribute value's `colorHex` is its swatch colour, `#RRGGBB` (either case) or `null` (an
   empty bordered circle); the DTOs and a CHECK in the migration refuse anything else. web draws it with

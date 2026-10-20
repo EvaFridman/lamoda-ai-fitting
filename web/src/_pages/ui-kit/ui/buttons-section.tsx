@@ -1,9 +1,8 @@
-import type { TrackedElement } from '@/shared/analytics';
 import { Button, type ButtonAsButtonProps, HeartIcon, IconButton } from '@/shared/ui';
 
 import styles from './examples.module.scss';
 import { LoadingButtonDemo } from './loading-button-demo';
-import { TrackedButton } from './tracked-button';
+import { TrackedButton, type UiKitElement } from './tracked-button';
 
 interface Example {
   // The props as the caption under the example shows them.
@@ -11,7 +10,7 @@ interface Example {
   button: Omit<ButtonAsButtonProps, 'children'>;
   label: string;
   // Sends click and hover events to analytics (spec 0008).
-  tracked?: TrackedElement;
+  tracked?: UiKitElement;
 }
 
 const variants: Example[] = [

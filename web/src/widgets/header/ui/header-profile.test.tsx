@@ -15,11 +15,12 @@ const mocks = vi.hoisted(() => ({
   params: new URLSearchParams(),
   identify: vi.fn(),
   reset: vi.fn(),
+  track: vi.fn(),
 }));
 
 vi.mock('@/shared/analytics/client', () => ({
   identify: mocks.identify,
-  track: vi.fn(),
+  track: mocks.track,
   reset: mocks.reset,
 }));
 
@@ -33,6 +34,27 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => mocks.params,
   useRouter: () => ({ replace: mocks.replace }),
 }));
+
+// jsdom cannot navigate: the link is a plain anchor whose click is cancelled.
+vi.mock('next/link', async () => {
+  const { createElement } = await import('react');
+  return {
+    default: ({
+      onClick,
+      ...props
+    }: {
+      href: string;
+      onClick?: (event: { preventDefault: () => void }) => void;
+    }) =>
+      createElement('a', {
+        ...props,
+        onClick: (event: { preventDefault: () => void }) => {
+          onClick?.(event);
+          event.preventDefault();
+        },
+      }),
+  };
+});
 
 vi.mock('@/features/auth/model/auth-actions', () => ({
   signInWithGoogle: mocks.signInWithGoogle,
@@ -72,6 +94,7 @@ describe('HeaderProfile', () => {
     mocks.replace.mockReset();
     mocks.identify.mockReset();
     mocks.reset.mockReset();
+    mocks.track.mockReset();
     mocks.params = new URLSearchParams();
     window.sessionStorage.clear();
   });
@@ -168,12 +191,20 @@ describe('HeaderProfile', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('marks the four page items disabled and the sign-outs enabled', async () => {
+  it('links the four sections to the account and leaves every item enabled (0017 AC2)', async () => {
     signedIn(NAME);
     render(<HeaderProfile />);
     const { menu } = await openMenu();
-    for (const name of ['Мои заказы', 'Магазины', 'Мои данные', 'Мои примерки']) {
-      expect(within(menu).getByRole('menuitem', { name })).toHaveAttribute('aria-disabled', 'true');
+    for (const [name, href] of [
+      ['Мои заказы', '/customer/orders'],
+      ['Магазины', '/customer/stores'],
+      ['Мои данные', '/customer/account'],
+      ['Мои примерки', '/customer/fittings'],
+    ]) {
+      const item = within(menu).getByRole('menuitem', { name });
+      expect(item.tagName).toBe('A');
+      expect(item).toHaveAttribute('href', href);
+      expect(item).not.toHaveAttribute('aria-disabled');
     }
     for (const name of ['Выйти', 'Выйти со всех устройств']) {
       expect(within(menu).getByRole('menuitem', { name })).not.toHaveAttribute(
@@ -181,6 +212,69 @@ describe('HeaderProfile', () => {
         'true',
       );
     }
+  });
+
+  it('sends the click on a section link with its section value', async () => {
+    signedIn(NAME);
+    render(<HeaderProfile />);
+    const { user, menu } = await openMenu();
+    await user.click(within(menu).getByRole('menuitem', { name: 'Мои данные' }));
+    expect(mocks.track).toHaveBeenCalledExactlyOnceWith('Element Clicked', {
+      element: 'profile-menu.section',
+      zone: 'auth',
+      type: 'navigation',
+      section: 'data',
+    });
+  });
+
+  it('opens from the keyboard, moves over the section links and follows one with Enter', async () => {
+    signedIn(NAME);
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    render(<HeaderProfile />);
+    const trigger = screen.getByRole('button', { name: 'Профиль' });
+    const highlighted = () =>
+      screen.queryAllByRole('menuitem').find((item) => item.hasAttribute('data-highlighted'))
+        ?.textContent;
+    await vi.waitFor(async () => {
+      if (trigger.getAttribute('aria-expanded') !== 'true') {
+        trigger.focus();
+        await user.keyboard('{ArrowDown}');
+      }
+      expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    });
+    await vi.waitFor(() => expect(highlighted()).toBe('Мои заказы'));
+    await vi.waitFor(() =>
+      expect(screen.getByRole('menuitem', { name: 'Мои заказы' })).toHaveFocus(),
+    );
+
+    await user.keyboard('{ArrowDown}');
+    await vi.waitFor(() => expect(highlighted()).toBe('Магазины'));
+    const stores = screen.getByRole('menuitem', { name: 'Магазины' });
+    expect(stores).toHaveAttribute('href', '/customer/stores');
+    await vi.waitFor(() => expect(stores).toHaveFocus());
+
+    await user.keyboard('{Enter}');
+    await vi.waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    expect(mocks.track).toHaveBeenCalledExactlyOnceWith(
+      'Element Clicked',
+      expect.objectContaining({ element: 'profile-menu.section', section: 'stores' }),
+    );
+  });
+
+  it.each([
+    ['Мои заказы', 'orders'],
+    ['Магазины', 'stores'],
+    ['Мои примерки', 'fittings'],
+  ])('sends the section of "%s" as %s', async (name, section) => {
+    signedIn(NAME);
+    render(<HeaderProfile />);
+    const { user, menu } = await openMenu();
+    await user.click(within(menu).getByRole('menuitem', { name }));
+    expect(mocks.track).toHaveBeenCalledExactlyOnceWith(
+      'Element Clicked',
+      expect.objectContaining({ element: 'profile-menu.section', section }),
+    );
   });
 
   it('puts the separator between the pages and the sign-outs', async () => {

@@ -68,7 +68,7 @@ T11).
       bodies and methods of the requests; initials from both names, one name, the email);
       `npm run verify`.
       Commit: `feat(web): read and change the current user`
-- [ ] **T8. The profile menu leads to the account (U6).** The kit's `MenuLinkItem` (Base UI's
+- [x] **T8. The profile menu leads to the account (U6).** The kit's `MenuLinkItem` (Base UI's
       `Menu.LinkItem`; plan §5) and its section on `/ui-kit`;
       `shared/config/account-sections.ts`; the header's four items as links; the element
       `profile-menu.section` in the catalog, `EVENTS.md` regenerated.

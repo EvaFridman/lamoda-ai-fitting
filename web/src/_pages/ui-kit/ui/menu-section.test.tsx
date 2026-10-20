@@ -25,4 +25,14 @@ describe('MenuSection', () => {
     );
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   });
+
+  it('has the MenuLinkItem example with its trigger collapsed', () => {
+    render(<MenuSection />);
+
+    expect(screen.getByRole('button', { name: 'Разделы страницы' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
+    expect(screen.getByText('MenuLinkItem')).toBeInTheDocument();
+  });
 });

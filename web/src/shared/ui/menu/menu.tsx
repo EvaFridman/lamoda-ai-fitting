@@ -1,6 +1,7 @@
 'use client';
 
 import { Menu as BaseMenu } from '@base-ui/react/menu';
+import NextLink from 'next/link';
 import type { ReactElement, ReactNode } from 'react';
 
 import styles from './menu.module.scss';
@@ -17,7 +18,7 @@ export interface MenuProps {
   open?: boolean;
   defaultOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
-  // MenuItem, MenuSeparator and, above the items, MenuHeader.
+  // MenuItem, MenuLinkItem, MenuSeparator and, above the items, MenuHeader.
   children: ReactNode;
 }
 
@@ -65,6 +66,31 @@ export function MenuItem({ children, ...props }: MenuItemProps) {
     <BaseMenu.Item className={styles.item} {...props}>
       {children}
     </BaseMenu.Item>
+  );
+}
+
+// Base UI's link item props (onClick, the pointer handlers of useTrackedElement), with our own look.
+export interface MenuLinkItemProps extends Omit<
+  BaseMenu.LinkItem.Props,
+  'className' | 'render' | 'href' | 'closeOnClick'
+> {
+  // A page of the site: next/link navigates without a full page load.
+  href: string;
+  children: ReactNode;
+}
+
+// One link of the menu: an <a> with role="menuitem". Enter or a click opens the page and closes the
+// menu, which would otherwise stay open over the next page (the layout keeps it mounted).
+export function MenuLinkItem({ href, children, ...props }: MenuLinkItemProps) {
+  return (
+    <BaseMenu.LinkItem
+      className={styles.item}
+      closeOnClick
+      render={<NextLink href={href} />}
+      {...props}
+    >
+      {children}
+    </BaseMenu.LinkItem>
   );
 }
 

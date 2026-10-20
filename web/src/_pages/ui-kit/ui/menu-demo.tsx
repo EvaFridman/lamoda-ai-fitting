@@ -6,6 +6,7 @@ import {
   Menu,
   MenuHeader,
   MenuItem,
+  MenuLinkItem,
   MenuSeparator,
   ProfileIcon,
   showToast,
@@ -13,7 +14,8 @@ import {
 
 import styles from './examples.module.scss';
 
-// The menus of the section; an item that runs shows a toast, since a demo has nothing to do.
+// The menus of the section; an item that runs shows a toast, since a demo has nothing to do. The
+// links lead to the page's own sections.
 export function MenuDemo() {
   return (
     <ul className={styles.row}>
@@ -46,6 +48,14 @@ export function MenuDemo() {
           <MenuItem onClick={() => showToast({ title: 'Вы вышли' })}>Выйти</MenuItem>
         </Menu>
         <code className={styles.props}>align=&quot;end&quot;, MenuHeader, MenuSeparator</code>
+      </li>
+      <li className={styles.example}>
+        <Menu trigger={<Button variant="outline">Разделы страницы</Button>}>
+          <MenuLinkItem href="#tokens">Токены</MenuLinkItem>
+          <MenuLinkItem href="#buttons">Кнопки</MenuLinkItem>
+          <MenuLinkItem href="#links">Ссылки</MenuLinkItem>
+        </Menu>
+        <code className={styles.props}>MenuLinkItem</code>
       </li>
     </ul>
   );
