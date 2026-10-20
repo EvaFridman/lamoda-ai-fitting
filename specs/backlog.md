@@ -291,3 +291,12 @@ Left for later specs by `0002-database-schema` (its `clarifications.md` has the 
   reading the body and closes the connection while supertest is still writing it. Send the body
   so a closed socket is not an error (e.g. a raw `http.request` that ignores EPIPE and reads the
   answer), or check the answer with a body under the socket's buffer.
+- **Flaky socket-principal tests.** `api/test/database/socket-principal.e2e-spec.ts`, "a failed
+  session read": "warns once per minute and counts the refusals it left out" failed once on CI
+  (run 39302501138, 2026-10-19: `warn` called 2 times, expected 1, after the second
+  `passMinute()`), and "logs an error and reports to Sentry once per connection when the reader
+  marks it" once in `npm run verify` (2026-10-19, 0015 T2, test unchanged: `warn` called with
+  `connection error: connect ECONNREFUSED 127.0.0.1:1`); both passed on a rerun. The tests spy on
+  `Logger.prototype.warn`, so `RedisModule`'s warning about its unreachable test address counts
+  too whenever it lands during the connection. Spy on the adapter's logger alone, or count only
+  the calls carrying the refusal's message.
