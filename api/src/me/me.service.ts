@@ -6,6 +6,7 @@ import { NotFoundError, UnauthorizedError } from '../common/errors/app.exception
 import { Prisma } from '../generated/prisma/client.js';
 import type { UserResponseDto } from '../users/dto/user-response.dto.js';
 import { UsersService } from '../users/users.service.js';
+import type { UpdateMeDto } from './dto/update-me.dto.js';
 
 // A cookie Better Auth sets, with the attributes it sets it with.
 export interface AuthCookie {
@@ -37,15 +38,22 @@ export class MeService {
     }
   }
 
+  // An empty body reads the row (NotFoundError), a change writes it (P2025).
+  async update(userId: string, dto: UpdateMeDto): Promise<UserResponseDto> {
+    try {
+      return await this.users.update(userId, dto);
+    } catch (error) {
+      throw error instanceof NotFoundError || isRecordNotFound(error) ? gone() : error;
+    }
+  }
+
   // The user's sessions and accounts go by the database cascade, the fitting data too (spec 0002
   // C8), and then the files (spec 0011 M11, through UsersService.delete).
   async delete(userId: string): Promise<void> {
     try {
       await this.users.delete(userId);
     } catch (error) {
-      throw error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025'
-        ? gone()
-        : error;
+      throw isRecordNotFound(error) ? gone() : error;
     }
   }
 
@@ -56,6 +64,10 @@ export class MeService {
     const { authCookies } = await this.auth.$context;
     return [authCookies.sessionToken, authCookies.sessionData, authCookies.dontRememberToken];
   }
+}
+
+function isRecordNotFound(error: unknown): boolean {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025';
 }
 
 function gone(): UnauthorizedError {

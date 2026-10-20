@@ -54,7 +54,7 @@ T11).
       the web test fails with a text
       removed from `DETAIL_TEXTS` (both tried, then undone); `npm run verify`.
       Commit: `test(api): check validation codes against web's texts`
-- [ ] **T6. `PATCH /me` (U1, U2, U9).** `UpdateMeDto`, `MeService.update`, `MeController.update`
+- [x] **T6. `PATCH /me` (U1, U2, U9).** `UpdateMeDto`, `MeService.update`, `MeController.update`
       through `signOutWhenGone`; `SIGNED_IN_HANDLERS`; `openapi.json` rewritten (plan §1).
       Check: database e2e of plan §1 (change and clear each field, `gender: null`, bad name and date,
       forbidden fields, empty body, 401 signed out, 401 with expired cookies for a deleted user)

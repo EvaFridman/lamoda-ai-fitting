@@ -93,6 +93,11 @@ removes it from this list. Found by the agents' first security audit and trial r
   writes are a signed-in user's own rows and fast. The photo upload and generation specs make their expensive
   routes answer at once (start a workflow, 202) or take an idempotency key, so a retry does not run
   the work twice.
+- **Bodies that are not JSON.** Only JSON bodies are read (0006 F26): a body sent with another
+  `Content-Type` (`text/plain`, a form) reaches validation as `{}`, so a route whose fields are all
+  optional (`PATCH /me`, `PATCH /fitting-sessions/:id`) answers 200 unchanged and the data is lost
+  silently (found in 0017 T6). web always sends JSON. Answer a request that carries a body with
+  another type 415 in the api's error format, in `createHttpApp()`.
 
 ## web
 

@@ -53,7 +53,7 @@ function setCookieHeaders(response: request.Response): string[] {
   return (response.headers['set-cookie'] as string[] | undefined) ?? [];
 }
 
-describe('GET /me and DELETE /me', () => {
+describe('GET /me, PATCH /me and DELETE /me', () => {
   let testApp: TestApp;
   let names: Awaited<ReturnType<typeof cookieNames>>;
 
@@ -192,6 +192,289 @@ describe('GET /me and DELETE /me', () => {
     });
   });
 
+  describe('PATCH /me', () => {
+    interface Detail {
+      field: string;
+      code: string;
+    }
+    interface ValidationBody {
+      error: { code: string; details: Detail[] };
+    }
+
+    async function stored(userId: string) {
+      return testApp.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    }
+
+    async function expectRefused(who: SignedIn, body: object): Promise<Detail[]> {
+      const before = await stored(who.userId);
+
+      const response = await http().patch('/me').set(as(who)).send(body);
+
+      expect(response.status).toBe(400);
+      expect((response.body as ValidationBody).error.code).toBe('VALIDATION_FAILED');
+      expect(await stored(who.userId)).toEqual(before);
+      return (response.body as ValidationBody).error.details;
+    }
+
+    it('without a session answers 401 UNAUTHORIZED and sets no cookie', async () => {
+      const response = await http().patch('/me').send({ firstName: 'Ева' });
+
+      expect(response.status).toBe(401);
+      expect((response.body as ApiError).error.code).toBe('UNAUTHORIZED');
+      expect(setCookieHeaders(response)).toEqual([]);
+    });
+
+    it('answers 401 for a garbage session cookie', async () => {
+      const response = await http()
+        .patch('/me')
+        .set({ Cookie: `${names.token}=garbage` })
+        .send({ firstName: 'Ева' });
+
+      expect(response.status).toBe(401);
+    });
+
+    it('changes each field and answers the full user, as GET /me does', async () => {
+      const who = await signIn(testApp.app);
+      await testApp.prisma.user.update({ where: { id: who.userId }, data: { gender: 'female' } });
+      const changes = {
+        lastName: 'Иванова',
+        firstName: 'Мария',
+        patronymic: "Сергеевна-О'Нил",
+        dateOfBirth: '1990-05-17',
+        gender: 'male',
+      };
+
+      const response = await http().patch('/me').set(as(who)).send(changes);
+
+      expect(response.status).toBe(200);
+      expect(response.body).toMatchObject({ id: who.userId, ...changes });
+      expect(response.body).not.toHaveProperty('emailVerified');
+      expect(setCookieHeaders(response)).toEqual([]);
+      const read = await http().get('/me').set(as(who));
+      expect(read.body).toEqual(response.body);
+    });
+
+    it.each([
+      ['lastName', 'Петров'],
+      ['firstName', 'Пётр'],
+      ['patronymic', 'Иванович'],
+      ['dateOfBirth', '2001-02-03'],
+      ['gender', 'male'],
+    ])('changes only %s', async (field, value) => {
+      const who = await signIn(testApp.app);
+      const before = await stored(who.userId);
+
+      const response = await http()
+        .patch('/me')
+        .set(as(who))
+        .send({ [field]: value });
+
+      expect(response.status).toBe(200);
+      expect((response.body as Record<string, unknown>)[field]).toBe(value);
+      const after = await stored(who.userId);
+      expect(after.email).toBe(before.email);
+      expect(after.phone).toBe(before.phone);
+      const read = await http().get('/me').set(as(who));
+      expect((read.body as Record<string, unknown>)[field]).toBe(value);
+    });
+
+    it('changes the gender from female to male', async () => {
+      const who = await signIn(testApp.app);
+      await testApp.prisma.user.update({ where: { id: who.userId }, data: { gender: 'female' } });
+
+      await http().patch('/me').set(as(who)).send({ gender: 'male' }).expect(200);
+
+      expect((await stored(who.userId)).gender).toBe('male');
+    });
+
+    it('clears lastName, firstName, patronymic and dateOfBirth with null', async () => {
+      const who = await signIn(testApp.app);
+      await testApp.prisma.user.update({
+        where: { id: who.userId },
+        data: {
+          lastName: 'Иванова',
+          firstName: 'Анна',
+          patronymic: 'Сергеевна',
+          dateOfBirth: new Date('1990-05-17T00:00:00Z'),
+          gender: 'female',
+        },
+      });
+
+      const response = await http()
+        .patch('/me')
+        .set(as(who))
+        .send({ lastName: null, firstName: null, patronymic: null, dateOfBirth: null });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toMatchObject({
+        lastName: null,
+        firstName: null,
+        patronymic: null,
+        dateOfBirth: null,
+        gender: 'female',
+      });
+      const row = await stored(who.userId);
+      expect(row).toMatchObject({
+        lastName: null,
+        firstName: null,
+        patronymic: null,
+        dateOfBirth: null,
+      });
+    });
+
+    it('refuses gender null and keeps the row', async () => {
+      const who = await signIn(testApp.app);
+      await testApp.prisma.user.update({ where: { id: who.userId }, data: { gender: 'female' } });
+
+      const details = await expectRefused(who, { gender: null });
+
+      expect(details.map((detail) => detail.field)).toContain('gender');
+      expect((await stored(who.userId)).gender).toBe('female');
+    });
+
+    it('refuses an unknown gender', async () => {
+      const details = await expectRefused(await signIn(testApp.app), { gender: 'other' });
+
+      expect(details.map((detail) => detail.field)).toContain('gender');
+    });
+
+    it.each([
+      ['Female', 'Female'],
+      ['MALE', 'MALE'],
+    ])('refuses the gender %s in another case', async (_label, gender) => {
+      const details = await expectRefused(await signIn(testApp.app), { gender });
+
+      expect(details.map((detail) => detail.field)).toContain('gender');
+    });
+
+    it('ignores query parameters and saves the value of the body', async () => {
+      const who = await signIn(testApp.app);
+      const before = await stored(who.userId);
+
+      const response = await http()
+        .patch('/me?firstName=Query&lastName=Query&gender=male')
+        .set(as(who))
+        .send({ firstName: 'Мария' });
+
+      expect(response.status).toBe(200);
+      const after = await stored(who.userId);
+      expect(after.firstName).toBe('Мария');
+      expect(after.lastName).toBe(before.lastName);
+      expect(after.gender).toBe(before.gender);
+    });
+
+    it('saves nothing for query parameters alone', async () => {
+      const who = await signIn(testApp.app);
+      const before = await stored(who.userId);
+
+      const response = await http().patch('/me?firstName=Query').set(as(who)).send({});
+
+      expect(response.status).toBe(200);
+      expect(await stored(who.userId)).toEqual(before);
+    });
+
+    it.each([
+      ['an array', ['Анна']],
+      ['an object', { value: 'Анна' }],
+    ])('refuses %s as a name with IS_PERSON_NAME and saves nothing', async (_label, value) => {
+      const who = await signIn(testApp.app);
+      for (const field of ['lastName', 'firstName', 'patronymic']) {
+        const details = await expectRefused(who, { [field]: value });
+
+        expect(details).toContainEqual(expect.objectContaining({ field, code: 'IS_PERSON_NAME' }));
+      }
+    });
+
+    it.each([
+      ['a single letter', 'A'],
+      ['digits inside', '1abc'],
+      ['51 letters', 'a'.repeat(51)],
+      ['a number', 5],
+      ['an empty string', ''],
+      ['outer spaces', ' Анна'],
+      ['a doubled hyphen', 'Анна--Мария'],
+    ])('refuses %s as a name with IS_PERSON_NAME and saves nothing', async (_label, value) => {
+      const who = await signIn(testApp.app);
+      for (const field of ['lastName', 'firstName', 'patronymic']) {
+        const details = await expectRefused(who, { [field]: value });
+
+        expect(details).toContainEqual(expect.objectContaining({ field, code: 'IS_PERSON_NAME' }));
+      }
+    });
+
+    it.each([
+      ['a future date', '2999-01-01'],
+      ['before 1900-01-01', '1899-12-31'],
+      ['younger than 14', `${new Date().getUTCFullYear() - 10}-06-15`],
+      ['a day that does not exist', '2000-02-30'],
+      ['a wrong format', '17.05.1990'],
+      ['a timestamp', '1990-05-17T00:00:00Z'],
+      ['a number', 19900517],
+    ])('refuses %s as a date of birth with IS_DATE_OF_BIRTH', async (_label, value) => {
+      const details = await expectRefused(await signIn(testApp.app), { dateOfBirth: value });
+
+      expect(details).toContainEqual(
+        expect.objectContaining({ field: 'dateOfBirth', code: 'IS_DATE_OF_BIRTH' }),
+      );
+    });
+
+    it('refuses a bad value together with a good one and saves neither', async () => {
+      const who = await signIn(testApp.app);
+
+      const details = await expectRefused(who, { firstName: 'Мария', lastName: '1' });
+
+      expect(details.map((detail) => detail.field)).toEqual(['lastName']);
+    });
+
+    it.each([
+      ['email', 'other@example.com'],
+      ['phone', '+79991234567'],
+      ['fittingProfileImageKey', 'keep/users/x/photo.webp'],
+      ['id', randomUUID()],
+      ['emailVerified', false],
+      ['createdAt', '2000-01-01T00:00:00Z'],
+      ['updatedAt', '2000-01-01T00:00:00Z'],
+      ['name', 'Другое'],
+    ])('refuses the field %s by name and saves nothing', async (field, value) => {
+      const who = await signIn(testApp.app);
+
+      const details = await expectRefused(who, { firstName: 'Мария', [field]: value });
+
+      expect(details.map((detail) => detail.field)).toContain(field);
+    });
+
+    it('answers 200 for an empty body and changes nothing, updatedAt included', async () => {
+      const who = await signIn(testApp.app);
+      const before = await stored(who.userId);
+
+      const response = await http().patch('/me').set(as(who)).send({});
+
+      expect(response.status).toBe(200);
+      expect((response.body as { id: string }).id).toBe(who.userId);
+      expect(setCookieHeaders(response)).toEqual([]);
+      expect(await stored(who.userId)).toEqual(before);
+    });
+
+    it('never changes another user row', async () => {
+      const [one, two] = [await signIn(testApp.app), await signIn(testApp.app)];
+      const beforeTwo = await stored(two.userId);
+
+      await http()
+        .patch('/me')
+        .set(as(one))
+        .send({ firstName: 'Мария', lastName: 'Петрова', gender: 'male' })
+        .expect(200);
+      await http()
+        .patch('/me')
+        .set(as(one))
+        .send({ id: two.userId, firstName: 'Чужая' })
+        .expect(400);
+
+      expect(await stored(two.userId)).toEqual(beforeTwo);
+      expect((await stored(one.userId)).firstName).toBe('Мария');
+    });
+  });
+
   describe('DELETE /me', () => {
     async function arrange() {
       const who = await signIn(testApp.app);
@@ -308,6 +591,20 @@ describe('GET /me and DELETE /me', () => {
       expect(response.status).toBe(401);
       expect((response.body as ApiError).error.code).toBe('UNAUTHORIZED');
       expectSessionCookiesExpired(response);
+    });
+
+    it.each([
+      ['a body', { firstName: 'Мария' }],
+      ['an empty body', {}],
+    ])('answers 401 UNAUTHORIZED on PATCH /me with %s', async (_label, body) => {
+      const { who, copy } = await deletedWithCopy();
+
+      const response = await http().patch('/me').set(copy).send(body);
+
+      expect(response.status).toBe(401);
+      expect((response.body as ApiError).error.code).toBe('UNAUTHORIZED');
+      expectSessionCookiesExpired(response);
+      expect(await testApp.prisma.user.count({ where: { id: who.userId } })).toBe(0);
     });
 
     it('answers 401 UNAUTHORIZED on POST /fitting-sessions and creates no row', async () => {

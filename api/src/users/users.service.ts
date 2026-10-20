@@ -16,6 +16,9 @@ import type { UserResponseDto } from './dto/user-response.dto.js';
 // Newest first, the id keeps the order fixed (spec 0004 E47).
 const ORDER: Prisma.UserOrderByWithRelationInput[] = [{ createdAt: 'desc' }, { id: 'desc' }];
 
+// `PATCH /me` may also clear `firstName` (spec 0017 U9): the column is nullable (0013 N5).
+type UserChanges = Omit<UpdateUserDto, 'firstName'> & { firstName?: string | null };
+
 // `date` columns come and go as `YYYY-MM-DD`, not as a midnight timestamp.
 function toDate(value: string | null | undefined): Date | null | undefined {
   return typeof value === 'string' ? new Date(`${value}T00:00:00Z`) : value;
@@ -64,7 +67,7 @@ export class UsersService {
 
   // An empty body changes nothing, `updatedAt` included (spec 0004 E40). A key is checked against
   // the id the database holds, not the path's (its case may differ).
-  async update(id: string, dto: UpdateUserDto): Promise<UserResponseDto> {
+  async update(id: string, dto: UserChanges): Promise<UserResponseDto> {
     if (Object.keys(dto).length === 0) {
       return this.get(id);
     }

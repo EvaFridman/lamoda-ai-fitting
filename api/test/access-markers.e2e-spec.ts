@@ -169,6 +169,7 @@ const SIGNED_IN_HANDLERS = [
   'FittingSessionsController.update',
   'MeController.delete',
   'MeController.get',
+  'MeController.update',
 ];
 
 // Access is closed by default (spec 0006 F3, AC1): a route with no marker answers 401 to
