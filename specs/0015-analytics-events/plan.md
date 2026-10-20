@@ -6,7 +6,8 @@ the sign-in text of `CLAUDE.md` (§6); amended 2026-10-19 at the review of PR 1:
 and properties (§2, R13), the block of generic events and per-element estimates (§1, §3, §4, R14),
 the budget test (§1, §4, §5, R15), abbreviations (§5, R16), types (§1, §3, §6), the agent's
 checks (§7), the hover sentence of `CLAUDE.md` (§6); amended 2026-10-20 at T2's review: the catalog
-sentence of `CLAUDE.md` moves to T2, the rule on user data in properties (§6).
+sentence of `CLAUDE.md` moves to T2, the rule on user data in properties (§6); amended 2026-10-20
+at T3's review: the enum value pattern (§5, R21).
 
 Implements [spec.md](spec.md); decisions in [clarifications.md](clarifications.md) (R1–R16). No new
 dependency.
@@ -144,7 +145,7 @@ fit this format: enums with listed values, numbers, `catalog.card` with `positio
 - Property names `^[a-z]+(_[a-z]+)*$`; element ids `^[a-z0-9]+(-[a-z0-9]+)*\.[a-z0-9]+(-[a-z0-9]+)*$`,
   the part before the dot one of the areas of the element's zone; an area belongs to one zone only.
 - At most 5 properties of its own per event and per element; at most 50 values per enum, no
-  duplicates, no empty values.
+  duplicates, each value `^[a-z0-9]+([_-][a-z0-9]+)*$` (so none is empty, R21).
 - Every zone has at least one entry (no empty blocks in the document).
 - The budget (R15): `estimateMonthly(catalog)` (sum of `perVisit` + sum of `clicksPerVisit` and
   `hoversPerVisit` + `sdkPerVisit`, × `visitsPerMonth`, §4) at most 800 000.

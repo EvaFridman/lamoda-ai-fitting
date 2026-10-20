@@ -6,6 +6,8 @@ package-lock.json
 api/src/generated
 # Written by the api's tests (test/openapi-snapshot.e2e-spec.ts), compared byte for byte
 api/openapi.json
+# Written by web's tests (src/shared/analytics/events-doc.test.ts), compared byte for byte
+web/src/shared/analytics/EVENTS.md
 
 # Third-party agent skills, kept byte-identical to upstream (.claude/skills/README.md)
 .claude/skills/prisma-*
