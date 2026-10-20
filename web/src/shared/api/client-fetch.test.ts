@@ -141,6 +141,31 @@ describe('clientFetch errors', () => {
   });
 });
 
+describe('clientFetch with a null schema', () => {
+  it('resolves a 204 to undefined', async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+    await expect(clientFetch(THINGS, null, { method: 'DELETE' })).resolves.toBeUndefined();
+    expect(options()).toMatchObject({ method: 'DELETE', redirect: 'error' });
+  });
+
+  it('fails as schema, and reports it, for a 200 with a body', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ ok: true }));
+    await expect(clientFetch(THINGS, null)).rejects.toMatchObject({ kind: 'schema' });
+    expect(capture).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps status and code of an error answer', async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse({ error: { code: 'UNAUTHORIZED', message: 'm' } }, 401),
+    );
+    await expect(clientFetch(THINGS, null)).rejects.toMatchObject({
+      kind: 'http',
+      status: 401,
+      code: 'UNAUTHORIZED',
+    });
+  });
+});
+
 describe('clientFetch without AbortSignal.any', () => {
   beforeEach(() => {
     vi.stubGlobal(

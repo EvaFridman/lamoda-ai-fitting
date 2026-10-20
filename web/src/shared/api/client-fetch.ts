@@ -1,7 +1,5 @@
-import type { z } from 'zod';
-
 import { ApiError } from './api-error';
-import { callApi } from './call-api';
+import { callApi, type Parsed, type ResponseSchema } from './call-api';
 import type { ApiPath } from './path';
 
 // Above the api's own 10 s timeout, so its 503 arrives first and shows its text (plan §4).
@@ -30,12 +28,13 @@ function requestSignal(caller: AbortSignal | null | undefined): AbortSignal {
 
 // The only way browser code calls the api: same origin, no secret and no forwarded headers (the
 // visitor's own request reaches nginx), with a timeout and the response checked against a schema.
-// `init.signal` (TanStack Query's, when a query is cancelled) stops the request too.
-export async function clientFetch<Schema extends z.ZodType>(
+// `init.signal` (TanStack Query's, when a query is cancelled) stops the request too. A `null` schema
+// is for an answer with no body: a 204 resolves to `undefined` (spec 0017 plan §4).
+export async function clientFetch<Schema extends ResponseSchema>(
   path: ApiPath,
   schema: Schema,
   init?: RequestInit,
-): Promise<z.infer<Schema>> {
+): Promise<Parsed<Schema>> {
   // A slice's browser options and its server options share their names (`@/entities/x` and
   // `@/entities/x/server`), so a server component can take the wrong ones. A bug in web, not an api
   // failure: a plain `Error` that names the fix, which the page reports (H29, H31). Its own name

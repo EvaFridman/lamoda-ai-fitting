@@ -41,16 +41,23 @@ async function errorEnvelope(
   return codeOnly.success ? { code: codeOnly.data.error.code, details: [] } : undefined;
 }
 
+// A schema, or `null` for an answer with no body (a 204, spec 0017 plan §4).
+export type ResponseSchema = z.ZodType | null;
+
+export type Parsed<Schema extends ResponseSchema> = Schema extends z.ZodType
+  ? z.infer<Schema>
+  : undefined;
+
 // The step both clients share once they have built the url and the request options: fetch, then the
 // status and the schema, every failure an `ApiError` with its kind and reported to Sentry (plan §3),
 // so both classify and report errors the same way.
-export async function callApi<Schema extends z.ZodType>(
+export async function callApi<Schema extends ResponseSchema>(
   url: URL,
   path: ApiPath,
   schema: Schema,
   init: RequestInit,
   context: ReportContext = {},
-): Promise<z.infer<Schema>> {
+): Promise<Parsed<Schema>> {
   try {
     return await request(url, path, schema, init);
   } catch (error) {
@@ -59,12 +66,12 @@ export async function callApi<Schema extends z.ZodType>(
   }
 }
 
-async function request<Schema extends z.ZodType>(
+async function request<Schema extends ResponseSchema>(
   url: URL,
   path: ApiPath,
   schema: Schema,
   init: RequestInit,
-): Promise<z.infer<Schema>> {
+): Promise<Parsed<Schema>> {
   // Messages name the template, never the path: its params may come from input, and logs and
   // Sentry should group by route.
   const { template } = path;
@@ -90,6 +97,9 @@ async function request<Schema extends z.ZodType>(
       details: envelope?.details,
     });
   }
+  // A caller that expects no body gets nothing on a 204, and the body is not read. Any other answer
+  // goes on as before: with no schema to parse it, it fails below as `schema`.
+  if (schema === null && response.status === 204) return undefined as Parsed<Schema>;
   let body: unknown;
   try {
     body = await response.json();
@@ -104,6 +114,13 @@ async function request<Schema extends z.ZodType>(
       cause: error,
     });
   }
+  if (schema === null) {
+    throw new ApiError(`unexpected api response: ${template}: ${response.status} with a body`, {
+      kind: 'schema',
+      template,
+      method,
+    });
+  }
   const parsed = schema.safeParse(body);
   if (!parsed.success) {
     throw new ApiError(`unexpected api response: ${template}: ${parsed.error.message}`, {
@@ -112,5 +129,5 @@ async function request<Schema extends z.ZodType>(
       method,
     });
   }
-  return parsed.data;
+  return parsed.data as Parsed<Schema>;
 }
