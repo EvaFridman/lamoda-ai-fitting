@@ -49,15 +49,15 @@ Input: a spec, a plan or a page description. Output, for each page or block:
      about the page, such as a card's position or a sort order.
    - Element ids: the area before the dot is one of its zone's areas, each part kebab-case; a new
      area is declared in its zone, belongs to one zone only and matches the area pattern; a new
-     zone has at least one entry.
+     zone's key matches the area pattern too, and the zone has at least one entry.
    - Type: `conversion` only for an event of a reached goal; a click on an element is
      `interaction` or `navigation`; `service` for what serves the site, not the visitor's goal.
    - A hover is sent once per element and set of property values per page view: an element with
      properties counts once per set of values, so estimate hovers with that in mind.
 3. The budget: the new monthly estimate, as `estimateMonthly` counts it (sum of `perVisit`, of
    every element's `clicksPerVisit` and `hoversPerVisit`, and `sdkPerVisit`, times
-   `visitsPerMonth`), before and after the proposal, against `BUDGET_THRESHOLD` of `MONTHLY_LIMIT`.
-   Warn above it. Then, if the caller allows a Mixpanel call and passes the project id (see
+   `visitsPerMonth`), before and after the proposal, against `BUDGET_THRESHOLD` of `MONTHLY_LIMIT`;
+   no estimate is negative. Warn above it. Then, if the caller allows a Mixpanel call and passes the project id (see
    Role 2), the actual volume of the last 30
    days: all events, the SDK's own (`$mp_*`, page views) included, against the same threshold.
 4. Questions for the owner: every choice that changes what is collected (a new event versus an

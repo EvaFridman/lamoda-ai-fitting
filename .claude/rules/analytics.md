@@ -23,8 +23,9 @@ from `catalog.ts`.
 
 ## Limits
 
-Names, sizes, areas and the budget are checked by `catalog.test.ts`; property kinds, reserved
-names and the estimates by the types (`typecheck`); types and user data only at review.
+Names, sizes, areas, zone keys, the estimates' sign and the budget are checked by
+`catalog.test.ts`; property kinds, reserved names and that every estimate is given by the types
+(`typecheck`); types and user data only at review.
 
 - Event names: Title Case words, ending in a past-tense verb ("Object Action": `Login Opened`,
   `Catalog Sorted`) or in that verb and a particle (`Signed In`). The verb is a word ending in `ed`
@@ -39,13 +40,14 @@ names and the estimates by the types (`typecheck`); types and user data only at 
   duplicates, each `^[a-z0-9]+([_-][a-z0-9]+)*$`), a number or a boolean; there is no free text.
 - Element ids: `area.element`, each part kebab-case (`login.google`). The area is one of its
   zone's `areas`; an area belongs to one zone, matches `^[a-z0-9]+(-[a-z0-9]+)*$` and is declared
-  in the zone before use. Every zone has at least one entry.
+  in the zone before use. A zone's key matches the same pattern, and every zone has at least one
+  entry.
 - Types: `conversion` only for an event of a reached goal (`Signed In`), never for an element; an
   element is `interaction` or `navigation`; `service` for an event or element that serves the
   site, not the visitor's goal (`/ui-kit`, cookie consent: `ui-kit.button-primary`).
 - Budget: a new event comes with its `perVisit`, a new element with its `clicksPerVisit` and
-  `hoversPerVisit`. `estimateMonthly` (all of them plus `sdkPerVisit`, times `visitsPerMonth`) stays
-  at most 80 % of the free plan's 1 M events a month. A page that changes how often the SDK sends by
+  `hoversPerVisit`. `estimateMonthly` (all of them plus `sdkPerVisit`, times `visitsPerMonth`)
+  stays at most 80 % of the free plan's 1 M events a month, and none of these numbers is negative. A page that changes how often the SDK sends by
   itself (more page views) revisits `sdkPerVisit`.
 
 ## No user data
