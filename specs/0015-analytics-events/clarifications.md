@@ -1,6 +1,6 @@
 # 0015 analytics events: clarifications
 
-Status: open (2026-10-19): decisions are added while the spec stays accepted.
+Status: done (2026-10-20). History, not instructions. Opened 2026-10-19; decisions R1–R26.
 
 The owner's decisions for this spec. Ids `R1`, `R2`, … are referred to by the spec, the plan and
 code comments. All decisions below: owner, 2026-10-19.

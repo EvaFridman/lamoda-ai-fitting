@@ -1,6 +1,7 @@
 # 0015 analytics events
 
-Status: accepted (2026-10-19); amended 2026-10-19 after the check against `main` (0013 closed, 0014
+Status: done (2026-10-20): all 12 criteria pass ([tasks.md](tasks.md), acceptance record).
+History, not instructions. Accepted 2026-10-19; amended 2026-10-19 after the check against `main` (0013 closed, 0014
 waits for the catalog): zones own areas (R4), elements may carry properties (R5), phrasal verbs in
 event names (R8); amended 2026-10-19 at the review of PR 1: hovers per element and properties
 (R13, AC12), a block of generic events (R14), the budget as a test (R15), abbreviations (R16).
