@@ -21,8 +21,8 @@ import {
 } from '../errors/app.exception.js';
 import { toAppException, violatedConstraint } from './to-app-exception.js';
 
-function prismaError(code: string, meta: Record<string, unknown> = {}) {
-  return new Prisma.PrismaClientKnownRequestError('prisma failed', {
+function prismaError(code: string, meta: Record<string, unknown> = {}, message = 'prisma failed') {
+  return new Prisma.PrismaClientKnownRequestError(message, {
     code,
     clientVersion: '7.10.0',
     meta,
@@ -388,10 +388,29 @@ describe('toAppException, one case per row of E20', () => {
     },
   );
 
-  it('Postgres query canceled (57014) is not an outage: 500 INTERNAL_ERROR', () => {
+  it('Postgres query canceled by the statement timeout (57014): 503 SERVICE_UNAVAILABLE', () => {
     const result = toAppException(
       prismaError('P2010', withCause({ kind: 'postgres', originalCode: '57014' })),
     );
+    expect(result.getStatus()).toBe(503);
+    expect(result.body.error.code).toBe('SERVICE_UNAVAILABLE');
+  });
+
+  it.each([
+    'Unable to start a transaction in the given time.',
+    'Transaction API error: Transaction already closed: A query cannot be executed on an expired transaction.',
+  ])('a transaction past maxWait or timeout (P2028 "%s"): 503 SERVICE_UNAVAILABLE', (message) => {
+    const result = toAppException(prismaError('P2028', {}, message));
+    expect(result.getStatus()).toBe(503);
+    expect(result.body.error.code).toBe('SERVICE_UNAVAILABLE');
+  });
+
+  it.each([
+    'Transaction API error: Transaction not found.',
+    'Transaction API error: A commit cannot be executed on a committed transaction',
+    'prisma failed',
+  ])('another P2028 ("%s") is a bug: 500 INTERNAL_ERROR', (message) => {
+    const result = toAppException(prismaError('P2028', {}, message));
     expect(result.getStatus()).toBe(500);
     expect(result.body.error.code).toBe('INTERNAL_ERROR');
   });

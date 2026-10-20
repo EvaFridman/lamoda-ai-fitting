@@ -73,7 +73,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Check: e2e: a second identical request does not query the database; a Redis failure still
       answers the counts (AC15); `npm run verify`.
       Commit: `feat(api): cache the product filter counts in redis`
-- [ ] **T9. Database pool and its timeouts.** `DATABASE_POOL_MAX`,
+- [x] **T9. Database pool and its timeouts.** `DATABASE_POOL_MAX`,
       `DATABASE_STATEMENT_TIMEOUT_MS`, `DATABASE_CONNECTION_TIMEOUT_MS` (plan §2.7, O36): `env.ts` with
       its refines, `PrismaPg`, the 503 mapping of `57014` and of a pool timeout (also Prisma's
       `P2028`, which the product list's interactive transaction throws when it waits for a

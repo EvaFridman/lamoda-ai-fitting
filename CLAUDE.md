@@ -234,7 +234,18 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   most 30 s, answers 503 `SERVICE_UNAVAILABLE`; its work is not cancelled, its end is logged, and
   only a route's first timeout within a minute goes to Sentry, spec 0006 F29). The timeout starts
   after the global guards; the shared Redis client's `commandTimeout` (1 s) keeps the throttler from
-  hanging there, and after a failed command it counts in memory for 10 s (F28). A step the server and the tests share goes into `createHttpApp()`, and no
+  hanging there, and after a failed command it counts in memory for 10 s (F28). The database pool
+  (`PrismaService`, spec 0014 plan §2.7) holds at most `DATABASE_POOL_MAX` connections (10, at most
+  50); a query waits for one `DATABASE_CONNECTION_TIMEOUT_MS` (2000) and a statement runs
+  `DATABASE_STATEMENT_TIMEOUT_MS` (5000), then 503 `SERVICE_UNAVAILABLE` (`57014`, the pool's
+  timeout, `P2028` of a transaction's timeout); the two together stay below `REQUEST_TIMEOUT_MS` or
+  the api does not start (O59), so a test that lowers the request timeout lowers them too. Every
+  transaction gets them as `maxWait` and `timeout`. The bound holds per query; a transaction's last
+  statement may run on to its statement timeout, and a handler is bounded only by the request
+  timeout. A 503 of a dependency down, too slow or busy (not a request timeout or a session read)
+  goes to Sentry once per route template and minute, the rest to the log (O60). The filter counts'
+  queries take at most half the pool (`FacetQuerySlots`, O62); their wait for a slot, up to the
+  connection timeout, comes on top of the bound. The migrations and the seed (`UnlimitedPrismaService`) connect without these limits. A step the server and the tests share goes into `createHttpApp()`, and no
   e2e spec repeats one; a unit spec of a single piece (the middleware, Swagger metadata) may build
   a bare app. Database e2e get such an app from `createTestApp()` (`test/support/test-app.ts`).
   Node's server timeouts are set only by `server.ts`, after `listen()` (`common/http/server-timeouts.ts`). Swagger error responses: `swagger.ts` adds the

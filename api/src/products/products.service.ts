@@ -12,6 +12,7 @@ import type { ProductFilterQueryDto } from './dto/product-filter-query.dto.js';
 import type { ProductListQueryDto } from './dto/product-list-query.dto.js';
 import type { ProductDetailDto, ProductListItemDto } from './dto/product-response.dto.js';
 import type { UpdateProductDto } from './dto/update-product.dto.js';
+import { FacetQuerySlots } from './listing/facet-slots.js';
 import { ProductFacetsCache } from './listing/facets-cache.js';
 import { countFacets } from './listing/product-facets.js';
 import { loadValueAttributes, toProductFilter, toProductSql } from './listing/product-filter.js';
@@ -35,6 +36,7 @@ export class ProductsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly facetsCache: ProductFacetsCache,
+    private readonly facetSlots: FacetQuerySlots,
     config: ConfigService<Env, true>,
   ) {
     this.mediaBaseUrl = config.get('MEDIA_BASE_URL', { infer: true });
@@ -42,17 +44,18 @@ export class ProductsService {
 
   async list(query: ProductListQueryDto): Promise<CursorPaginated<ProductListItemDto>> {
     const { sort, limit } = query;
-    const valueAttributes = await loadValueAttributes(this.prisma, query.attributeValueId);
-    const where = toProductSql(toProductFilter(query, valueAttributes));
     const cursor = query.cursor === undefined ? null : decodeProductCursor(query.cursor, sort);
     // The DTO has checked it: a refusal here is a bug, not a request for the first batch.
     if (query.cursor !== undefined && cursor === null) {
       throw new Error('A cursor passed the DTO but did not decode');
     }
     const afters = cursor === null ? [undefined] : afterCursorSql(cursor);
-    // The ids, the rows and the total from one snapshot (spec 0014 plan §2.2).
+    // The filter's attributes, the ids, the rows and the total from one snapshot (spec 0014 plan
+    // §2.2), so the whole list is bounded by the transaction's maxWait and timeout (O59).
     const { rows, keys, total } = await this.prisma.$transaction(
       async (tx) => {
+        const valueAttributes = await loadValueAttributes(tx, query.attributeValueId);
+        const where = toProductSql(toProductFilter(query, valueAttributes));
         // One row past the batch tells whether a next one exists.
         const keys: ProductKeyRow[] = [];
         for (const after of afters) {
@@ -96,8 +99,10 @@ export class ProductsService {
 
   async facets(query: ProductFilterQueryDto): Promise<ProductFacetsDto> {
     return this.facetsCache.get(query, async () => {
-      const valueAttributes = await loadValueAttributes(this.prisma, query.attributeValueId);
-      return countFacets(this.prisma, toProductFilter(query, valueAttributes));
+      const valueAttributes = await this.facetSlots.run(() =>
+        loadValueAttributes(this.prisma, query.attributeValueId),
+      );
+      return countFacets(this.prisma, toProductFilter(query, valueAttributes), this.facetSlots);
     });
   }
 

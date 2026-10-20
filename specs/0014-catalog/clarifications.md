@@ -313,3 +313,40 @@ Second round, on the review of `4817711`:
   JavaScript's lower case differs from the database's `lower()` for a few letters (a final "Σ",
   "İ"), so two `q` could share a key and not an answer. `q` goes into the key as it is; "Платье" and
   "платье" are two keys, one more miss each. (code-reviewer and security-reviewer, owner, T8.)
+
+## Decided at T9
+
+- **O59. Both database timeouts together stay below the request timeout.** Plan §2.7 refines each
+  timeout against `REQUEST_TIMEOUT_MS` on its own, but a query may first wait for a connection and
+  then run its statement, so the api refuses to start unless
+  `DATABASE_CONNECTION_TIMEOUT_MS + DATABASE_STATEMENT_TIMEOUT_MS < REQUEST_TIMEOUT_MS` (the
+  defaults: 2000 + 5000 < 10000). Every transaction, the product list's interactive one among
+  them, gets `maxWait = DATABASE_CONNECTION_TIMEOUT_MS` and `timeout = DATABASE_STATEMENT_TIMEOUT_MS`
+  (the whole transaction, not each statement; `transactionOptions` of `PrismaService`); Prisma's
+  `P2028` past either answers 503 `SERVICE_UNAVAILABLE`, any other `P2028` (a misused `tx`) stays a 500. The bound holds for one query. Prisma does not stop a statement under way, so a
+  transaction's last statement may run on to its statement timeout (at worst
+  `maxWait + timeout + statement timeout`, 12 s with the defaults), and a handler that runs several
+  in a row is bounded only by the request timeout, which answers 503 first. `/health/ready` keeps its `SELECT 1` through the same pool: with the pool exhausted it answers
+  503, while `/health/live` answers (AC15). (Owner, T9; code-reviewer and security-reviewer.)
+- **O60. An outage's 503 goes to Sentry once a minute per route.** A statement timeout or a pool
+  with no free connection now answers 503 within seconds, before the request timeout, so the once a
+  minute of 0006 F29 no longer covered it, and a client sending a slow filter again and again sent
+  an event each time. `AppExceptionFilter` sends a 503 of a dependency down, too slow or busy (the
+  database, Redis, the facet slots of O62; not a request timeout or a session read, which keep
+  their own once a minute) to Sentry once per route template and minute in the process; the others
+  go to the log as warnings. (security-reviewer, owner, T9.)
+- **O61. The product list reads the filter's attributes in its transaction.** `loadValueAttributes`
+  runs inside the list's transaction, so the whole list is one transaction bounded as in O59.
+  (code-reviewer, owner, T9.)
+- **O62. The filter counts use at most half the pool.** A facets cache miss runs 7 queries at once,
+  so a client sending new filters (`q` or prices) could hold the pool of 10 and every other route
+  would wait for a connection. At most `floor(DATABASE_POOL_MAX / 2)` (at least 1) of the counts'
+  queries run at once in a process (`FacetQuerySlots`); one that waits for a slot longer than
+  `DATABASE_CONNECTION_TIMEOUT_MS` answers 503 `SERVICE_UNAVAILABLE`. After the first failure of a
+  request's queries (a slot wait, a statement timeout, any error) its queries not yet started are
+  dropped. The wait for a slot comes on top of O59's bound
+  (with the defaults 2000 + 2000 + 5000 < 10000; the refine does not check it). The other half stays for the
+  list, the product page and the session reads. Counting on one connection would be safer still but
+  makes every miss several times slower. The browser keeps retrying a 503 (0007 H24): a 503 of a
+  statement timeout is not told apart, which would need a new error code. A transaction is not
+  bounded more strictly than O59. (security-reviewer, owner, T9.)

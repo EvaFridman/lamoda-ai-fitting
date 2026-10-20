@@ -33,6 +33,10 @@ services:
       BODY_LIMIT: ${BODY_LIMIT:-102400}
       # Request timeout in ms, then 503 (spec 0006 F11); the default is the api's own.
       REQUEST_TIMEOUT_MS: ${REQUEST_TIMEOUT_MS:-10000}
+      # The database pool and its timeouts (spec 0014 plan §2.7); the defaults are the api's own.
+      DATABASE_POOL_MAX: ${DATABASE_POOL_MAX:-10}
+      DATABASE_STATEMENT_TIMEOUT_MS: ${DATABASE_STATEMENT_TIMEOUT_MS:-5000}
+      DATABASE_CONNECTION_TIMEOUT_MS: ${DATABASE_CONNECTION_TIMEOUT_MS:-2000}
       # Largest socket.io message in bytes (spec 0006 F8); the default is the api's own.
       SOCKET_MAX_MESSAGE_BYTES: ${SOCKET_MAX_MESSAGE_BYTES:-65536}
       # Seconds the filter counts stay in Redis (spec 0014 plan §2.6); the default is the api's own.

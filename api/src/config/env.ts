@@ -58,8 +58,16 @@ export const envSchema = z
     // Milliseconds a handler may take, then 503 SERVICE_UNAVAILABLE (spec 0006 F11); at most 30 s,
     // so a typo cannot let nginx's proxy timeout answer 504 first (F27). Keep it at 6000 or more: a
     // delete waits up to 5 s for its file deletion to start (START_TIMEOUT_MS) and must still
-    // answer 204 with Temporal down (spec 0011 M26). Not enforced, so tests can set 100 ms.
+    // answer 204 with Temporal down (spec 0011 M26). Not enforced, so tests can set 100 ms (with the
+    // database timeouts below lowered under it).
     REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().max(30_000).default(10_000),
+    // The api's database pool (spec 0014 plan §2.7): at most this many connections, so a few slow
+    // requests cannot take every one Postgres has (O18).
+    DATABASE_POOL_MAX: z.coerce.number().int().positive().max(50).default(10),
+    // Milliseconds a statement may run before Postgres cancels it (57014), then 503 (O18).
+    DATABASE_STATEMENT_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
+    // Milliseconds a query waits for a free connection, then 503 (O36).
+    DATABASE_CONNECTION_TIMEOUT_MS: z.coerce.number().int().positive().default(2000),
     // Largest socket.io message in bytes; a bigger one never reaches the gateway: it closes a
     // WebSocket and answers 413 on long-polling (spec 0006 F8). nginx does not limit WebSocket
     // frames; at most 1 MB (F30).
@@ -128,7 +136,21 @@ export const envSchema = z
   .refine((env) => (env.AUTH_FAKE_OIDC_URL === '') === (env.AUTH_FAKE_OIDC_PUBLIC_URL === ''), {
     path: ['AUTH_FAKE_OIDC_PUBLIC_URL'],
     message: 'must be set together with AUTH_FAKE_OIDC_URL',
-  });
+  })
+  // A query may wait for a connection and then run its statement: one query answers 503 before the
+  // request timeout does (O59). A transaction gets the same two as maxWait and timeout, but Prisma
+  // does not stop a statement under way, so its last one may run on to its statement timeout; a
+  // handler that runs several in a row is bounded only by the request timeout.
+  .refine(
+    (env) =>
+      env.DATABASE_CONNECTION_TIMEOUT_MS + env.DATABASE_STATEMENT_TIMEOUT_MS <
+      env.REQUEST_TIMEOUT_MS,
+    {
+      path: ['DATABASE_STATEMENT_TIMEOUT_MS'],
+      message:
+        'DATABASE_CONNECTION_TIMEOUT_MS + DATABASE_STATEMENT_TIMEOUT_MS must be less than REQUEST_TIMEOUT_MS',
+    },
+  );
 
 export type Env = z.infer<typeof envSchema>;
 

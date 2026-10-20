@@ -61,6 +61,9 @@ describe('request timeout (e2e)', () => {
 
   beforeAll(async () => {
     vi.stubEnv('REQUEST_TIMEOUT_MS', String(TIMEOUT_MS));
+    // Their sum must stay under the request timeout (env.ts).
+    vi.stubEnv('DATABASE_STATEMENT_TIMEOUT_MS', '40');
+    vi.stubEnv('DATABASE_CONNECTION_TIMEOUT_MS', '40');
     const moduleRef = await Test.createTestingModule({
       imports: [
         ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true, validate: validateEnv }),
