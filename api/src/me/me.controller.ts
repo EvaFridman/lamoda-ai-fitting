@@ -1,4 +1,4 @@
-import { Controller, Delete, Get, HttpCode, HttpStatus, Res } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Patch, Res } from '@nestjs/common';
 import { ApiNoContentResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 
@@ -6,10 +6,11 @@ import { SignedIn } from '../common/auth/access.decorators.js';
 import { CurrentUserId } from '../common/auth/current-principal.decorator.js';
 import { UnauthorizedError } from '../common/errors/app.exception.js';
 import { UserResponseDto } from '../users/dto/user-response.dto.js';
+import { UpdateMeDto } from './dto/update-me.dto.js';
 import { type AuthCookie, MeService } from './me.service.js';
 
-// The signed-in user's own data (spec 0013 N8, N11). A deleted user's cached session gets 401 on
-// both routes (N31), and that answer expires the session cookies too (N38).
+// The signed-in user's own data (spec 0013 N8, N11; 0017 U1). A deleted user's cached session gets
+// 401 on every route (N31), and that answer expires the session cookies too (N38).
 @ApiTags('me')
 @Controller('me')
 @SignedIn()
@@ -23,6 +24,17 @@ export class MeController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<UserResponseDto> {
     return this.signOutWhenGone(res, () => this.me.get(userId));
+  }
+
+  // The user's own names, date of birth and gender (spec 0017 U2); nothing else can be sent (AC11).
+  @Patch()
+  @ApiOkResponse({ type: UserResponseDto })
+  update(
+    @CurrentUserId() userId: string,
+    @Body() dto: UpdateMeDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<UserResponseDto> {
+    return this.signOutWhenGone(res, () => this.me.update(userId, dto));
   }
 
   // Deletes the account and signs this browser out at once: the answer expires the session
