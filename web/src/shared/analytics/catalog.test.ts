@@ -24,7 +24,7 @@ const MAX_ENUM_VALUES = 50;
 
 const PROPERTY_NAME = /^[a-z]+(_[a-z]+)*$/;
 const ELEMENT_ID = /^[a-z0-9]+(-[a-z0-9]+)*\.[a-z0-9]+(-[a-z0-9]+)*$/;
-// `EVENTS.md` prints every area in backticks, used or not (R23).
+// `EVENTS.md` prints every zone key and area in backticks, used or not (R23).
 const AREA = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 // `EVENTS.md` prints each value in backticks inside a table (R21).
 const ENUM_VALUE = /^[a-z0-9]+([_-][a-z0-9]+)*$/;
@@ -77,6 +77,7 @@ function catalogProblems(c: Catalog): string[] {
 
   const zoneOfArea = new Map<string, string>();
   for (const [zone, { areas }] of Object.entries(c.zones)) {
+    if (!AREA.test(zone)) problems.push(`zone "${zone}" is not kebab-case`);
     for (const area of areas) {
       if (!AREA.test(area)) problems.push(`area "${area}" is not kebab-case`);
       const other = zoneOfArea.get(area);
@@ -98,6 +99,23 @@ function catalogProblems(c: Catalog): string[] {
   );
   for (const zone of Object.keys(c.zones)) {
     if (!used.has(zone)) problems.push(`zone "${zone}" has no events or elements`);
+  }
+
+  // A negative estimate would hide the others from the budget below.
+  const estimates: [string, number][] = [
+    ['visitsPerMonth', c.visitsPerMonth],
+    ['sdkPerVisit', c.sdkPerVisit],
+    ...Object.entries(c.events).map(([name, event]): [string, number] => [
+      `event "${name}" perVisit`,
+      event.perVisit,
+    ]),
+    ...Object.entries(c.elements).flatMap(([id, element]): [string, number][] => [
+      [`element "${id}" clicksPerVisit`, element.clicksPerVisit],
+      [`element "${id}" hoversPerVisit`, element.hoversPerVisit],
+    ]),
+  ];
+  for (const [what, value] of estimates) {
+    if (!(value >= 0)) problems.push(`${what} is ${value}, not 0 or more`);
   }
 
   const perMonth = estimateMonthly(c).total.perMonth;
@@ -231,6 +249,20 @@ describe('analytics catalog limits', () => {
     },
   );
 
+  it.each(['Service', 'service`', 'service_page', 'service.page', ''])(
+    'refuses the zone key "%s"',
+    (key) => {
+      const broken: Catalog = {
+        ...catalog,
+        zones: { ...catalog.zones, [key]: { title: 'Зона', areas: [], description: '' } },
+      };
+      expect(catalogProblems(broken)).toEqual([
+        `zone "${key}" is not kebab-case`,
+        `zone "${key}" has no events or elements`,
+      ]);
+    },
+  );
+
   it('accepts 5 properties of its own and refuses 6', () => {
     const five = { a: flag, b: flag, c: flag, d: flag, e: flag };
     const six = { ...five, f: flag };
@@ -301,6 +333,29 @@ describe('analytics catalog limits', () => {
     expect(catalogProblems({ ...sdkOnly, visitsPerMonth: atLimit })).toEqual([]);
     expect(catalogProblems({ ...sdkOnly, visitsPerMonth: atLimit + 1 })).toEqual([
       '800008 events a month, at most 800000',
+    ]);
+  });
+
+  it('refuses a negative estimate, which would lower the sum', () => {
+    const broken: Catalog = {
+      ...catalog,
+      sdkPerVisit: -1,
+      events: {
+        ...catalog.events,
+        'Login Opened': { ...catalog.events['Login Opened'], perVisit: -0.5 },
+      },
+      elements: {
+        ...catalog.elements,
+        'login.google': { ...catalog.elements['login.google'], hoversPerVisit: Number.NaN },
+      },
+    };
+    expect(catalogProblems(broken)).toEqual([
+      'sdkPerVisit is -1, not 0 or more',
+      'event "Login Opened" perVisit is -0.5, not 0 or more',
+      'element "login.google" hoversPerVisit is NaN, not 0 or more',
+    ]);
+    expect(catalogProblems({ ...catalog, visitsPerMonth: -3000 })).toEqual([
+      'visitsPerMonth is -3000, not 0 or more',
     ]);
   });
 });

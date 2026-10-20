@@ -52,7 +52,8 @@ declare const testTrack: <N extends keyof EventsOf<typeof testCatalog>>(
 declare const useTestElement: UseTrackedElementOf<typeof testCatalog>;
 
 // The assertions are for the type checker (`npm run typecheck`, spec 0015 AC1, AC6): an unused
-// `@ts-expect-error` fails it. Each case sits in a function that never runs.
+// `@ts-expect-error` fails it. The calls of `track` run against its mock (hence the check of
+// what reached it); the other cases sit in functions that never run.
 describe('analytics event types', () => {
   it('accepts the listed events', () => {
     track('Element Clicked', {
