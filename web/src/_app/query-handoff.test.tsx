@@ -133,7 +133,7 @@ const cases: Case[] = [
   [
     'productListOptions',
     (c) => prefetch(c, productServer.productListOptions(LIST_QUERY)),
-    page(listItem),
+    { ...page(listItem), nextCursor: null },
     () => useProducts(LIST_QUERY),
   ],
   [

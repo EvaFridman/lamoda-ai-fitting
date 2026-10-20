@@ -19,7 +19,10 @@ import {
 
 import { ApiErrors } from '../common/errors/api-errors.decorator.js';
 import { Closed, Public } from '../common/auth/access.decorators.js';
-import { ApiPaginatedResponse, type Paginated } from '../common/pagination/paginated.js';
+import {
+  ApiCursorPaginatedResponse,
+  type CursorPaginated,
+} from '../common/pagination/cursor-paginated.js';
 import { UuidParam } from '../common/pipes/uuid.pipe.js';
 import { CreateProductDto } from './dto/create-product.dto.js';
 import { ProductFacetsDto } from './dto/product-facets-response.dto.js';
@@ -37,8 +40,8 @@ export class ProductsController {
 
   @Get()
   @Public()
-  @ApiPaginatedResponse(ProductListItemDto)
-  list(@Query() query: ProductListQueryDto): Promise<Paginated<ProductListItemDto>> {
+  @ApiCursorPaginatedResponse(ProductListItemDto)
+  list(@Query() query: ProductListQueryDto): Promise<CursorPaginated<ProductListItemDto>> {
     return this.products.list(query);
   }
 

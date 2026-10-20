@@ -28,6 +28,7 @@ import {
 const ID = '3f2b8c1e-5a4d-4e6f-8a9b-0c1d2e3f4a5b';
 const ID2 = '7c9e6679-7425-40de-944b-e07fc1f90ae7';
 const DATE = '2026-10-01T12:00:00.000Z';
+const EMPTY_PAGE = { items: [], total: 0, nextCursor: null };
 
 const fetchMock = vi.fn();
 
@@ -119,7 +120,7 @@ beforeEach(() => {
 
 describe('getProducts', () => {
   it('requests /products without a query by default and returns the page', async () => {
-    const page = { items: [listItem()], total: 1 };
+    const page = { items: [listItem()], total: 1, nextCursor: null };
     respondWith(page);
     await expect(getProducts()).resolves.toEqual(page);
     const url = requested();
@@ -128,7 +129,7 @@ describe('getProducts', () => {
   });
 
   it('sends arrays as repeated keys and leaves absent values out', async () => {
-    respondWith({ items: [], total: 0 });
+    respondWith(EMPTY_PAGE);
     await getProducts({
       categoryId: [ID, ID2],
       size: ['M', 'L'],
@@ -153,29 +154,44 @@ describe('getProducts', () => {
   });
 
   it('does not send unknown keys of a wider object', async () => {
-    respondWith({ items: [], total: 0 });
+    respondWith(EMPTY_PAGE);
     const wider = { q: 'x', admin: 'yes', extra: [1] };
     await getProducts(wider);
     expect([...requested().searchParams.keys()]).toEqual(['q']);
   });
 
   it('accepts extra fields, top-level and nested, and drops them', async () => {
-    respondWith({ items: [listItem({ extra: 'x' })], total: 1, note: 'y' });
+    respondWith({ items: [listItem({ extra: 'x' })], total: 1, nextCursor: null, note: 'y' });
     const result = await getProducts();
-    expect(result).toEqual({ items: [listItem()], total: 1 });
+    expect(result).toEqual({ items: [listItem()], total: 1, nextCursor: null });
     expect(result.items[0]?.brand).not.toHaveProperty('extra');
     expect(result).not.toHaveProperty('note');
   });
 
   it.each([
-    ['a wrong type', { items: [{ ...listItem(), price: '5000' }], total: 1 }],
-    ['a missing field', { items: [{ ...listItem(), article: undefined }], total: 1 }],
-    ['a bad uuid', { items: [{ ...listItem(), id: 'nope' }], total: 1 }],
-    ['a non-ISO date', { items: [{ ...listItem(), createdAt: 'yesterday' }], total: 1 }],
-    ['a missing total', { items: [] }],
+    ['a wrong type', { items: [{ ...listItem(), price: '5000' }], total: 1, nextCursor: null }],
+    [
+      'a missing field',
+      { items: [{ ...listItem(), article: undefined }], total: 1, nextCursor: null },
+    ],
+    ['a bad uuid', { items: [{ ...listItem(), id: 'nope' }], total: 1, nextCursor: null }],
+    [
+      'a non-ISO date',
+      { items: [{ ...listItem(), createdAt: 'yesterday' }], total: 1, nextCursor: null },
+    ],
+    ['a missing total', { items: [], nextCursor: null }],
+    ['a missing nextCursor', { items: [], total: 0 }],
+    ['a numeric nextCursor', { items: [], total: 0, nextCursor: 5 }],
+    ['a text total', { items: [], total: '3', nextCursor: null }],
   ])('rejects %s with a schema error', async (_name, body) => {
     respondWith(body);
     await expect(getProducts()).rejects.toMatchObject({ name: 'ApiError', kind: 'schema' });
+  });
+
+  it('accepts a batch after the first: no total, a cursor to go on', async () => {
+    const page = { items: [listItem()], total: null, nextCursor: 'abc_-123' };
+    respondWith(page);
+    await expect(getProducts()).resolves.toEqual(page);
   });
 
   it('propagates an http error', async () => {
@@ -316,13 +332,13 @@ describe.each([
   });
 
   it('sends no query by default and ignores unknown keys', async () => {
-    respondWith({ items: [], total: 0 });
+    respondWith(EMPTY_PAGE);
     await loader(ID, { sort: 'rating', q: 'x' } as object);
     expect(requested().search).toBe('');
   });
 
   it('keeps an id taken from input in one segment', async () => {
-    respondWith({ items: [], total: 0 });
+    respondWith(EMPTY_PAGE);
     await loader('../users');
     expect(requested().pathname).toBe(`/products/..%2Fusers/${segment}`);
   });
@@ -355,25 +371,25 @@ describe.each([
 
 describe('empty filters', () => {
   it.each([[''], ['   ']])('getProducts sends no q for %j', async (q) => {
-    respondWith({ items: [], total: 0 });
+    respondWith(EMPTY_PAGE);
     await getProducts({ q });
     expect(requested().search).toBe('');
   });
 
   it('getProducts trims q', async () => {
-    respondWith({ items: [], total: 0 });
+    respondWith(EMPTY_PAGE);
     await getProducts({ q: '  платье ' });
     expect(requested().searchParams.get('q')).toBe('платье');
   });
 
   it('getProducts sends no empty lists', async () => {
-    respondWith({ items: [], total: 0 });
+    respondWith(EMPTY_PAGE);
     await getProducts({ brandId: [], categoryId: [], size: [], attributeValueId: [] });
     expect(requested().search).toBe('');
   });
 
   it('getProducts keeps the non-empty lists next to empty ones', async () => {
-    respondWith({ items: [], total: 0 });
+    respondWith(EMPTY_PAGE);
     await getProducts({ brandId: [], size: ['M'] });
     const { searchParams } = requested();
     expect([...searchParams.keys()]).toEqual(['size']);
@@ -392,13 +408,13 @@ describe('empty filters', () => {
   });
 
   it.each([[['']], [['  ', '']]])('getProducts sends no size for %j', async (size) => {
-    respondWith({ items: [], total: 0 });
+    respondWith(EMPTY_PAGE);
     await getProducts({ size });
     expect(requested().search).toBe('');
   });
 
   it('getProducts trims list elements and drops empty ones', async () => {
-    respondWith({ items: [], total: 0 });
+    respondWith(EMPTY_PAGE);
     await getProducts({ size: [' M ', '', 'L'] });
     expect(requested().search).toBe('?size=M&size=L');
   });
@@ -477,7 +493,7 @@ describe('product query options', () => {
   });
 
   it('runs the loader in queryFn', async () => {
-    respondWith({ items: [], total: 0 });
+    respondWith(EMPTY_PAGE);
     const options = productListOptions({ q: 'x' });
     await (options.queryFn as () => Promise<unknown>)();
     expect(requested().searchParams.get('q')).toBe('x');

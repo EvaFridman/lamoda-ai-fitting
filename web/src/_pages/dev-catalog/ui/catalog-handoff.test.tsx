@@ -53,6 +53,7 @@ const list = {
     },
   ],
   total: 1,
+  nextCursor: null,
 };
 const facets = {
   total: 1,

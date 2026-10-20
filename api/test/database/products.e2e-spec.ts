@@ -174,7 +174,11 @@ describe('products: list', () => {
     const response = await http().get('/products?limit=2&offset=1');
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ items: all.slice(1, 3), total: all.length });
+    expect(response.body).toEqual({
+      items: all.slice(1, 3),
+      total: all.length,
+      nextCursor: expect.any(String) as string,
+    });
   });
 
   it('orders by createdAt desc, then id desc: the newest first', async () => {

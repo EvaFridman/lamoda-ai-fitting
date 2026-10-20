@@ -100,7 +100,8 @@ function ProductPage({
           </li>
         ))}
       </ul>
-      {total > PAGE_SIZE ? (
+      {/* Paged by offset, so the total is always counted. */}
+      {total !== null && total > PAGE_SIZE ? (
         <Pagination
           page={page}
           pageCount={Math.ceil(total / PAGE_SIZE)}

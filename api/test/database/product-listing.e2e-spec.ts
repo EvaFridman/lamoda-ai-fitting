@@ -16,8 +16,11 @@ interface ListItem {
 
 interface Page {
   items: ListItem[];
-  total: number;
+  total: number | null;
+  nextCursor: string | null;
 }
+
+const EMPTY = { items: [], total: 0, nextCursor: null };
 
 interface Scope {
   brandId: string;
@@ -197,8 +200,8 @@ describe('product list: category and brand', () => {
     const unknownCategory = await get(`categoryId=${randomUUID()}`);
     const unknownBrand = await get(`brandId=${randomUUID()}`);
 
-    expect(unknownCategory).toEqual({ items: [], total: 0 });
-    expect(unknownBrand).toEqual({ items: [], total: 0 });
+    expect(unknownCategory).toEqual(EMPTY);
+    expect(unknownBrand).toEqual(EMPTY);
     expect(
       await idSet(`brandId=${scope.brandId}&categoryId=${scope.categoryId},${randomUUID()}`),
     ).toEqual([a]);
@@ -266,10 +269,7 @@ describe('product list: q', () => {
     const scope = await newScope();
     await product(scope, { name: 'Платье и юбка' });
 
-    expect(await get(`${scope.query}&q=${encodeURIComponent('и')}`)).toEqual({
-      items: [],
-      total: 0,
-    });
+    expect(await get(`${scope.query}&q=${encodeURIComponent('и')}`)).toEqual(EMPTY);
   });
 
   it('lets no tsquery syntax through: it only separates words, with no error', async () => {
@@ -291,7 +291,7 @@ describe('product list: q', () => {
       const response = await http().get(`/products?q=${q}`);
 
       expect(response.status, q).toBe(200);
-      expect(response.body, q).toEqual({ items: [], total: 0 });
+      expect(response.body, q).toEqual(EMPTY);
     }
   });
 
@@ -352,8 +352,8 @@ describe('product list: Russian search', () => {
     const scope = await newScope();
     await product(scope, { name: 'Платье вечернее' });
 
-    expect(await get(`${scope.query}&${q('плтье')}`)).toEqual({ items: [], total: 0 });
-    expect(await get(`${scope.query}&${q('платье джинсы')}`)).toEqual({ items: [], total: 0 });
+    expect(await get(`${scope.query}&${q('плтье')}`)).toEqual(EMPTY);
+    expect(await get(`${scope.query}&${q('платье джинсы')}`)).toEqual(EMPTY);
   });
 
   it("finds the products of a brand by the brand's name", async () => {
@@ -439,7 +439,7 @@ describe('product list: Russian search', () => {
     expect(alone).toContain(dress);
     expect(withStop).toEqual(alone);
     expect(stopFirst).toEqual(alone);
-    expect(await get(`${scope.query}&${q('и')}`)).toEqual({ items: [], total: 0 });
+    expect(await get(`${scope.query}&${q('и')}`)).toEqual(EMPTY);
   });
 
   it('keeps the total of a search, over its pages', async () => {
@@ -625,10 +625,7 @@ describe('product list: attribute values', () => {
     const a = await arrange();
     const unknown = randomUUID();
 
-    expect(await get(`${a.scope.query}&attributeValueId=${unknown}`)).toEqual({
-      items: [],
-      total: 0,
-    });
+    expect(await get(`${a.scope.query}&attributeValueId=${unknown}`)).toEqual(EMPTY);
     expect(await ids(`${a.scope.query}&attributeValueId=${a.black},${unknown}`)).toEqual([]);
     expect(await ids(`${a.scope.query}&attributeValueId=${unknown},${randomUUID()}`)).toEqual([]);
   });
@@ -710,7 +707,9 @@ describe('product list: combining and paging', () => {
     expect(first.items.map((item) => item.id)).toEqual(expected.slice(0, 2));
     expect(second.total).toBe(3);
     expect(second.items.map((item) => item.id)).toEqual(expected.slice(2));
-    expect(beyond).toEqual({ items: [], total: 3 });
+    expect(beyond).toEqual({ items: [], total: 3, nextCursor: null });
+    expect(first.nextCursor).toEqual(expect.any(String));
+    expect(second.nextCursor).toBeNull();
   });
 });
 

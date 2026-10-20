@@ -54,7 +54,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       punctuation-only `q` gives an empty list; an article in any case finds its product; the facets
       e2e made stable under load (O38, backlog "Flaky facets test"); `npm run verify`.
       Commit: `feat(api): search products by words of their name, brand and category`
-- [ ] **T6. Cursor paging of the product list.** `cursor` in `ProductListQueryDto`,
+- [x] **T6. Cursor paging of the product list.** `cursor` in `ProductListQueryDto`,
       `CursorPaginated<T>` with `nextCursor` and a `total` counted only without `cursor` (O44), the
       condition per sort, 400 for a broken cursor, a cursor of another sort or `cursor` with
       `offset` (plan §2.3); `openapi.json`; web's contract test and `productListSchema` accept

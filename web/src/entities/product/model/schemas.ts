@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { paginatedSchema } from '@/shared/api';
+import { cursorPaginatedSchema, paginatedSchema } from '@/shared/api';
 import { colorHexSchema } from '@/shared/lib';
 
 // The brand and category a product embeds: their own DTOs, not the brand and category entities'.
@@ -130,7 +130,7 @@ export const productAttributeValueRecordSchema = z.object({
 });
 
 // GET /products.
-export const productListSchema = paginatedSchema(productListItemSchema);
+export const productListSchema = cursorPaginatedSchema(productListItemSchema);
 // GET /products/:id/images.
 export const productImageListSchema = paginatedSchema(productImageRecordSchema);
 // GET /products/:id/variations.

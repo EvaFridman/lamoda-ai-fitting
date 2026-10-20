@@ -47,6 +47,7 @@ function listBody(name: string, total: number) {
       },
     ],
     total,
+    nextCursor: null,
   };
 }
 
