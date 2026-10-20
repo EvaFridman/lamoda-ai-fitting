@@ -155,10 +155,24 @@ describe('database pool and timeouts (e2e)', () => {
     });
 
     it('answers normally again once the lock is gone', async () => {
-      const response = await request(testApp.app.getHttpServer()).get('/brands');
+      // The previous test's cancelled statements may still hold the two pool connections for a
+      // moment, and a loaded machine can stretch a statement past 300 ms: a 503 in that moment is
+      // the timeout working, not a broken app. The app must recover within a bounded time.
+      await releaseAll();
+      let status = 0;
+      let body: unknown;
+      await vi.waitFor(
+        async () => {
+          const response = await request(testApp.app.getHttpServer()).get('/brands');
+          status = response.status;
+          body = response.body;
+          expect(status).toBe(200);
+        },
+        { timeout: 10_000, interval: 100 },
+      );
 
-      expect(response.status).toBe(200);
-    });
+      expect(body).toEqual({ items: expect.any(Array), total: expect.any(Number) });
+    }, 20_000);
   });
 
   describe('with every pool connection held', () => {

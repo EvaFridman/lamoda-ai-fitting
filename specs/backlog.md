@@ -136,8 +136,9 @@ removes it from this list. Found by the agents' first security audit and trial r
   a step between readiness and the switch that requests the main pages and the catalog's GET routes
   from the new copy and stops the deploy unless they answer 200. Owner, 2026-10-15: done together
   with the catalog page spec, which brings the caches to warm ("Page cache in a read-only image"
-  above, "Cache for filter counts" in "Data and media"); there is nothing to warm in Next's cache or
-  Redis before it. Measure the first request to `/` after a deploy against later ones first.
+  above, and the filter counts' Redis cache of spec 0014 plan §2.6); there is nothing to warm in
+  Next's cache or Redis before it. Spec 0014 left it here (O21): measure the first request to `/`
+  after a deploy against later ones first.
 - **Signed links in reports.** A signed storage link carries `X-Amz-Credential=<S3_ACCESS_KEY_ID>/…`
   and a user's id in its path (0011 M34). The spec that shows a user's photo through such a link
   keeps its `src` out of Sentry (events, breadcrumbs) and Mixpanel (heatmap clicks, recordings),
