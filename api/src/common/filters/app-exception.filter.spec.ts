@@ -10,10 +10,11 @@ import { ThrottlerException } from '@nestjs/throttler';
 import * as Sentry from '@sentry/nestjs';
 import type { Request, Response } from 'express';
 import type { PinoLogger } from 'nestjs-pino';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Prisma } from '../../generated/prisma/client.js';
 import {
+  AppException,
   NotFoundError,
   RequestTimeoutError,
   SessionUnavailableError,
@@ -21,7 +22,7 @@ import {
   ValidationError,
 } from '../errors/app.exception.js';
 import { requestContextMiddleware, requestContextOf } from '../http/request-context.js';
-import { AppExceptionFilter, loggable } from './app-exception.filter.js';
+import { AppExceptionFilter, loggable, OUTAGE_REPORT_INTERVAL_MS } from './app-exception.filter.js';
 
 // getIsolationScope: the request-context middleware tags the scope with the request id.
 vi.mock('@sentry/nestjs', () => ({
@@ -279,6 +280,155 @@ describe('AppExceptionFilter', () => {
 
       expect(Sentry.captureException).not.toHaveBeenCalled();
       expect(reply).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('outage reports, once per route and minute (O60)', () => {
+    function hostOf(method: string, routePath?: string, url = routePath): ArgumentsHost {
+      const routed = {
+        method,
+        url,
+        ...(routePath === undefined ? {} : { route: { path: routePath } }),
+      };
+      return {
+        switchToHttp: () => ({ getResponse: () => response, getRequest: () => routed }),
+      } as unknown as ArgumentsHost;
+    }
+    const outage = () => Object.assign(new Error('connect failed'), { code: 'ECONNREFUSED' });
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('reports the first outage of a route, and logs a repeat within a minute as a warning', () => {
+      const first = outage();
+      const repeat = outage();
+
+      filter.catch(first, hostOf('GET', '/products'));
+      vi.advanceTimersByTime(OUTAGE_REPORT_INTERVAL_MS - 1);
+      filter.catch(repeat, hostOf('GET', '/products'));
+
+      expect(Sentry.captureException).toHaveBeenCalledTimes(1);
+      expect(Sentry.captureException).toHaveBeenCalledWith(first, {
+        tags: { 'error.code': 'SERVICE_UNAVAILABLE' },
+      });
+      expect(logger.warn).toHaveBeenCalledTimes(1);
+      expect(logger.warn).toHaveBeenCalledWith(
+        { err: loggable(repeat), code: 'SERVICE_UNAVAILABLE', requestId: undefined },
+        expect.any(String),
+      );
+      expect(reply).toHaveBeenCalledTimes(2);
+      expect(reply).toHaveBeenLastCalledWith(
+        response,
+        expect.objectContaining({
+          error: expect.objectContaining({ code: 'SERVICE_UNAVAILABLE' }),
+        }),
+        503,
+      );
+    });
+
+    it('reports the route again once a minute has passed', () => {
+      filter.catch(outage(), hostOf('GET', '/products'));
+      vi.advanceTimersByTime(OUTAGE_REPORT_INTERVAL_MS);
+      filter.catch(outage(), hostOf('GET', '/products'));
+
+      expect(Sentry.captureException).toHaveBeenCalledTimes(2);
+    });
+
+    it('counts another route and another method on the same path independently', () => {
+      filter.catch(outage(), hostOf('GET', '/products'));
+      filter.catch(outage(), hostOf('GET', '/brands'));
+      filter.catch(outage(), hostOf('POST', '/products'));
+
+      expect(Sentry.captureException).toHaveBeenCalledTimes(3);
+    });
+
+    it('shares one key between two paths of one route template', () => {
+      filter.catch(outage(), hostOf('GET', '/products/:id', '/products/1'));
+      filter.catch(outage(), hostOf('GET', '/products/:id', '/products/2'));
+
+      expect(Sentry.captureException).toHaveBeenCalledTimes(1);
+      expect(logger.warn).toHaveBeenCalledTimes(1);
+    });
+
+    it('keys a request with no matched route as "(no route)", whatever its path', () => {
+      filter.catch(outage(), hostOf('GET', undefined, '/a'));
+      filter.catch(outage(), hostOf('GET', undefined, '/b'));
+
+      expect(Sentry.captureException).toHaveBeenCalledTimes(1);
+    });
+
+    it('limits a statement timeout and a Prisma transaction timeout like any outage', () => {
+      const statementTimeout = new Prisma.PrismaClientKnownRequestError('cancelled', {
+        code: 'P2010',
+        clientVersion: '7.10.0',
+        meta: { driverAdapterError: { cause: { originalCode: '57014' } } },
+      });
+      const transactionTimeout = new Prisma.PrismaClientKnownRequestError(
+        'Unable to start a transaction in the given time.',
+        { code: 'P2028', clientVersion: '7.10.0' },
+      );
+
+      filter.catch(statementTimeout, hostOf('GET', '/products'));
+      filter.catch(transactionTimeout, hostOf('GET', '/products'));
+
+      expect(Sentry.captureException).toHaveBeenCalledTimes(1);
+      expect(logger.warn).toHaveBeenCalledTimes(1);
+    });
+
+    it('reports a 500 every time', () => {
+      filter.catch(new TypeError('bug'), hostOf('GET', '/products'));
+      filter.catch(new TypeError('bug'), hostOf('GET', '/products'));
+
+      expect(Sentry.captureException).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not let an outage hide a 500 of the same route', () => {
+      filter.catch(outage(), hostOf('GET', '/products'));
+      filter.catch(new TypeError('bug'), hostOf('GET', '/products'));
+
+      expect(Sentry.captureException).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not limit a 503 of the api itself, which keeps its own report flag', () => {
+      filter.catch(new RequestTimeoutError(30_000, true), hostOf('GET', '/products'));
+      filter.catch(new RequestTimeoutError(30_000, true), hostOf('GET', '/products'));
+      filter.catch(new SessionUnavailableError('unreadable', true), hostOf('GET', '/products'));
+
+      expect(Sentry.captureException).toHaveBeenCalledTimes(3);
+    });
+
+    it('limits a plain AppException 503, such as the facet slots’, like any outage', () => {
+      const busy = () => new AppException('SERVICE_UNAVAILABLE', 'Too many filter counts at once');
+
+      filter.catch(busy(), hostOf('GET', '/products/facets'));
+      filter.catch(busy(), hostOf('GET', '/products/facets'));
+
+      expect(Sentry.captureException).toHaveBeenCalledTimes(1);
+      expect(logger.warn).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not let a RequestTimeoutError use up the route’s outage report', () => {
+      filter.catch(new RequestTimeoutError(30_000, true), hostOf('GET', '/products'));
+      filter.catch(outage(), hostOf('GET', '/products'));
+
+      expect(Sentry.captureException).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps a separate count per filter instance', () => {
+      const other = new AppExceptionFilter(
+        { httpAdapter: { reply } } as unknown as HttpAdapterHost,
+        logger as unknown as PinoLogger,
+      );
+
+      filter.catch(outage(), hostOf('GET', '/products'));
+      other.catch(outage(), hostOf('GET', '/products'));
+
+      expect(Sentry.captureException).toHaveBeenCalledTimes(2);
     });
   });
 

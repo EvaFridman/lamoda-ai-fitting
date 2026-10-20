@@ -10,6 +10,9 @@ describe('request timeout of /api/auth (e2e)', () => {
   beforeAll(async () => {
     // ConfigModule reads the environment when AppModule is imported: stub first, import after.
     vi.stubEnv('REQUEST_TIMEOUT_MS', '200');
+    // Their sum must stay under the request timeout (env.ts).
+    vi.stubEnv('DATABASE_STATEMENT_TIMEOUT_MS', '80');
+    vi.stubEnv('DATABASE_CONNECTION_TIMEOUT_MS', '80');
     const { createTestApp } = await import('../support/test-app.js');
     testApp = await createTestApp();
   });

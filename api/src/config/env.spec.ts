@@ -98,11 +98,19 @@ describe('validateEnv', () => {
     expect(validateEnv(valid).REQUEST_TIMEOUT_MS).toBe(10_000);
   });
 
+  // The smallest value the database timeouts (at least 1 ms each) allow is 3.
   it.each([
-    ['1', 1],
+    ['3', 3],
     ['30000', 30_000],
   ])('accepts REQUEST_TIMEOUT_MS %s', (value, expected) => {
-    expect(validateEnv({ ...valid, REQUEST_TIMEOUT_MS: value }).REQUEST_TIMEOUT_MS).toBe(expected);
+    expect(
+      validateEnv({
+        ...valid,
+        REQUEST_TIMEOUT_MS: value,
+        DATABASE_STATEMENT_TIMEOUT_MS: '1',
+        DATABASE_CONNECTION_TIMEOUT_MS: '1',
+      }).REQUEST_TIMEOUT_MS,
+    ).toBe(expected);
   });
 
   it.each(['30001', '0', '-1', '1.5', 'abc'])(
@@ -202,6 +210,75 @@ describe('validateEnv', () => {
 
   it.each(['ftp://example.ru/media/', 'not a url', ''])('refuses MEDIA_BASE_URL %j', (url) => {
     expect(() => validateEnv({ ...valid, MEDIA_BASE_URL: url })).toThrow(/MEDIA_BASE_URL/);
+  });
+});
+
+describe('validateEnv database pool and timeouts', () => {
+  it('defaults to a pool of 10, a 5000 ms statement and a 2000 ms wait for a connection', () => {
+    const env = validateEnv(valid);
+
+    expect(env.DATABASE_POOL_MAX).toBe(10);
+    expect(env.DATABASE_STATEMENT_TIMEOUT_MS).toBe(5000);
+    expect(env.DATABASE_CONNECTION_TIMEOUT_MS).toBe(2000);
+  });
+
+  it.each([
+    ['1', 1],
+    ['50', 50],
+  ])('accepts DATABASE_POOL_MAX %s', (value, expected) => {
+    expect(validateEnv({ ...valid, DATABASE_POOL_MAX: value }).DATABASE_POOL_MAX).toBe(expected);
+  });
+
+  it.each(['0', '51', '-1', '1.5', 'abc'])(
+    'refuses DATABASE_POOL_MAX %j, naming the variable',
+    (value) => {
+      expect(thrownMessage(() => validateEnv({ ...valid, DATABASE_POOL_MAX: value }))).toMatch(
+        /DATABASE_POOL_MAX/,
+      );
+    },
+  );
+
+  it.each(['DATABASE_STATEMENT_TIMEOUT_MS', 'DATABASE_CONNECTION_TIMEOUT_MS'])(
+    'refuses %s that is zero, negative or not an integer, naming the variable',
+    (name) => {
+      for (const value of ['0', '-1', '1.5', 'abc']) {
+        expect(thrownMessage(() => validateEnv({ ...valid, [name]: value }))).toMatch(
+          new RegExp(name),
+        );
+      }
+    },
+  );
+
+  it('accepts the two timeouts one millisecond under REQUEST_TIMEOUT_MS', () => {
+    const env = validateEnv({
+      ...valid,
+      REQUEST_TIMEOUT_MS: '1000',
+      DATABASE_STATEMENT_TIMEOUT_MS: '600',
+      DATABASE_CONNECTION_TIMEOUT_MS: '399',
+    });
+
+    expect(env.REQUEST_TIMEOUT_MS).toBe(1000);
+  });
+
+  it('refuses the two timeouts adding up to REQUEST_TIMEOUT_MS, naming the variables', () => {
+    const message = thrownMessage(() =>
+      validateEnv({
+        ...valid,
+        REQUEST_TIMEOUT_MS: '1000',
+        DATABASE_STATEMENT_TIMEOUT_MS: '600',
+        DATABASE_CONNECTION_TIMEOUT_MS: '400',
+      }),
+    );
+
+    expect(message).toMatch(/DATABASE_STATEMENT_TIMEOUT_MS: /);
+    expect(message).toMatch(/DATABASE_CONNECTION_TIMEOUT_MS/);
+    expect(message).toMatch(/REQUEST_TIMEOUT_MS/);
+  });
+
+  it('refuses the defaults under a small REQUEST_TIMEOUT_MS', () => {
+    expect(() => validateEnv({ ...valid, REQUEST_TIMEOUT_MS: '100' })).toThrow(
+      /DATABASE_STATEMENT_TIMEOUT_MS/,
+    );
   });
 });
 

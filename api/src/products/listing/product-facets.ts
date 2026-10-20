@@ -7,6 +7,7 @@ import type {
   FacetSizeDto,
   ProductFacetsDto,
 } from '../dto/product-facets-response.dto.js';
+import type { FacetQuerySlots } from './facet-slots.js';
 import {
   attributeGroupSql,
   joinOrNull,
@@ -17,23 +18,44 @@ import {
 // The filter counts (spec 0004 E16, E46; plan "Facets"). Each count runs with the filters minus its
 // own group, so choosing one colour keeps the other colours' counts. A value joins the products
 // through a LEFT JOIN whose condition holds the filters: a value no product matches counts 0 and
-// is kept only when chosen.
+// is kept only when chosen. Each query takes one of the process's facet slots (O62).
 export async function countFacets(
   prisma: PrismaService,
   filter: ProductFilter,
+  slots: FacetQuerySlots,
 ): Promise<ProductFacetsDto> {
+  // The first failure answers the request: the queries still waiting for a slot are dropped
+  // instead of running for nobody. Aborted inside the query, before its slot passes on, so not
+  // even the next waiter starts; a wait that times out has no slot to pass.
+  const failed = new AbortController();
+  const run = <T>(query: () => Promise<T>): Promise<T> =>
+    slots
+      .run(async () => {
+        try {
+          return await query();
+        } catch (error) {
+          failed.abort(error);
+          throw error;
+        }
+      }, failed.signal)
+      .catch((error: unknown) => {
+        failed.abort(error);
+        throw error;
+      });
   const [total, discounted, price, categories, brands, sizes, attributes] = await Promise.all([
-    countProducts(prisma, toProductSql(filter)),
-    countProducts(
-      prisma,
-      toProductSql({ ...filter, hasDiscount: undefined }),
-      Prisma.sql`p.discount > 0`,
+    run(() => countProducts(prisma, toProductSql(filter))),
+    run(() =>
+      countProducts(
+        prisma,
+        toProductSql({ ...filter, hasDiscount: undefined }),
+        Prisma.sql`p.discount > 0`,
+      ),
     ),
-    priceRange(prisma, filter),
-    countCategories(prisma, filter),
-    countBrands(prisma, filter),
-    countSizes(prisma, filter),
-    countAttributes(prisma, filter),
+    run(() => priceRange(prisma, filter)),
+    run(() => countCategories(prisma, filter)),
+    run(() => countBrands(prisma, filter)),
+    run(() => countSizes(prisma, filter)),
+    run(() => countAttributes(prisma, filter)),
   ]);
   return { total, discounted, price, categories, brands, sizes, attributes };
 }

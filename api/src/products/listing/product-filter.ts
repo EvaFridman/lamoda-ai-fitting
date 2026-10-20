@@ -1,5 +1,4 @@
 import { Prisma } from '../../generated/prisma/client.js';
-import type { PrismaService } from '../../prisma/prisma.service.js';
 import type { ProductFilterQueryDto } from '../dto/product-filter-query.dto.js';
 
 // The filters of the product list, parsed once (spec 0004 E13, E45). The list and the filter counts
@@ -23,9 +22,9 @@ export interface AttributeGroup {
   valueIds: string[];
 }
 
-// The attribute of each chosen value that exists, in one query.
+// The attribute of each chosen value that exists, in one query; the client or a transaction's.
 export async function loadValueAttributes(
-  prisma: PrismaService,
+  prisma: Prisma.TransactionClient,
   valueIds: readonly string[] | undefined,
 ): Promise<ReadonlyMap<string, string>> {
   if (valueIds === undefined || valueIds.length === 0) {

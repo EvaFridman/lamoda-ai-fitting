@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { ProductListQueryDto } from './dto/product-list-query.dto.js';
+import { FacetQuerySlots } from './listing/facet-slots.js';
 import { ProductFacetsCache } from './listing/facets-cache.js';
 import { encodeProductCursor, type ProductKeyRow } from './listing/product-cursor.js';
 import { ProductsService } from './products.service.js';
@@ -75,6 +76,7 @@ describe('ProductsService.list', () => {
         { provide: ConfigService, useValue: { get: () => 'http://media/' } },
         // The list does not use the facet cache.
         { provide: ProductFacetsCache, useValue: {} },
+        { provide: FacetQuerySlots, useValue: {} },
       ],
     }).compile();
     service = module.get(ProductsService);

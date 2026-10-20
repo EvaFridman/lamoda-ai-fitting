@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 
+import { FacetQuerySlots } from './listing/facet-slots.js';
 import { ProductFacetsCache } from './listing/facets-cache.js';
 import { ProductAttributeValuesController } from './product-attribute-values.controller.js';
 import { ProductAttributeValuesService } from './product-attribute-values.service.js';
@@ -21,6 +22,7 @@ import { ProductsService } from './products.service.js';
   providers: [
     ProductsService,
     ProductFacetsCache,
+    FacetQuerySlots,
     ProductImagesService,
     ProductVariationsService,
     ProductAttributeValuesService,

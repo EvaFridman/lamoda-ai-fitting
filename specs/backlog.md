@@ -93,12 +93,6 @@ removes it from this list. Found by the agents' first security audit and trial r
   writes are a signed-in user's own rows and fast. The photo upload and generation specs make their expensive
   routes answer at once (start a workflow, 202) or take an idempotency key, so a retry does not run
   the work twice.
-- **Timeouts of the database pool.** `PrismaPg` gets only the connection string, so `pg.Pool`'s
-  defaults hold: 10 connections, no `connectionTimeoutMillis` (a query waits for a connection
-  forever) and no `statement_timeout`. A query whose request answered 503 after a timeout (0006 F11,
-  0013 N29) keeps its place in the pool's queue until the database answers, which slows the
-  recovery of every route after an outage (found in 0013 T6). Set a connection and a statement
-  timeout for every route; the session reads are capped meanwhile (0013 N29).
 
 ## web
 
@@ -228,12 +222,6 @@ Left for later specs by `0002-database-schema` (its `clarifications.md` has the 
 - **Sizes off the scale.** The size filter's order (0009 K13) knows `XXS … 3XL` (`XXXL` = `3XL`)
   and plain numbers; `2XL`, `4XL` and up, ranges (`44-46`, `42/44`) and jeans sizes (`W28 L32`) go
   after all numbers, by text. Rank them once the catalog has such sizes.
-- **Cache for filter counts.** The counts are cached in Redis (spec 0014 T8); the rest remains. A
-  facets miss runs 7 queries in parallel, and the api's pg pool has the default 10 connections with
-  no `statement_timeout`, so a few slow public requests could hold the whole pool, `/health`
-  included (0004 T12 security review): set a pool size and a statement timeout from env.
-  The browser retries a 503 twice (0007 H24) while the timed-out handler keeps running, so one
-  slow visitor can hold three requests' worth of queries.
 - **Redis memory limit.** The facet cache (spec 0014 T8) stores one key per distinct filter, and an
   anonymous client can vary `maxPrice` or `q` for up to its read quota (300 a minute) of keys of up
   to tens of KB each, held for `FACETS_CACHE_TTL_SECONDS`. Redis has no `maxmemory` and is shared

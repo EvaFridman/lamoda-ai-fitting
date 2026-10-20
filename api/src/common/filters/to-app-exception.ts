@@ -102,11 +102,18 @@ function fromDatabase(error: Prisma.PrismaClientKnownRequestError): AppException
 const DATA_RULE_CODES = new Set(['P2000', 'P2011', 'P2020']);
 
 // Postgres (through Prisma's pg adapter) or Redis (ioredis) cannot be reached, or Postgres is
-// restarting or out of connections: try again later, not a bug.
+// restarting, out of connections or too slow: try again later, not a bug.
 const PRISMA_CONNECTION_CODES = new Set(['P1001', 'P1008', 'P1017', 'P2037']);
+// P2028 is any transaction error, a misused `tx` too; only these two are a slow database: no
+// connection within `maxWait`, or a query after `timeout` (spec 0014 O59).
+const TRANSACTION_TIMEOUT_MESSAGES = [
+  'Unable to start a transaction in the given time',
+  'expired transaction',
+];
 // Postgres SQLSTATE: class 08 is a connection exception; 57P01–57P03 are a shutdown or a start
-// in progress; 53300 is too many connections.
-const POSTGRES_UNAVAILABLE = /^(08|57P0[1-3]$|53300$)/;
+// in progress; 53300 is too many connections; 57014 is a statement cancelled by
+// `statement_timeout` (spec 0014 plan §2.7).
+const POSTGRES_UNAVAILABLE = /^(08|57P0[1-3]$|53300$|57014$)/;
 const SOCKET_ERROR_CODES = new Set([
   'ECONNREFUSED',
   'ECONNRESET',
@@ -130,6 +137,12 @@ const CONNECTION_MESSAGES = [
 function isConnectionFailure(exception: unknown): boolean {
   if (exception instanceof Prisma.PrismaClientKnownRequestError) {
     if (PRISMA_CONNECTION_CODES.has(exception.code)) return true;
+    if (
+      exception.code === 'P2028' &&
+      TRANSACTION_TIMEOUT_MESSAGES.some((text) => exception.message.includes(text))
+    ) {
+      return true;
+    }
     const sqlState = adapterCause(exception).originalCode;
     if (sqlState !== undefined && POSTGRES_UNAVAILABLE.test(sqlState)) return true;
   }
