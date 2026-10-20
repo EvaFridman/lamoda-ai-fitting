@@ -62,8 +62,14 @@ export type { IconButtonProps, IconButtonSize } from './icon-button/icon-button'
 export { IconButton } from './icon-button/icon-button';
 export type { LinkProps, LinkVariant } from './link/link';
 export { Link } from './link/link';
-export type { MenuAlign, MenuHeaderProps, MenuItemProps, MenuProps } from './menu/menu';
-export { Menu, MenuHeader, MenuItem, MenuSeparator } from './menu/menu';
+export type {
+  MenuAlign,
+  MenuHeaderProps,
+  MenuItemProps,
+  MenuLinkItemProps,
+  MenuProps,
+} from './menu/menu';
+export { Menu, MenuHeader, MenuItem, MenuLinkItem, MenuSeparator } from './menu/menu';
 export type { ModalProps } from './modal/modal';
 export { Modal, ModalClose } from './modal/modal';
 export type { OrderStatusProps, OrderStatusTone } from './order-status/order-status';

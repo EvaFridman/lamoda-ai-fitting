@@ -1,8 +1,34 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { Menu, MenuHeader, MenuItem, MenuSeparator } from '@/shared/ui';
+import { Menu, MenuHeader, MenuItem, MenuLinkItem, MenuSeparator } from '@/shared/ui';
+
+const navigated = vi.hoisted(() => vi.fn());
+
+// jsdom cannot navigate: the link is a plain anchor that reports the click and cancels it.
+vi.mock('next/link', async () => {
+  const { createElement } = await import('react');
+  return {
+    default: ({
+      href,
+      onClick,
+      ...props
+    }: {
+      href: string;
+      onClick?: (event: { preventDefault: () => void }) => void;
+    }) =>
+      createElement('a', {
+        ...props,
+        href,
+        onClick: (event: { preventDefault: () => void }) => {
+          onClick?.(event);
+          event.preventDefault();
+          navigated(href);
+        },
+      }),
+  };
+});
 
 interface Handlers {
   onEditPointerEnter?: () => void;
@@ -234,5 +260,80 @@ describe('Menu', () => {
     expect(trigger).toHaveFocus();
     expect(trigger).toHaveAttribute('aria-expanded', 'false');
     expect(onOpenChange).toHaveBeenLastCalledWith(false);
+  });
+});
+
+describe('MenuLinkItem', () => {
+  interface LinkHandlers {
+    onClick?: () => void;
+    onPointerEnter?: () => void;
+  }
+
+  function Links({ onClick, onPointerEnter }: LinkHandlers) {
+    return (
+      <Menu trigger={<button type="button">Действия</button>}>
+        <MenuItem>Изменить</MenuItem>
+        <MenuLinkItem href="/customer/orders" onClick={onClick} onPointerEnter={onPointerEnter}>
+          Мои заказы
+        </MenuLinkItem>
+      </Menu>
+    );
+  }
+
+  beforeEach(() => {
+    navigated.mockReset();
+  });
+
+  it('renders an anchor with role="menuitem" and its href', async () => {
+    render(<Links />);
+
+    await open(setup(), 'click');
+
+    const link = screen.getByRole('menuitem', { name: 'Мои заказы' });
+    expect(link.tagName).toBe('A');
+    expect(link).toHaveAttribute('href', '/customer/orders');
+    expect(link).not.toHaveAttribute('aria-disabled');
+  });
+
+  it('is reached with the arrows among the items and opened by Enter, which closes the menu', async () => {
+    const user = setup();
+    const onClick = vi.fn();
+    render(<Links onClick={onClick} />);
+
+    const trigger = await open(user, 'ArrowDown');
+    await vi.waitFor(() => expect(highlighted()).toBe('Изменить'));
+    await user.keyboard('{ArrowDown}');
+    await vi.waitFor(() => expect(highlighted()).toBe('Мои заказы'));
+    await user.keyboard('{Enter}');
+
+    await vi.waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
+    expect(navigated).toHaveBeenCalledExactlyOnceWith('/customer/orders');
+    expect(onClick).toHaveBeenCalledTimes(1);
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('navigates on click, closes the menu and calls onClick', async () => {
+    const user = setup();
+    const onClick = vi.fn();
+    render(<Links onClick={onClick} />);
+
+    await open(user, 'click');
+    await user.click(screen.getByRole('menuitem', { name: 'Мои заказы' }));
+
+    await vi.waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
+    expect(navigated).toHaveBeenCalledExactlyOnceWith('/customer/orders');
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('passes onPointerEnter through to the anchor', async () => {
+    const user = setup();
+    const onPointerEnter = vi.fn();
+    render(<Links onPointerEnter={onPointerEnter} />);
+
+    await open(user, 'click');
+    expect(onPointerEnter).not.toHaveBeenCalled();
+    await user.hover(screen.getByRole('menuitem', { name: 'Мои заказы' }));
+
+    expect(onPointerEnter).toHaveBeenCalledTimes(1);
   });
 });

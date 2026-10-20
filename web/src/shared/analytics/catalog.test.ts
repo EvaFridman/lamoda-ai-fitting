@@ -389,6 +389,7 @@ describe('analytics catalog', () => {
       'login.google': ['auth', 'interaction'],
       'profile-menu.sign-out': ['auth', 'interaction'],
       'profile-menu.sign-out-everywhere': ['auth', 'interaction'],
+      'profile-menu.section': ['auth', 'navigation'],
     });
   });
 

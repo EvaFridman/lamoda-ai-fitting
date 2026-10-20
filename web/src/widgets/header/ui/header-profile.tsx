@@ -4,12 +4,33 @@ import { useEffect, useRef } from 'react';
 
 import { SessionUserBadge, useSession } from '@/entities/session';
 import { DropSignInError, LoginModal, SignOutItems, useSignInAnalytics } from '@/features/auth';
-import { IconButton, Menu, MenuHeader, MenuItem, MenuSeparator, ProfileIcon } from '@/shared/ui';
+import { useTrackedElement } from '@/shared/analytics';
+import { type AccountSection, accountSections } from '@/shared/config';
+import {
+  IconButton,
+  Menu,
+  MenuHeader,
+  MenuLinkItem,
+  MenuSeparator,
+  ProfileIcon,
+} from '@/shared/ui';
 
 import styles from './header.module.scss';
 
-// The profile's pages come with their own specs (N12): drawn here, inert, marked disabled.
-const pages = ['Мои заказы', 'Магазины', 'Мои данные', 'Мои примерки'];
+// A section of the account (spec 0017 U6, AC2): a link, its clicks and hovers tracked by section.
+function SectionLink({ section, title, href }: AccountSection) {
+  const tracked = useTrackedElement('profile-menu.section', { section });
+  return (
+    <MenuLinkItem
+      href={href}
+      onClick={tracked.onClick}
+      onPointerEnter={tracked.onPointerEnter}
+      onPointerLeave={tracked.onPointerLeave}
+    >
+      {title}
+    </MenuLinkItem>
+  );
+}
 
 // The profile icon (spec 0013 N12, AC1, AC3): signed out, it opens the login modal; signed in, the
 // profile menu. While the session loads it is drawn as before, inert (0010 L5). The session is read
@@ -59,10 +80,8 @@ export function HeaderProfile() {
         <MenuHeader className="mp-block">
           <SessionUserBadge user={session.user} />
         </MenuHeader>
-        {pages.map((page) => (
-          <MenuItem key={page} disabled>
-            {page}
-          </MenuItem>
+        {accountSections.map((section) => (
+          <SectionLink key={section.section} {...section} />
         ))}
         <MenuSeparator />
         <SignOutItems />

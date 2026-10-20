@@ -163,5 +163,16 @@ export const catalog = defineCatalog({
       clicksPerVisit: 0.005,
       hoversPerVisit: 0.01,
     },
+    'profile-menu.section': {
+      zone: 'auth',
+      type: 'navigation',
+      description:
+        'Раздел личного кабинета в меню профиля: «Мои заказы», «Магазины», «Мои данные» или «Мои примерки».',
+      clicksPerVisit: 0.04,
+      hoversPerVisit: 0.06,
+      properties: {
+        section: { kind: 'enum', values: ['orders', 'stores', 'data', 'fittings'] },
+      },
+    },
   },
 });

@@ -8,8 +8,11 @@ interface TrackedButtonProps extends Omit<
   ButtonAsButtonProps,
   'onClick' | 'onPointerEnter' | 'onPointerLeave'
 > {
-  element: TrackedElement;
+  element: UiKitElement;
 }
+
+// The page's own elements, which carry no properties: an element with properties needs them passed.
+export type UiKitElement = Extract<TrackedElement, `ui-kit.${string}`>;
 
 // A Button that sends its click and hover events: the element the analytics checks use (spec 0008
 // plan §8), on a page hidden from search.
