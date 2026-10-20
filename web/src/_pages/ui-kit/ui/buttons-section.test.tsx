@@ -36,7 +36,11 @@ describe('ButtonsSection analytics', () => {
     render(<ButtonsSection />);
     fireEvent.click(trackedButton());
     expect(track).toHaveBeenCalledTimes(1);
-    expect(track).toHaveBeenCalledWith('Element Clicked', { element: 'ui-kit.button-primary' });
+    expect(track).toHaveBeenCalledWith('Element Clicked', {
+      element: 'ui-kit.button-primary',
+      zone: 'service',
+      type: 'service',
+    });
   });
 
   it('sends Element Hovered after a mouse hover of 500 ms, once per page view', () => {
@@ -44,7 +48,11 @@ describe('ButtonsSection analytics', () => {
     fireEvent.pointerEnter(trackedButton(), { pointerType: 'mouse' });
     act(() => vi.advanceTimersByTime(HOVER_MS));
     expect(track).toHaveBeenCalledTimes(1);
-    expect(track).toHaveBeenCalledWith('Element Hovered', { element: 'ui-kit.button-primary' });
+    expect(track).toHaveBeenCalledWith('Element Hovered', {
+      element: 'ui-kit.button-primary',
+      zone: 'service',
+      type: 'service',
+    });
 
     fireEvent.pointerEnter(trackedButton(), { pointerType: 'mouse' });
     act(() => vi.advanceTimersByTime(HOVER_MS));

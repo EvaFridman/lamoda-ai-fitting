@@ -366,7 +366,8 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
 - `web` analytics (Mixpanel, spec 0008) go only through `@/shared/analytics`: `track` and
   `useTrackedElement` (a click, and a hover of 500 ms once per element per page view; a page view
   for hovers ends on a path change, seen by `useHoverReset()`, mounted once in the consent gate). Every event,
-  its properties and every tracked element are listed in `events.ts`; anything else fails
+  its properties and every tracked element are listed in `catalog.ts` (`events.ts` derives the
+  types from it, spec 0015); anything else fails
   `typecheck`. The SDK sends its own page views and, for heatmaps, `$mp_click`-style events, from
   which `strip-attributes.ts` drops element attributes, ids, links and text. Recordings mask all
   text and inputs and block image elements and inline `url(...)` styles, but keep attributes and

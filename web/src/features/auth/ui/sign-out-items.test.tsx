@@ -64,7 +64,7 @@ describe('SignOutItems', () => {
         await user.click(screen.getByRole('menuitem', { name }));
         await vi.waitFor(() => expect(mocks.reset).toHaveBeenCalledTimes(1));
         expect(mocks.track.mock.calls).toEqual([
-          ['Element Clicked', { element }],
+          ['Element Clicked', { element, zone: 'auth', type: 'interaction' }],
           ['Signed Out', {}],
         ]);
         expect(mocks.track.mock.invocationCallOrder[1]).toBeLessThan(
@@ -86,7 +86,9 @@ describe('SignOutItems', () => {
         expect(
           await within(region).findByText('Что-то пошло не так, попробуйте позже'),
         ).toBeInTheDocument();
-        expect(mocks.track.mock.calls).toEqual([['Element Clicked', { element }]]);
+        expect(mocks.track.mock.calls).toEqual([
+          ['Element Clicked', { element, zone: 'auth', type: 'interaction' }],
+        ]);
         expect(mocks.reset).not.toHaveBeenCalled();
       },
     );
@@ -98,6 +100,8 @@ describe('SignOutItems', () => {
         () =>
           expect(mocks.track).toHaveBeenCalledWith('Element Hovered', {
             element: 'profile-menu.sign-out',
+            zone: 'auth',
+            type: 'interaction',
           }),
         { timeout: 3000 },
       );

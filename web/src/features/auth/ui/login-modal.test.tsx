@@ -218,7 +218,11 @@ describe('LoginModal', () => {
       await openModal(user);
       await user.click(screen.getByRole('button', { name: 'Войти через Google' }));
       expect(flagAtCall).not.toBeNull();
-      expect(mocks.track).toHaveBeenCalledWith('Element Clicked', { element: 'login.google' });
+      expect(mocks.track).toHaveBeenCalledWith('Element Clicked', {
+        element: 'login.google',
+        zone: 'auth',
+        type: 'interaction',
+      });
       expect(window.sessionStorage.getItem(FLAG)).not.toBeNull();
     });
 

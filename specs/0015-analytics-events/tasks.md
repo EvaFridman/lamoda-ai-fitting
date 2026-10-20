@@ -2,7 +2,8 @@
 
 Status: accepted (2026-10-19); amended 2026-10-19 after the check against `main`: PR 2 starts once
 PR 1 is merged (R1), T2 moves 0013's entries (plan §3); amended 2026-10-19 at the review of PR 1:
-hovers per properties in T2 (R13), the budget test in T4 (R15), the restart after T6.
+hovers per properties in T2 (R13), the budget test in T4 (R15), the restart after T6; amended
+2026-10-20 at T2's review: `CLAUDE.md`'s catalog sentence in T2, the user-data rule in T6 (R19, R20).
 Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## How the work flows
@@ -21,10 +22,11 @@ for PR 2 (0014 O35, O40). Each task is one commit, reviewed by the owner first. 
 
 ## PR 2 · `feat/0015-analytics-events` · catalog, document, rules, agent
 
-- [ ] **T2. The catalog and the derived types.** `catalog.ts`, `events.ts` derived from it,
+- [x] **T2. The catalog and the derived types.** `catalog.ts`, `events.ts` derived from it,
       `useTrackedElement` sending `zone`, `type` and an element's own properties, hovers keyed by
       element and properties; every event and element of `events.ts` moved in, names unchanged
-      (plan §1–§3); `👤` the owner's estimates of visits a month and the SDK's events per visit.
+      (plan §1–§3); `👤` the owner's estimates of visits a month and the SDK's events per visit;
+      `CLAUDE.md`'s sentence on where events are listed names `catalog.ts` (plan §6).
       Check: `events.test.ts` with the new `@ts-expect-error` cases (AC1, AC6); unit tests of
       `useTrackedElement` (AC2, AC12); the list of names before and after; `npm run verify`.
       Commit: `feat(web): describe analytics events in one catalog`
@@ -40,8 +42,9 @@ for PR 2 (0014 O35, O40). Each task is one commit, reviewed by the owner first. 
       `guards.test.mjs`, `.claude/README.md` (plan §7); tool names checked against the server.
       Check: `npm test` (AC10); `rg mixpanel .claude/agents`.
       Commit: `feat(tooling): add the analytics agent`
-- [ ] **T6. The rule and the docs.** `.claude/rules/analytics.md`, `CLAUDE.md` (analytics bullet:
-      the catalog, the hover sentence, the sign-in list; "Agents", `.mcp.json` line, the spec list
+- [ ] **T6. The rule and the docs.** `.claude/rules/analytics.md` (with no user data in
+      properties, even as numbers), `CLAUDE.md` (analytics bullet: `EVENTS.md` and the rule, the
+      hover sentence, the sign-in list; "Agents", `.mcp.json` line, the spec list
       in the header), `README.md` (plan §6, §8).
       Check: `npm run format:check`.
       Commit: `docs(tooling): add the analytics rules`

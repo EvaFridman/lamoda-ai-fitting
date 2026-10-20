@@ -3,15 +3,37 @@
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, type PointerEvent } from 'react';
 
+import { catalog, type Catalog } from './catalog';
 import { track } from './client';
-import type { TrackedElement } from './events';
+import type {
+  AnalyticsEvents,
+  ElementArgumentsOf,
+  ElementPropertiesOf,
+  ElementsOf,
+} from './events';
 
 /** A hover counts after this long, at most once per element per page view (spec 0008 J8). */
 export const HOVER_MS = 500;
 
-// Elements whose hover was sent on the path `hoveredOn`, shared by every copy of an element.
+type PropertyValues = Readonly<Record<string, string | number | boolean>>;
+
+/**
+ * The key of a hover sent once per page view (spec 0015 R13): the element and, for an element
+ * with properties, their values in the catalog's order, so a card at positions 1 and 2 is two keys.
+ */
+export function hoverKey<C extends Catalog, E extends ElementsOf<C>>(
+  element: E,
+  properties: ElementPropertiesOf<C, E>,
+  of: C,
+): string {
+  const names = Object.keys(of.elements[element]?.properties ?? {});
+  const values: PropertyValues = properties;
+  return JSON.stringify([element, ...names.map((name) => values[name])]);
+}
+
+// Hover keys sent on the path `hoveredOn`, shared by every copy of an element.
 // `useHoverReset()` clears it on every navigation; the path check covers a page without it.
-const hovered = new Set<TrackedElement>();
+const hovered = new Set<string>();
 let hoveredOn: string | undefined;
 
 /**
@@ -26,31 +48,64 @@ export function useHoverReset(): void {
   }, [pathname]);
 }
 
-function sendHover(element: TrackedElement, pathname: string): void {
+type ElementEvent = AnalyticsEvents['Element Clicked'];
+
+function sendHover(key: string, event: ElementEvent, pathname: string): void {
   if (hoveredOn !== pathname) {
     hovered.clear();
     hoveredOn = pathname;
   }
-  if (hovered.has(element)) return;
-  hovered.add(element);
-  track('Element Hovered', { element });
+  if (hovered.has(key)) return;
+  hovered.add(key);
+  track('Element Hovered', event);
 }
 
-/** Props to spread on a listed element: they send its click and hover events. */
-export function useTrackedElement(element: TrackedElement) {
+type TrackedElementProps = {
+  onClick: () => void;
+  onPointerEnter: (event: PointerEvent) => void;
+  onPointerLeave: () => void;
+};
+
+/** `useTrackedElement` for a catalog: an element with properties requires them. */
+export type UseTrackedElementOf<C extends Catalog> = <E extends ElementsOf<C>>(
+  element: E,
+  ...properties: ElementArgumentsOf<C, E>
+) => TrackedElementProps;
+
+function useTrackedElementOf(
+  element: string,
+  properties: PropertyValues = {},
+): TrackedElementProps {
   const pathname = usePathname();
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // A hover started before a navigation does not count for the new page.
   useEffect(() => () => clearTimeout(timerRef.current), [pathname]);
 
+  const elements: Catalog['elements'] = catalog.elements;
+  const entry = elements[element];
+  // Only the properties the catalog declares are sent: a variable passed in may carry more than
+  // its type shows (R7). The types allow only a listed element (AC1).
+  const declared = Object.keys(entry?.properties ?? {}).filter((name) =>
+    Object.hasOwn(properties, name),
+  );
+  const own = Object.fromEntries(declared.map((name) => [name, properties[name]]));
+  const event = { ...own, element, zone: entry?.zone, type: entry?.type } as ElementEvent;
+  const key = hoverKey<Catalog, string>(element, properties, catalog);
+
   return {
-    onClick: () => track('Element Clicked', { element }),
-    onPointerEnter: (event: PointerEvent) => {
-      if (event.pointerType !== 'mouse') return;
+    onClick: () => track('Element Clicked', event),
+    onPointerEnter: (pointer: PointerEvent) => {
+      if (pointer.pointerType !== 'mouse') return;
       clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => sendHover(element, pathname), HOVER_MS);
+      timerRef.current = setTimeout(() => sendHover(key, event, pathname), HOVER_MS);
     },
     onPointerLeave: () => clearTimeout(timerRef.current),
   };
 }
+
+/**
+ * Props to spread on a listed element: they send its click and hover events with its zone, type
+ * and own properties (spec 0015 R5).
+ */
+export const useTrackedElement: UseTrackedElementOf<typeof catalog> = useTrackedElementOf;
