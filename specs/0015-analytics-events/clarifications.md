@@ -140,3 +140,16 @@ code comments. All decisions below: owner, 2026-10-19.
   `Opened Login` and `Login In` fail; a word ending in `ed` still counts as a verb (`Bed Seed`
   passes), names are also read at review and by the analytics agent (owner, 2026-10-20, T4's
   review).
+
+## Decided in T6
+
+- **R25. Data questions go only to the analytics agent.** The main session and the built-in
+  agents do not query the collected data through Mixpanel (`Run-Query`, events, properties,
+  reports, live events); a question about it goes to the `analytics` agent with the project id,
+  so only R12's aggregate tools answer it. `CLAUDE.md` says so, since the rule loads only with
+  `web/src/**` or `specs/**`. A `deny` cannot hold it: it would bind the agent too, so it rests on
+  the text and the permission prompt of every call (owner, 2026-10-20, T6's review, after the
+  security review).
+- **R26. T7 marks 0015 closed in the docs.** T6 lists 0015 in `CLAUDE.md`'s header "in
+  progress"; T7 moves it among the closed specs there and adds it to `README.md`'s list of closed
+  specs (owner, 2026-10-20, T6's review).

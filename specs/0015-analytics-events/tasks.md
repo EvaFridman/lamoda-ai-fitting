@@ -42,7 +42,7 @@ for PR 2 (0014 O35, O40). Each task is one commit, reviewed by the owner first. 
       `guards.test.mjs`, `.claude/README.md` (plan §7); tool names checked against the server.
       Check: `npm test` (AC10); `rg mixpanel .claude/agents`.
       Commit: `feat(tooling): add the analytics agent`
-- [ ] **T6. The rule and the docs.** `.claude/rules/analytics.md` (with no user data in
+- [x] **T6. The rule and the docs.** `.claude/rules/analytics.md` (with no user data in
       properties, even as numbers; a data question to the agent passes the Mixpanel project id,
       which the agent has no tool to find, owner at T5's review), `CLAUDE.md` (analytics bullet:
       `EVENTS.md` and the rule, the hover sentence, the sign-in list; "Agents", the spec list in
@@ -52,7 +52,8 @@ for PR 2 (0014 O35, O40). Each task is one commit, reviewed by the owner first. 
 - 👤 restarts Claude Code (agent and rule files load at start).
 - [ ] **T7. Acceptance.** AC1–AC12 on the local stack, each with its evidence below (AC3 through
       `qa-tester` with a test token; AC8, AC9 and AC11 in the restarted session); all files get
-      `Status: done`.
+      `Status: done`; `CLAUDE.md`'s header moves 0015 among the closed specs and `README.md`'s list
+      of closed specs gets it (R26).
       Check: the record below.
       Commit: `docs(specs): close spec 0015`
 - 👤 merges PR 2.
