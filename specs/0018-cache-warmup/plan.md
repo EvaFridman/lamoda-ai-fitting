@@ -1,8 +1,9 @@
 # 0018 page cache and warm-up on deploy: plan
 
-Status: accepted (2026-10-20).
+Status: accepted (2026-10-20); amended 2026-10-20 at the review of PR 1 (§2, §3's key, §4's bound
+and pace, §5, §9, §10).
 
-How [spec.md](spec.md) is built. Decisions: [clarifications.md](clarifications.md) (V1–V15).
+How [spec.md](spec.md) is built. Decisions: [clarifications.md](clarifications.md) (V1–V18).
 No new dependencies: web already has `ioredis` (`web/src/shared/redis/`), Next is 16.3.8.
 
 ## 1. Pull requests and release order
@@ -27,7 +28,8 @@ ${REDIS_CACHE_MAXMEMORY:-128mb} --maxmemory-policy allkeys-lru`, no volume, `mem
   same health check as `redis`. `redis` gets `--maxmemory ${REDIS_MAXMEMORY:-64mb}
 --maxmemory-policy noeviction` and `mem_limit: 128m`; its volume stays (the counters survive a
   restart as today).
-- **`deploy.sh`.** `infra up -d --wait postgres redis redis-cache temporal`.
+- **`deploy.sh`.** `infra up -d --wait postgres redis redis-cache temporal`: a `redis-cache` that
+  does not become healthy stops the deploy like the others, the running copy serving (V18).
 - **Local `docker-compose.yml`.** The same `redis-cache` (no host port; `REDIS_CACHE_HOST_PORT`
   only if a test needs it), `api` and `web` depend on it healthy.
 - **Environment.** `REDIS_CACHE_URL` (`redis://redis-cache:6379`) for api and web in both compose
@@ -49,8 +51,10 @@ ${REDIS_CACHE_MAXMEMORY:-128mb} --maxmemory-policy allkeys-lru`, no volume, `mem
 - **Handler.** `web/cache-handlers/redis.mjs` (plain ESM next to `next.config.ts`, outside
   `src/`; Next loads it by path, so it cannot go through FSD imports): `get`, `set`,
   `refreshTags`, `getExpiration`, `updateTags` of Next's `CacheHandler`
-  (`next/dist/server/lib/cache-handlers/types.d.ts`). Key `page-cache:v1:<Next's cache key>`;
-  Next's key already holds the build id, so releases never share entries (AC4). Value: the entry's
+  (`next/dist/server/lib/cache-handlers/types.d.ts`). Key
+  `page-cache:v1:<build id>:<Next's cache key>`, the build id read once from `.next/BUILD_ID`.
+  Next's key holds the build id too, but the handler's own prefix keeps AC4 true whatever a later
+  Next does with its key: releases never share entries. Value: the entry's
   fields and its stream as base64, `EX` = the entry's `expire`. `set` awaits the pending entry;
   a `get` for a key whose `set` is in flight waits for it (the interface requires it). No tags are
   used, so `getExpiration` answers 0 and `updateTags` is a no-op.
@@ -85,7 +89,7 @@ ${REDIS_CACHE_MAXMEMORY:-128mb} --maxmemory-policy allkeys-lru`, no volume, `mem
 
 - **The list.** `web/src/_app/warmup/routes.ts` holds every warm-up route: a static path, or a
   pattern with its source (`/catalog/[slug]` ← every active category, through `getCategories`, at
-  most 100). `EXCLUDED` holds the routes that are never warmed up, each with its reason:
+  most 50, V16; the answer also names how many were left out). `EXCLUDED` holds the routes that are never warmed up, each with its reason:
   `/customer/*` (0017, the user's data), `/ui-kit`, `/dev/*`, `/healthz`, `/healthz/warmup`.
   Warmed up: `/`, `/catalog`, `/catalog/[slug]`, `/catalog/opengraph-image`, `/privacy`,
   `/sitemap.xml`, `/robots.txt`.
@@ -98,10 +102,12 @@ ${REDIS_CACHE_MAXMEMORY:-128mb} --maxmemory-policy allkeys-lru`, no volume, `mem
   `location = /healthz`), so it is reached only from inside.
 - **The step.** `deploy/scripts/warmup.mjs`, piped into the target's web container:
   `app "$target" "$tag" exec -T web node --input-type=module - < "$here/warmup.mjs"`. It reads the
-  list from `http://127.0.0.1:3001/healthz/warmup`, requests each address twice, one at a time and
-  at most 3 a second (the cold misses of a category page are about three api reads, within the
-  `read` tier's 10 a second), each with a 10 s timeout and the whole step within 120 s, and prints
-  one line per address: status, first and repeated time in ms. Any status but 200 (`redirect:
+  list from `http://127.0.0.1:3001/healthz/warmup`, then requests each address twice: a cold pass,
+  one page at a time and at most one a second, then a repeated pass. The cold pass makes about
+  three api reads a category page, so 50 categories and the other pages stay under 200 api reads a
+  minute, two thirds of the `read` tier's 300, and under its 10 a second (V16). Each request has a
+  10 s timeout and the whole step 120 s. It prints one line per address (status, first and
+  repeated time in ms) and how many categories were skipped. Any status but 200 (`redirect:
 'manual'`, so `/` answers its 307 and is expected as such), a timeout or the budget exceeded
   exits 1 with the address named.
 - **Where.** In `deploy.sh` right after the readiness loop, before `switch_to`, so it covers both a
@@ -127,9 +133,11 @@ ${REDIS_CACHE_MAXMEMORY:-128mb} --maxmemory-policy allkeys-lru`, no volume, `mem
   of five more, through nginx; prints them and the ratio; exits 0 (the threshold is read by the
   owner, AC14). `cd.yml` runs it after `smoke-test.sh` for `/catalog` and one category;
   `ci-deploy-check.sh` too.
-- **Before and after.** PR 2 carries the script, so its deploy records the numbers with the cache
-  but without the warm-up (a new release's cache is empty, so its first request is cold). PR 3's
-  deploy records them with the warm-up. Both go into `tasks.md`'s acceptance record.
+- **Three measurements (V17).** Before PR 2 is merged, the script from its branch runs against
+  production right after a deploy: neither cache nor warm-up. PR 2's deploy records the numbers
+  with the cache but without the warm-up (a new release's cache is empty, so its first request is
+  cold). PR 3's deploy records them with both; AC14's threshold holds there. All three go into
+  `tasks.md`'s acceptance record.
 - **Render time (V14).** The warm-up's repeated request, from inside the container with the data
   cached, is the render time of each page. After PR 3's deploy the owner decides V14 from those
   numbers; a markup cache, if chosen, is added as tasks then.
@@ -179,11 +187,13 @@ None: no page, element or event changes.
 - **AC10.** `ci-deploy-check.sh`'s rollback run shows the warm-up; `warmup.test.mjs` for the
   failure.
 - **AC11.** `routes.test.ts` (the list's entries); `ci-deploy-check.sh`: one warm-up line per demo
-  category.
+  category; `warmup.test.mjs` and a route test for the bound of 50 and the count of skipped ones.
+  The api's routes are warmed through the pages (the cached reads land in Redis), not requested
+  on their own.
 - **AC12.** `routes.test.ts` over a fixture tree with an unknown route.
 - **AC13.** Warm-up requests reach web from `127.0.0.1` (web's log) and never nginx (its log).
-- **AC14.** `measure-first-request.mjs` in production after PR 2 and after PR 3; the numbers go into
-  the acceptance record.
+- **AC14.** `measure-first-request.mjs` in production before PR 2's merge, after PR 2 and after
+  PR 3 (V17); the numbers go into the acceptance record.
 - **AC15.** `cd.yml` has `timeout-minutes`; read at review (a cancelled run is not provoked in
   production).
 - **AC16.** `npm run verify`; the web image builds in CI's Images job with no api or Redis.
@@ -198,9 +208,13 @@ None: no page, element or event changes.
   named profile in `next.config.ts` with the default, and the env variable dropped.
 - **`'use cache: remote'` with `cacheComponents` and a dynamic caller.** If Next still tries to fill
   it at build, the build hangs for 50 s: checked by `next build` with no api in the first task.
-- **Warm-up against the rate limit.** The cold misses share web's `read` quota; at 100 categories
-  the step makes about 300 api reads in a minute, at the tier's minute limit. The 3-a-second pace
-  and the 100 cap keep it under; a 429 fails the step, so the deploy stops instead of switching.
+- **Warm-up against the rate limit.** The cold misses share web's `read` quota. The bound of 50
+  categories and one page a second keep the step under 200 api reads a minute (V16); a 429 still
+  fails the step, so the deploy stops instead of switching.
+- **The same quota in normal work.** Each cached key refreshes at most once a minute from web's
+  address: about three per category plus two, so tens a minute today. With about 100 categories
+  all visited within a minute the refreshes reach the `read` tier's 300; V15 is revisited when the
+  active categories pass 50.
 - **A flood of filter-count keys.** The case of backlog "Redis memory limit" now fills the caches'
   Redis, whose LRU then evicts page-cache entries too. A page entry then misses once more: there
   are about three per category (V15), so the misses stay far below web's `read` quota, and the
