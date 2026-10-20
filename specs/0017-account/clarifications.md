@@ -109,6 +109,11 @@ against.
 
 **U16. Issue.** The account page is issue #72 (not #70, which is spec 0015's).
 
+**U17. A deleted user's history in Mixpanel stays.** After `DELETE /me` the user's events stay in
+Mixpanel under their id. Deleting them through Mixpanel's API is not in this spec: it goes into the
+backlog next to "Deleted users in backups", to be done, and stated in `/privacy`, before real
+users.
+
 ## Added at the plan
 
 **U18. Texts.** The invitation: "Войдите, чтобы открыть личный кабинет", button "Войти". A stub:
@@ -128,8 +133,3 @@ the new code, the closed `/users` routes too.
 **U20. The date of birth's error states the rule.** `IS_DATE_OF_BIRTH`'s text becomes
 "Дата с 01.01.1900, возраст не меньше 14 лет" instead of "Неверная дата рождения", as U19 does for
 names. The api's code and rule do not change.
-
-**U17. A deleted user's history in Mixpanel stays.** After `DELETE /me` the user's events stay in
-Mixpanel under their id. Deleting them through Mixpanel's API is not in this spec: it goes into the
-backlog next to "Deleted users in backups", to be done, and stated in `/privacy`, before real
-users.
