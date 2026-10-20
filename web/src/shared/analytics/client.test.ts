@@ -46,14 +46,22 @@ describe('analytics client', () => {
   it('does not load or init the SDK with an empty token, and track is a no-op', async () => {
     const client = await load('');
     await client.startAnalytics();
-    client.track('Element Clicked', { element: 'ui-kit.button-primary' });
+    client.track('Element Clicked', {
+      element: 'ui-kit.button-primary',
+      zone: 'service',
+      type: 'service',
+    });
     expect(sdk.init).not.toHaveBeenCalled();
     expect(sdk.track).not.toHaveBeenCalled();
   });
 
   it('track before start is a no-op', async () => {
     const client = await load('tok');
-    client.track('Element Clicked', { element: 'ui-kit.button-primary' });
+    client.track('Element Clicked', {
+      element: 'ui-kit.button-primary',
+      zone: 'service',
+      type: 'service',
+    });
     expect(sdk.track).not.toHaveBeenCalled();
   });
 
@@ -124,8 +132,16 @@ describe('analytics client', () => {
   it('sends events through the SDK after start', async () => {
     const client = await load('tok');
     await client.startAnalytics();
-    client.track('Element Hovered', { element: 'ui-kit.button-primary' });
-    expect(sdk.track).toHaveBeenCalledWith('Element Hovered', { element: 'ui-kit.button-primary' });
+    client.track('Element Hovered', {
+      element: 'ui-kit.button-primary',
+      zone: 'service',
+      type: 'service',
+    });
+    expect(sdk.track).toHaveBeenCalledWith('Element Hovered', {
+      element: 'ui-kit.button-primary',
+      zone: 'service',
+      type: 'service',
+    });
   });
 
   it('does not opt in when the SDK is not opted out', async () => {
@@ -141,14 +157,22 @@ describe('analytics client', () => {
     expect(sdk.opt_in_tracking).toHaveBeenCalledWith({ track: expect.any(Function) });
     expect(sdk.start_session_recording).toHaveBeenCalledTimes(1);
     expect(sdk.track_pageview).toHaveBeenCalledTimes(1);
-    client.track('Element Clicked', { element: 'ui-kit.button-primary' });
+    client.track('Element Clicked', {
+      element: 'ui-kit.button-primary',
+      zone: 'service',
+      type: 'service',
+    });
     expect(sdk.track).toHaveBeenCalledTimes(1);
   });
 
   it('does not throw when the SDK import fails', async () => {
     const client = await load('tok', true);
     await expect(client.startAnalytics()).resolves.toBeUndefined();
-    client.track('Element Clicked', { element: 'ui-kit.button-primary' });
+    client.track('Element Clicked', {
+      element: 'ui-kit.button-primary',
+      zone: 'service',
+      type: 'service',
+    });
     expect(sdk.track).not.toHaveBeenCalled();
   });
 
@@ -158,7 +182,11 @@ describe('analytics client', () => {
     });
     const client = await load('tok');
     await expect(client.startAnalytics()).resolves.toBeUndefined();
-    client.track('Element Clicked', { element: 'ui-kit.button-primary' });
+    client.track('Element Clicked', {
+      element: 'ui-kit.button-primary',
+      zone: 'service',
+      type: 'service',
+    });
     expect(sdk.track).not.toHaveBeenCalled();
   });
 
@@ -168,7 +196,11 @@ describe('analytics client', () => {
     client.stopAnalytics();
     expect(sdk.stop_session_recording).toHaveBeenCalledTimes(1);
     expect(sdk.opt_out_tracking).toHaveBeenCalledTimes(1);
-    client.track('Element Clicked', { element: 'ui-kit.button-primary' });
+    client.track('Element Clicked', {
+      element: 'ui-kit.button-primary',
+      zone: 'service',
+      type: 'service',
+    });
     expect(sdk.track).not.toHaveBeenCalled();
   });
 
@@ -277,7 +309,11 @@ describe('analytics client', () => {
     expect(sdk.opt_in_tracking).toHaveBeenCalledWith({ track: expect.any(Function) });
     expect(sdk.start_session_recording).toHaveBeenCalledTimes(1);
     expect(sdk.track_pageview).toHaveBeenCalledTimes(1);
-    client.track('Element Clicked', { element: 'ui-kit.button-primary' });
+    client.track('Element Clicked', {
+      element: 'ui-kit.button-primary',
+      zone: 'service',
+      type: 'service',
+    });
     expect(sdk.track).toHaveBeenCalledTimes(1);
   });
 
@@ -287,7 +323,11 @@ describe('analytics client', () => {
     client.stopAnalytics();
     await started;
     for (const method of Object.values(sdk)) expect(method).not.toHaveBeenCalled();
-    client.track('Element Clicked', { element: 'ui-kit.button-primary' });
+    client.track('Element Clicked', {
+      element: 'ui-kit.button-primary',
+      zone: 'service',
+      type: 'service',
+    });
     expect(sdk.track).not.toHaveBeenCalled();
   });
 
@@ -298,7 +338,11 @@ describe('analytics client', () => {
     await started;
     await client.startAnalytics();
     expect(sdk.init).toHaveBeenCalledTimes(1);
-    client.track('Element Clicked', { element: 'ui-kit.button-primary' });
+    client.track('Element Clicked', {
+      element: 'ui-kit.button-primary',
+      zone: 'service',
+      type: 'service',
+    });
     expect(sdk.track).toHaveBeenCalledTimes(1);
   });
 
@@ -310,7 +354,11 @@ describe('analytics client', () => {
     await Promise.all([client.startAnalytics(), client.startAnalytics()]);
     await client.startAnalytics();
     expect(sdk.init).toHaveBeenCalledTimes(1);
-    client.track('Element Clicked', { element: 'ui-kit.button-primary' });
+    client.track('Element Clicked', {
+      element: 'ui-kit.button-primary',
+      zone: 'service',
+      type: 'service',
+    });
     expect(sdk.track).not.toHaveBeenCalled();
   });
 
@@ -543,7 +591,11 @@ describe('analytics client', () => {
     await client.startAnalytics();
     await client.startAnalytics();
     expect(sdk.init).toHaveBeenCalledTimes(1);
-    client.track('Element Clicked', { element: 'ui-kit.button-primary' });
+    client.track('Element Clicked', {
+      element: 'ui-kit.button-primary',
+      zone: 'service',
+      type: 'service',
+    });
     expect(sdk.track).not.toHaveBeenCalled();
   });
 });

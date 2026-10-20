@@ -5,7 +5,8 @@ Status: accepted (2026-10-19); amended 2026-10-19 after the check against `main`
 the sign-in text of `CLAUDE.md` (§6); amended 2026-10-19 at the review of PR 1: hovers per element
 and properties (§2, R13), the block of generic events and per-element estimates (§1, §3, §4, R14),
 the budget test (§1, §4, §5, R15), abbreviations (§5, R16), types (§1, §3, §6), the agent's
-checks (§7), the hover sentence of `CLAUDE.md` (§6).
+checks (§7), the hover sentence of `CLAUDE.md` (§6); amended 2026-10-20 at T2's review: the catalog
+sentence of `CLAUDE.md` moves to T2, the rule on user data in properties (§6).
 
 Implements [spec.md](spec.md); decisions in [clarifications.md](clarifications.md) (R1–R16). No new
 dependency.
@@ -162,6 +163,9 @@ fit this format: enums with listed values, numbers, `catalog.card` with `positio
   page that changes how often the SDK sends (more page views) revisits `sdkPerVisit` (R14, R15);
 - types: `conversion` only for an event of a reached goal, a click is `interaction` or
   `navigation`;
+- no user data in a property, not even as a number or a closed list: measurements (height,
+  weight, sizes), age and the like are personal data the types cannot tell from a position
+  (owner, at T2's review);
 - a spec or a plan with UI asks the `analytics` agent for the events of its pages and records the
   owner's choice in its own `clarifications.md`; a plan section "Analytics" lists them (or says
   "none" and why);
@@ -170,10 +174,10 @@ fit this format: enums with listed values, numbers, `catalog.card` with `positio
 `CLAUDE.md`:
 
 - the analytics bullet: "a hover of 500 ms once per element per page view" becomes "… once per
-  element (for an element with properties, per set of their values, R13) per page view"; "Every
-  event, its properties and every tracked element are listed in
-  `events.ts`" becomes "every event and element is in `catalog.ts`, described in `EVENTS.md`;
-  rules: `.claude/rules/analytics.md`"; in the sign-in paragraph the list "Events, without
+  element (for an element with properties, per set of their values, R13) per page view"; the
+  sentence on where events are listed (T2 already names `catalog.ts` there, so `CLAUDE.md` stays
+  true, owner at T2's review) adds "described in `EVENTS.md`; rules:
+  `.claude/rules/analytics.md`"; in the sign-in paragraph the list "Events, without
   properties: … tracked elements: …" becomes a pointer to the catalog's zone `auth`, the rest of the
   paragraph (identity, `useSignInAnalytics`, the `sign-in-started` flag) stays;
 - "Agents" lists `analytics`; the `.mcp.json` line says the server serves the main session and the

@@ -40,7 +40,11 @@ describe('useTrackedElement', () => {
   it('sends Element Clicked on click', () => {
     render(<Probe />);
     fireEvent.click(screen.getByRole('button'));
-    expect(track).toHaveBeenCalledWith('Element Clicked', { element: 'ui-kit.button-primary' });
+    expect(track).toHaveBeenCalledWith('Element Clicked', {
+      element: 'ui-kit.button-primary',
+      zone: 'service',
+      type: 'service',
+    });
   });
 
   it('sends Element Hovered once after 500 ms, not before', () => {
@@ -50,7 +54,11 @@ describe('useTrackedElement', () => {
     expect(track).not.toHaveBeenCalled();
     act(() => vi.advanceTimersByTime(1));
     expect(track).toHaveBeenCalledTimes(1);
-    expect(track).toHaveBeenCalledWith('Element Hovered', { element: 'ui-kit.button-primary' });
+    expect(track).toHaveBeenCalledWith('Element Hovered', {
+      element: 'ui-kit.button-primary',
+      zone: 'service',
+      type: 'service',
+    });
   });
 
   it('cancels the hover when the pointer leaves early', () => {

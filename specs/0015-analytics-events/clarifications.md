@@ -103,3 +103,23 @@ code comments. All decisions below: owner, 2026-10-19.
   `login.google` and `Signed Out` are `interaction` (plan §3). Zone descriptions say where their areas sit on the
   page (`profile-menu` is in the header, its zone is sign-in and profile). The restart of Claude
   Code comes after T6, when both the agent and the rule exist.
+
+## Decided in T2
+
+- **R17. The budget's estimates.** The owner has no traffic data and asked for plausible values
+  (2026-10-19): `visitsPerMonth` 3 000 (a demo site) and `sdkPerVisit` 10 (with `autocapture`
+  off, the SDK sends about 4 page views and 6 heatmap clicks a visit). Revisited once Mixpanel
+  shows real volume (R9).
+- **R18. The catalog's checks are `defineCatalog`.** `as const satisfies Catalog` cannot check
+  that an entry's zone is a key of `zones`, so the catalog goes through `defineCatalog` in the same
+  file (plan §1 left this to T2); a wrong zone fails at that entry's `zone`. Found at T2's review,
+  the same check refuses an own property named `element`, `zone` or `type` (it would replace the
+  automatic one) or `time`, `token`, `distinct_id`, `mp_…` (Mixpanel reserves them), and the generic
+  events under `events`. `useTrackedElement` sends only the properties the catalog declares, so a
+  variable with more fields than its type shows sends none of them (R7).
+- **R19. `CLAUDE.md` names the catalog from T2.** Its sentence on where events are listed would be
+  false after T2, so T2 changes `events.ts` to `catalog.ts` there; the rest of the bullet stays
+  with T6 (owner, 2026-10-20).
+- **R20. No user data in properties, even as numbers.** The types refuse free text but not a
+  measurement (height, weight, sizes) or an age sent as a number or an enum. The rule of T6 says so
+  and the analytics agent checks it; values are not checked at run time (owner, 2026-10-20).
