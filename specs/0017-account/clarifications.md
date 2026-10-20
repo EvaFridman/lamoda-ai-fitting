@@ -1,6 +1,6 @@
 # 0017 account: clarifications
 
-Status: accepted (2026-10-20).
+Status: accepted (2026-10-20); amended 2026-10-20 at the plan (U18, U19).
 
 The owner's decisions for this spec. Ids `U1`, `U2`, … are referred to by the spec, the plan and
 code comments. All decisions below: owner, 2026-10-20.
@@ -106,6 +106,20 @@ the api test that compares the rule names its DTOs use with the list web's texts
 against.
 
 **U16. Issue.** The account page is issue #72 (not #70, which is spec 0015's).
+
+## Added at the plan
+
+**U18. Texts.** The invitation: "Войдите, чтобы открыть личный кабинет", button "Войти". A stub:
+"Раздел скоро появится". The toast: "Данные сохранены". The deletion modal: title
+"Удалить аккаунт?", text "Мы удалим ваши данные, историю примерок и фотографии. Резервные копии
+хранятся до 7 дней, затем удаляются и они. Отменить удаление нельзя.", buttons "Удалить" and
+"Отмена". The narrow screen's way back: "Личный кабинет".
+
+**U19. The name rule gets a code and a text of its own.** `IsPersonName` answers one detail code,
+`IS_PERSON_NAME`, for any failure (not a string, too short, too long, a wrong character) instead of
+the generic `IS_STRING`, `MIN_LENGTH`, `MAX_LENGTH` and `MATCHES`, so a name field shows a text that
+says what a name may hold. The rule itself does not change (0013 N5). Every DTO with a name answers
+the new code, the closed `/users` routes too.
 
 **U17. A deleted user's history in Mixpanel stays.** After `DELETE /me` the user's events stay in
 Mixpanel under their id. Deleting them through Mixpanel's API is not in this spec: it goes into the
