@@ -12,6 +12,7 @@ import {
   IsNonNegativeInt,
   IsNotBelow,
   IsOmittable,
+  IsPersonName,
   IsPrice,
   IsPriceQuery,
   IsRating,
@@ -19,6 +20,7 @@ import {
   IsTrimmedText,
   IsUserEmail,
   isDateOfBirth,
+  isPersonName,
   normalizeEmail,
   normalizePhone,
   MAX_INT,
@@ -777,6 +779,79 @@ describe('IsUserEmail', () => {
 
     expect(performance.now() - started).toBeLessThan(100);
     expect(codes).toEqual(['email:IS_USER_EMAIL']);
+  });
+});
+
+describe('IsPersonName (spec 0017 U19)', () => {
+  class NameDto {
+    @IsPersonName()
+    name!: string;
+  }
+
+  it.each(['Ян', 'Анна-Мария', "О'Нил", 'Anna Maria', 'Ёж', 'a'.repeat(2), 'a'.repeat(50)])(
+    'accepts %j',
+    async (name) => {
+      await expect(parse(NameDto, { name })).resolves.toMatchObject({ name });
+    },
+  );
+
+  it.each([
+    5,
+    null,
+    true,
+    '',
+    ' ',
+    'А',
+    'a'.repeat(51),
+    'Анна1',
+    '12',
+    ' Анна',
+    'Анна ',
+    'Анна  Мария',
+    'Анна--Мария',
+    '-Анна',
+    'Анна-',
+    'Анна😀',
+    'Анна\n',
+  ])('refuses %j with the one code IS_PERSON_NAME', async (name) => {
+    expect(await codesOf(NameDto, { name })).toEqual(['name:IS_PERSON_NAME']);
+  });
+
+  it('refuses a missing value with the one code IS_PERSON_NAME', async () => {
+    expect(await codesOf(NameDto, {})).toEqual(['name:IS_PERSON_NAME']);
+  });
+
+  it.each(['a'.repeat(51), 'Анна1'])(
+    'gives the one message with the property name for %j (U21)',
+    async (name) => {
+      const error: unknown = await parse(NameDto, { name }).then(
+        () => undefined,
+        (reason: unknown) => reason,
+      );
+      expect(error).toBeInstanceOf(ValidationError);
+      const details = (error as ValidationError).body.error.details;
+
+      expect(details.map((detail) => detail.message)).toEqual([
+        'name must be 2 to 50 Cyrillic or Latin letters, with a space, apostrophe or hyphen only between letters',
+      ]);
+    },
+  );
+});
+
+describe('isPersonName', () => {
+  it.each(['Ян', 'Анна-Мария', "О'Нил", 'Anna Maria', 'a'.repeat(50)])('accepts %j', (value) => {
+    expect(isPersonName(value)).toBe(true);
+  });
+
+  it.each(['', 'А', 'a'.repeat(51), 'Анна1', ' Анна', 'Анна  Мария', 'Анна--Мария', 'Анна\n'])(
+    'refuses the string %j',
+    (value) => {
+      expect(isPersonName(value)).toBe(false);
+    },
+  );
+
+  it.each([null, undefined, 5, true, {}, ['Анна']])('refuses the non-string %j', (value) => {
+    expect(isPersonName(value)).toBe(false);
   });
 });
 

@@ -38,7 +38,7 @@ T11).
 
 ## PR 2 · `feat/0017-account` · the api and the account pages
 
-- [ ] **T4. The name rule's own code (U19).** `IsPersonName` as one `ValidateBy` named
+- [x] **T4. The name rule's own code (U19).** `IsPersonName` as one `ValidateBy` named
       `isPersonName` over an exported `isPersonName(value)`; `auth/auth-hooks.ts` uses that
       function; web's `DETAIL_TEXTS` gets `IS_PERSON_NAME`, and `IS_DATE_OF_BIRTH`'s text states the
       rule (plan §2, U20).
