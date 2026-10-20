@@ -12,7 +12,6 @@ import {
   Max,
   MaxLength,
   Min,
-  MinLength,
   ValidateBy,
   ValidateIf,
 } from 'class-validator';
@@ -266,6 +265,17 @@ export function normalizeEmail(value: unknown): unknown {
   return typeof value === 'string' ? value.trim().toLowerCase().normalize('NFC') : value;
 }
 
+// A first, last or middle name: PERSON_NAME_MIN_LENGTH to PERSON_NAME_MAX_LENGTH characters of
+// PERSON_NAME. Also Google's given name at sign-in (spec 0013 N5).
+export function isPersonName(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    value.length >= PERSON_NAME_MIN_LENGTH &&
+    value.length <= PERSON_NAME_MAX_LENGTH &&
+    PERSON_NAME.test(value)
+  );
+}
+
 // A real calendar date `YYYY-MM-DD` from MIN_DATE_OF_BIRTH to today (UTC) minus MIN_AGE years,
 // inclusive. The bound is compared as text: on 2026-02-28 someone born 2012-02-29 is still 13.
 export function isDateOfBirth(value: unknown, now: Date = new Date()): boolean {
@@ -307,16 +317,17 @@ export function IsUserEmail(): PropertyDecorator {
   );
 }
 
+// One validator, so any failure answers the one code IS_PERSON_NAME and web shows the rule's own
+// text (spec 0017 U19); its one message names the lengths too (U21).
 export function IsPersonName(): PropertyDecorator {
-  return applyDecorators(
-    IsString(),
-    MinLength(PERSON_NAME_MIN_LENGTH),
-    MaxLength(PERSON_NAME_MAX_LENGTH),
-    Matches(PERSON_NAME, {
-      message:
-        '$property must be Cyrillic or Latin letters, with a space, apostrophe or hyphen only between letters',
-    }),
-  );
+  return ValidateBy({
+    name: 'isPersonName',
+    validator: {
+      validate: (value: unknown) => isPersonName(value),
+      defaultMessage: () =>
+        `$property must be ${PERSON_NAME_MIN_LENGTH} to ${PERSON_NAME_MAX_LENGTH} Cyrillic or Latin letters, with a space, apostrophe or hyphen only between letters`,
+    },
+  });
 }
 
 export function IsDateOfBirth(): PropertyDecorator {

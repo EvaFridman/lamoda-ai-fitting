@@ -183,6 +183,18 @@ describe('detailText', () => {
     expect(DETAIL_TEXTS.IN_OWNER_FOLDER).toMatch(/[а-яё]/i);
   });
 
+  it('has a text for IS_PERSON_NAME that states the whole rule', () => {
+    expect(detailText({ field: 'firstName', code: 'IS_PERSON_NAME', message: 'english' })).toBe(
+      'От 2 до 50 букв, между ними можно пробел, дефис или апостроф',
+    );
+  });
+
+  it('has a text for IS_DATE_OF_BIRTH that states the whole rule', () => {
+    expect(detailText({ field: 'dateOfBirth', code: 'IS_DATE_OF_BIRTH', message: 'english' })).toBe(
+      'Дата с 01.01.1900, возраст не меньше 14 лет',
+    );
+  });
+
   it('has a text for TOO_MANY_ERRORS with an empty field', () => {
     expect(detailText({ field: '', code: 'TOO_MANY_ERRORS', message: '3 more' })).toBe(
       DETAIL_TEXTS.TOO_MANY_ERRORS,

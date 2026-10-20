@@ -1,9 +1,4 @@
-import {
-  normalizeEmail,
-  PERSON_NAME,
-  PERSON_NAME_MAX_LENGTH,
-  PERSON_NAME_MIN_LENGTH,
-} from '../common/validation/rules.js';
+import { isPersonName, normalizeEmail } from '../common/validation/rules.js';
 
 // What Better Auth's database hooks change before it writes a row (spec 0013 plan §3). Each takes
 // the row in Better Auth's field names (`name`, not `firstName`) and returns only the fields it
@@ -31,12 +26,7 @@ export function userFields(user: Record<string, unknown>): Record<string, unknow
 }
 
 export function personName(value: unknown): string | null {
-  return typeof value === 'string' &&
-    value.length >= PERSON_NAME_MIN_LENGTH &&
-    value.length <= PERSON_NAME_MAX_LENGTH &&
-    PERSON_NAME.test(value)
-    ? value
-    : null;
+  return isPersonName(value) ? value : null;
 }
 
 export function accountFields(): Record<string, unknown> {

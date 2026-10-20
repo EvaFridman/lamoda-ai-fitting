@@ -133,3 +133,10 @@ the new code, the closed `/users` routes too.
 **U20. The date of birth's error states the rule.** `IS_DATE_OF_BIRTH`'s text becomes
 "Дата с 01.01.1900, возраст не меньше 14 лет" instead of "Неверная дата рождения", as U19 does for
 names. The api's code and rule do not change.
+
+## Added in T4
+
+**U21. The name rule's English message names the lengths.** With one validator its one message
+answers every failure, a wrong length too, so it becomes "must be 2 to 50 Cyrillic or Latin
+letters, with a space, apostrophe or hyphen only between letters" instead of plan §2's current
+message, which says nothing of the length.

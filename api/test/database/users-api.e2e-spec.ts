@@ -92,6 +92,7 @@ function expectError(
   status: number,
   code: string,
   field?: string,
+  detailCode?: string,
 ): void {
   expect(response.status).toBe(status);
   const { error } = response.body as {
@@ -100,6 +101,11 @@ function expectError(
   expect(error.code).toBe(code);
   if (field !== undefined) {
     expect(error.details.map((detail) => detail.field)).toContain(field);
+  }
+  if (field !== undefined && detailCode !== undefined) {
+    expect(error.details.filter((detail) => detail.field === field)).toEqual([
+      expect.objectContaining({ code: detailCode }),
+    ]);
   }
 }
 
@@ -748,6 +754,40 @@ describe('users: required fields and nulls (E47)', () => {
     );
   });
 
+  it('answers IS_PERSON_NAME for a missing firstName on create', async () => {
+    const body = validBody();
+    delete body['firstName'];
+
+    expectError(
+      await http().post('/users').set(userCookie).send(body),
+      400,
+      'VALIDATION_FAILED',
+      'firstName',
+      'IS_PERSON_NAME',
+    );
+  });
+
+  it('answers IS_PERSON_NAME for a null firstName on create and update', async () => {
+    expectError(
+      await http()
+        .post('/users')
+        .set(userCookie)
+        .send(validBody({ firstName: null })),
+      400,
+      'VALIDATION_FAILED',
+      'firstName',
+      'IS_PERSON_NAME',
+    );
+    const user = await create();
+    expectError(
+      await http().patch(`/users/${user.id}`).set(userCookie).send({ firstName: null }),
+      400,
+      'VALIDATION_FAILED',
+      'firstName',
+      'IS_PERSON_NAME',
+    );
+  });
+
   it.each(['phone', 'email', 'firstName'])('refuses null in %s on create', async (field) => {
     expectError(
       await http()
@@ -862,6 +902,23 @@ describe.each(['firstName', 'lastName', 'patronymic'])('users: %s (E47)', (field
         400,
         'VALIDATION_FAILED',
         field,
+        'IS_PERSON_NAME',
+      );
+    },
+  );
+
+  it.each([5, true, ['Анна'], '😀😀'])(
+    'refuses the non-name %j with one IS_PERSON_NAME',
+    async (name) => {
+      expectError(
+        await http()
+          .post('/users')
+          .set(userCookie)
+          .send(validBody({ [field]: name })),
+        400,
+        'VALIDATION_FAILED',
+        field,
+        'IS_PERSON_NAME',
       );
     },
   );
@@ -877,6 +934,7 @@ describe.each(['firstName', 'lastName', 'patronymic'])('users: %s (E47)', (field
       400,
       'VALIDATION_FAILED',
       field,
+      'IS_PERSON_NAME',
     );
   });
 });
