@@ -121,7 +121,7 @@ describe('run-parallel', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'run-parallel-'));
     const pidFile = path.join(dir, 'pid');
     const command = js(
-      `console.log("pid", process.pid); require("fs").writeFileSync(${JSON.stringify(pidFile)}, "");` +
+      `console.log("pid " + process.pid); require("fs").writeFileSync(${JSON.stringify(pidFile)}, "");` +
         ' setTimeout(() => {}, 30000);',
     );
     const child = spawn(process.execPath, [SCRIPT, command], { stdio: ['ignore', 'pipe', 'pipe'] });
