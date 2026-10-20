@@ -1,6 +1,6 @@
 # 0017 account: plan
 
-Status: accepted (2026-10-20).
+Status: accepted (2026-10-20); amended 2026-10-20 at the tasks (pull requests, §11).
 
 How [spec.md](spec.md) is built. Decisions: [clarifications.md](clarifications.md) (U1–U19).
 No new dependencies.
@@ -193,10 +193,13 @@ and U19's name text (§2).
 
 ## 11. Pull requests
 
-1. api: `PATCH /me`, the name rule's code and the validation codes check (§1–§3).
-2. web: `clientFetch` without a body, `entities/user`, `MenuLinkItem`, the shell and pages, the
-   form, deletion, header links, analytics, `robots`, then CLAUDE.md and README and the spec's
-   closing.
+A pull request holds documents only or code (the review bot checks them differently):
+
+1. Documents: the spec, the clarifications, this plan and the tasks.
+2. Code, api and web together: `PATCH /me`, the name rule's code and the validation codes check
+   (§1–§3), then `clientFetch` without a body, `entities/user`, `MenuLinkItem`, the shell and
+   pages, the form, deletion, header links, analytics, `robots`, CLAUDE.md and README.
+3. Documents: the production checks and the spec's closing.
 
 ## 12. Risks
 
