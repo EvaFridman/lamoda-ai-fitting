@@ -85,7 +85,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       exhausted both answer 503 `SERVICE_UNAVAILABLE`, and `/health/live` still answers (AC15);
       migrations and the seed are unaffected; `npm run verify`.
       Commit: `feat(api): limit the database pool and slow statements`
-- [ ] **T10. Development catalog and the query plans.** `seed/dev-catalog.ts`,
+- [x] **T10. Development catalog and the query plans.** `seed/large-catalog.ts` (O64),
       `npm run seed:dev-large`, its refusal in production (plan §2.8); `README.md` (how to fill the
       local catalog); the count argument (O43); `EXPLAIN` of every sort and a search on 50 000
       products after `ANALYZE`, among them a two-character beginning (`q=пл`, O53) with its time
@@ -95,6 +95,44 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       planner not forced, and a later batch of each sort shows its cursor as an `Index Cond`; the
       two-character search's plan and time are recorded; `npm run verify`.
       Commit: `feat(api): add a large development catalog`
+
+      **Recorded (AC14, 2026-10-20).** Local stack, PostgreSQL 18, 50 030 products (the demo 30 and
+      `DEV-00001…DEV-50000`, every tenth unrated), 206 790 variations in stock; `ANALYZE`, then
+      `EXPLAIN (ANALYZE, BUFFERS)` of the SQL `productPageSql` and `afterCursorSql` build, `LIMIT 61`,
+      `enable_seqscan = on`. A later batch starts after the 1000th row of its sort.
+
+      | Query                                   | Plan                                                                                   | Time     |
+      | --------------------------------------- | -------------------------------------------------------------------------------------- | -------- |
+      | `new`, first / later batch              | Index Scan `products_created_at_id_idx`; later: `Index Cond: ROW(created_at, id) < …`  | 0.04 / 0.03 ms |
+      | `price_asc`, first / later              | Index Scan `products_price_asc_id_idx`; later: `Index Cond: price >= k`, id in Filter  | 0.09 / 0.08 ms |
+      | `price_desc`, first / later             | Index Scan `products_price_desc_id_idx`; later: `Index Cond: ROW(price, id) < …`       | 0.06 / 0.07 ms |
+      | `discount`, first / later               | Index Scan `products_discount_id_idx`; later: `Index Cond: ROW(discount, id) < …`      | 0.04 / 0.04 ms |
+      | `rating`, first batch                   | Index Scan `products_rating_id_idx`                                                    | 0.06 ms  |
+      | `rating`, later: rated rest             | the same, `Index Cond: rating <= k`, id in Filter (1000 rows of its tie removed)       | 0.53 ms  |
+      | `rating`, later: unrated from the start | the same, `Index Cond: rating IS NULL`                                                 | 0.04 ms  |
+      | `rating`, later: unrated after cursor   | the same, `Index Cond: rating IS NULL AND id < …`                                      | 0.03 ms  |
+      | `q=пл` (8340 matches), `new` first      | Index Scan `products_created_at_id_idx`, the search in Filter (315 rows removed)       | 0.19 ms  |
+      | `q=пл`, `new` later batch               | the same with `Index Cond: ROW(created_at, id) < …`                                    | 0.14 ms  |
+      | `q=пл`, `price_asc` first               | Index Scan `products_price_asc_id_idx`, search in Filter (7504 rows removed)           | 5.9 ms   |
+      | `q=бюстье` (one demo name), `price_asc` | Index Scan `products_price_asc_id_idx`, search in Filter (13 119 rows removed)         | 14.8 ms  |
+      | `q=бюстье`, `rating` first              | Index Scan `products_rating_id_idx`, search in Filter (2626 rows removed)              | 2.0 ms   |
+      | `q=DEV-01234` (one row), `new` first    | BitmapOr (GIN and `lower(article)`), then a sort of the one row                        | 0.1 ms   |
+      | `q=пл`, `total`                         | BitmapOr of `products_search_vector_idx` (GIN) and `products_article_lower_idx`        | 2.3 ms   |
+      | `q=пл`, facets: total, discounted       | the same BitmapOr                                                                      | 2.8, 2.5 |
+      | `q=пл`, facets: price                   | `products_price_desc_id_idx` both ways, search in Filter                               | 6.0 ms   |
+      | `q=пл`, facets: categories, brands      | the BitmapOr, hash join                                                                | 5.9, 5.7 |
+      | `q=пл`, facets: sizes                   | the BitmapOr; every variation in stock read once (seq scan)                            | 171 ms   |
+      | `q=пл`, facets: attributes              | the BitmapOr; `product_attribute_values_attribute_value_id_idx` per value              | 106 ms   |
+
+      A frequent word walks the sort's index and filters; a rare one goes to the search's indexes
+      first, so no page reads the table whole. Over HTTP (curl, api in
+      Docker, O63's bounds 300 ms and 1 s): `q=пл` list 184 ms on a fresh connection, then
+      10–23 ms with any sort; facets with the cache missed (`пл`, `Пл`, `ПЛ`, three keys, O58)
+      127–143 ms, from the cache 5 ms; facets without `q`, missed, 204 ms; rare matches 8–44 ms.
+      So `MIN_PREFIX_LENGTH` stays 2. The measurement found the sizes count joining every variation
+      to every other of its size (it never finished): fixed before this task by
+      `fix(api): count each size once in the filter counts`.
+
 - 👤 merges PR 2; after the deploy, `GET /products?q=платье` on production answers.
 
 ## PR 3 · `feat/0014-catalog-web` · the catalog page
