@@ -2,7 +2,7 @@
 
 Status: accepted (2026-10-20).
 
-Issue #72. Decisions: `clarifications.md` (U1–U17).
+Issue #72. Decisions: `clarifications.md` (U1–U19).
 
 ## Goal
 
