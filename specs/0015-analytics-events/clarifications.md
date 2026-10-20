@@ -123,3 +123,7 @@ code comments. All decisions below: owner, 2026-10-19.
 - **R20. No user data in properties, even as numbers.** The types refuse free text but not a
   measurement (height, weight, sizes) or an age sent as a number or an enum. The rule of T6 says so
   and the analytics agent checks it; values are not checked at run time (owner, 2026-10-20).
+- **R21. Enum values have a pattern.** `EVENTS.md` prints each value in backticks, so a value with
+  a backtick, a space or a `|` would break its table. T4 checks every enum value against
+  `^[a-z0-9]+([_-][a-z0-9]+)*$`, which 0014's sorts (`price_asc`) pass (owner, 2026-10-20, T3's
+  review).

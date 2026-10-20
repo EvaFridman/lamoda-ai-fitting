@@ -30,7 +30,7 @@ for PR 2 (0014 O35, O40). Each task is one commit, reviewed by the owner first. 
       Check: `events.test.ts` with the new `@ts-expect-error` cases (AC1, AC6); unit tests of
       `useTrackedElement` (AC2, AC12); the list of names before and after; `npm run verify`.
       Commit: `feat(web): describe analytics events in one catalog`
-- [ ] **T3. The document.** `render-events-doc.ts`, `budget.ts` with its test,
+- [x] **T3. The document.** `render-events-doc.ts`, `budget.ts` with its test,
       `events-doc.test.ts`, `EVENTS.md`, `.prettierignore` (plan §4).
       Check: a changed description without `-u` fails the test (AC5); `EVENTS.md` read (AC4);
       `npm run verify`.
