@@ -137,17 +137,18 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## PR 3 · `feat/0014-catalog-web` · the catalog page
 
-- [ ] **T11. Catalog routes and a true 404.** `app/catalog/page.tsx`, `app/catalog/[slug]/page.tsx`
+- [x] **T11. Catalog routes and a true 404.** `app/catalog/page.tsx`, `app/catalog/[slug]/page.tsx`
       with a placeholder page (`h1` only), `getCategoryBySlug` (`entities/category/server.ts`), the
       redirect of `/`, `/healthz`, `SITE_URL` in the server env and `.env.example`, `metadataBase`
       and the title template (plan §3.1). The fallback through `proxy.ts` is taken only if the status
-      check fails, and then it is recorded in `plan.md`.
+      check fails, and then it is recorded in `plan.md`. `smoke-test.sh`, `request-loop.sh` and
+      `ci-deploy-check.sh`'s `check_request_id` follow the redirect (plan §3.7, O69).
       Check: `curl -I` locally: `/` → 307 `/catalog`, `/catalog` → 200, unknown and inactive slugs →
       404 (AC1, AC2), `/healthz` → 200 with the api stopped; `npm run verify`.
       Commit: `feat(web): add the catalog routes`
 - [ ] **T12. The greeting and the dev page go.** Removals of plan §3.2 in web and api, with the
       Temporal `hello` workflow (O33); the e2e and `ci-deploy-check.sh` use `GET /categories`;
-      `smoke-test.sh`, `request-loop.sh` and the web health check (O34, plan §3.7); `openapi.json`;
+      the web health check (O34, plan §3.7); `openapi.json`;
       the nginx comment; the docs and `.claude/` files of plan §3.7, `CLAUDE.md`; backlog "Remove
       greeting", "Flaky handoff test" and "Retry policy of `hello`".
       Check: `rg -i 'hello|greeting|dev-catalog|dev/catalog'` finds only specs, history and the
@@ -155,7 +156,9 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Commit: `refactor(web): remove the greeting and the dev catalog`
 - [ ] **T13. Catalog data on the server and in the URL.** `productInfiniteOptions` and its server
       twin, `prefetchInfinite`, `_pages/catalog/model/url-state.ts`, the server part of the page
-      with the first batch (plan §3.2, §3.3).
+      with the first batch (plan §3.2, §3.3). With products on `/catalog`, `smoke-test.sh` and
+      `request-loop.sh` check that page's data from the api, not only T11's static heading and
+      `/catalog/dresses` (O69, plan §3.7).
       Check: Vitest round trips of the URL state (unknown params dropped, `q` cut to 100, the
       sign-in's `error` left in the address for the login modal); the page renders the first batch
       from the server with no browser request (AC7, part); `npm run verify`.

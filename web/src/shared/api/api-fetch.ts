@@ -39,11 +39,13 @@ function requestId(incoming: Headers): string | undefined {
 // The only way server code calls the api: over the internal network (API_URL), on behalf of the
 // visitor (their address and the request id forwarded, vouched for by the proxy secret), with a
 // timeout, and with the response checked against a schema, so a changed api fails here and not deep
-// in a page. Request-time only: it reads the incoming request's headers.
+// in a page. Request-time only: it reads the incoming request's headers, from `headers()` or, in
+// `proxy.ts`, where that is not available, from `incoming` (the request's own, spec 0014 O65).
 export async function apiFetch<Schema extends z.ZodType>(
   path: ApiPath,
   schema: Schema,
   init?: RequestInit,
+  incoming?: Headers,
 ): Promise<Parsed<Schema>> {
   const env = getServerEnv();
   const url = new URL(path.path, env.API_URL);
@@ -57,11 +59,11 @@ export async function apiFetch<Schema extends z.ZodType>(
   }
   const requestHeaders = new Headers(init?.headers);
   for (const name of PROXY_HEADERS) requestHeaders.delete(name);
-  const incoming = await headers();
+  const pageRequest = incoming ?? (await headers());
   if (env.PROXY_SECRET) requestHeaders.set('X-Proxy-Secret', env.PROXY_SECRET);
-  const visitor = visitorAddress(incoming);
+  const visitor = visitorAddress(pageRequest);
   if (visitor) requestHeaders.set('X-Forwarded-For', visitor);
-  const id = requestId(incoming);
+  const id = requestId(pageRequest);
   if (id) requestHeaders.set('X-Request-Id', id);
   return callApi(
     url,

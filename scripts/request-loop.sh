@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Sends requests to a site without pause until stopped (SIGTERM/SIGINT), alternating the page and
-# /api/health/live, then reports how many failed. Run it around a deploy to check that no request
-# fails while versions switch (AC26). The page counts as failed unless it shows the greeting: a 200
-# carrying the error state (e.g. the api refusing web) is a failure too.
+# Sends requests to a site without pause until stopped (SIGTERM/SIGINT), alternating a category page
+# of the demo catalog and /api/health/live, then reports how many failed. Run it around a deploy to
+# check that no request fails while versions switch (AC26). The page counts as failed unless it
+# shows the category's heading, which it reads from the api: a 200 carrying the error state (e.g.
+# the api refusing web) is a failure too.
 #
 #   scripts/request-loop.sh <base-url> & pid=$!; ...deploy...; kill $pid; wait $pid
 #
@@ -13,6 +14,8 @@
 set -uo pipefail
 
 base="${1:?usage: request-loop.sh <base-url>}"
+# The seed's category "Платья"; the seed never renames a category it finds (spec 0014 plan §3.7).
+page=/catalog/dresses
 total=0
 failed=0
 statuses=""
@@ -31,14 +34,14 @@ report() {
 trap report TERM INT
 
 while :; do
-  for path in / /api/health/live; do
+  for path in "$page" /api/health/live; do
     started="$(date -u +%H:%M:%S)"
     result="$(curl -sk -o "$body" --max-time 5 -w '%{http_code} %{time_total}' "$base$path")"
     curl_exit=$?
     code="${result% *}"
     echo "${result#* }s$path@$started" >> "$timings"
-    if [ "$code" = 200 ] && [ "$path" = / ] && ! grep -q 'Hello, world!' "$body"; then
-      code=200-without-greeting
+    if [ "$code" = 200 ] && [ "$path" = "$page" ] && ! grep -q '>Платья</h1>' "$body"; then
+      code=200-without-heading
     fi
     total=$((total + 1))
     if [ "$code" != 200 ]; then

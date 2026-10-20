@@ -8,7 +8,14 @@ vi.mock('@/shared/config/server', () => ({
 }));
 
 import { categoryKeys } from './keys';
-import { categoryListOptions, categoryOptions, getCategories, getCategory } from './server-queries';
+import {
+  categoryListOptions,
+  categoryOptions,
+  findCategoryBySlug,
+  getCategories,
+  getCategory,
+  getCategoryBySlug,
+} from './server-queries';
 
 const DATE = '2026-10-01T12:00:00.000Z';
 const category = {
@@ -130,6 +137,61 @@ describe('getCategory', () => {
   it('refuses an empty id before any request', async () => {
     await expect(getCategory('')).rejects.toMatchObject({ kind: 'path' });
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('findCategoryBySlug', () => {
+  it('requests /categories/by-slug/:slug and returns the category', async () => {
+    respondWith({ ...category, extra: 1 });
+    await expect(findCategoryBySlug('dresses')).resolves.toEqual(category);
+    expect(requested().pathname).toBe('/categories/by-slug/dresses');
+  });
+
+  it('keeps a slug taken from input in one segment', async () => {
+    respondWith(category);
+    await findCategoryBySlug('a/b');
+    expect(requested().pathname).toBe('/categories/by-slug/a%2Fb');
+  });
+
+  it.each(['', '.', '..'])('answers null for %j without a request', async (slug) => {
+    await expect(findCategoryBySlug(slug)).resolves.toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it.each([400, 404])('answers null for an http %i', async (status) => {
+    respondWith({}, status);
+    await expect(findCategoryBySlug('x')).resolves.toBeNull();
+  });
+
+  it('rethrows a 500', async () => {
+    respondWith({}, 500);
+    await expect(findCategoryBySlug('x')).rejects.toMatchObject({ kind: 'http', status: 500 });
+  });
+
+  it('rethrows a network error', async () => {
+    fetchMock.mockRejectedValue(new TypeError('fetch failed'));
+    await expect(findCategoryBySlug('x')).rejects.toMatchObject({ kind: 'network' });
+  });
+
+  it('rethrows a schema error', async () => {
+    respondWith({ ...category, isActive: 'yes' });
+    await expect(findCategoryBySlug('x')).rejects.toMatchObject({ kind: 'schema' });
+  });
+
+  it('takes the address from the given headers', async () => {
+    respondWith(category);
+    await findCategoryBySlug('x', new Headers({ 'x-real-ip': '203.0.113.7' }));
+    const sent = (fetchMock.mock.calls[0]?.[1] as RequestInit).headers as Headers;
+    expect(sent.get('x-forwarded-for')).toBe('203.0.113.7');
+  });
+});
+
+describe('getCategoryBySlug', () => {
+  it('finds a category and answers null for a missing one', async () => {
+    respondWith(category);
+    await expect(getCategoryBySlug('dresses')).resolves.toEqual(category);
+    respondWith({}, 404);
+    await expect(getCategoryBySlug('none')).resolves.toBeNull();
   });
 });
 

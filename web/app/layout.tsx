@@ -11,8 +11,13 @@ import { Header } from '@/widgets/header';
 // Downloaded at build time and served from our own domain; the tokens' --font-sans reads the variable.
 const onest = Onest({ subsets: ['latin', 'cyrillic'], variable: '--font-onest' });
 
+// A page's own title goes first (spec 0014 O25). `metadataBase` is set by the pages that render per
+// request (O67): this metadata is built with the static pages, when no server env exists.
 export const metadata: Metadata = {
-  title: 'Lamoda AI Fitting',
+  title: {
+    template: '%s — Виртуальная примерка | Lamoda AI Fitting',
+    default: 'Lamoda AI Fitting',
+  },
 };
 
 // The frame shared by every page: providers, the site header and footer.

@@ -10,6 +10,9 @@ const serverEnvSchema = z
     NODE_ENV: z.string().optional(),
     // Server-to-server address of the api, e.g. http://api:3000 (never the public URL).
     API_URL: z.url({ protocol: /^https?$/ }),
+    // The site's public address, e.g. https://lamoda-ai-fitting.ru: the base of absolute links in
+    // metadata (`metadataBase`, spec 0014 O67).
+    SITE_URL: z.url({ protocol: /^https?$/ }),
     // redis://host:6379
     REDIS_URL: z.string().regex(/^rediss?:\/\//, 'must be a redis:// URL'),
     // The deployed image tag (commit hash); `dev` locally.

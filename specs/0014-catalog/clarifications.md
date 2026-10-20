@@ -363,3 +363,39 @@ Second round, on the review of `4817711`:
 - **O64. The development catalog's file is `seed/large-catalog.ts`.** Plan §2.8 named it
   `dev-catalog.ts`, which T12's check (`rg -i '…|dev-catalog|…'` finds only specs and history)
   would catch. The command stays `npm run seed:dev-large`. (Owner, T10.)
+
+## Decided at T11
+
+- **O65. The category's 404 is decided in `proxy.ts`.** Plan §3.1's first way fails on Next 16.3
+  with `cacheComponents`, checked on `next build` + `next start`: `connection()` and `notFound()`
+  outside `<Suspense>` fail the build, and with `instant = false` the static shell still goes out
+  first, so an unknown slug answers 200 (a soft 404: the not-found page with `noindex`). A rewrite
+  from `proxy.ts` to the page keeps the page's 200 too; a rewrite to a path no route matches answers
+  404 with the site's not-found page. So `proxy.ts` (matcher `/catalog/:slug`) reads the category
+  and rewrites an unknown or inactive one there; when the api fails, the request goes on unchanged
+  and the page shows the error. `apiFetch` takes the incoming headers as an argument for it, since
+  `headers()` is not there in `proxy.ts`. (Owner, T11.)
+- **O66. A category page reads its category twice.** `proxy.ts` and the page each call
+  `GET /categories/by-slug/:slug`: `React.cache` does not span them. Both count in the visitor's
+  `read` quota. Passing the category from the proxy in a request header was refused: the page would
+  trust a header a visitor can send. If O24's measurement shows too many reads per visit, the proxy
+  keeps the active slugs in memory for about a minute, as a decision of its own. (Owner, T11.)
+- **O67. `metadataBase` is set by the pages that render per request, not the root layout.** The
+  root layout's metadata is built with the static pages (`/privacy`, `/ui-kit`, the not-found page),
+  when no server env exists, so a runtime `SITE_URL` cannot reach it. The title template stays in
+  the root layout; the catalog's `generateMetadata` (and later the sitemap and robots) set
+  `metadataBase` from `SITE_URL`. Static pages have no relative URLs in their metadata. (Owner,
+  T11.)
+- **O68. `SITE_URL`'s values.** Production: `https://${SITE_DOMAIN}` in `deploy/compose/app.yml`,
+  like the api's `WEB_ORIGIN`, so GitHub gets no new variable. Locally: optional in `.env.example`,
+  and `docker-compose.yml` defaults it to `http://localhost:<WEB_HOST_PORT>` (web's port, not the
+  api's 3000 the plan named). (Owner, T11.)
+- **O69. The deploy checks follow the redirect in T11.** `/` stops showing the greeting with T11's
+  redirect, not T12's removals, so T11 moves `smoke-test.sh` (`/` → 307, `<h1` on `/catalog`),
+  `request-loop.sh` (`/catalog/dresses` and its heading) and `ci-deploy-check.sh`'s
+  `check_request_id` (`/catalog/dresses`, where the proxy and the page call the api; it wants both
+  calls' lines) with it. Each commit keeps the deploy checks passing, and T11–T12 may ship alone
+  (O46). `/catalog`'s placeholder heading is static, so the smoke test, CD's only check of
+  production, also wants `/catalog/dresses` to show "Платья" from the api: otherwise a web that
+  cannot reach the api would pass. T13 revisits these steps once `/catalog` shows products from the
+  api. (code-reviewer, owner, T11.)
