@@ -7,7 +7,8 @@ and properties (§2, R13), the block of generic events and per-element estimates
 the budget test (§1, §4, §5, R15), abbreviations (§5, R16), types (§1, §3, §6), the agent's
 checks (§7), the hover sentence of `CLAUDE.md` (§6); amended 2026-10-20 at T2's review: the catalog
 sentence of `CLAUDE.md` moves to T2, the rule on user data in properties (§6); amended 2026-10-20
-at T3's review: the enum value pattern (§5, R21).
+at T3's review: the enum value pattern (§5, R21); amended 2026-10-20 at T4's review: the irregular
+past forms, the area pattern and where the verb stands (§5, R22–R24).
 
 Implements [spec.md](spec.md); decisions in [clarifications.md](clarifications.md) (R1–R16). No new
 dependency.
@@ -139,11 +140,13 @@ fit this format: enums with listed values, numbers, `catalog.card` with `positio
 ## 5. Limit checks: `catalog.test.ts` (R7–R9, R15, R16, AC7)
 
 - Event names (of `events` and `commonEvents`): two or more words, each Title Case (`[A-Z][a-z]+`) or an abbreviation from the
-  test's list (`AI`, R16), with at least one past-tense verb (a word ending in `ed`, or one of the
-  irregular forms listed in the test: `Sent`, `Shown`, …), so `Login Opened`, `Catalog Sorted`,
-  `Signed In` and `AI Fitting Started` pass and `Login Open` and `UI Opened` fail.
+  test's list (`AI`, R16), ending in a past-tense verb (a word ending in `ed`, or one of the
+  irregular forms listed in the test, R22) or in such a verb and a particle from the test's list
+  (R24), so `Login Opened`, `Catalog Sorted`, `Signed In` and `AI Fitting Started` pass and
+  `Login Open`, `Red Button` and `UI Opened` fail.
 - Property names `^[a-z]+(_[a-z]+)*$`; element ids `^[a-z0-9]+(-[a-z0-9]+)*\.[a-z0-9]+(-[a-z0-9]+)*$`,
-  the part before the dot one of the areas of the element's zone; an area belongs to one zone only.
+  the part before the dot one of the areas of the element's zone; an area belongs to one zone only
+  and is `^[a-z0-9]+(-[a-z0-9]+)*$`, used or not (R23).
 - At most 5 properties of its own per event and per element; at most 50 values per enum, no
   duplicates, each value `^[a-z0-9]+([_-][a-z0-9]+)*$` (so none is empty, R21).
 - Every zone has at least one entry (no empty blocks in the document).

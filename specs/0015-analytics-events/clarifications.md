@@ -127,3 +127,16 @@ code comments. All decisions below: owner, 2026-10-19.
   a backtick, a space or a `|` would break its table. T4 checks every enum value against
   `^[a-z0-9]+([_-][a-z0-9]+)*$`, which 0014's sorts (`price_asc`) pass (owner, 2026-10-20, T3's
   review).
+- **R22. The first list of irregular past forms.** The name test (R16) starts with `Sent`, `Shown`,
+  `Seen`, `Made`, `Done`, `Chosen`, `Taken`, `Found`, `Paid` and `Bought`; `Left` stays out, since
+  as a direction it would pass a name with no verb (`Left Arrow`) (owner, 2026-10-20, T4's review).
+- **R23. Areas have a pattern.** `EVENTS.md` prints every area of a zone in backticks, used by an
+  element or not, so T4 checks each area against `^[a-z0-9]+(-[a-z0-9]+)*$`, the part of an
+  element id before the dot (owner, 2026-10-20, T4's review).
+- **R24. Where the verb stands.** The name test checks R8's two shapes, not a past form anywhere:
+  the last word is a verb in the past tense ("Object Action": `Login Opened`), or the last word is
+  a particle from the test's list (`In`, `Out`, `Up`, `Off`, `Down` at first; a new one is the
+  owner's decision, like R16) and the word before it is that verb (`Signed In`). So `Red Button`,
+  `Opened Login` and `Login In` fail; a word ending in `ed` still counts as a verb (`Bed Seed`
+  passes), names are also read at review and by the analytics agent (owner, 2026-10-20, T4's
+  review).
