@@ -103,6 +103,21 @@ function shapeCodes(operation: OperationObject): ErrorCode[] {
   ) {
     codes.push('INVALID_ID', 'NOT_FOUND');
   }
+  // Any other path parameter is checked by a param DTO (a slug). Whether it names a record is the
+  // route's logic, so a 404 is declared with @ApiErrors('NOT_FOUND').
+  if (
+    parameters.some(
+      (parameter) =>
+        parameter.in === 'path' &&
+        !(
+          parameter.schema !== undefined &&
+          'format' in parameter.schema &&
+          parameter.schema.format === 'uuid'
+        ),
+    )
+  ) {
+    codes.push('VALIDATION_FAILED');
+  }
   if (operation.security?.some((requirement) => SESSION_SECURITY in requirement) === true) {
     codes.push('UNAUTHORIZED');
   }

@@ -63,7 +63,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       go missing; ties in the sort key and null ratings are paged through (AC12); a cursor request
       runs no count and answers `total: null`; `offset` still works; `npm run verify`.
       Commit: `feat(api): page the product list by cursor`
-- [ ] **T7. Category by slug.** `GET /categories/by-slug/:slug` (plan §2.5), `PUBLIC_HANDLERS`,
+- [x] **T7. Category by slug.** `GET /categories/by-slug/:slug` (plan §2.5), `PUBLIC_HANDLERS`,
       `openapi.json`.
       Check: e2e: active and inactive categories answer, unknown → 404, a bad slug → 400;
       `access-markers`; `npm run verify`.
