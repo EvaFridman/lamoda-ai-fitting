@@ -284,3 +284,12 @@ Second round, on the review of `4817711`:
   every word in the index and gives nothing useful, while each facets request runs seven such
   queries. T10 measures a two-letter beginning on 50 000 products (AC14); if it is too slow, the
   threshold goes up. (security-reviewer, T5.)
+
+## Decided at T6
+
+- **O54. A refused cursor, and `nextCursor` beside `offset`.** A malformed cursor, one of another
+  sort or an empty `?cursor=` answers 400 `VALIDATION_FAILED` with one detail on `cursor`, code
+  `INVALID_CURSOR`; its message never repeats the cursor. `cursor` with `offset` answers 400 with a
+  detail on `offset`. `cursor` belongs to the list's query only, so the facets answer it 400 (0004
+  E46). The offset answer gains `nextCursor` too (an added field; the deployed web drops it), and
+  `limit` keeps its default 60 and maximum 100. (Owner, T6.)

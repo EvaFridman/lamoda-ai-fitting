@@ -1,18 +1,27 @@
 import { Prisma } from '../../generated/prisma/client.js';
 import { PRODUCT_ORDER_SQL, type ProductSort } from './product-sort.js';
 
-// The product list in two steps (spec 0014 plan §2.2): the ids of one page in raw SQL, as the
-// filter counts, then the rows by id. `where` comes from `toProductSql`.
-export interface ProductIdsQuery {
+// The product list in two steps (spec 0014 plan §2.2): the ids of one batch in raw SQL, as the
+// filter counts, then the rows by id. `where` comes from `toProductSql`; `after` is one condition
+// of `afterCursorSql`, or TRUE for the first batch. The sort keys come along for the next cursor.
+export interface ProductPageQuery {
   where: Prisma.Sql;
+  after?: Prisma.Sql;
   sort: ProductSort;
   limit: number;
-  offset: number;
+  offset?: number;
 }
 
-export function productIdsSql({ where, sort, limit, offset }: ProductIdsQuery): Prisma.Sql {
+export function productPageSql({
+  where,
+  after = Prisma.sql`TRUE`,
+  sort,
+  limit,
+  offset = 0,
+}: ProductPageQuery): Prisma.Sql {
   return Prisma.sql`
-    SELECT p.id FROM products p WHERE ${where}
+    SELECT p.id, p.created_at AS "createdAt", p.price, p.discount, p.rating
+    FROM products p WHERE ${where} AND ${after}
     ORDER BY ${PRODUCT_ORDER_SQL[sort]} LIMIT ${limit} OFFSET ${offset}`;
 }
 

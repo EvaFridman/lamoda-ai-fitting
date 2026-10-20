@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import { NotFoundError } from '../common/errors/app.exception.js';
-import type { Paginated } from '../common/pagination/paginated.js';
+import type { CursorPaginated } from '../common/pagination/cursor-paginated.js';
 import type { Env } from '../config/env.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -14,7 +14,13 @@ import type { ProductDetailDto, ProductListItemDto } from './dto/product-respons
 import type { UpdateProductDto } from './dto/update-product.dto.js';
 import { countFacets } from './listing/product-facets.js';
 import { loadValueAttributes, toProductFilter, toProductSql } from './listing/product-filter.js';
-import { inIdOrder, productCountSql, productIdsSql } from './listing/product-list.js';
+import {
+  afterCursorSql,
+  decodeProductCursor,
+  encodeProductCursor,
+  type ProductKeyRow,
+} from './listing/product-cursor.js';
+import { inIdOrder, productCountSql, productPageSql } from './listing/product-list.js';
 import { DETAIL_INCLUDE, LIST_ITEM_INCLUDE, toDetail, toListItem } from './product-mapper.js';
 
 // A duplicate article, a missing brand or category, a product used in a generation and a missing
@@ -32,16 +38,36 @@ export class ProductsService {
     this.mediaBaseUrl = config.get('MEDIA_BASE_URL', { infer: true });
   }
 
-  async list(query: ProductListQueryDto): Promise<Paginated<ProductListItemDto>> {
+  async list(query: ProductListQueryDto): Promise<CursorPaginated<ProductListItemDto>> {
+    const { sort, limit } = query;
     const valueAttributes = await loadValueAttributes(this.prisma, query.attributeValueId);
     const where = toProductSql(toProductFilter(query, valueAttributes));
+    const cursor = query.cursor === undefined ? null : decodeProductCursor(query.cursor, sort);
+    // The DTO has checked it: a refusal here is a bug, not a request for the first batch.
+    if (query.cursor !== undefined && cursor === null) {
+      throw new Error('A cursor passed the DTO but did not decode');
+    }
+    const afters = cursor === null ? [undefined] : afterCursorSql(cursor);
     // The ids, the rows and the total from one snapshot (spec 0014 plan §2.2).
-    const { rows, total } = await this.prisma.$transaction(
+    const { rows, keys, total } = await this.prisma.$transaction(
       async (tx) => {
-        const idRows = await tx.$queryRaw<{ id: string }[]>(
-          productIdsSql({ where, sort: query.sort, limit: query.limit, offset: query.offset }),
-        );
-        const ids = idRows.map((row) => row.id);
+        // One row past the batch tells whether a next one exists.
+        const keys: ProductKeyRow[] = [];
+        for (const after of afters) {
+          if (keys.length > limit) break;
+          keys.push(
+            ...(await tx.$queryRaw<ProductKeyRow[]>(
+              productPageSql({
+                where,
+                after,
+                sort,
+                limit: limit + 1 - keys.length,
+                offset: query.offset,
+              }),
+            )),
+          );
+        }
+        const ids = keys.slice(0, limit).map((row) => row.id);
         const found =
           ids.length === 0
             ? []
@@ -49,12 +75,21 @@ export class ProductsService {
                 where: { id: { in: ids } },
                 include: LIST_ITEM_INCLUDE,
               });
-        const [{ count }] = await tx.$queryRaw<[{ count: number }]>(productCountSql(where));
-        return { rows: inIdOrder(ids, found), total: count };
+        // A batch after the first is not counted (O44).
+        const total =
+          cursor === null
+            ? (await tx.$queryRaw<[{ count: number }]>(productCountSql(where)))[0].count
+            : null;
+        return { rows: inIdOrder(ids, found), keys, total };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
     );
-    return { items: rows.map((row) => toListItem(row, this.mediaBaseUrl)), total };
+    const last = keys.length > limit ? keys[limit - 1] : undefined;
+    return {
+      items: rows.map((row) => toListItem(row, this.mediaBaseUrl)),
+      total,
+      nextCursor: last === undefined ? null : encodeProductCursor(sort, last),
+    };
   }
 
   async facets(query: ProductFilterQueryDto): Promise<ProductFacetsDto> {

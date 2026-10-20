@@ -67,7 +67,9 @@ function requested(): URL {
 beforeEach(() => {
   fetchMock.mockReset();
   capture.mockReset();
-  fetchMock.mockImplementation(() => Promise.resolve(jsonResponse({ items: [], total: 0 })));
+  fetchMock.mockImplementation(() =>
+    Promise.resolve(jsonResponse({ items: [], total: 0, nextCursor: null })),
+  );
   vi.stubGlobal('fetch', fetchMock);
 });
 
@@ -138,7 +140,7 @@ describe('browser and server options share keys', () => {
 
 describe('browser product options request', () => {
   it('productListOptions asks /api/products on the site origin with a clean query', async () => {
-    const body = { items: [listItem], total: 1 };
+    const body = { items: [listItem], total: 1, nextCursor: null };
     fetchMock.mockImplementation(() => Promise.resolve(jsonResponse(body)));
     const client = new QueryClient();
     await expect(
@@ -205,7 +207,9 @@ describe('browser product options request', () => {
 
   it('rejects a body that fails the schema with a schema ApiError', async () => {
     fetchMock.mockImplementation(() =>
-      Promise.resolve(jsonResponse({ items: [{ ...listItem, price: '5000' }], total: 1 })),
+      Promise.resolve(
+        jsonResponse({ items: [{ ...listItem, price: '5000' }], total: 1, nextCursor: null }),
+      ),
     );
     const error = await new QueryClient().query(browser.productListOptions()).catch((e) => e);
     expect(error).toBeInstanceOf(ApiError);
@@ -214,10 +218,12 @@ describe('browser product options request', () => {
 
   it('drops extra fields of the body', async () => {
     fetchMock.mockImplementation(() =>
-      Promise.resolve(jsonResponse({ items: [{ ...listItem, extra: 1 }], total: 1, note: 'x' })),
+      Promise.resolve(
+        jsonResponse({ items: [{ ...listItem, extra: 1 }], total: 1, nextCursor: null, note: 'x' }),
+      ),
     );
     const result = await new QueryClient().query(browser.productListOptions());
-    expect(result).toEqual({ items: [listItem], total: 1 });
+    expect(result).toEqual({ items: [listItem], total: 1, nextCursor: null });
   });
 });
 

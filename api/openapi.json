@@ -2356,17 +2356,6 @@
             }
           },
           {
-            "name": "offset",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "minimum": 0,
-              "maximum": 2147483647,
-              "default": 0,
-              "type": "number"
-            }
-          },
-          {
             "name": "categoryId",
             "required": false,
             "in": "query",
@@ -2477,6 +2466,26 @@
                 "rating"
               ]
             }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "`nextCursor` of the previous batch, made with the same sort; left out for the first batch.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "offset",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 0,
+              "maximum": 2147483647,
+              "default": 0,
+              "type": "number"
+            }
           }
         ],
         "responses": {
@@ -2488,7 +2497,8 @@
                   "type": "object",
                   "required": [
                     "items",
-                    "total"
+                    "total",
+                    "nextCursor"
                   ],
                   "properties": {
                     "items": {
@@ -2499,7 +2509,14 @@
                     },
                     "total": {
                       "type": "integer",
-                      "minimum": 0
+                      "minimum": 0,
+                      "nullable": true,
+                      "description": "How many match in all; null for a request with a cursor."
+                    },
+                    "nextCursor": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "The `cursor` of the next batch; null on the last."
                     }
                   }
                 }
