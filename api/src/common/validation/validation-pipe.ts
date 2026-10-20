@@ -65,6 +65,7 @@ function clip(text: string, max: number): string {
   return chars.length <= max ? text : `${chars.slice(0, max - 1).join('')}…`;
 }
 
-function toUpperSnake(name: string): string {
+// Exported for test/validation-codes.e2e-spec.ts, which turns the DTOs' rule names into codes.
+export function toUpperSnake(name: string): string {
   return name.replaceAll(/([a-z0-9])([A-Z])/g, '$1_$2').toUpperCase();
 }

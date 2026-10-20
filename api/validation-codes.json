@@ -1,0 +1,23 @@
+[
+  "ARRAY_MAX_SIZE",
+  "ARRAY_MIN_SIZE",
+  "ARRAY_UNIQUE",
+  "IS_ARRAY",
+  "IS_BOOLEAN",
+  "IS_DATE_OF_BIRTH",
+  "IS_ENUM",
+  "IS_IN",
+  "IS_INT",
+  "IS_NOT_BELOW",
+  "IS_NUMBER",
+  "IS_PERSON_NAME",
+  "IS_POSITIVE",
+  "IS_STRING",
+  "IS_USER_EMAIL",
+  "IS_UUID",
+  "MATCHES",
+  "MAX",
+  "MAX_DECIMAL_PLACES",
+  "MAX_LENGTH",
+  "MIN"
+]

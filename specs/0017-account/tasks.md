@@ -46,7 +46,7 @@ T11).
       did), the users e2e and the auth hook's tests expect the new code; `error-text` test;
       `npm run verify`.
       Commit: `feat(api): answer one code for a bad person name`
-- [ ] **T5. Validation codes checked against web (U15).** The api test that collects every DTO's
+- [x] **T5. Validation codes checked against web (U15).** The api test that collects every DTO's
       constraint names into the snapshot `api/validation-codes.json`; web's
       `error-text.contract.test.ts` fails on a code missing from `DETAIL_TEXTS` (plan §3). The
       backlog item "Texts of new validation rules" is removed.
