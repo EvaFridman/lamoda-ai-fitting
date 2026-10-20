@@ -107,6 +107,8 @@ function countBrands(prisma: PrismaService, filter: ProductFilter): Promise<Face
 }
 
 // Sizes are text in the variations, so a chosen size no product has in stock is added by VALUES.
+// The list holds each size once (DISTINCT, or the UNION with the chosen ones): a row per variation
+// would join every variation of its size to every other, squared on a large catalog.
 function countSizes(prisma: PrismaService, filter: ProductFilter): Promise<FacetSizeDto[]> {
   const where = toProductSql({ ...filter, sizes: undefined });
   const chosen = filter.sizes ?? [];
@@ -116,7 +118,7 @@ function countSizes(prisma: PrismaService, filter: ProductFilter): Promise<Facet
       : Prisma.sql`UNION VALUES ${Prisma.join(chosen.map((size) => Prisma.sql`(${size})`))}`;
   return prisma.$queryRaw<FacetSizeDto[]>`
     SELECT s.size, count(DISTINCT p.id)::int AS count
-    FROM (SELECT size FROM product_variations WHERE stock > 0 ${chosenRows}) s (size)
+    FROM (SELECT DISTINCT size FROM product_variations WHERE stock > 0 ${chosenRows}) s (size)
     LEFT JOIN product_variations v ON v.size = s.size AND v.stock > 0
     LEFT JOIN products p ON p.id = v.product_id AND ${where}
     GROUP BY s.size
