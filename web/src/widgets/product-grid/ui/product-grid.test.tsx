@@ -161,7 +161,9 @@ describe('ProductGrid measured', () => {
 
   it.each([
     [1200, 4],
-    [900, 3],
+    [900, 4],
+    [700, 3],
+    [600, 3],
     [500, 2],
   ])('sets %s px of width to %s columns and renders the visible rows only', (w, columns) => {
     width = w;
@@ -674,7 +676,7 @@ describe('ProductGrid scroll memory (O12)', () => {
         const { rerender } = restoreWith(123);
         expect(estimate()).toBe(123);
 
-        width = 900;
+        width = 700;
         act(() => {
           for (const resize of resizes) resize();
         });

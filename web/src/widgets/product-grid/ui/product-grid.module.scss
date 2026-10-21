@@ -1,4 +1,4 @@
-// The catalog's grid (spec 0014 plan §3.3): 4 columns from 1024px of its own width, 3 from 768px,
+// The catalog's grid (spec 0014 plan §3.3, O84): 4 columns from 900px of its own width, 3 from 600px,
 // otherwise 2. The container queries draw the server's grid; once measured, the component sets
 // `--columns` itself, from the same steps (`columnsFor`).
 
@@ -19,11 +19,11 @@
 
   list-style: none;
 
-  @container (width >= 768px) {
+  @container (width >= 600px) {
     --columns: 3;
   }
 
-  @container (width >= 1024px) {
+  @container (width >= 900px) {
     --columns: 4;
   }
 }

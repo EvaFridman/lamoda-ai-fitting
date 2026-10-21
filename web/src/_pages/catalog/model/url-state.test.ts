@@ -106,10 +106,9 @@ describe('parseCatalogUrl', () => {
     });
   });
 
-  it('reads hasDiscount only as true or false', () => {
+  it('reads hasDiscount only as true and drops false like an invalid value', () => {
     expect(parse('hasDiscount=true').query.hasDiscount).toBe(true);
-    expect(parse('hasDiscount=false').query.hasDiscount).toBe(false);
-    for (const value of ['1', 'TRUE', 'yes', '']) {
+    for (const value of ['false', '1', 'TRUE', 'yes', '']) {
       expect(parse(`hasDiscount=${value}`).query.hasDiscount).toBeUndefined();
     }
   });
@@ -145,7 +144,7 @@ describe('catalogSearch', () => {
     const state: CatalogUrlState = {
       cursor: 'cur',
       query: {
-        hasDiscount: false,
+        hasDiscount: true,
         maxPrice: 900,
         minPrice: 100,
         attributeValueId: [C],
@@ -157,7 +156,7 @@ describe('catalogSearch', () => {
     };
     expect(catalogSearch(state)).toBe(
       `?q=${encodeURIComponent('платье')}&sort=price_desc&brandId=${A},${B}&size=M,L` +
-        `&attributeValueId=${C}&minPrice=100&maxPrice=900&hasDiscount=false&cursor=cur`,
+        `&attributeValueId=${C}&minPrice=100&maxPrice=900&hasDiscount=true&cursor=cur`,
     );
   });
 
@@ -174,10 +173,8 @@ describe('catalogSearch', () => {
     expect(catalogSearch({ query: { q: '   ' } })).toBe('');
   });
 
-  it('keeps zero and false', () => {
-    expect(catalogSearch({ query: { minPrice: 0, hasDiscount: false } })).toBe(
-      '?minPrice=0&hasDiscount=false',
-    );
+  it('keeps a zero price and leaves out hasDiscount false, as it is read (O85)', () => {
+    expect(catalogSearch({ query: { minPrice: 0, hasDiscount: false } })).toBe('?minPrice=0');
   });
 });
 
@@ -197,7 +194,7 @@ describe('round trips', () => {
       },
       cursor: 'eyJhIjoxfQ==',
     },
-    { query: { minPrice: 0, hasDiscount: false } },
+    { query: { minPrice: 0, hasDiscount: true } },
     { query: { q: '😀'.repeat(100) } },
   ];
 

@@ -177,7 +177,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       `curl /catalog` holds the first batch and "Дальше" (AC22); `qa-tester` on the dev catalog
       (AC11, AC13); `npm run verify`.
       Commit: `feat(web): scroll the catalog in a virtual grid`
-- [ ] **T15. Filters, sort and the empty state.** `widgets/catalog-filters` (desktop row of chips,
+- [x] **T15. Filters, sort and the empty state.** `widgets/catalog-filters` (desktop row of chips,
       O5), the category list in `<aside>`, breadcrumbs, the title with the count, the empty state
       (plan §3.2); compared with the owner's Lamoda screenshots.
       Check: Vitest of applying, a chip's × and "Очистить фильтры" against the URL (AC7, AC10); `qa-tester`

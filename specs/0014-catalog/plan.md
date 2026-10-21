@@ -226,8 +226,8 @@ deactivated between the two reads (a soft 404). Two reads per page view are acce
   - `ui/catalog-browser.tsx` is the client part.
 - **`widgets/catalog-filters`.** The desktop row of chips (O5): `ProductSortFilter` first, then
   0009's filters (their `FilterDropdown` already shows an applied value in black with a ×), then
-  `DiscountFilter`, and the "Очистить фильтры" link while any filter is applied. No `FilterChips`
-  row. The phone drawer (O6).
+  `DiscountFilter`, and the "Очистить фильтры" link while any filter is applied, in the kit's
+  `FilterChips` row; no separate row of chosen values (O5, O83). The phone drawer (O6).
   - The drawer uses the kit's `Drawer` + `Accordion`, with the inner `CheckboxFilter`,
     `PriceFilter` and `SortFilter` in place of the dropdowns.
   - The entity gains `*FilterPanel` variants of each filter, which render the same body without
@@ -265,8 +265,8 @@ stays read only by `apiFetch`, and backlog "Taint the proxy secret" stays open.
   - `prefetch` (`@/shared/api/server`) gains `prefetchInfinite`: the first page only, with the same
     "returns a failure" rule.
 - **Grid.** `useWindowVirtualizer` over rows:
-  - the column count follows the container's width (`ResizeObserver`: 4 from 1024 px, 3 from 768,
-    otherwise 2);
+  - the column count follows the container's width (`ResizeObserver`: 4 from 900 px, 3 from 600,
+    otherwise 2; the category column leaves the grid about 950 px at 1440, O84);
   - the row height is measured (`measureElement`);
   - `overscan: 2` rows.
     When the last virtual row is within 2 rows of the end and `hasNextPage`, it calls

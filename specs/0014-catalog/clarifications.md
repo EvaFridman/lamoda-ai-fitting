@@ -490,3 +490,36 @@ Second round, on the review of `4817711`:
   page's other parameters): `cursor` is left out, so a search from `/catalog?cursor=…` starts at
   its first batch instead of after a product of another list. The alternative weighed: leave it to
   T17. (code-reviewer, owner, T14.)
+
+## Decided at T15
+
+- **O82. A filter change has no place of its own.** Answers O80. A filter, the sort or "Очистить
+  фильтры" replaces the address (`router.replace`, `scroll={false}`), so no history entry is added
+  and Back leaves the catalog. The new address starts at its first batch (`cursor` dropped, as in
+  O81). The page scrolls to the top of the list's column when the visitor is below it, and stays
+  where it is otherwise. The place saved for Back from a product (O77) follows the address, so it
+  is the new selection's. The alternative weighed: keep the scroll as it is, which leaves the
+  visitor in the middle of a new, often shorter list. (owner, T15.)
+- **O83. The page's texts and parts the spec left open.** The empty state says "Ничего не
+  нашлось" and, while a filter or the search is applied, has a "Очистить фильтры" button doing what
+  the row's link does. The row is the kit's `FilterChips`, which moves the focus to the first chip
+  after "Очистить фильтры"; T18 moves it to the `<h1>` instead, which gets `tabIndex={-1}` now. The
+  row shows the sort and "Очистить фильтры" before the filter counts load. The
+  count's noun agrees with the number by a small `shared/lib` helper. (owner, T15.)
+- **O84. Four columns from 900 px of the grid.** Revises plan §3.3 (4 from 1024 px, 3 from 768).
+  The category column takes about 250 px of the 1200 px container, so at 1440 px the grid is about
+  950 px wide, as Lamoda's; with the old steps it showed three cards a row, not AC3's four. Now 4
+  from 900 px, 3 from 600, otherwise 2. The category column shows from a 1024 px window; below it
+  the grid takes the whole width (phones: T16). The alternatives weighed: keep the steps and
+  change AC3; a container wider than the header's 1200 px. (owner, T15.)
+- **O85. `hasDiscount` in the address is read only as `true`.** Revises T13's `url-state`: the
+  page has no "without a discount" choice, so `?hasDiscount=false` narrowed the list to products
+  without a discount while the chip showed off and nothing named it. It is dropped from the state
+  like an invalid value (and stays in the address, as unknown ones do). The alternative weighed: a
+  third state of the discount chip. (code-reviewer, owner, T15.)
+- **O86. The search text in the category links is accepted too.** Extends O78: each row of the
+  category list keeps the address's query, `q` included, in its `href`, which recordings keep; the
+  list gets no `mp-block`. (security-reviewer, owner, T15.)
+- **O87. An empty selection keeps only the chips with values.** With no products the api's counts
+  have no attribute values (only the chosen ones), so the colour and attribute chips leave the row
+  until the selection has products again. Accepted as is. (qa-tester, owner, T15.)

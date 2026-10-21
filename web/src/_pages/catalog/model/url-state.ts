@@ -81,8 +81,10 @@ function price(value: string | undefined): number | undefined {
   return number <= PRODUCT_MAX_PRICE ? number : undefined;
 }
 
-function flag(value: string | undefined): boolean | undefined {
-  return value === 'true' ? true : value === 'false' ? false : undefined;
+// Only `true`: the page has no "without a discount" choice, so `false` would narrow the list with no
+// chip showing it (O85).
+function flag(value: string | undefined): true | undefined {
+  return value === 'true' ? true : undefined;
 }
 
 function sort(value: string | undefined): ProductSort | undefined {
@@ -135,7 +137,8 @@ export function catalogSearch({ query, cursor }: CatalogUrlState): string {
     ['attributeValueId', joined(query.attributeValueId)],
     ['minPrice', encoded(query.minPrice)],
     ['maxPrice', encoded(query.maxPrice)],
-    ['hasDiscount', encoded(query.hasDiscount)],
+    // Only `true`, as it is read (O85).
+    ['hasDiscount', encoded(query.hasDiscount === true ? true : undefined)],
     ['cursor', encoded(cursor || undefined)],
   ];
   const parts = pairs.flatMap(([key, value]) => (value === undefined ? [] : [`${key}=${value}`]));
