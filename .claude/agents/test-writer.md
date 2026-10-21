@@ -28,7 +28,7 @@ database, storage emulator and Temporal of `api/test/database/` (below).
 ## Before writing
 
 Read the code you were given and the existing tests next to it. For api, read `api/vitest.config.ts`
-and one or two existing specs (`api/src/hello/hello.controller.spec.ts`, `api/test/*.e2e-spec.ts`).
+and one or two existing specs (`api/src/me/me.controller.spec.ts`, `api/test/*.e2e-spec.ts`).
 For web, read `web/vitest.config.mts`, `web/vitest.setup.ts` and an existing test
 (`web/src/shared/lib/format-price.test.ts`). Follow their style.
 

@@ -4,6 +4,8 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { emptyCatalogPrisma } from './support/empty-catalog.js';
+
 // PROXY_SECRET_NEXT (spec 0006 F21) goes through the real configuration: ConfigModule validates the
 // process environment when the module is imported, so each app is booted from freshly imported
 // modules after the variables are stubbed. Five reads per route come from vitest.config.ts.
@@ -20,7 +22,11 @@ describe('proxy secret rotation (e2e)', () => {
     for (const [name, value] of Object.entries(env)) vi.stubEnv(name, value);
     const { AppModule } = await import('../src/app.module.js');
     const { createHttpApp } = await import('../src/common/http/http-app.js');
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    const { PrismaService } = await import('../src/prisma/prisma.service.js');
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(PrismaService)
+      .useValue(emptyCatalogPrisma())
+      .compile();
     app = await createHttpApp(
       (adapter, options) =>
         moduleRef.createNestApplication<NestExpressApplication>(adapter, options),
@@ -40,7 +46,10 @@ describe('proxy secret rotation (e2e)', () => {
   });
 
   async function requestId(headers: Record<string, string>): Promise<string> {
-    const response = await request(app?.getHttpServer()).get('/hello').set(headers).expect(200);
+    const response = await request(app?.getHttpServer())
+      .get('/categories')
+      .set(headers)
+      .expect(200);
     return response.headers['x-request-id'] as string;
   }
 
@@ -49,7 +58,7 @@ describe('proxy secret rotation (e2e)', () => {
     const result: number[] = [];
     for (let i = 0; i < 6; i += 1) {
       const response = await request(app?.getHttpServer())
-        .get('/hello')
+        .get('/categories')
         .set({ 'X-Proxy-Secret': secret, 'X-Forwarded-For': `203.0.113.${i + 1}` });
       result.push(response.status);
     }

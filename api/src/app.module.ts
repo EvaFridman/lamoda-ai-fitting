@@ -13,7 +13,6 @@ import { AppExceptionFilter } from './common/filters/app-exception.filter.js';
 import { CoreModule } from './core/core.module.js';
 import { FittingSessionsModule } from './fitting-sessions/fitting-sessions.module.js';
 import { HealthModule } from './health/health.module.js';
-import { HelloModule } from './hello/hello.module.js';
 import { MeModule } from './me/me.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { ProductsModule } from './products/products.module.js';
@@ -44,7 +43,6 @@ import { UsersModule } from './users/users.module.js';
     ThrottlingModule,
     RealtimeModule,
     HealthModule,
-    HelloModule,
     CategoriesModule,
     BrandsModule,
     AttributesModule,

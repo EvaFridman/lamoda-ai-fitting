@@ -313,7 +313,7 @@ services:
         - CMD
         - node
         - -e
-        - "fetch('http://127.0.0.1:3001/').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+        - "fetch('http://127.0.0.1:3001/healthz').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
       interval: 10s
       # next dev compiles a page on its first request.
       timeout: 30s

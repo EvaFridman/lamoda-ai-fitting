@@ -8,8 +8,8 @@ Swagger and Sentry by `0004-crud-api`; parallel CI jobs and tests, publishing im
 `main` and faster health checks by `0005-faster-ci`; access closed by default, quota tiers, the
 client address and request id, body, timeout and socket limits, and nginx's limits and security
 headers by `0006-api-guards`; web's data layer (server and browser api clients, typed catalog
-entities, Russian error texts, Sentry reports, the OpenAPI contract check, the browser bundle check,
-page `/dev/catalog`) by `0007-web-data-layer`; Mixpanel analytics behind a cookie consent banner,
+entities, Russian error texts, Sentry reports, the OpenAPI contract check, the browser bundle check)
+by `0007-web-data-layer`; Mixpanel analytics behind a cookie consent banner,
 the page `/privacy` and Lamoda's footer by `0008-web-analytics`; attribute values' swatch colour,
 the catalog product card, filters and category list, and their sections on `/ui-kit` by
 `0009-entity-ui`; Lamoda's header by `0010-web-header`; the S3 bucket, the catalog photos served
@@ -275,7 +275,7 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
 - `api` access is closed by default: the global `AccessGuard` (`common/auth/`) answers 401
   `UNAUTHORIZED` on a route that carries none of `@Public()`, `@SignedIn()` and `@Closed()` (per
   controller or route; a route's marker overrides its controller's). `@Public()` serves anyone, a
-  broken or expired session cookie too (catalog reads, `/health/*`, hello, the socket gateway);
+  broken or expired session cookie too (catalog reads, `/health/*`, the socket gateway);
   `@SignedIn()` lets through the principal `user` (`/me`, the user's own fitting sessions and
   generations: someone else's row answers 404, as a missing one, spec 0013 N8); `@Closed()`
   answers 401 to everyone (catalog writes, other users' routes, writing generations) and stays for
@@ -447,9 +447,6 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   `ColorSwatch`, and an attribute with at least one coloured value is a colour filter
   (`splitFacetAttributes`). The seed never changes existing rows, so a colour of an existing seed
   value is changed by a migration.
-- `/dev/catalog` (`_pages/dev-catalog`) shows the data layer at work; like `/ui-kit` it is
-  `noindex`, linked from nowhere and shows only the public catalog. The catalog page spec removes
-  it.
 - `web` analytics (Mixpanel, spec 0008) go only through `@/shared/analytics`: `track` and
   `useTrackedElement` (a click, and a hover of 500 ms once per element, for an element with
   properties per set of their values, per page view; a page view

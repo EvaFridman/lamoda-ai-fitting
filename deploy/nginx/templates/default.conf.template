@@ -207,7 +207,7 @@ server {
     error_page 502 504 =503 @api_unavailable;
   }
 
-  # The api without its /api prefix: /api/hello → /hello. Liveness above has its own zone, so the
+  # The api without its /api prefix: /api/categories → /categories. Liveness above has its own zone, so the
   # deploy's request loop is never refused.
   location /api/ {
     limit_req zone=edge_api burst=40 nodelay;

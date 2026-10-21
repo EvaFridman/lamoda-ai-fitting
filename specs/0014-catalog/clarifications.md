@@ -399,3 +399,20 @@ Second round, on the review of `4817711`:
   production, also wants `/catalog/dresses` to show "Платья" from the api: otherwise a web that
   cannot reach the api would pass. T13 revisits these steps once `/catalog` shows products from the
   api. (code-reviewer, owner, T11.)
+
+## Decided at T12
+
+- **O70. web's health check moves to `/healthz` over two releases.** A rollback takes `deploy/`
+  from `main`, so an image from before PR 3, which has no `/healthz`, would be checked on it, answer
+  404 and never become healthy: the rollback most likely to be needed, right after PR 3, would fail.
+  So in `deploy/compose/app.yml` a 404 from `/healthz` is checked again on `/`, which such an image
+  serves with 200. New images always answer `/healthz`. T23 (PR 4) removes the fallback; it may
+  mask a lost `/healthz` meanwhile (`/` redirects to `/catalog`, 200). `docker-compose.yml` checks
+  `/healthz` only: a local copy runs its own branch's file. Such a rollback still ends with CD's
+  smoke step failing: `smoke-test.sh` comes from `main` and wants T11's redirect and
+  `/catalog/dresses` (O69). The smoke test stays strict, as CD's only check of production;
+  `deploy/README.md` ("Откат") says the switch happened and how to confirm it by the version of
+  `/api/health/live`. T23, removing the fallback, updates that paragraph. The alternative the
+  owner weighed and rejected: accept that no rollback past PR 3 is possible and say so in `deploy/README.md`; no code,
+  but a broken PR 3 would be left by a revert through CI and CD, or by hand on the server.
+  (code-reviewer, owner, T12.)

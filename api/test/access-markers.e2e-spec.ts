@@ -110,7 +110,6 @@ const PUBLIC_HANDLERS = [
   'CategoriesController.list',
   'HealthController.live',
   'HealthController.ready',
-  'HelloController.get',
   'ProductAttributeValuesController.get',
   'ProductAttributeValuesController.list',
   'ProductImagesController.get',

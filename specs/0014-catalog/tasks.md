@@ -146,7 +146,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Check: `curl -I` locally: `/` → 307 `/catalog`, `/catalog` → 200, unknown and inactive slugs →
       404 (AC1, AC2), `/healthz` → 200 with the api stopped; `npm run verify`.
       Commit: `feat(web): add the catalog routes`
-- [ ] **T12. The greeting and the dev page go.** Removals of plan §3.2 in web and api, with the
+- [x] **T12. The greeting and the dev page go.** Removals of plan §3.2 in web and api, with the
       Temporal `hello` workflow (O33); the e2e and `ci-deploy-check.sh` use `GET /categories`;
       the web health check (O34, plan §3.7); `openapi.json`;
       the nginx comment; the docs and `.claude/` files of plan §3.7, `CLAUDE.md`; backlog "Remove
@@ -198,7 +198,11 @@ verify`; `check:web-bundle` still passes.
       local Lighthouse Accessibility run (AC23, part); `npm run verify`.
       Commit: `feat(web): make the catalog readable by screen readers`
 - [ ] **T19. SEO.** `generateMetadata`, canonical and `noindex`, Open Graph and Twitter, the image,
-      JSON-LD, `sitemap.ts`, `robots.ts` (plan §3.5).
+      JSON-LD, `sitemap.ts`, `robots.ts` (plan §3.5). `next dev` logs "uncached data in
+      generateMetadata()" (blocking-prerender-metadata-dynamic) for `/catalog`, from T11's
+      `await connection()` in `generateCatalogMetadata`, though the answer is 200 (seen at T12):
+      find on `next build` + `next start` whether the title is in `<head>` of the first bytes, and
+      fix it.
       Check: Vitest of the metadata per address, the JSON-LD (escaped `<`), the sitemap with a failed
       api and `robots.ts` (AC19, AC20); a local Lighthouse SEO run; `npm run verify`; the web image
       builds with no services running (AC24).
@@ -224,7 +228,9 @@ verify`; `check:web-bundle` still passes.
       Commit: `feat(deploy): measure the page requests of one visit`
 - 👤 makes the visit and runs the script on the server; the numbers go into T23.
 - [ ] **T23. Rate limit for pages and media.** The `edge_pages` and `edge_media` zones from the
-      measurement, `/_next/static/` and `location = /healthz` (plan §5, O39);
+      measurement, `/_next/static/` and `location = /healthz` (plan §5, O39); the fallback to `/`
+      in `deploy/compose/app.yml`'s web health check goes, and `deploy/README.md`'s paragraph on
+      a rollback before PR 3 then says such a rollback no longer becomes healthy (O70);
       `ci-deploy-check.sh`'s connection test on `/_next/static/`; `deploy/README.md` "Лимиты nginx";
       backlog "Rate limit for web pages".
       Check: `ci-deploy-check.sh` in CI: a flood of `/catalog` and of `/media/` → 429 in the api's

@@ -365,7 +365,8 @@ description and frequency per visit (0015 R9).
 - The comment in `deploy/nginx/templates/default.conf.template` that names `/api/hello` changes to
   `/api/categories`.
 - Backlog "Retry policy of `hello`" is removed: the workflow is gone.
-- `deploy/compose/app.yml` web health check: `http://127.0.0.1:3001/healthz`.
+- `deploy/compose/app.yml` web health check: `http://127.0.0.1:3001/healthz`, and on its 404 `/`,
+  so a rollback to an image from before PR 3 becomes healthy; T23 removes the fallback (O70).
 - The api e2e that use `/hello` switch to `GET /categories`:
   - `throttling-tiers`;
   - `request-context`, `request-context-rotation`;

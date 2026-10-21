@@ -17,21 +17,21 @@ FSD layers carry an underscore here.
 | pages    | `web/src/_pages/`   | One slice per page: composes widgets and features                        | yes    |
 | widgets  | `web/src/widgets/`  | Self-contained blocks of a page (header, footer, look gallery)           | yes    |
 | features | `web/src/features/` | User actions that bring value (try on a look, upload a photo)            | yes    |
-| entities | `web/src/entities/` | Business things and their data (greeting, look, product, user)           | yes    |
+| entities | `web/src/entities/` | Business things and their data (category, look, product, user)           | yes    |
 | shared   | `web/src/shared/`   | Code with no business meaning: api client, config, ui kit, lib           | no     |
 
 ## Import rules
 
 - **Only downward:** a module imports only from layers below its own:
   `_app → _pages → widgets → features → entities → shared`. `web/app/` (routing) may import from
-  any layer, but holds no logic: a route re-exports a page (`export { HomePage as default } from
-'@/_pages/home'`), a layout composes providers and widgets.
+  any layer, but holds no logic: a route re-exports a page (`export { PrivacyPage as default } from
+'@/_pages/privacy'`), a layout composes providers and widgets.
 - **No imports between slices of the same layer** (`features/a` must not import `features/b`). Lift
   shared logic to a lower layer, or compose both slices in the layer above. The one exception:
   entities may reference each other through an explicit cross-import API, `entities/a/@x/b.ts`,
   imported as `@/entities/a/@x/b` only by entity `b`.
 - **Through the public API only:** other layers import a slice from its `index.ts`
-  (`@/widgets/greeting`), never from inside it (`@/widgets/greeting/ui/greeting`). `shared`
+  (`@/widgets/header`), never from inside it (`@/widgets/header/ui/header`). `shared`
   segments have their own `index.ts` (`@/shared/api`).
 - **Server-only exports go through `server.ts`:** a slice or `shared` segment may have a
   `server.ts` next to its `index.ts`, a second public entry that starts with `import 'server-only'`
@@ -43,7 +43,7 @@ FSD layers carry an underscore here.
   imports) never imports a `server.ts`. `server.ts`, and what it re-exports, holds no
   `'use server'`: server actions would be public endpoints and need their own decision. No entries
   besides these two and the `@x` cross-imports: any other file is still inside the slice.
-- **Inside a slice, relative imports** (`./ui/home-page`); between layers, the `@/` alias.
+- **Inside a slice, relative imports** (`./ui/catalog-page`); between layers, the `@/` alias.
 
 ## Segments inside a slice
 
@@ -59,10 +59,10 @@ Name segments by purpose, not by kind of file: no `components/`, `hooks/`, `type
 
 - Data from the api is fetched on the server through `apiFetch` (`@/shared/api/server`) with a
   path from `buildPath` (`@/shared/api`) and a zod schema, in an entity's `api/` segment, marked
-  `import 'server-only'` and exported from the slice's `server.ts` (see `entities/greeting`). A direct
+  `import 'server-only'` and exported from the slice's `server.ts` (see `entities/category`). A direct
   `fetch` to the api would put all visitors into one rate limit (CLAUDE.md, "Conventions").
 - A widget that renders api data per request calls `connection()` and sits inside `<Suspense>` in
-  the page, so `next build` needs no api (see `widgets/greeting`, `_pages/home`).
+  its parent, so `next build` needs no api (see `widgets/header`'s `header-categories.tsx`).
 - Server-only modules import `server-only`; the infrastructure ones (env, Redis, api client) live in
   `shared`. Their exports leave a segment or slice through its `server.ts`, never its `index.ts`.
 - Text the user sees is Russian.

@@ -8,6 +8,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppModule } from '../src/app.module.js';
 import { AppExceptionFilter } from '../src/common/filters/app-exception.filter.js';
 import { createHttpApp } from '../src/common/http/http-app.js';
+import { PrismaService } from '../src/prisma/prisma.service.js';
+import { emptyCatalogPrisma } from './support/empty-catalog.js';
 
 // vitest.config.ts: PROXY_SECRET and five reads per route. Each test boots its own app, so the
 // in-memory request counters (Redis is down) start empty. Set up like src/server.ts.
@@ -22,6 +24,8 @@ describe('request context (e2e)', () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(getLoggerToken(AppExceptionFilter.name))
       .useValue(logger)
+      .overrideProvider(PrismaService)
+      .useValue(emptyCatalogPrisma())
       .compile();
     app = await createHttpApp(
       (adapter, options) =>
@@ -39,7 +43,7 @@ describe('request context (e2e)', () => {
     async function statuses(headers: (i: number) => Record<string, string>): Promise<number[]> {
       const result: number[] = [];
       for (let i = 0; i < 6; i += 1) {
-        result.push((await request(app.getHttpServer()).get('/hello').set(headers(i))).status);
+        result.push((await request(app.getHttpServer()).get('/categories').set(headers(i))).status);
       }
       return result;
     }
@@ -81,11 +85,11 @@ describe('request context (e2e)', () => {
   describe('429 and an empty session cookie', () => {
     it('carries X-Request-Id on a 429, and a new forwarded address still gets 429 without the secret', async () => {
       for (let i = 0; i < 5; i += 1) {
-        await request(app.getHttpServer()).get('/hello').expect(200);
+        await request(app.getHttpServer()).get('/categories').expect(200);
       }
 
       const response = await request(app.getHttpServer())
-        .get('/hello')
+        .get('/categories')
         .set('X-Forwarded-For', '203.0.113.200')
         .expect(429);
 
@@ -93,7 +97,7 @@ describe('request context (e2e)', () => {
     });
 
     it('serves a public route with an empty Cookie header', async () => {
-      await request(app.getHttpServer()).get('/hello').set('Cookie', '').expect(200);
+      await request(app.getHttpServer()).get('/categories').set('Cookie', '').expect(200);
     });
 
     it('answers 401 on a @SignedIn() route with a Cookie header that holds no session', async () => {
@@ -145,7 +149,7 @@ describe('request context (e2e)', () => {
       const sent = 'a1b2c3d4e5f60718293a4b5c6d7e8f90';
 
       const response = await request(app.getHttpServer())
-        .get('/hello')
+        .get('/categories')
         .set('X-Request-Id', sent)
         .expect(200);
 
