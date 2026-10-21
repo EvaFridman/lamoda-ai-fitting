@@ -476,8 +476,8 @@ describe('SeedService on a throwaway database', () => {
   it('creates no reference row that no missing product uses (C16b)', async () => {
     const catalog = {
       categories: [
-        { name: 'Custom category', slug: 'custom-category', sortOrder: 0 },
-        { name: 'Unused category', slug: 'unused-category', sortOrder: 1 },
+        { name: 'Custom category', slug: 'custom-category', sortOrder: 0, slot: null },
+        { name: 'Unused category', slug: 'unused-category', sortOrder: 1, slot: null },
       ],
       brands: ['Custom brand', 'Unused brand'],
       attributes: [{ name: 'Custom attribute', values: [{ value: 'used' }, { value: 'unused' }] }],

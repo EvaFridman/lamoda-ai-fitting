@@ -26,6 +26,7 @@ function category(id: string, name: string, sortOrder: number): Category {
     isActive: true,
     description: null,
     sortOrder,
+    slot: null,
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
   };

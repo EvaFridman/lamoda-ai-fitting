@@ -6405,6 +6405,16 @@
       }
     },
     "schemas": {
+      "OutfitSlot": {
+        "type": "string",
+        "enum": [
+          "top",
+          "bottom",
+          "outerwear",
+          "shoes",
+          "accessory"
+        ]
+      },
       "CategoryResponseDto": {
         "type": "object",
         "properties": {
@@ -6431,6 +6441,14 @@
             "type": "number",
             "minimum": 0
           },
+          "slot": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OutfitSlot"
+              }
+            ]
+          },
           "createdAt": {
             "format": "date-time",
             "type": "string"
@@ -6447,6 +6465,7 @@
           "isActive",
           "description",
           "sortOrder",
+          "slot",
           "createdAt",
           "updatedAt"
         ]

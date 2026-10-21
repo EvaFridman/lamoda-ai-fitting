@@ -6,13 +6,18 @@
 // Likewise a photo replaced under the same key never reaches a bucket that has it (the seed writes
 // only missing objects, spec 0011 AC6): give it a new key, or replace the object by hand.
 
+import type { OutfitSlot } from '../generated/prisma/enums.js';
+
 export type GarmentKind =
   'dress' | 'jeans' | 'jacket' | 'coat' | 't-shirt' | 'hoodie' | 'sneakers' | 'boots';
 
+// `slot` is set only for a new row; the migration 20261021120000_fitting_photos gave the same slots
+// to the rows loaded before it (spec 0019 A18).
 export interface SeedCategory {
   name: string;
   slug: string;
   sortOrder: number;
+  slot: OutfitSlot | null;
 }
 
 // `colorHex` is written only with a new value; an existing row keeps its own (spec 0009, K12).
@@ -112,12 +117,12 @@ function product(row: ProductRow): SeedProduct {
 
 export const CATALOG: SeedCatalog = {
   categories: [
-    { name: 'Платья', slug: 'dresses', sortOrder: 0 },
-    { name: 'Джинсы', slug: 'jeans', sortOrder: 1 },
-    { name: 'Верхняя одежда', slug: 'outerwear', sortOrder: 2 },
-    { name: 'Футболки', slug: 't-shirts', sortOrder: 3 },
-    { name: 'Толстовки и худи', slug: 'hoodies', sortOrder: 4 },
-    { name: 'Обувь', slug: 'shoes', sortOrder: 5 },
+    { name: 'Платья', slug: 'dresses', sortOrder: 0, slot: 'top' },
+    { name: 'Джинсы', slug: 'jeans', sortOrder: 1, slot: 'bottom' },
+    { name: 'Верхняя одежда', slug: 'outerwear', sortOrder: 2, slot: 'outerwear' },
+    { name: 'Футболки', slug: 't-shirts', sortOrder: 3, slot: 'top' },
+    { name: 'Толстовки и худи', slug: 'hoodies', sortOrder: 4, slot: 'top' },
+    { name: 'Обувь', slug: 'shoes', sortOrder: 5, slot: 'shoes' },
   ],
   brands: ['Lumora', 'Tervana', 'Brisko', 'Vellmar', 'Ostrova'],
   attributes: [
