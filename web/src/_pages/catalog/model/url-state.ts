@@ -15,7 +15,7 @@ export type CatalogQuery = Omit<ProductBatchQuery, 'categoryId' | 'limit'>;
 
 export interface CatalogUrlState {
   query: CatalogQuery;
-  // The batch to start from (`?cursor=`, rendered by T14; a refused one shows the first, O72).
+  // The batch to start from (`?cursor=`, O29; a refused one shows the first, O72).
   cursor?: string;
 }
 

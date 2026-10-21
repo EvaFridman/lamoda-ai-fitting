@@ -14,6 +14,7 @@ export {
   useProducts,
   useProductVariations,
 } from './api/queries';
+export { isRefusedCursor } from './lib/cursor';
 export { chipValue, splitFacetAttributes } from './lib/facets';
 export { compareSizes, sortSizes } from './lib/sizes';
 export { PRODUCT_SORT_ORDER, productSortLabels } from './lib/sorts';

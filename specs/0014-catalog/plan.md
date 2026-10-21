@@ -253,9 +253,10 @@ stays read only by `apiFetch`, and backlog "Taint the proxy secret" stays open.
   newest release that is at least a few days old when it installs. The peer is React ≥16.8, and it
   has one dependency (`@tanstack/virtual-core`).
 - **Data.**
-  - `productInfiniteOptions(query)` uses `infiniteQueryOptions`:
-    - the key is `['products', 'infinite', productListQuery(query)]`;
-    - `initialPageParam: null`;
+  - `productInfiniteOptions(query, start)` uses `infiniteQueryOptions`:
+    - the key is `['products', 'infinite', productListQuery(query), start]`: a list from another
+      start (`?cursor=`, O29) is another cache entry;
+    - `initialPageParam: start` (`null` for the first batch);
     - `getNextPageParam: (last) => last.nextCursor`.
       It lives in `entities/product/api/queries.ts`, with a server twin in `server-queries.ts`.
   - `productListSchema` gains `nextCursor` and a nullable `total`, and the contract test follows the
@@ -275,12 +276,15 @@ stays read only by `apiFetch`, and backlog "Taint the proxy secret" stays open.
   - `?cursor=<c>` renders the batch after `c` as the first batch.
   - Under the list, `<a href="?…&cursor=<next>" rel="next">Дальше</a>` is visible without JS. With
     JS it is visually hidden, but it stays in the DOM and in the tab order last.
-- **Back to the place (O12).**
+- **Back to the place (O12, O77).**
   - The query cache keeps the loaded pages: `gcTime` stays at the default 5 min, `staleTime` at
     60 s.
-  - Before leaving, the scroll offset is written to `sessionStorage` (`catalog-scroll:<path+query>`,
-    wrapped in try/catch).
-  - On return, `initialOffset` and `scrollToOffset` restore it, after the cached pages render.
+  - A client-side Back or Forward shows the list Next kept hidden, and the browser restores the
+    scroll itself.
+  - While scrolling, the offset, a measured row's height and the count loaded are written to
+    `sessionStorage` (`catalog-scroll:<path+query>`, wrapped in try/catch).
+  - When the catalog loads as a new document by Back or Forward, the grid loads as many batches as
+    before (at most 600 products), then `scrollToOffset` restores the offset.
   - Next's own scroll restoration is turned off for this page only (`scroll={false}` on the
     filters' `router.replace`).
 
