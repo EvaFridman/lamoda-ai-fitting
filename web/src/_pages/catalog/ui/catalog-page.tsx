@@ -112,11 +112,10 @@ async function CatalogProducts({ title, state, categoryId }: CatalogProductsProp
   }
   if (failure !== undefined) reportFailure(failure);
   // Only what loaded is dehydrated (TanStack skips failed queries). Next keeps the page mounted
-  // when only the query changes, so another start is another list (and grid), by its key.
+  // when only the query changes; the browser starts another list (and grid) for another start.
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
       <CatalogBrowser
-        key={start ?? ''}
         title={title}
         query={query}
         categoryId={categoryId}

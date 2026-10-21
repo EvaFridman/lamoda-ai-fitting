@@ -10,12 +10,19 @@ export interface FilterChipsProps {
   children: ReactNode;
   // Given, "Очистить фильтры" follows the chips and calls it; pass it while a filter is applied.
   onClearAll?: () => void;
+  // Given, it moves the focus after "Очистить фильтры" in place of the first chip.
+  focusAfterClearAll?: () => void;
   className?: string;
 }
 
 // The row of filter chips, wrapping with 8px gaps, as above Lamoda's catalog. "Очистить фильтры"
 // looks like a link but is a button: it acts on the page and goes nowhere.
-export function FilterChips({ children, onClearAll, className }: FilterChipsProps) {
+export function FilterChips({
+  children,
+  onClearAll,
+  focusAfterClearAll,
+  className,
+}: FilterChipsProps) {
   const rowRef = useRef<HTMLDivElement>(null);
 
   return (
@@ -26,8 +33,10 @@ export function FilterChips({ children, onClearAll, className }: FilterChipsProp
           className={styles.clearAll}
           onClick={() => {
             onClearAll();
-            // The button goes away once nothing is applied: the focus moves to the first chip.
-            rowRef.current?.querySelector('button')?.focus();
+            // The button goes away once nothing is applied: the focus moves to the first chip,
+            // unless the page moves it elsewhere.
+            if (focusAfterClearAll) focusAfterClearAll();
+            else rowRef.current?.querySelector('button')?.focus();
           }}
         >
           Очистить фильтры

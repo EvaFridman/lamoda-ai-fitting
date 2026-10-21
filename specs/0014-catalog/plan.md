@@ -6,7 +6,8 @@ amended 2026-10-19 at the review of PR 1 (O40–O48; the article test inside `to
 the price indexes, §2.2, §2.4) and its second round (the cursor conditions' index bounds, §2.3;
 the count from the facets, O49, §3.3, §3.4) and its third round (the rating cursor in two
 branches, §2.3; `aria-setsize` bounded by the loaded cards, §3.4); amended 2026-10-21 at T13a (the
-taint deferred, O76, §3.2, §8).
+taint deferred, O76, §3.2, §8) and at T18 (focus after clearing, two live regions, O90, O91,
+§3.4).
 
 How `spec.md` (AC1–AC24) is built. Decisions: `clarifications.md` (O1–O69; §3.1 and §3.7 amended
 at T11 by O65–O69).
@@ -295,10 +296,13 @@ stays read only by `apiFetch`, and backlog "Taint the proxy secret" stays open.
   There is one `<h1>`: the category name or "Каталог".
 - The grid is `<ul aria-label="Товары">`, each card in an `<li aria-setsize={max(facets.total, loaded)} aria-posinset={i+1}>` (O49). The cached count can lag behind the live list for the cache's lifetime; the `max` keeps a position from exceeding the size.
   The rows are positioned with `transform`, so the reading order is the DOM order.
-- A visually hidden `<p aria-live="polite">` says "Найдено N товаров" after a change, and "Загружаем
-  ещё" while a batch loads.
-- Applying a filter does not move focus. After "Очистить фильтры" or a chip's ×, which remove the
-  focused element, focus goes to the `<h1>` (`tabIndex={-1}`). A batch load never steals focus.
+- A visually hidden `<p aria-live="polite">` says "Найдено N товаров" after a change, and another
+  says "Загружаем ещё" while a batch loads (two, so a batch loading right after a change cannot
+  replace the count before it is read; T18).
+- Applying a filter does not move focus. After "Очистить фильтры" (the desktop row's and the empty
+  state's), which removes the focused element, focus goes to the `<h1>` (`tabIndex={-1}`). A chip's
+  × keeps it on the chip (O91); the phone drawer's "Очистить фильтры" keeps it on "Показать" (O90).
+  A batch load never steals focus.
 - Keyboard: the kit's dropdowns, drawer and accordion (Base UI) already handle it. The chips' ×
   and "Очистить фильтры" are buttons.
 - The check: the Lighthouse a11y audit, plus a Testing Library test of the roles, names and the

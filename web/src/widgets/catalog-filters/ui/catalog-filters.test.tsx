@@ -246,6 +246,65 @@ describe('CatalogFilters', () => {
     });
   });
 
+  describe('focus after clearing', () => {
+    it('is handed to the page after the row\'s "Очистить фильтры"', async () => {
+      const onChange = vi.fn();
+      const focusAfterClear = vi.fn();
+      render(
+        wrap(
+          <CatalogFilters
+            facets={facets}
+            value={{ q: 'a' }}
+            onChange={onChange}
+            focusAfterClear={focusAfterClear}
+          />,
+        ),
+      );
+      await userEvent.setup().click(screen.getByRole('button', { name: 'Очистить фильтры' }));
+      expect(onChange).toHaveBeenCalledWith({});
+      expect(focusAfterClear).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole('button', { name: 'Новинки' })).not.toHaveFocus();
+    });
+
+    it("is not asked for by an applied chip's ×, which keeps the focus", async () => {
+      const onChange = vi.fn();
+      const focusAfterClear = vi.fn();
+      render(
+        wrap(
+          <CatalogFilters
+            facets={facets}
+            value={{ brandId: [BRAND_NIKE] }}
+            onChange={onChange}
+            focusAfterClear={focusAfterClear}
+          />,
+        ),
+      );
+      const remove = screen.getByRole('button', { name: 'Сбросить «Бренд»' });
+      await userEvent.setup().click(remove);
+      expect(onChange).toHaveBeenCalledTimes(1);
+      expect(focusAfterClear).not.toHaveBeenCalled();
+      expect(screen.getByRole('button', { name: /^Бренд/ })).toHaveFocus();
+    });
+
+    it('is not asked for by applying a filter', async () => {
+      const onChange = vi.fn();
+      const focusAfterClear = vi.fn();
+      render(
+        wrap(
+          <CatalogFilters
+            facets={facets}
+            value={{}}
+            onChange={onChange}
+            focusAfterClear={focusAfterClear}
+          />,
+        ),
+      );
+      await userEvent.setup().click(screen.getByRole('button', { name: 'Только со скидкой' }));
+      expect(onChange).toHaveBeenCalledWith({ hasDiscount: true });
+      expect(focusAfterClear).not.toHaveBeenCalled();
+    });
+  });
+
   describe('"Очистить фильтры"', () => {
     it('is not shown with nothing applied', () => {
       setup();

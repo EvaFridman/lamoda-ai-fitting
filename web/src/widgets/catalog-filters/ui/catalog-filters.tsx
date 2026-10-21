@@ -37,15 +37,18 @@ export interface CatalogFiltersProps {
   onChange: (value: CatalogFilterValue) => void;
   // The page's category, within which the phone drawer counts its draft.
   categoryId?: string;
+  // Moves the focus after the row's "Очистить фильтры" (the page's heading, plan §3.4); the drawer
+  // keeps its own on "Показать" (O90).
+  focusAfterClear?: () => void;
   className?: string;
 }
 
 // The filters above the list: the desktop row of chips and, below a 1024px window, the phone
 // drawer in its place (O6, O88).
-export function CatalogFilters({ className, ...filters }: CatalogFiltersProps) {
+export function CatalogFilters({ className, focusAfterClear, ...filters }: CatalogFiltersProps) {
   return (
     <div className={className}>
-      <FilterRow {...filters} />
+      <FilterRow {...filters} focusAfterClear={focusAfterClear} />
       <div className={styles.phone}>
         <CatalogFiltersDrawer {...filters} />
       </div>
@@ -56,13 +59,19 @@ export function CatalogFilters({ className, ...filters }: CatalogFiltersProps) {
 // The desktop row of chips (O5): the sort, then the filters in 0009's order, then "Только со
 // скидкой", and "Очистить фильтры" while a filter or the search is applied. An applied filter is
 // its own black chip with its value and a ×; there is no separate row of chosen values.
-function FilterRow({ facets, value, onChange }: Omit<CatalogFiltersProps, 'className'>) {
+function FilterRow({
+  facets,
+  value,
+  onChange,
+  focusAfterClear,
+}: Omit<CatalogFiltersProps, 'className'>) {
   const change = (patch: Partial<CatalogFilterValue>) => onChange({ ...value, ...patch });
 
   return (
     <FilterChips
       className={styles.row}
       onClearAll={hasAppliedFilters(value) ? () => onChange(clearFilters(value)) : undefined}
+      focusAfterClearAll={focusAfterClear}
     >
       <ProductSortFilter
         value={value.sort ?? defaultProductSort}
@@ -80,7 +89,7 @@ function FacetFilters({
   facets,
   value,
   onChange,
-}: Required<Omit<CatalogFiltersProps, 'className' | 'categoryId'>>) {
+}: Required<Omit<CatalogFiltersProps, 'className' | 'categoryId' | 'focusAfterClear'>>) {
   const { colours, others } = splitFacetAttributes(facets.attributes);
   const change = (patch: Partial<CatalogFilterValue>) => onChange({ ...value, ...patch });
 

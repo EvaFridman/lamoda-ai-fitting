@@ -10,7 +10,8 @@ import { CatalogFilters, clearFilters, hasAppliedFilters } from '@/widgets/catal
 import { ProductGrid } from '@/widgets/product-grid';
 
 import { catalogCategoriesQuery, categoryRows } from '../model/categories';
-import { type CatalogQuery, catalogSearch } from '../model/url-state';
+import { productCount } from '../lib/product-count';
+import { type CatalogQuery, catalogSearch, parseCatalogUrl } from '../model/url-state';
 import { CatalogEmpty } from './catalog-empty';
 import { CatalogHeading } from './catalog-heading';
 
@@ -44,12 +45,31 @@ export function CatalogBrowser({
   const router = useRouter();
   const pathname = usePathname();
   const columnRef = useRef<HTMLDivElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
   const batchQuery = categoryId === undefined ? query : { ...query, categoryId: [categoryId] };
   const [from, setFrom] = useState(start ?? null);
-  const { data, error, hasNextPage, isFetching, isFetchNextPageError, fetchNextPage } =
-    useProductBatches(batchQuery, from);
+  // Another start (a selection made on a batch page leaves its cursor) is another list, from that
+  // start, and another grid (its key). The rest of the page stays mounted, so the heading, the live
+  // regions and the focused chip go on as on a first page.
+  const [shownStart, setShownStart] = useState(start);
+  if (start !== shownStart) {
+    setShownStart(start);
+    setFrom(start ?? null);
+  }
+  const {
+    data,
+    error,
+    hasNextPage,
+    isFetching,
+    isFetchingNextPage,
+    isFetchNextPageError,
+    fetchNextPage,
+  } = useProductBatches(batchQuery, from);
   const facets = useProductFacets(batchQuery);
   const categories = useCategories(catalogCategoriesQuery);
+  // The address of the visitor's last change, which the live region's count is read for (plan
+  // §3.4): nothing on load, and not the old selection's count before the address changes.
+  const [foundFor, setFoundFor] = useState<string | null>(null);
 
   // A start cursor the api refused in the browser's own request (the server's failed first): the
   // first batch instead, as on the server (O72). A refused next cursor keeps the loaded batches.
@@ -68,8 +88,16 @@ export function CatalogBrowser({
       const top = column.getBoundingClientRect().top + window.scrollY;
       if (window.scrollY > top) window.scrollTo({ top });
     }
-    router.replace(`${pathname}${catalogSearch({ query: next })}`, { scroll: false });
+    const search = catalogSearch({ query: next });
+    // As the address will read back: the page's `query` is parsed from it, which drops what the
+    // parser refuses.
+    setFoundFor(catalogSearch(parseCatalogUrl(new URLSearchParams(search))));
+    router.replace(`${pathname}${search}`, { scroll: false });
   };
+
+  // "Очистить фильтры" goes away with the filters: the focus moves to the heading (plan §3.4),
+  // without scrolling past the list's column (O82).
+  const focusHeading = () => headingRef.current?.focus({ preventScroll: true });
 
   const { rows, slugs } = categoryRows(
     facets.data ?? { categories: [] },
@@ -78,7 +106,15 @@ export function CatalogBrowser({
 
   return (
     <>
-      <CatalogHeading title={title} total={facets.data?.total} />
+      <CatalogHeading ref={headingRef} title={title} total={facets.data?.total} />
+      {/* Two live regions, so a batch loading right after a change cannot replace the count
+          before it is read. */}
+      <p className={styles.status} aria-live="polite">
+        {foundText()}
+      </p>
+      <p className={styles.status} aria-live="polite">
+        {isFetchingNextPage ? 'Загружаем ещё' : ''}
+      </p>
       <div className={styles.layout}>
         <aside aria-label="Категории" className={styles.aside}>
           <CatalogCategoryList
@@ -97,12 +133,22 @@ export function CatalogBrowser({
             value={query}
             onChange={select}
             categoryId={categoryId}
+            focusAfterClear={focusHeading}
           />
           {renderList()}
         </div>
       </div>
     </>
   );
+
+  // The new selection's count once it loads; empty while it loads, so the count itself is read.
+  // It stays as it is while batches load, so it is not read again after each.
+  function foundText() {
+    if (foundFor === catalogSearch({ query }) && facets.data !== undefined) {
+      return `Найдено ${productCount(facets.data.total)}`;
+    }
+    return '';
+  }
 
   function renderList() {
     if (data === undefined) {
@@ -113,7 +159,14 @@ export function CatalogBrowser({
     if (products.length === 0) {
       return (
         <CatalogEmpty
-          onClear={hasAppliedFilters(query) ? () => select(clearFilters(query)) : undefined}
+          onClear={
+            hasAppliedFilters(query)
+              ? () => {
+                  select(clearFilters(query));
+                  focusHeading();
+                }
+              : undefined
+          }
         />
       );
     }
@@ -121,6 +174,7 @@ export function CatalogBrowser({
     return (
       <>
         <ProductGrid
+          key={shownStart ?? ''}
           products={products}
           total={facets.data?.total}
           // Not during a refetch of the loaded batches either: a next batch asked for then is

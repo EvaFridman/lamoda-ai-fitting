@@ -25,6 +25,23 @@
   }
 }
 
+// The live regions: read by screen readers, out of sight.
+.status {
+  position: absolute;
+
+  overflow: hidden;
+
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+
+  white-space: nowrap;
+
+  clip-path: inset(50%);
+}
+
 .count {
   font-size: var(--font-size-body-s);
   line-height: var(--line-height-body-s);
