@@ -194,10 +194,10 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
 
 - The app runs in Docker: `docker compose up -d --wait` (quick start in `README.md`). Do not run
   api or web natively against the compose services, or two copies end up fighting over ports.
-- A second copy in Docker (e.g. a git worktree) needs its own `COMPOSE_PROJECT_NAME` and host
-  ports in its `.env` (README, "Вторая копия стека"). `qa-tester` reaches only the ports of these
-  two copies (3000/3001/8233/8333/4010 and 4000/4001/8234/8334/4011) and picks its own from
-  `docker compose ps`.
+- Another copy in Docker (e.g. a git worktree) needs its own `COMPOSE_PROJECT_NAME` and host
+  ports in its `.env` (README, "Другие копии стека"). `qa-tester` reaches only the ports of three
+  copies (3000/3001/8233/8333/4010, 4000/4001/8234/8334/4011 and 9000/9001/8235/8335/4012) and
+  picks its own from `docker compose ps`.
 - `.env` (git-ignored, created by `scripts/init-env.sh`) holds local values; every variable is
   listed in `.env.example`. Claude cannot read `.env` (settings deny it) and does not need to.
 - Sources are bind-mounted; rebuild an image (`docker compose up -d --build <service>`) only after

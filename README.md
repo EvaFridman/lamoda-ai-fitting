@@ -150,7 +150,7 @@ docker compose --profile backup run --rm --build backup node dist/backup/main.js
 Sentry в локальном профиле выключен, чтобы локальные запуски не отмечались в мониторе
 `nightly-backup` продового проекта.
 
-### Вторая копия стека (git worktree)
+### Другие копии стека (git worktree)
 
 Контейнеры, тома и образы api/web называются по имени проекта Compose (`ai-fitting` по умолчанию).
 Чтобы вторая копия (например, в `git worktree`) работала рядом с первой и не трогала её данные и
@@ -176,6 +176,22 @@ S3_HOST_PORT=8334
 OIDC_HOST_PORT=4011
 ```
 
+Имя проекта — имя папки без `lamoda-` (`lamoda-ai-fitting-guards` → `ai-fitting-guards`): по нему
+`qa-tester` узнаёт в `docker compose ps`, что стек в папке её собственный, а не копия другого
+worktree с тем же `.env`. Третья копия берёт своё имя проекта и следующий набор портов (5000 и
+7000 на macOS занимает AirPlay, поэтому api и web на 9000/9001):
+
+```
+COMPOSE_PROJECT_NAME=ai-fitting-0019
+API_HOST_PORT=9000
+WEB_HOST_PORT=9001
+POSTGRES_HOST_PORT=5435
+REDIS_HOST_PORT=6382
+TEMPORAL_UI_HOST_PORT=8235
+S3_HOST_PORT=8335
+OIDC_HOST_PORT=4012
+```
+
 И только после этого запустить стек:
 
 ```bash
@@ -186,9 +202,10 @@ docker compose run --rm api npx prisma migrate deploy
 У копии свои тома, значит и своя пустая база. Останавливается копия командой
 `docker compose down` из её папки.
 
-Агент `qa-tester` ходит только на порты api, web, Temporal UI и поддельного Google этих двух копий
-(3000, 3001, 8233, 4010 и 4000, 4001, 8234, 4011) и выбирает свои по `docker compose ps` в папке, из которой запущен. Другие
-порты для второй копии он не пропустит.
+Агент `qa-tester` ходит только на порты api, web, Temporal UI, эмулятора S3 и поддельного Google
+этих трёх копий (3000, 3001, 8233, 8333, 4010; 4000, 4001, 8234, 8334, 4011; 9000, 9001, 8235,
+8335, 4012) и выбирает свои по `docker compose ps` в папке, из которой запущен. Другие порты для
+копии он не пропустит.
 
 ## Команды
 

@@ -9,8 +9,9 @@
 import { Blocked, isSecret, words } from './guard-lib.mjs';
 
 // api, web, Temporal UI, the S3 emulator and the fake Google's login page (spec 0013 N19) of the
-// default stack and of a second copy (README, "Вторая копия стека"). The agent's --allowed-origins
-// lists the same ports (checked by guards.test.mjs).
+// default stack and of a second and a third copy (README, "Другие копии стека"; the third's api
+// and web are 9000/9001, since macOS's AirPlay listens on 5000 and 7000). The agent's
+// --allowed-origins lists the same ports (checked by guards.test.mjs).
 export const PORTS = [
   '3000',
   '3001',
@@ -22,6 +23,11 @@ export const PORTS = [
   '8234',
   '8334',
   '4011',
+  '9000',
+  '9001',
+  '8235',
+  '8335',
+  '4012',
 ];
 const LOCAL_URL = new RegExp(
   `^https?://(localhost|127\\.0\\.0\\.1):(${PORTS.join('|')})([/?#].*)?$`,

@@ -13,7 +13,7 @@ mcpServers:
         - '--browser=chrome'
         - '--headless'
         - '--isolated'
-        - '--allowed-origins=http://localhost:3000;http://localhost:3001;http://localhost:8233;http://localhost:8333;http://localhost:4010;http://localhost:4000;http://localhost:4001;http://localhost:8234;http://localhost:8334;http://localhost:4011'
+        - '--allowed-origins=http://localhost:3000;http://localhost:3001;http://localhost:8233;http://localhost:8333;http://localhost:4010;http://localhost:4000;http://localhost:4001;http://localhost:8234;http://localhost:8334;http://localhost:4011;http://localhost:9000;http://localhost:9001;http://localhost:8235;http://localhost:8335;http://localhost:4012'
         - '--output-dir=.playwright-mcp'
 hooks:
   PreToolUse:
@@ -29,21 +29,28 @@ files.
 
 ## The stack you test
 
-Local Docker only (`docker-compose.yml`), the copy of the stack in your working directory. Two
-copies may run side by side (README, "Вторая копия стека"):
+Local Docker only (`docker-compose.yml`), the copy of the stack in your working directory. Up to
+three copies may run side by side (README, "Другие копии стека"):
 
-| Copy              | api                     | web                     | Temporal UI             | S3 emulator             | Fake Google (`oidc`)    |
-| ----------------- | ----------------------- | ----------------------- | ----------------------- | ----------------------- | ----------------------- |
-| default           | `http://localhost:3000` | `http://localhost:3001` | `http://localhost:8233` | `http://localhost:8333` | `http://localhost:4010` |
-| second (worktree) | `http://localhost:4000` | `http://localhost:4001` | `http://localhost:8234` | `http://localhost:8334` | `http://localhost:4011` |
+| Copy            | api                     | web                     | Temporal UI             | S3 emulator             | Fake Google (`oidc`)    |
+| --------------- | ----------------------- | ----------------------- | ----------------------- | ----------------------- | ----------------------- |
+| default         | `http://localhost:3000` | `http://localhost:3001` | `http://localhost:8233` | `http://localhost:8333` | `http://localhost:4010` |
+| worktree copy A | `http://localhost:4000` | `http://localhost:4001` | `http://localhost:8234` | `http://localhost:8334` | `http://localhost:4011` |
+| worktree copy B | `http://localhost:9000` | `http://localhost:9001` | `http://localhost:8235` | `http://localhost:8335` | `http://localhost:4012` |
 
 Before anything else, even before `docker compose up`, find yours. The folder decides, not the
-ports: Read `.git` in the working directory. A file (a git worktree) means the second row; a
-directory means the default row. Then `docker compose ps` must show that row's ports
-(`127.0.0.1:4000->3000/tcp`). If it shows the other row's ports or neither, stop and report it
-without starting, stopping or restarting anything: the worktree's `.env` lacks its own
-`COMPOSE_PROJECT_NAME` or ports, and your compose commands would act on the other copy. Use only
-your row's addresses: the other copy runs other code, and a result from it is a false report.
+ports: Read `.git` in the working directory. A directory means the default row, and
+`docker compose ps` must show that row's ports (`127.0.0.1:3000->3000/tcp`). A file (a git
+worktree) means one of the worktree rows, the one whose ports `docker compose ps` shows
+(`127.0.0.1:4000->3000/tcp` or `127.0.0.1:9000->3000/tcp`). The project name in the container
+names of `docker compose ps` (`<project>-api-1`) must be your folder's name without `lamoda-`
+(`lamoda-ai-fitting-0019` → `ai-fitting-0019`, the main folder → `ai-fitting`): two worktrees
+with the same `.env` would be one project, and your commands would act on the other one's
+containers. If `docker compose ps` shows the ports of a row the folder does not allow, another
+project's name, or a worktree's shows none, stop and report it without starting, stopping or
+restarting anything: the worktree's `.env` lacks its own `COMPOSE_PROJECT_NAME` or ports, or
+copies another worktree's, and the owner sets it right and starts the stack. Use only your row's
+addresses: the other copies run other code, and a result from one of them is a false report.
 
 - api: Swagger at `/docs`, liveness `/health/live`, readiness `/health/ready`.
 - S3 emulator (SeaweedFS, bucket `ai-fitting`): without a key only `media/*` is readable; other
@@ -73,8 +80,9 @@ screenshots and snapshots take no file name and land in `.playwright-mcp/`. Neve
 
 ## How you work
 
-1. **Prepare.** Find your copy (above). If the stack is not up, `docker compose up -d --wait`; if that
-   fails, report it with the logs and stop.
+1. **Prepare.** Find your copy (above). In the main folder, a stack that is not up gets
+   `docker compose up -d --wait`; if that fails, report it with the logs and stop. In a worktree an
+   empty `docker compose ps` is a stop (above): the owner starts that copy.
 2. **Understand the change.** Read the acceptance criteria you were given, Swagger for the
    endpoints, and the changed code to find risky places: branches, limits, external calls, state,
    concurrency. The code tells you where to look; it is never proof that something works.
