@@ -116,6 +116,35 @@ export const envSchema = z
     // How long a signed link to a private file works (M9).
     S3_SIGNED_URL_TTL_SECONDS: z.coerce.number().int().min(60).max(3600).default(900),
 
+    // OpenAI (spec 0019 A4): the one key of the image model, the vision model and the moderation
+    // endpoint, for the api (the checks) and the worker (the generation). Empty selects the fake
+    // provider (locally, in tests and CI, which never reach OpenAI, AC27); production refuses to
+    // start without it (assertServerEnv, assertWorkerEnv). No spaces: it goes into the sourced
+    // .env.
+    OPENAI_API_KEY: z.string().regex(/^\S*$/, 'must have no spaces').default(''),
+    // The image model of the edits endpoint (A17; `gpt-image-2.5-sunburst` is the alternative) and
+    // the small vision model of the photo and text checks (A15).
+    FITTING_MODEL: z
+      .string()
+      .regex(/^[\w.-]+$/, 'must be a model name')
+      .default('gpt-image-2'),
+    FITTING_VISION_MODEL: z
+      .string()
+      .regex(/^[\w.-]+$/, 'must be a model name')
+      .default('gpt-6-luna'),
+    // Try-ons per user and calendar month (A5).
+    FITTING_MONTHLY_LIMIT: z.coerce.number().int().min(1).max(1000).default(10),
+    // Seconds one generation may take at the model (A28); the spec's assumption is three minutes.
+    FITTING_TIMEOUT_SECONDS: z.coerce.number().int().min(30).max(600).default(180),
+    // Milliseconds a check inside a request (the photo check, the text check) may take, its two
+    // calls in parallel, then 503 with nothing stored (A45). At most half of REQUEST_TIMEOUT_MS,
+    // checked by assertServerEnv at the server's start: sharp and the bucket write keep the other
+    // half.
+    FITTING_CHECK_TIMEOUT_MS: z.coerce.number().int().min(1000).max(10_000).default(4000),
+    // Largest photo a user may upload in bytes (A31); nginx's limit of the upload route moves with
+    // it. At most 50 MB.
+    FITTING_PHOTO_MAX_BYTES: z.coerce.number().int().positive().max(52_428_800).default(20_971_520),
+
     // Sentry (spec 0004 E23): the api's own project, empty turns it off. Read by instrument.ts before
     // Nest starts; validated here so a malformed DSN stops the process with its name.
     SENTRY_DSN: optionalUrl(),
@@ -171,7 +200,8 @@ export function validateEnv(raw: Record<string, unknown>): Env {
 // the temporal-worker validates it too and neither sends nor receives requests (spec 0006 F18).
 // Without the proxy secret production would count every visitor as nginx's or web's address;
 // without the auth secret and Google's client nobody could sign in, and the fake provider would let
-// anyone sign in as anyone (spec 0013 AC14). Every problem is named at once; never a value.
+// anyone sign in as anyone (spec 0013 AC14); without the OpenAI key no check and no generation
+// could run (spec 0019 AC27). Every problem is named at once; never a value.
 export type ServerEnv = Pick<
   Env,
   | 'NODE_ENV'
@@ -181,35 +211,69 @@ export type ServerEnv = Pick<
   | 'GOOGLE_CLIENT_SECRET'
   | 'AUTH_FAKE_OIDC_URL'
   | 'AUTH_FAKE_OIDC_PUBLIC_URL'
+  | 'OPENAI_API_KEY'
+  | 'REQUEST_TIMEOUT_MS'
+  | 'FITTING_CHECK_TIMEOUT_MS'
 >;
 
+// What the worker process needs on top of the schema (spec 0019 plan §3): it runs the generation
+// and the result's moderation, so production refuses an empty key there too.
+export type WorkerEnv = Pick<Env, 'NODE_ENV' | 'OPENAI_API_KEY'>;
+
 export function assertServerEnv(env: ServerEnv): void {
-  if (env.NODE_ENV !== 'production') return;
-  const required = [
-    'PROXY_SECRET',
-    'BETTER_AUTH_SECRET',
-    'GOOGLE_CLIENT_ID',
-    'GOOGLE_CLIENT_SECRET',
-  ] as const;
-  const forbidden = ['AUTH_FAKE_OIDC_URL', 'AUTH_FAKE_OIDC_PUBLIC_URL'] as const;
-  const problems = [
-    ...required
-      .filter((name) => env[name] === '')
-      .map((name) => `${name}: must be set in production`),
-    ...forbidden
-      .filter((name) => env[name] !== '')
-      .map((name) => `${name}: must be empty in production`),
-  ];
+  const problems: string[] = [];
+  // In every environment (A45): a check inside a request must leave the handler at least as much
+  // time for sharp and the bucket write as it takes itself.
+  if (env.FITTING_CHECK_TIMEOUT_MS * 2 > env.REQUEST_TIMEOUT_MS) {
+    problems.push('FITTING_CHECK_TIMEOUT_MS: must be at most half of REQUEST_TIMEOUT_MS');
+  }
+  if (env.NODE_ENV === 'production') {
+    const required = [
+      'PROXY_SECRET',
+      'BETTER_AUTH_SECRET',
+      'GOOGLE_CLIENT_ID',
+      'GOOGLE_CLIENT_SECRET',
+      'OPENAI_API_KEY',
+    ] as const;
+    const forbidden = ['AUTH_FAKE_OIDC_URL', 'AUTH_FAKE_OIDC_PUBLIC_URL'] as const;
+    problems.push(
+      ...required
+        .filter((name) => env[name] === '')
+        .map((name) => `${name}: must be set in production`),
+      ...forbidden
+        .filter((name) => env[name] !== '')
+        .map((name) => `${name}: must be empty in production`),
+    );
+  }
   if (problems.length > 0) throw new Error(`Invalid environment: ${problems.join('; ')}`);
+}
+
+export function assertWorkerEnv(env: WorkerEnv): void {
+  if (env.NODE_ENV !== 'production' || env.OPENAI_API_KEY !== '') return;
+  throw new Error('Invalid environment: OPENAI_API_KEY: must be set in production');
 }
 
 // What the server logs as a warning at start outside production, where assertServerEnv lets it
 // pass: with no auth secret Better Auth signs cookies with its own default one, which anyone can
-// read in its source (spec 0013 PR 2 review).
+// read in its source (spec 0013 PR 2 review); with no OpenAI key the fake provider answers every
+// check and generation (spec 0019 plan §3).
 export function serverEnvWarnings(env: ServerEnv): string[] {
-  if (env.NODE_ENV === 'production' || env.BETTER_AUTH_SECRET !== '') return [];
+  if (env.NODE_ENV === 'production') return [];
+  const warnings: string[] = [];
+  if (env.BETTER_AUTH_SECRET === '') {
+    warnings.push(
+      "BETTER_AUTH_SECRET is empty: session cookies are signed with Better Auth's public default " +
+        'secret; run scripts/init-env.sh to set one',
+    );
+  }
+  return [...warnings, ...workerEnvWarnings(env)];
+}
+
+// The same for the worker: the one warning about the fake provider.
+export function workerEnvWarnings(env: WorkerEnv): string[] {
+  if (env.NODE_ENV === 'production' || env.OPENAI_API_KEY !== '') return [];
   return [
-    "BETTER_AUTH_SECRET is empty: session cookies are signed with Better Auth's public default " +
-      'secret; run scripts/init-env.sh to set one',
+    'OPENAI_API_KEY is empty: the fake AI provider answers the photo and text checks and the ' +
+      'generations; nothing reaches OpenAI',
   ];
 }

@@ -29,6 +29,9 @@ async function bootstrap(): Promise<void> {
     GOOGLE_CLIENT_SECRET: config.get('GOOGLE_CLIENT_SECRET', { infer: true }),
     AUTH_FAKE_OIDC_URL: config.get('AUTH_FAKE_OIDC_URL', { infer: true }),
     AUTH_FAKE_OIDC_PUBLIC_URL: config.get('AUTH_FAKE_OIDC_PUBLIC_URL', { infer: true }),
+    OPENAI_API_KEY: config.get('OPENAI_API_KEY', { infer: true }),
+    REQUEST_TIMEOUT_MS: config.get('REQUEST_TIMEOUT_MS', { infer: true }),
+    FITTING_CHECK_TIMEOUT_MS: config.get('FITTING_CHECK_TIMEOUT_MS', { infer: true }),
   };
   assertServerEnv(serverEnv);
   for (const warning of serverEnvWarnings(serverEnv)) {

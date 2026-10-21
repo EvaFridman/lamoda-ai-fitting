@@ -63,6 +63,7 @@ jobs:
           BACKUP_READ_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_READ_SECRET_ACCESS_KEY }}
           BACKUP_WRITE_ACCESS_KEY_ID: ${{ secrets.BACKUP_WRITE_ACCESS_KEY_ID }}
           BACKUP_WRITE_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_WRITE_SECRET_ACCESS_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         # Before anything reaches the server: the synced nginx template needs the secret too, and an
         # nginx restarted without it would not start (spec 0006 F18).
         run: |
@@ -114,13 +115,14 @@ jobs:
             echo "::error::variable BACKUP_AGE_RECIPIENT in GitHub Environment production is missing or not an age public key, age1… (deploy/README.md)"
             exit 1
           fi
-          # The keys and Google's client have no format of ours (M19), but they go into the .env
-          # that deploy.sh sources and compose reads: only characters both take as they are (bash
-          # expands a ~ after = or :). The message never shows them.
+          # The keys, Google's client and the OpenAI key (spec 0019 plan §10) have no format of
+          # ours (M19), but they go into the .env that deploy.sh sources and compose reads: only
+          # characters both take as they are (bash expands a ~ after = or :). The message never
+          # shows them. The api and the worker refuse to start without the OpenAI key (0019 AC27).
           unsafe="[[:space:]\$\`\"'\\\\;&|<>()#~]"
           for name in S3_ACCESS_KEY_ID S3_SECRET_ACCESS_KEY GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET \
             BACKUP_READ_ACCESS_KEY_ID BACKUP_READ_SECRET_ACCESS_KEY \
-            BACKUP_WRITE_ACCESS_KEY_ID BACKUP_WRITE_SECRET_ACCESS_KEY; do
+            BACKUP_WRITE_ACCESS_KEY_ID BACKUP_WRITE_SECRET_ACCESS_KEY OPENAI_API_KEY; do
             if [ -z "${!name}" ] || [[ "${!name}" =~ $unsafe ]]; then
               echo "::error::$name in GitHub Environment production is missing or holds a space or one of \$\`\"'\\;&|<>()#~ (deploy/README.md)"
               exit 1
@@ -222,6 +224,7 @@ jobs:
           BACKUP_READ_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_READ_SECRET_ACCESS_KEY }}
           BACKUP_WRITE_ACCESS_KEY_ID: ${{ secrets.BACKUP_WRITE_ACCESS_KEY_ID }}
           BACKUP_WRITE_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_WRITE_SECRET_ACCESS_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}/
         run: |
           {
@@ -247,6 +250,7 @@ jobs:
             echo "BACKUP_READ_SECRET_ACCESS_KEY=$BACKUP_READ_SECRET_ACCESS_KEY"
             echo "BACKUP_WRITE_ACCESS_KEY_ID=$BACKUP_WRITE_ACCESS_KEY_ID"
             echo "BACKUP_WRITE_SECRET_ACCESS_KEY=$BACKUP_WRITE_SECRET_ACCESS_KEY"
+            echo "OPENAI_API_KEY=$OPENAI_API_KEY"
             echo "SENTRY_ENVIRONMENT=production"
             echo "IMAGE_REGISTRY=${IMAGE_REGISTRY,,}"
             echo "LOG_LEVEL=info"

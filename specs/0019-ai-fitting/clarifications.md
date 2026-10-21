@@ -312,6 +312,44 @@ cancel would let a user cancel before the result and retry at no cost. web offer
 running
 generation; the api answers 204 as for a finished one. Rejected: taking the unit back on a cancel.
 
+## Phase 1 work (2026-10-21)
+
+Forks met while coding, taken the cautious way (A3): «Assumption, owner to confirm», listed in
+the phase's summary.
+
+**A48. The check deadline's bound is checked at the server's start, not in the schema.** The
+rule of A45 (`FITTING_CHECK_TIMEOUT_MS` at most half of `REQUEST_TIMEOUT_MS`) lives in
+`assertServerEnv`, which `server.ts` runs in every environment, not in the zod schema: the
+schema's floor of 1000 ms would otherwise refuse the e2e that lower `REQUEST_TIMEOUT_MS` to 100
+or 200 ms (spec 0006, 0013), and the worker has no requests to bound. Assumption, owner to
+confirm (T3).
+
+**A49. Tests always get the fake provider.** `createAiProvider` returns `FakeAiProvider` with
+`NODE_ENV=test` even when a key is set, on top of the plan's «tests never set the key», so a key
+left in a shell can never make Vitest reach OpenAI (AC27). Production and development with a key
+get the real one. Assumption, owner to confirm (T3).
+
+**A50. A malformed text classification counts as allowed.** As the photo check's malformed
+verdict counts as ok (plan §3), a verdict of the text model that cannot be read counts as allowed
+with a warning: the safety line of a wish is the moderation endpoint (A16) and the result's
+moderation (A15), the classification keeps the prompt on topic. The warning names the answer's
+`status` and incomplete reason, so a cap too low for a reasoning model shows in the log.
+Assumption, owner to confirm (T3).
+
+**A51. The deploy check starts the production image with a placeholder key.**
+`scripts/ci-deploy-check.sh` sets `OPENAI_API_KEY=deploy-check-openai-api-key`, since the
+production api and worker refuse an empty one (AC27); with it the real provider is built, and the
+check calls no route or workflow that reaches OpenAI. The production values of `FITTING_*` are
+the defaults of `deploy/compose/app.yml` and `worker.yml`, changed by a commit, not GitHub
+variables; `cd.yml` passes only the key. Assumption, owner to confirm (T3).
+
+**A52. One deadline and one retry layer per call, chosen by the caller.** `AiCallOptions` carries
+`timeoutMs` (an activity's budget instead of `FITTING_CHECK_TIMEOUT_MS`, which is a request's,
+A45) and `retry` (false leaves the repeats to the activity's retry policy, plan §4, so a paid
+generation runs once per attempt); a cancelled activity rethrows its signal's reason. Which of the
+two the `generate` activity uses is decided at T10/T11. Assumption, owner to confirm (T3, from
+the temporal review).
+
 ## Canvas and decisions
 
 Where the canvas differs from the decisions above, the decision wins:
