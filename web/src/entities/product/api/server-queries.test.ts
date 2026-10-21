@@ -1,6 +1,20 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+// React's `cache` memoizes only inside a server render; the mock stands in for one render's scope,
+// and `renderScope.active = false` for a call outside any render (a new value every time).
+const renderScope = vi.hoisted(() => ({ active: true, values: new Map<unknown, unknown>() }));
+
+vi.mock('react', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('react')>()),
+  cache:
+    <T>(fn: () => T) =>
+    (): T => {
+      if (!renderScope.active) return fn();
+      if (!renderScope.values.has(fn)) renderScope.values.set(fn, fn());
+      return renderScope.values.get(fn) as T;
+    },
+}));
 vi.mock('server-only', () => ({}));
 vi.mock('next/headers', () => ({ headers: () => Promise.resolve(new Headers()) }));
 vi.mock('@/shared/config/server', () => ({
@@ -114,6 +128,8 @@ const attributeValue = {
 };
 
 beforeEach(() => {
+  renderScope.active = true;
+  renderScope.values.clear();
   fetchMock.mockReset();
   vi.stubGlobal('fetch', fetchMock);
 });
@@ -246,6 +262,7 @@ describe('getProductFacets', () => {
     const mixed = facetsWithValue({ colorHex: '#a1B2c3' });
     respondWith(mixed);
     await expect(getProductFacets()).resolves.toEqual(mixed);
+    renderScope.values.clear();
     respondWith(facetsWithValue({ colorHex: null }));
     const result = await getProductFacets();
     expect(result.attributes[0]?.values[0]?.colorHex).toBeNull();
@@ -263,6 +280,78 @@ describe('getProductFacets', () => {
   it('propagates an http error', async () => {
     respondWith({}, 400);
     await expect(getProductFacets()).rejects.toMatchObject({ kind: 'http', status: 400 });
+  });
+});
+
+describe('getProductFacets within one render', () => {
+  const queryFn = (filters: object) =>
+    (productFacetsOptions(filters).queryFn as () => Promise<unknown>)();
+
+  it('makes one request for equal filters given as different objects', async () => {
+    respondWith(facets);
+    const [a, b] = await Promise.all([
+      getProductFacets({ brandId: [ID], q: 'x' }),
+      getProductFacets({ brandId: [ID], q: 'x' }),
+    ]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(b).toBe(a);
+    expect(a).toEqual(facets);
+  });
+
+  it('shares the request for filters differing only by key order', async () => {
+    respondWith(facets);
+    const a = await getProductFacets({ brandId: [ID], q: 'x', maxPrice: 5 });
+    const b = await getProductFacets({ maxPrice: 5, q: 'x', brandId: [ID] });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(b).toBe(a);
+  });
+
+  it('shares the request for filters differing only by sort and page', async () => {
+    respondWith(facets);
+    const a = await getProductFacets({ q: 'x' });
+    const b = await queryFn({ q: 'x', sort: 'price_asc', limit: 20, offset: 40 });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(b).toBe(a);
+  });
+
+  it('shares the request between getProductFacets and productFacetsOptions', async () => {
+    respondWith(facets);
+    const a = await queryFn({ brandId: [ID] });
+    const b = await getProductFacets({ brandId: [ID] });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(b).toBe(a);
+  });
+
+  it('makes two requests for different filters', async () => {
+    respondWith(facets);
+    await getProductFacets({ q: 'a' });
+    await getProductFacets({ q: 'b' });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('shares a rejected request: both callers see the rejection', async () => {
+    respondWith({}, 503);
+    const first = getProductFacets({ q: 'x' });
+    const second = queryFn({ q: 'x' });
+    await expect(first).rejects.toMatchObject({ kind: 'http', status: 503 });
+    await expect(second).rejects.toMatchObject({ kind: 'http', status: 503 });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('starts again in the next render', async () => {
+    respondWith(facets);
+    await getProductFacets({ q: 'x' });
+    renderScope.values.clear();
+    await getProductFacets({ q: 'x' });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('works outside a render, where each call asks again', async () => {
+    renderScope.active = false;
+    respondWith(facets);
+    await expect(getProductFacets({ q: 'x' })).resolves.toEqual(facets);
+    await expect(getProductFacets({ q: 'x' })).resolves.toEqual(facets);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
 

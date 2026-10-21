@@ -252,7 +252,9 @@ stays read only by `apiFetch`, and backlog "Taint the proxy secret" stays open.
 
 - **Library.** `@tanstack/react-virtual` 3.14.x. 3.14.21 is current (2026-10-16); the task pins the
   newest release that is at least a few days old when it installs. The peer is React ≥16.8, and it
-  has one dependency (`@tanstack/virtual-core`).
+  has one dependency (`@tanstack/virtual-core`). The range is `~3.14.21`, not `^` like the other
+  packages: the grid reads `itemSizeCache`, which the documented API does not name, so a minor
+  update is taken on purpose, after checking it (O106).
 - **Data.**
   - `productInfiniteOptions(query, start)` uses `infiniteQueryOptions`:
     - the key is `['products', 'infinite', productListQuery(query), start]`: a list from another
@@ -313,7 +315,8 @@ stays read only by `apiFetch`, and backlog "Taint the proxy secret" stays open.
 - **Metadata.** `generateMetadata` builds:
   - title: the category name or "Каталог", through the template;
   - description: the category's `description`, else "<N> товаров от <min price> ₽ …", from the
-    facets' `total` and `price.min`;
+    facets' `total` and `price.min`; that read and the page's prefetch are one
+    `GET /products/facets` per render (`getProductFacets`, React `cache` of a map by path, O107);
   - `alternates.canonical`: `/catalog` or `/catalog/<slug>`;
   - `robots: { index: false, follow: true }` when any filter, `q` or `cursor` is present;
   - `openGraph` and `twitter` (`summary_large_image`).
