@@ -177,3 +177,8 @@ or Space does not delete the account. The kit's `Modal` takes the element to foc
 **U27. `CLAUDE.md`'s analytics section changes with T11.** Its "`identify` and `reset` are called
 only by `useSignInAnalytics`" stops being true in T11's commit (`DeleteAccount` calls `reset`), so
 that sentence is fixed there; the rest of `CLAUDE.md` stays with T12.
+
+**U28. The review of PR 2.** The form's fields stay uncontrolled with `values` filled by their
+input events: browsers send one on autofill, and none can be produced in a test browser to show
+otherwise. The backlog item "Bodies that are not JSON" goes into the next spec that works on the
+api's infrastructure.
