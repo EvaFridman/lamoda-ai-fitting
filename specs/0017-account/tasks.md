@@ -106,7 +106,7 @@ T11).
       sign-in, the events in the requests after consent, `Account Deleted` among them with the
       user's id (AC13, AC14); `npm run verify`.
       Commit: `feat(web): delete the account from its page`
-- [ ] **T12. Docs.** `CLAUDE.md` (the account pages, `PATCH /me`, the name code, the validation
+- [x] **T12. Docs.** `CLAUDE.md` (the account pages, `PATCH /me`, the name code, the validation
       codes snapshot, `clientFetch` with no body, the first mutations, `MenuLinkItem`),
       `README.md`.
       Check: `npm run format:check`.
@@ -117,7 +117,8 @@ T11).
 
 - [ ] **T13. Close the spec.** The production checks with the owner: a signed-out visit to
       `/customer/account`, the header's links, `noindex` and `robots.txt`, a save and a reload
-      (AC1–AC3, AC8); the acceptance record below; every file gets `Status: done`.
+      (AC1–AC3, AC8); the acceptance record below; every file gets `Status: done`; `0017-account`
+      joins the list of specs in `CLAUDE.md`'s opening paragraph and README's «Завершены».
       Check: every criterion has evidence; `npm run verify`.
       Commit: `docs(specs): close spec 0017`
 - 👤 merges PR 3.

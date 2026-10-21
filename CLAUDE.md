@@ -261,7 +261,15 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   `*.contract.test.ts` compare its response schemas with that file through `@/shared/contract`
   (test-only; ESLint refuses it outside `*.test.ts(x)`). Those schemas hold no `.catch()`,
   `.default()` or transforms, and dates stay ISO strings: the check reports all but
-  `z.preprocess` and codecs.
+  `z.preprocess` and codecs. In the same way `api/validation-codes.json` lists every `details`
+  code the DTOs' rules can answer (`test/validation-codes.e2e-spec.ts` reads class-validator's
+  metadata after importing `AppModule`, rewritten with `-u`, spec 0017 plan §3), and web's
+  `error-text.contract.test.ts` fails on a code there with no text in `DETAIL_TEXTS`. Codes from
+  elsewhere (an unknown field, a database rule, a path id, the owner check) are not in the
+  snapshot; their texts in `DETAIL_TEXTS` are kept by hand. A name
+  (`IsPersonName`, `common/validation/rules.ts`, one `ValidateBy`) answers the one code
+  `IS_PERSON_NAME` for any failure (U19); its check is the exported `isPersonName`, which
+  `auth/auth-hooks.ts` uses for Google's given name.
 - `api` access is closed by default: the global `AccessGuard` (`common/auth/`) answers 401
   `UNAUTHORIZED` on a route that carries none of `@Public()`, `@SignedIn()` and `@Closed()` (per
   controller or route; a route's marker overrides its controller's). `@Public()` serves anyone, a
@@ -276,6 +284,13 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   AC6). Both global guards are registered in `AppModule`, the throttler first, so a refused request
   is counted against that route's limit (counters are per route, spec 0006 F22). Lists take
   `PaginationQueryDto` and answer `Paginated<T>` (`common/pagination/`).
+- `api` `PATCH /me` (spec 0017, `me/`) saves the signed-in user's own data through
+  `MeService.update` (`UsersService.update`, a missing row answers 401): its `UpdateMeDto` (not `UpdateUserDto`) takes only `lastName`,
+  `firstName`, `patronymic`, `dateOfBirth` and `gender`, each optional; `null` clears a name or the
+  date, `firstName` too, while `gender` is changed but never cleared (`ValidateIf` + `IsEnum`, not
+  `@IsOptional()`, so `null` answers 400, U9). Any other field (`email`, `phone`, a storage key) is
+  refused by the whitelist; an empty body answers 200 unchanged. It is the `write` tier and goes
+  through `signOutWhenGone`, as `GET` and `DELETE /me` do.
 - `api` sign-in (spec 0013): Better Auth (`auth/`) with Google only (locally the fake provider of
   the compose service `oidc`), mounted by `mountAuth()` (from `createHttpApp()`) at `/api/auth`
   as an Express route ahead of Nest's; only the routes in `AUTH_ROUTES` (`auth-routes.ts`) answer,
@@ -343,8 +358,15 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   forwards it to `API_URL` (`rewrites()` in `next.config.ts`, development only; the config is in
   the image, so rebuild web after changing it), and all browser calls share the web container's
   quota. With the api stopped that rewrite answers a plain 500, not nginx's 503: the local 503 text
-  is checked with a stubbed answer. Queries retry only a network error or a 503, at most twice
-  (`shouldRetry`, `_app/providers.tsx`); a request cancelled by its caller is not an error. The
+  is checked with a stubbed answer. A `null` schema is for an answer with no body: a 204 resolves
+  to `undefined` without reading it (`clientFetch` only; `apiFetch` always takes one); the JSON body of a write is the caller's
+  `init` (`body: JSON.stringify(...)`, `Content-Type: application/json`). Queries retry only a
+  network error or a 503, at most twice
+  (`shouldRetry`, `_app/providers.tsx`); a request cancelled by its caller is not an error. The first
+  write, `ProfileForm`'s `PATCH /me`, is TanStack Query's `useMutation` with no retry (spec 0017
+  plan §4: a write is not repeated by itself) and `gcTime: 0` (its body and answer are personal
+  data); a success puts the answer into the cache with `setQueryData`, only over the same user's,
+  instead of a new read. `DeleteAccount` calls `deleteMe()` directly, since it ends in a full load. The
   one other browser client is Better Auth's (`@/shared/auth`, the site's own `/api/auth`, spec
   0013): its calls go through `callAuth`, and `useSession` (`@/entities/session`) turns a failed
   read into one with `authFailure`, so their failures are `ApiError`s too.
@@ -357,7 +379,8 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   cause (kind, method, route template, and an `http` answer's status) per 60 s, counted per server
   process or browser tab; other 4xx, 429, refused paths and a status the caller expects
   (`callAuth`'s `acceptStatus`: the 401 of `revoke-sessions`; `clientFetch`'s `expectedStatus`,
-  still thrown: the 401 of `DELETE /me`, spec 0017 U25) are not reported. A component that
+  still thrown: the 401 of `DELETE /me`, spec 0017 U25; a 5xx is reported even when passed there)
+  are not reported. A component that
   catches an error renders it with `errorText` and passes it to `reportFailure` (an `ApiError` is
   already reported, anything else is sent then). A page loads data on the server with `prefetch`
   (`@/shared/api/server`, which returns a failure instead of throwing) into a `HydrationBoundary`,
@@ -384,9 +407,38 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   rendered per request inside `<Suspense>` since the modal reads the query) is inert while the session
   loads, opens `LoginModal` signed out (a failed read too) and, signed in, the kit's `Menu`: a circle
   with the first letter of the name (or of the email) and the name or "Профиль" (no email or avatar,
-  N6; `user-label.ts`) in a `MenuHeader` with `mp-block`, the account's four sections as links
-  (`shared/config/account-sections.ts`, spec 0017 AC2), a separator and `SignOutItems` ("Выйти", "Выйти со всех устройств"; a
-  failure shows a toast).
+  N6; `user-label.ts`) in a `MenuHeader` with `mp-block`, the account's four sections as
+  `MenuLinkItem`s (`shared/config/account-sections.ts`, spec 0017 AC2), a separator and `SignOutItems` ("Выйти", "Выйти со всех устройств"; a
+  failure shows a toast). It also mounts `useDropUserQueries` (`features/auth`): whenever the
+  session is `signed-out` and not `failed`, the queries of `userKeys.all` leave the cache, so the
+  next person at the tab never sees `/me` (spec 0017 U22); another user signed in with no end
+  seen in between resets them, so a page reads them again as that user.
+- `web` account (spec 0017): `/customer` and its sections `/customer/orders`, `stores`,
+  `account` ("Мои данные") and `fittings` (`web/app/customer/`, whose layout holds only the
+  metadata: `noindex`, the titles; `robots.ts` disallows `/customer`). Every page is
+  `AccountShell({ section })` (`widgets/account-shell`): the side menu of
+  `shared/config/account-sections.ts` (the header reads the same list, since a widget imports no
+  widget), `Skeleton`s while the session loads, signed out (a failed read too) an invitation whose
+  button is a second `LoginModal` (no redirect), signed in the section. Below 1024 px `/customer`
+  is the list of sections and a section shows "‹ Личный кабинет" in place of the menu, one DOM
+  switched by CSS. `_pages/customer` has no section, `_pages/account-stubs` holds the three
+  stubs, and `_pages/account-data` shows the user's data from `entities/user` (`useMe`,
+  `updateMe`, `deleteMe`, `userKeys`, `UserInitials`, `profileInitials`), read only in the
+  browser (U11), with `ProfileForm` (`features/edit-profile`: the date mask `ДД.ММ.ГГГГ`, only
+  changed fields sent, the api's `details` under their fields, the whole form `mp-block`) and
+  `DeleteAccount` (`features/delete-account`). A save that changes `firstName` calls `refreshSession()`
+  (`@/entities/session`): `get-session` with `disableCookieCache`, which writes the session's
+  signed copy again, then `$sessionSignal`, so the header shows the new name at once (AC8).
+  `DeleteAccount` opens a `Modal` with the focus on "Отмена" (U26); confirming calls `deleteMe()`,
+  then `track('Account Deleted', {}, { sendNow: true })`, `reset()` and
+  `window.location.assign('/')`, a full load, so nothing of the deleted user stays in the tab; a
+  401 (the session already gone, U25) does the same without the event, any other failure keeps
+  the modal open with its text.
+- The kit (`web/src/shared/ui`, its examples on `/ui-kit`) has, besides its controls,
+  `MenuLinkItem` (Base UI's `Menu.LinkItem` rendering `next/link`; `MenuItem` has no link form),
+  `LinkButton` (a `<button>` styled as the kit's `Link`, for an action that is not navigation) and
+  `Modal`'s `initialFocus` (a ref of the element focused when it opens, else the first focusable
+  one).
 - An attribute value's `colorHex` is its swatch colour, `#RRGGBB` (either case) or `null` (an
   empty bordered circle); the DTOs and a CHECK in the migration refuse anything else. web draws it with
   `ColorSwatch`, and an attribute with at least one coloured value is a colour filter
@@ -401,7 +453,9 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   for hovers ends on a path change, seen by `useHoverReset()`, mounted once in the consent gate). Every event,
   its properties and every tracked element are listed in `catalog.ts` (`events.ts` derives the
   types from it, spec 0015) and described in `EVENTS.md` (generated from it); anything else fails
-  `typecheck`. Rules for new events and elements: `.claude/rules/analytics.md`. The SDK sends its own page views and, for heatmaps, `$mp_click`-style events, from
+  `typecheck`. Rules for new events and elements: `.claude/rules/analytics.md`. `track`'s optional
+  third argument `{ sendNow }` sends the event at once by beacon, delivered even while the page
+  unloads (only `Account Deleted`, before a full load); others go in the SDK's batches. The SDK sends its own page views and, for heatmaps, `$mp_click`-style events, from
   which `strip-attributes.ts` drops element attributes, ids, links and text. Recordings mask all
   text and inputs and block image elements and inline `url(...)` styles, but keep attributes and
   stylesheets as they are: personal data never goes into attributes (`title`, `aria-*`, `alt`,
@@ -428,7 +482,8 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   every page load with a session, `reset` whenever the session is `signed-out` and not `failed`, so
   every real end (a sign-out here, in another tab or browser, an expiry) forgets the user and a
   failed read does not. An identity left by another user is reset before `identify`. Its events
-  and tracked elements are the catalog's zone `auth` (`Signed Out` goes before `reset`).
+  and tracked elements are the catalog's zone `auth` (`Signed Out` goes before `reset`); the
+  account's are the zone `account` (spec 0017 U14).
   `Signed In` is sent once, on the page a sign-in of this tab came back to: `markSignInStarted()`
   (`features/auth`) puts the time in `sessionStorage` (`sign-in-started`, not an `mp_`/`__mp` key
   the SDK clearing removes) before leaving for Google, and a flag older than 10 minutes counts as
