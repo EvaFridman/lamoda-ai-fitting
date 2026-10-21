@@ -538,3 +538,10 @@ Second round, on the review of `4817711`:
   stood 300 ms; until then, while it loads or when it fails, the button says "Показать товары" and
   still applies. The sort is a section of the drawer and applies with the filters on "Показать N
   товаров" (plan §3.2); it changes no count, so a sort alone keeps N. (owner, T16.)
+
+## Decided at T17
+
+- **O89. The header's links and search stay plain.** The header's category of the current page is
+  not highlighted; a query submitted again on `/catalog?q=<same>` is pushed as any other. The
+  backlog's "Logo keeps the catalog's scroll" stays in the backlog: T17 does not change the logo.
+  (owner, T17.)

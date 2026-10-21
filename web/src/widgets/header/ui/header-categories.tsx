@@ -1,3 +1,4 @@
+import NextLink from 'next/link';
 import { connection } from 'next/server';
 
 import { type Category, CATEGORY_LIST_MAX } from '@/entities/category';
@@ -19,8 +20,8 @@ async function load(): Promise<Category[]> {
   }
 }
 
-// The active categories in the api's order (sortOrder, then name), as plain text until the catalog
-// page exists (L4). Renders per request, never at build time: `connection()` stops prerendering
+// The active categories in the api's order (sortOrder, then name), each a link to its catalog page
+// (spec 0014 O16). Renders per request, never at build time: `connection()` stops prerendering
 // here, so the build needs no api. Wrap it in <Suspense>.
 export async function HeaderCategories() {
   await connection();
@@ -31,7 +32,14 @@ export async function HeaderCategories() {
   return (
     <ul className={styles.categoryList}>
       {categories.map((category) => (
-        <li key={category.id}>{category.name}</li>
+        <li key={category.id}>
+          <NextLink
+            href={`/catalog/${encodeURIComponent(category.slug)}`}
+            className={styles.categoryLink}
+          >
+            {category.name}
+          </NextLink>
+        </li>
       ))}
     </ul>
   );

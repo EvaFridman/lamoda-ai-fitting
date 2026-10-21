@@ -168,6 +168,23 @@
   list-style: none;
 }
 
+// Black text as on Lamoda, underlined on hover; a block, so the whole 50px row's height is its tap
+// target. The row scrolls sideways and clips what sticks out, so the focus outline is drawn inside.
+.categoryLink {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: -2px;
+  }
+}
+
 .search {
   grid-area: search;
   justify-self: end;

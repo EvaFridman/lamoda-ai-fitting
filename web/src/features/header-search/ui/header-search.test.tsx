@@ -16,6 +16,8 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => navigation.params,
 }));
 
+const ENCODED = '%D0%BF%D0%BB%D0%B0%D1%82%D1%8C%D0%B5';
+
 function setUrl(search: string) {
   navigation.params = new URLSearchParams(search);
 }
@@ -37,72 +39,51 @@ describe('HeaderSearch', () => {
     setUrl('');
   });
 
-  it('pushes the trimmed query on Enter and keeps the other parameters in order', async () => {
-    setUrl('a=1&b=2');
+  it('pushes the trimmed query to /catalog on Enter, from a page with no parameters', async () => {
+    navigation.pathname = '/privacy';
     const user = userEvent.setup();
     render(<HeaderSearch />);
     await user.type(field(), ' платье {Enter}');
     expect(navigation.push).toHaveBeenCalledTimes(1);
-    expect(navigation.push).toHaveBeenCalledWith(
-      '/path?a=1&b=2&q=%D0%BF%D0%BB%D0%B0%D1%82%D1%8C%D0%B5',
-    );
+    expect(navigation.push).toHaveBeenCalledWith(`/catalog?q=${ENCODED}`);
+  });
+
+  it('pushes only q from a category page, dropping the category, filters, sort and cursor', async () => {
+    navigation.pathname = '/catalog/shoes';
+    setUrl('brandId=x&sort=price_asc&cursor=abc&q=old');
+    const user = userEvent.setup();
+    render(<HeaderSearch />);
+    await user.clear(field());
+    await user.type(field(), 'платье{Enter}');
+    expect(navigation.push).toHaveBeenCalledTimes(1);
+    expect(navigation.push).toHaveBeenCalledWith(`/catalog?q=${ENCODED}`);
   });
 
   it('pushes the query when "Найти" is clicked', async () => {
-    setUrl('a=1');
+    navigation.pathname = '/catalog/shoes';
+    setUrl('brandId=x&cursor=abc');
     const user = userEvent.setup();
     render(<HeaderSearch />);
     await user.type(field(), 'платье');
     await user.click(screen.getByRole('button', { name: 'Найти' }));
-    expect(navigation.push).toHaveBeenCalledWith(
-      '/path?a=1&q=%D0%BF%D0%BB%D0%B0%D1%82%D1%8C%D0%B5',
-    );
+    expect(navigation.push).toHaveBeenCalledWith(`/catalog?q=${ENCODED}`);
   });
 
-  it('pushes only q when the url has no other parameters', async () => {
+  it('pushes again when the submitted query equals the q in the url (O89)', async () => {
+    setUrl('q=shirt');
     const user = userEvent.setup();
     render(<HeaderSearch />);
-    await user.type(field(), 'shirt{Enter}');
-    expect(navigation.push).toHaveBeenCalledWith('/path?q=shirt');
+    await user.click(field());
+    await user.keyboard('{Enter}');
+    await user.keyboard('{Enter}');
+    expect(navigation.push).toHaveBeenCalledTimes(2);
+    expect(navigation.push).toHaveBeenNthCalledWith(1, '/catalog?q=shirt');
+    expect(navigation.push).toHaveBeenNthCalledWith(2, '/catalog?q=shirt');
   });
 
-  it('replaces an existing q instead of adding a second one', async () => {
-    setUrl('a=1&q=old&b=2');
-    const user = userEvent.setup();
+  it('has the placeholder "Товар, бренд или артикул" (O14)', () => {
     render(<HeaderSearch />);
-    await user.clear(field());
-    await user.type(field(), 'new{Enter}');
-    const url = navigation.push.mock.calls[0]?.[0] as string;
-    const pushed = new URLSearchParams(url.split('?')[1]);
-    expect(pushed.getAll('q')).toEqual(['new']);
-    expect(pushed.get('a')).toBe('1');
-    expect(pushed.get('b')).toBe('2');
-  });
-
-  it('drops the catalog cursor and keeps the other parameters in order (O81)', async () => {
-    setUrl('sort=price_asc&cursor=abc&brandId=x');
-    const user = userEvent.setup();
-    render(<HeaderSearch />);
-    await user.type(field(), 'платье{Enter}');
-    expect(navigation.push).toHaveBeenCalledWith(
-      '/path?sort=price_asc&brandId=x&q=%D0%BF%D0%BB%D0%B0%D1%82%D1%8C%D0%B5',
-    );
-  });
-
-  it('pushes only q when the cursor was the only parameter (O81)', async () => {
-    setUrl('cursor=abc');
-    const user = userEvent.setup();
-    render(<HeaderSearch />);
-    await user.type(field(), 'shirt{Enter}');
-    expect(navigation.push).toHaveBeenCalledWith('/path?q=shirt');
-  });
-
-  it('uses the current pathname', async () => {
-    navigation.pathname = '/catalog/shoes';
-    const user = userEvent.setup();
-    render(<HeaderSearch />);
-    await user.type(field(), 'x{Enter}');
-    expect(navigation.push).toHaveBeenCalledWith('/catalog/shoes?q=x');
+    expect(field()).toHaveAttribute('placeholder', 'Товар, бренд или артикул');
   });
 
   it('pushes nothing for an empty or blank query', async () => {
@@ -159,16 +140,14 @@ describe('HeaderSearch', () => {
 
   it('encodes special characters so the query round-trips', async () => {
     const query = 'a&b #c+d e/f';
-    setUrl('a=1');
     const user = userEvent.setup();
     render(<HeaderSearch />);
     await user.type(field(), `${query}{Enter}`);
     const url = navigation.push.mock.calls[0]?.[0] as string;
+    expect(url.startsWith('/catalog?')).toBe(true);
     const search = url.split('?')[1] as string;
     expect(search).not.toMatch(/[ #/]/);
-    const pushed = new URLSearchParams(search);
-    expect(pushed.get('q')).toBe(query);
-    expect(pushed.get('a')).toBe('1');
+    expect(new URLSearchParams(search).get('q')).toBe(query);
   });
 
   describe('query length limit', () => {
@@ -198,7 +177,7 @@ describe('HeaderSearch', () => {
       await user.type(field(), 'a'.repeat(100) + 'b'.repeat(50));
       expect(field()).toHaveValue('a'.repeat(100));
       await user.keyboard('{Enter}');
-      expect(navigation.push).toHaveBeenCalledWith(`/path?q=${'a'.repeat(100)}`);
+      expect(navigation.push).toHaveBeenCalledWith(`/catalog?q=${'a'.repeat(100)}`);
     });
   });
 });
