@@ -5,7 +5,8 @@ and after the check against 0012, 0013 and 0015 (O35–O39, §1, §2.7, §3.2, �
 amended 2026-10-19 at the review of PR 1 (O40–O48; the article test inside `toProductSql` and
 the price indexes, §2.2, §2.4) and its second round (the cursor conditions' index bounds, §2.3;
 the count from the facets, O49, §3.3, §3.4) and its third round (the rating cursor in two
-branches, §2.3; `aria-setsize` bounded by the loaded cards, §3.4).
+branches, §2.3; `aria-setsize` bounded by the loaded cards, §3.4); amended 2026-10-21 at T13a (the
+taint deferred, O76, §3.2, §8).
 
 How `spec.md` (AC1–AC24) is built. Decisions: `clarifications.md` (O1–O69; §3.1 and §3.7 amended
 at T11 by O65–O69).
@@ -242,11 +243,9 @@ deactivated between the two reads (a soft 404). Two reads per page view are acce
   - in api: `hello/`, `temporal/activities/hello.activities.ts`, `temporal/workflows/hello.workflow.ts`
     and their exports and specs.
 
-**Tainted secret (O37).** `@/shared/api/server` calls
-`experimental_taintUniqueValue` on `PROXY_SECRET` when it reads the server env. Passing the
-value to a client component then throws. This needs `experimental.taint: true` in
-`next.config.ts`; the task checks it against Next 16's docs in `node_modules/next/dist/docs/`. A
-test renders a client component given the secret and expects the error.
+**Tainted secret (O37), deferred (O76).** The taint needs `experimental.taint: true`, which runs
+the whole `app` directory on `react@experimental` (Next 16's `taint.md`). Not taken: `PROXY_SECRET`
+stays read only by `apiFetch`, and backlog "Taint the proxy secret" stays open.
 
 ### 3.3 Infinite list and virtualization (O10, O12)
 
@@ -486,8 +485,8 @@ in production, so no deployed web sends it.
 - **`specs/backlog.md`.** Remove "Product list cost", "Cache for filter counts", "Rate limit for
   web pages", "Full CSP for web", "Remove greeting", "Product card link" (only its part on the
   card's address: the prefetch stays for the product page's spec, O75), "Mobile filters",
-  "Flaky handoff test", "Timeouts of the database pool", "Taint the proxy secret", "Flaky facets
-  test" and "Retry policy of `hello`", each in the commit that closes it.
+  "Flaky handoff test", "Timeouts of the database pool", "Flaky facets test" and "Retry policy of
+  `hello`", each in the commit that closes it ("Taint the proxy secret" stays, O76).
 - **Spec 0012's docs.** Its "Redis holds only rate-limit counters" becomes "counters and a cache
   for the filter counts", in whichever of 0012 and 0014 closes later. A cache loss only costs a
   recompute, so Redis stays out of the backups.

@@ -4,7 +4,7 @@ Status: accepted (2026-10-19); amended 2026-10-19 at the plan: the whole greetin
 own health route (O34), Lamoda's layout of applied filters and the breadcrumbs (O5), search by
 article (O14); amended 2026-10-19 after the check against 0012, 0013 and 0015 (O35–O39);
 amended 2026-10-19 at the review of PR 1 (O40–O48), its second round (O5's description, O46,
-O49, O50) and its third round (O49's lag).
+O49, O50) and its third round (O49's lag); amended 2026-10-21 at T13a (O76: the taint deferred).
 
 The owner's decisions for this spec. Ids `O1`, `O2`, … are referred to by the spec, the plan and
 code comments. All decisions below: owner, 2026-10-19.
@@ -212,7 +212,7 @@ code comments. All decisions below: owner, 2026-10-19.
   and then answers 503. This closes backlog "Timeouts of the database pool" in full.
 - **O37. The proxy secret is tainted.** The catalog is the first page whose server components pass
   props to client ones. React's taint API marks `PROXY_SECRET` so that it can never reach the
-  browser through props. This closes backlog "Taint the proxy secret".
+  browser through props. This closes backlog "Taint the proxy secret". Revised by O76: deferred.
 - **O38. The flaky facets test is fixed.** T5 and T8 rewrite the facets e2e anyway. They also make
   `product-facets.e2e-spec.ts` stable under load. This closes backlog "Flaky facets test".
 - **O39. A rate limit for `/media/`.** PR 4 also limits `/media/` per client address, from the same
@@ -449,3 +449,12 @@ Second round, on the review of `4817711`:
   takes `prefetch` and the catalog passes `false`, or Next would request every visible card's
   page in production. Backlog "Product card link" turns it back on with that page. (code-reviewer,
   owner, T13.)
+- **O76. The proxy secret's taint is deferred.** Revises O37. On Next 16.3 and React 19.3,
+  `experimental_taintUniqueValue` exists only in React's experimental build, and
+  `experimental.taint: true` switches the whole `app` directory to `react@experimental` in
+  production (Next's `taint.md`); a test would also need the experimental `react` and
+  `react-server-dom-webpack` wired into Vitest by hand. A defensive check is not worth running the
+  site on an experimental React. `PROXY_SECRET` stays read only by `apiFetch`, and backlog "Taint
+  the proxy secret" stays open until the taint API ships in stable React. The alternatives weighed:
+  the flag as planned; no taint but `getServerEnv()` without the secret, read by one function only
+  `apiFetch` may import (ESLint). (owner, T13a.)
