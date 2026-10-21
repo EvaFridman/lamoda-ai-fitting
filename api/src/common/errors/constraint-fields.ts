@@ -15,6 +15,9 @@ export const CONSTRAINT_FIELDS: Readonly<Record<string, readonly string[]>> = {
   categories_name_check: ['name'],
   categories_slug_check: ['slug'],
   categories_sort_order_check: ['sortOrder'],
+  file_deletions_prefixes_check: ['prefixes'],
+  fitting_quota_month_check: ['month'],
+  fitting_quota_used_check: ['used'],
   product_images_image_key_check: ['imageKey'],
   product_images_sort_order_check: ['sortOrder'],
   product_variations_size_check: ['size'],
@@ -31,6 +34,9 @@ export const CONSTRAINT_FIELDS: Readonly<Record<string, readonly string[]>> = {
   users_last_name_check: ['lastName'],
   users_patronymic_check: ['patronymic'],
   users_phone_check: ['phone'],
+  user_photos_height_check: ['height'],
+  user_photos_image_key_check: ['imageKey'],
+  user_photos_width_check: ['width'],
 
   // Unique: the field a caller changes to resolve the conflict (a size is unique per product).
   // Better Auth's own writes (spec 0013 plan §2); its answers never pass the api's filter, so
@@ -41,6 +47,10 @@ export const CONSTRAINT_FIELDS: Readonly<Record<string, readonly string[]>> = {
   brands_name_key: ['name'],
   categories_name_key: ['name'],
   categories_slug_key: ['slug'],
+  // One deletion per row (spec 0019 A38): a repeat names the row again.
+  file_deletions_kind_row_id_key: ['rowId'],
+  // One spend row per user and month (spec 0019 A20).
+  fitting_quota_pkey: ['month'],
   fitting_sessions_user_id_key: ['userId'],
   // The api refuses a repeated product id first (spec 0004 E53); this covers a write that skips it.
   generation_products_pkey: ['productIds'],
@@ -49,6 +59,8 @@ export const CONSTRAINT_FIELDS: Readonly<Record<string, readonly string[]>> = {
   product_variations_product_id_size_key: ['size'],
   products_article_key: ['article'],
   sessions_token_key: ['token'],
+  // One default photo per user (spec 0019 A31; the partial index, as fitting sessions').
+  user_photos_user_id_key: ['userId'],
   users_email_key: ['email'],
   users_phone_key: ['phone'],
 
@@ -56,6 +68,7 @@ export const CONSTRAINT_FIELDS: Readonly<Record<string, readonly string[]>> = {
   accounts_user_id_fkey: ['userId'],
   ai_generations_session_id_fkey: ['sessionId'],
   attribute_values_attribute_id_fkey: ['attributeId'],
+  fitting_quota_user_id_fkey: ['userId'],
   fitting_sessions_user_id_fkey: ['userId'],
   generation_products_generation_id_fkey: ['generationId'],
   // A generation's products are sent as one list (spec 0004 E52).
@@ -67,6 +80,7 @@ export const CONSTRAINT_FIELDS: Readonly<Record<string, readonly string[]>> = {
   products_brand_id_fkey: ['brandId'],
   products_category_id_fkey: ['categoryId'],
   sessions_user_id_fkey: ['userId'],
+  user_photos_user_id_fkey: ['userId'],
 };
 
 export function constraintFields(name: string | undefined): readonly string[] {

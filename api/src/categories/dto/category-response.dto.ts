@@ -1,5 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 
+import { OutfitSlot } from '../../generated/prisma/enums.js';
+
 // A category's own columns, no products (spec 0004 E39).
 export class CategoryResponseDto {
   @ApiProperty({ format: 'uuid' })
@@ -19,6 +21,11 @@ export class CategoryResponseDto {
 
   @ApiProperty({ minimum: 0 })
   sortOrder: number;
+
+  // The place of the category's products in a look, `null` for a category outside the fitting room
+  // (spec 0019 A18).
+  @ApiProperty({ enum: OutfitSlot, enumName: 'OutfitSlot', nullable: true })
+  slot: OutfitSlot | null;
 
   @ApiProperty()
   createdAt: Date;

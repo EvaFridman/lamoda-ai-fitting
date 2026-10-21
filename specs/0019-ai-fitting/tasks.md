@@ -43,7 +43,7 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
 
 ## PR 2 · `feat/0019-photos` · photos
 
-- [ ] **T2. Migrations: user photos, slots, the deletion outbox.** `user_photos` with its partial
+- [x] **T2. Migrations: user photos, slots, the deletion outbox.** `user_photos` with its partial
       unique index and CHECKs, `categories.slot` with the demo catalog's values, `file_deletions`
       (plan §2); `constraint-fields.ts` rows; the migration e2e.
       Check: `prisma migrate dev` on an empty and on a seeded database; `npm run verify`.

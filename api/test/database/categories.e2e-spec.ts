@@ -12,6 +12,7 @@ const COLUMNS = [
   'id',
   'isActive',
   'name',
+  'slot',
   'slug',
   'sortOrder',
   'updatedAt',
@@ -24,6 +25,7 @@ interface CategoryBody {
   isActive: boolean;
   description: string | null;
   sortOrder: number;
+  slot: string | null;
   createdAt: string;
   updatedAt: string;
 }

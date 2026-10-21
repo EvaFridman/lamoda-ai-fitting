@@ -22,6 +22,7 @@ const category = {
   isActive: true,
   description: null,
   sortOrder: 1,
+  slot: 'top',
   createdAt: DATE,
   updatedAt: DATE,
 };

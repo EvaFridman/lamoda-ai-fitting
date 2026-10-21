@@ -56,6 +56,8 @@ model User {
   fittingSessions FittingSession[]
   sessions        Session[]
   accounts        Account[]
+  photos          UserPhoto[]
+  fittingQuotas   FittingQuota[]
 
   @@map("users")
 }
@@ -115,15 +117,28 @@ model Verification {
   @@map("verifications")
 }
 
+// The place of a category's products in a look (spec 0019 A18). A category without a slot takes no
+// part in the fitting room.
+enum OutfitSlot {
+  top
+  bottom
+  outerwear
+  shoes
+  accessory
+
+  @@map("outfit_slot")
+}
+
 model Category {
-  id          String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  name        String   @unique @db.VarChar(255)
-  slug        String   @unique @db.VarChar(255)
-  isActive    Boolean  @map("is_active")
-  description String?  @db.Text
-  sortOrder   Int      @default(0) @map("sort_order")
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id          String      @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  name        String      @unique @db.VarChar(255)
+  slug        String      @unique @db.VarChar(255)
+  isActive    Boolean     @map("is_active")
+  description String?     @db.Text
+  sortOrder   Int         @default(0) @map("sort_order")
+  slot        OutfitSlot?
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   products Product[]
 
@@ -303,4 +318,69 @@ model GenerationProduct {
   @@id([generationId, productId])
   @@index([productId])
   @@map("generation_products")
+}
+
+// A user's fitting photo (spec 0019 A24, A31): the server names the key (`keep/users/<userId>/…`),
+// `sharp` re-encodes the file and sets `width` and `height`. A transient photo is a one-time one
+// (A24): not among the five saved ones, deleted when its generation ends or after an hour unused.
+model UserPhoto {
+  id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  imageKey  String   @map("image_key") @db.VarChar(255)
+  isDefault Boolean  @default(false) @map("is_default")
+  transient Boolean  @default(false)
+  width     Int
+  height    Int
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // One default photo per user, the same partial index pattern as the active fitting session (0002
+  // C21). The generated client treats userId as a full unique key, but it is unique only among
+  // default photos: `where: { userId }` in findUnique/update/delete/upsert/connect may hit any
+  // photo. Always add `isDefault: true`.
+  @@unique([userId], where: raw("is_default"))
+  @@index([userId])
+  @@map("user_photos")
+}
+
+// A user's spend of the monthly fitting limit (spec 0019 A20), kept apart from the results so a
+// deleted result gives nothing back. `month` is `YYYY-MM` in Moscow time. Written only by the start
+// transaction of a fitting and by the workflow's `complete`.
+model FittingQuota {
+  userId String @map("user_id") @db.Uuid
+  month  String @db.VarChar(7)
+  used   Int    @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, month])
+  @@map("fitting_quota")
+}
+
+// What was deleted: part of the workflow id, so one row's deletion runs once at a time.
+enum FileDeletionKind {
+  user
+  session
+  generation
+  photo
+
+  @@map("file_deletion_kind")
+}
+
+// The outbox of file deletions (spec 0019 A38): a delete writes its folders here in its own
+// transaction, FileDeletion starts the workflow `deleteFiles` after the commit and sets
+// `startedAt`, the housekeeping schedule starts the rows left unstarted, and the workflow deletes
+// its row when every folder is gone. `prefixes` are folders of storage/keys.ts.
+model FileDeletion {
+  id        String           @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  kind      FileDeletionKind
+  rowId     String           @map("row_id") @db.Uuid
+  prefixes  String[]
+  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  startedAt DateTime?        @map("started_at") @db.Timestamptz(3)
+
+  @@unique([kind, rowId])
+  @@index([createdAt], where: raw("started_at IS NULL"))
+  @@map("file_deletions")
 }

@@ -3,8 +3,10 @@ export { categoryListOptions, categoryOptions, useCategories, useCategory } from
 export {
   categoryListSchema,
   categorySchema,
+  outfitSlotSchema,
   type Category,
   type CategoryList,
+  type OutfitSlot,
 } from './model/schemas';
 export {
   CatalogCategoryList,
