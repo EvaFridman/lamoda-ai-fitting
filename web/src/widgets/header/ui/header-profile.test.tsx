@@ -1,10 +1,23 @@
-import { render, screen, within } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { render as renderPlain, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { ReactElement, ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { SessionState } from '@/entities/session';
+import { userKeys } from '@/entities/user';
 
 import { HeaderProfile } from './header-profile';
+
+let queryClient = new QueryClient();
+
+function Wrapper({ children }: { children: ReactNode }) {
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+}
+
+function render(ui: ReactElement) {
+  return renderPlain(ui, { wrapper: Wrapper });
+}
 
 const mocks = vi.hoisted(() => ({
   session: { status: 'pending' } as SessionState,
@@ -87,6 +100,7 @@ async function openMenu() {
 
 describe('HeaderProfile', () => {
   beforeEach(() => {
+    queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     mocks.session = { status: 'pending' };
     mocks.signOut.mockReset().mockResolvedValue(undefined);
     mocks.signOutEverywhere.mockReset().mockResolvedValue(undefined);
@@ -337,6 +351,36 @@ describe('HeaderProfile', () => {
     await user.click(within(menu).getByRole('menuitem', { name: 'Выйти' }));
     expect(mocks.signOut).toHaveBeenCalledTimes(1);
     expect(mocks.signOutEverywhere).not.toHaveBeenCalled();
+  });
+
+  describe("the current user's cached answers (spec 0017 U22)", () => {
+    const cached = { id: 'u1' };
+
+    it('are dropped once the session ends', () => {
+      signedIn(NAME);
+      queryClient.setQueryData(userKeys.me, cached);
+      const { rerender } = render(<HeaderProfile />);
+      expect(queryClient.getQueryData(userKeys.me)).toBe(cached);
+      mocks.session = { status: 'signed-out', failed: false };
+      rerender(<HeaderProfile />);
+      expect(queryClient.getQueryData(userKeys.me)).toBeUndefined();
+      expect(queryClient.getQueryCache().find({ queryKey: userKeys.me })).toBeUndefined();
+    });
+
+    it('stay when signed out because the read failed', () => {
+      queryClient.setQueryData(userKeys.me, cached);
+      mocks.session = { status: 'signed-out', failed: true };
+      render(<HeaderProfile />);
+      expect(queryClient.getQueryData(userKeys.me)).toBe(cached);
+    });
+
+    it('stay while signed in and while the session loads', () => {
+      queryClient.setQueryData(userKeys.me, cached);
+      const { rerender } = render(<HeaderProfile />);
+      signedIn(NAME);
+      rerender(<HeaderProfile />);
+      expect(queryClient.getQueryData(userKeys.me)).toBe(cached);
+    });
   });
 
   describe('focus after a sign-out', () => {

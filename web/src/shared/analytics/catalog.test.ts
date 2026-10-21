@@ -362,7 +362,12 @@ describe('analytics catalog limits', () => {
 
 describe('analytics catalog', () => {
   it('lists exactly the known events', () => {
-    expect(Object.keys(catalog.events).sort()).toEqual(['Login Opened', 'Signed In', 'Signed Out']);
+    expect(Object.keys(catalog.events).sort()).toEqual([
+      'Account Data Saved',
+      'Login Opened',
+      'Signed In',
+      'Signed Out',
+    ]);
     expect(Object.keys(catalog.commonEvents).sort()).toEqual([
       'Element Clicked',
       'Element Hovered',
@@ -377,6 +382,7 @@ describe('analytics catalog', () => {
       'Login Opened': ['auth', 'interaction'],
       'Signed In': ['auth', 'conversion'],
       'Signed Out': ['auth', 'interaction'],
+      'Account Data Saved': ['account', 'interaction'],
     });
   });
 

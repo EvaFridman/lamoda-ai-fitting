@@ -85,7 +85,7 @@ T11).
       way back, browser "Back", sign-in from `/customer/orders` and back on it, screenshots for the
       owner (AC1, AC4, AC5); `npm run verify`.
       Commit: `feat(web): add the account pages`
-- [ ] **T10. "Мои данные" (U2, U3, U8, U9, U11, U22).** `features/edit-profile`: `ProfileForm`, the date mask; `_pages/account-data`
+- [x] **T10. "Мои данные" (U2, U3, U8, U9, U11, U22).** `features/edit-profile`: `ProfileForm`, the date mask; `_pages/account-data`
       with `UserInitials`, loading and failed states; the session refresh after a save
       (`disableCookieCache`, plan §4); the user's queries removed at a sign-out (U22);
       `Account Data Saved` in the catalog.

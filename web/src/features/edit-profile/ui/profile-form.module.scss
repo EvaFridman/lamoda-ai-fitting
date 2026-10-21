@@ -1,0 +1,69 @@
+// Lamoda's "Мои данные": the three names in one row, one under another below 1024px (the header's
+// breakpoint, 0010 L6), the date of birth under them at a name's width, then the gender, the email
+// and the button.
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  max-width: 800px;
+}
+
+.names {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-6);
+
+  @media (width < 1024px) {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-4);
+  }
+}
+
+.date {
+  width: calc((100% - 2 * var(--space-6)) / 3);
+
+  @media (width < 1024px) {
+    width: 100%;
+  }
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.groupTitle {
+  margin: 0;
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  color: var(--color-text-secondary);
+}
+
+.genders {
+  flex-direction: row;
+  gap: var(--space-8);
+}
+
+.email {
+  margin: 0;
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+  overflow-wrap: anywhere;
+}
+
+.error {
+  margin: 0;
+  font-size: var(--font-size-caption);
+  color: var(--color-error);
+}
+
+.submit {
+  align-self: flex-start;
+  min-width: 200px;
+
+  @media (width < 600px) {
+    align-self: stretch;
+  }
+}
