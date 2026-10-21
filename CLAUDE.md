@@ -375,7 +375,9 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   then signs out (a 401 of the revoke still signs out). A sign-in that fails at Google comes back to
   its page with Better Auth's `error` code: `LoginModal` opens with `signInRedirectText` (a text of
   its own for `access_denied`, a general one otherwise), and the code and `error_description` leave
-  the address, signed in (`DropSignInError`) or not (N54). A code other than `access_denied` is
+  the address, signed in (`DropSignInError`) or not (N54). A second `LoginModal` on a page (the
+  account invitation, spec 0017) passes `handlesReturnedError={false}`: the returned code, its
+  report, the flag taken on mount and the address stay with the header's. A code other than `access_denied` is
   reported to Sentry as `SignInFailed` only when the sign-in flag (see analytics) shows a sign-in
   started in this tab, so someone else's link with a made-up `error` reports nothing. The header's profile icon (`widgets/header`, `HeaderProfile`,
   rendered per request inside `<Suspense>` since the modal reads the query) is inert while the session

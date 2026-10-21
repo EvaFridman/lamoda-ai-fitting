@@ -148,3 +148,13 @@ page, and the query cache keeps `/me` (personal data) for up to 5 minutes. Whene
 becomes `signed-out` and not `failed` (a sign-out here or in another tab, an expiry; the same
 moment `reset()` of analytics follows), the browser removes every query of `userKeys.all`, so the
 next person at this tab never sees it. Found by the security review of T7; done in T10.
+
+## Added in T9
+
+**U23. Page titles.** `/customer` is "Личный кабинет — Lamoda AI Fitting"; a section is its name
+from the menus with the same suffix ("Мои заказы — Lamoda AI Fitting"), as `/ui-kit` and
+`/privacy` name theirs.
+
+**U24. The invitation's title is the section's.** Plan §5's invitation has "a title, a line of
+text and a Button": its title is the section's own heading ("Мои заказы"), shown in every state of
+the session, so the visitor sees where they are; the line is U18's text. No heading of its own.

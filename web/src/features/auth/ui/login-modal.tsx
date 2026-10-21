@@ -16,8 +16,13 @@ import { useDropSignInError } from '../model/use-drop-sign-in-error';
 import styles from './login-modal.module.scss';
 
 export interface LoginModalProps {
-  // The control that opens it: the header's profile icon.
+  // The control that opens it: the header's profile icon or the account invitation's button.
   trigger: ReactElement;
+  // False for a second modal on a page that has the header's: only one opens on a failed sign-in's
+  // code, takes the sign-in flag, reports and drops the code from the address (spec 0017, the
+  // account invitation). Only where the header's modal is mounted too, or nothing answers the
+  // code. True by default.
+  handlesReturnedError?: boolean;
 }
 
 // The login modal (spec 0013 N12, AC1): one button, "Войти через Google", which leaves for Google
@@ -27,9 +32,10 @@ export interface LoginModalProps {
 // only a sign-in started in this tab reports it (the `sessionStorage` flag), so someone else's link
 // with a made-up code reports nothing. Render it per request inside <Suspense>: it reads the query
 // (`useSearchParams`).
-export function LoginModal({ trigger }: LoginModalProps) {
+export function LoginModal({ trigger, handlesReturnedError = true }: LoginModalProps) {
   const pathname = usePathname();
-  const { code: returnedCode, rest } = useDropSignInError();
+  const { code, rest } = useDropSignInError(handlesReturnedError);
+  const returnedCode = handlesReturnedError ? code : null;
   const [open, setOpen] = useState(returnedCode !== null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(() =>
@@ -37,13 +43,14 @@ export function LoginModal({ trigger }: LoginModalProps) {
   );
   const google = useTrackedElement('login.google');
   useEffect(() => {
+    if (!handlesReturnedError) return;
     // Signed out, the flag of a sign-in that came back here, or of one abandoned on the way, goes.
     const started = takeSignInStarted();
     // The visitor's own refusal is not a failure of the site.
     if (started && returnedCode !== null && returnedCode !== 'access_denied') {
       reportFailure(signInRedirectError(returnedCode));
     }
-  }, [returnedCode]);
+  }, [handlesReturnedError, returnedCode]);
 
   // The button keeps waiting while the page leaves for Google; "Back" can bring the page back from
   // the browser's cache as it was, so it stops waiting then, and the sign-in is no longer started.

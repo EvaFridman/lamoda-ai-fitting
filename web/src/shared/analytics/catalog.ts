@@ -98,6 +98,12 @@ export const catalog = defineCatalog({
       description:
         'Вход через Google и выход. `login` — окно входа, `profile-menu` — меню профиля в шапке.',
     },
+    account: {
+      title: 'Личный кабинет',
+      areas: ['account-menu', 'account-data', 'account-delete', 'account-invite'],
+      description:
+        'Страницы `/customer`. `account-menu` — меню разделов (на узком экране — список разделов и путь назад к нему), `account-data` — «Мои данные», `account-delete` — удаление аккаунта, `account-invite` — приглашение войти вместо раздела.',
+    },
   },
   commonEvents: {
     'Element Clicked': {
@@ -173,6 +179,32 @@ export const catalog = defineCatalog({
       properties: {
         section: { kind: 'enum', values: ['orders', 'stores', 'data', 'fittings'] },
       },
+    },
+    'account-menu.section': {
+      zone: 'account',
+      type: 'navigation',
+      description:
+        'Раздел в меню личного кабинета (на узком экране — в списке разделов на `/customer`).',
+      clicksPerVisit: 0.05,
+      hoversPerVisit: 0.06,
+      properties: {
+        section: { kind: 'enum', values: ['orders', 'stores', 'data', 'fittings'] },
+      },
+    },
+    'account-menu.back': {
+      zone: 'account',
+      type: 'navigation',
+      description: '«Личный кабинет» над разделом на узком экране: назад к списку разделов.',
+      clicksPerVisit: 0.01,
+      hoversPerVisit: 0.005,
+    },
+    'account-invite.sign-in': {
+      zone: 'account',
+      type: 'interaction',
+      description:
+        'Кнопка «Войти» в приглашении, которое видит вышедший посетитель вместо раздела кабинета.',
+      clicksPerVisit: 0.01,
+      hoversPerVisit: 0.01,
     },
   },
 });

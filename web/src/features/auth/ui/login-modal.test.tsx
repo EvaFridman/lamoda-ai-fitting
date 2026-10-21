@@ -370,6 +370,48 @@ describe('LoginModal', () => {
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
 
+    describe('with handlesReturnedError={false}', () => {
+      function setupIgnoring() {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+        render(
+          <LoginModal
+            handlesReturnedError={false}
+            trigger={<button type="button">Профиль</button>}
+          />,
+        );
+        return user;
+      }
+
+      it('stays closed, keeps the flag, reports nothing and leaves the address alone', () => {
+        const started = String(Date.now());
+        window.sessionStorage.setItem(FLAG, started);
+        mocks.navigation.params = new URLSearchParams('error=server_error');
+        setupIgnoring();
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(window.sessionStorage.getItem(FLAG)).toBe(started);
+        expect(mocks.reportFailure).not.toHaveBeenCalled();
+        expect(mocks.replace).not.toHaveBeenCalled();
+      });
+
+      it('opens from the trigger without the error text', async () => {
+        mocks.navigation.params = new URLSearchParams('error=server_error');
+        const user = setupIgnoring();
+        const dialog = await openModal(user);
+        expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument();
+        expect(
+          within(dialog).getByRole('button', { name: 'Войти через Google' }),
+        ).toBeInTheDocument();
+      });
+
+      it('signs in with a return address that has no error params', async () => {
+        mocks.navigation.params = new URLSearchParams('a=1&error=server_error&error_description=x');
+        const user = setupIgnoring();
+        await openModal(user);
+        await user.click(screen.getByRole('button', { name: 'Войти через Google' }));
+        expect(mocks.signInWithGoogle).toHaveBeenCalledExactlyOnceWith('/catalog?a=1');
+      });
+    });
+
     it('clears the text when the modal is closed', async () => {
       mocks.navigation.params = new URLSearchParams('error=access_denied');
       const user = setup();
