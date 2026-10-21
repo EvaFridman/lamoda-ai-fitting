@@ -9,6 +9,13 @@ describe('CatalogHeading', () => {
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Платья 128 товаров');
   });
 
+  it('groups the digits of a long count with a no-break space', () => {
+    render(<CatalogHeading title="Платья" total={50030} />);
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toContain(
+      `50${String.fromCodePoint(0xa0)}030 товаров`,
+    );
+  });
+
   it('has no count until the counts load', () => {
     render(<CatalogHeading title="Платья" />);
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Платья$/);

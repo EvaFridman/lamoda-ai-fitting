@@ -43,6 +43,16 @@ describe('categoryProxy', () => {
     expect(find).not.toHaveBeenCalled();
   });
 
+  it.each(['/catalog/opengraph-image', '/catalog/twitter-image'])(
+    'lets %s through without asking the api',
+    async (path) => {
+      const response = await categoryProxy(request(path));
+      expect(response.headers.get('x-middleware-next')).toBe('1');
+      expect(rewrittenTo(response)).toBeNull();
+      expect(find).not.toHaveBeenCalled();
+    },
+  );
+
   it('lets an active category through', async () => {
     find.mockResolvedValue(category);
     const response = await categoryProxy(request('/catalog/dresses'));

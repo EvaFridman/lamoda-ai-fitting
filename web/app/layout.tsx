@@ -5,6 +5,7 @@ import { Onest } from 'next/font/google';
 import type { ReactNode } from 'react';
 
 import { Providers } from '@/_app';
+import { SITE_NAME, SITE_TITLE_TEMPLATE } from '@/shared/config';
 import { Footer } from '@/widgets/footer';
 import { Header } from '@/widgets/header';
 
@@ -14,10 +15,7 @@ const onest = Onest({ subsets: ['latin', 'cyrillic'], variable: '--font-onest' }
 // A page's own title goes first (spec 0014 O25). `metadataBase` is set by the pages that render per
 // request (O67): this metadata is built with the static pages, when no server env exists.
 export const metadata: Metadata = {
-  title: {
-    template: '%s — Виртуальная примерка | Lamoda AI Fitting',
-    default: 'Lamoda AI Fitting',
-  },
+  title: { template: SITE_TITLE_TEMPLATE, default: SITE_NAME },
 };
 
 // The frame shared by every page: providers, the site header and footer.

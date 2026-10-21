@@ -11,6 +11,9 @@ const NOT_FOUND_PATH = '/_category-not-found';
 // Next's header on a `<Link>`'s prefetch.
 const PREFETCH_HEADER = 'next-router-prefetch';
 
+// The catalog's own routes at a slug's place: its link preview images (plan §3.5).
+const OWN_ROUTES = new Set(['opengraph-image', 'twitter-image']);
+
 // The 404 of an unknown or inactive category (AC2). A page streams its static shell with 200 before
 // it reads anything (`cacheComponents`), so the slug is checked here, before routing (O65). An api
 // failure lets the request through: the page shows the error. Prefetches pass unchecked, so a page's
@@ -18,6 +21,7 @@ const PREFETCH_HEADER = 'next-router-prefetch';
 export async function categoryProxy(request: NextRequest): Promise<NextResponse> {
   if (request.headers.has(PREFETCH_HEADER)) return NextResponse.next();
   const segment = request.nextUrl.pathname.split('/')[2] ?? '';
+  if (OWN_ROUTES.has(segment)) return NextResponse.next();
   let slug: string;
   try {
     slug = decodeURIComponent(segment);

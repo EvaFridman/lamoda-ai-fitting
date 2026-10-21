@@ -501,9 +501,23 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   segment fails the build.
 - `web` routes (spec 0014): `/` redirects to `/catalog` (307, `redirects()` in `next.config.ts`);
   `/healthz` answers 200 without calling the api. The root layout's title template is
-  `%s — Виртуальная примерка | Lamoda AI Fitting`; a page with a full title of its own sets it as
-  `absolute`. `metadataBase` comes from the server env `SITE_URL` and is set by the pages that
-  render per request, never the root layout, whose metadata is built with the static pages (O67).
+  `%s — Виртуальная примерка | Lamoda AI Fitting` (`siteTitle`, `@/shared/config`); a page with a
+  full title of its own sets it as `absolute`. `metadataBase` comes from the server env `SITE_URL`
+  and is set by the pages that render per request, never the root layout, whose metadata is built
+  with the static pages (O67). SEO (spec 0014 plan §3.5, `_pages/catalog`): the catalog's
+  `generateMetadata` sets the description (the category's, else a template with the unfiltered
+  count, asked only on an indexed address; no price, O94), the canonical address without parameters, `noindex, follow` with a filter,
+  `q` or `cursor` (a sort alone stays indexed, O92), and Open Graph and Twitter with the one static
+  image of `app/catalog/opengraph-image.tsx` / `twitter-image.tsx` (named by each page, since a
+  category's `openGraph` replaces the catalog's; `categoryProxy` lets these two paths through).
+  Next streams the metadata into `<body>` for browsers and puts it in `<head>` for the bots of its
+  default `htmlLimitedBots` (Yandex, `Chrome-Lighthouse`, link previews); widening that list makes
+  every page skip its prerendered shell, so Lighthouse is run with a `Chrome-Lighthouse` user agent
+  (O93). Each catalog page renders JSON-LD with the
+  first batch (`CatalogJsonLd`, every `<` escaped). `/sitemap.xml` (the catalog and the active
+  categories, only the catalog when the api fails) and `/robots.txt` (`/customer`, `/ui-kit`,
+  `/healthz` disallowed, the sitemap named) render per request; `app/` re-exports both from
+  `_pages/catalog`.
 - `api` storage (spec 0011): one private bucket. The first segment of a key is its class, since
   Timeweb's lifecycle rules match prefixes only: `media/` (the catalog media, no expiry; the
   database keeps the key without `media/`, nginx and the seed add it), `keep/users/<userId>/…`

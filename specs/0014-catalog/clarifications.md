@@ -555,3 +555,29 @@ Second round, on the review of `4817711`:
 - **O91. A chip's × keeps the focus on the chip.** Revises plan §3.4: the × removes only itself,
   the chip stays (unapplied), so the kit's focus on the chip stays; the focus goes to the `<h1>`
   only after "Очистить фильтры" (the row's and the empty state's). (owner, T18.)
+
+## Decided at T19
+
+- **O92. A sort alone keeps the page indexed.** `noindex, follow` comes only with a filter, `q` or
+  `cursor` (plan §3.5); an address whose only parameter is `sort` stays indexable, and its canonical
+  address (without parameters) points crawlers to the unsorted page. (owner, T19.)
+- **O93. Metadata streams for browsers, blocks for bots; AC23 is measured as a bot.** With
+  `cacheComponents`, Next 16 streams `generateMetadata`'s tags into `<body>` for browsers and puts
+  them in `<head>` only for its list of HTML-limited bots (Yandex, `Chrome-Lighthouse`, link
+  previews; checked on `next build` + `next start`). Next's default list stays: widening it
+  (`htmlLimitedBots: /.*/`) makes every request with a user agent skip the prerendered shell, on
+  every page of the site (spec 0018's cache too). Lighthouse 12's own user agent is a plain mobile
+  Chrome, so a local run finds no description or canonical in `<head>` (SEO 92): AC23 is measured
+  with PageSpeed Insights, or locally with `--emulated-user-agent` containing `Chrome-Lighthouse`.
+  The task's "uncached data in generateMetadata()" did not show again in `next dev`, and `next
+build` passes. (owner, T19.)
+- **O94. The description has no price.** O25's "lowest price" would come from the counts'
+  `price.min`, the price before the discount, above what the cards and the JSON-LD show. The
+  template keeps the count only: "Платья: 8 340 товаров с виртуальной примеркой в Lamoda AI
+  Fitting." The lowest price after the discount in the counts is a backlog item. (owner, T19.)
+- **O95. The JSON-LD's risks are accepted for AC21.** The `Product`s of the `ItemList` link to
+  `/products/<id>`, a 404 until the product page's spec (O7), and `/catalog`'s breadcrumbs have one
+  item. Both are checked with Rich Results and Yandex's validator after the deploy. (owner, T19.)
+- **O96. Product counts are grouped.** "50 030 товаров", with a no-break space as prices have
+  (`formatAmount`): the heading, its live region, the description and the drawer's "Показать N
+  товаров". (owner, T19.)

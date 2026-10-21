@@ -197,7 +197,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Check: Testing Library roles, names and the live region; `qa-tester` keyboard-only pass and a
       local Lighthouse Accessibility run (AC23, part); `npm run verify`.
       Commit: `feat(web): make the catalog readable by screen readers`
-- [ ] **T19. SEO.** `generateMetadata`, canonical and `noindex`, Open Graph and Twitter, the image,
+- [x] **T19. SEO.** `generateMetadata`, canonical and `noindex`, Open Graph and Twitter, the image,
       JSON-LD, `sitemap.ts`, `robots.ts` (plan §3.5). `next dev` logs "uncached data in
       generateMetadata()" (blocking-prerender-metadata-dynamic) for `/catalog`, from T11's
       `await connection()` in `generateCatalogMetadata`, though the answer is 200 (seen at T12):
