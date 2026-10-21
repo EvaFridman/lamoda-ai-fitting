@@ -89,6 +89,21 @@ export function OverlaysSection() {
           </Drawer>
           <code className={styles.props}>wide (636px)</code>
         </li>
+        <li className={styles.example}>
+          <Drawer
+            trigger={<Button variant="outline">Фильтры</Button>}
+            title="Фильтры"
+            side="bottom"
+            footer={
+              <DrawerClose>
+                <Button fullWidth>Показать 128 товаров</Button>
+              </DrawerClose>
+            }
+          >
+            <p>Сортировка, цвет, бренд, размер, цена — разделы аккордеона.</p>
+          </Drawer>
+          <code className={styles.props}>side=&quot;bottom&quot;, footer</code>
+        </li>
       </ul>
 
       <h3 className={styles.heading}>Tooltip</h3>

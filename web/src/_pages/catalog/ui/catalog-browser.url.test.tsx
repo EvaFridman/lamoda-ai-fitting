@@ -204,6 +204,35 @@ describe('CatalogBrowser selection in the address (AC7)', () => {
     expect(nav.push).not.toHaveBeenCalled();
   });
 
+  it('replaces the address when the phone drawer applies its draft (AC4)', async () => {
+    stubApi(oneProduct);
+    nav.pathname = '/catalog/dresses';
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    await show({ categoryId: DRESSES, start: 'c-1', query: { sort: 'price_asc' } });
+    await user.click(screen.getByRole('button', { name: 'Фильтры' }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Фильтры' }));
+    await user.click(dialog.getByRole('button', { name: 'Бренд' }));
+    await user.click(dialog.getByRole('checkbox', { name: 'Nike 12' }));
+    expect(nav.replace).not.toHaveBeenCalled();
+    await user.click(dialog.getByRole('button', { name: /^Показать/ }));
+    expect(nav.replace).toHaveBeenCalledTimes(1);
+    expect(lastAddress()).toEqual([
+      `/catalog/dresses?sort=price_asc&brandId=${NIKE}`,
+      { scroll: false },
+    ]);
+  });
+
+  it('the phone drawer\'s "Очистить фильтры" drops the search and filters, keeps the sort', async () => {
+    stubApi(oneProduct);
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    await show({ query: { q: 'платье', sort: 'price_asc', brandId: [NIKE] } });
+    await user.click(screen.getByRole('button', { name: 'Фильтры' }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Фильтры' }));
+    await user.click(dialog.getByRole('button', { name: 'Очистить фильтры' }));
+    expect(nav.replace).toHaveBeenCalledTimes(1);
+    expect(lastAddress()).toEqual(['/catalog?sort=price_asc', { scroll: false }]);
+  });
+
   it('keeps the category path and drops the cursor', async () => {
     stubApi(oneProduct);
     nav.pathname = '/catalog/dresses';
@@ -341,6 +370,22 @@ describe('CatalogBrowser scroll on a new selection (O82)', () => {
     await show();
     scrolledTo(900);
     await user.click(screen.getByRole('button', { name: 'Только со скидкой' }));
+    expect(window.scrollTo).toHaveBeenCalledWith({ top });
+    expect(vi.mocked(window.scrollTo).mock.invocationCallOrder[0]).toBeLessThan(
+      nav.replace.mock.invocationCallOrder[0] ?? 0,
+    );
+  });
+
+  it('goes up when the phone drawer applies while the visitor is below the column top', async () => {
+    stubApi(oneProduct);
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    await show();
+    scrolledTo(900);
+    await user.click(screen.getByRole('button', { name: 'Фильтры' }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Фильтры' }));
+    await user.click(dialog.getByRole('switch', { name: 'Только со скидкой' }));
+    expect(window.scrollTo).not.toHaveBeenCalled();
+    await user.click(dialog.getByRole('button', { name: /^Показать/ }));
     expect(window.scrollTo).toHaveBeenCalledWith({ top });
     expect(vi.mocked(window.scrollTo).mock.invocationCallOrder[0]).toBeLessThan(
       nav.replace.mock.invocationCallOrder[0] ?? 0,

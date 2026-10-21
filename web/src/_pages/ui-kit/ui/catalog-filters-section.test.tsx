@@ -12,9 +12,17 @@ function renderRegion() {
   return screen.getByRole('region', { name: 'Фильтры каталога' });
 }
 
+// The region holds two demos with the same names (the chips, then the phone panels): the chips'
+// is the block under the first heading.
+function renderChipsDemo() {
+  const region = renderRegion();
+  const heading = within(region).getByRole('heading', { name: /^ProductSortFilter, ColorFilter/ });
+  return heading.nextElementSibling as HTMLElement;
+}
+
 // The popup of a chip is found through the chip: Base UI portals it out of the region.
 function renderLive() {
-  const region = renderRegion();
+  const region = renderChipsDemo();
   const popup = (chip: HTMLElement) => {
     const id = chip.getAttribute('aria-controls');
     return within(document.getElementById(id!)!);
@@ -271,6 +279,44 @@ describe('catalog filters section', () => {
 
     const coloursAgain = await open(user, 'Цвет');
     for (const box of coloursAgain.getAllByRole('checkbox')) expect(box).not.toBeChecked();
+  });
+
+  describe('the phone panels', () => {
+    function renderPanels() {
+      const heading = within(renderRegion()).getByRole('heading', {
+        name: /^ProductSortFilterPanel, ColorFilterPanel/,
+      });
+      return within(heading.nextElementSibling as HTMLElement);
+    }
+
+    it('shows every filter as a closed accordion section and the discount switch', () => {
+      const panels = renderPanels();
+      for (const name of ['Сортировка', 'Цвет', 'Материал', 'Сезон', 'Бренд', 'Размер', 'Цена']) {
+        expect(panels.getByRole('button', { name })).toHaveAttribute('aria-expanded', 'false');
+      }
+      expect(panels.getByRole('switch', { name: 'Только со скидкой' })).not.toBeChecked();
+      expect(panels.getByText('Последний вызов: —')).toBeInTheDocument();
+    });
+
+    it('reports a ticked brand and a picked sort at once, with no "Применить"', async () => {
+      const user = userEvent.setup();
+      const panels = renderPanels();
+
+      await user.click(panels.getByRole('button', { name: 'Бренд' }));
+      await user.click(panels.getByRole('checkbox', { name: /Brisko/ }));
+      expect(
+        panels.getByText(
+          `Последний вызов: BrandFilterPanel onValueChange: ${JSON.stringify([facetId('brands', 'Brisko')])}`,
+        ),
+      ).toBeInTheDocument();
+      expect(panels.queryByRole('button', { name: 'Применить' })).not.toBeInTheDocument();
+
+      await user.click(panels.getByRole('button', { name: 'Сортировка' }));
+      await user.click(panels.getByRole('radio', { name: 'Сначала дешевле' }));
+      expect(
+        panels.getByText('Последний вызов: ProductSortFilterPanel onValueChange: "price_asc"'),
+      ).toBeInTheDocument();
+    });
   });
 
   it('clears an applied price back to a bare chip and the data bounds', async () => {

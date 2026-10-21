@@ -15,8 +15,12 @@ export type {
 export { Button } from './button/button';
 export type { CheckboxProps } from './checkbox/checkbox';
 export { Checkbox } from './checkbox/checkbox';
-export type { CheckboxFilterOption, CheckboxFilterProps } from './checkbox-filter/checkbox-filter';
-export { CheckboxFilter } from './checkbox-filter/checkbox-filter';
+export type {
+  CheckboxFilterOption,
+  CheckboxFilterPanelProps,
+  CheckboxFilterProps,
+} from './checkbox-filter/checkbox-filter';
+export { CheckboxFilter, CheckboxFilterPanel } from './checkbox-filter/checkbox-filter';
 export type { CheckboxGroupProps } from './checkbox-group/checkbox-group';
 export { CheckboxGroup } from './checkbox-group/checkbox-group';
 export type { ColorSwatchProps, HexColor, SwatchColor } from './color-swatch/color-swatch';
@@ -78,8 +82,12 @@ export type { PaginationProps } from './pagination/pagination';
 export { Pagination } from './pagination/pagination';
 export type { PriceProps, PriceVariant } from './price/price';
 export { Price } from './price/price';
-export type { PriceFilterProps, PriceRange } from './price-filter/price-filter';
-export { PriceFilter } from './price-filter/price-filter';
+export type {
+  PriceFilterPanelProps,
+  PriceFilterProps,
+  PriceRange,
+} from './price-filter/price-filter';
+export { PriceFilter, PriceFilterPanel } from './price-filter/price-filter';
 export { priceLabel } from './price-filter/price-label';
 export type { RadioProps } from './radio/radio';
 export { Radio } from './radio/radio';
@@ -97,8 +105,12 @@ export type { SizeSelectorOption, SizeSelectorProps } from './size-selector/size
 export { SizeSelector } from './size-selector/size-selector';
 export type { SkeletonProps } from './skeleton/skeleton';
 export { Skeleton } from './skeleton/skeleton';
-export type { SortFilterOption, SortFilterProps } from './sort-filter/sort-filter';
-export { SortFilter } from './sort-filter/sort-filter';
+export type {
+  SortFilterOption,
+  SortFilterPanelProps,
+  SortFilterProps,
+} from './sort-filter/sort-filter';
+export { SortFilter, SortFilterPanel } from './sort-filter/sort-filter';
 export type { SpinnerProps, SpinnerSize } from './spinner/spinner';
 export { Spinner } from './spinner/spinner';
 export type { SwitchProps } from './switch/switch';

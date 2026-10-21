@@ -1,0 +1,25 @@
+// The row of chips from a 1024px window, where the category column shows too (O84); below it the
+// "Фильтры" button of the bottom sheet (O6, O88). Both are in the page; CSS shows one.
+
+.row {
+  @media (width < 1024px) {
+    display: none;
+  }
+}
+
+.phone {
+  @media (width >= 1024px) {
+    display: none;
+  }
+}
+
+// "Только со скидкой" under the accordion, as high as a section's title row.
+.drawerDiscount {
+  padding: var(--space-4) 0;
+}
+
+// On its own line over "Показать N товаров".
+.drawerClear {
+  align-self: center;
+  margin: 0 auto var(--space-2);
+}

@@ -240,3 +240,44 @@ describe('filters demo', () => {
     );
   });
 });
+
+describe('filter panels demo', () => {
+  function renderPanels() {
+    render(<UiKitPage />);
+    const state = screen.getByText(/^\{"sort":/);
+    return { state, panels: within(state.parentElement as HTMLElement) };
+  }
+
+  it('starts with the sort open, the default sort, no brands and the whole price range', () => {
+    const { state, panels } = renderPanels();
+
+    expect(JSON.parse(state.textContent ?? '')).toEqual({
+      sort: 'popularity',
+      brands: [],
+      price: [60, 288900],
+    });
+    expect(panels.getByRole('button', { name: 'Сортировка' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
+    for (const name of ['Бренд', 'Цена']) {
+      expect(panels.getByRole('button', { name })).toHaveAttribute('aria-expanded', 'false');
+    }
+  });
+
+  it('reports a ticked brand and a typed price at once', async () => {
+    const user = userEvent.setup();
+    const { state, panels } = renderPanels();
+
+    await user.click(panels.getByRole('button', { name: 'Бренд' }));
+    await user.click(panels.getByRole('checkbox', { name: /Annen/ }));
+    await user.click(panels.getByRole('button', { name: 'Цена' }));
+    await user.type(panels.getByRole('textbox', { name: 'Мин. цена' }), '1500');
+
+    expect(JSON.parse(state.textContent ?? '')).toEqual({
+      sort: 'popularity',
+      brands: ['annen'],
+      price: [1500, 288900],
+    });
+  });
+});

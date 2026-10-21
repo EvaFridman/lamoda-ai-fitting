@@ -8,3 +8,20 @@ import { afterEach } from 'vitest';
 afterEach(() => {
   cleanup();
 });
+
+// jsdom has no `matchMedia`. Here no media query matches and none ever changes; a test of a
+// change stubs its own (`vi.stubGlobal('matchMedia', …)`). Tests in the node environment have no
+// window at all.
+if (typeof window !== 'undefined') {
+  window.matchMedia = (query: string) =>
+    ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    }) satisfies MediaQueryList;
+}

@@ -13,7 +13,10 @@ export interface DrawerProps {
   trigger?: ReactElement;
   // The heading: the drawer's accessible name.
   title: string;
-  // 432px by default, 636px wide; never wider than the window.
+  // `right` by default: the side modal. `bottom`: a sheet the width of the window rising from its
+  // bottom edge, as high as its content up to a strip of the page left above it (spec 0014 O6).
+  side?: 'right' | 'bottom';
+  // 432px by default, 636px wide; never wider than the window. Only for `right`.
   wide?: boolean;
   // Buttons pinned under the content. A button that only closes goes in DrawerClose.
   footer?: ReactNode;
@@ -26,10 +29,12 @@ export interface DrawerProps {
 // Lamoda's side modal (SideModal): a white sheet the height of the window that slides in from the
 // right over a dark overlay, a 24/28 heading and a × inside it at the top right (D7ab). Base UI's
 // Drawer behaves as Modal does (focus trapped, no page scroll, Esc or a click on the overlay
-// close it, the focus returns to the trigger); on a touch screen a swipe to the right closes it.
+// close it, the focus returns to the trigger); on a touch screen a swipe to the right (down for
+// the bottom sheet) closes it.
 export function Drawer({
   trigger,
   title,
+  side = 'right',
   wide = false,
   footer,
   open,
@@ -39,7 +44,7 @@ export function Drawer({
 }: DrawerProps) {
   return (
     <BaseDrawer.Root
-      swipeDirection="right"
+      swipeDirection={side === 'bottom' ? 'down' : 'right'}
       open={open}
       defaultOpen={defaultOpen}
       onOpenChange={onOpenChange ? (next) => onOpenChange(next) : undefined}
@@ -47,9 +52,15 @@ export function Drawer({
       {trigger && <BaseDrawer.Trigger render={trigger} />}
       <BaseDrawer.Portal>
         <BaseDrawer.Backdrop className={styles.backdrop} />
-        <BaseDrawer.Viewport className={styles.viewport}>
+        <BaseDrawer.Viewport
+          className={[styles.viewport, side === 'bottom' && styles.viewportBottom]
+            .filter(Boolean)
+            .join(' ')}
+        >
           <BaseDrawer.Popup
-            className={[styles.popup, wide && styles.wide].filter(Boolean).join(' ')}
+            className={[styles.popup, side === 'bottom' ? styles.bottom : wide && styles.wide]
+              .filter(Boolean)
+              .join(' ')}
           >
             <BaseDrawer.Title className={styles.title}>{title}</BaseDrawer.Title>
             <BaseDrawer.Content className={styles.content}>{children}</BaseDrawer.Content>

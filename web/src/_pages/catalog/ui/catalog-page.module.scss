@@ -1,6 +1,7 @@
 // Lamoda's catalog on the desktop (O5): the header's 1200px column; the breadcrumbs, then the title
 // with its count, then the category list on the left of the chips and the grid. Below a 1024px
-// window the list goes and the grid takes the whole width (phones: T16).
+// window the list goes, the grid takes the whole width and "Фильтры" opens the filters in a bottom
+// sheet (O6, O88).
 
 .page {
   box-sizing: content-box;

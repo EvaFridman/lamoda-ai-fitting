@@ -50,3 +50,27 @@ export function SortFilter({ options, value, onValueChange }: SortFilterProps) {
     </RadioGroup>
   );
 }
+
+export interface SortFilterPanelProps extends SortFilterProps {
+  // The name of the list for screen readers: the title of the section it is in.
+  label: string;
+}
+
+// The same radios with no dropdown to close: a section of the phone drawer (spec 0014 O6), where
+// a pick is applied with the other filters.
+export function SortFilterPanel({ options, label, value, onValueChange }: SortFilterPanelProps) {
+  return (
+    <RadioGroup
+      aria-label={label}
+      className={styles.panel}
+      value={value}
+      onValueChange={(next) => onValueChange(next)}
+    >
+      {options.map((option) => (
+        <Radio key={option.value} value={option.value} className={styles.row}>
+          {option.label}
+        </Radio>
+      ))}
+    </RadioGroup>
+  );
+}
