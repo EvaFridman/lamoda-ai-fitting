@@ -401,16 +401,22 @@ describe('CatalogPage', () => {
       expect(element.props.failureText).toBeDefined();
     });
 
-    it('keys the list by its start, so another cursor remounts it', async () => {
-      expect((await serve()).key).toBe('c-1');
-      expect((await serve(Promise.resolve({ cursor: 'c-2' }))).key).toBe('c-2');
+    it('hands each address its own cursor as the start, and does not key the browser', async () => {
+      const first = await serve();
+      expect(first.props.start).toBe('c-1');
+      expect(first.key).toBeNull();
+      const second = await serve(Promise.resolve({ cursor: 'c-2' }));
+      expect(second.props.start).toBe('c-2');
+      expect(second.key).toBeNull();
     });
 
-    it('keys the list with an empty text without a cursor', async () => {
-      expect((await serve(noSearch)).key).toBe('');
+    it('hands no start to the browser without a cursor', async () => {
+      const element = await serve(noSearch);
+      expect(element.props.start).toBeUndefined();
+      expect(element.key).toBeNull();
     });
 
-    it('keys the list with an empty text after a refused cursor falls back', async () => {
+    it('hands no start to the browser after a refused cursor falls back', async () => {
       fetchMock.mockImplementation((input: unknown) =>
         Promise.resolve(
           side(input) ??
@@ -419,7 +425,9 @@ describe('CatalogPage', () => {
               : new Response(JSON.stringify({ items: [product], total: 1, nextCursor: null }))),
         ),
       );
-      expect((await serve()).key).toBe('');
+      const element = await serve();
+      expect(element.props.start).toBeUndefined();
+      expect(element.key).toBeNull();
     });
 
     it('does not retry a refused first batch when there is no cursor', async () => {

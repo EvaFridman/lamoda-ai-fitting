@@ -61,4 +61,31 @@ describe('FilterChips', () => {
     expect(screen.getByRole('button', { name: 'Первый' })).toHaveFocus();
     expect(screen.getByRole('button', { name: 'Первый' })).toHaveAttribute('aria-pressed', 'false');
   });
+
+  it('calls focusAfterClearAll after onClearAll and leaves the first chip unfocused', async () => {
+    const user = userEvent.setup();
+    const calls: string[] = [];
+    const onClearAll = vi.fn(() => calls.push('clear'));
+    const focusAfterClearAll = vi.fn(() => calls.push('focus'));
+    render(
+      <FilterChips onClearAll={onClearAll} focusAfterClearAll={focusAfterClearAll}>
+        <FilterChip title="Первый" />
+      </FilterChips>,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Очистить фильтры' }));
+
+    expect(calls).toEqual(['clear', 'focus']);
+    expect(screen.getByRole('button', { name: 'Первый' })).not.toHaveFocus();
+  });
+
+  it('does not call focusAfterClearAll before the button is pressed', () => {
+    const focusAfterClearAll = vi.fn();
+    render(
+      <FilterChips onClearAll={vi.fn()} focusAfterClearAll={focusAfterClearAll}>
+        <FilterChip title="Первый" />
+      </FilterChips>,
+    );
+    expect(focusAfterClearAll).not.toHaveBeenCalled();
+  });
 });

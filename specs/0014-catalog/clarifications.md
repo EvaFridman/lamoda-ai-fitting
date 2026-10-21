@@ -545,3 +545,13 @@ Second round, on the review of `4817711`:
   not highlighted; a query submitted again on `/catalog?q=<same>` is pushed as any other. The
   backlog's "Logo keeps the catalog's scroll" stays in the backlog: T17 does not change the logo.
   (owner, T17.)
+
+## Decided at T18
+
+- **O90. Focus after "Очистить фильтры" in the drawer stays on "Показать".** Plan §3.4's focus on
+  the `<h1>` applies to the desktop row (its "Очистить фильтры" and a chip's ×) and the empty
+  state. The phone drawer stays open after it (O88) and keeps the focus inside, so the focus goes
+  to "Показать" there, as T16 made it. (owner, T18.)
+- **O91. A chip's × keeps the focus on the chip.** Revises plan §3.4: the × removes only itself,
+  the chip stays (unapplied), so the kit's focus on the chip stays; the focus goes to the `<h1>`
+  only after "Очистить фильтры" (the row's and the empty state's). (owner, T18.)

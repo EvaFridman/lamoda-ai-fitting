@@ -192,7 +192,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       the placeholder "Товар, бренд или артикул" (O14); the header categories become links (O16).
       Check: Vitest of both (AC9); `qa-tester` from `/privacy`; `npm run verify`.
       Commit: `feat(web): search and browse the catalog from the header`
-- [ ] **T18. Accessibility.** Landmarks, one `h1`, the live region, focus after "Очистить фильтры", the
+- [x] **T18. Accessibility.** Landmarks, one `h1`, the live region, focus after "Очистить фильтры", the
       keyboard pass (plan §3.4).
       Check: Testing Library roles, names and the live region; `qa-tester` keyboard-only pass and a
       local Lighthouse Accessibility run (AC23, part); `npm run verify`.
@@ -249,7 +249,9 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Check: every criterion has evidence; `npm run verify`.
       Commit: `docs(specs): close spec 0014`
 - 👤 merges PR 4; after the deploy, checks the page limit and the console of `/catalog` in
-  production (AC16, AC17).
+  production (AC16, AC17), and runs Lighthouse Accessibility on `/catalog` and one category (AC23;
+  T18's local run was not possible, `qa-tester` cannot start Lighthouse). Check that the phone
+  drawer's dialog has an accessible name (a suspicion of T18's QA).
 
 ## Acceptance record
 
