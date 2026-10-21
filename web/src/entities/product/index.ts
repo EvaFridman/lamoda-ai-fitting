@@ -2,11 +2,13 @@ export {
   productAttributeValueListOptions,
   productFacetsOptions,
   productImageListOptions,
+  productInfiniteOptions,
   productListOptions,
   productOptions,
   productVariationListOptions,
   useProduct,
   useProductAttributeValues,
+  useProductBatches,
   useProductFacets,
   useProductImages,
   useProducts,
@@ -16,7 +18,12 @@ export { chipValue, splitFacetAttributes } from './lib/facets';
 export { compareSizes, sortSizes } from './lib/sizes';
 export { PRODUCT_SORT_ORDER, productSortLabels } from './lib/sorts';
 export {
+  PRODUCT_FILTER_MAX_VALUES,
+  PRODUCT_MAX_PRICE,
+  PRODUCT_SEARCH_MAX_LENGTH,
+  PRODUCT_SIZE_MAX_LENGTH,
   PRODUCT_SORTS,
+  type ProductBatchQuery,
   type ProductFilters,
   type ProductListQuery,
   type ProductSort,

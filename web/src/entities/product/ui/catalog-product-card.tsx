@@ -13,6 +13,8 @@ export interface CatalogProductCardProps {
   // Where the card leads. No product page exists yet, so whoever places the card gives the
   // address (0009 K15; backlog "Product card link").
   href: string;
+  // Next's prefetch of `href` (its default when left out); off while the address has no page.
+  prefetch?: boolean;
   // One action in the photo's upper right corner (favourites, try-on), filled by a feature.
   action?: ReactNode;
   className?: string;
@@ -21,12 +23,18 @@ export interface CatalogProductCardProps {
 // Lamoda's catalog card: the photo 236:341 with the "−N%" badge, then the price, the brand, the
 // name in two lines and the rating. The link covers the photo and the text; the action is its
 // sibling, not inside it, so a click on the action does not follow the link (AC5).
-export function CatalogProductCard({ product, href, action, className }: CatalogProductCardProps) {
+export function CatalogProductCard({
+  product,
+  href,
+  prefetch,
+  action,
+  className,
+}: CatalogProductCardProps) {
   const discounted = product.discount > 0;
 
   return (
     <article className={[styles.card, className].filter(Boolean).join(' ')}>
-      <NextLink href={href} className={styles.link}>
+      <NextLink href={href} prefetch={prefetch} className={styles.link}>
         <div className={styles.photo}>
           {product.image === null ? (
             // Visual only, like the photo's empty alt: the link's name starts with the product.

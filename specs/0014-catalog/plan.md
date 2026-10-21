@@ -213,7 +213,7 @@ deactivated between the two reads (a soft 404). Two reads per page view are acce
 
 - **`_pages/catalog`.** The page. It owns the URL state and the requests.
   - `model/url-state.ts` parses and serializes `searchParams` ⇄ `ProductListQuery` without
-    `offset`:
+    `offset`, `limit` and `categoryId` (the category comes from the path only, O73):
     - array params are comma lists;
     - unknown and invalid params are dropped from the catalog's state. The page never rewrites
       the address to drop them, so the sign-in's `error` and `error_description` (0013 N54) stay
@@ -334,8 +334,9 @@ The entries go into spec 0015's event catalog, in its format and checked by its 
 starts once 0015's catalog is on `main`. Zone `catalog`; every event and element gets its
 description and frequency per visit (0015 R9).
 
-- **`Catalog Filter Applied`** `{ filter: enum category | brand | size | color | attribute | price
-| discount, values: number }`
+- **`Catalog Filter Applied`** `{ filter: enum brand | size | color | attribute | price | discount,
+values: number }`; a category is not a filter but a page, opened through `catalog.category`
+  (O73).
 - **`Catalog Sorted`** `{ sort: enum of PRODUCT_SORTS }`
 - **`Catalog Searched`** `{ query_length: number, results: number }`
 - **`Catalog Page Loaded`** `{ batch: number }`
@@ -483,7 +484,8 @@ in production, so no deployed web sends it.
   - page limits.
 - **`README.md`, `web/README.md`, `deploy/README.md`.**
 - **`specs/backlog.md`.** Remove "Product list cost", "Cache for filter counts", "Rate limit for
-  web pages", "Full CSP for web", "Remove greeting", "Product card link", "Mobile filters",
+  web pages", "Full CSP for web", "Remove greeting", "Product card link" (only its part on the
+  card's address: the prefetch stays for the product page's spec, O75), "Mobile filters",
   "Flaky handoff test", "Timeouts of the database pool", "Taint the proxy secret", "Flaky facets
   test" and "Retry policy of `hello`", each in the commit that closes it.
 - **Spec 0012's docs.** Its "Redis holds only rate-limit counters" becomes "counters and a cache

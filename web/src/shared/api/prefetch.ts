@@ -1,6 +1,11 @@
 import 'server-only';
 
-import type { QueryClient, QueryExecuteOptions, QueryKey } from '@tanstack/react-query';
+import type {
+  InfiniteQueryExecuteOptions,
+  QueryClient,
+  QueryExecuteOptions,
+  QueryKey,
+} from '@tanstack/react-query';
 
 // The server half of the handoff (plan §4): loads one query, a slice's server options
 // (`entities/*/server`, `queryFn` through `apiFetch`), into the request's QueryClient, which the page
@@ -15,6 +20,19 @@ export async function prefetch<Data, Key extends QueryKey>(
 ): Promise<unknown> {
   try {
     await queryClient.query({ ...options, retry: false });
+    return undefined;
+  } catch (error) {
+    return error;
+  }
+}
+
+// `prefetch` for an infinite list (spec 0014 plan §3.3): its first page only, the same rules.
+export async function prefetchInfinite<Data, Selected, Key extends QueryKey, PageParam>(
+  queryClient: QueryClient,
+  options: InfiniteQueryExecuteOptions<Data, Error, Selected, Key, PageParam>,
+): Promise<unknown> {
+  try {
+    await queryClient.infiniteQuery({ ...options, retry: false });
     return undefined;
   } catch (error) {
     return error;

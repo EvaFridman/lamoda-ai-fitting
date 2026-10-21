@@ -154,7 +154,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Check: `rg -i 'hello|greeting|dev-catalog|dev/catalog'` finds only specs, history and the
       unrelated (AC6); `npm run verify`; `docker compose up -d --build --wait web` is healthy.
       Commit: `refactor(web): remove the greeting and the dev catalog`
-- [ ] **T13. Catalog data on the server and in the URL.** `productInfiniteOptions` and its server
+- [x] **T13. Catalog data on the server and in the URL.** `productInfiniteOptions` and its server
       twin, `prefetchInfinite`, `_pages/catalog/model/url-state.ts`, the server part of the page
       with the first batch (plan §3.2, §3.3). With products on `/catalog`, `smoke-test.sh` and
       `request-loop.sh` check that page's data from the api, not only T11's static heading and
@@ -172,7 +172,7 @@ verify`; `check:web-bundle` still passes.
       in the commit message if it needs an install script); `widgets/product-grid`: rows by width,
       loading the next batch, the "Дальше" link, `?cursor=` rendering, return to the place, the
       list's roles (`aria-setsize`, `aria-posinset`); card links `/products/<id>` (O7); backlog
-      "Product card link".
+      "Product card link", whose prefetch part stays for the product page (O75).
       Check: Vitest of the column count, the next-batch trigger and the scroll restore;
       `curl /catalog` holds the first batch and "Дальше" (AC22); `qa-tester` on the dev catalog
       (AC11, AC13); `npm run verify`.

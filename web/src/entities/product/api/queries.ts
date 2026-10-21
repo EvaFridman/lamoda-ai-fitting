@@ -1,10 +1,17 @@
-import { queryOptions, useQuery } from '@tanstack/react-query';
+import {
+  infiniteQueryOptions,
+  queryOptions,
+  useInfiniteQuery,
+  useQuery,
+} from '@tanstack/react-query';
 
 import { buildPath, clientFetch, type PageQuery } from '@/shared/api';
 
 import {
+  productBatchQuery,
   productFilters,
   productListQuery,
+  type ProductBatchQuery,
   type ProductFilters,
   type ProductListQuery,
 } from '../model/filters';
@@ -29,6 +36,23 @@ export function productListOptions(query: ProductListQuery = {}) {
       clientFetch(buildPath('/products', {}, productListQuery(query)), productListSchema, {
         signal,
       }),
+  });
+}
+
+// The catalog's infinite list (plan §3.3): the first batch, then each after the last one's cursor.
+export function productInfiniteOptions(query: ProductBatchQuery = {}) {
+  return infiniteQueryOptions({
+    queryKey: productKeys.infinite(query),
+    queryFn: ({ pageParam, signal }) =>
+      clientFetch(
+        buildPath('/products', {}, productBatchQuery(query, pageParam)),
+        productListSchema,
+        {
+          signal,
+        },
+      ),
+    initialPageParam: null as string | null,
+    getNextPageParam: (last) => last.nextCursor,
   });
 }
 
@@ -88,6 +112,10 @@ export function productAttributeValueListOptions(id: string, query: PageQuery = 
 
 export function useProducts(query: ProductListQuery = {}) {
   return useQuery(productListOptions(query));
+}
+
+export function useProductBatches(query: ProductBatchQuery = {}) {
+  return useInfiniteQuery(productInfiniteOptions(query));
 }
 
 export function useProductFacets(filters: ProductFilters = {}) {

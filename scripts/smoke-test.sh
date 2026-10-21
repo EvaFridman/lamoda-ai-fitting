@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Checks a running site through its entry point (nginx): `/` sends to the catalog, whose page has
-# its heading, a category page shows its name from the api, and the api reports the expected
-# version. Used by CI after a deploy and by hand.
+# its heading and products from the api, a category page shows its name from the api, and the api
+# reports the expected version. Used by CI after a deploy and by hand.
 #
 #   scripts/smoke-test.sh <base-url> [expected-version]     e.g. https://localhost a1b2c3d
 #
@@ -17,8 +17,12 @@ root="$(curl -sk --max-time 10 -o /dev/null -w '%{http_code} %{redirect_url}' "$
   { echo "smoke: $base/ answers '$root', expected '307 $base/catalog'" >&2; exit 1; }
 page="$(curl -sk --max-time 10 "$base/catalog")"
 grep -q '<h1' <<<"$page" || { echo "smoke: the page at $base/catalog has no heading" >&2; exit 1; }
-# `/catalog`'s heading is static: a category's comes from the api through web, so this one shows
-# that web reaches the api. The seed's "Платья", which the seed never renames (spec 0014 O69).
+# A product card, rendered on the server from the api's first batch: any product, not one of the
+# seed by name (spec 0014 O71).
+grep -q '<article' <<<"$page" ||
+  { echo "smoke: the page at $base/catalog shows no product from the api" >&2; exit 1; }
+# A category's heading comes from the api through web too: the seed's "Платья", which the seed
+# never renames (spec 0014 O69).
 page="$(curl -sk --max-time 10 "$base/catalog/dresses")"
 grep -q '>Платья</h1>' <<<"$page" ||
   { echo "smoke: the page at $base/catalog/dresses has no heading from the api" >&2; exit 1; }

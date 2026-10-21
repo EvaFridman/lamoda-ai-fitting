@@ -1,0 +1,21 @@
+// The first batch as a plain grid until the virtual grid (spec 0014 T14): 4 columns from 1024px,
+// 3 from 768px, otherwise 2 (plan §3.3).
+
+.list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-6) var(--space-4);
+
+  margin: 0;
+  padding: 0;
+
+  list-style: none;
+
+  @media (width >= 768px) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  @media (width >= 1024px) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}

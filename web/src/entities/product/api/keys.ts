@@ -3,6 +3,7 @@ import type { PageQuery } from '@/shared/api';
 import {
   productFilters,
   productListQuery,
+  type ProductBatchQuery,
   type ProductFilters,
   type ProductListQuery,
 } from '../model/filters';
@@ -17,6 +18,9 @@ export const productKeys = {
   all: ['products'] as const,
   list: (query: ProductListQuery = {}) =>
     [...productKeys.all, 'list', productListQuery(query)] as const,
+  // Every batch loaded so far is one cache entry; the cursor is its page param, not in the key.
+  infinite: (query: ProductBatchQuery = {}) =>
+    [...productKeys.all, 'infinite', productListQuery({ ...query, offset: undefined })] as const,
   facets: (filters: ProductFilters = {}) =>
     [...productKeys.all, 'facets', productFilters(filters)] as const,
   detail: (id: string) => [...productKeys.all, 'detail', id] as const,

@@ -2,8 +2,8 @@
 # Sends requests to a site without pause until stopped (SIGTERM/SIGINT), alternating a category page
 # of the demo catalog and /api/health/live, then reports how many failed. Run it around a deploy to
 # check that no request fails while versions switch (AC26). The page counts as failed unless it
-# shows the category's heading, which it reads from the api: a 200 carrying the error state (e.g.
-# the api refusing web) is a failure too.
+# shows the category's heading and a product card, both read from the api: a 200 carrying the
+# error state (e.g. the api refusing web) is a failure too (spec 0014 O71).
 #
 #   scripts/request-loop.sh <base-url> & pid=$!; ...deploy...; kill $pid; wait $pid
 #
@@ -40,8 +40,12 @@ while :; do
     curl_exit=$?
     code="${result% *}"
     echo "${result#* }s$path@$started" >> "$timings"
-    if [ "$code" = 200 ] && [ "$path" = "$page" ] && ! grep -q '>Платья</h1>' "$body"; then
-      code=200-without-heading
+    if [ "$code" = 200 ] && [ "$path" = "$page" ]; then
+      if ! grep -q '>Платья</h1>' "$body"; then
+        code=200-without-heading
+      elif ! grep -q '<article' "$body"; then
+        code=200-without-products
+      fi
     fi
     total=$((total + 1))
     if [ "$code" != 200 ]; then
