@@ -6,7 +6,7 @@ the tasks (pull requests, §11) and at the review of PR 1 (§1 `gender`, §3, §
 amended 2026-10-21 at T10 (§4 `$sessionSignal`) and T11 (§5 the
 deletion: `LinkButton`, U25, U26).
 
-How [spec.md](spec.md) is built. Decisions: [clarifications.md](clarifications.md) (U1–U20).
+How [spec.md](spec.md) is built. Decisions: [clarifications.md](clarifications.md) (U1–U28).
 No new dependencies.
 
 ## 1. api: `PATCH /me`

@@ -3,7 +3,7 @@
 Status: done (2026-10-21): all 16 criteria pass ([tasks.md](tasks.md), acceptance record). History,
 not instructions. Accepted 2026-10-20.
 
-Issue #72. Decisions: `clarifications.md` (U1–U20).
+Issue #72. Decisions: `clarifications.md` (U1–U28).
 
 ## Goal
 
