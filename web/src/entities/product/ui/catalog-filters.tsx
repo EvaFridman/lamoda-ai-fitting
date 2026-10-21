@@ -4,6 +4,7 @@ import {
   CheckboxFilter,
   type CheckboxFilterOption,
   FilterChip,
+  type FilterChipEvents,
   FilterDropdown,
   PriceFilter,
   priceLabel,
@@ -28,7 +29,12 @@ import type { FacetAttribute, FacetBrand, FacetPrice, FacetSize } from '../model
 
 // The catalog's filters, built from the filter counts (0009 plan §3). Each shows its slice of
 // `ProductFacets` and reports the visitor's choice; the applied value comes from whoever places it
-// (K7). Their phone forms are in `catalog-filter-panels.tsx`.
+// (K7), and so do the chip's own handlers (`chipEvents`, the page's analytics). Their phone forms
+// are in `catalog-filter-panels.tsx`.
+
+interface ChipEventsProps {
+  chipEvents?: FilterChipEvents;
+}
 
 // The chip's text for the chosen values: their names in the order of the list, or how many are
 // chosen when some are not in the list (the counts no longer have them, the filter still applies).
@@ -39,7 +45,7 @@ function chosenText(options: readonly CheckboxFilterOption[], value: readonly st
   return names.length === value.length ? chipValue(names) : String(value.length);
 }
 
-interface FacetFilterProps {
+interface FacetFilterProps extends ChipEventsProps {
   title: string;
   options: CheckboxFilterOption[];
   value: string[];
@@ -56,6 +62,7 @@ function FacetFilter({
   onApply,
   searchPlaceholder,
   swatches,
+  chipEvents,
 }: FacetFilterProps) {
   return (
     <FilterDropdown
@@ -63,6 +70,7 @@ function FacetFilter({
       value={chosenText(options, value)}
       applied={value.length > 0}
       onClear={() => onApply([])}
+      chipEvents={chipEvents}
     >
       <CheckboxFilter
         options={options}
@@ -76,7 +84,7 @@ function FacetFilter({
   );
 }
 
-export interface AttributeFilterProps {
+export interface AttributeFilterProps extends ChipEventsProps {
   attribute: FacetAttribute;
   // The chosen attribute value ids.
   value: string[];
@@ -84,7 +92,7 @@ export interface AttributeFilterProps {
 }
 
 // A colour attribute: a swatch per value, an empty circle for a value with no colour (AC6).
-export function ColorFilter({ attribute, value, onApply }: AttributeFilterProps) {
+export function ColorFilter({ attribute, value, onApply, chipEvents }: AttributeFilterProps) {
   return (
     <FacetFilter
       title={attribute.name}
@@ -93,12 +101,13 @@ export function ColorFilter({ attribute, value, onApply }: AttributeFilterProps)
       onApply={onApply}
       searchPlaceholder="Найдите цвет"
       swatches
+      chipEvents={chipEvents}
     />
   );
 }
 
 // Any other attribute (material, season, one added later: K5) from the same component.
-export function AttributeFilter({ attribute, value, onApply }: AttributeFilterProps) {
+export function AttributeFilter({ attribute, value, onApply, chipEvents }: AttributeFilterProps) {
   return (
     <FacetFilter
       title={attribute.name}
@@ -106,11 +115,12 @@ export function AttributeFilter({ attribute, value, onApply }: AttributeFilterPr
       value={value}
       onApply={onApply}
       searchPlaceholder={attributeSearchPlaceholder(attribute)}
+      chipEvents={chipEvents}
     />
   );
 }
 
-export interface BrandFilterProps {
+export interface BrandFilterProps extends ChipEventsProps {
   brands: FacetBrand[];
   // The chosen brand ids.
   value: string[];
@@ -118,7 +128,7 @@ export interface BrandFilterProps {
 }
 
 // Brands with a search by part of the name; no "Премиум" tab (K5).
-export function BrandFilter({ brands, value, onApply }: BrandFilterProps) {
+export function BrandFilter({ brands, value, onApply, chipEvents }: BrandFilterProps) {
   return (
     <FacetFilter
       title={productFilterTitles.brand}
@@ -126,11 +136,12 @@ export function BrandFilter({ brands, value, onApply }: BrandFilterProps) {
       value={value}
       onApply={onApply}
       searchPlaceholder="Найдите бренд"
+      chipEvents={chipEvents}
     />
   );
 }
 
-export interface SizeFilterProps {
+export interface SizeFilterProps extends ChipEventsProps {
   sizes: FacetSize[];
   // The chosen sizes themselves: sizes have no ids.
   value: string[];
@@ -139,18 +150,19 @@ export interface SizeFilterProps {
 
 // Sizes in clothing order whatever the api's order (K13): a plain checkbox list with counts, as
 // Lamoda's size dropdown, not SizePicker.
-export function SizeFilter({ sizes, value, onApply }: SizeFilterProps) {
+export function SizeFilter({ sizes, value, onApply, chipEvents }: SizeFilterProps) {
   return (
     <FacetFilter
       title={productFilterTitles.size}
       options={sizeOptions(sizes)}
       value={value}
       onApply={onApply}
+      chipEvents={chipEvents}
     />
   );
 }
 
-export interface PriceRangeFilterProps {
+export interface PriceRangeFilterProps extends ChipEventsProps {
   // The cheapest and the dearest product; null when there are no products.
   price: FacetPrice | null;
   // The applied range; undefined when no price is applied.
@@ -160,7 +172,7 @@ export interface PriceRangeFilterProps {
 }
 
 // The price slider over the data's bounds; nothing when there are no products to price.
-export function PriceRangeFilter({ price, value, onApply }: PriceRangeFilterProps) {
+export function PriceRangeFilter({ price, value, onApply, chipEvents }: PriceRangeFilterProps) {
   if (price === null) return null;
   const bounds: PriceRange = [price.min, price.max];
   // The slider starts within the current products' prices; the chip names the applied range as it
@@ -175,6 +187,7 @@ export function PriceRangeFilter({ price, value, onApply }: PriceRangeFilterProp
       value={chipText}
       applied={value !== undefined}
       onClear={() => onApply(undefined)}
+      chipEvents={chipEvents}
     >
       <PriceFilter
         min={price.min}
@@ -186,15 +199,16 @@ export function PriceRangeFilter({ price, value, onApply }: PriceRangeFilterProp
   );
 }
 
-export interface DiscountFilterProps {
+export interface DiscountFilterProps extends ChipEventsProps {
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
 }
 
 // "Только со скидкой": an on/off chip.
-export function DiscountFilter({ checked, onCheckedChange }: DiscountFilterProps) {
+export function DiscountFilter({ checked, onCheckedChange, chipEvents }: DiscountFilterProps) {
   return (
     <FilterChip
+      {...chipEvents}
       title={productFilterTitles.discount}
       pressed={checked}
       onPressedChange={(pressed) => onCheckedChange(pressed)}
@@ -202,7 +216,7 @@ export function DiscountFilter({ checked, onCheckedChange }: DiscountFilterProps
   );
 }
 
-export interface ProductSortFilterProps {
+export interface ProductSortFilterProps extends ChipEventsProps {
   value: ProductSort;
   // Called at once with every pick (D7f).
   onValueChange: (value: ProductSort) => void;
@@ -210,12 +224,13 @@ export interface ProductSortFilterProps {
 
 // The sort chip shows the current order as its title, as on Lamoda; it is black once the order is
 // not the default one.
-export function ProductSortFilter({ value, onValueChange }: ProductSortFilterProps) {
+export function ProductSortFilter({ value, onValueChange, chipEvents }: ProductSortFilterProps) {
   return (
     <FilterDropdown
       title={productSortLabels[value]}
       label={productFilterTitles.sort}
       applied={value !== defaultProductSort}
+      chipEvents={chipEvents}
     >
       <SortFilter
         options={productSortOptions}

@@ -4,6 +4,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 
 import { SearchField } from '@/shared/ui';
 
+import { markSearchSubmitted } from '../model/submitted-search';
+
 // The api's limit for the product search (`SEARCH_MAX_LENGTH`). A longer query would only make the
 // URL long enough for a server to refuse it (L11).
 export const QUERY_MAX_LENGTH = 100;
@@ -18,8 +20,10 @@ export function HeaderSearch() {
   const router = useRouter();
   const query = (searchParams.get('q') ?? '').slice(0, QUERY_MAX_LENGTH);
 
-  // The kit calls this only with a trimmed, non-empty query.
+  // The kit calls this only with a trimmed, non-empty query. Marked first, for the catalog's
+  // `Catalog Searched` (O105).
   function search(next: string) {
+    markSearchSubmitted(next);
     router.push(`/catalog?${new URLSearchParams({ q: next }).toString()}`);
   }
 

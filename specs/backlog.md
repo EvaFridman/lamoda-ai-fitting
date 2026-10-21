@@ -187,6 +187,14 @@ removes it from this list. Found by the agents' first security audit and trial r
   and `max` of the price before the discount, so the catalog's description has no "от N ₽" (spec
   0014 O94). Adding the lowest `finalPrice` changes the api's answer, `openapi.json` and the cache
   key's `facets:v1`; then the description can name the price again.
+- **Search text in recordings.** The `on_track` hook drops `q` from the events' URL properties
+  (spec 0014 O104), but session recordings keep it: the replay request's `$current_url` and
+  `replay_start_url`, rrweb's meta event `href` in every full snapshot, and the `href`s of the
+  category links and "Дальше" (O78, O86). Keep it out of them too (`mp-block` or a
+  link without `q`, or recording off on searched pages), checked in a recording.
+- **Popular searches.** Mixpanel has no query text (spec 0014 O104, `Catalog Searched` carries the
+  length only). If the queries are wanted (what visitors look for and do not find), count them on
+  the api, in aggregate and tied to no visitor.
 
 ## Server
 

@@ -7,7 +7,7 @@ the price indexes, §2.2, §2.4) and its second round (the cursor conditions' in
 the count from the facets, O49, §3.3, §3.4) and its third round (the rating cursor in two
 branches, §2.3; `aria-setsize` bounded by the loaded cards, §3.4); amended 2026-10-21 at T13a (the
 taint deferred, O76, §3.2, §8) and at T18 (focus after clearing, two live regions, O90, O91,
-§3.4).
+§3.4) and at T20 (the analytics' details, O97–O105, §3.6).
 
 How `spec.md` (AC1–AC24) is built. Decisions: `clarifications.md` (O1–O69; §3.1 and §3.7 amended
 at T11 by O65–O69).
@@ -346,7 +346,8 @@ values: number }`; a category is not a filter but a page, opened through `catalo
   (O73).
 - **`Catalog Sorted`** `{ sort: enum of PRODUCT_SORTS }`
 - **`Catalog Searched`** `{ query_length: number, results: number }`
-- **`Catalog Page Loaded`** `{ batch: number }`
+- **`Catalog Batch Loaded`** `{ batch: number }`: a batch the visitor loads, not the first or a
+  restore after "Back" (O97)
 - **Elements.** `catalog.card`, `catalog.category`, and one fixed id per filter
   (`catalog.filter-brand`, `catalog.filter-size`, `catalog.filter-color`, `catalog.filter-price`,
   `catalog.filter-discount`, `catalog.filter-attribute`, `catalog.sort`).
@@ -354,10 +355,12 @@ values: number }`; a category is not a filter but a page, opened through `catalo
     The card's position goes only into a catalog event if 0015's rules give one. No product id is
     sent anywhere.
   - The frequency estimates come from the dev catalog's scripted visit. Card hovers and
-    `Catalog Page Loaded` are the high-volume ones; hovers count once per element per page view
+    `Catalog Batch Loaded` are the high-volume ones; hovers count once per element per page view
     (0008 J8).
 
-`Catalog Searched` fires when the first batch for a new `q` arrives, so `results` is the total.
+`Catalog Searched` fires when the first batch of a search arrives, so `results` is the total
+(O105); the SDK's URL properties lose `q` (O104). The drawer's "Показать" sends one event per changed choice (O101); the header's categories
+are not tracked (O98), nor anything beyond this list (O99); `sdkPerVisit` goes to 12 (O102).
 
 ### 3.7 Scripts and checks touched by the removals
 

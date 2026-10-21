@@ -17,7 +17,7 @@ vi.mock('@/widgets/product-grid', () => ({
     <div>
       <p>{props.products.map((product) => product.name).join(',')}</p>
       <p>{`canLoadMore:${String(props.canLoadMore)} showMore:${String(props.showMore)}`}</p>
-      <button type="button" onClick={props.onLoadMore}>
+      <button type="button" onClick={() => props.onLoadMore(false)}>
         load
       </button>
     </div>

@@ -12,6 +12,7 @@ import {
   SizeFilter,
   splitFacetAttributes,
 } from '@/entities/product';
+import { useTrackedElement } from '@/shared/analytics';
 import { FilterChips } from '@/shared/ui';
 
 import {
@@ -58,7 +59,9 @@ export function CatalogFilters({ className, focusAfterClear, ...filters }: Catal
 
 // The desktop row of chips (O5): the sort, then the filters in 0009's order, then "Только со
 // скидкой", and "Очистить фильтры" while a filter or the search is applied. An applied filter is
-// its own black chip with its value and a ×; there is no separate row of chosen values.
+// its own black chip with its value and a ×; there is no separate row of chosen values. Its chips'
+// clicks and hovers are tracked, one element per kind of filter (plan §3.6); the drawer's are not
+// (O99).
 function FilterRow({
   facets,
   value,
@@ -66,6 +69,7 @@ function FilterRow({
   focusAfterClear,
 }: Omit<CatalogFiltersProps, 'className'>) {
   const change = (patch: Partial<CatalogFilterValue>) => onChange({ ...value, ...patch });
+  const sortChip = useTrackedElement('catalog.sort');
 
   return (
     <FilterChips
@@ -76,6 +80,7 @@ function FilterRow({
       <ProductSortFilter
         value={value.sort ?? defaultProductSort}
         onValueChange={(sort) => change({ sort: sort === defaultProductSort ? undefined : sort })}
+        chipEvents={sortChip}
       />
       {facets === undefined ? null : (
         <FacetFilters facets={facets} value={value} onChange={onChange} />
@@ -92,6 +97,12 @@ function FacetFilters({
 }: Required<Omit<CatalogFiltersProps, 'className' | 'categoryId' | 'focusAfterClear'>>) {
   const { colours, others } = splitFacetAttributes(facets.attributes);
   const change = (patch: Partial<CatalogFilterValue>) => onChange({ ...value, ...patch });
+  const colorChip = useTrackedElement('catalog.filter-color');
+  const attributeChip = useTrackedElement('catalog.filter-attribute');
+  const brandChip = useTrackedElement('catalog.filter-brand');
+  const sizeChip = useTrackedElement('catalog.filter-size');
+  const priceChip = useTrackedElement('catalog.filter-price');
+  const discountChip = useTrackedElement('catalog.filter-discount');
 
   return (
     <>
@@ -101,6 +112,7 @@ function FacetFilters({
           attribute={attribute}
           value={attributeChoice(value, attribute)}
           onApply={(chosen) => onChange(withAttributeChoice(value, attribute, chosen))}
+          chipEvents={colorChip}
         />
       ))}
       {others.map((attribute) => (
@@ -109,17 +121,20 @@ function FacetFilters({
           attribute={attribute}
           value={attributeChoice(value, attribute)}
           onApply={(chosen) => onChange(withAttributeChoice(value, attribute, chosen))}
+          chipEvents={attributeChip}
         />
       ))}
       <BrandFilter
         brands={facets.brands}
         value={[...(value.brandId ?? [])]}
         onApply={(brandId) => change({ brandId: brandId.length > 0 ? brandId : undefined })}
+        chipEvents={brandChip}
       />
       <SizeFilter
         sizes={facets.sizes}
         value={[...(value.size ?? [])]}
         onApply={(size) => change({ size: size.length > 0 ? size : undefined })}
+        chipEvents={sizeChip}
       />
       <PriceRangeFilter
         price={facets.price}
@@ -127,10 +142,12 @@ function FacetFilters({
         onApply={(range) => {
           if (facets.price !== null) onChange(withPriceChoice(value, facets.price, range));
         }}
+        chipEvents={priceChip}
       />
       <DiscountFilter
         checked={value.hasDiscount === true}
         onCheckedChange={(checked) => change({ hasDiscount: checked ? true : undefined })}
+        chipEvents={discountChip}
       />
     </>
   );

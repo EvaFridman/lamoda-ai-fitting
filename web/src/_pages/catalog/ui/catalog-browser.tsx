@@ -5,11 +5,15 @@ import { useEffect, useRef, useState } from 'react';
 
 import { CatalogCategoryList, useCategories } from '@/entities/category';
 import { isRefusedCursor, useProductBatches, useProductFacets } from '@/entities/product';
+import { isSubmitFresh, useSubmittedSearch } from '@/features/header-search';
+import { track, useTrackedElement } from '@/shared/analytics';
 import { errorText, reportFailure } from '@/shared/api';
 import { CatalogFilters, clearFilters, hasAppliedFilters } from '@/widgets/catalog-filters';
 import { ProductGrid } from '@/widgets/product-grid';
 
+import { filterChanges, sortChange } from '../model/analytics';
 import { catalogCategoriesQuery, categoryRows } from '../model/categories';
+import { isDocumentEntry } from '../lib/document-entry';
 import { productCount } from '../lib/product-count';
 import { type CatalogQuery, catalogSearch, parseCatalogUrl } from '../model/url-state';
 import { CatalogEmpty } from './catalog-empty';
@@ -29,6 +33,20 @@ export interface CatalogBrowserProps {
   // The server's error text when its first batch failed: shown, without JavaScript too, until
   // the browser's own request answers (O74).
   failureText?: string;
+}
+
+// What `Catalog Searched` already counted in the tab (O105): the last header submit, and whether
+// the tab's first catalog page was checked for being the one the document was loaded at. Each
+// category's page mounts anew.
+const searchSeen = { submitId: 0, entryChecked: false };
+
+// The page the header's search opens: the catalog with the query only (O15, O81).
+function isHeaderSearchPage(query: CatalogQuery, categoryId?: string, start?: string): boolean {
+  return (
+    categoryId === undefined &&
+    start === undefined &&
+    Object.entries(query).every(([key, value]) => key === 'q' || value === undefined)
+  );
 }
 
 // The client part of the page (plan §3.2): the title with the count, the categories, the row of
@@ -79,6 +97,46 @@ export function CatalogBrowser({
     if (error !== null) reportFailure(error);
   }, [error]);
 
+  // "Catalog Searched" for an act of searching (O105), when its first batch arrives with the total:
+  // a query submitted in the header, counted on the page it opens (not on the page it was submitted
+  // from), or the page a link opened. A category with the same `q`, Back, Forward and a reload are
+  // not searches; a start from a cursor has no total.
+  const submitted = useSubmittedSearch();
+  const firstBatch = data?.pages[0];
+  const q = query.q;
+  const searchPage = isHeaderSearchPage(query, categoryId, start);
+  // Whether this mount shows the address the document was loaded at by a link: decided once, at
+  // the tab's first catalog mount, so a later visit back to it is not an entry.
+  const entryRef = useRef(false);
+  useEffect(() => {
+    if (searchSeen.entryChecked) return;
+    searchSeen.entryChecked = true;
+    entryRef.current = isDocumentEntry();
+  }, []);
+  useEffect(() => {
+    if (firstBatch === undefined) return;
+    const entry = entryRef.current;
+    entryRef.current = false;
+    const bySubmit =
+      searchPage &&
+      submitted !== null &&
+      submitted.id !== searchSeen.submitId &&
+      submitted.q === q &&
+      isSubmitFresh(submitted);
+    if (bySubmit) searchSeen.submitId = submitted.id;
+    if (q === undefined || !(entry || bySubmit) || firstBatch.total === null) return;
+    track('Catalog Searched', { query_length: [...q].length, results: firstBatch.total });
+  }, [q, firstBatch, submitted, searchPage]);
+
+  // The list a next batch is asked for: the address and its start.
+  const listKey = `${pathname}${catalogSearch({ query })}|${shownStart ?? ''}`;
+  const listKeyRef = useRef(listKey);
+  useEffect(() => {
+    listKeyRef.current = listKey;
+  });
+
+  const categoryLink = useTrackedElement('catalog.category');
+
   // A new selection replaces the address from its first batch: no history entry, so Back leaves
   // the catalog (O82). Next keeps the scroll; the page goes up to the list's column only when the
   // visitor is below its top.
@@ -91,8 +149,33 @@ export function CatalogBrowser({
     const search = catalogSearch({ query: next });
     // As the address will read back: the page's `query` is parsed from it, which drops what the
     // parser refuses.
-    setFoundFor(catalogSearch(parseCatalogUrl(new URLSearchParams(search))));
+    const parsed = parseCatalogUrl(new URLSearchParams(search));
+    setFoundFor(catalogSearch(parsed));
+    // One event per changed choice, the row's and the drawer's alike (O101).
+    for (const change of filterChanges(query, parsed.query, facets.data?.attributes ?? [])) {
+      track('Catalog Filter Applied', change);
+    }
+    const sort = sortChange(query, parsed.query);
+    if (sort !== undefined) track('Catalog Sorted', { sort });
     router.replace(`${pathname}${search}`, { scroll: false });
+  };
+
+  // A batch the visitor scrolled to, numbered in the list shown; not one the grid loads itself to
+  // go back to the place (O97). Only when that batch arrived for the same list: a selection changed
+  // meanwhile, or nothing loaded, sends nothing.
+  const loadMore = (restoring: boolean) => {
+    const batch = (data?.pages.length ?? 0) + 1;
+    const key = listKey;
+    void fetchNextPage({ cancelRefetch: false }).then((result) => {
+      if (
+        !restoring &&
+        !result.isError &&
+        result.data?.pages.length === batch &&
+        listKeyRef.current === key
+      ) {
+        track('Catalog Batch Loaded', { batch });
+      }
+    });
   };
 
   // "Очистить фильтры" goes away with the filters: the focus moves to the heading (plan §3.4),
@@ -125,6 +208,7 @@ export function CatalogBrowser({
             getHref={(id) =>
               `/catalog/${encodeURIComponent(slugs.get(id) ?? '')}${catalogSearch({ query })}`
             }
+            linkEvents={categoryLink}
           />
         </aside>
         <div ref={columnRef} className={styles.column}>
@@ -180,7 +264,7 @@ export function CatalogBrowser({
           // Not during a refetch of the loaded batches either: a next batch asked for then is
           // dropped, and the grid asks again once this turns back on.
           canLoadMore={hasNextPage && !isFetching && !isFetchNextPageError}
-          onLoadMore={() => void fetchNextPage({ cancelRefetch: false })}
+          onLoadMore={loadMore}
           moreHref={next === null ? undefined : catalogSearch({ query, cursor: next })}
           showMore={isFetchNextPageError}
         />

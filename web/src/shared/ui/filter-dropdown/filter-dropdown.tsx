@@ -3,7 +3,7 @@
 import { Popover } from '@base-ui/react/popover';
 import { createContext, type ReactNode, use, useId, useRef, useState } from 'react';
 
-import { FilterChipTrigger } from '../filter-chip/filter-chip';
+import { type FilterChipEvents, FilterChipTrigger } from '../filter-chip/filter-chip';
 
 import styles from './filter-dropdown.module.scss';
 
@@ -24,6 +24,8 @@ export interface FilterDropdownProps {
   // the visitor, and taking the focus would also scroll the page to it.
   defaultOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
+  // The chip's own click and pointer handlers, on its trigger (not its ×).
+  chipEvents?: FilterChipEvents;
   // A CheckboxFilter, a SortFilter or other content of the dropdown.
   children: ReactNode;
 }
@@ -57,6 +59,7 @@ export function FilterDropdown({
   onClear,
   defaultOpen = false,
   onOpenChange,
+  chipEvents,
   children,
 }: FilterDropdownProps) {
   const actionsRef = useRef<Popover.Root.Actions>(null);
@@ -80,6 +83,7 @@ export function FilterDropdown({
         value={value}
         applied={applied}
         onClear={onClear}
+        chipEvents={chipEvents}
       />
       <Popover.Portal>
         <Popover.Positioner className={styles.positioner} align="start" sideOffset={4}>

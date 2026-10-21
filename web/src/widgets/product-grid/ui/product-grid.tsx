@@ -5,6 +5,7 @@ import { usePathname, useSearchParams } from 'next/navigation';
 import { type CSSProperties, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import { CatalogProductCard, type ProductListItem } from '@/entities/product';
+import { useTrackedElement } from '@/shared/analytics';
 import { Link } from '@/shared/ui';
 
 import { columnsFor } from '../lib/columns';
@@ -36,7 +37,9 @@ export interface ProductGridProps {
   total?: number;
   // A batch after the loaded ones exists and may be requested now.
   canLoadMore: boolean;
-  onLoadMore: () => void;
+  // `restoring`: the grid loads it itself to go back to the place after "Back", the visitor did
+  // not scroll to it (spec 0014 O97).
+  onLoadMore: (restoring: boolean) => void;
   // The next batch as an address of its own (`?…&cursor=`, O29), for the "Дальше" link.
   moreHref?: string;
   // "Дальше" stays visible with JavaScript too (a batch failed to load: the visitor goes on by it).
@@ -85,6 +88,31 @@ function sameLayout(a: Layout | null, b: Layout): boolean {
     a.gap === b.gap &&
     Math.abs(a.rowHeight - b.rowHeight) < 1 &&
     Math.abs(a.top - b.top) < 1
+  );
+}
+
+interface GridItemProps {
+  product: ProductListItem;
+  // From 1, in the list as loaded.
+  position: number;
+  setSize: number;
+  measureRef?: (element: HTMLLIElement | null) => void;
+  row?: number;
+}
+
+// A card of the list; its clicks and hovers are tracked by position, never by product (O35).
+function GridItem({ product, position, setSize, measureRef, row }: GridItemProps) {
+  const tracked = useTrackedElement('catalog.card', { position });
+  return (
+    <li ref={measureRef} data-index={row} aria-setsize={setSize} aria-posinset={position}>
+      <CatalogProductCard
+        product={product}
+        href={`/products/${encodeURIComponent(product.id)}`}
+        // No product page yet: a prefetch would be a 404 per card (O75).
+        prefetch={false}
+        linkEvents={tracked}
+      />
+    </li>
   );
 }
 
@@ -191,7 +219,7 @@ export function ProductGrid({
     const target = Math.min(memory.count ?? 0, MAX_RESTORED_PRODUCTS);
     const more = canLoadMore || (moreHref !== undefined && !showMore);
     if (products.length < target && more) {
-      if (canLoadMore) loadMoreRef.current();
+      if (canLoadMore) loadMoreRef.current(true);
       return;
     }
     pendingRef.current = false;
@@ -252,15 +280,17 @@ export function ProductGrid({
   // the link off the screen, under the new cards.
   const [moreFocused, setMoreFocused] = useState(false);
 
-  // The next batch, one at a time: the caller turns `canLoadMore` off while one loads.
+  // The next batch, one at a time: the caller turns `canLoadMore` off while one loads. Not while
+  // the place is restored: those batches are the restore's (O97).
   useEffect(() => {
     if (
       canLoadMore &&
+      !pendingRef.current &&
       !moreFocused &&
       lastRow !== undefined &&
       lastRow >= rowCount - 1 - LOAD_AHEAD_ROWS
     ) {
-      loadMoreRef.current();
+      loadMoreRef.current(false);
     }
   }, [canLoadMore, moreFocused, lastRow, rowCount]);
 
@@ -289,21 +319,15 @@ export function ProductGrid({
           const index = first + offset;
           const firstInRow = layout !== null && index % columns === 0;
           return (
-            <li
+            <GridItem
               key={product.id}
+              product={product}
+              position={index + 1}
+              setSize={setSize}
               // The first card of a row measures the row: a grid row is as high as its tallest.
-              ref={firstInRow ? virtualizer.measureElement : undefined}
-              data-index={firstInRow ? index / columns : undefined}
-              aria-setsize={setSize}
-              aria-posinset={index + 1}
-            >
-              <CatalogProductCard
-                product={product}
-                href={`/products/${encodeURIComponent(product.id)}`}
-                // No product page yet: a prefetch would be a 404 per card (O75).
-                prefetch={false}
-              />
-            </li>
+              measureRef={firstInRow ? virtualizer.measureElement : undefined}
+              row={firstInRow ? index / columns : undefined}
+            />
           );
         })}
       </ul>

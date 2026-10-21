@@ -1,4 +1,5 @@
 import NextLink from 'next/link';
+import type { AnchorHTMLAttributes } from 'react';
 
 import styles from './catalog-category-list.module.scss';
 
@@ -16,6 +17,11 @@ export interface CatalogCategoryListProps {
   value: string | null;
   // Where a row leads: filter state in the URL belongs to the page (0009 K7).
   getHref: (id: string) => string;
+  // Every row's own click and pointer handlers (the page's analytics).
+  linkEvents?: Pick<
+    AnchorHTMLAttributes<HTMLAnchorElement>,
+    'onClick' | 'onPointerEnter' | 'onPointerLeave'
+  >;
   'aria-label'?: string;
   className?: string;
 }
@@ -27,6 +33,7 @@ export function CatalogCategoryList({
   categories,
   value,
   getHref,
+  linkEvents,
   'aria-label': ariaLabel = 'Категории',
   className,
 }: CatalogCategoryListProps) {
@@ -40,6 +47,7 @@ export function CatalogCategoryList({
           return (
             <li key={category.id}>
               <NextLink
+                {...linkEvents}
                 href={getHref(category.id)}
                 aria-current={chosen ? 'page' : undefined}
                 className={[styles.link, chosen ? styles.chosen : null].filter(Boolean).join(' ')}

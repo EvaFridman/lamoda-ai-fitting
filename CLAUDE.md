@@ -441,7 +441,9 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   `MenuLinkItem` (Base UI's `Menu.LinkItem` rendering `next/link`; `MenuItem` has no link form),
   `LinkButton` (a `<button>` styled as the kit's `Link`, for an action that is not navigation) and
   `Modal`'s `initialFocus` (a ref of the element focused when it opens, else the first focusable
-  one).
+  one). Tracking handlers reach the kit and entity components as props, from the widget or page
+  that calls `useTrackedElement`: `FilterDropdown`'s and the catalog filters' `chipEvents` (on the
+  chip's trigger, not its ×), `CatalogProductCard`'s and `CatalogCategoryList`'s `linkEvents`.
 - An attribute value's `colorHex` is its swatch colour, `#RRGGBB` (either case) or `null` (an
   empty bordered circle); the DTOs and a CHECK in the migration refuse anything else. web draws it with
   `ColorSwatch`, and an attribute with at least one coloured value is a colour filter
@@ -456,7 +458,12 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   `typecheck`. Rules for new events and elements: `.claude/rules/analytics.md`. `track`'s optional
   third argument `{ sendNow }` sends the event at once by beacon, delivered even while the page
   unloads (only `Account Deleted`, before a full load); others go in the SDK's batches. The SDK sends its own page views and, for heatmaps, `$mp_click`-style events, from
-  which `strip-attributes.ts` drops element attributes, ids, links and text. Recordings mask all
+  which `strip-attributes.ts` drops element attributes, ids, links and text; it also drops the
+  search parameter `q` and the fragment from every event's addresses (`$current_url`,
+  `current_url_search`, `$referrer`, `$initial_referrer`), `mp_keyword`, and `q` from the
+  profile's (the stored `$initial_referrer` in `loaded`, and `before_send_people`, which the SDK's
+  types do not list); recordings keep `q`
+  (backlog; spec 0014 O104). Recordings mask all
   text and inputs and block image elements and inline `url(...)` styles, but keep attributes and
   stylesheets as they are: personal data never goes into attributes (`title`, `aria-*`, `alt`,
   `href`, `data-*`) or stylesheets (the kit's `SearchField`, uncontrolled, keeps typed text and
@@ -483,7 +490,8 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   every real end (a sign-out here, in another tab or browser, an expiry) forgets the user and a
   failed read does not. An identity left by another user is reset before `identify`. Its events
   and tracked elements are the catalog's zone `auth` (`Signed Out` goes before `reset`); the
-  account's are the zone `account` (spec 0017 U14).
+  account's are the zone `account` (spec 0017 U14), the catalog page's the zone `catalog` (spec
+  0014 plan §3.6, O97–O103).
   `Signed In` is sent once, on the page a sign-in of this tab came back to: `markSignInStarted()`
   (`features/auth`) puts the time in `sessionStorage` (`sign-in-started`, not an `mp_`/`__mp` key
   the SDK clearing removes) before leaving for Google, and a flag older than 10 minutes counts as

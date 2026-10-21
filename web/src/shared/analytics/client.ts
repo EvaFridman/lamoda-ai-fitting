@@ -5,7 +5,7 @@ import type { Config, Mixpanel } from 'mixpanel-browser';
 import { analyticsEnabled, mixpanelToken } from '@/shared/config';
 
 import type { AnalyticsEventName, AnalyticsEvents } from './events';
-import { stripAttributes } from './strip-attributes';
+import { stripAttributes, stripPeopleAddresses, stripStoredReferrer } from './strip-attributes';
 
 const OPTIONS: Partial<Config> = {
   api_host: 'https://api-eu.mixpanel.com',
@@ -27,7 +27,11 @@ const OPTIONS: Partial<Config> = {
   record_canvas: false,
   record_console: false,
   record_network: false,
-  hooks: { on_track: stripAttributes },
+  // The SDK runs `before_send_<type>` for its people requests (`_run_hook('before_send_' + type)`),
+  // though its types list no such hook: check it on an SDK update (spec 0014 O104).
+  hooks: { on_track: stripAttributes, before_send_people: stripPeopleAddresses } as Config['hooks'],
+  // Runs before the SDK sends the stored referrer to the profile (O104).
+  loaded: stripStoredReferrer,
 };
 
 // One SDK load per tab, shared by every start (React runs effects twice in development). A failed

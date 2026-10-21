@@ -29,7 +29,7 @@ export type { DrawerProps } from './drawer/drawer';
 export { Drawer, DrawerClose } from './drawer/drawer';
 export type { FavoriteToggleProps, FavoriteToggleSize } from './favorite-toggle/favorite-toggle';
 export { FavoriteToggle } from './favorite-toggle/favorite-toggle';
-export type { FilterChipProps } from './filter-chip/filter-chip';
+export type { FilterChipEvents, FilterChipProps } from './filter-chip/filter-chip';
 export { FilterChip } from './filter-chip/filter-chip';
 export type { FilterChipsProps } from './filter-chips/filter-chips';
 export { FilterChips } from './filter-chips/filter-chips';

@@ -4,7 +4,7 @@ Status: accepted (2026-10-19); amended 2026-10-19 at the plan: the whole greetin
 own health route (O34), Lamoda's layout of applied filters and the breadcrumbs (O5), search by
 article (O14); amended 2026-10-19 after the check against 0012, 0013 and 0015 (O35–O39);
 amended 2026-10-19 at the review of PR 1 (O40–O48), its second round (O5's description, O46,
-O49, O50) and its third round (O49's lag); amended 2026-10-21 at T13a (O76: the taint deferred).
+O49, O50) and its third round (O49's lag); amended 2026-10-21 at T13a (O76: the taint deferred) and at T20 (O97–O105: analytics).
 
 The owner's decisions for this spec. Ids `O1`, `O2`, … are referred to by the spec, the plan and
 code comments. All decisions below: owner, 2026-10-19.
@@ -143,7 +143,7 @@ code comments. All decisions below: owner, 2026-10-19.
   - "Catalog Filter Applied": which filter and how many values;
   - "Catalog Sorted";
   - "Catalog Searched": the query's length and the number of results, never its text;
-  - "Catalog Page Loaded": the number of the batch.
+  - "Catalog Page Loaded": the number of the batch (renamed `Catalog Batch Loaded` by O97).
 - **O23. Tracked clicks and hovers.** These are tracked with `useTrackedElement` (0008 J8):
   - product cards, with their position (amended by O35: no product id);
   - categories;
@@ -581,3 +581,47 @@ build` passes. (owner, T19.)
 - **O96. Product counts are grouped.** "50 030 товаров", with a no-break space as prices have
   (`formatAmount`): the heading, its live region, the description and the drawer's "Показать N
   товаров". (owner, T19.)
+
+## Decided at T20
+
+- **O97. `Catalog Batch Loaded`, not `Catalog Page Loaded`.** Renames plan §3.6's event before its
+  first send, so no history splits: "page" reads as the SDK's page view. It is sent for a batch the
+  visitor loads (2, 3, …): not for the first one, which is the page view, and not for the batches
+  `ProductGrid` loads by itself to restore the place after "Back". (owner, T20.)
+- **O98. The header's categories are not tracked.** O23's "categories" is `catalog.category`, the
+  list beside the grid. The header's row is a server component and belongs to a later `header`
+  zone. (owner, T20.)
+- **O99. No elements beyond plan §3.6.** "Очистить фильтры", the phone's "Фильтры" button and the
+  "Дальше" link are not tracked; adding one later splits no history. `catalog.category` has no
+  `position`. (owner, T20.)
+- **O100. `Catalog Searched` on the first batch of every new `q` on the page.** From the header,
+  a link or a reload alike; a start with `?q=&cursor=`, whose batch has no total (O44), sends
+  nothing. Replaced by O105 at the review. (owner, T20.)
+- **O101. One event per changed choice.** "Показать N товаров" in the drawer sends
+  `Catalog Filter Applied` for each filter it changes and `Catalog Sorted` if the sort changed;
+  the events say nothing of the row or the drawer. A filter removed (a chip's ×, a value
+  unchecked to none) sends `values: 0`. (owner, T20.)
+- **O102. `sdkPerVisit` goes to 12.** The categories are new paths, so the SDK sends more page
+  views and heatmap clicks (`.claude/rules/analytics.md`, the budget). (owner, T20.)
+- **O103. Card hovers count once per page view, as now.** A filter, a sort or a search changes
+  the query, not the path, so a card's hover at a position is not sent again after it
+  (`useTrackedElement` unchanged). (owner, T20.)
+- **O104. The search text leaves the SDK's URL properties.** Revises O78 for analytics: the SDK
+  puts the page's address into every event (`$current_url`, `current_url_search`, `$referrer`,
+  `$initial_referrer`), so after T20 the text of `q` would go with every catalog event, and a
+  search box gets names, phones and addresses typed into it. The `on_track` hook drops the `q`
+  parameter (and the fragment) from those properties, the heatmap and page view events' included,
+  and `mp_keyword` (the SDK takes an address with "google" in it for a search engine's); the
+  profile's `$initial_referrer`, sent by `set_once` past `on_track`, loses it where the SDK
+  stores it (the `loaded` callback, before the SDK queues it) and in the `before_send_people`
+  hook. Recordings still
+  keep it (link `href`s, the replay's own `$current_url`) and Mixpanel no longer has the queries
+  themselves: both are backlog items. (owner, T20 review.)
+- **O105. `Catalog Searched` counts an act of searching.** Replaces O100. It is sent when the
+  first batch arrives (with its total) for a query submitted in the header, the same query again
+  included, on the page the header opens (`/catalog?q=` only; a submit counts for a minute, so
+  one whose page did not open counts if that page opens within it, by Back too), or
+  for the page the document was loaded at by a link, decided at the tab's first catalog mount (navigation type `navigate`,
+  the document's address). A move to a category with the same `q`, Back or Forward, a reload and
+  a filter change are not searches; a start from a cursor sends nothing (O44). (owner, T20
+  review.)
