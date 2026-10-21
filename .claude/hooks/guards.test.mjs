@@ -125,13 +125,13 @@ describe('qa-tester rules', () => {
     [
       bash('curl -s http://localhost:3000/health/live'),
       bash(
-        `curl -si -X POST -H 'Content-Type: application/json' -d '{"a":1}' http://localhost:3000/hello`,
+        `curl -si -X POST -H 'Content-Type: application/json' -d '{"a":1}' http://localhost:3000/products`,
       ),
       bash("curl -s 'http://localhost:3000/x?a=1&b=$2'"),
       bash('curl -s --parallel --parallel-max 50 http://localhost:3000/a http://127.0.0.1:3001/'),
       bash("curl -s -w '%{http_code}' http://localhost:8233/"),
       bash('curl -s --max-time=5 http://localhost:3000/'),
-      bash("curl -s -G --data-urlencode 'name=Ёжик в тумане' http://localhost:3000/hello"),
+      bash("curl -s -G --data-urlencode 'q=Ёжик в тумане' http://localhost:3000/products"),
       bash("curl -s -b 'sid=1' http://localhost:3001/"),
       bash(
         'curl -s http://localhost:4000/health/live http://127.0.0.1:4001/ http://localhost:8234/',
@@ -236,13 +236,13 @@ describe('test-writer rules', () => {
   cases(
     testWriter,
     [
-      write('api/src/hello/x.spec.ts'),
+      write('api/src/me/x.spec.ts'),
       write('api/test/a.e2e-spec.ts'),
       bash('npm --prefix api test'),
-      bash('npm --prefix api test -- src/hello/x.spec.ts'),
-      bash("npm --prefix api run test -- -t 'returns the greeting'"),
+      bash('npm --prefix api test -- src/me/x.spec.ts'),
+      bash("npm --prefix api run test -- -t 'lists the categories'"),
       bash('npm --prefix api run typecheck'),
-      bash('npx eslint --max-warnings=0 api/src/hello/x.spec.ts'),
+      bash('npx eslint --max-warnings=0 api/src/me/x.spec.ts'),
       write('web/src/shared/lib/format-price.test.ts'),
       write('web/src/shared/ui/button/button.test.tsx'),
       bash('npm --prefix web test'),
@@ -250,11 +250,11 @@ describe('test-writer rules', () => {
       bash("npm --prefix web run test -- -t 'formats rubles' --reporter=verbose"),
       bash('npm --prefix web run typecheck'),
       bash(
-        'npx eslint --max-warnings=0 web/src/shared/ui/button/button.test.tsx api/src/hello/x.spec.ts',
+        'npx eslint --max-warnings=0 web/src/shared/ui/button/button.test.tsx api/src/me/x.spec.ts',
       ),
     ],
     [
-      write('api/src/hello/hello.service.ts'),
+      write('api/src/me/me.service.ts'),
       write('api/src/../vitest.config.spec.ts'),
       write('api/vitest.config.ts'),
       ['Write', { file_path: '/tmp/api/src/x.spec.ts' }],

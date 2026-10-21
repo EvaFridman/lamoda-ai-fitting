@@ -9,6 +9,8 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { AppModule } from '../src/app.module.js';
 import { createHttpApp } from '../src/common/http/http-app.js';
+import { PrismaService } from '../src/prisma/prisma.service.js';
+import { emptyCatalogPrisma } from './support/empty-catalog.js';
 
 // The rate limit of Better Auth's routes (spec 0013 plan §5). Redis points at a closed port
 // (vitest.config.ts), so the counters run on the in-memory fallback; the test environment gives five
@@ -20,7 +22,10 @@ describe('rate limit of /api/auth (e2e)', () => {
   // A new app per test: its counters start empty.
   beforeEach(async () => {
     await app?.close();
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(PrismaService)
+      .useValue(emptyCatalogPrisma())
+      .compile();
     app = await createHttpApp(
       (adapter, options) =>
         moduleRef.createNestApplication<NestExpressApplication>(adapter, options),
@@ -171,6 +176,6 @@ describe('rate limit of /api/auth (e2e)', () => {
   it("leaves the api's own routes with their own counters", async () => {
     await statuses(() => getSession(), 6);
 
-    expect((await request(server()).get('/hello')).status).toBe(200);
+    expect((await request(server()).get('/categories')).status).toBe(200);
   });
 });

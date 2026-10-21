@@ -9,7 +9,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AppModule } from '../src/app.module.js';
 import { createHttpApp } from '../src/common/http/http-app.js';
 import type { Env } from '../src/config/env.js';
+import { PrismaService } from '../src/prisma/prisma.service.js';
 import { SocketIoAdapter } from '../src/realtime/socket-io.adapter.js';
+import { emptyCatalogPrisma } from './support/empty-catalog.js';
 
 // Redis points at a closed port (vitest.config.ts), so the request counters run on the in-memory
 // fallback: the limit must still hold. Five requests per route and tier in the test environment;
@@ -19,7 +21,10 @@ describe('throttling and websockets (e2e)', () => {
   let url: string;
 
   beforeAll(async () => {
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(PrismaService)
+      .useValue(emptyCatalogPrisma())
+      .compile();
     app = await createHttpApp(
       (adapter, options) =>
         moduleRef.createNestApplication<NestExpressApplication>(adapter, options),
@@ -44,7 +49,7 @@ describe('throttling and websockets (e2e)', () => {
   it('answers 429 once a client goes over the limit, even with Redis down', async () => {
     const statuses: number[] = [];
     for (let i = 0; i < 6; i += 1) {
-      statuses.push((await request(app.getHttpServer()).get('/hello')).status);
+      statuses.push((await request(app.getHttpServer()).get('/categories')).status);
     }
     expect(statuses).toEqual([200, 200, 200, 200, 200, 429]);
   });

@@ -20,7 +20,7 @@ skill loaded with you holds the rules. If it is not in your context, read
 Read the diff or files you were given (`git diff <base>`; uncommitted changes with `git diff HEAD`
 and `git status`). For each changed or new file in `web/`, find its layer, slice and segment, then
 read its imports. To see who imports a changed module, search
-(`rg -n "from '@/entities/greeting" web`; one command per call, patterns in single quotes; a hook
+(`rg -n "from '@/entities/category" web`; one command per call, patterns in single quotes; a hook
 allows only ls, grep, rg, find and read-only git).
 
 Check:

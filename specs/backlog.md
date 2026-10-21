@@ -133,8 +133,6 @@ removes it from this list. Found by the agents' first security audit and trial r
   (0008 J12). The SDK's recorder may start a worker from a `blob:` URL and falls back to a `data:`
   one; with `record_canvas: false` it probably starts none. Check in a browser for CSP violations
   before adding `worker-src blob:`, and never allow `data:` there.
-- **Remove `greeting`.** The home page widget, `entities/greeting`, the api's `/hello` and their
-  tests are a bootstrap demo; remove them with the catalog page spec (0004 E29).
 - **Page cache in a read-only image.** The web runtime user writes only to `.next/cache`. Next keeps
   regenerated ISR pages and `'use cache'` results with revalidation under `.next/server/app/`, so
   the first such page fails to write them (a warning, cache only in memory, per blue-green copy).
@@ -184,9 +182,6 @@ removes it from this list. Found by the agents' first security audit and trial r
 
 ## Temporal
 
-- **Retry policy of `hello`.** `api/src/temporal/workflows/hello.workflow.ts` sets no retry policy,
-  so a failing activity is retried forever. A retry policy change needs no `patched()` (Temporal
-  versioning rules), but already scheduled activities keep the old one.
 - **SDK version ranges.** `@temporalio/client` is `"1.24"` while the other SDK packages are
   `"^1.24.0"`; align them so all SDK packages move together.
 - **Outbox for file deletion.** A row's delete commits, then `FileDeletion` starts `deleteFiles`
@@ -291,13 +286,6 @@ Left for later specs by `0002-database-schema` (its `clarifications.md` has the 
   waits for the focus to leave the trigger with `vi.waitFor`'s default 1 s, which a loaded machine
   (api and web tests at once) can miss. Find what moves the focus late, or wait on the list's focus
   instead of a timeout.
-- **Flaky handoff test.** `web/src/_pages/dev-catalog/ui/catalog-handoff.test.tsx`, "shows a failed
-  facets prefetch", failed in `npm run verify` (2026-10-15, 0007 T15; again 2026-10-16, 0009 T5:
-  "Found multiple elements with the role alert") and passed alone 5 times of 5 each time. The
-  failed prefetch leaves the browser part
-  to request facets itself; the stub answers it with the same 404, and when that lands before the
-  check a second alert is on the page while the test expects one. Assert on the server's alert by
-  its text (or wait for both) instead of `getByRole('alert')`.
 - **Database specs time out under load.** During 0009 T5 (2026-10-16), two `npm run verify` runs
   of an unchanged api failed on time limits alone, then passed: once the `beforeAll` of several
   `api/test/database/` specs (access, brands, categories, …) missed Vitest's 10 s hook timeout,

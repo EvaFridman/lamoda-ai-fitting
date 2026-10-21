@@ -204,7 +204,7 @@ describe('socket principal (database e2e)', () => {
     reader.mockClear();
     socketReader.mockClear();
 
-    await request(app.getHttpServer()).get('/hello').set('Cookie', user.cookie).expect(200);
+    await request(app.getHttpServer()).get('/categories').set('Cookie', user.cookie).expect(200);
     expect(reader).toHaveBeenCalledTimes(1);
     expect(reader.mock.calls[0]?.[0].headers.cookie).toBe(user.cookie);
     expect(socketReader).not.toHaveBeenCalled();
@@ -237,7 +237,10 @@ describe('socket principal (database e2e)', () => {
       });
       expect(await principalOf(socket, main)).toEqual({ principal: { kind: 'anonymous' } });
 
-      await request(app.getHttpServer()).get('/hello').set('Cookie', webUser.cookie).expect(200);
+      await request(app.getHttpServer())
+        .get('/categories')
+        .set('Cookie', webUser.cookie)
+        .expect(200);
       expect(await reader.mock.results[0]?.value).toEqual({
         userId: webUser.userId,
         sessionId: webUser.sessionId,

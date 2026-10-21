@@ -251,57 +251,6 @@
         ]
       }
     },
-    "/hello": {
-      "get": {
-        "operationId": "HelloController_get",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HelloResponseDto"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Error codes: `TOO_MANY_REQUESTS`",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponseDto"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Error codes: `INTERNAL_ERROR`",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponseDto"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Error codes: `SERVICE_UNAVAILABLE`",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "hello"
-        ]
-      }
-    },
     "/categories": {
       "get": {
         "operationId": "CategoriesController_list",
@@ -6467,18 +6416,6 @@
       }
     },
     "schemas": {
-      "HelloResponseDto": {
-        "type": "object",
-        "properties": {
-          "message": {
-            "type": "string",
-            "example": "Hello, world!"
-          }
-        },
-        "required": [
-          "message"
-        ]
-      },
       "CategoryResponseDto": {
         "type": "object",
         "properties": {

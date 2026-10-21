@@ -27,8 +27,8 @@ const serverEnvSchema = z
       .default(''),
   })
   // A backstop to app.yml's `${PROXY_SECRET:?…}` (spec 0006 F20): env is read at request time, so
-  // a production web without the secret fails every api call (the greeting logs it and shows its
-  // fallback) instead of quietly sharing one quota among all visitors.
+  // a production web without the secret fails every api call instead of quietly sharing one quota
+  // among all visitors.
   .refine((env) => env.NODE_ENV !== 'production' || env.PROXY_SECRET !== '', {
     path: ['PROXY_SECRET'],
     message: 'must be set in production',

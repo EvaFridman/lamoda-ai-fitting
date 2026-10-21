@@ -102,11 +102,13 @@ services:
       ai-fitting:
         aliases: ['web-${COLOR}']
     healthcheck:
+      # An image from before /healthz (spec 0014 PR 3) answers it 404 and is checked on `/`, so a
+      # rollback to it still becomes healthy (O70). The fallback goes in T23.
       test:
         - CMD
         - node
         - -e
-        - "fetch('http://127.0.0.1:3001/').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+        - "fetch('http://127.0.0.1:3001/healthz').then((r) => (r.status === 404 ? fetch('http://127.0.0.1:3001/') : r)).then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
       interval: 5s
       timeout: 5s
       retries: 6

@@ -212,10 +212,10 @@ check_edge_limits() {
   check_flood "liveness" "'https://localhost/api/health/live?n=[1-200]'" edge_health 200
   # The flooding address is over its limit; a visitor at a normal pace from this machine is served.
   for i in 1 2 3 4 5; do
-    status="$(curl -sk --max-time 10 -o /dev/null -w '%{http_code}' https://localhost/api/hello \
+    status="$(curl -sk --max-time 10 -o /dev/null -w '%{http_code}' 'https://localhost/api/categories?limit=1' \
       || true)"
     [ "$status" = 200 ] \
-      || { echo "ci-deploy-check: after the flood, another address got $status from /api/hello" >&2; return 1; }
+      || { echo "ci-deploy-check: after the flood, another address got $status from /api/categories?limit=1" >&2; return 1; }
     sleep 0.2
   done
   echo "another address is served after the flood"
@@ -309,7 +309,7 @@ check_api_unavailable() {
   # the connect timeout, so it is retried for up to a minute until nginx answers.
   for i in $(seq 6); do
     got="$(curl -sk --max-time 10 -o "$work/503.json" -w "%{http_code} %{content_type} $security_w" \
-      https://localhost/api/hello || true)"
+      'https://localhost/api/categories?limit=1' || true)"
     [ "${got%% *}" != 000 ] && break
   done
   expect_error "/api/ with the api stopped" "$got" "503 application/json $security" \
@@ -663,10 +663,10 @@ echo "$first_counts"
   && [ "$(count_of products "$first_counts")" -ge 30 ] && [ "$(count_of users "$first_counts")" -eq 0 ] \
   && [ "$(count_of products_incomplete "$first_counts")" -eq 0 ] \
   || { echo "ci-deploy-check: the seed did not load the demo catalog" >&2; exit 1; }
-# /api/hello, not /api/health/live: the api does not log health checks.
-check_request_id /api/hello blue
+# /api/categories?limit=1, not /api/health/live: the api does not log health checks.
+check_request_id '/api/categories?limit=1' blue
 check_request_id /catalog/dresses blue 2
-check_security_headers /api/hello
+check_security_headers '/api/categories?limit=1'
 check_security_headers /
 # The socket location and nginx's 403 for readiness: a location's own add_header would drop them.
 check_security_headers '/socket.io/?EIO=4&transport=polling'
@@ -845,7 +845,7 @@ group "rotation, deploy 1: PROXY_SECRET_NEXT set, roll back to $tag (blue, still
 set_proxy_secrets "$old_secret" "$new_secret"
 ENV_FILE="$env_file" deploy/scripts/deploy.sh "$tag"
 scripts/smoke-test.sh https://localhost "$tag"
-check_request_id /api/hello blue
+check_request_id '/api/categories?limit=1' blue
 check_request_id /catalog/dresses blue 2
 endgroup
 
@@ -882,9 +882,9 @@ grep -qF "copy skipped: $broken predates the backup job" "$work/broken.err" \
   printenv PROXY_SECRET)" = "$new_secret" ] \
   || { echo "ci-deploy-check: nginx was not recreated with the new PROXY_SECRET" >&2; exit 1; }
 # blue keeps serving, started with the old secret and the new one as PROXY_SECRET_NEXT: it trusts
-# nginx (the new secret, /api/hello) and its own web (the old one, /catalog/dresses).
+# nginx (the new secret, /api/categories?limit=1) and its own web (the old one, /catalog/dresses).
 scripts/smoke-test.sh https://localhost "$tag"
-check_request_id /api/hello blue
+check_request_id '/api/categories?limit=1' blue
 check_request_id /catalog/dresses blue 2
 endgroup
 
@@ -901,7 +901,7 @@ grep -qF 'does not accept the new PROXY_SECRET' "$work/refused.err" \
   printenv PROXY_SECRET)" = "$new_secret" ] \
   || { echo "ci-deploy-check: nginx was recreated with a secret blue does not accept" >&2; exit 1; }
 scripts/smoke-test.sh https://localhost "$tag"
-check_request_id /api/hello blue
+check_request_id '/api/categories?limit=1' blue
 endgroup
 
 group "rotation, deploy 2 again: $second (green) with the new secret only; unused images go"
@@ -915,7 +915,7 @@ EOF
 backup_image_for "$second"
 ENV_FILE="$env_file" deploy/scripts/deploy.sh "$second"
 scripts/smoke-test.sh https://localhost "$second"
-check_request_id /api/hello green
+check_request_id '/api/categories?limit=1' green
 check_request_id /catalog/dresses green 2
 if docker image inspect "ai-fitting-api:$tag-stale" > /dev/null 2>&1; then
   echo "ci-deploy-check: the deploy kept an app image no container uses" >&2

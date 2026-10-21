@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { Public } from '../src/common/auth/access.decorators.js';
 import { Expensive } from '../src/throttling/tiered-throttler.guard.js';
+import { emptyCatalogPrisma } from './support/empty-catalog.js';
 
 // Quota tiers (spec 0006 F6, AC4-AC7). Redis points at a closed port (vitest.config.ts), so every
 // counter here runs on the in-memory fallback: each 429 below holds on it (AC7). The test
@@ -59,10 +60,14 @@ describe('quota tiers (e2e)', () => {
     for (const [name, value] of Object.entries(env)) vi.stubEnv(name, value);
     const { AppModule } = await import('../src/app.module.js');
     const { createHttpApp } = await import('../src/common/http/http-app.js');
+    const { PrismaService } = await import('../src/prisma/prisma.service.js');
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
       controllers: [CostlyController, MixedController],
-    }).compile();
+    })
+      .overrideProvider(PrismaService)
+      .useValue(emptyCatalogPrisma())
+      .compile();
     app = await createHttpApp(
       (adapter, options) =>
         moduleRef.createNestApplication<NestExpressApplication>(adapter, options),
@@ -98,7 +103,7 @@ describe('quota tiers (e2e)', () => {
 
   describe('past the minute limit', () => {
     it.each([
-      ['read', get('/hello'), OK_THEN_429],
+      ['read', get('/categories'), OK_THEN_429],
       ['write', post('/tier-mixed/plain'), [201, 201, 201, 201, 201, 429]],
       ['expensive', get('/tier-costly'), OK_THEN_429],
     ])('answers 429 on the %s tier', async (_tier, call, expected) => {
@@ -109,9 +114,9 @@ describe('quota tiers (e2e)', () => {
 
     it('answers 429 in the error format', async () => {
       await boot();
-      await statuses(get('/hello'), 5);
+      await statuses(get('/categories'), 5);
 
-      const response = await get('/hello')();
+      const response = await get('/categories')();
 
       expect(response.status).toBe(429);
       expect(response.body).toMatchObject({ error: { code: 'TOO_MANY_REQUESTS' } });
@@ -120,7 +125,7 @@ describe('quota tiers (e2e)', () => {
 
   describe('Retry-After on a 429', () => {
     it.each([
-      ['read', get('/hello')],
+      ['read', get('/categories')],
       ['write', post('/tier-mixed/plain')],
       ['expensive', get('/tier-costly')],
     ])('carries a whole number of seconds up to 60 on the %s tier', async (_tier, call) => {
@@ -138,9 +143,9 @@ describe('quota tiers (e2e)', () => {
 
     it('carries it on a burst 429 too', async () => {
       await boot({ THROTTLE_READ_BURST: '1', THROTTLE_READ_MINUTE: LOOSE });
-      await get('/hello')();
+      await get('/categories')();
 
-      const response = await get('/hello')();
+      const response = await get('/categories')();
 
       expect(response.status).toBe(429);
       expect(String(response.headers['retry-after'])).toMatch(/^[1-9]\d*$/);
@@ -150,7 +155,7 @@ describe('quota tiers (e2e)', () => {
   describe('past the burst limit', () => {
     // Two requests a second with a loose minute limit: the third, sent at once, is over the burst.
     it.each([
-      ['read', get('/hello'), [200, 200, 429]],
+      ['read', get('/categories'), [200, 200, 429]],
       ['write', post('/tier-mixed/plain'), [201, 201, 429]],
       ['expensive', get('/tier-costly'), [200, 200, 429]],
     ])('answers 429 on the %s tier', async (_tier, call, expected) => {
@@ -171,10 +176,10 @@ describe('quota tiers (e2e)', () => {
   describe('order of the windows', () => {
     it('tells a client over its minute quota the minute wait, even when it also exceeds the burst', async () => {
       await boot({ THROTTLE_READ_BURST: '2', THROTTLE_READ_MINUTE: '3' });
-      await statuses(get('/hello'), 3);
+      await statuses(get('/categories'), 3);
 
       for (let i = 0; i < 2; i += 1) {
-        const response = await get('/hello')();
+        const response = await get('/categories')();
 
         expect(response.status).toBe(429);
         const seconds = Number(String(response.headers['retry-after']));
@@ -185,13 +190,13 @@ describe('quota tiers (e2e)', () => {
 
     it('counts a request the burst refused against the minute quota', async () => {
       await boot({ THROTTLE_READ_BURST: '2', THROTTLE_READ_MINUTE: '4' });
-      expect(await statuses(get('/hello'), 3)).toEqual([200, 200, 429]);
+      expect(await statuses(get('/categories'), 3)).toEqual([200, 200, 429]);
 
       // The only real wait here: the burst window (1 s) has to pass.
       await new Promise((resolve) => setTimeout(resolve, 1100));
 
       // All three counted against the minute quota of four, the refused one too: one is left, not two.
-      expect(await statuses(get('/hello'), 2)).toEqual([200, 429]);
+      expect(await statuses(get('/categories'), 2)).toEqual([200, 429]);
     });
   });
 
@@ -234,7 +239,7 @@ describe('quota tiers (e2e)', () => {
     it('keeps counters per route: a used up read route does not refuse another one', async () => {
       await boot();
 
-      expect(await statuses(get('/hello'))).toEqual(OK_THEN_429);
+      expect(await statuses(get('/categories'))).toEqual(OK_THEN_429);
       expect(await statuses(get('/tier-mixed/plain'), 5)).toEqual([200, 200, 200, 200, 200]);
     });
 
@@ -252,7 +257,7 @@ describe('quota tiers (e2e)', () => {
       expect(await statuses(post('/tier-mixed/plain'))).toEqual([201, 201, 201, 201, 201, 429]);
       const refused = await post('/tier-mixed/plain')();
       expect(refused.body).toMatchObject({ error: { code: 'TOO_MANY_REQUESTS' } });
-      await get('/hello')().expect(200);
+      await get('/categories')().expect(200);
       await get('/tier-mixed/plain')().expect(200);
     });
   });
@@ -292,7 +297,7 @@ describe('quota tiers (e2e)', () => {
       await boot();
       await statuses(() => request(server()).post('/brands'), 6);
 
-      await get('/hello')().expect(200);
+      await get('/categories')().expect(200);
     });
   });
 

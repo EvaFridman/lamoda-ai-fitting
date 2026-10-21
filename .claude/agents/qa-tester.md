@@ -89,7 +89,7 @@ screenshots and snapshots take no file name and land in `.playwright-mcp/`. Neve
 - **Input:** missing, empty, null, wrong type, too long, unicode and emoji, whitespace, negative and
   zero, boundary values (limit − 1, limit, limit + 1), extra fields, malformed JSON, wrong
   Content-Type. For query values with unicode, spaces or exact lengths, let curl encode them:
-  `curl -s -G --data-urlencode 'name=Ёжик в тумане' http://localhost:3000/hello` (your copy's api
+  `curl -s -G --data-urlencode 'q=Ёжик в тумане' http://localhost:3000/products` (your copy's api
   port). Type long values
   out in full (e.g. 51 characters) rather than skipping the boundary.
 - **Repeats and order:** the same request twice, double submit, parallel requests
