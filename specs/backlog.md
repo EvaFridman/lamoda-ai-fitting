@@ -79,6 +79,15 @@ removes it from this list. Found by the agents' first security audit and trial r
   users. Comes back only with an answer to both.
 - **Drop `sessions.user_agent`.** Sessions keep no User-Agent (0013 N34): the column is always
   empty. Drop it in a release after 0013's (migrations stay compatible with the previous release).
+- **Old fitting routes.** `/fitting-sessions` (reads and deletes; its writes close in 0019 A21)
+  and `/ai-generations` stay next to 0019's `/fittings` and `/me/photos`, which the site uses.
+  Remove them, their DTOs, tests and `openapi.json` entries once 0019 is closed, and move the
+  `MAX_GENERATION_PRODUCTS` limit with them.
+- **The other models of 0016 S7.** 0019 connects OpenAI's GPT-Image-2 only (0019 A4, A17); 0016
+  S7 names Gemini's Nano Banana and Seedream as well, each replaceable by another. Add a second
+  provider behind the `ImageModel` adapter (Google's API, or an intermediary such as fal.ai, whose
+  queue and signed webhook were in 0019's first plan) once the pilot of 0016 wants the
+  comparison, with a fallback on a technical failure of the primary model.
 - **Fitting sessions per user.** A signed-in user can create fitting sessions within the `write`
   quota, and nothing removes archived ones (0013 N39). The generations spec, which defines how
   sessions are used, sets a per-user limit.
@@ -150,6 +159,22 @@ removes it from this list. Found by the agents' first security audit and trial r
 - **Mobile filters.** The kit's filters and the catalog filters of 0009 are desktop dropdowns only
   (0003 D9, 0009 K16); on a phone Lamoda shows them in a bottom sheet. Build it with the catalog
   page spec.
+- **Mobile tab bar.** The design of spec 0019 has a bottom tab bar on phones («Главная», «Каталог»,
+  «Примерочная», «Корзина», «Профиль»); 0019 shows only the fitting room's icon in the header
+  (0019 A10). Build the bar when the site has a cart and a home worth a tab.
+- **Share link of a result.** «Поделиться» on a fitting result is a disabled button (0019 A14).
+  The design: a public page of the generated image with the «Сгенерировано ИИ» mark and the
+  product's card, a link the user copies or sends, revoked from the history. Needs its own route
+  under `noindex`, a token per share, a rate limit on the public page and the result's moderation
+  verdict checked again before it is served.
+- **Photo crop.** The design's «Обрезать это фото» after a «several people» refusal (0019 A41):
+  a crop step in the browser before the upload is retried.
+- **Report a wrong photo check.** «Мы ошиблись? Сообщить» on the «child» refusal (0019 A41): a
+  report the owner reads; needs a place to keep reports and a rate limit.
+- **Compare as an overlay.** The history's compare page has the tab «Наложением» in the design;
+  0019 builds «Рядом» only (0019 A41).
+- **Avatar teaser.** «Создать свой аватар · скоро» on the photo picker is not rendered by 0019
+  (A41); the digital twin's spec (0016 item 5) adds the real button.
 
 ## Server
 
