@@ -1,0 +1,52 @@
+// The catalog's grid (spec 0014 plan §3.3): 4 columns from 1024px of its own width, 3 from 768px,
+// otherwise 2. The container queries draw the server's grid; once measured, the component sets
+// `--columns` itself, from the same steps (`columnsFor`).
+
+.grid {
+  container-type: inline-size;
+}
+
+.list {
+  --columns: 2;
+
+  display: grid;
+  grid-template-columns: repeat(var(--columns), minmax(0, 1fr));
+  gap: var(--space-6) var(--space-4);
+
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+
+  list-style: none;
+
+  @container (width >= 768px) {
+    --columns: 3;
+  }
+
+  @container (width >= 1024px) {
+    --columns: 4;
+  }
+}
+
+.more {
+  display: block;
+  margin-top: var(--space-6);
+  text-align: center;
+}
+
+// Out of sight, still in the tab order and read.
+.hidden {
+  position: absolute;
+
+  overflow: hidden;
+
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+
+  white-space: nowrap;
+
+  clip-path: inset(50%);
+}

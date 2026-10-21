@@ -79,6 +79,24 @@ describe('HeaderSearch', () => {
     expect(pushed.get('b')).toBe('2');
   });
 
+  it('drops the catalog cursor and keeps the other parameters in order (O81)', async () => {
+    setUrl('sort=price_asc&cursor=abc&brandId=x');
+    const user = userEvent.setup();
+    render(<HeaderSearch />);
+    await user.type(field(), 'платье{Enter}');
+    expect(navigation.push).toHaveBeenCalledWith(
+      '/path?sort=price_asc&brandId=x&q=%D0%BF%D0%BB%D0%B0%D1%82%D1%8C%D0%B5',
+    );
+  });
+
+  it('pushes only q when the cursor was the only parameter (O81)', async () => {
+    setUrl('cursor=abc');
+    const user = userEvent.setup();
+    render(<HeaderSearch />);
+    await user.type(field(), 'shirt{Enter}');
+    expect(navigation.push).toHaveBeenCalledWith('/path?q=shirt');
+  });
+
   it('uses the current pathname', async () => {
     navigation.pathname = '/catalog/shoes';
     const user = userEvent.setup();

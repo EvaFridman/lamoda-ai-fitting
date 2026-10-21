@@ -90,11 +90,11 @@ export function productListOptions(query: ProductListQuery = {}) {
 }
 
 // The browser's `productInfiniteOptions` with the same key and page params, for `prefetchInfinite`.
-export function productInfiniteOptions(query: ProductBatchQuery = {}) {
+export function productInfiniteOptions(query: ProductBatchQuery = {}, start: string | null = null) {
   return infiniteQueryOptions({
-    queryKey: productKeys.infinite(query),
+    queryKey: productKeys.infinite(query, start),
     queryFn: ({ pageParam }) => getProductBatch(query, pageParam),
-    initialPageParam: null as string | null,
+    initialPageParam: start,
     getNextPageParam: (last) => last.nextCursor,
   });
 }

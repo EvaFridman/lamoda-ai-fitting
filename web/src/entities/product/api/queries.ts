@@ -39,10 +39,11 @@ export function productListOptions(query: ProductListQuery = {}) {
   });
 }
 
-// The catalog's infinite list (plan §3.3): the first batch, then each after the last one's cursor.
-export function productInfiniteOptions(query: ProductBatchQuery = {}) {
+// The catalog's infinite list (plan §3.3): the first batch (after `start`, when given), then each
+// after the last one's cursor.
+export function productInfiniteOptions(query: ProductBatchQuery = {}, start: string | null = null) {
   return infiniteQueryOptions({
-    queryKey: productKeys.infinite(query),
+    queryKey: productKeys.infinite(query, start),
     queryFn: ({ pageParam, signal }) =>
       clientFetch(
         buildPath('/products', {}, productBatchQuery(query, pageParam)),
@@ -51,7 +52,7 @@ export function productInfiniteOptions(query: ProductBatchQuery = {}) {
           signal,
         },
       ),
-    initialPageParam: null as string | null,
+    initialPageParam: start,
     getNextPageParam: (last) => last.nextCursor,
   });
 }
@@ -114,8 +115,8 @@ export function useProducts(query: ProductListQuery = {}) {
   return useQuery(productListOptions(query));
 }
 
-export function useProductBatches(query: ProductBatchQuery = {}) {
-  return useInfiniteQuery(productInfiniteOptions(query));
+export function useProductBatches(query: ProductBatchQuery = {}, start: string | null = null) {
+  return useInfiniteQuery(productInfiniteOptions(query, start));
 }
 
 export function useProductFacets(filters: ProductFilters = {}) {

@@ -152,11 +152,10 @@ removes it from this list. Found by the agents' first security audit and trial r
   and a user's id in its path (0011 M34). The spec that shows a user's photo through such a link
   keeps its `src` out of Sentry (events, breadcrumbs) and Mixpanel (heatmap clicks, recordings),
   and checks what `strip-attributes.ts` and the recordings' image blocking already cover.
-- **Product card link.** `CatalogProductCard` (0009 K15) takes its link address as a prop: no
-  product page exists yet. The spec that places the card on a page passes the address; once the
-  product page exists, its spec decides whether the card builds the address itself, and turns
-  the link's prefetch back on: the catalog passes `prefetch={false}` while `/products/<id>` is a
-  404 (spec 0014 O75).
+- **Product card link.** The catalog's cards link to `/products/<id>` (spec 0014 O7) with
+  `prefetch={false}` (`widgets/product-grid`) while that address is a 404 (O75). The product
+  page's spec turns the prefetch back on and decides whether `CatalogProductCard` (0009 K15)
+  builds the address itself.
 - **Mobile filters.** The kit's filters and the catalog filters of 0009 are desktop dropdowns only
   (0003 D9, 0009 K16); on a phone Lamoda shows them in a bottom sheet. Build it with the catalog
   page spec.
@@ -176,6 +175,11 @@ removes it from this list. Found by the agents' first security audit and trial r
   0019 builds «Рядом» only (0019 A41).
 - **Avatar teaser.** «Создать свой аватар · скоро» on the photo picker is not rendered by 0019
   (A41); the digital twin's spec (0016 item 5) adds the real button.
+- **Logo keeps the catalog's scroll.** The header's logo links to `/`, which redirects to
+  `/catalog`; a client-side click from another page (`/privacy`) shows the catalog at the scroll it
+  had, not at the top, and a click on `/catalog` itself does not scroll up (spec 0014 T14 QA). Next
+  shows the list it kept (`cacheComponents`) and the redirect is not a new page to it. Decide
+  whether the logo links to `/catalog` directly or scrolls to the top, with the header's next spec.
 
 ## Server
 

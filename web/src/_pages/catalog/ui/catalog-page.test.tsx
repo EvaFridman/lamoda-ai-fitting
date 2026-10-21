@@ -17,6 +17,8 @@ vi.mock('next/navigation', () => ({
   redirect: vi.fn(),
   permanentRedirect: vi.fn(),
   useRouter: () => routerMock,
+  usePathname: () => '/catalog',
+  useSearchParams: () => new URLSearchParams(),
 }));
 vi.mock('@/shared/api', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/shared/api')>();
@@ -100,14 +102,52 @@ async function resolveProducts(fragment: ReactElement): Promise<ReactElement> {
   return (products.type as Server)(products.props);
 }
 
+const facets = {
+  total: 1,
+  discounted: 0,
+  price: null,
+  categories: [],
+  brands: [],
+  sizes: [],
+  attributes: [],
+};
+
+const refusedCursor = {
+  error: {
+    code: 'VALIDATION_FAILED',
+    message: 'm',
+    details: [{ field: 'cursor', code: 'INVALID_CURSOR', message: 'x' }],
+  },
+};
+
+function isFacets(input: unknown): boolean {
+  return new URL(String(input), 'http://localhost').pathname.endsWith('/products/facets');
+}
+
+// The batches answer `body` with `status`; the filter counts always answer.
 function stubApi(body: unknown = { items: [product], total: 1, nextCursor: null }, status = 200) {
-  fetchMock.mockImplementation(() =>
-    Promise.resolve(new Response(JSON.stringify(body), { status })),
+  fetchMock.mockImplementation((input: unknown) =>
+    Promise.resolve(
+      isFacets(input)
+        ? new Response(JSON.stringify(facets))
+        : new Response(JSON.stringify(body), { status }),
+    ),
   );
 }
 
+function batchUrls(): URL[] {
+  return fetchMock.mock.calls
+    .filter(([input]) => !isFacets(input))
+    .map(([input]) => new URL(String(input), 'http://localhost'));
+}
+
 function requested(call = 0): URL {
-  return new URL(String(fetchMock.mock.calls[call]?.[0]));
+  return batchUrls()[call] as URL;
+}
+
+// The page's element is a HydrationBoundary around the browser list.
+function browserOf(boundary: ReactElement): ReactElement<CatalogBrowserProps> {
+  return childrenOf(boundary)[0] as ReactElement<CatalogBrowserProps>;
 }
 
 beforeEach(() => {
@@ -148,7 +188,7 @@ describe('CatalogPage', () => {
     );
     expect(isValidElement(content)).toBe(true);
     await (content.type as Server)(content.props);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(batchUrls()).toHaveLength(1);
     const url = requested();
     expect(url.pathname).toBe('/products');
     expect(url.searchParams.get('q')).toBe('платье');
@@ -162,31 +202,39 @@ describe('CatalogPage', () => {
     async function failOnServer(): Promise<ReactElement<CatalogBrowserProps>> {
       stubApi({}, 500);
       const content = await resolveContent(CatalogPage({ searchParams: noSearch }));
-      const element = (await (content.type as Server)(
-        content.props,
-      )) as ReactElement<CatalogBrowserProps>;
+      const element = browserOf(await (content.type as Server)(content.props));
       fetchMock.mockReset();
       return element;
     }
 
-    it('reports it and hands the text to the browser list, with no hydration', async () => {
-      const element = await failOnServer();
+    it('reports it and hands the text to the browser list, with no batch hydrated', async () => {
+      stubApi({}, 500);
+      const content = await resolveContent(CatalogPage({ searchParams: noSearch }));
+      const boundary = await (content.type as Server)(content.props);
       const error = vi.mocked(reportFailure).mock.calls[0]?.[0];
       expect(error).toBeInstanceOf(ApiError);
+      const element = browserOf(boundary);
       expect(element.type).toBe(CatalogBrowser);
+      const dehydrated = (boundary.props as { state: { queries: { queryKey: unknown[] }[] } })
+        .state;
+      expect(dehydrated.queries.some((query) => query.queryKey[1] === 'infinite')).toBe(false);
       expect(element.props.failureText).toBe(errorText(error));
     });
 
     it('shows the text first, then the cards once the browser request answers', async () => {
       const element = await failOnServer();
       let answer: (response: Response) => void = () => {};
-      fetchMock.mockImplementation(() => new Promise<Response>((resolve) => (answer = resolve)));
+      fetchMock.mockImplementation((input: unknown) =>
+        isFacets(input)
+          ? Promise.resolve(new Response(JSON.stringify(facets)))
+          : new Promise<Response>((resolve) => (answer = resolve)),
+      );
       render(
         <QueryClientProvider client={createBrowserQueryClient()}>{element}</QueryClientProvider>,
       );
       await act(async () => {});
       expect(screen.getByRole('alert')).toHaveTextContent(element.props.failureText ?? '');
-      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(batchUrls()).toHaveLength(1);
 
       await act(async () => {
         answer(new Response(JSON.stringify({ items: [product], total: 1, nextCursor: null })));
@@ -197,7 +245,7 @@ describe('CatalogPage', () => {
 
     it('shows the browser error text and reports it when the browser request fails too', async () => {
       const element = await failOnServer();
-      fetchMock.mockImplementation(() => Promise.resolve(new Response('{}', { status: 429 })));
+      stubApi({}, 429);
       render(
         <QueryClientProvider client={createBrowserQueryClient()}>{element}</QueryClientProvider>,
       );
@@ -213,7 +261,7 @@ describe('CatalogPage', () => {
     it('renders the cards from the server prefetch and calls fetch no more', async () => {
       const content = await resolveContent(CatalogPage({ searchParams: noSearch }));
       const boundary = await (content.type as Server)(content.props);
-      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(batchUrls()).toHaveLength(1);
       fetchMock.mockClear();
 
       const client = createBrowserQueryClient();
@@ -222,6 +270,100 @@ describe('CatalogPage', () => {
       const link = screen.getByRole('link', { name: /Летнее платье/ });
       expect(link).toHaveAttribute('href', `/products/${ID2}`);
       expect(fetchMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('?cursor= (O29, O72)', () => {
+    const withCursor = Promise.resolve({ q: 'платье', cursor: 'c-1' });
+
+    async function serve(search: Promise<Record<string, string>> = withCursor) {
+      const content = await resolveContent(CatalogPage({ searchParams: search }));
+      return browserOf(await (content.type as Server)(content.props));
+    }
+
+    it('starts the first batch from the cursor and hands it to the browser list', async () => {
+      const element = await serve();
+      expect(batchUrls()).toHaveLength(1);
+      expect(requested().searchParams.get('cursor')).toBe('c-1');
+      expect(requested().searchParams.get('q')).toBe('платье');
+      expect(element.props.start).toBe('c-1');
+      expect(element.props.failureText).toBeUndefined();
+    });
+
+    it('shows the cards of that batch with no browser request', async () => {
+      const content = await resolveContent(CatalogPage({ searchParams: withCursor }));
+      const boundary = await (content.type as Server)(content.props);
+      fetchMock.mockClear();
+      render(
+        <QueryClientProvider client={createBrowserQueryClient()}>{boundary}</QueryClientProvider>,
+      );
+      await act(async () => {});
+      expect(screen.getByRole('link', { name: /Летнее платье/ })).toBeInTheDocument();
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('asks again for the first batch when the api refuses the cursor, without reporting it', async () => {
+      fetchMock.mockImplementation((input: unknown) =>
+        Promise.resolve(
+          isFacets(input)
+            ? new Response(JSON.stringify(facets))
+            : new URL(String(input)).searchParams.has('cursor')
+              ? new Response(JSON.stringify(refusedCursor), { status: 400 })
+              : new Response(JSON.stringify({ items: [product], total: 1, nextCursor: null })),
+        ),
+      );
+      const element = await serve();
+      expect(batchUrls()).toHaveLength(2);
+      expect(requested(0).searchParams.get('cursor')).toBe('c-1');
+      expect(requested(1).searchParams.has('cursor')).toBe(false);
+      expect(requested(1).searchParams.get('q')).toBe('платье');
+      expect(element.props.start).toBeUndefined();
+      expect(element.props.failureText).toBeUndefined();
+      expect(reportFailure).not.toHaveBeenCalled();
+    });
+
+    it('does not retry a 400 that is not about the cursor', async () => {
+      stubApi({ error: { ...refusedCursor.error, details: [] } }, 400);
+      const element = await serve();
+      expect(batchUrls()).toHaveLength(1);
+      expect(element.props.start).toBe('c-1');
+      expect(element.props.failureText).toBeDefined();
+      expect(reportFailure).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not retry a failure of the server', async () => {
+      stubApi({}, 500);
+      const element = await serve();
+      expect(batchUrls()).toHaveLength(1);
+      expect(element.props.failureText).toBeDefined();
+    });
+
+    it('keys the list by its start, so another cursor remounts it', async () => {
+      expect((await serve()).key).toBe('c-1');
+      expect((await serve(Promise.resolve({ cursor: 'c-2' }))).key).toBe('c-2');
+    });
+
+    it('keys the list with an empty text without a cursor', async () => {
+      expect((await serve(noSearch)).key).toBe('');
+    });
+
+    it('keys the list with an empty text after a refused cursor falls back', async () => {
+      fetchMock.mockImplementation((input: unknown) =>
+        Promise.resolve(
+          isFacets(input)
+            ? new Response(JSON.stringify(facets))
+            : new URL(String(input)).searchParams.has('cursor')
+              ? new Response(JSON.stringify(refusedCursor), { status: 400 })
+              : new Response(JSON.stringify({ items: [product], total: 1, nextCursor: null })),
+        ),
+      );
+      expect((await serve()).key).toBe('');
+    });
+
+    it('does not retry a refused first batch when there is no cursor', async () => {
+      stubApi(refusedCursor, 400);
+      await serve(noSearch);
+      expect(batchUrls()).toHaveLength(1);
     });
   });
 
@@ -272,7 +414,7 @@ describe('CategoryPage', () => {
     const search = Promise.resolve({ hasDiscount: 'true', categoryId: ID2 });
     const content = await resolveContent(CategoryPage({ params, searchParams: search }));
     await resolveProducts(content);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(batchUrls()).toHaveLength(1);
     const url = requested();
     expect(url.searchParams.getAll('categoryId')).toEqual([ID]);
     expect(url.searchParams.get('hasDiscount')).toBe('true');
@@ -295,26 +437,27 @@ describe('CategoryPage', () => {
     get.mockResolvedValue(category);
     stubApi({}, 500);
     const content = await resolveContent(CategoryPage({ params, searchParams: noSearch }));
-    const element = (await resolveProducts(content)) as ReactElement<CatalogBrowserProps>;
+    const element = browserOf(await resolveProducts(content));
     const error = vi.mocked(reportFailure).mock.calls[0]?.[0];
     expect(error).toBeInstanceOf(ApiError);
     expect(element.type).toBe(CatalogBrowser);
     expect(element.props.failureText).toBe(errorText(error));
-    expect(element.props.query.categoryId).toEqual([ID]);
+    expect(element.props.categoryId).toBe(ID);
+    expect('categoryId' in element.props.query).toBe(false);
 
     let answer: (response: Response) => void = () => {};
     fetchMock.mockReset();
-    fetchMock.mockImplementation(() => new Promise<Response>((resolve) => (answer = resolve)));
+    fetchMock.mockImplementation((input: unknown) =>
+      isFacets(input)
+        ? Promise.resolve(new Response(JSON.stringify(facets)))
+        : new Promise<Response>((resolve) => (answer = resolve)),
+    );
     render(
       <QueryClientProvider client={createBrowserQueryClient()}>{element}</QueryClientProvider>,
     );
     await act(async () => {});
     expect(screen.getByRole('alert')).toHaveTextContent(errorText(error));
-    expect(
-      new URL(String(fetchMock.mock.calls[0]?.[0]), 'http://localhost').searchParams.getAll(
-        'categoryId',
-      ),
-    ).toEqual([ID]);
+    expect(requested().searchParams.getAll('categoryId')).toEqual([ID]);
     await act(async () => {
       answer(new Response(JSON.stringify({ items: [product], total: 1, nextCursor: null })));
     });

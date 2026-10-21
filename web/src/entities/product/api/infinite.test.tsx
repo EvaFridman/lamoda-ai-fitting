@@ -76,6 +76,7 @@ describe('productInfiniteOptions keys', () => {
       'products',
       'infinite',
       expect.objectContaining({ q: 'dress', size: ['M'], categoryId: [ID], limit: 12 }),
+      null,
     ]);
     expect(key[2].offset).toBeUndefined();
     expect(server.productInfiniteOptions(QUERY).queryKey).toEqual(key);

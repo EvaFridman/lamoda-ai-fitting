@@ -24,7 +24,7 @@ describe('entities/product public entry', () => {
 
   it('exports the infinite list hook, options and limits', async () => {
     const entry = await import('./index');
-    for (const name of ['useProductBatches', 'productInfiniteOptions']) {
+    for (const name of ['useProductBatches', 'productInfiniteOptions', 'isRefusedCursor']) {
       expect(typeof (entry as Record<string, unknown>)[name], name).toBe('function');
     }
     expect(entry.PRODUCT_SEARCH_MAX_LENGTH).toBe(100);

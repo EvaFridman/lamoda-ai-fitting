@@ -5,12 +5,12 @@ import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 
 import { getCategoryBySlug } from '@/entities/category/server';
-import type { ProductBatchQuery } from '@/entities/product';
-import { productInfiniteOptions } from '@/entities/product/server';
+import { isRefusedCursor, type ProductBatchQuery } from '@/entities/product';
+import { productFacetsOptions, productInfiniteOptions } from '@/entities/product/server';
 import { errorText, reportFailure } from '@/shared/api';
-import { prefetchInfinite } from '@/shared/api/server';
+import { prefetch, prefetchInfinite } from '@/shared/api/server';
 
-import { type CatalogSearchParams, parseCatalogUrl } from '../model/url-state';
+import { type CatalogUrlState, parseCatalogUrl } from '../model/url-state';
 import { CatalogBrowser } from './catalog-browser';
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -48,7 +48,7 @@ export function CategoryPage({ params, searchParams }: CategoryPageProps) {
 }
 
 async function CatalogContent({ searchParams }: CatalogPageProps) {
-  return <CatalogProducts query={queryOf(await searchParams)} />;
+  return <CatalogProducts state={parseCatalogUrl(await searchParams)} />;
 }
 
 async function CategoryContent({ params, searchParams }: CategoryPageProps) {
@@ -63,35 +63,53 @@ async function CategoryContent({ params, searchParams }: CategoryPageProps) {
   // `proxy.ts` answers 404 before this (O65). What it lets through ends here as a soft 404: a
   // category deactivated since, a prefetch (not checked) and a request whose check failed.
   if (!category?.isActive) notFound();
-  const query = { ...queryOf(await searchParams), categoryId: [category.id] };
+  const state = parseCatalogUrl(await searchParams);
   // The heading goes out without waiting for the products.
   return (
     <>
       <h1>{category.name}</h1>
       <Suspense fallback={null}>
-        <CatalogProducts query={query} />
+        <CatalogProducts state={state} categoryId={category.id} />
       </Suspense>
     </>
   );
 }
 
-// The cursor is T14's: until then every address shows its first batch (O72).
-function queryOf(searchParams: CatalogSearchParams): ProductBatchQuery {
-  return parseCatalogUrl(searchParams).query;
+interface CatalogProductsProps {
+  state: CatalogUrlState;
+  categoryId?: string;
 }
 
-// The first batch, loaded here and handed to the browser's list under the same key (plan §3.3).
-// A failure is not dehydrated: the list shows its text and requests the batch again (O74).
-async function CatalogProducts({ query }: { query: ProductBatchQuery }) {
+// The first batch (the one after `?cursor=`, O29) and the filter counts, loaded here and handed to
+// the browser's list under the same keys (plan §3.3). A cursor the api refuses shows the first
+// batch (O72). A failed batch is not dehydrated: the list shows its text and requests the batch
+// again (O74); failed counts are requested by the browser, and the list goes without them till then.
+async function CatalogProducts({ state, categoryId }: CatalogProductsProps) {
+  const { query } = state;
+  const batchQuery: ProductBatchQuery =
+    categoryId === undefined ? query : { ...query, categoryId: [categoryId] };
   const queryClient = new QueryClient();
-  const failure = await prefetchInfinite(queryClient, productInfiniteOptions(query));
-  if (failure !== undefined) {
-    reportFailure(failure);
-    return <CatalogBrowser query={query} failureText={errorText(failure)} />;
+  const facets = prefetch(queryClient, productFacetsOptions(batchQuery));
+  let start = state.cursor;
+  let failure = await prefetchInfinite(queryClient, productInfiniteOptions(batchQuery, start));
+  if (start !== undefined && isRefusedCursor(failure)) {
+    start = undefined;
+    failure = await prefetchInfinite(queryClient, productInfiniteOptions(batchQuery));
   }
+  const facetsFailure = await facets;
+  if (facetsFailure !== undefined) reportFailure(facetsFailure);
+  if (failure !== undefined) reportFailure(failure);
+  // Only what loaded is dehydrated (TanStack skips failed queries). Next keeps the page mounted
+  // when only the query changes, so another start is another list (and grid), by its key.
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
-      <CatalogBrowser query={query} />
+      <CatalogBrowser
+        key={start ?? ''}
+        query={query}
+        categoryId={categoryId}
+        start={start}
+        failureText={failure === undefined ? undefined : errorText(failure)}
+      />
     </HydrationBoundary>
   );
 }

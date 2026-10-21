@@ -458,3 +458,35 @@ Second round, on the review of `4817711`:
   the proxy secret" stays open until the taint API ships in stable React. The alternatives weighed:
   the flag as planned; no taint but `getServerEnv()` without the secret, read by one function only
   `apiFetch` may import (ESLint). (owner, T13a.)
+
+## Decided at T14
+
+- **O77. Back to the place: Next's own on a client-side step, the grid's on a full load.** Refines
+  O12 and plan §3.3. With `cacheComponents`, a client-side Back or Forward shows the list Next kept
+  hidden (`<Activity>`) with its loaded batches and DOM, and the browser puts the scroll back
+  itself, within about a row. The grid restores its saved place (`sessionStorage`
+  `catalog-scroll:<path+query>`: offset, a measured row's height, the count loaded) only when the
+  catalog loads as a new document by Back or Forward (a `back_forward` navigation entry of its
+  address): it first loads as many batches as before, up to 600 products, then scrolls; a wheel,
+  a touch scroll, a scroll key outside a field or a press on the scrollbar in the meantime cancels
+  it, and nothing is saved until it is done. Accepted limit: Back to a list of the same address
+  with another start (from `?cursor=`, reached by "Дальше", which with JavaScript only the keyboard
+  reaches) remounts the list, and the browser puts the scroll back while the other batch is still
+  on the page, so it lands at the end of the first batch. The alternative weighed: the grid's own
+  restore on client-side steps too, which raced Next's reveal and the browser's restore (QA, T14).
+  (owner, T14.)
+- **O78. The search text in the "Дальше" link is accepted.** The link's `href` carries the
+  address's query, `q` included; recordings keep element attributes (spec 0008), but the same `q`
+  is already in every event's `$current_url`. The link gets no `mp-block`. The alternative
+  weighed: `mp-block`, which drops the link from the recordings. (security-reviewer, owner, T14.)
+- **O79. The first batch's HTML waits for the filter counts.** The server prefetches the facets
+  with the batch, so `aria-setsize` comes from their `total` from the first render (O49); the
+  page's HTML waits for the slower of the two. The alternative weighed: render without waiting,
+  the size from the loaded count until the browser's own request. (code-reviewer, owner, T14.)
+- **O80. Back between filter states with the same cursor is T15's.** The grid remounts by the
+  start cursor only; whether a change of the filters, which T15 makes with `router.replace`, needs
+  its own place is decided there. (code-reviewer, owner, T14.)
+- **O81. The header's search drops the batch cursor.** Revises 0010 L8 (the search keeps the
+  page's other parameters): `cursor` is left out, so a search from `/catalog?cursor=…` starts at
+  its first batch instead of after a product of another list. The alternative weighed: leave it to
+  T17. (code-reviewer, owner, T14.)

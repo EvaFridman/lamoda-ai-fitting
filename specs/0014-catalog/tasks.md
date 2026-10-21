@@ -168,7 +168,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       updated. Documents only.
       Check: `npm run format:check`.
       Commit: `docs(specs): defer the proxy secret's taint`
-- [ ] **T14. The virtual grid.** `@tanstack/react-virtual` (version pinned per plan §3.3, approved
+- [x] **T14. The virtual grid.** `@tanstack/react-virtual` (version pinned per plan §3.3, approved
       in the commit message if it needs an install script); `widgets/product-grid`: rows by width,
       loading the next batch, the "Дальше" link, `?cursor=` rendering, return to the place, the
       list's roles (`aria-setsize`, `aria-posinset`); card links `/products/<id>` (O7); backlog
