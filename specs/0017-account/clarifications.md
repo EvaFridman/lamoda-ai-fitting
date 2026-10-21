@@ -1,7 +1,8 @@
 # 0017 account: clarifications
 
-Status: accepted (2026-10-20); amended 2026-10-20 at the plan (U18, U19) and at the review of PR 1
-(U20, U14's budget).
+Status: done (2026-10-21). History, not instructions. Accepted 2026-10-20; amended 2026-10-20 at
+the plan (U18, U19) and at the review of PR 1 (U20, U14's budget); amended 2026-10-20 and
+2026-10-21 at the tasks of PR 2 (U21–U27) and 2026-10-21 at its review (U28).
 
 The owner's decisions for this spec. Ids `U1`, `U2`, … are referred to by the spec, the plan and
 code comments. All decisions below: owner, 2026-10-20.
