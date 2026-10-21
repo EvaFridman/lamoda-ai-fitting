@@ -1,7 +1,10 @@
 # 0017 account: plan
 
-Status: accepted (2026-10-20); amended 2026-10-20 at the tasks (pull requests, §11) and at the
-review of PR 1 (§1 `gender`, §3, §4, §5 the beacon, `MenuLinkItem` and U20, §6, §12).
+Status: done (2026-10-21). History, not instructions. Accepted 2026-10-20; amended 2026-10-20 at
+the tasks (pull requests, §11) and at the review of PR 1 (§1 `gender`, §3, §4, §5 the beacon,
+`MenuLinkItem` and U20, §6, §12); amended 2026-10-20 at T7 (§4, the cache after a sign-out, U22);
+amended 2026-10-21 at T10 (§4 `$sessionSignal`) and T11 (§5 the
+deletion: `LinkButton`, U25, U26).
 
 How [spec.md](spec.md) is built. Decisions: [clarifications.md](clarifications.md) (U1–U20).
 No new dependencies.

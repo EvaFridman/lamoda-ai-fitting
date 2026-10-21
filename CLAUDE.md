@@ -19,7 +19,9 @@ only the signed-in user's own data, account deletion and the header's profile me
 nightly encrypted copies of the database and the bucket, a database copy before a deploy migrates
 and the restore procedures by `0012-backups`, whose production checks are a backlog item; the
 analytics events' catalog, its document `EVENTS.md`, their checks, the rule
-`.claude/rules/analytics.md` and the `analytics` agent by `0015-analytics-events` (all closed).
+`.claude/rules/analytics.md` and the `analytics` agent by `0015-analytics-events`; the account
+pages under `/customer`, the page "Мои данные" with `PATCH /me` and deleting the account
+from its page by `0017-account` (all closed).
 
 Keep this file true: update it in the same commit that changes what a section describes.
 
