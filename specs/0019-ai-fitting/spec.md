@@ -2,7 +2,7 @@
 
 Status: accepted (2026-10-21).
 
-Issue #69 («Собрать страницу товара»). Decisions: `clarifications.md` (A1–A45). Design: the
+Issue #69 («Собрать страницу товара»). Decisions: `clarifications.md` (A1–A47). Design: the
 owner's canvas «Онлайн-примерка 2.0» (26 boards, the kit's design system), read only. This spec
 replaces items 1–4 of spec 0016's roadmap (0016 S20): the product page, photos, generation, and
 try-on with history, as one spec in four phases.
@@ -63,7 +63,8 @@ the next spec (A8).
   deleted. A photo of two people, of a child, with no person, not full length or too dark is
   refused with that reason and is not stored.
 - **AC2.** The first upload shows the hints and the two consents («На фото — я», the processing
-  consent); the buttons stay disabled until both are checked; later uploads skip the screen.
+  consent, which names OpenAI as the photo's recipient); the buttons stay disabled until both are
+  checked; later uploads skip the screen; `/privacy` describes the fitting photos (A46).
 - **AC3.** A sixth saved photo is refused; the first saved photo is the default, another can be
   made the default; the default is preselected in the try-on.
 - **AC4.** A file that is not an image, a 21 MB file or a body of another type answers the api's
@@ -123,7 +124,8 @@ the next spec (A8).
   try-on request is refused with that date and no model is called; the counter and the limit meter
   show the number left and turn to the caution colour at three or fewer.
 - **AC20.** A refused photo, a refused text, a failed or moderated generation and a repeat leave
-  the counter as it was; the limit's size comes from the environment.
+  the counter as it was; a running generation deleted through the api keeps its try-on spent
+  (A47); the limit's size comes from the environment.
 
 ### Product page
 
@@ -169,16 +171,17 @@ the next spec (A8).
 - Create an OpenAI API key; set `OPENAI_API_KEY` as the GitHub secret of the Environment
   `production` and, for a check by hand before the merge, in the working copy's `.env` (A4).
 - Run the reachability check of `api.openai.com` from the server (`ssh ai-fitting`) before phase
-  2's merge: OpenAI does not list Russia among its supported countries, and a 403 there means the
-  route to the model is the owner's decision; check with the main session, after the merge, the
-  first generation on production (A4).
+  2 starts: OpenAI does not list Russia among its supported countries, and a 403 there means the
+  route to the model is the owner's decision before any generation code is written; after phase
+  2's merge, check the first generation on production with the main session (A4).
 - Merge spec 0014's and spec 0018's pull requests before phase 3 starts (A1, A22).
 - Approve the analytics entries of `plan.md` §9 with this spec (A13).
 - Read the pitch's figures: the number of stub clicks and try-ons is the `analytics` agent's.
 
 ## Assumptions
 
-- OpenAI's GPT-Image-2 stays available at a price within a factor of two of `research.md`; a
+- OpenAI's GPT-Image-2 stays available at a price within a factor of two of
+  `specs/0016-ai-fitting/research.md`; a
   result takes seconds to two minutes, so the time limit of one generation is three minutes.
 - The demo catalog's six categories map to the slots top, bottom, outerwear and shoes (A18); the
   accessory slot waits for an accessories category.

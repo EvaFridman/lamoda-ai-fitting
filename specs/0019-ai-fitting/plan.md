@@ -2,7 +2,7 @@
 
 Status: accepted (2026-10-21).
 
-How [spec.md](spec.md) is built. Decisions: [clarifications.md](clarifications.md) (A1–A45).
+How [spec.md](spec.md) is built. Decisions: [clarifications.md](clarifications.md) (A1–A47).
 New dependencies, checked on npm on 2026-10-21: api `sharp` 0.35.5 (lovell/sharp, prebuilt
 binaries, no install script) and `busboy` 1.6.0 (mscdex/busboy); web `socket.io-client` 4.8.4
 (the api's socket.io is 4.8.x; the same minor). OpenAI is called with Node's `fetch`, no SDK.
@@ -45,7 +45,9 @@ single look }` (nullable for the same reason, read as `single`),
   DTO), `countsAgainstLimit` boolean, `failureCode` enum `FittingFailure { photo_dark
 photo_not_full photo_many_people photo_child photo_no_person prompt_refused model_timeout
 moderation provider_error }` nullable, `providerRequestId` varchar(100), `fingerprint`
-  char(64) indexed with `userId`, `startedAt`, `finishedAt`; `userImageKey` nullable (A24). The
+  char(64) indexed with `userId` and, as a partial unique index over `status IN ('pending',
+'processing')`, guarding the running duplicate (A32; a row in `constraint-fields.ts`),
+  `startedAt`, `finishedAt`; `userImageKey` nullable (A24). The
   status CHECK becomes: completed → result and no failure; failed → `failure_code` or
   `error_message`; pending/processing → neither. `GenerationProduct` gains `attributeValueId`
   (FK, restrict) and `slot`, both nullable. `MAX_GENERATION_PRODUCTS` stays for the closed route
@@ -94,16 +96,17 @@ requestId }` from the answer's `error.code` and the `x-request-id` header, never
 - **`checks/`.** `PhotoChecker.check(image)` → the Responses API with `FITTING_VISION_MODEL`
   (`gpt-6-luna`), the image as a data URL, a system prompt asking for JSON `{ ok: boolean,
 reason?: dark | not_full | many_people | child | no_person }` with «refuse only when sure»,
-  then the moderation endpoint for the image (sexual, violence, self-harm flagged → `no_person`
-  is wrong, so a flagged photo answers the reason `moderation` with the canvas's «Не можем
-  показать» text); a malformed answer counts as `ok` with a warning (a check must never block an
-  honest photo). `PromptChecker.check(text)` → the moderation endpoint (any flagged category
-  refuses) and the same small model, text only, JSON `{ allowed, reason }` (A16).
+  and, in parallel, the moderation endpoint for the image (sexual, violence, self-harm flagged →
+  `no_person` is wrong, so a flagged photo answers the reason `moderation` with the canvas's «Не
+  можем показать» text); a malformed answer counts as `ok` with a warning (a check must never
+  block an honest photo). `PromptChecker.check(text)` → the moderation endpoint (any flagged
+  category refuses) and the same small model, text only, JSON `{ allowed, reason }` (A16).
   `ModerationChecker.check(image)` → the moderation endpoint for the result. The moderation calls
   are free; the two classifications cost a few hundred tokens each. A check called inside a
-  request (the photo check, the text check) uses `FITTING_CHECK_TIMEOUT_MS` per call and, on a
-  timeout, makes the route answer 503 `SERVICE_UNAVAILABLE` with nothing stored (A45); the api
-  refuses to start when two such calls do not fit under `REQUEST_TIMEOUT_MS`.
+  request (the photo check, the text check) runs its two calls in parallel under one deadline,
+  `FITTING_CHECK_TIMEOUT_MS`, and, on a timeout, makes the route answer 503 `SERVICE_UNAVAILABLE`
+  with nothing stored (A45); the api refuses to start when that deadline is above half of
+  `REQUEST_TIMEOUT_MS`, so `sharp` and the bucket write keep the other half.
 - **`ai-provider.ts`.** The `AI_PROVIDER` token: `OpenAiProvider` with a key, `FakeAiProvider`
   without one (and always in tests): a deterministic result image from `api/test/fixtures/`, a
   refusal when the photo's bytes or the text contain a marker the e2e use (`refuse:<reason>`),
@@ -132,8 +135,11 @@ reason?: dark | not_full | many_people | child | no_person }` with «refuse only
 - **Workflow.** Marks `processing`; runs the chain; on any end calls `complete`
   (status, `countsAgainstLimit` false unless completed and the quota's unit taken back then (A20),
   a transient photo's row and file deleted through the outbox (A24), `finishedAt`)
-  and `notify`. A workflow that is cancelled (the row deleted meanwhile) stops at the next
-  activity: `complete` finds no row and returns. Added to `workflows.spec.ts`; the e2e drives it
+  and `notify`. `complete` is idempotent: it moves the row out of `pending`/`processing` with a
+  conditional update and takes the unit back in the same transaction only when that update
+  changed the row, so a retried activity changes nothing (A20). A workflow that is cancelled (the
+  row deleted meanwhile; its unit stays spent, A47) stops at the next activity: `complete` finds
+  no row and returns. Added to `workflows.spec.ts`; the e2e drives it
   with stub activities as `delete-files-workflow.e2e-spec.ts` does.
 - **`deletePrefix`** gets `heartbeat()` per batch and a `heartbeatTimeout` (A39).
 - **The outbox (A38).** `FileDeletion.startFileDeletion` becomes: the caller's transaction inserts
@@ -154,8 +160,9 @@ of `test/access-markers.e2e-spec.ts`; `openapi.json` and `validation-codes.json`
   (`true` by default; `false` marks the row transient, A24); the stream is cut at `FITTING_PHOTO_MAX_BYTES` (413
   `PAYLOAD_TOO_LARGE`); `sharp` reads the metadata (a non-image is 400 `VALIDATION_FAILED`,
   detail `IS_IMAGE`), rotates by EXIF, resizes to ≤ 2048 px, writes WebP without metadata; the
-  photo check runs on the WebP (a refusal is 400 `VALIDATION_FAILED`, detail code
-  `PHOTO_REFUSED` with `reason` in the message's code form); the row and the object are written
+  photo check runs on the WebP, its two calls in parallel under one deadline (A45; a refusal is
+  400 `VALIDATION_FAILED`, detail code `PHOTO_REFUSED` with `reason` in the message's code
+  form); the row and the object are written
   (key `userPhotoKey(userId)`), the sixth saved photo is 409 `LIMIT_REACHED` (the code and its
   web text come with this route, PR 2). Answer 201 `UserPhotoDto { id, url (signed), isDefault,
 transient, width, height, createdAt }`. `GET /me/photos` (a plain array of the saved ones, at
@@ -169,7 +176,9 @@ true }`), `DELETE /me/photos/:id` (204; the generations' `photoId` goes null; th
   the product (400 `RELATED_NOT_FOUND`); the repeat lookup (A7) answers 200 with the existing
   result and `repeated: true`; a running generation with the same fingerprint answers 200 with
   it (A32); the prompt check (A16, 400 `PROMPT_REFUSED`); then one transaction: lock the user's
-  row, read or create this month's `fitting_quota` row (409 `LIMIT_REACHED` with `renewsAt` at
+  row, look again for a running generation with the same fingerprint (A32: the first lookup is a
+  fast path; two parallel requests serialize on the lock and the second answers the first's row),
+  read or create this month's `fitting_quota` row (409 `LIMIT_REACHED` with `renewsAt` at
   the limit, else `used + 1`, A20), create the active session if none, insert the generation and
   its products; after the commit start the workflow; answer 201 `FittingDto`. `GET
 /fittings?kind=&cursor=&limit=` answers `CursorPaginated<FittingDto>` with the cursor DTO of the
@@ -178,8 +187,12 @@ true }`), `DELETE /me/photos/:id` (204; the generations' `photoId` goes null; th
 countsAgainstLimit, model, items[{ productId, name, brand, imageUrl, price, finalPrice,
 attributeValueId, colour }], photoId, resultUrl (signed), createdAt, startedAt, finishedAt,
 estimatedSeconds }`), `POST /fittings/:id/regenerate` (`@Expensive()`, `{ reasons[],
-comment? }`; free when the parent has no child yet, A6), `DELETE /fittings/:id` (204, a running
-  one is cancelled through the Temporal handle, the files through the outbox), `GET
+comment? }`; free when the parent has no child yet, A6; it goes through the same start
+  transaction as `POST /fittings`, with the user's row locked and the lookup of a running
+  generation of the same fingerprint, so a second regenerate while the first runs answers 200
+  with the running row, A32), `DELETE /fittings/:id` (204, a running
+  one is cancelled through the Temporal handle and keeps its unit spent, A47; the files through
+  the outbox), `GET
 /me/fitting-quota` (`{ limit, used, left, renewsAt }`). `POST` and `PATCH /fitting-sessions`
   get `@Closed()` and move to `CLOSED_HANDLERS` (A21).
 - **Products (PR 4).** `GET /products/:id/related` (`@Public()`, `read` tier): six newest
@@ -204,7 +217,8 @@ colour }], count, sum }`), `PUT /me/fitting-room/:slot` (`{ productId, attribute
 status }` to the room; the worker's `notify` publishes the same JSON with its own client. A
   lost message costs nothing: the waiting screen polls. No client-to-server message is added, so
   the gateway's rate limit of 0001 B12c still waits (A35).
-- **web.** `shared/realtime` (`socket.io-client`, path `/socket.io`, `withCredentials`, transports
+- **web.** `shared/realtime` (`socket.io-client`, kept in socket.io's minor line as
+  `socket.io-parser` is, path `/socket.io`, `withCredentials`, transports
   polling then websocket, reconnection on) opens one connection per tab while the session is
   `signed-in` and closes it on `signed-out`; `features/fitting-events` (`useFittingEvents`,
   mounted by the header next to `useSignInAnalytics`) invalidates `fittingKeys.all` and shows
@@ -214,8 +228,11 @@ status }` to the room; the worker's `notify` publishes the same JSON with its ow
 
 ## 7. web: slices and the kit (the `fsd` skill)
 
-- **entities.** `user-photo` (schemas, `userPhotoKeys`, `useMyPhotos`, `uploadPhoto`,
-  `setDefaultPhoto`, `deletePhoto`, `PhotoThumb`), `fitting` (schemas of `FittingDto` and the
+- **entities.** `user-photo` (schemas, `userPhotoKeys`, `useMyPhotos`, `uploadPhoto`, which
+  passes `clientFetch` a timeout of its own, `UPLOAD_TIMEOUT_MS` (120 s) in place of the 15 s,
+  since the browser's timer covers the body's upload too: `clientFetch` gains an optional
+  `timeoutMs`; `setDefaultPhoto`, `deletePhoto`, `PhotoThumb`), `fitting` (schemas of
+  `FittingDto` and the
   quota, `fittingKeys`, `useFitting` with polling while pending or processing, `useFittings`
   (infinite), `useFittingQuota`, `startFitting`, `regenerateFitting`, `deleteFitting`, the display
   components `AiLabel`, `LimitMeter`, `ItemsStrip`, `HistoryCard`), `fitting-room` (schemas,
@@ -224,7 +241,8 @@ status }` to the room; the worker's `notify` publishes the same JSON with its ow
   display-only per 0009 K7). The unused `entities/generation` schemas are replaced by `fitting`.
 - **features** (each a leaf: a feature imports no feature, the `fsd` skill). `upload-photo` (the
   first-upload screen with the tips and the two consents kept in `localStorage` per browser, the
-  file input with `capture`, the refusal screen), `start-fitting` (the photo picker, the start
+  processing one naming OpenAI, A46, the file input with `capture`, the refusal screen),
+  `start-fitting` (the photo picker, the start
   request, the waiting screen with its estimate, the limit and error cards), `regenerate-fitting`
   (the reasons sheet), `try-colour`, `fitting-room` (the hanger toggles, the slot rows' actions,
   the replace and remove toasts with «Вернуть»), `fitting-events`, `delete-fitting`,
@@ -239,7 +257,8 @@ status }` to the room; the worker's `notify` publishes the same JSON with its ow
   `fitting-compare`, `my-photos`.
 - **pages.** `_pages/product` (`app/products/[id]/page.tsx`, `generateMetadata`),
   `_pages/fittings` (`/customer/fittings`), `_pages/photos` (`/customer/photos`),
-  `_pages/fitting-compare` (`/customer/fittings/compare`). All but the product page are account
+  `_pages/fitting-compare` (`/customer/fittings/compare`); `_pages/privacy` gets its paragraph on
+  the fitting photos and results (A46). All but the product page are account
   pages inside `AccountShell` (0017), browser-only (U11) and `noindex` through the existing
   `/customer` layout; `robots.ts` already disallows `/customer`.
 - **kit.** New: `CountBadge`, `ProgressBar`, `FileInput`, `Gallery`, `Sheet` (the mobile bottom
@@ -321,9 +340,11 @@ in PR 5), each commit regenerating `EVENTS.md`.
   `OPENAI_API_KEY` (secret, empty = the fake provider; required in production by the api and the
   worker), `FITTING_MODEL` (`gpt-image-2`), `FITTING_VISION_MODEL` (`gpt-6-luna`),
   `FITTING_MONTHLY_LIMIT` (10, 1–1000), `FITTING_TIMEOUT_SECONDS` (180, 30–600),
-  `FITTING_CHECK_TIMEOUT_MS` (4000, 1000–10 000; two of them must fit under `REQUEST_TIMEOUT_MS`,
-  checked at start, A45), `FITTING_PHOTO_MAX_BYTES` (20 971 520, at most 50 MB).
-  `REQUEST_TIMEOUT_MS` is untouched: no route waits for the image model, only for the checks.
+  `FITTING_CHECK_TIMEOUT_MS` (4000, 1000–10 000; at most half of `REQUEST_TIMEOUT_MS`, checked at
+  start, A45), `FITTING_PHOTO_MAX_BYTES` (20 971 520, at most 50 MB).
+  `REQUEST_TIMEOUT_MS` is untouched: no route waits for the image model, only for the checks, and
+  nginx buffers a request body before the api sees it (`proxy_request_buffering` is on by
+  default), so a slow upload is not under it.
 - **`cd.yml`.** `OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}` in the `.env` writer and in the
   format check list (no spaces or shell characters); `deploy/README.md` gets `gh secret set
 OPENAI_API_KEY --env production`, the model variables, the upload limit and the reachability
@@ -387,16 +408,18 @@ OPENAI_API_KEY --env production`, the model variables, the upload limit and the 
   `FITTING_MODEL` can switch to `gpt-image-2.5-sunburst` without a release.
 - **The vision check is probabilistic.** «Refuse only when sure» and a malformed answer counting
   as ok keep honest photos through; a wrong refusal costs the user nothing (AC20). The texts of
-  board 5 are fixed per reason.
+  board 5 are fixed per reason. So the photo check is a quality filter, not the safety line: that
+  is the moderation of the photo and of the result (A15).
 - **OpenAI from Russia.** OpenAI does not list Russia among its supported countries and has
   blocked API traffic from unsupported regions since July 2024 (a 403
   `unsupported_country_region_territory`). The owner checks `api.openai.com` from the server
-  before phase 2's merge (A4); a 403 there leaves the fitting on the fake provider in production
-  until the owner decides on a route (0016 S7's risk: an intermediary, a server elsewhere), which
-  is outside this spec.
+  before phase 2 starts (A4), so no generation code is written for a provider the server cannot
+  reach; a 403 there stops the work until the owner decides on a route (0016 S7's risk: an
+  intermediary, a server elsewhere), which is outside this spec.
 - **Order of 0014 and 0018.** Phase 3 waits for both (A1, A22); phases 1 and 2 touch `CLAUDE.md`,
   `catalog.ts`, `account-sections.ts` and the access-markers lists, which 0014's branch touches
-  too: the rebase is expected and small.
+  too: the rebase is expected, and for `catalog.ts` (41 new elements) and the markers' lists it
+  may be sizeable, so the close of phase 3 sets time aside for it.
 - **`sharp` in the image.** Native binaries per platform; `npm ci` in CI and in the builder stage
   resolve them for linux/amd64. If `npm ci` needs an install script for them, the commit says so.
 - **Request sizes.** Six JPEGs of ≤ 1536 px are about 2–3 MB per edits request, well under
@@ -413,7 +436,8 @@ OPENAI_API_KEY --env production`, the model variables, the upload limit and the 
 - `CLAUDE.md`: the opening paragraph lists `0019-ai-fitting`; new sections for the ai module and
   its env, the photos route and its nginx limit, the fittings routes, the limit, the workflow,
   the push, the account's fifth section, the product page and its cache; the socket bullet's
-  «rate limiting comes with the first real feature» stays (A35).
+  «rate limiting comes with the first real feature» stays (A35); the `socket.io-client` line
+  says its range stays in socket.io's minor line, as `socket.io-parser`'s does.
 - `README.md`: the fitting in «Что умеет», `OPENAI_API_KEY` in the quick start («пусто —
   заглушка»).
 - `deploy/README.md`: the secret, the variables, the nginx limit, the reachability check.

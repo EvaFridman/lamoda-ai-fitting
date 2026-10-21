@@ -4,9 +4,11 @@ Status: accepted (2026-10-21).
 
 The owner's decisions for this spec. Ids `A1`, `A2`, … are referred to by the spec, the plan and
 code comments. A1–A13 are the owner's decisions given with the task, A14–A19, A21 and A22 the
-answers to the questions of the design review, A20 and A23 onwards the assumptions the main
+answers to the questions of the design review, A20 and A23–A45 the assumptions the main
 session took where neither covered a fork («Assumption, owner to confirm», A3): each is confirmed
-or changed at the phase's review. All decisions below: owner, 2026-10-21, unless noted.
+or changed at the phase's review; A20, A24, A26, A43 and A45 were confirmed at the review of PR 1,
+whose decisions are A46 and A47 and the amendments of A2, A4, A20, A32 and A45. All decisions
+below: owner, 2026-10-21, unless noted.
 
 ## Order and documents
 
@@ -23,7 +25,9 @@ phase: a task, then `finish-task` whole (`test-writer`, `verify`, `qa-tester`, t
 its commit, then the next task. At the end of a phase: a clean install and `verify`, the push, the
 pull request in the owner's format, then a stop with a summary: what was done, what the agents
 found, which assumptions were taken. The review bot's rounds go through `apply-review`, one fix
-commit and one push per round.
+commit and one push per round. Confirmed 2026-10-21 at the review of PR 1: this mode stays an
+exception recorded here, since this is the first spec that uses it; whether `specs/principles.md`
+and `CLAUDE.md` name it as an option is decided at the close of the spec.
 
 **A3. A fork none of the decisions cover takes the most cautious option.** Less behaviour, nothing
 irreversible; it is recorded here as «Assumption, owner to confirm» and listed in the phase's
@@ -80,10 +84,14 @@ is written from GitHub) and into `.env.example` with a comment. Tests and CI nev
 adapter is replaced by a fake, and the real model runs only where the key is set, that is on
 production for users and, if the owner wants, once by hand before the merge. Before the first real
 generation (the end of phase 2) the work stops: the owner is asked whether the key is set locally
-and in GitHub, with the variable's exact name; then the first generation on production (the server
-is in Russia, which OpenAI's supported countries do not include: check that `api.openai.com`
-answers from it before the merge). Amended 2026-10-21 at the review of the documents: OpenAI
-instead of fal.ai (the owner's choice; fal.ai's queue and models are dropped from the plan).
+and in GitHub, with the variable's exact name; then the first generation on production. The server
+is in Russia, which OpenAI's supported countries do not include: before phase 2 starts the owner
+checks that `api.openai.com` answers from it (`GET /v1/models` without a key: a 401 means it is
+reachable, a 403 the region block), so no generation code is written for a provider the server
+cannot reach; a 403 stops the work for the owner's decision on the route. Amended 2026-10-21 at
+the review of the documents: OpenAI instead of fal.ai (the owner's choice; fal.ai's queue and
+models are dropped from the plan); amended at the review of PR 1: the reachability check before
+the start of phase 2, not before its merge.
 
 **A17. Model: GPT-Image-2, no second provider.** `FITTING_MODEL=gpt-image-2` (the edits endpoint,
 quality medium); `gpt-image-2.5-sunburst` (OpenAI's newer editing model) is the alternative the
@@ -148,8 +156,11 @@ the page without the cache and letting 0018 add it.
 rows would let a deleted result (A25) give its try-on back. A table `fitting_quota` (`user_id`,
 `month`, `used`) holds the spend: the start transaction locks the user's row, refuses at the limit
 and adds one; a generation that fails, is refused or times out takes one back (A26); a deleted
-result changes nothing. `GET /me/fitting-quota` reads it. Added 2026-10-21 at the review of the
-documents.
+result changes nothing. `GET /me/fitting-quota` reads it. Taking one back is idempotent: the
+workflow's `complete` moves the row out of `pending`/`processing` with a conditional update and
+takes the unit back in the same transaction only when that update changed the row, so a retried
+activity changes nothing. Added 2026-10-21 at the review of the documents; amended at the review
+of PR 1 (idempotency).
 
 **A23. The active fitting session holds the generations.** A try-on belongs to the user's one
 active `FittingSession` (0002 C15), which the server creates at the first try-on; `ai_generations`
@@ -205,7 +216,11 @@ upload route only (0006 F12).
 the user with the same fingerprint (photo, items, colours, text) and answers it instead of starting
 another; a request retried after the request timeout meets the committed row the same way (backlog
 «Long writes after a timeout»: the route answers at once with the row, the work runs in the
-workflow). web disables the button while its request runs.
+workflow). web disables the button while its request runs. The lookup before the transaction is
+only a fast path: it is repeated inside the start transaction after the user's row is locked, so
+two parallel requests cannot both insert, and a partial unique index on `(user_id, fingerprint)`
+over the running statuses guards it in the database. Amended 2026-10-21 at the review of PR 1
+(the race of two parallel requests).
 
 **A33. The stubs' behaviour.** «Добавить в корзину», «В корзину», «Всё в корзину», «В избранное»
 and «Всё в избранное» are enabled, send their tracked click and show the toast «В прототипе нет
@@ -256,10 +271,16 @@ polls). `CLAUDE.md`'s sentence on the two Redis gains the channel at the phase's
 
 **A45. The checks inside a request have a short time limit.** The photo check runs inside `POST
 /me/photos` and the text check inside `POST /fittings`, both under `REQUEST_TIMEOUT_MS`. Each
-OpenAI call of a check gets `FITTING_CHECK_TIMEOUT_MS` (4000); a check that does not answer in time
-makes the request answer 503 `SERVICE_UNAVAILABLE`, nothing stored, so the user retries. Moving the
-photo check into the workflow (an asynchronous «checking» status) was weighed and left for later:
-the canvas shows the check during the upload. Added 2026-10-21 at the review of the documents.
+check's calls (the vision model and the moderation endpoint) run in parallel under one deadline,
+`FITTING_CHECK_TIMEOUT_MS` (4000) for the whole check; a check that does not answer in time
+makes the request answer 503 `SERVICE_UNAVAILABLE`, nothing stored, so the user retries. The
+upload's own time is not under `REQUEST_TIMEOUT_MS`: nginx buffers the request body before the
+api sees it (`proxy_request_buffering` is on by default), so the handler's 10 s hold `sharp`, the
+check and the bucket write, and the api refuses to start when the check's deadline is above half
+of `REQUEST_TIMEOUT_MS`. Moving the photo check into the workflow (an asynchronous «checking»
+status) was weighed and left as the fallback if production shows 503s: the canvas shows the check
+during the upload. Added 2026-10-21 at the review of the documents; amended at the review of PR 1
+(the calls in parallel, one deadline).
 
 ## Analytics
 
@@ -272,7 +293,24 @@ and the SDK's page view carry them); `tried_on` on the purchase stubs and `signe
 «Поделиться» sends nothing; `buy-box.tried-on` and `room.fill` stay since the note and the empty
 slot are links in the canvas; the api answers the model's short name so `model` can be a property;
 `section` gains `photos` and `sdkPerVisit` becomes 14; deletions are tracked on the confirming
-button. Assumption, owner to confirm with the spec (A13).
+button. Confirmed 2026-10-21 at the review of PR 1 (A13).
+
+## Review of PR 1 (2026-10-21)
+
+The review bot's notes on the documents; the owner's answers are A46, A47, the amendments of A2,
+A4, A20, A32 and A45, and the split of T14 in `tasks.md`.
+
+**A46. The consent names OpenAI, and `/privacy` describes the fitting photos.** The processing
+consent of the first upload (AC2) says that the photo is sent to OpenAI (USA) for the check and the
+generation and is not used for training; the page `/privacy` (0008) gets a paragraph on the
+fitting photos and results: what is stored, where it goes, when it is deleted (phase 1, T7).
+Rejected: a general consent text with no provider named and `/privacy` unchanged.
+
+**A47. A cancelled generation stays spent.** `DELETE /fittings/:id` of a running generation cancels
+the workflow and keeps the try-on spent: the model call may already have been made, and a free
+cancel would let a user cancel before the result and retry at no cost. web offers no deletion of a
+running
+generation; the api answers 204 as for a finished one. Rejected: taking the unit back on a cancel.
 
 ## Canvas and decisions
 
