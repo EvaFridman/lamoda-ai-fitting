@@ -116,3 +116,14 @@ later specs. All decisions below: owner, 2026-10-19.
   user without a twin is asked for the usual size at the first try-on. The twin keeps onboarding,
   the clean base, body and size, and style (owner, 2026-10-19, at the review of PR #86). Amends S15's
   order. Rejected: keeping them in the twin's spec.
+
+## Follow-up specs
+
+- **S20. Spec 0019 replaces items 1–4 of the roadmap.** The product page, photos, generation, and
+  try-on with history are one spec, `specs/0019-ai-fitting/`, in four phases and pull requests:
+  photos, generation, the product page (after spec 0014's catalog), then looks and history; it
+  checks AC5–AC10, AC14 and AC15 and records them in this spec's `tasks.md` acceptance record at
+  its close. The size in the picture, the
+  size recommendation and the scene (AC12, AC13, S19) wait for the next spec with its own design;
+  the digital twin (item 5) still closes this spec (S18) (owner, 2026-10-21, at the start of spec
+  0019). Amends S15's order. Rejected: four specs, one per roadmap item.
