@@ -1,5 +1,5 @@
 import { QueryClientProvider } from '@tanstack/react-query';
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import { isValidElement, type ReactElement, Suspense } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -9,7 +9,10 @@ vi.mock('@/shared/config/server', () => ({
   getServerEnv: () => ({ API_URL: 'http://api:3000', PROXY_SECRET: '' }),
 }));
 vi.mock('@sentry/nextjs', () => ({ captureException: vi.fn() }));
-vi.mock('@/entities/category/server', () => ({ getCategoryBySlug: vi.fn() }));
+vi.mock('@/entities/category/server', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/entities/category/server')>()),
+  getCategoryBySlug: vi.fn(),
+}));
 vi.mock('next/navigation', () => ({
   notFound: vi.fn(() => {
     throw new Error('NEXT_NOT_FOUND');
@@ -30,8 +33,10 @@ import { notFound, permanentRedirect, redirect } from 'next/navigation';
 import { createBrowserQueryClient } from '@/_app/providers';
 import { getCategoryBySlug } from '@/entities/category/server';
 import { ApiError, errorText, reportFailure } from '@/shared/api';
+import { Breadcrumbs } from '@/shared/ui';
 
 import { CatalogBrowser, type CatalogBrowserProps } from './catalog-browser';
+import { CatalogHeading } from './catalog-heading';
 import { CatalogPage, CategoryPage } from './catalog-page';
 
 const routerMock = { replace: vi.fn(), push: vi.fn() };
@@ -87,12 +92,22 @@ async function resolveContent(page: ReactElement): Promise<ReactElement> {
   return (content.type as Server)(content.props);
 }
 
-// The heading CategoryContent puts ahead of the products.
-function headingOf(fragment: ReactElement): ReactElement {
+// The breadcrumbs CategoryContent puts ahead of the products.
+function breadcrumbsOf(fragment: ReactElement): ReactElement {
   return childrenOf(fragment)[0] as ReactElement;
 }
 
-// CategoryContent returns a fragment: the heading, then a Suspense holding the products.
+// What the visitor sees before the products: the breadcrumbs and the Suspense's fallback.
+function shellOf(fragment: ReactElement): ReactElement {
+  return (
+    <>
+      {breadcrumbsOf(fragment)}
+      {(productsSuspenseOf(fragment).props as { fallback: ReactElement }).fallback}
+    </>
+  );
+}
+
+// CategoryContent returns a fragment: the breadcrumbs, then a Suspense holding the products.
 function productsSuspenseOf(fragment: ReactElement): ReactElement {
   return childrenOf(fragment)[1] as ReactElement;
 }
@@ -120,24 +135,30 @@ const refusedCursor = {
   },
 };
 
-function isFacets(input: unknown): boolean {
-  return new URL(String(input), 'http://localhost').pathname.endsWith('/products/facets');
+function pathOf(input: unknown): string {
+  return new URL(String(input), 'http://localhost').pathname;
 }
 
-// The batches answer `body` with `status`; the filter counts always answer.
+// The filter counts and the category list always answer, whatever the batches do.
+function side(input: unknown): Response | undefined {
+  const path = pathOf(input);
+  if (path.endsWith('/products/facets')) return new Response(JSON.stringify(facets));
+  if (path.endsWith('/categories')) {
+    return new Response(JSON.stringify({ items: [category], total: 1 }));
+  }
+  return undefined;
+}
+
+// The batches answer `body` with `status`.
 function stubApi(body: unknown = { items: [product], total: 1, nextCursor: null }, status = 200) {
   fetchMock.mockImplementation((input: unknown) =>
-    Promise.resolve(
-      isFacets(input)
-        ? new Response(JSON.stringify(facets))
-        : new Response(JSON.stringify(body), { status }),
-    ),
+    Promise.resolve(side(input) ?? new Response(JSON.stringify(body), { status })),
   );
 }
 
 function batchUrls(): URL[] {
   return fetchMock.mock.calls
-    .filter(([input]) => !isFacets(input))
+    .filter(([input]) => side(input) === undefined)
     .map(([input]) => new URL(String(input), 'http://localhost'));
 }
 
@@ -168,10 +189,52 @@ afterEach(() => {
 });
 
 describe('CatalogPage', () => {
-  it('shows the catalog heading', () => {
+  it('shows the catalog heading without a count and the breadcrumbs before the products', () => {
     render(<CatalogPage searchParams={noSearch} />);
-    expect(screen.getByRole('heading', { level: 1, name: 'Каталог' })).toBeInTheDocument();
+    const heading = screen.getByRole('heading', { level: 1, name: 'Каталог' });
+    expect(heading).toHaveTextContent(/^Каталог$/);
+    const crumbs = screen.getByRole('navigation', { name: /./ });
+    expect(within(crumbs).getByText('Каталог')).toHaveAttribute('aria-current', 'page');
+    expect(within(crumbs).queryByRole('link')).not.toBeInTheDocument();
     expect(get).not.toHaveBeenCalled();
+  });
+
+  it('keeps the breadcrumbs outside the Suspense of the products', () => {
+    const [crumbs, suspense] = childrenOf(CatalogPage({ searchParams: noSearch }));
+    expect(crumbs?.type).toBe(Breadcrumbs);
+    expect(suspense?.type).toBe(Suspense);
+    expect((suspense?.props as { fallback: ReactElement }).fallback.type).toBe(CatalogHeading);
+  });
+
+  it('hands the page title to the browser list', async () => {
+    const content = await resolveContent(CatalogPage({ searchParams: noSearch }));
+    const element = browserOf(await (content.type as Server)(content.props));
+    expect(element.props.title).toBe('Каталог');
+  });
+
+  it('asks the api for the active categories for the list on the left', async () => {
+    const content = await resolveContent(CatalogPage({ searchParams: noSearch }));
+    await (content.type as Server)(content.props);
+    const request = fetchMock.mock.calls
+      .map(([input]) => new URL(String(input), 'http://localhost'))
+      .find((url) => url.pathname.endsWith('/categories'));
+    expect(request?.searchParams.get('isActive')).toBe('true');
+    expect(request?.searchParams.get('limit')).toBe('100');
+  });
+
+  it('reports a failed category list and still serves the products', async () => {
+    fetchMock.mockImplementation((input: unknown) =>
+      Promise.resolve(
+        pathOf(input).endsWith('/categories')
+          ? new Response('{}', { status: 500 })
+          : (side(input) ??
+              new Response(JSON.stringify({ items: [product], total: 1, nextCursor: null }))),
+      ),
+    );
+    const content = await resolveContent(CatalogPage({ searchParams: noSearch }));
+    const boundary = await (content.type as Server)(content.props);
+    expect(vi.mocked(reportFailure).mock.calls[0]?.[0]).toBeInstanceOf(ApiError);
+    expect(browserOf(boundary).props.failureText).toBeUndefined();
   });
 
   it('ignores the params Next passes to /catalog too', () => {
@@ -224,11 +287,12 @@ describe('CatalogPage', () => {
     it('shows the text first, then the cards once the browser request answers', async () => {
       const element = await failOnServer();
       let answer: (response: Response) => void = () => {};
-      fetchMock.mockImplementation((input: unknown) =>
-        isFacets(input)
-          ? Promise.resolve(new Response(JSON.stringify(facets)))
-          : new Promise<Response>((resolve) => (answer = resolve)),
-      );
+      fetchMock.mockImplementation((input: unknown) => {
+        const other = side(input);
+        return other
+          ? Promise.resolve(other)
+          : new Promise<Response>((resolve) => (answer = resolve));
+      });
       render(
         <QueryClientProvider client={createBrowserQueryClient()}>{element}</QueryClientProvider>,
       );
@@ -305,11 +369,10 @@ describe('CatalogPage', () => {
     it('asks again for the first batch when the api refuses the cursor, without reporting it', async () => {
       fetchMock.mockImplementation((input: unknown) =>
         Promise.resolve(
-          isFacets(input)
-            ? new Response(JSON.stringify(facets))
-            : new URL(String(input)).searchParams.has('cursor')
+          side(input) ??
+            (new URL(String(input)).searchParams.has('cursor')
               ? new Response(JSON.stringify(refusedCursor), { status: 400 })
-              : new Response(JSON.stringify({ items: [product], total: 1, nextCursor: null })),
+              : new Response(JSON.stringify({ items: [product], total: 1, nextCursor: null }))),
         ),
       );
       const element = await serve();
@@ -350,11 +413,10 @@ describe('CatalogPage', () => {
     it('keys the list with an empty text after a refused cursor falls back', async () => {
       fetchMock.mockImplementation((input: unknown) =>
         Promise.resolve(
-          isFacets(input)
-            ? new Response(JSON.stringify(facets))
-            : new URL(String(input)).searchParams.has('cursor')
+          side(input) ??
+            (new URL(String(input)).searchParams.has('cursor')
               ? new Response(JSON.stringify(refusedCursor), { status: 400 })
-              : new Response(JSON.stringify({ items: [product], total: 1, nextCursor: null })),
+              : new Response(JSON.stringify({ items: [product], total: 1, nextCursor: null }))),
         ),
       );
       expect((await serve()).key).toBe('');
@@ -392,21 +454,35 @@ describe('CatalogPage', () => {
 });
 
 describe('CategoryPage', () => {
-  it('shows the name of an active category', async () => {
+  it('shows the name of an active category as the heading without a count, and its breadcrumbs', async () => {
     get.mockResolvedValue(category);
-    render(headingOf(await resolveContent(CategoryPage({ params, searchParams: noSearch }))));
+    render(shellOf(await resolveContent(CategoryPage({ params, searchParams: noSearch }))));
     expect(get).toHaveBeenCalledWith('dresses');
-    expect(screen.getByRole('heading', { level: 1, name: 'Платья' })).toBeInTheDocument();
+    const heading = screen.getByRole('heading', { level: 1, name: 'Платья' });
+    expect(heading).toHaveTextContent(/^Платья$/);
+    const crumbs = screen.getByRole('navigation', { name: /./ });
+    expect(within(crumbs).getByRole('link', { name: 'Каталог' })).toHaveAttribute(
+      'href',
+      '/catalog',
+    );
+    expect(within(crumbs).getByText('Платья')).toHaveAttribute('aria-current', 'page');
   });
 
-  it('puts the heading outside the Suspense that holds the products', async () => {
+  it('puts the breadcrumbs outside the Suspense that holds the products, with the heading as its fallback', async () => {
     get.mockResolvedValue(category);
     const fragment = await resolveContent(CategoryPage({ params, searchParams: noSearch }));
-    const [heading, suspense] = childrenOf(fragment);
-    expect(heading?.type).toBe('h1');
+    const [crumbs, suspense] = childrenOf(fragment);
+    expect(crumbs?.type).toBe(Breadcrumbs);
     expect(suspense?.type).toBe(Suspense);
     expect(childrenOf(suspense as ReactElement)).toHaveLength(1);
+    expect((suspense?.props as { fallback: ReactElement }).fallback.type).toBe(CatalogHeading);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('hands the category name to the browser list as its title', async () => {
+    get.mockResolvedValue(category);
+    const content = await resolveContent(CategoryPage({ params, searchParams: noSearch }));
+    expect(browserOf(await resolveProducts(content)).props.title).toBe('Платья');
   });
 
   it('asks the api for the category own products, with the address filters', async () => {
@@ -447,11 +523,12 @@ describe('CategoryPage', () => {
 
     let answer: (response: Response) => void = () => {};
     fetchMock.mockReset();
-    fetchMock.mockImplementation((input: unknown) =>
-      isFacets(input)
-        ? Promise.resolve(new Response(JSON.stringify(facets)))
-        : new Promise<Response>((resolve) => (answer = resolve)),
-    );
+    fetchMock.mockImplementation((input: unknown) => {
+      const other = side(input);
+      return other
+        ? Promise.resolve(other)
+        : new Promise<Response>((resolve) => (answer = resolve));
+    });
     render(
       <QueryClientProvider client={createBrowserQueryClient()}>{element}</QueryClientProvider>,
     );

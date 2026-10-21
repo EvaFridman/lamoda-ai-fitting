@@ -14,6 +14,11 @@ describe('entities/category public entry', () => {
     expect(typeof entry.CatalogCategoryList).toBe('function');
   });
 
+  it('exports the api page maximum for the category list', async () => {
+    const entry = await import('./index');
+    expect(entry.CATEGORY_LIST_MAX).toBe(100);
+  });
+
   it('exports nothing built on apiFetch', async () => {
     const entry = await import('./index');
     expect('getCategories' in entry).toBe(false);

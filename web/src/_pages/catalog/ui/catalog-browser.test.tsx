@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 // Outside the app router the hooks of the grid's address give nothing.
 vi.mock('next/navigation', async (importOriginal) => ({
   ...(await importOriginal<typeof import('next/navigation')>()),
+  useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
   usePathname: () => '/catalog',
   useSearchParams: () => new URLSearchParams(),
 }));
@@ -53,13 +54,21 @@ function json(body: unknown, status = 200): Promise<Response> {
   return Promise.resolve(new Response(JSON.stringify(body), { status }));
 }
 
-function isFacets(input: unknown): boolean {
-  return new URL(String(input), 'http://localhost').pathname.endsWith('/products/facets');
+function pathOf(input: unknown): string {
+  return new URL(String(input), 'http://localhost').pathname;
+}
+
+// The filter counts and the category list answer whatever the batches do.
+function side(input: unknown): Promise<Response> | undefined {
+  const path = pathOf(input);
+  if (path.endsWith('/products/facets')) return json(facets);
+  if (path.endsWith('/categories')) return json({ items: [], total: 0 });
+  return undefined;
 }
 
 function batchUrls(): URL[] {
   return fetchMock.mock.calls
-    .filter(([input]) => !isFacets(input))
+    .filter(([input]) => side(input) === undefined)
     .map(([input]) => new URL(String(input), 'http://localhost'));
 }
 
@@ -67,16 +76,17 @@ function batchUrls(): URL[] {
 function stubApi(...batches: (unknown | (() => Promise<Response>))[]) {
   let call = 0;
   fetchMock.mockImplementation((input: unknown) => {
-    if (isFacets(input)) return json(facets);
+    const other = side(input);
+    if (other) return other;
     const next = batches[Math.min(call++, batches.length - 1)];
     return typeof next === 'function' ? (next as () => Promise<Response>)() : json(next);
   });
 }
 
-async function show(props: CatalogBrowserProps, settle = true) {
+async function show(props: Omit<CatalogBrowserProps, 'title'>, settle = true) {
   render(
     <QueryClientProvider client={createBrowserQueryClient()}>
-      <CatalogBrowser {...props} />
+      <CatalogBrowser title="Каталог" {...props} />
     </QueryClientProvider>,
   );
   await act(async () => {});

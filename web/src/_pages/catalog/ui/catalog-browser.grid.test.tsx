@@ -5,6 +5,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { ProductGridProps } from '@/widgets/product-grid';
 
+vi.mock('next/navigation', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next/navigation')>()),
+  useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
+  usePathname: () => '/catalog',
+  useSearchParams: () => new URLSearchParams(),
+}));
 // The grid is replaced by a stub that shows what the browser list hands it.
 vi.mock('@/widgets/product-grid', () => ({
   ProductGrid: (props: ProductGridProps) => (
@@ -65,18 +71,22 @@ const refused = {
   },
 };
 
-function isFacets(input: unknown): boolean {
-  return new URL(String(input), 'http://localhost').pathname.endsWith('/products/facets');
+function json(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), { status });
+}
+
+// The filter counts and the category list answer whatever the batches do.
+function side(input: unknown): Response | undefined {
+  const path = new URL(String(input), 'http://localhost').pathname;
+  if (path.endsWith('/products/facets')) return json(facets);
+  if (path.endsWith('/categories')) return json({ items: [], total: 0 });
+  return undefined;
 }
 
 function batchUrls(): URL[] {
   return fetchMock.mock.calls
-    .filter(([input]) => !isFacets(input))
+    .filter(([input]) => side(input) === undefined)
     .map(([input]) => new URL(String(input), 'http://localhost'));
-}
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), { status });
 }
 
 beforeEach(() => {
@@ -94,13 +104,14 @@ describe('CatalogBrowser and its grid', () => {
     let answer: (response: Response) => void = () => {};
     let refetching = false;
     fetchMock.mockImplementation((input: unknown) => {
-      if (isFacets(input)) return Promise.resolve(json(facets));
+      const other = side(input);
+      if (other) return Promise.resolve(other);
       const first = json({ items: [productNamed(1)], total: 1, nextCursor: 'c-2' });
       return refetching ? new Promise<Response>((resolve) => (answer = resolve)) : first;
     });
     render(
       <QueryClientProvider client={client}>
-        <CatalogBrowser query={{}} />
+        <CatalogBrowser title="Каталог" query={{}} />
       </QueryClientProvider>,
     );
     expect(await screen.findByText(/canLoadMore:true/)).toBeInTheDocument();
@@ -123,16 +134,15 @@ describe('CatalogBrowser and its grid', () => {
     let call = 0;
     fetchMock.mockImplementation((input: unknown) =>
       Promise.resolve(
-        isFacets(input)
-          ? json(facets)
-          : call++ === 0
+        side(input) ??
+          (call++ === 0
             ? json({ items: [productNamed(1)], total: 1, nextCursor: 'c-2' })
-            : json(refused, 400),
+            : json(refused, 400)),
       ),
     );
     render(
       <QueryClientProvider client={createBrowserQueryClient()}>
-        <CatalogBrowser query={{}} />
+        <CatalogBrowser title="Каталог" query={{}} />
       </QueryClientProvider>,
     );
     await screen.findByText(/canLoadMore:true/);

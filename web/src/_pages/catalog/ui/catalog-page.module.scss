@@ -1,0 +1,76 @@
+// Lamoda's catalog on the desktop (O5): the header's 1200px column; the breadcrumbs, then the title
+// with its count, then the category list on the left of the chips and the grid. Below a 1024px
+// window the list goes and the grid takes the whole width (phones: T16).
+
+.page {
+  box-sizing: content-box;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-10) var(--space-12);
+
+  @media (width < 600px) {
+    padding-inline: var(--space-4);
+  }
+}
+
+.heading {
+  margin: var(--space-10) 0 var(--space-6);
+  font-size: var(--font-size-headline-m);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-headline-m);
+
+  &:focus {
+    outline: none;
+  }
+}
+
+.count {
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  color: var(--color-text-secondary);
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-6);
+
+  @media (width >= 1024px) {
+    grid-template-columns: 224px minmax(0, 1fr);
+  }
+}
+
+.aside {
+  display: none;
+
+  @media (width >= 1024px) {
+    display: block;
+  }
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  min-width: 0;
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  align-items: flex-start;
+
+  padding: var(--space-10) 0;
+}
+
+.emptyTitle {
+  margin: 0;
+  font-size: var(--font-size-headline-s);
+  line-height: var(--line-height-headline-s);
+}
+
+.emptyText {
+  margin: 0;
+  color: var(--color-text-secondary);
+}

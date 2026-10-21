@@ -1,5 +1,8 @@
 import type { PageQuery } from '@/shared/api';
 
+// The api's page maximum: every active category in one request (the header, the catalog's list).
+export const CATEGORY_LIST_MAX = 100;
+
 // GET /categories query: a page and `isActive`.
 export interface CategoryListQuery extends PageQuery {
   isActive?: boolean;
