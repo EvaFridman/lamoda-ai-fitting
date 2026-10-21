@@ -46,7 +46,10 @@ single look }` (nullable for the same reason, read as `single`),
 photo_not_full photo_many_people photo_child photo_no_person prompt_refused model_timeout
 moderation provider_error }` nullable, `providerRequestId` varchar(100), `fingerprint`
   char(64) indexed with `userId` and, as a partial unique index over `status IN ('pending',
-'processing')`, guarding the running duplicate (A32; a row in `constraint-fields.ts`),
+'processing')`, guarding the running duplicate (A32; `@@unique([userId, fingerprint], where:
+raw(...))` with the schema's preview feature `partialIndexes`, as the active session's index of
+  0002 C21, so the schema keeps it, and like that one it looks like a full key to the generated
+  client: queries never rely on it without the status filter; a row in `constraint-fields.ts`),
   `startedAt`, `finishedAt`; `userImageKey` nullable (A24). The
   status CHECK becomes: completed → result and no failure; failed → `failure_code` or
   `error_message`; pending/processing → neither. `GenerationProduct` gains `attributeValueId`
@@ -344,7 +347,9 @@ in PR 5), each commit regenerating `EVENTS.md`.
   start, A45), `FITTING_PHOTO_MAX_BYTES` (20 971 520, at most 50 MB).
   `REQUEST_TIMEOUT_MS` is untouched: no route waits for the image model, only for the checks, and
   nginx buffers a request body before the api sees it (`proxy_request_buffering` is on by
-  default), so a slow upload is not under it.
+  default), so a slow upload is not under it. Locally the `next dev` rewrite streams the body
+  without that guarantee: a slow upload of a large file there may answer 503, which is accepted
+  for development and will not surprise a local check.
 - **`cd.yml`.** `OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}` in the `.env` writer and in the
   format check list (no spaces or shell characters); `deploy/README.md` gets `gh secret set
 OPENAI_API_KEY --env production`, the model variables, the upload limit and the reachability
