@@ -1,0 +1,27 @@
+// The initials above the form, as on Lamoda's account page.
+
+.data {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.placeholder {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  max-width: 800px;
+}
+
+.failed {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  align-items: flex-start;
+}
+
+.failedText {
+  margin: 0;
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+}

@@ -79,7 +79,9 @@ Closes the backlog item "Texts of new validation rules" (0007 H28).
   once with Better Auth's cookie cache skipped (`getSession({ query: { disableCookieCache: true } })`
   through `callAuth`), which also refreshes the copy (AC8). Checked in Better Auth 1.7.10 at the
   review of PR 1: `get-session` takes `disableCookieCache`, reads the database and writes the
-  cookie cache again.
+  cookie cache again. Then `authClient.$store.notify('$sessionSignal')` makes `useSession` read
+  it: a `get-session` call is not among the routes that signal the session hook (owner's OK at
+  T10).
 - **Cache after a sign-out (U22).** When the session becomes `signed-out` and not `failed`, the
   browser removes the queries of `userKeys.all` (`queryClient.removeQueries`).
 - No user data is read on the server (U11); every account page renders its data in the browser,

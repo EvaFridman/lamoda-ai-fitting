@@ -139,6 +139,14 @@ export const catalog = defineCatalog({
       perVisit: 0.02,
       properties: {},
     },
+    'Account Data Saved': {
+      zone: 'account',
+      type: 'interaction',
+      description:
+        '«Мои данные» сохранены: после ответа api, не по клику. Какие поля и значения изменились, не отправляется.',
+      perVisit: 0.01,
+      properties: {},
+    },
   },
   elements: {
     'ui-kit.button-primary': {

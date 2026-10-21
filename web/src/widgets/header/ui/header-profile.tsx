@@ -3,7 +3,13 @@
 import { useEffect, useRef } from 'react';
 
 import { SessionUserBadge, useSession } from '@/entities/session';
-import { DropSignInError, LoginModal, SignOutItems, useSignInAnalytics } from '@/features/auth';
+import {
+  DropSignInError,
+  LoginModal,
+  SignOutItems,
+  useDropUserQueries,
+  useSignInAnalytics,
+} from '@/features/auth';
 import { useTrackedElement } from '@/shared/analytics';
 import { type AccountSection, accountSections } from '@/shared/config';
 import {
@@ -39,6 +45,7 @@ function SectionLink({ section, title, href }: AccountSection) {
 export function HeaderProfile() {
   const session = useSession();
   useSignInAnalytics(session);
+  useDropUserQueries(session);
   const iconRef = useRef<HTMLButtonElement>(null);
   const wasSignedInRef = useRef(false);
 

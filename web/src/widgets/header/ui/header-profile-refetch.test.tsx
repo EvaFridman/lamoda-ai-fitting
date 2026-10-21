@@ -1,8 +1,20 @@
-import { render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { render as renderPlain, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { ReactElement, ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { HeaderProfile } from './header-profile';
+
+let queryClient = new QueryClient();
+
+function Wrapper({ children }: { children: ReactNode }) {
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+}
+
+function render(ui: ReactElement) {
+  return renderPlain(ui, { wrapper: Wrapper });
+}
 
 const mocks = vi.hoisted(() => ({
   useSession: vi.fn(),
@@ -42,6 +54,7 @@ function client(isPending: boolean) {
 
 describe('HeaderProfile when the session is read again', () => {
   beforeEach(() => {
+    queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     mocks.useSession.mockReset();
     mocks.authFailure.mockReset();
     mocks.signInWithGoogle.mockReset().mockRejectedValue(new Error('boom'));
