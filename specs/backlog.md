@@ -97,7 +97,9 @@ removes it from this list. Found by the agents' first security audit and trial r
   `Content-Type` (`text/plain`, a form) reaches validation as `{}`, so a route whose fields are all
   optional (`PATCH /me`, `PATCH /fitting-sessions/:id`) answers 200 unchanged and the data is lost
   silently (found in 0017 T6). web always sends JSON. Answer a request that carries a body with
-  another type 415 in the api's error format, in `createHttpApp()`.
+  another type 415 in the api's error format, in `createHttpApp()`. It goes into the next spec that
+  works on the api's infrastructure, not left at the end of this list: a silent loss of data
+  (owner's decision at the review of 0017 PR 2).
 
 ## web
 
