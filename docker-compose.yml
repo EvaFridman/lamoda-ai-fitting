@@ -84,19 +84,33 @@ services:
       retries: 10
       start_period: 10s
 
+  # The rate-limit counters, never evicted and nothing on disk; the same limits as production (spec
+  # 0018 V4, V10, V20).
   redis:
     image: redis:8.10.2-trixie
-    volumes:
-      - redisdata:/data
+    command: >-
+      redis-server --save '' --appendonly no --maxmemory ${REDIS_MAXMEMORY:-64mb}
+      --maxmemory-policy noeviction
+    mem_limit: 128m
     ports:
       - '127.0.0.1:${REDIS_HOST_PORT:-6380}:6379'
     healthcheck:
-      # redis-cli exits 0 even on an error reply (e.g. LOADING), so check for PONG.
+      &redis-healthcheck # redis-cli exits 0 even on an error reply (e.g. LOADING), so check for PONG.
       test: ['CMD-SHELL', 'redis-cli ping | grep -q PONG']
       interval: 5s
       timeout: 3s
       retries: 10
       start_period: 5s
+
+  # The caches (pages, filter counts): least recently used keys evicted, nothing on disk, no host
+  # port (spec 0018 V4, V10).
+  redis-cache:
+    image: redis:8.10.2-trixie
+    command: >-
+      redis-server --save '' --appendonly no --maxmemory ${REDIS_CACHE_MAXMEMORY:-128mb}
+      --maxmemory-policy allkeys-lru
+    mem_limit: 192m
+    healthcheck: *redis-healthcheck
 
   temporal:
     image: temporalio/temporal:1.9.1
@@ -179,6 +193,8 @@ services:
     image: ${COMPOSE_PROJECT_NAME:-ai-fitting}-api:dev
     environment:
       <<: *api-env
+      # The caches' Redis (spec 0018 V4); the worker does not need it.
+      REDIS_CACHE_URL: redis://redis-cache:6379
       # Sign-in (spec 0013 plan §8); the worker does not need it. Empty locally is allowed.
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
@@ -202,15 +218,19 @@ services:
       retries: 3
       # Watch mode compiles before it starts listening.
       start_period: 60s
-    depends_on: &infra-healthy
-      postgres:
+    depends_on:
+      # The worker waits for the same, without the caches' Redis.
+      <<: &infra-healthy
+        postgres:
+          condition: service_healthy
+        redis:
+          condition: service_healthy
+        temporal:
+          condition: service_healthy
+        s3-init:
+          condition: service_completed_successfully
+      redis-cache:
         condition: service_healthy
-      redis:
-        condition: service_healthy
-      temporal:
-        condition: service_healthy
-      s3-init:
-        condition: service_completed_successfully
 
   # A fake Google (spec 0013 N14, plan §11): any email and name typed into its login form signs in.
   # The api image (a dev dependency, oauth2-mock-server) with the script mounted. It listens on the
@@ -292,6 +312,7 @@ services:
     environment:
       API_URL: http://api:3000
       REDIS_URL: redis://redis:6379
+      REDIS_CACHE_URL: redis://redis-cache:6379
       APP_VERSION: dev
       # The browser's address of web, the base of absolute links in metadata (spec 0014 O68).
       SITE_URL: ${SITE_URL:-http://localhost:${WEB_HOST_PORT:-3001}}
@@ -322,11 +343,12 @@ services:
     depends_on:
       api:
         condition: service_healthy
+      redis-cache:
+        condition: service_healthy
       s3-init:
         condition: service_completed_successfully
 
 volumes:
   pgdata:
-  redisdata:
   temporaldata:
   s3data:
