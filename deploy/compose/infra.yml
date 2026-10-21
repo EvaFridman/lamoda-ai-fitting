@@ -32,18 +32,36 @@ services:
       # Every second while starting, at most for start_period; then every `interval`.
       start_interval: 1s
 
+  # The rate-limit counters only (spec 0018 V4, V10). Never evicts: an evicted counter would let a
+  # client past its limit; once full, writes fail and the api counts in memory (spec 0006 F28).
   redis:
     <<: *restart
     image: redis:8.10.2-trixie
-    volumes:
-      - redisdata:/data
-    healthcheck:
+    # Nothing on disk (spec 0018 V20): a counter lives at most a minute, and a snapshot's fork
+    # would need up to twice the memory.
+    command: >-
+      redis-server --save '' --appendonly no --maxmemory ${REDIS_MAXMEMORY:-64mb}
+      --maxmemory-policy noeviction
+    # Room above maxmemory for Redis' own overhead.
+    mem_limit: 128m
+    healthcheck: &redis-healthcheck
       test: ['CMD-SHELL', 'redis-cli ping | grep -q PONG']
       interval: 5s
       timeout: 3s
       retries: 10
       start_period: 5s
       start_interval: 1s
+
+  # The caches only: pages and filter counts (spec 0018 V4, V10). Evicts the least recently used
+  # keys once full and keeps nothing on disk: a lost entry costs one recompute.
+  redis-cache:
+    <<: *restart
+    image: redis:8.10.2-trixie
+    command: >-
+      redis-server --save '' --appendonly no --maxmemory ${REDIS_CACHE_MAXMEMORY:-128mb}
+      --maxmemory-policy allkeys-lru
+    mem_limit: 192m
+    healthcheck: *redis-healthcheck
 
   temporal:
     <<: *restart
@@ -127,7 +145,6 @@ services:
 
 volumes:
   pgdata:
-  redisdata:
   temporaldata:
   letsencrypt:
   certbot-www:

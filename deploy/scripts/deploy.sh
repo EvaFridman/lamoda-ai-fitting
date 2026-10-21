@@ -258,7 +258,7 @@ fi
 #    the nginx step (update_nginx).
 profile_args=()
 [ "${DEPLOY_PROFILE:-}" = server ] && profile_args=(--profile server)
-infra up -d --wait postgres redis temporal || fail "infrastructure did not become healthy"
+infra up -d --wait postgres redis redis-cache temporal || fail "infrastructure did not become healthy"
 # A deleted user's id stays in deleteFiles' history for the namespace's retention (spec 0013 N45).
 # start-dev's default is the same 24 hours, but a new image or a fresh volume must not change it.
 infra exec -T temporal temporal operator namespace update -n default --retention 24h \

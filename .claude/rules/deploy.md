@@ -30,8 +30,8 @@ Details and commands: `deploy/README.md`.
   web, backup) no container uses (they once filled the server's disk); a rollback to an older version pulls its
   images again.
 - Infrastructure (`deploy/compose/infra.yml`) is not blue-green: a deploy that changes a service's
-  definition there recreates it in place, postgres, redis and temporal before the migrations, nginx
-  after the seed and the bucket check (spec 0011 M38); for any of them that is an outage (seconds for a config change, longer for an image upgrade). Such a change
+  definition there recreates it in place, postgres, redis, redis-cache and temporal before the migrations, nginx
+  after the seed and the bucket check (spec 0011 M38); for any of them but redis-cache (empty caches, the site works without it, spec 0018 V5) that is an outage (seconds for a config change, longer for an image upgrade). Such a change
   is the owner's decision and is merged at a quiet time.
 - Every change to deploy files is tested the way it reaches production: on a copy of `deploy/`
   updated as CD updates the server, and in CI by `scripts/ci-deploy-check.sh`. nginx config changes

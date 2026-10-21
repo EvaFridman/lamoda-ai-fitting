@@ -1,7 +1,7 @@
 # 0018 page cache and warm-up on deploy: clarifications
 
 Status: accepted (2026-10-20); amended 2026-10-20 at the plan (V10's figures, V15) and at the
-review of PR 1 (V7, V9, V12, V15, V16–V18).
+review of PR 1 (V7, V9, V12, V15, V16–V18); amended 2026-10-21 at T4 (V19, V20).
 
 The owner's decisions for this spec. Ids `V1`, `V2`, … are referred to by the spec, the plan and
 code comments. All decisions below: owner, 2026-10-20.
@@ -154,3 +154,21 @@ of AC14 holds on the third. The owner weighed taking PR 2's deploy alone as the 
 `postgres`, `redis` and `temporal` (`infra up --wait`): infrastructure that fails at a deploy stops
 it and the running copy keeps serving. V5 is about serving without that Redis, not about deploying
 without it. The owner weighed starting it apart, with a warning only.
+
+## Added at T4
+
+**V19. T4 and T5 before spec 0014 closes.** Neither needs 0014's routes: T4 changes only the
+infrastructure and T5 only the api's filter-counts cache, which is on `main`. Both are done early,
+committed and pushed on `feat/0018-page-cache`, but the pull request is not opened until spec 0014
+is closed and the branch is rebased on a `main` with its routes; T6 onwards wait for that too.
+`ci-deploy-check.sh` first runs the new `redis-cache` when the pull request opens; locally only
+`redis` and `redis-cache` are brought up for T4's check. The owner weighed waiting for 0014 with
+the whole of PR 2.
+
+**V20. The counters' Redis keeps nothing on disk.** `redis` runs with `--save ''` and
+`--appendonly no` and loses its volume: a counter lives at most a minute, so a restart loses at
+most a minute of counts, while a snapshot's fork of a full Redis would need up to twice its 64 MB
+and could push the container past its 128 MB limit (T4's review). This takes back plan §2's "its
+volume stays". The owner weighed a higher `mem_limit` (about 192 MB) and keeping the snapshots,
+checked by the memory peak in T5's e2e. The removal of backlog "Redis memory limit" moves from T4
+to T5, which takes the filter counts out of this Redis.

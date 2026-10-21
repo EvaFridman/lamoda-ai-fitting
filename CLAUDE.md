@@ -607,7 +607,13 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
 ## Production and deploys
 
 A merge into `main` is the deploy (blue-green for api and web; the Temporal worker and the nightly
-backup job, `deploy/compose/backup.yml`, are replaced in place; a changed `infra.yml` service is recreated in place, with an outage). After the infrastructure is up, the deploy sets
+backup job, `deploy/compose/backup.yml`, are replaced in place; a changed `infra.yml` service is recreated in place, with an outage, except `redis-cache`). The infrastructure has two Redis, both shared by blue and green (spec
+0018 V4, V10): `redis` holds the rate-limit counters, and for now the filter counts
+(`maxmemory` 64 MB, `noeviction`: once full the throttler counts in memory, spec 0006 F28;
+nothing on disk, V20);
+`redis-cache` (`REDIS_CACHE_URL`) is for caches only (128 MB, `allkeys-lru`, nothing on disk; no
+code reads it yet, and recreating it is no outage, V5); the same two run locally, `redis-cache`
+with no host port. After the infrastructure is up, the deploy sets
 Temporal's `default` namespace retention to 24 hours (spec 0013 N45, read back by
 `ci-deploy-check.sh`). Before the new copy starts, the deploy stores an encrypted database copy in
 the backup bucket's `pre-deploy/` if the release brings a migration not yet applied (spec 0012 P3;

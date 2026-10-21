@@ -1,7 +1,8 @@
 # 0018 page cache and warm-up on deploy: tasks
 
 Status: accepted (2026-10-20); amended 2026-10-20 at the review of PR 1 (V17's measurement before
-PR 2's merge, T10's bound, T15's three measurements).
+PR 2's merge, T10's bound, T15's three measurements); amended 2026-10-21 at T4 (T4 and T5 before
+spec 0014 closes, V19; the backlog item moved to T5, V20).
 
 Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
 
@@ -9,9 +10,11 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
 
 - One pull request per phase, merged with "Rebase and merge" once CI is green; the next branch
   starts from a fresh `main`.
-- PR 2 starts after spec 0014 is closed (its routes, `sitemap.ts`, `robots.ts`, `/healthz` and
-  `entities/*/api/server-queries.ts` are on `main`); if spec 0017 is still open, its `/customer/*`
-  routes join T9's exclusions at the rebase that brings them.
+- PR 2's T4 and T5 are done before spec 0014 closes and pushed on its branch with no pull request
+  (V19); T6 onwards and the pull request start after spec 0014 is closed (its routes,
+  `sitemap.ts`, `robots.ts`, `/healthz` and `entities/*/api/server-queries.ts` are on `main`) and
+  the branch is rebased on that `main`. If spec 0017 is still open, its `/customer/*` routes join
+  T9's exclusions at the rebase that brings them.
 - Each task: brief from `spec-finder`, a time estimate, the code, `finish-task`, the owner's OK, one
   commit that ticks its box. A fresh session (or `/clear`) per task.
 - `security-reviewer` joins every task that touches compose, `deploy/`, CI, env or `.claude/`; the
@@ -36,24 +39,25 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
 
 ## PR 2 · `feat/0018-page-cache` · the caches' Redis and the page cache
 
-- [ ] **T4. The caches' Redis and both memory limits.** `redis-cache` in `deploy/compose/infra.yml`
+- [x] **T4. The caches' Redis and both memory limits.** `redis-cache` in `deploy/compose/infra.yml`
       and `docker-compose.yml`, `maxmemory` and policies, `mem_limit`s, `REDIS_CACHE_URL` in both
       compose files, the limits in `.env.example`, `deploy.sh`'s `infra up` (plan §2); `README.md`
-      and `deploy/README.md` (the two Redis); backlog "Redis memory limit".
+      and `deploy/README.md` (the two Redis); nothing on disk for `redis` (V20).
       Check: `docker compose up -d --wait`, `redis-cli CONFIG GET maxmemory*` on both;
       `ci-deploy-check.sh` in CI; `npm run verify`.
       Commit: `feat(infra): add a redis for caches and limit both redis' memory`
 - [ ] **T5. The filter counts in the caches' Redis.** The `REDIS_CACHE` client and
       `REDIS_CACHE_URL` in api's env, `ProductFacetsCache` on it, readiness on `REDIS` only; the
       database e2e of a full `noeviction` Redis and of an evicting one (AC6, AC7); `CLAUDE.md`'s
-      filter counts.
+      filter counts; backlog "Redis memory limit" (V20).
       Check: the facets cache e2e on the new client, the throttler e2e with a full Redis;
       `npm run verify`.
       Commit: `feat(api): keep the filter counts in the caches' redis`
 - [ ] **T6. The page cache's handler.** The handler's logic in `web/src/shared/page-cache/` with its
       tests (get, set in flight, failure, the 10 s skip, one log a minute), `web/cache-handlers/redis.mjs`,
       `cacheHandlers.remote` in `next.config.ts`, `REDIS_CACHE_URL` and
-      `PAGE_CACHE_REVALIDATE_SECONDS` in `server-env.ts` (replacing `REDIS_URL`), the Dockerfile if
+      `PAGE_CACHE_REVALIDATE_SECONDS` in `server-env.ts` (replacing `REDIS_URL`, which leaves web's
+      service in both compose files too), the Dockerfile if
       the module is not traced (plan §3, §10).
       Check: handler tests (AC2's refresh, AC4, AC5); `next build` and the web image with no api or
       Redis (AC16); the handler and `ioredis` are in `.next/standalone`; `npm run verify`.

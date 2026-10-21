@@ -48,7 +48,7 @@ docker compose run --rm api npx prisma migrate deploy
 | api           | http://localhost:3000 (Swagger: http://localhost:3000/docs)       |
 | Temporal UI   | http://localhost:8233                                             |
 | PostgreSQL    | `localhost:5433` (логин и пароль в `.env`)                        |
-| Redis         | `localhost:6380`                                                  |
+| Redis         | `localhost:6380` (счётчики лимитов; Redis кешей — без порта)      |
 | S3 (эмулятор) | http://localhost:8333 (ключи `S3_*` в `.env`, бакет `ai-fitting`) |
 
 Чтение каталога открыто всем. Свой профиль (`/me`), свои сессии примерки и генерации — только
