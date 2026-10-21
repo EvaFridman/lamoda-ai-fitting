@@ -2,11 +2,11 @@
 
 Status: accepted (2026-10-20); amended 2026-10-20 at the review of PR 1 (§2, §3's key, §4's bound
 and pace, §5, §9, §10); amended 2026-10-21 after 0014 deferred the proxy secret's taint (O76);
-amended 2026-10-21 at T4 (§1, V19; §2, V20) and at T5 (§1, V19; §2, the worker's
-`REDIS_CACHE_URL`).
+amended 2026-10-21 at T4 (§1, V19; §2, V20), at T5 (§1, V19; §2, the worker's `REDIS_CACHE_URL`)
+and at T6 (§1, V19; §3's handler, V21, V22).
 
-How [spec.md](spec.md) is built. Decisions: [clarifications.md](clarifications.md) (V1–V20).
-No new dependencies: web already has `ioredis` (`web/src/shared/redis/`), Next is 16.3.8.
+How [spec.md](spec.md) is built. Decisions: [clarifications.md](clarifications.md) (V1–V22).
+No new dependencies: web already has `ioredis` (its `package.json`), Next is 16.3.8.
 
 ## 1. Pull requests and release order
 
@@ -18,8 +18,8 @@ No new dependencies: web already has `ioredis` (`web/src/shared/redis/`), Next i
 | 4   | `docs/0018-close`         | production checks (AC9, AC14) and the closing                                          |
 
 PR 2 and PR 3 start after spec 0014 is closed (its routes, `sitemap.ts`, `robots.ts`, `/healthz`
-and the filter-counts cache are on `main`); only PR 2's T4 and T5, which need none of them, are
-done before, committed on its branch and not pushed until the pull request opens (V19). PR 2 recreates the infrastructure's Redis (a new
+and the filter-counts cache are on `main`); only PR 2's T4–T6, which need none of them, are
+done before 0014 closes, committed on its branch and not pushed until the pull request opens (V19). PR 2 recreates the infrastructure's Redis (a new
 `command`): merged at a quiet time (V12). PR 4 exists because AC14 and AC9's production half are
 read from the deploy of PR 3, after its merge (as 0017's PR 3).
 
@@ -36,8 +36,8 @@ ${REDIS_CACHE_MAXMEMORY:-128mb} --maxmemory-policy allkeys-lru`, no volume, `mem
 - **Local `docker-compose.yml`.** The same `redis-cache` (no host port; `REDIS_CACHE_HOST_PORT`
   only if a test needs it), `api` and `web` depend on it healthy.
 - **Environment.** `REDIS_CACHE_URL` (`redis://redis-cache:6379`) for api and web in both compose
-  files; web's unused `REDIS_URL` is replaced by it at T6, with `server-env.ts` (nothing imports
-  `getRedis` yet). The limits
+  files; web's unused `REDIS_URL` is replaced by it at T6, with `server-env.ts`, and the unused
+  `getRedis` is removed (V21). The limits
   are infrastructure variables in `.env.example` with comments. The api's schema requires it, so
   every process that validates that environment gets it too: the Temporal worker
   (`deploy/compose/worker.yml`, and locally the shared `x-api-env`, which `s3-init` uses as well),
@@ -61,7 +61,8 @@ ${REDIS_CACHE_MAXMEMORY:-128mb} --maxmemory-policy allkeys-lru`, no volume, `mem
   (`next/dist/server/lib/cache-handlers/types.d.ts`). Key
   `page-cache:v1:<build id>:<Next's cache key>`, the build id read once from `.next/BUILD_ID`.
   Next's key holds the build id too, but the handler's own prefix keeps AC4 true whatever a later
-  Next does with its key: releases never share entries. Value: the entry's
+  Next does with its key: releases never share entries. From T7 Next's key is stored as its
+  sha256, and an entry over 1 MB is not stored (V22). Value: the entry's
   fields and its stream as base64, `EX` = the entry's `expire`. `set` awaits the pending entry;
   a `get` for a key whose `set` is in flight waits for it (the interface requires it). No tags are
   used, so `getExpiration` answers 0 and `updateTags` is a no-op.
@@ -69,7 +70,8 @@ ${REDIS_CACHE_MAXMEMORY:-128mb} --maxmemory-policy allkeys-lru`, no volume, `mem
   command (`commandTimeout` 200 ms) is a miss, logged at most once a minute, then Redis is skipped
   for 10 s; the client is created lazily and skipped while not connected. `set` failures are
   swallowed the same way. The handler's logic is a function over an injected client, tested with
-  Vitest in `web/src/shared/page-cache/` (the `.mjs` only wires `ioredis` to it).
+  Vitest in `web/src/shared/page-cache/` (the `.mjs` only wires `ioredis` to it; it imports the
+  logic's `handler.mts` through Node's type stripping, V21).
 - **Lifetime (V3).** Each cached function calls `cacheLife({ stale: 60, revalidate: n, expire:
 3600 })` with `n` from server env `PAGE_CACHE_REVALIDATE_SECONDS` (whole number 1–3600, default 60;
   zod in `server-env.ts`). It is read at run time, not baked into `next.config.ts` (standalone

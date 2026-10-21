@@ -15,6 +15,10 @@ const nextConfig: NextConfig = {
   // Cache Components: the build prerenders a static shell; uncached data (anything from the api)
   // renders per request inside <Suspense>. So the image builds with no api, Redis or database.
   cacheComponents: true,
+  // `'use cache: remote'` keeps its entries in the caches' Redis, shared by blue and green (spec
+  // 0018 plan §3); `'use cache'` (the in-memory `default`) stays unused. Next loads the file by path
+  // at run time and traces it into the standalone output.
+  cacheHandlers: { remote: require.resolve('./cache-handlers/redis.mjs') },
   // The catalog is the home page for now (spec 0014 O3). Temporary (307, O42): a later page on `/`
   // needs no browser cache cleared.
   async redirects() {

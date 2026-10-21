@@ -6,7 +6,7 @@ vi.mock('server-only', () => ({}));
 const BASE = {
   API_URL: 'http://api:3000',
   SITE_URL: 'https://lamoda-ai-fitting.ru',
-  REDIS_URL: 'redis://redis:6379',
+  REDIS_CACHE_URL: 'redis://redis-cache:6379',
 };
 
 async function load(env: Record<string, string>) {
@@ -45,7 +45,7 @@ describe('getServerEnv SITE_URL', () => {
     vi.stubEnv('PROXY_SECRET', undefined);
     vi.stubEnv('SITE_URL', undefined);
     vi.stubEnv('API_URL', BASE.API_URL);
-    vi.stubEnv('REDIS_URL', BASE.REDIS_URL);
+    vi.stubEnv('REDIS_CACHE_URL', BASE.REDIS_CACHE_URL);
     const { getServerEnv } = await import('./server-env');
     expect(() => getServerEnv()).toThrow(/SITE_URL/);
   });
@@ -58,6 +58,42 @@ describe('getServerEnv SITE_URL', () => {
   it.each(['https://lamoda-ai-fitting.ru', 'http://localhost:3000'])('accepts %s', async (url) => {
     const getServerEnv = await load({ SITE_URL: url });
     expect(getServerEnv().SITE_URL).toBe(url);
+  });
+});
+
+describe('getServerEnv REDIS_CACHE_URL', () => {
+  it.each(['http://redis-cache:6379', 'redis-cache:6379', ''])('rejects %j', async (url) => {
+    const getServerEnv = await load({ REDIS_CACHE_URL: url });
+    expect(() => getServerEnv()).toThrow(/REDIS_CACHE_URL/);
+  });
+
+  it.each(['redis://redis-cache:6379', 'rediss://cache.example:6380'])(
+    'accepts %s',
+    async (url) => {
+      const getServerEnv = await load({ REDIS_CACHE_URL: url });
+      expect(getServerEnv().REDIS_CACHE_URL).toBe(url);
+    },
+  );
+});
+
+describe('getServerEnv PAGE_CACHE_REVALIDATE_SECONDS', () => {
+  it('defaults to 60', async () => {
+    const getServerEnv = await load({});
+    expect(getServerEnv().PAGE_CACHE_REVALIDATE_SECONDS).toBe(60);
+  });
+
+  it.each([
+    ['1', 1],
+    ['3600', 3600],
+    ['120', 120],
+  ])('accepts %s', async (value, expected) => {
+    const getServerEnv = await load({ PAGE_CACHE_REVALIDATE_SECONDS: value });
+    expect(getServerEnv().PAGE_CACHE_REVALIDATE_SECONDS).toBe(expected);
+  });
+
+  it.each(['0', '3601', '-5', '1.5', 'abc'])('rejects %s', async (value) => {
+    const getServerEnv = await load({ PAGE_CACHE_REVALIDATE_SECONDS: value });
+    expect(() => getServerEnv()).toThrow(/PAGE_CACHE_REVALIDATE_SECONDS/);
   });
 });
 

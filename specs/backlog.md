@@ -201,6 +201,11 @@ removes it from this list. Found by the agents' first security audit and trial r
 - **Host hardening check.** Confirm on the server that SSH password login and root login are off,
   and record in `deploy/README.md` that the `deploy` user's membership in the `docker` group is an
   accepted risk.
+- **ACL on the caches' Redis.** `redis-cache` has no password or ACL, so any container of the
+  internal network (api, the worker, the seed, `s3-init`) or a compromised process can write a page
+  cache entry, which web then serves to every visitor (spec 0018 T6's security review, V22). Give
+  web a user limited to `~page-cache:*` and api one limited to `~facets:*`, with `default` off; a
+  change to `infra.yml` that recreates `redis-cache` (no outage, 0018 V5).
 
 ## Temporal
 

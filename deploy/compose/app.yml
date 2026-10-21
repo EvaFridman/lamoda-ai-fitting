@@ -88,8 +88,9 @@ services:
     environment:
       # This colour's own api, over the internal network.
       API_URL: http://api-${COLOR:?set COLOR}:3000
-      REDIS_URL: redis://redis:6379
       REDIS_CACHE_URL: redis://redis-cache:6379
+      # Seconds a cached catalog read stays fresh (spec 0018 V3); the default is web's own.
+      PAGE_CACHE_REVALIDATE_SECONDS: ${PAGE_CACHE_REVALIDATE_SECONDS:-60}
       APP_VERSION: ${IMAGE_TAG}
       # The base of absolute links in metadata (spec 0014 O68), the same address as the api's
       # WEB_ORIGIN.

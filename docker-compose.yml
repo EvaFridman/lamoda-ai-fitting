@@ -311,8 +311,9 @@ services:
     image: ${COMPOSE_PROJECT_NAME:-ai-fitting}-web:dev
     environment:
       API_URL: http://api:3000
-      REDIS_URL: redis://redis:6379
       REDIS_CACHE_URL: redis://redis-cache:6379
+      # Seconds a cached catalog read stays fresh (spec 0018 V3); the default is web's own.
+      PAGE_CACHE_REVALIDATE_SECONDS: ${PAGE_CACHE_REVALIDATE_SECONDS:-60}
       APP_VERSION: dev
       # The browser's address of web, the base of absolute links in metadata (spec 0014 O68).
       SITE_URL: ${SITE_URL:-http://localhost:${WEB_HOST_PORT:-3001}}
