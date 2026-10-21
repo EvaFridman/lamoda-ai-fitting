@@ -50,20 +50,34 @@ export type Parsed<Schema extends ResponseSchema> = Schema extends z.ZodType
 
 // The step both clients share once they have built the url and the request options: fetch, then the
 // status and the schema, every failure an `ApiError` with its kind and reported to Sentry (plan §3),
-// so both classify and report errors the same way.
+// so both classify and report errors the same way. An answer of `expectedStatus` is thrown but not
+// reported: the caller expects it and handles it.
 export async function callApi<Schema extends ResponseSchema>(
   url: URL,
   path: ApiPath,
   schema: Schema,
   init: RequestInit,
   context: ReportContext = {},
+  expectedStatus?: number,
 ): Promise<Parsed<Schema>> {
   try {
     return await request(url, path, schema, init);
   } catch (error) {
-    if (error instanceof ApiError) reportApiError(error, context);
+    if (error instanceof ApiError && !isExpected(error, expectedStatus)) {
+      reportApiError(error, context);
+    }
     throw error;
   }
+}
+
+// A 5xx is an outage whatever the caller expects: always reported.
+function isExpected(error: ApiError, expectedStatus: number | undefined): boolean {
+  return (
+    expectedStatus !== undefined &&
+    expectedStatus < 500 &&
+    error.kind === 'http' &&
+    error.status === expectedStatus
+  );
 }
 
 async function request<Schema extends ResponseSchema>(

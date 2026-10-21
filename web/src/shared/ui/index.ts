@@ -60,8 +60,8 @@ export type { PaymentMarkProps } from './icon/payment-marks';
 export { MastercardMark, VisaMark } from './icon/payment-marks';
 export type { IconButtonProps, IconButtonSize } from './icon-button/icon-button';
 export { IconButton } from './icon-button/icon-button';
-export type { LinkProps, LinkVariant } from './link/link';
-export { Link } from './link/link';
+export type { LinkButtonProps, LinkProps, LinkVariant } from './link/link';
+export { Link, LinkButton } from './link/link';
 export type {
   MenuAlign,
   MenuHeaderProps,

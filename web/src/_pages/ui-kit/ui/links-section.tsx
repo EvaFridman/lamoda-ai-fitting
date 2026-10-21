@@ -1,8 +1,9 @@
-import { Link } from '@/shared/ui';
+import { Link, LinkButton } from '@/shared/ui';
 
 import styles from './examples.module.scss';
 
-// Both link variants, in the 16px and the 13px text they appear in.
+// Both link variants, in the 16px and the 13px text they appear in, and a button that looks like a
+// link.
 export function LinksSection() {
   return (
     <>
@@ -29,6 +30,10 @@ export function LinksSection() {
             Условия возврата
           </Link>
           <code className={styles.props}>secondary в тексте 13px</code>
+        </li>
+        <li className={styles.example}>
+          <LinkButton>Удалить аккаунт</LinkButton>
+          <code className={styles.props}>LinkButton: действие, не переход</code>
         </li>
       </ul>
     </>

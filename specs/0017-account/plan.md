@@ -130,12 +130,16 @@ follow: false }`, titles) and `{children}`; `page.tsx`, `account/page.tsx`, `ord
     `showToast({ title: errorText(e), tone: 'error' })` and `reportFailure`; the typed values stay
     (AC12).
 - **`features/delete-account`**: `DeleteAccount`.
-  - "Удалить аккаунт": a `<button>` styled as the kit's `Link`, the `Modal`'s trigger.
+  - "Удалить аккаунт": the kit's `LinkButton` (a `<button>` styled as its `Link`), the `Modal`'s
+    trigger.
   - The modal: title "Удалить аккаунт?", the text of U18, footer "Удалить" (primary,
-    `loading`) and "Отмена" (`ModalClose`).
+    `loading`) and "Отмена" (`ModalClose`), which gets the focus when it opens (U26: the kit's
+    `Modal` takes `initialFocus`).
   - Confirm: `deleteMe()`; then `track('Account Deleted', {}, { sendNow: true })`, `reset()`, and
     `window.location.assign('/')`: a full load, so no cached query or session copy of the deleted
-    user survives in the tab. A failure shows `errorText` in the modal and keeps it open.
+    user survives in the tab. A 401 (the session already gone, U25) does the same without
+    `Account Deleted` and is not reported (`clientFetch`'s `expectedStatus`); any other failure
+    shows `errorText` in the modal and keeps it open.
   - The SDK sends events in batches, so an event tracked just before a full load may wait in its
     queue. `track` (`shared/analytics/client.ts`) gets an optional third argument `{ sendNow }`
     that passes `{ transport: 'sendBeacon', send_immediately: true }` to the SDK: the browser

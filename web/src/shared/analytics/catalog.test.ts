@@ -364,6 +364,7 @@ describe('analytics catalog', () => {
   it('lists exactly the known events', () => {
     expect(Object.keys(catalog.events).sort()).toEqual([
       'Account Data Saved',
+      'Account Deleted',
       'Login Opened',
       'Signed In',
       'Signed Out',
@@ -383,6 +384,7 @@ describe('analytics catalog', () => {
       'Signed In': ['auth', 'conversion'],
       'Signed Out': ['auth', 'interaction'],
       'Account Data Saved': ['account', 'interaction'],
+      'Account Deleted': ['account', 'interaction'],
     });
   });
 
@@ -399,6 +401,8 @@ describe('analytics catalog', () => {
       'account-menu.section': ['account', 'navigation'],
       'account-menu.back': ['account', 'navigation'],
       'account-invite.sign-in': ['account', 'interaction'],
+      'account-delete.open': ['account', 'interaction'],
+      'account-delete.cancel': ['account', 'interaction'],
     });
   });
 

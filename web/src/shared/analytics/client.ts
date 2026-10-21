@@ -189,10 +189,22 @@ export function stopAnalytics(): void {
   if (!initialized) clearSdkStorage();
 }
 
+export interface TrackOptions {
+  // Sends the event at once as a beacon, which the browser delivers even while the page unloads:
+  // for an event tracked just before a full load, which would otherwise wait in the SDK's batch
+  // queue (spec 0017 plan §5).
+  sendNow?: boolean;
+}
+
 /** Sends a listed event; a no-op until analytics has started, so callers need no checks. */
 export function track<Name extends AnalyticsEventName>(
   name: Name,
   properties: AnalyticsEvents[Name],
+  options: TrackOptions = {},
 ): void {
-  active?.track(name, properties);
+  if (options.sendNow) {
+    active?.track(name, properties, { transport: 'sendBeacon', send_immediately: true });
+  } else {
+    active?.track(name, properties);
+  }
 }

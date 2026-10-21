@@ -26,6 +26,13 @@ function requestSignal(caller: AbortSignal | null | undefined): AbortSignal {
   return controller.signal;
 }
 
+export interface ClientFetchOptions {
+  // An answer status the caller expects and handles: still thrown as an `ApiError`, but not
+  // reported (the 401 of `DELETE /me` once the session is gone, spec 0017 U25). A 5xx is reported
+  // all the same.
+  expectedStatus?: number;
+}
+
 // The only way browser code calls the api: same origin, no secret and no forwarded headers (the
 // visitor's own request reaches nginx), with a timeout and the response checked against a schema.
 // `init.signal` (TanStack Query's, when a query is cancelled) stops the request too. A `null` schema
@@ -34,6 +41,7 @@ export async function clientFetch<Schema extends ResponseSchema>(
   path: ApiPath,
   schema: Schema,
   init?: RequestInit,
+  { expectedStatus }: ClientFetchOptions = {},
 ): Promise<Parsed<Schema>> {
   // A slice's browser options and its server options share their names (`@/entities/x` and
   // `@/entities/x/server`), so a server component can take the wrong ones. A bug in web, not an api
@@ -56,9 +64,12 @@ export async function clientFetch<Schema extends ResponseSchema>(
       template: path.template,
     });
   }
-  return callApi(url, path, schema, {
-    ...init,
-    redirect: 'error',
-    signal: requestSignal(init?.signal),
-  });
+  return callApi(
+    url,
+    path,
+    schema,
+    { ...init, redirect: 'error', signal: requestSignal(init?.signal) },
+    {},
+    expectedStatus,
+  );
 }

@@ -104,8 +104,6 @@ removes it from this list. Found by the agents' first security audit and trial r
 - **The session cookie in `apiFetch`.** `apiFetch` does not forward the visitor's cookies: no page
   reads user data on the server yet (0013). The first server-rendered page with user data forwards
   the session cookie (and only it) and keeps such answers out of shared caches.
-- **The "Мои данные" page.** The profile menu draws "Мои данные" inert (0013 N12). Its page brings
-  editing the name and deleting the account (`DELETE /me` exists, N11) with a confirmation.
 - **How long to wait after a 429.** The api's limit sets `Retry-After` (0006 F23), but web's 429
   text only says "wait a little" (0007 H25), while the minute window can mean up to 60 s. Show the
   wait, or retry after it, when the header is there; nginx's own 429 has none (0006 F32) and keeps
@@ -219,6 +217,9 @@ Left for later specs by `0002-database-schema` (its `clarifications.md` has the 
 - **Deleted users in backups.** The copies of spec 0012 keep a deleted user's rows and files up to
   7 days, an overwritten version up to 14 (0012 P14). Before real users: state the period in the
   privacy policy (`/privacy`) and check it against the law on personal data (152-ФЗ).
+- **A deleted user's history in Mixpanel.** After `DELETE /me` the user's events stay in Mixpanel
+  under their id (0017 U17), `Account Deleted` among them. Before real users: delete them through
+  Mixpanel's API on account deletion and say so in the privacy policy (`/privacy`).
 - **Category tree.** Categories are a flat list (0002 C4); the catalog's left-hand tree is nested
   (0004 E29).
 - **Sizes off the scale.** The size filter's order (0009 K13) knows `XXS … 3XL` (`XXXL` = `3XL`)

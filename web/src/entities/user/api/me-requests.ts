@@ -21,7 +21,8 @@ export function updateMe(body: UpdateMeBody): Promise<User> {
   });
 }
 
-// DELETE /me: a 204 that also expires this browser's session cookies (spec 0013 N11).
+// DELETE /me: a 204 that also expires this browser's session cookies (spec 0013 N11). A 401 means
+// the session is already gone, which the caller handles (spec 0017 U25): thrown, not reported.
 export function deleteMe(): Promise<undefined> {
-  return clientFetch(buildPath('/me'), null, { method: 'DELETE' });
+  return clientFetch(buildPath('/me'), null, { method: 'DELETE' }, { expectedStatus: 401 });
 }

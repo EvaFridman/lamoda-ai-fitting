@@ -1,7 +1,7 @@
 'use client';
 
 import { Dialog } from '@base-ui/react/dialog';
-import type { ReactElement, ReactNode } from 'react';
+import type { ReactElement, ReactNode, RefObject } from 'react';
 
 import { CloseIcon } from '../icon/icons';
 
@@ -21,6 +21,9 @@ export interface ModalProps {
   open?: boolean;
   defaultOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
+  // The element focused when the modal opens, for a modal whose first button must not be: the
+  // safe "Отмена" before a destructive "Удалить". By default, the first focusable element.
+  initialFocus?: RefObject<HTMLElement | null>;
   children?: ReactNode;
 }
 
@@ -36,6 +39,7 @@ export function Modal({
   open,
   defaultOpen,
   onOpenChange,
+  initialFocus,
   children,
 }: ModalProps) {
   return (
@@ -48,7 +52,7 @@ export function Modal({
       <Dialog.Portal>
         <Dialog.Backdrop className={styles.backdrop} />
         <Dialog.Viewport className={styles.viewport}>
-          <Dialog.Popup className={styles.popup}>
+          <Dialog.Popup className={styles.popup} initialFocus={initialFocus}>
             <Dialog.Title className={styles.title}>{title}</Dialog.Title>
             <div className={styles.content}>
               {description && (
