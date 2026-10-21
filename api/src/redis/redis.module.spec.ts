@@ -2,7 +2,7 @@ import { ConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { REDIS, RedisModule } from './redis.module.js';
+import { REDIS, REDIS_CACHE, RedisModule } from './redis.module.js';
 
 const created = vi.hoisted(() => [] as { url: string; options: Record<string, unknown> }[]);
 
@@ -17,6 +17,8 @@ vi.mock('ioredis', () => ({
   },
 }));
 
+type FakeClient = { quit: ReturnType<typeof vi.fn>; on: ReturnType<typeof vi.fn> };
+
 describe('RedisModule', () => {
   afterEach(() => {
     created.length = 0;
@@ -28,29 +30,67 @@ describe('RedisModule', () => {
         ConfigModule.forRoot({
           isGlobal: true,
           ignoreEnvFile: true,
-          load: [() => ({ REDIS_URL: 'redis://redis.test:6379' })],
+          load: [
+            () => ({
+              REDIS_URL: 'redis://redis.test:6379',
+              REDIS_CACHE_URL: 'redis://redis-cache.test:6379',
+            }),
+          ],
         }),
         RedisModule,
       ],
     }).compile();
   }
 
-  it('creates the client with a 1 s command timeout and 3 retries per request (F28)', async () => {
+  it('creates the counters client from REDIS_URL and the caches client from REDIS_CACHE_URL', async () => {
     const moduleRef = await boot();
 
     expect(moduleRef.get(REDIS)).toBeDefined();
-    expect(created).toHaveLength(1);
-    expect(created[0]?.url).toBe('redis://redis.test:6379');
-    expect(created[0]?.options).toMatchObject({ commandTimeout: 1000, maxRetriesPerRequest: 3 });
+    expect(moduleRef.get(REDIS_CACHE)).toBeDefined();
+    expect(created.map((client) => client.url).sort()).toEqual([
+      'redis://redis-cache.test:6379',
+      'redis://redis.test:6379',
+    ]);
     await moduleRef.close();
   });
 
-  it('quits the client when the module is destroyed', async () => {
+  it('gives both a 1 s command timeout and 3 retries per request (F28)', async () => {
     const moduleRef = await boot();
-    const client = moduleRef.get<{ quit: ReturnType<typeof vi.fn> }>(REDIS);
+
+    expect(created).toHaveLength(2);
+    for (const client of created) {
+      expect(client.options).toMatchObject({ commandTimeout: 1000, maxRetriesPerRequest: 3 });
+    }
+    await moduleRef.close();
+  });
+
+  it('makes REDIS and REDIS_CACHE two distinct clients', async () => {
+    const moduleRef = await boot();
+
+    expect(moduleRef.get(REDIS)).not.toBe(moduleRef.get(REDIS_CACHE));
+    await moduleRef.close();
+  });
+
+  it('listens for connection errors on both, so none is an unhandled event', async () => {
+    const moduleRef = await boot();
+
+    for (const token of [REDIS, REDIS_CACHE]) {
+      expect(moduleRef.get<FakeClient>(token).on).toHaveBeenCalledWith(
+        'error',
+        expect.any(Function),
+      );
+    }
+    await moduleRef.close();
+  });
+
+  it('quits both clients when the module is destroyed', async () => {
+    const moduleRef = await boot();
+    const counters = moduleRef.get<FakeClient>(REDIS);
+    const caches = moduleRef.get<FakeClient>(REDIS_CACHE);
 
     await moduleRef.close();
 
-    expect(client.quit).toHaveBeenCalledTimes(1);
+    expect(counters.quit).toHaveBeenCalledTimes(1);
+    expect(caches.quit).toHaveBeenCalledTimes(1);
   });
 });

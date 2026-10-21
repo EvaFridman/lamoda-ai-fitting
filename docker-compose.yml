@@ -15,6 +15,8 @@ x-api-env: &api-env
   # Containers reach each other by service name, never localhost.
   DATABASE_URL: postgresql://${POSTGRES_USER:?run scripts/init-env.sh}:${POSTGRES_PASSWORD:?run scripts/init-env.sh}@postgres:5432/${POSTGRES_DB:?run scripts/init-env.sh}
   REDIS_URL: redis://redis:6379
+  # The caches' Redis (spec 0018 V4); every process that validates the api's environment needs it.
+  REDIS_CACHE_URL: redis://redis-cache:6379
   TEMPORAL_ADDRESS: temporal:7233
   # Quota tiers (spec 0006 F6); the defaults are the api's own.
   THROTTLE_READ_BURST: ${THROTTLE_READ_BURST:-10}
@@ -193,8 +195,6 @@ services:
     image: ${COMPOSE_PROJECT_NAME:-ai-fitting}-api:dev
     environment:
       <<: *api-env
-      # The caches' Redis (spec 0018 V4); the worker does not need it.
-      REDIS_CACHE_URL: redis://redis-cache:6379
       # Sign-in (spec 0013 plan §8); the worker does not need it. Empty locally is allowed.
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}

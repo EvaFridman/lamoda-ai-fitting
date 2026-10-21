@@ -15,6 +15,7 @@ export default defineConfig({
       APP_VERSION: 'test',
       DATABASE_URL: 'postgresql://test:test@127.0.0.1:1/test',
       REDIS_URL: 'redis://127.0.0.1:1',
+      REDIS_CACHE_URL: 'redis://127.0.0.1:1',
       TEMPORAL_ADDRESS: '127.0.0.1:1',
       // Five requests per route and tier, then 429. The 1-second windows are set out of reach, so a
       // slow run never splits a test's requests across two of them; test/throttling-tiers.e2e-spec.ts

@@ -20,6 +20,8 @@ services:
       APP_VERSION: ${IMAGE_TAG}
       DATABASE_URL: postgresql://${POSTGRES_USER:?set POSTGRES_USER}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:?set POSTGRES_DB}
       REDIS_URL: redis://redis:6379
+      # Read by no activity, but the api's environment requires it (config/env.ts).
+      REDIS_CACHE_URL: redis://redis-cache:6379
       TEMPORAL_ADDRESS: temporal:7233
       # The worker validates the api's environment too (config/env.ts).
       MEDIA_BASE_URL: ${MEDIA_BASE_URL:?set MEDIA_BASE_URL}

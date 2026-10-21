@@ -2,7 +2,8 @@
 
 Status: accepted (2026-10-20); amended 2026-10-20 at the review of PR 1 (V17's measurement before
 PR 2's merge, T10's bound, T15's three measurements); amended 2026-10-21 at T4 (T4 and T5 before
-spec 0014 closes, V19; the backlog item moved to T5, V20).
+spec 0014 closes, V19; the backlog item moved to T5, V20) and at T5 (no push before the pull
+request, V19).
 
 Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
 
@@ -10,8 +11,8 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
 
 - One pull request per phase, merged with "Rebase and merge" once CI is green; the next branch
   starts from a fresh `main`.
-- PR 2's T4 and T5 are done before spec 0014 closes and pushed on its branch with no pull request
-  (V19); T6 onwards and the pull request start after spec 0014 is closed (its routes,
+- PR 2's T4 and T5 are done before spec 0014 closes and committed on its branch, which is not
+  pushed until the pull request opens (V19); T6 onwards and the pull request start after spec 0014 is closed (its routes,
   `sitemap.ts`, `robots.ts`, `/healthz` and `entities/*/api/server-queries.ts` are on `main`) and
   the branch is rebased on that `main`. If spec 0017 is still open, its `/customer/*` routes join
   T9's exclusions at the rebase that brings them.
@@ -46,7 +47,7 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       Check: `docker compose up -d --wait`, `redis-cli CONFIG GET maxmemory*` on both;
       `ci-deploy-check.sh` in CI; `npm run verify`.
       Commit: `feat(infra): add a redis for caches and limit both redis' memory`
-- [ ] **T5. The filter counts in the caches' Redis.** The `REDIS_CACHE` client and
+- [x] **T5. The filter counts in the caches' Redis.** The `REDIS_CACHE` client and
       `REDIS_CACHE_URL` in api's env, `ProductFacetsCache` on it, readiness on `REDIS` only; the
       database e2e of a full `noeviction` Redis and of an evicting one (AC6, AC7); `CLAUDE.md`'s
       filter counts; backlog "Redis memory limit" (V20).

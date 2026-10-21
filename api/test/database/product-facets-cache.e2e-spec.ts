@@ -3,12 +3,12 @@ import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { REDIS } from '../../src/redis/redis.module.js';
+import { REDIS_CACHE } from '../../src/redis/redis.module.js';
 import { createTestApp, type TestApp } from '../support/test-app.js';
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 60_000 });
 
-// Redis in memory: what the filter-count cache uses (status, get, set) and what the modules call
+// The caches' Redis in memory: what the filter-count cache uses (status, get, set) and what the modules call
 // when the app starts and stops.
 function fakeRedis() {
   const store = new Map<string, string>();
@@ -51,7 +51,7 @@ describe('GET /products/facets: the cache', () => {
 
   beforeAll(async () => {
     testApp = await createTestApp({
-      override: (builder) => builder.overrideProvider(REDIS).useValue(redis),
+      override: (builder) => builder.overrideProvider(REDIS_CACHE).useValue(redis),
     });
   });
 
@@ -138,7 +138,7 @@ describe('GET /products/facets: Redis ready but failing', () => {
   it('answers 200 with the counts and does not ask Redis again within the back-off', async () => {
     const redis = failingRedis();
     const testApp = await createTestApp({
-      override: (builder) => builder.overrideProvider(REDIS).useValue(redis),
+      override: (builder) => builder.overrideProvider(REDIS_CACHE).useValue(redis),
     });
     try {
       const token = await arrange(testApp);
@@ -161,7 +161,7 @@ describe('GET /products/facets: Redis ready but failing', () => {
   it('answers 200 when only the write fails', async () => {
     const redis = { ...fakeRedis(), set: failingRedis().set };
     const testApp = await createTestApp({
-      override: (builder) => builder.overrideProvider(REDIS).useValue(redis),
+      override: (builder) => builder.overrideProvider(REDIS_CACHE).useValue(redis),
     });
     try {
       const token = await arrange(testApp);
