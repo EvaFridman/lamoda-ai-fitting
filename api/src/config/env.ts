@@ -37,6 +37,8 @@ export const envSchema = z
     DATABASE_URL: z.string().regex(/^postgres(ql)?:\/\//, 'must be a postgresql:// URL'),
     // redis://host:6379 (a password, if any, goes into the URL)
     REDIS_URL: z.string().regex(/^rediss?:\/\//, 'must be a redis:// URL'),
+    // The caches' Redis (spec 0018 V4): the filter counts. Same form as REDIS_URL.
+    REDIS_CACHE_URL: z.string().regex(/^rediss?:\/\//, 'must be a redis:// URL'),
     // host:port of the Temporal frontend, e.g. temporal:7233
     TEMPORAL_ADDRESS: z.string().regex(/^[\w.-]+:\d+$/, 'must be host:port'),
     TEMPORAL_NAMESPACE: z.string().min(1).default('default'),

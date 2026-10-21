@@ -6,6 +6,7 @@ const valid = {
   WEB_ORIGIN: 'http://localhost:3001',
   DATABASE_URL: 'postgresql://u:p@db:5432/app',
   REDIS_URL: 'redis://redis:6379',
+  REDIS_CACHE_URL: 'redis://redis-cache:6379',
   TEMPORAL_ADDRESS: 'temporal:7233',
   MEDIA_BASE_URL: 'http://localhost:3001/media/',
   S3_ENDPOINT: 'http://s3:8333',
@@ -52,6 +53,28 @@ describe('validateEnv', () => {
     expect(thrownMessage(() => validateEnv({ ...valid, WEB_ORIGIN: origin }))).toMatch(
       /WEB_ORIGIN/,
     );
+  });
+
+  it.each(['redis://redis-cache:6379', 'rediss://cache.example.ru:6380'])(
+    'accepts REDIS_CACHE_URL %s',
+    (url) => {
+      expect(validateEnv({ ...valid, REDIS_CACHE_URL: url }).REDIS_CACHE_URL).toBe(url);
+    },
+  );
+
+  it.each(['', 'not a url', 'http://redis-cache:6379', 'redis-cache:6379'])(
+    'refuses REDIS_CACHE_URL %j, naming the variable',
+    (url) => {
+      expect(thrownMessage(() => validateEnv({ ...valid, REDIS_CACHE_URL: url }))).toMatch(
+        /REDIS_CACHE_URL/,
+      );
+    },
+  );
+
+  it('refuses a missing REDIS_CACHE_URL, naming the variable', () => {
+    const { REDIS_CACHE_URL: _omitted, ...without } = valid;
+
+    expect(thrownMessage(() => validateEnv(without))).toMatch(/REDIS_CACHE_URL/);
   });
 
   it('defaults PROXY_SECRET to an empty string', () => {

@@ -1,7 +1,7 @@
 # 0018 page cache and warm-up on deploy: clarifications
 
 Status: accepted (2026-10-20); amended 2026-10-20 at the plan (V10's figures, V15) and at the
-review of PR 1 (V7, V9, V12, V15, V16–V18); amended 2026-10-21 at T4 (V19, V20).
+review of PR 1 (V7, V9, V12, V15, V16–V18); amended 2026-10-21 at T4 (V19, V20) and at T5 (V19: no push before the pull request).
 
 The owner's decisions for this spec. Ids `V1`, `V2`, … are referred to by the spec, the plan and
 code comments. All decisions below: owner, 2026-10-20.
@@ -159,8 +159,10 @@ without it. The owner weighed starting it apart, with a warning only.
 
 **V19. T4 and T5 before spec 0014 closes.** Neither needs 0014's routes: T4 changes only the
 infrastructure and T5 only the api's filter-counts cache, which is on `main`. Both are done early,
-committed and pushed on `feat/0018-page-cache`, but the pull request is not opened until spec 0014
-is closed and the branch is rebased on a `main` with its routes; T6 onwards wait for that too.
+committed on `feat/0018-page-cache`, but the pull request is not opened until spec 0014 is closed
+and the branch is rebased on a `main` with its routes; T6 onwards wait for that too. The branch is
+not pushed before then: its first push is the one that opens the pull request (amended at T5; until
+then its commits exist only on the owner's machine).
 `ci-deploy-check.sh` first runs the new `redis-cache` when the pull request opens; locally only
 `redis` and `redis-cache` are brought up for T4's check. The owner weighed waiting for 0014 with
 the whole of PR 2.

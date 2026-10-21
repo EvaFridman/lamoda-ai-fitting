@@ -2,7 +2,8 @@
 
 Status: accepted (2026-10-20); amended 2026-10-20 at the review of PR 1 (§2, §3's key, §4's bound
 and pace, §5, §9, §10); amended 2026-10-21 after 0014 deferred the proxy secret's taint (O76);
-amended 2026-10-21 at T4 (§1, V19; §2, V20).
+amended 2026-10-21 at T4 (§1, V19; §2, V20) and at T5 (§1, V19; §2, the worker's
+`REDIS_CACHE_URL`).
 
 How [spec.md](spec.md) is built. Decisions: [clarifications.md](clarifications.md) (V1–V20).
 No new dependencies: web already has `ioredis` (`web/src/shared/redis/`), Next is 16.3.8.
@@ -18,7 +19,7 @@ No new dependencies: web already has `ioredis` (`web/src/shared/redis/`), Next i
 
 PR 2 and PR 3 start after spec 0014 is closed (its routes, `sitemap.ts`, `robots.ts`, `/healthz`
 and the filter-counts cache are on `main`); only PR 2's T4 and T5, which need none of them, are
-done before, pushed on its branch with no pull request (V19). PR 2 recreates the infrastructure's Redis (a new
+done before, committed on its branch and not pushed until the pull request opens (V19). PR 2 recreates the infrastructure's Redis (a new
 `command`): merged at a quiet time (V12). PR 4 exists because AC14 and AC9's production half are
 read from the deploy of PR 3, after its merge (as 0017's PR 3).
 
@@ -37,7 +38,10 @@ ${REDIS_CACHE_MAXMEMORY:-128mb} --maxmemory-policy allkeys-lru`, no volume, `mem
 - **Environment.** `REDIS_CACHE_URL` (`redis://redis-cache:6379`) for api and web in both compose
   files; web's unused `REDIS_URL` is replaced by it at T6, with `server-env.ts` (nothing imports
   `getRedis` yet). The limits
-  are infrastructure variables in `.env.example` with comments.
+  are infrastructure variables in `.env.example` with comments. The api's schema requires it, so
+  every process that validates that environment gets it too: the Temporal worker
+  (`deploy/compose/worker.yml`, and locally the shared `x-api-env`, which `s3-init` uses as well),
+  though none of them connects to it (added at T5).
 - **api.** `ProductFacetsCache` gets its own client (`REDIS_CACHE` token next to `REDIS` in
   `redis/redis.module.ts`, same `commandTimeout: 1000`) from `REDIS_CACHE_URL`; the throttler keeps
   `REDIS`. `/health/ready` keeps checking only `REDIS`: the caches' Redis never blocks readiness

@@ -5,7 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import type { Redis } from 'ioredis';
 
 import type { Env } from '../../config/env.js';
-import { REDIS } from '../../redis/redis.module.js';
+import { REDIS_CACHE } from '../../redis/redis.module.js';
 import type { ProductFacetsDto } from '../dto/product-facets-response.dto.js';
 import type { ProductFilterQueryDto } from '../dto/product-filter-query.dto.js';
 
@@ -17,8 +17,10 @@ export const FACETS_CACHE_RETRY_AFTER_MS = 10_000;
 // A failure is logged at most this often (plan §2.6).
 const WARN_INTERVAL_MS = 60_000;
 
-// The filter counts in Redis for FACETS_CACHE_TTL_SECONDS (spec 0014 plan §2.6, O18). Redis failing
-// is a miss: the counts are computed and answered, never an error. No invalidation: catalog writes
+// The filter counts in the caches' Redis (spec 0018 V4) for FACETS_CACHE_TTL_SECONDS (spec 0014 plan
+// §2.6, O18). Once full it evicts the least recently used keys, so a flood of filters evicts other
+// cache entries, never a rate-limit counter. Redis failing is a miss: the counts are computed and
+// answered, never an error. No invalidation: catalog writes
 // are @Closed() and the seed runs before the switch, so a row changed by hand shows within the TTL.
 @Injectable()
 export class ProductFacetsCache {
@@ -30,7 +32,7 @@ export class ProductFacetsCache {
   private warnedAt = -Infinity;
 
   constructor(
-    @Inject(REDIS) private readonly redis: Redis,
+    @Inject(REDIS_CACHE) private readonly redis: Redis,
     config: ConfigService<Env, true>,
   ) {
     this.ttlSeconds = config.get('FACETS_CACHE_TTL_SECONDS', { infer: true });
@@ -113,7 +115,7 @@ export class ProductFacetsCache {
 // id share a key. `q` goes in as sent (O58): it alone makes the search's words and the article test
 // (`lower(q)` in the database, whose lower case differs from JavaScript's for "Σ" or "İ"), so two
 // `q` never share an answer they would not compute alike. Every field of the query is named here, so a new filter fails typecheck until it is. Both
-// copies of a blue-green deploy share Redis: `v1` goes up with any change to the answer's shape or
+// copies of a blue-green deploy share the caches' Redis: `v1` goes up with any change to the answer's shape or
 // to how the counts are made (countFacets, toProductSql, searchSql).
 export function facetsCacheKey(query: ProductFilterQueryDto): string {
   const normalized = {

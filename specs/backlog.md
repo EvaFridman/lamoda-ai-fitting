@@ -269,13 +269,6 @@ Left for later specs by `0002-database-schema` (its `clarifications.md` has the 
 - **Sizes off the scale.** The size filter's order (0009 K13) knows `XXS … 3XL` (`XXXL` = `3XL`)
   and plain numbers; `2XL`, `4XL` and up, ranges (`44-46`, `42/44`) and jeans sizes (`W28 L32`) go
   after all numbers, by text. Rank them once the catalog has such sizes.
-- **Redis memory limit.** The facet cache (spec 0014 T8) stores one key per distinct filter, and an
-  anonymous client can vary `maxPrice` or `q` for up to its read quota (300 a minute) of keys of up
-  to tens of KB each, held for `FACETS_CACHE_TTL_SECONDS`. Redis has no `maxmemory` and is shared
-  with the rate-limit counters (0014 T8 security review). Set `maxmemory` with `noeviction` in
-  `infra.yml` (an eviction policy would drop the throttler's counters too: a way around the limit);
-  a full Redis then fails the cache's write (back-off, O56) and the throttler counts in memory
-  (0006 F28). Recreates Redis on deploy: merge at a quiet time.
 - **Catalog renames when catalog writes open.** The search vector's triggers (0014 T4, migration
   `20261019120000_product_search`) rebuild every product of a renamed brand or category in the
   rename's transaction, and a product write takes `FOR SHARE` on its brand and category, so two

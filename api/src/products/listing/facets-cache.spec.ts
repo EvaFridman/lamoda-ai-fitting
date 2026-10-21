@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { REDIS } from '../../redis/redis.module.js';
+import { REDIS_CACHE } from '../../redis/redis.module.js';
 import type { ProductFacetsDto } from '../dto/product-facets-response.dto.js';
 import type { ProductFilterQueryDto } from '../dto/product-filter-query.dto.js';
 import { FACETS_CACHE_RETRY_AFTER_MS, facetsCacheKey, ProductFacetsCache } from './facets-cache.js';
@@ -88,7 +88,7 @@ async function build(redis: FakeRedis, ttl = 90): Promise<ProductFacetsCache> {
   const moduleRef = await Test.createTestingModule({
     providers: [
       ProductFacetsCache,
-      { provide: REDIS, useValue: redis },
+      { provide: REDIS_CACHE, useValue: redis },
       { provide: ConfigService, useValue: { get: () => ttl } },
     ],
   }).compile();

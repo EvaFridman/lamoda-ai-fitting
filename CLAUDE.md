@@ -243,8 +243,8 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   (`common/validation/`) and `TimeoutInterceptor` (a handler slower than `REQUEST_TIMEOUT_MS`, at
   most 30 s, answers 503 `SERVICE_UNAVAILABLE`; its work is not cancelled, its end is logged, and
   only a route's first timeout within a minute goes to Sentry, spec 0006 F29). The timeout starts
-  after the global guards; the shared Redis client's `commandTimeout` (1 s) keeps the throttler from
-  hanging there, and after a failed command it counts in memory for 10 s (F28). The database pool
+  after the global guards; the counters' Redis client's `commandTimeout` (1 s; the caches' client
+  has the same) keeps the throttler from hanging there, and after a failed command it counts in memory for 10 s (F28). The database pool
   (`PrismaService`, spec 0014 plan §2.7) holds at most `DATABASE_POOL_MAX` connections (10, at most
   50); a query waits for one `DATABASE_CONNECTION_TIMEOUT_MS` (2000) and a statement runs
   `DATABASE_STATEMENT_TIMEOUT_MS` (5000), then 503 `SERVICE_UNAVAILABLE` (`57014`, the pool's
@@ -337,7 +337,15 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   told that wait in `Retry-After` (spec 0006 F23). `@SkipThrottle()` (any form; with no argument it skips every tier) is allowed
   only on the classes in `SKIPPED` of `test/throttle-markers.e2e-spec.ts` (health, the gateway; a new one is
   added there on purpose). A per-route `@Throttle()` names one of its tier's two throttlers
-  (`expensive-minute`), not `default`; that test fails on any other name.
+  (`expensive-minute`), not `default`; that test fails on any other name. The counters are in the
+  counters' Redis (`REDIS`, `REDIS_URL`), which never evicts: once it is full a write fails with
+  `OOM` and the throttler counts in memory (F28; `test/database/throttling-full-redis.e2e-spec.ts`,
+  spec 0018 AC7).
+- `api` has two Redis clients (`redis/redis.module.ts`): `REDIS` for the rate-limit counters and
+  `/health/ready`, `REDIS_CACHE` (`REDIS_CACHE_URL`) for caches only, which readiness never checks
+  (spec 0018 V4, V5). Every process that validates the api's environment (the worker, `s3-init`,
+  the seed) needs both URLs. A database e2e that needs a real Redis starts its own with
+  `startTestRedis()` (`test/support/redis.ts`).
 - `api` product search (spec 0014): `q` of `GET /products` and `/products/facets` matches
   `products.search_vector` (the name, brand and category, Russian stemming, a GIN index) with
   `to_tsquery('russian', …)`, the last word as a prefix from `MIN_PREFIX_LENGTH` (2) characters,
@@ -345,14 +353,16 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   the migration `…_product_search` on `products`, `brands` and `categories` keep the vector up to
   date, so a rename there rewrites its products' vectors (backlog "Catalog renames when catalog
   writes open").
-- `api` filter counts (`GET /products/facets`) are cached in Redis by `ProductFacetsCache`
-  (`products/listing/facets-cache.ts`, spec 0014 plan §2.6) for `FACETS_CACHE_TTL_SECONDS` (60 s),
+- `api` filter counts (`GET /products/facets`) are cached in the caches' Redis (`REDIS_CACHE`) by
+  `ProductFacetsCache` (`products/listing/facets-cache.ts`, spec 0014 plan §2.6) for `FACETS_CACHE_TTL_SECONDS` (60 s),
   under `facets:v1:<sha256>` of the normalized filter, `q` as sent (O58) (`facetsCacheKey`, which names every field of
   `ProductFilterQueryDto`: a new filter goes into the key; `v1` goes up with any change to the
   answer's shape or to how counts are made, since blue and green share Redis). Nothing invalidates
   it: a catalog change shows within the TTL (O49). The cache is skipped while the client is not
   connected; a failed Redis command is a miss, logged at most once a minute, and the cache is then
   skipped for 10 s (O56), so the counts answer without Redis. The write after a miss is not awaited.
+  Once that Redis is full it evicts the least recently used keys, so a flood of filters evicts
+  only cache entries and writes go on (spec 0018 AC6).
 - `api` request context (`common/http/request-context.ts`): a middleware ahead of the body parser
   sets the client address, the request id (answered in `X-Request-Id`, on log lines and Sentry
   events) and the principal (`@CurrentPrincipal()`, `common/auth/`): `user` from a valid session
@@ -608,11 +618,11 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
 
 A merge into `main` is the deploy (blue-green for api and web; the Temporal worker and the nightly
 backup job, `deploy/compose/backup.yml`, are replaced in place; a changed `infra.yml` service is recreated in place, with an outage, except `redis-cache`). The infrastructure has two Redis, both shared by blue and green (spec
-0018 V4, V10): `redis` holds the rate-limit counters, and for now the filter counts
+0018 V4, V10): `redis` holds the rate-limit counters only
 (`maxmemory` 64 MB, `noeviction`: once full the throttler counts in memory, spec 0006 F28;
 nothing on disk, V20);
-`redis-cache` (`REDIS_CACHE_URL`) is for caches only (128 MB, `allkeys-lru`, nothing on disk; no
-code reads it yet, and recreating it is no outage, V5); the same two run locally, `redis-cache`
+`redis-cache` (`REDIS_CACHE_URL`) is for caches only, for now the filter counts (128 MB, `allkeys-lru`, nothing on
+disk; recreating it empties them and is no outage, V5); the same two run locally, `redis-cache`
 with no host port. After the infrastructure is up, the deploy sets
 Temporal's `default` namespace retention to 24 hours (spec 0013 N45, read back by
 `ci-deploy-check.sh`). Before the new copy starts, the deploy stores an encrypted database copy in
