@@ -217,6 +217,18 @@ describe('CatalogFiltersDrawer', () => {
       expect(first?.searchParams.get('categoryId')).toBe(CATEGORY);
     });
 
+    it('groups the digits of a long count with a no-break space', async () => {
+      stubCount(() => 50030);
+      const { user } = show();
+      const dialog = await open(user);
+
+      await vi.waitFor(() =>
+        expect(showButton(dialog).textContent).toBe(
+          `Показать 50${String.fromCodePoint(0xa0)}030 товаров`,
+        ),
+      );
+    });
+
     it('stays "Показать товары" while the count is pending', async () => {
       fetchMock.mockImplementation(() => new Promise<Response>(() => {}));
       const { user } = show();

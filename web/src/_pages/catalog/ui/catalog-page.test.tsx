@@ -6,7 +6,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('server-only', () => ({}));
 vi.mock('next/headers', () => ({ headers: () => Promise.resolve(new Headers()) }));
 vi.mock('@/shared/config/server', () => ({
-  getServerEnv: () => ({ API_URL: 'http://api:3000', PROXY_SECRET: '' }),
+  getServerEnv: () => ({
+    API_URL: 'http://api:3000',
+    PROXY_SECRET: '',
+    SITE_URL: 'https://site.test',
+  }),
 }));
 vi.mock('@sentry/nextjs', () => ({ captureException: vi.fn() }));
 vi.mock('@/entities/category/server', async (importOriginal) => ({
@@ -36,6 +40,7 @@ import { ApiError, errorText, reportFailure } from '@/shared/api';
 import { Breadcrumbs } from '@/shared/ui';
 
 import { CatalogBrowser, type CatalogBrowserProps } from './catalog-browser';
+import { CatalogJsonLd } from './catalog-json-ld';
 import { CatalogHeading } from './catalog-heading';
 import { CatalogPage, CategoryPage } from './catalog-page';
 
@@ -168,7 +173,17 @@ function requested(call = 0): URL {
 
 // The page's element is a HydrationBoundary around the browser list.
 function browserOf(boundary: ReactElement): ReactElement<CatalogBrowserProps> {
-  return childrenOf(boundary)[0] as ReactElement<CatalogBrowserProps>;
+  return childrenOf(boundary).find(
+    (child) => child.type === CatalogBrowser,
+  ) as ReactElement<CatalogBrowserProps>;
+}
+
+// The structured data's script, rendered to its JSON.
+function jsonLdOf(boundary: ReactElement): { '@graph': { '@type': string }[] } {
+  const element = childrenOf(boundary).find((child) => child.type === CatalogJsonLd);
+  const { container } = render(element as ReactElement);
+  const script = container.querySelector('script[type="application/ld+json"]');
+  return JSON.parse(script?.textContent ?? '') as { '@graph': { '@type': string }[] };
 }
 
 beforeEach(() => {
@@ -210,6 +225,28 @@ describe('CatalogPage', () => {
     const content = await resolveContent(CatalogPage({ searchParams: noSearch }));
     const element = browserOf(await (content.type as Server)(content.props));
     expect(element.props.title).toBe('Каталог');
+  });
+
+  it('describes the catalog, its products, the site and the organization as structured data', async () => {
+    const content = await resolveContent(CatalogPage({ searchParams: noSearch }));
+    const data = jsonLdOf(await (content.type as Server)(content.props));
+    expect(data['@graph'].map((node) => node['@type'])).toEqual([
+      'BreadcrumbList',
+      'ItemList',
+      'WebSite',
+      'Organization',
+    ]);
+  });
+
+  it('describes no product when the batch failed', async () => {
+    stubApi({}, 500);
+    const content = await resolveContent(CatalogPage({ searchParams: noSearch }));
+    const data = jsonLdOf(await (content.type as Server)(content.props));
+    expect(data['@graph'].map((node) => node['@type'])).toEqual([
+      'BreadcrumbList',
+      'WebSite',
+      'Organization',
+    ]);
   });
 
   it('asks the api for the active categories for the list on the left', async () => {
@@ -491,6 +528,19 @@ describe('CategoryPage', () => {
     get.mockResolvedValue(category);
     const content = await resolveContent(CategoryPage({ params, searchParams: noSearch }));
     expect(browserOf(await resolveProducts(content)).props.title).toBe('Платья');
+  });
+
+  it('describes the category trail and products, without the site and the organization', async () => {
+    get.mockResolvedValue(category);
+    const content = await resolveContent(CategoryPage({ params, searchParams: noSearch }));
+    const data = jsonLdOf(await resolveProducts(content));
+    expect(data['@graph'].map((node) => node['@type'])).toEqual(['BreadcrumbList', 'ItemList']);
+    expect(data['@graph'][0]).toMatchObject({
+      itemListElement: [
+        { position: 1, item: 'https://site.test/catalog' },
+        { position: 2, item: 'https://site.test/catalog/dresses' },
+      ],
+    });
   });
 
   it('asks the api for the category own products, with the address filters', async () => {

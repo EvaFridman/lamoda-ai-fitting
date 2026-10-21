@@ -183,6 +183,10 @@ removes it from this list. Found by the agents' first security audit and trial r
   (`widgets/catalog-filters`, `FacetFilters`), so the focus falls to `body` (spec 0014 T18 review).
   Plan §3.4 says applying a filter does not move focus. Keep the chips (the previous counts, or
   the chosen values) while the counts load, or move the focus to the `<h1>` then.
+- **Lowest price after the discount in the counts.** `GET /products/facets` answers `price.min`
+  and `max` of the price before the discount, so the catalog's description has no "от N ₽" (spec
+  0014 O94). Adding the lowest `finalPrice` changes the api's answer, `openapi.json` and the cache
+  key's `facets:v1`; then the description can name the price again.
 
 ## Server
 

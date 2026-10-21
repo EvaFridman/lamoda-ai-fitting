@@ -15,10 +15,12 @@ import { catalogCategoriesQuery } from '../model/categories';
 import { type CatalogUrlState, parseCatalogUrl } from '../model/url-state';
 import { CatalogBrowser } from './catalog-browser';
 import { CatalogHeading } from './catalog-heading';
+import { CatalogJsonLd, type CatalogJsonLdProps } from './catalog-json-ld';
 
 import styles from './catalog-page.module.scss';
 
 const catalogTitle = 'Каталог';
+const catalogCrumb = { name: catalogTitle, path: '/catalog' };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -56,7 +58,13 @@ export function CategoryPage({ params, searchParams }: CategoryPageProps) {
 }
 
 async function CatalogContent({ searchParams }: CatalogPageProps) {
-  return <CatalogProducts title={catalogTitle} state={parseCatalogUrl(await searchParams)} />;
+  return (
+    <CatalogProducts
+      title={catalogTitle}
+      state={parseCatalogUrl(await searchParams)}
+      breadcrumbs={[catalogCrumb]}
+    />
+  );
 }
 
 async function CategoryContent({ params, searchParams }: CategoryPageProps) {
@@ -77,7 +85,15 @@ async function CategoryContent({ params, searchParams }: CategoryPageProps) {
     <>
       <Breadcrumbs items={[{ label: catalogTitle, href: '/catalog' }, { label: category.name }]} />
       <Suspense fallback={<CatalogHeading title={category.name} />}>
-        <CatalogProducts title={category.name} state={state} categoryId={category.id} />
+        <CatalogProducts
+          title={category.name}
+          state={state}
+          categoryId={category.id}
+          breadcrumbs={[
+            catalogCrumb,
+            { name: category.name, path: `/catalog/${encodeURIComponent(category.slug)}` },
+          ]}
+        />
       </Suspense>
     </>
   );
@@ -87,6 +103,8 @@ interface CatalogProductsProps {
   title: string;
   state: CatalogUrlState;
   categoryId?: string;
+  // The structured data's trail (O27), as the page's breadcrumbs show it.
+  breadcrumbs: CatalogJsonLdProps['breadcrumbs'];
 }
 
 // The first batch (the one after `?cursor=`, O29), the filter counts and the categories' slugs,
@@ -94,7 +112,7 @@ interface CatalogProductsProps {
 // refuses shows the first batch (O72). A failed batch is not dehydrated: the list shows its text
 // and requests the batch again (O74); failed counts or categories are requested by the browser, and
 // the page goes without them till then.
-async function CatalogProducts({ title, state, categoryId }: CatalogProductsProps) {
+async function CatalogProducts({ title, state, categoryId, breadcrumbs }: CatalogProductsProps) {
   const { query } = state;
   const batchQuery: ProductBatchQuery =
     categoryId === undefined ? query : { ...query, categoryId: [categoryId] };
@@ -111,10 +129,17 @@ async function CatalogProducts({ title, state, categoryId }: CatalogProductsProp
     if (other !== undefined) reportFailure(other);
   }
   if (failure !== undefined) reportFailure(failure);
+  const firstBatch = queryClient.getQueryData(productInfiniteOptions(batchQuery, start).queryKey)
+    ?.pages[0];
   // Only what loaded is dehydrated (TanStack skips failed queries). Next keeps the page mounted
   // when only the query changes; the browser starts another list (and grid) for another start.
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
+      <CatalogJsonLd
+        breadcrumbs={breadcrumbs}
+        products={firstBatch?.items ?? []}
+        isCatalogRoot={categoryId === undefined}
+      />
       <CatalogBrowser
         title={title}
         query={query}

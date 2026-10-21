@@ -17,7 +17,7 @@ import {
   SizeFilterPanel,
   splitFacetAttributes,
 } from '@/entities/product';
-import { plural } from '@/shared/lib';
+import { formatAmount, plural } from '@/shared/lib';
 import { Accordion, type AccordionItem, Button, Drawer, LinkButton } from '@/shared/ui';
 
 import {
@@ -141,7 +141,7 @@ export function CatalogFiltersDrawer({
           <Button ref={showRef} fullWidth onClick={show}>
             {total === undefined
               ? 'Показать товары'
-              : `Показать ${total} ${plural(total, productForms)}`}
+              : `Показать ${formatAmount(total)} ${plural(total, productForms)}`}
           </Button>
         </>
       }
