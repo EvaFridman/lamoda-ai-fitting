@@ -22,17 +22,19 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
   confirm» (A3); a fork about users' data, money or access stops the work.
 - A task that closes a backlog item removes it from `specs/backlog.md` in its commit (A42), and
   brings `CLAUDE.md` and `README.md` in line with what it changes.
-- Phase 2 ends with the owner's real check (A4): the main session asks whether `OPENAI_API_KEY` is
-  set in GitHub (and locally, if the owner wants a check by hand), the owner checks that
-  `api.openai.com` answers from the server, then the first generation runs on production after
-  the merge. Tests and CI never reach OpenAI.
+- Before phase 2 starts the owner checks that `api.openai.com` answers from the server (A4:
+  `GET /v1/models` without a key, a 401 is reachable, a 403 the region block); a 403 stops the
+  work for the owner's decision on the route. Phase 2 ends with the owner's real check: the main
+  session asks whether `OPENAI_API_KEY` is set in GitHub (and locally, if the owner wants a check
+  by hand), then the first generation runs on production after the merge. Tests and CI never
+  reach OpenAI.
 - Phase 3 starts after spec 0014 is merged and spec 0018's page cache is on `main` (A1, A22); if
   either is not by the end of phase 2, the work stops and the owner is told.
 - The pull request of phase 3 carries `Closes #69` under "Что сделано".
 
 ## PR 1 · `docs/0019-ai-fitting` · documents
 
-- [x] **T1. Spec, clarifications, plan and tasks.** `spec.md`, `clarifications.md` (A1–A45),
+- [x] **T1. Spec, clarifications, plan and tasks.** `spec.md`, `clarifications.md` (A1–A47),
       `plan.md` (the analytics entries of §9 from the `analytics` agent), this file; 0016's S20;
       the new items of `specs/backlog.md`.
       Check: owner's acceptance of each file; `npm run format:check`.
@@ -59,7 +61,8 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       check with its time limit (A45), `save=false` for a transient photo (A24),
       `StorageService.put`), its DTOs and errors: the code `LIMIT_REACHED` and the detail codes
       `PHOTO_REFUSED` and `IS_IMAGE` with their texts in web's `ERROR_TEXTS`/`DETAIL_TEXTS`; the
-      nginx location with the 20 MB limit, the access-markers list, `openapi.json` (plan §5).
+      check's two calls in parallel under one deadline (A45); the nginx location with the 20 MB
+      limit, the access-markers list, `openapi.json` (plan §5).
       Check: database e2e for a good photo, each refusal, a non-image, an oversized body, a
       sixth photo, a timed-out check; `ci-deploy-check.sh` in CI; `npm run verify`.
       Commit: `feat(api): upload a fitting photo with its check`
@@ -77,22 +80,25 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       Commit: `feat(web): add the photo entity, the file input and the notice`
 - [ ] **T7. web: upload and «Мои фото».** `features/upload-photo` (board 4: hints, consents,
       the input with `capture`, the refusal screen of board 5), the page `/customer/photos`
-      (board 10: the grid, the default, the deletion modal), the fifth account section (A19), the
-      zone `fitting` with its area `photos` in `catalog.ts` and `EVENTS.md` (plan §9).
+      (board 10: the grid, the default, the deletion modal), the consent text naming OpenAI and
+      the paragraph of `/privacy` (A46), the fifth account section (A19), the zone `fitting` with
+      its area `photos` in `catalog.ts` and `EVENTS.md` (plan §9).
       Check: web tests of the flow (consent gate, a refusal, a deletion), `qa-tester` on AC1–AC4;
       `npm run verify`.
       Commit: `feat(web): add photo upload and the my photos page`
 - [ ] **T8. Close phase 1.** `CLAUDE.md` (photos, the ai module, env, nginx), `README.md`; the
       clean install and `verify`; the summary for the owner.
-      Check: `npm run verify` after `npm ci`; AC1–AC4 and AC27 have evidence.
+      Check: `npm run verify` after `npm ci`; AC1–AC4 and AC27 have evidence; 👤 an upload from
+      an iPhone by hand, if one is at hand (A31's HEIC).
       Commit: `docs(docs): describe fitting photos`
 - 👤 reviews and merges PR 2.
 
 ## PR 3 · `feat/0019-generation` · generation
 
 - [ ] **T9. Migrations: generations and the fingerprint.** The new columns of `ai_generations`
-      (plan §2), `generation_products.attribute_value_id` and `slot`, the extended status CHECK,
-      `user_image_key` nullable, the backfill of `user_id`.
+      (plan §2), the partial unique index on `(user_id, fingerprint)` over the running statuses
+      with its row in `constraint-fields.ts` (A32), `generation_products.attribute_value_id` and
+      `slot`, the extended status CHECK, `user_image_key` nullable, the backfill of `user_id`.
       Check: the migration e2e on old rows; `npm run verify`.
       Commit: `feat(api): extend generations for fittings`
 - [ ] **T10. The image model and the prompts.** `gptImage2` behind `ImageModel` (the edits
@@ -103,75 +109,83 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       Commit: `feat(api): add the image model and the fitting prompt`
 - [ ] **T11. The workflow `generateFitting`.** Activities (plan §4) with heartbeats, the workflow,
       the worker module, `workflows.spec.ts`, the database e2e with stub activities (completed,
-      failed, moderated, timed out, cancelled, retried).
+      failed, moderated, timed out, cancelled, retried, `complete` retried after a partial run).
       Check: the e2e; `temporal-reviewer`; `npm run verify`.
       Commit: `feat(api): generate a fitting in a temporal workflow`
 - [ ] **T12. Fittings routes, the limit and repeats.** `POST /fittings` (the quota row of A20,
-      the fingerprint, the prompt check with its time limit, the start), `GET /fittings`
+      the fingerprint with its second lookup inside the transaction, A32, the prompt check with
+      its time limit, the start), `GET /fittings`
       (`CursorPaginated`), `GET /fittings/:id`, `POST /fittings/:id/regenerate`,
-      `DELETE /fittings/:id`, `GET /me/fitting-quota`; `POST`/`PATCH /fitting-sessions` closed
-      (A21); the code `PROMPT_REFUSED` and the detail codes `HAS_SLOT`, `DISTINCT_SLOTS` with
-      their web texts; the access-markers lists; `openapi.json` and `validation-codes.json`.
+      `DELETE /fittings/:id` (a running one keeps its spend, A47), `GET /me/fitting-quota`;
+      `POST`/`PATCH /fitting-sessions` closed (A21); the code `PROMPT_REFUSED` and the detail
+      codes `HAS_SLOT`, `DISTINCT_SLOTS` with their web texts; the access-markers lists;
+      `openapi.json` and `validation-codes.json`.
       Check: database e2e for the limit at its edge, in parallel and after a deleted result, a
-      repeat, a running duplicate, a refused and a timed-out text check, a regeneration free then
-      paid, someone else's row; `npm run verify`.
+      repeat, a running duplicate and two parallel starts of one fingerprint, a refused and a
+      timed-out text check, a regeneration free then paid, a running one deleted, someone else's
+      row; `npm run verify`.
       Commit: `feat(api): start, read and delete fittings within the monthly limit`
 - [ ] **T13. api: the push.** `FittingNotifier` on the counters' Redis (A44), the gateway's room
       `user:<id>` and `fitting:finished`, the worker's `notify` (plan §6).
       Check: the socket e2e (own room, another user receives nothing, anonymous receives nothing);
       `npm run verify`.
       Commit: `feat(api): push a finished fitting to its user`
-- [ ] **T14. web: the try-on of one item.** `entities/fitting`, the features `start-fitting`,
-      `regenerate-fitting`, `try-colour` and `fitting-events` (the toast of A11, A34) with
-      `@/shared/realtime` (`socket.io-client`, the dev rewrite), the widget `try-on` (boards 3,
+- [ ] **T14. web: the fitting entity, the realtime client and the kit's additions.**
+      `entities/fitting` (schemas, keys, the hooks with the polling, the contract test),
+      `@/shared/realtime` (`socket.io-client`, the dev rewrite, plan §6), the kit's
+      `ProgressBar`, `Sheet`, `CountBadge`, `Chip`/`ChipGroup` with their `/ui-kit` sections.
+      Check: web tests of the hooks, of the connection opening and closing with the session, and
+      of the components; `npm run verify`.
+      Commit: `feat(web): add the fitting entity, the realtime client and the kit's additions`
+- [ ] **T15. web: the try-on of one item.** The features `start-fitting`, `regenerate-fitting`,
+      `try-colour` and `fitting-events` (the toast of A11, A34), the widget `try-on` (boards 3,
       5, 6, 7, 11, 12 for one item: the picker, the wait with its estimate, the result with the
-      colours, the regeneration sheet, the limit and error screens), the kit's `ProgressBar`,
-      `Sheet`, `CountBadge`, `Chip`/`ChipGroup` with their `/ui-kit` sections; mounted from
+      colours, the regeneration sheet, the limit and error screens); mounted from
       `/customer/fittings?product=<id>` until the product page exists (not tracked, removed in
-      T19).
+      T20).
       Check: web tests of each screen, of the polling and of the toast; `qa-tester` on AC5–AC12,
       AC19, AC20;
       `npm run verify`.
       Commit: `feat(web): try an item on in the browser`
-- [ ] **T15. web: the history list.** `/customer/fittings` (board 9 without compare: the tabs, the
+- [ ] **T16. web: the history list.** `/customer/fittings` (board 9 without compare: the tabs, the
       cards, open, delete, the empty state), the analytics zone `fitting` (its first entries).
       Check: web tests; `qa-tester` on AC17's list and deletion; `npm run verify`.
       Commit: `feat(web): list the fitting history`
-- [ ] **T16. Close phase 2.** `CLAUDE.md`, `README.md` (the fitting, the models, the push); the
-      clean install and `verify`; the summary; 👤 the reachability of `api.openai.com` from the
-      server, then the first generation on production after the merge (A4).
+- [ ] **T17. Close phase 2.** `CLAUDE.md`, `README.md` (the fitting, the models, the push); the
+      clean install and `verify`; the summary; 👤 the first generation on production after the
+      merge (A4; the reachability check was done before the phase).
       Check: `npm run verify` after `npm ci`; one real generation on production.
       Commit: `docs(docs): describe fitting generation`
 - 👤 reviews and merges PR 3; sets the secret `OPENAI_API_KEY` before it.
 
 ## PR 4 · `feat/0019-product-page` · the product page (after 0014 and 0018's page cache)
 
-- [ ] **T17. api: related products and the last fitting.** `GET /products/:id/related` (A36,
+- [ ] **T18. api: related products and the last fitting.** `GET /products/:id/related` (A36,
       `@Public()`) and `GET /products/:id/fittings/last` (`@SignedIn()`); the lists and the
       snapshot.
       Check: database e2e; `npm run verify`.
       Commit: `feat(api): related products and the last fitting of a product`
-- [ ] **T18. web: the route, metadata and cache.** `app/products/[id]`, `_pages/product` with
+- [ ] **T19. web: the route, metadata and cache.** `app/products/[id]`, `_pages/product` with
       `generateMetadata`, the JSON-LD, the breadcrumbs, the 404, the cached catalog reads and the
       warm-up source (0018 V8), the sitemap's products (plan §8).
       Check: web tests of the metadata and the 404; the warm-up list check; `npm run verify`.
       Commit: `feat(web): add the product page`
-- [ ] **T19. web: the gallery, the buy box and the try-on entry.** `widgets/product-gallery`,
+- [ ] **T20. web: the gallery, the buy box and the try-on entry.** `widgets/product-gallery`,
       `widgets/product-buy-box` (rating, price, colour and size, the stubs of A33, `TryOnActions`,
       the limit meter, «Вы это примеряли»), the kit's `Gallery` with its `/ui-kit` section; the
-      try-on widget opens from the page and its temporary entry of T14 is removed.
+      try-on widget opens from the page and its temporary entry of T15 is removed.
       Check: web tests; `qa-tester` on AC21, AC24, AC5 from the page; `npm run verify`.
       Commit: `feat(web): the product page's gallery and buy box`
-- [ ] **T20. web: «О товаре» and «С этим товаром выбирают».** The description and attributes
+- [ ] **T21. web: «О товаре» and «С этим товаром выбирают».** The description and attributes
       block, `widgets/related-products` with the cards' hanger (inert until phase 4) and the
       «В корзину» stubs.
       Check: web tests; `npm run verify`.
       Commit: `feat(web): the product page's details and related products`
-- [ ] **T21. Analytics of the product page.** The zone `product` in `catalog.ts`, `EVENTS.md`,
+- [ ] **T22. Analytics of the product page.** The zone `product` in `catalog.ts`, `EVENTS.md`,
       the tracked elements of the stubs and the try-on entry (plan §9).
       Check: `catalog.test.ts`, the budget; `npm run verify`.
       Commit: `feat(web): count the product page's clicks`
-- [ ] **T22. Close phase 3.** `CLAUDE.md`, `README.md`; the clean install and `verify`; the
+- [ ] **T23. Close phase 3.** `CLAUDE.md`, `README.md`; the clean install and `verify`; the
       summary; the pull request carries `Closes #69`; backlog «Product card link» removed.
       Check: `npm run verify` after `npm ci`; AC21–AC24 have evidence.
       Commit: `docs(docs): describe the product page`
@@ -179,41 +193,42 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
 
 ## PR 5 · `feat/0019-fitting` · looks, the fitting room and history
 
-- [ ] **T23. api: the fitting room.** `fitting_room_items` and its migration (cascade from the
+- [ ] **T24. api: the fitting room.** `fitting_room_items` and its migration (cascade from the
       user); `GET`, `PUT /:slot`, `DELETE /:slot`, `DELETE` of `/me/fitting-room`; the access
       lists; `openapi.json`.
       Check: database e2e (replace answers the replaced item, a category without a slot is refused,
       someone else's room is invisible, `DELETE /me` leaves no room item, AC28); `npm run verify`.
       Commit: `feat(api): keep a fitting room per user`
-- [ ] **T24. web: the header's icon and the drawer.** `entities/fitting-room`,
+- [ ] **T25. web: the header's icon and the drawer.** `entities/fitting-room`,
       `features/fitting-room` (the `LookToggle` actions, the slot rows' actions, the replace and
       remove toasts with «Вернуть»), the widget `fitting-room-drawer` (board 2: the slots, the
       colour per item, the wishes field, the sum, the stubs, «Очистить»), the header's
       `FittingRoomButton` with its counter (A10, A12).
       Check: web tests; `qa-tester` on AC13, AC16; `npm run verify`.
       Commit: `feat(web): the fitting room in the header`
-- [ ] **T25. web: looks.** «Примерить образ» → the try-on widget for a look (board 3.2), the look
+- [ ] **T26. web: looks.** «Примерить образ» → the try-on widget for a look (board 3.2), the look
       result (board 8: the items, the colours, the sum, the stubs), the colour change of one item
       (AC15), the hanger on the related products and the catalog's cards.
       Check: web tests; `qa-tester` on AC14, AC15; `npm run verify`.
       Commit: `feat(web): try a look on`
-- [ ] **T26. web: history actions and compare.** «Примерить ещё раз» (the repeat of A7),
+- [ ] **T27. web: history actions and compare.** «Примерить ещё раз» (the repeat of A7),
       compare two entries side by side (board 9, A41), the actions menu, «Поделиться» disabled
       (A14).
       Check: web tests; `qa-tester` on AC17, AC18; `npm run verify`.
       Commit: `feat(web): repeat and compare fittings`
-- [ ] **T27. Analytics of the fitting.** The rest of the zone `fitting` (the room, the look, the
+- [ ] **T28. Analytics of the fitting.** The rest of the zone `fitting` (the room, the look, the
       history), `EVENTS.md`, the budget.
       Check: `catalog.test.ts`; `npm run verify`.
       Commit: `feat(web): count the fitting room and look events`
-- [ ] **T28. Close the spec.** The production checks with the owner (AC5, AC13, AC14, AC17, AC19,
+- [ ] **T29. Close the spec.** The production checks with the owner (AC5, AC13, AC14, AC17, AC19,
       AC28 on production after the merge); the acceptance record below; 0016's record of AC5–AC10,
       AC14, AC15 in its `tasks.md`; every file gets `Status: done`; `CLAUDE.md`'s opening paragraph and README's list;
-      the backlog items of A42 removed.
+      the backlog items of A42 removed; 👤 decides whether `specs/principles.md` and `CLAUDE.md`
+      name the phase-boundary review as an option (A2), and the commit records it.
       Check: every criterion has evidence; `npm run verify`.
       Commit: `docs(specs): close spec 0019`
 - 👤 reviews and merges PR 5.
 
 ## Acceptance record
 
-Filled in at T28.
+Filled in at T29.
