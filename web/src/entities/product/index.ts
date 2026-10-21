@@ -16,6 +16,7 @@ export {
 } from './api/queries';
 export { isRefusedCursor } from './lib/cursor';
 export { chipValue, splitFacetAttributes } from './lib/facets';
+export { defaultProductSort, productFilterTitles } from './lib/filter-options';
 export { compareSizes, sortSizes } from './lib/sizes';
 export { PRODUCT_SORT_ORDER, productSortLabels } from './lib/sorts';
 export {
@@ -73,3 +74,18 @@ export {
   SizeFilter,
   type SizeFilterProps,
 } from './ui/catalog-filters';
+export {
+  AttributeFilterPanel,
+  type AttributeFilterPanelProps,
+  BrandFilterPanel,
+  type BrandFilterPanelProps,
+  ColorFilterPanel,
+  DiscountFilterPanel,
+  type DiscountFilterPanelProps,
+  PriceRangeFilterPanel,
+  type PriceRangeFilterPanelProps,
+  ProductSortFilterPanel,
+  type ProductSortFilterPanelProps,
+  SizeFilterPanel,
+  type SizeFilterPanelProps,
+} from './ui/catalog-filter-panels';

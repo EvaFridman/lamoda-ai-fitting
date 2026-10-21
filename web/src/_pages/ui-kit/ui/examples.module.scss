@@ -97,6 +97,17 @@
   max-width: 100%;
 }
 
+// The filter panels at a phone's width, as in the drawer (375px less its 16px sides).
+.panelColumn {
+  width: 343px;
+  max-width: 100%;
+}
+
+// A switch under the panels' accordion, as high as a section's title row.
+.panelSwitch {
+  padding: var(--space-4) 0;
+}
+
 // A product select, 280px wide as in the product page's right column.
 .select {
   justify-items: stretch;

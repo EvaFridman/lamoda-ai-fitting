@@ -2,7 +2,8 @@
 // the list together at most 340px high, the list scrolling inside; rows 36px apart (8px above and
 // below a 20px line), the count in 13px grey on the right; the search a #f5f5f5 field with an 8px
 // radius and 12px/44px padding, its icons 12px from the edges; under a thin line, a 16px footer
-// with the full-width "Применить".
+// with the full-width "Применить". The panel alone (a section of the phone drawer) has no inset of
+// its own and no height limit: the section and the drawer give it room and scroll.
 
 .checkboxFilter {
   display: flex;
@@ -16,9 +17,22 @@
   max-height: 340px;
 }
 
+.panel {
+  --checkbox-filter-inset: 0px;
+
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+
+  .body > & {
+    --checkbox-filter-inset: var(--space-4);
+  }
+}
+
 .searchRow {
   flex: none;
-  padding: var(--space-4) var(--space-4) 0;
+  padding: var(--checkbox-filter-inset) var(--checkbox-filter-inset) 0;
 }
 
 .search {
@@ -108,7 +122,7 @@
   align-items: stretch;
 
   min-height: 0;
-  padding: var(--space-2) var(--space-4);
+  padding: var(--space-2) var(--checkbox-filter-inset);
 }
 
 // Two classes, to win over the Checkbox's own inline-flex.
@@ -139,7 +153,7 @@
   color: var(--color-text-secondary);
 
   &:not(:empty) {
-    padding: var(--space-4);
+    padding: var(--space-4) var(--checkbox-filter-inset);
   }
 }
 

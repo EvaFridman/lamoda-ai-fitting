@@ -10,8 +10,15 @@
   padding: var(--space-4);
 }
 
+// The panel alone (a section of the phone drawer): the rows with no inset or height limit.
+.panel {
+  gap: 0;
+  align-items: stretch;
+}
+
 // Two classes, to win over the Radio's own inline-flex.
-.sortFilter .row {
+.sortFilter .row,
+.panel .row {
   display: flex;
   padding: var(--space-2) 0;
 }

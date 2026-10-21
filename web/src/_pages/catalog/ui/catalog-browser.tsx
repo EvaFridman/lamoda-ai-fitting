@@ -92,7 +92,12 @@ export function CatalogBrowser({
           />
         </aside>
         <div ref={columnRef} className={styles.column}>
-          <CatalogFilters facets={facets.data} value={query} onChange={select} />
+          <CatalogFilters
+            facets={facets.data}
+            value={query}
+            onChange={select}
+            categoryId={categoryId}
+          />
           {renderList()}
         </div>
       </div>

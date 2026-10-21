@@ -1,4 +1,5 @@
 import styles from './examples.module.scss';
+import { FilterPanelsDemo } from './filter-panels-demo';
 import { FilterChipStates, OpenFilterState, OpenPriceState } from './filter-states';
 import { FiltersDemo } from './filters-demo';
 
@@ -22,6 +23,11 @@ export function FiltersSection() {
 
       <h3 className={styles.heading}>FilterChips, живой пример</h3>
       <FiltersDemo />
+
+      <h3 className={styles.heading}>
+        CheckboxFilterPanel, PriceFilterPanel, SortFilterPanel (телефон, в Accordion)
+      </h3>
+      <FilterPanelsDemo />
     </>
   );
 }

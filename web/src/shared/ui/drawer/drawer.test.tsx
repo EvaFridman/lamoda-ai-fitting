@@ -113,6 +113,33 @@ describe('Drawer', () => {
     await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
+  it('opens as a bottom sheet with its title, content and footer, and closes on Esc', async () => {
+    const user = setup();
+    const onOpenChange = vi.fn();
+    render(
+      <Drawer
+        side="bottom"
+        trigger={<Button>Фильтры</Button>}
+        title="Фильтры"
+        footer={<Button>Показать</Button>}
+        onOpenChange={onOpenChange}
+      >
+        <p>Разделы</p>
+      </Drawer>,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Фильтры' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Фильтры' });
+    expect(dialog).toHaveTextContent('Разделы');
+    expect(screen.getByRole('button', { name: 'Показать' })).toBeInTheDocument();
+
+    await user.keyboard('{Escape}');
+
+    await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(onOpenChange).toHaveBeenLastCalledWith(false);
+  });
+
   it('can be controlled: open shows it and onOpenChange reports the close request', async () => {
     const user = setup();
     const onOpenChange = vi.fn();

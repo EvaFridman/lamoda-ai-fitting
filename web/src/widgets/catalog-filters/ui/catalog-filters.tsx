@@ -4,10 +4,10 @@ import {
   AttributeFilter,
   BrandFilter,
   ColorFilter,
+  defaultProductSort,
   DiscountFilter,
   PriceRangeFilter,
   type ProductFacets,
-  type ProductSort,
   ProductSortFilter,
   SizeFilter,
   splitFacetAttributes,
@@ -23,9 +23,9 @@ import {
   withAttributeChoice,
   withPriceChoice,
 } from '../lib/filter-value';
+import { CatalogFiltersDrawer } from './catalog-filters-drawer';
 
-// The api's default order, `new` when the address leaves `sort` out.
-const defaultSort: ProductSort = 'new';
+import styles from './catalog-filters.module.scss';
 
 export interface CatalogFiltersProps {
   // The filter counts of the current selection; until they load (or when they fail) the row has
@@ -35,23 +35,38 @@ export interface CatalogFiltersProps {
   value: CatalogFilterValue;
   // A filter, the sort or "Очистить фильтры" changed it; the page puts it in the address.
   onChange: (value: CatalogFilterValue) => void;
+  // The page's category, within which the phone drawer counts its draft.
+  categoryId?: string;
   className?: string;
 }
 
-// The desktop row of chips above the list (O5): the sort, then the filters in 0009's order, then
-// "Только со скидкой", and "Очистить фильтры" while a filter or the search is applied. An applied
-// filter is its own black chip with its value and a ×; there is no separate row of chosen values.
-export function CatalogFilters({ facets, value, onChange, className }: CatalogFiltersProps) {
+// The filters above the list: the desktop row of chips and, below a 1024px window, the phone
+// drawer in its place (O6, O88).
+export function CatalogFilters({ className, ...filters }: CatalogFiltersProps) {
+  return (
+    <div className={className}>
+      <FilterRow {...filters} />
+      <div className={styles.phone}>
+        <CatalogFiltersDrawer {...filters} />
+      </div>
+    </div>
+  );
+}
+
+// The desktop row of chips (O5): the sort, then the filters in 0009's order, then "Только со
+// скидкой", and "Очистить фильтры" while a filter or the search is applied. An applied filter is
+// its own black chip with its value and a ×; there is no separate row of chosen values.
+function FilterRow({ facets, value, onChange }: Omit<CatalogFiltersProps, 'className'>) {
   const change = (patch: Partial<CatalogFilterValue>) => onChange({ ...value, ...patch });
 
   return (
     <FilterChips
-      className={className}
+      className={styles.row}
       onClearAll={hasAppliedFilters(value) ? () => onChange(clearFilters(value)) : undefined}
     >
       <ProductSortFilter
-        value={value.sort ?? defaultSort}
-        onValueChange={(sort) => change({ sort: sort === defaultSort ? undefined : sort })}
+        value={value.sort ?? defaultProductSort}
+        onValueChange={(sort) => change({ sort: sort === defaultProductSort ? undefined : sort })}
       />
       {facets === undefined ? null : (
         <FacetFilters facets={facets} value={value} onChange={onChange} />
@@ -65,7 +80,7 @@ function FacetFilters({
   facets,
   value,
   onChange,
-}: Required<Omit<CatalogFiltersProps, 'className'>>) {
+}: Required<Omit<CatalogFiltersProps, 'className' | 'categoryId'>>) {
   const { colours, others } = splitFacetAttributes(facets.attributes);
   const change = (patch: Partial<CatalogFilterValue>) => onChange({ ...value, ...patch });
 

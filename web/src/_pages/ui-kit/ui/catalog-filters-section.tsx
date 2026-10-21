@@ -1,3 +1,4 @@
+import { CatalogFilterPanelsDemo } from './catalog-filter-panels-demo';
 import { CatalogFiltersDemo } from './catalog-filters-demo';
 import styles from './examples.module.scss';
 
@@ -16,6 +17,12 @@ export function CatalogFiltersSection() {
         DiscountFilter
       </h3>
       <CatalogFiltersDemo />
+
+      <h3 className={styles.heading}>
+        ProductSortFilterPanel, ColorFilterPanel, AttributeFilterPanel, BrandFilterPanel,
+        SizeFilterPanel, PriceRangeFilterPanel, DiscountFilterPanel (телефон)
+      </h3>
+      <CatalogFilterPanelsDemo />
     </>
   );
 }

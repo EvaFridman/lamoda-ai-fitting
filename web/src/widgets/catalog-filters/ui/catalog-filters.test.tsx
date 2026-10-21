@@ -1,5 +1,7 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { ProductFacets } from '@/entities/product';
@@ -49,9 +51,16 @@ const facets: ProductFacets = {
   ],
 };
 
+// The phone drawer's button is in the DOM next to the row (CSS switches them); the drawer reads the
+// counts of its draft only while open, so nothing is asked here.
+function wrap(children: ReactNode) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+}
+
 function setup(value: CatalogFilterValue = {}, withFacets: ProductFacets = facets) {
   const onChange = vi.fn();
-  render(<CatalogFilters facets={withFacets} value={value} onChange={onChange} />);
+  render(wrap(<CatalogFilters facets={withFacets} value={value} onChange={onChange} />));
   return { onChange, user: userEvent.setup() };
 }
 
@@ -184,14 +193,15 @@ describe('CatalogFilters', () => {
   describe('without the counts', () => {
     function setupBare(value: CatalogFilterValue = {}) {
       const onChange = vi.fn();
-      render(<CatalogFilters value={value} onChange={onChange} />);
+      render(wrap(<CatalogFilters value={value} onChange={onChange} />));
       return { onChange, user: userEvent.setup() };
     }
 
-    it('shows the sort alone', () => {
+    it('shows the sort alone in the row, and the drawer button', () => {
       setupBare();
       expect(screen.getAllByRole('button').map((button) => button.textContent?.trim())).toEqual([
         'Новинки',
+        'Фильтры',
       ]);
     });
 

@@ -5,7 +5,6 @@ import {
   type CheckboxFilterOption,
   FilterChip,
   FilterDropdown,
-  type HexColor,
   PriceFilter,
   priceLabel,
   type PriceRange,
@@ -13,17 +12,23 @@ import {
 } from '@/shared/ui';
 
 import { chipValue } from '../lib/facets';
-import { sortSizes } from '../lib/sizes';
-import { PRODUCT_SORT_ORDER, productSortLabels } from '../lib/sorts';
+import {
+  attributeOptions,
+  attributeSearchPlaceholder,
+  brandOptions,
+  defaultProductSort,
+  priceRange,
+  productFilterTitles,
+  productSortOptions,
+  sizeOptions,
+} from '../lib/filter-options';
+import { productSortLabels } from '../lib/sorts';
 import type { ProductSort } from '../model/filters';
 import type { FacetAttribute, FacetBrand, FacetPrice, FacetSize } from '../model/schemas';
 
 // The catalog's filters, built from the filter counts (0009 plan §3). Each shows its slice of
 // `ProductFacets` and reports the visitor's choice; the applied value comes from whoever places it
-// (K7).
-
-// An attribute filter is searchable above this many values, as on Lamoda.
-const attributeSearchAbove = 7;
+// (K7). Their phone forms are in `catalog-filter-panels.tsx`.
 
 // The chip's text for the chosen values: their names in the order of the list, or how many are
 // chosen when some are not in the list (the counts no longer have them, the filter still applies).
@@ -78,16 +83,6 @@ export interface AttributeFilterProps {
   onApply: (value: string[]) => void;
 }
 
-function attributeOptions(attribute: FacetAttribute): CheckboxFilterOption[] {
-  return attribute.values.map((item) => ({
-    value: item.id,
-    label: item.value,
-    count: item.count,
-    // The schema checked it is `#RRGGBB`.
-    color: (item.colorHex ?? undefined) as HexColor | undefined,
-  }));
-}
-
 // A colour attribute: a swatch per value, an empty circle for a value with no colour (AC6).
 export function ColorFilter({ attribute, value, onApply }: AttributeFilterProps) {
   return (
@@ -110,9 +105,7 @@ export function AttributeFilter({ attribute, value, onApply }: AttributeFilterPr
       options={attributeOptions(attribute)}
       value={value}
       onApply={onApply}
-      searchPlaceholder={
-        attribute.values.length > attributeSearchAbove ? 'Введите наименование' : undefined
-      }
+      searchPlaceholder={attributeSearchPlaceholder(attribute)}
     />
   );
 }
@@ -128,8 +121,8 @@ export interface BrandFilterProps {
 export function BrandFilter({ brands, value, onApply }: BrandFilterProps) {
   return (
     <FacetFilter
-      title="Бренд"
-      options={brands.map((brand) => ({ value: brand.id, label: brand.name, count: brand.count }))}
+      title={productFilterTitles.brand}
+      options={brandOptions(brands)}
       value={value}
       onApply={onApply}
       searchPlaceholder="Найдите бренд"
@@ -147,13 +140,14 @@ export interface SizeFilterProps {
 // Sizes in clothing order whatever the api's order (K13): a plain checkbox list with counts, as
 // Lamoda's size dropdown, not SizePicker.
 export function SizeFilter({ sizes, value, onApply }: SizeFilterProps) {
-  const counts = new Map(sizes.map((item) => [item.size, item.count]));
-  const options = sortSizes(sizes.map((item) => item.size)).map((size) => ({
-    value: size,
-    label: size,
-    count: counts.get(size),
-  }));
-  return <FacetFilter title="Размер" options={options} value={value} onApply={onApply} />;
+  return (
+    <FacetFilter
+      title={productFilterTitles.size}
+      options={sizeOptions(sizes)}
+      value={value}
+      onApply={onApply}
+    />
+  );
 }
 
 export interface PriceRangeFilterProps {
@@ -171,15 +165,13 @@ export function PriceRangeFilter({ price, value, onApply }: PriceRangeFilterProp
   const bounds: PriceRange = [price.min, price.max];
   // The slider starts within the current products' prices; the chip names the applied range as it
   // is, both sides when it equals the bounds: the counts may change, the range still applies.
-  const clamp = (amount: number) => Math.min(Math.max(amount, price.min), price.max);
-  const range: PriceRange = value ? [clamp(value[0]), clamp(value[1])] : bounds;
   const chipText = value
     ? (priceLabel(bounds, value) ?? priceLabel([-Infinity, Infinity], value))
     : undefined;
 
   return (
     <FilterDropdown
-      title="Цена"
+      title={productFilterTitles.price}
       value={chipText}
       applied={value !== undefined}
       onClear={() => onApply(undefined)}
@@ -187,7 +179,7 @@ export function PriceRangeFilter({ price, value, onApply }: PriceRangeFilterProp
       <PriceFilter
         min={price.min}
         max={price.max}
-        value={range}
+        value={priceRange(price, value)}
         onApply={(next) => onApply(priceLabel(bounds, next) === undefined ? undefined : next)}
       />
     </FilterDropdown>
@@ -203,7 +195,7 @@ export interface DiscountFilterProps {
 export function DiscountFilter({ checked, onCheckedChange }: DiscountFilterProps) {
   return (
     <FilterChip
-      title="Только со скидкой"
+      title={productFilterTitles.discount}
       pressed={checked}
       onPressedChange={(pressed) => onCheckedChange(pressed)}
     />
@@ -216,25 +208,17 @@ export interface ProductSortFilterProps {
   onValueChange: (value: ProductSort) => void;
 }
 
-// The api's default order, `new` when the query leaves `sort` out.
-const defaultSort: ProductSort = 'new';
-
-const sortOptions = PRODUCT_SORT_ORDER.map((sort) => ({
-  value: sort,
-  label: productSortLabels[sort],
-}));
-
 // The sort chip shows the current order as its title, as on Lamoda; it is black once the order is
 // not the default one.
 export function ProductSortFilter({ value, onValueChange }: ProductSortFilterProps) {
   return (
     <FilterDropdown
       title={productSortLabels[value]}
-      label="Сортировка"
-      applied={value !== defaultSort}
+      label={productFilterTitles.sort}
+      applied={value !== defaultProductSort}
     >
       <SortFilter
-        options={sortOptions}
+        options={productSortOptions}
         value={value}
         onValueChange={(next) => onValueChange(next as ProductSort)}
       />

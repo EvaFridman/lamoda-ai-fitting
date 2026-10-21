@@ -523,3 +523,18 @@ Second round, on the review of `4817711`:
 - **O87. An empty selection keeps only the chips with values.** With no products the api's counts
   have no attribute values (only the chosen ones), so the colour and attribute chips leave the row
   until the selection has products again. Accepted as is. (qa-tester, owner, T15.)
+
+## Decided at T16
+
+- **O88. The phone drawer's open points.** Below a 1024 px window, where the category column goes
+  (O84), the row of chips gives way to the "Фильтры" button; one DOM, switched by CSS. The drawer
+  has "Очистить фильтры" as the desktop row does: shown while a filter or the search is applied
+  (or chosen in the drawer), it clears them, at once in the address when it has any, and the
+  drawer stays open; the sort stays (O5), the applied one in the address and the one chosen in the
+  drawer. "Только со скидкой" is a switch row under the accordion, as on Lamoda, not a section of
+  its own. A window grown to 1024 px or wider closes the drawer, dropping the draft as any close
+  does. Choices in the drawer are a draft: closing it without "Показать N товаров"
+  drops them, and it opens again with the address's selection. N is asked for once the choice has
+  stood 300 ms; until then, while it loads or when it fails, the button says "Показать товары" and
+  still applies. The sort is a section of the drawer and applies with the filters on "Показать N
+  товаров" (plan §3.2); it changes no count, so a sort alone keeps N. (owner, T16.)

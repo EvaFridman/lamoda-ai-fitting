@@ -183,7 +183,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Check: Vitest of applying, a chip's × and "Очистить фильтры" against the URL (AC7, AC10); `qa-tester`
       at 1440 px (AC3); `npm run verify`.
       Commit: `feat(web): filter and sort the catalog`
-- [ ] **T16. Filters on phones.** The `*FilterPanel` variants in `entities/product`, the drawer with
+- [x] **T16. Filters on phones.** The `*FilterPanel` variants in `entities/product`, the drawer with
       the accordion and "Показать N товаров", two columns (O6); the panels on `/ui-kit`; backlog
       "Mobile filters".
       Check: Vitest of the drawer applying to the URL; `qa-tester` at 375 px (AC4); `npm run verify`.

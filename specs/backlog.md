@@ -156,9 +156,6 @@ removes it from this list. Found by the agents' first security audit and trial r
   `prefetch={false}` (`widgets/product-grid`) while that address is a 404 (O75). The product
   page's spec turns the prefetch back on and decides whether `CatalogProductCard` (0009 K15)
   builds the address itself.
-- **Mobile filters.** The kit's filters and the catalog filters of 0009 are desktop dropdowns only
-  (0003 D9, 0009 K16); on a phone Lamoda shows them in a bottom sheet. Build it with the catalog
-  page spec.
 - **Mobile tab bar.** The design of spec 0019 has a bottom tab bar on phones («Главная», «Каталог»,
   «Примерочная», «Корзина», «Профиль»); 0019 shows only the fitting room's icon in the header
   (0019 A10). Build the bar when the site has a cart and a home worth a tab.
