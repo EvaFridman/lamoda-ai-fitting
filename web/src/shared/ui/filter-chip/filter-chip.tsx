@@ -3,7 +3,7 @@
 import { Button as BaseButton } from '@base-ui/react/button';
 import { Popover } from '@base-ui/react/popover';
 import { Toggle } from '@base-ui/react/toggle';
-import { useRef } from 'react';
+import { type ButtonHTMLAttributes, useRef } from 'react';
 
 import { ChevronDownIcon, CloseIcon } from '../icon/icons';
 
@@ -32,6 +32,12 @@ export function FilterChip({ title, className, ...toggle }: FilterChipProps) {
   );
 }
 
+// A chip's own click and pointer handlers (the analytics' tracked element), beside the kit's.
+export type FilterChipEvents = Pick<
+  ButtonHTMLAttributes<HTMLButtonElement>,
+  'onClick' | 'onPointerEnter' | 'onPointerLeave'
+>;
+
 export interface FilterChipTriggerProps {
   title: string;
   value?: string;
@@ -39,18 +45,28 @@ export interface FilterChipTriggerProps {
   onClear?: () => void;
   // Ties the trigger to a Popover.Root opened from the start (its `defaultTriggerId`).
   id?: string;
+  // On the trigger only: the × is not the chip.
+  chipEvents?: FilterChipEvents;
 }
 
 // The chip that opens a FilterDropdown, rendered by it inside its Popover.Root; not exported from
 // the ui segment. Applied, it is black with the chosen value after the title. Given `onClear`, an
 // applied chip ends in a × button of its own next to the trigger (a button cannot hold another).
-export function FilterChipTrigger({ title, value, applied, onClear, id }: FilterChipTriggerProps) {
+export function FilterChipTrigger({
+  title,
+  value,
+  applied,
+  onClear,
+  id,
+  chipEvents,
+}: FilterChipTriggerProps) {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const clearable = applied && onClear !== undefined;
 
   return (
     <span className={[styles.chip, applied && styles.applied].filter(Boolean).join(' ')}>
       <Popover.Trigger
+        {...chipEvents}
         ref={triggerRef}
         id={id}
         className={[styles.trigger, clearable && styles.withClear].filter(Boolean).join(' ')}

@@ -82,9 +82,10 @@ export function defineCatalog<const C extends Catalog>(catalog: C & Checked<C>):
 
 export const catalog = defineCatalog({
   // The owner's estimates (R15, R17), set without traffic data: a demo site. The SDK sends about
-  // 4 page views and 6 heatmap clicks a visit (`autocapture` is off).
+  // 5 page views and 7 heatmap clicks a visit (`autocapture` is off; the catalog's categories are
+  // paths of their own, spec 0014 O102).
   visitsPerMonth: 3_000,
-  sdkPerVisit: 10,
+  sdkPerVisit: 12,
   zones: {
     service: {
       title: 'Служебное',
@@ -103,6 +104,12 @@ export const catalog = defineCatalog({
       areas: ['account-menu', 'account-data', 'account-delete', 'account-invite'],
       description:
         'Страницы `/customer`. `account-menu` — меню разделов (на узком экране — список разделов и путь назад к нему), `account-data` — «Мои данные», `account-delete` — удаление аккаунта, `account-invite` — приглашение войти вместо раздела.',
+    },
+    catalog: {
+      title: 'Каталог',
+      areas: ['catalog'],
+      description:
+        'Страницы `/catalog` и `/catalog/<slug>`: список категорий слева, ряд фильтров над сеткой (на узком экране — шторка «Фильтры»), сетка карточек.',
     },
   },
   commonEvents: {
@@ -154,6 +161,51 @@ export const catalog = defineCatalog({
         'Аккаунт удалён: после ответа api, до того как SDK забудет пользователя, поэтому приходит с его id. `Signed Out` вместе с ним не отправляется.',
       perVisit: 0.001,
       properties: {},
+    },
+    'Catalog Filter Applied': {
+      zone: 'catalog',
+      type: 'interaction',
+      description:
+        'Посетитель изменил фильтр: в ряду сразу, в шторке по «Показать N товаров» — по событию на каждый изменённый фильтр. `values` — сколько значений выбрано (у цены — сколько границ задано, у скидки — 1 или 0), 0 — фильтр снят. Сами значения не отправляются.',
+      perVisit: 0.8,
+      properties: {
+        filter: {
+          kind: 'enum',
+          values: ['brand', 'size', 'color', 'attribute', 'price', 'discount'],
+        },
+        values: { kind: 'number' },
+      },
+    },
+    'Catalog Sorted': {
+      zone: 'catalog',
+      type: 'interaction',
+      description: 'Посетитель сменил порядок: в ряду сразу, в шторке по «Показать N товаров».',
+      perVisit: 0.2,
+      properties: {
+        // `PRODUCT_SORTS` of `entities/product`, copied: the catalog imports nothing.
+        sort: { kind: 'enum', values: ['new', 'price_asc', 'price_desc', 'discount', 'rating'] },
+      },
+    },
+    'Catalog Searched': {
+      zone: 'catalog',
+      type: 'interaction',
+      description:
+        'Посетитель искал: пришла первая порция товаров для запроса, отправленного в шапке (тот же запрос ещё раз — тоже поиск), или для страницы, которую открыла ссылка. Переход в категорию с тем же запросом, «Назад», «Вперёд», перезагрузка и смена фильтра — не поиск. `query_length` — длина запроса в символах, `results` — сколько всего найдено. Текст запроса не отправляется: ни в свойствах, ни в адресе страницы (`q` убирается из `$current_url` и других адресов всех событий, спека 0014, O104). Страница, открытая с `cursor`, его не отправляет: итога там нет.',
+      perVisit: 0.3,
+      properties: {
+        query_length: { kind: 'number' },
+        results: { kind: 'number' },
+      },
+    },
+    'Catalog Batch Loaded': {
+      zone: 'catalog',
+      type: 'interaction',
+      description:
+        'Догружена следующая порция сетки, когда посетитель долистал до конца. `batch` — её номер в показанном списке (2, 3, …). Первая порция не отправляется (это просмотр страницы), как и порции, которые сетка грузит сама, чтобы вернуться на место после «Назад».',
+      perVisit: 2,
+      properties: {
+        batch: { kind: 'number' },
+      },
     },
   },
   elements: {
@@ -236,6 +288,76 @@ export const catalog = defineCatalog({
         '«Отмена» в подтверждении удаления. Закрытие по Esc, крестику или фону не отправляется: это открытия минус удаления и отмены.',
       clicksPerVisit: 0.002,
       hoversPerVisit: 0.002,
+    },
+    'catalog.card': {
+      zone: 'catalog',
+      type: 'navigation',
+      description:
+        'Карточка товара в сетке. `position` — её место в показанном списке, с 1; id товара не отправляется.',
+      clicksPerVisit: 0.5,
+      hoversPerVisit: 8,
+      properties: {
+        position: { kind: 'number' },
+      },
+    },
+    'catalog.category': {
+      zone: 'catalog',
+      type: 'navigation',
+      description:
+        'Категория в списке слева: ссылка на `/catalog/<slug>`. Одна на все строки: наведение уходит раз за просмотр страницы. Категории в шапке не отслеживаются.',
+      clicksPerVisit: 0.4,
+      hoversPerVisit: 1,
+    },
+    'catalog.filter-brand': {
+      zone: 'catalog',
+      type: 'interaction',
+      description: 'Чип «Бренд» в ряду фильтров: открывает список.',
+      clicksPerVisit: 0.25,
+      hoversPerVisit: 0.3,
+    },
+    'catalog.filter-size': {
+      zone: 'catalog',
+      type: 'interaction',
+      description: 'Чип «Размер» в ряду фильтров.',
+      clicksPerVisit: 0.2,
+      hoversPerVisit: 0.25,
+    },
+    'catalog.filter-color': {
+      zone: 'catalog',
+      type: 'interaction',
+      description: 'Чип атрибута-цвета в ряду фильтров; один на все такие чипы.',
+      clicksPerVisit: 0.2,
+      hoversPerVisit: 0.25,
+    },
+    'catalog.filter-attribute': {
+      zone: 'catalog',
+      type: 'interaction',
+      description:
+        'Чип любого другого атрибута (материал, сезон…) в ряду фильтров; один на все такие чипы, название атрибута не отправляется.',
+      clicksPerVisit: 0.1,
+      hoversPerVisit: 0.2,
+    },
+    'catalog.filter-price': {
+      zone: 'catalog',
+      type: 'interaction',
+      description: 'Чип «Цена» в ряду фильтров.',
+      clicksPerVisit: 0.15,
+      hoversPerVisit: 0.2,
+    },
+    'catalog.filter-discount': {
+      zone: 'catalog',
+      type: 'interaction',
+      description:
+        'Чип «Только со скидкой» в ряду фильтров: клик сразу включает или снимает фильтр.',
+      clicksPerVisit: 0.1,
+      hoversPerVisit: 0.15,
+    },
+    'catalog.sort': {
+      zone: 'catalog',
+      type: 'interaction',
+      description: 'Чип сортировки в ряду фильтров.',
+      clicksPerVisit: 0.2,
+      hoversPerVisit: 0.25,
     },
   },
 });

@@ -1,6 +1,6 @@
 import Image from 'next/image';
 import NextLink from 'next/link';
-import type { ReactNode } from 'react';
+import type { AnchorHTMLAttributes, ReactNode } from 'react';
 
 import { Badges, Price, Rating, Skeleton } from '@/shared/ui';
 
@@ -15,6 +15,11 @@ export interface CatalogProductCardProps {
   href: string;
   // Next's prefetch of `href` (its default when left out); off while the address has no page.
   prefetch?: boolean;
+  // The link's own click and pointer handlers (the page's analytics); not the action's.
+  linkEvents?: Pick<
+    AnchorHTMLAttributes<HTMLAnchorElement>,
+    'onClick' | 'onPointerEnter' | 'onPointerLeave'
+  >;
   // One action in the photo's upper right corner (favourites, try-on), filled by a feature.
   action?: ReactNode;
   className?: string;
@@ -27,6 +32,7 @@ export function CatalogProductCard({
   product,
   href,
   prefetch,
+  linkEvents,
   action,
   className,
 }: CatalogProductCardProps) {
@@ -34,7 +40,7 @@ export function CatalogProductCard({
 
   return (
     <article className={[styles.card, className].filter(Boolean).join(' ')}>
-      <NextLink href={href} prefetch={prefetch} className={styles.link}>
+      <NextLink {...linkEvents} href={href} prefetch={prefetch} className={styles.link}>
         <div className={styles.photo}>
           {product.image === null ? (
             // Visual only, like the photo's empty alt: the link's name starts with the product.

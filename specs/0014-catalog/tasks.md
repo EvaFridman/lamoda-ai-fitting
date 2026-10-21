@@ -207,7 +207,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       api and `robots.ts` (AC19, AC20); a local Lighthouse SEO run; `npm run verify`; the web image
       builds with no services running (AC24).
       Commit: `feat(web): describe the catalog to search engines`
-- [ ] **T20. Catalog analytics.** After 0015's catalog is on `main` (O35): the events and elements
+- [x] **T20. Catalog analytics.** After 0015's catalog is on `main` (O35): the events and elements
       of plan §3.6 as entries of 0015's catalog, with descriptions and frequencies, and the calls in
       the page and widgets.
       Check: 0015's catalog tests pass; Vitest with a mocked `track`: each event once, no search

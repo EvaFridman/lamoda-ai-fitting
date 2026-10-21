@@ -308,10 +308,11 @@ describe('analytics catalog limits', () => {
       ...catalog,
       zones: {
         ...catalog.zones,
-        catalog: { title: 'Каталог', areas: ['catalog'], description: '' },
+        // A key no spec plans, so a real zone never replaces it.
+        'empty-zone': { title: 'Пустая', areas: ['empty-area'], description: '' },
       },
     };
-    expect(catalogProblems(broken)).toEqual(['zone "catalog" has no events or elements']);
+    expect(catalogProblems(broken)).toEqual(['zone "empty-zone" has no events or elements']);
   });
 
   it('refuses estimates over 80 % of the monthly limit', () => {
@@ -365,6 +366,10 @@ describe('analytics catalog', () => {
     expect(Object.keys(catalog.events).sort()).toEqual([
       'Account Data Saved',
       'Account Deleted',
+      'Catalog Batch Loaded',
+      'Catalog Filter Applied',
+      'Catalog Searched',
+      'Catalog Sorted',
       'Login Opened',
       'Signed In',
       'Signed Out',
@@ -385,6 +390,10 @@ describe('analytics catalog', () => {
       'Signed Out': ['auth', 'interaction'],
       'Account Data Saved': ['account', 'interaction'],
       'Account Deleted': ['account', 'interaction'],
+      'Catalog Filter Applied': ['catalog', 'interaction'],
+      'Catalog Sorted': ['catalog', 'interaction'],
+      'Catalog Searched': ['catalog', 'interaction'],
+      'Catalog Batch Loaded': ['catalog', 'interaction'],
     });
   });
 
@@ -403,6 +412,15 @@ describe('analytics catalog', () => {
       'account-invite.sign-in': ['account', 'interaction'],
       'account-delete.open': ['account', 'interaction'],
       'account-delete.cancel': ['account', 'interaction'],
+      'catalog.card': ['catalog', 'navigation'],
+      'catalog.category': ['catalog', 'navigation'],
+      'catalog.filter-brand': ['catalog', 'interaction'],
+      'catalog.filter-size': ['catalog', 'interaction'],
+      'catalog.filter-color': ['catalog', 'interaction'],
+      'catalog.filter-attribute': ['catalog', 'interaction'],
+      'catalog.filter-price': ['catalog', 'interaction'],
+      'catalog.filter-discount': ['catalog', 'interaction'],
+      'catalog.sort': ['catalog', 'interaction'],
     });
   });
 

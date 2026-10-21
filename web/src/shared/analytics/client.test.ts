@@ -90,8 +90,15 @@ describe('analytics client', () => {
       }),
     );
     const { stripAttributes } = await import('./strip-attributes');
-    const options = sdk.init.mock.calls[0]?.[1] as { hooks: { on_track: unknown } };
+    const options = sdk.init.mock.calls[0]?.[1] as {
+      hooks: { on_track: unknown; before_send_people: unknown };
+      loaded: unknown;
+    };
+    const { stripStoredReferrer } = await import('./strip-attributes');
+    expect(options.loaded).toBe(stripStoredReferrer);
     expect(options.hooks.on_track).toBe(stripAttributes);
+    const { stripPeopleAddresses } = await import('./strip-attributes');
+    expect(options.hooks.before_send_people).toBe(stripPeopleAddresses);
   });
 
   it('uses a block selector that is valid and matches image-like elements', async () => {
