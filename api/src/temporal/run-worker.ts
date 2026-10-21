@@ -8,7 +8,7 @@ import { ScheduleClient } from '@temporalio/client';
 import { NativeConnection, Worker } from '@temporalio/worker';
 import { Logger } from 'nestjs-pino';
 
-import type { Env } from '../config/env.js';
+import { assertWorkerEnv, type Env, type WorkerEnv, workerEnvWarnings } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { StorageService } from '../storage/storage.service.js';
 import { createActivities } from './activities/index.js';
@@ -23,6 +23,16 @@ async function bootstrap(): Promise<void> {
   const logger = app.get(Logger);
   app.useLogger(logger);
   const config = app.get<ConfigService<Env, true>>(ConfigService);
+  // The generation runs here (spec 0019 plan §3): production refuses to start without the OpenAI
+  // key, elsewhere an empty one selects the fake provider and is logged.
+  const workerEnv: WorkerEnv = {
+    NODE_ENV: config.get('NODE_ENV', { infer: true }),
+    OPENAI_API_KEY: config.get('OPENAI_API_KEY', { infer: true }),
+  };
+  assertWorkerEnv(workerEnv);
+  for (const warning of workerEnvWarnings(workerEnv)) {
+    logger.warn(warning);
+  }
 
   const address = config.get('TEMPORAL_ADDRESS', { infer: true });
   const namespace = config.get('TEMPORAL_NAMESPACE', { infer: true });

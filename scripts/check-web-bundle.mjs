@@ -4,7 +4,8 @@
 // and `S3_SECRET_ACCESS_KEY` (spec 0011 AC14, plan §1), or the auth secrets' names
 // `BETTER_AUTH_SECRET` and `GOOGLE_CLIENT_SECRET` (spec 0013 plan §8), except Better Auth's env
 // getter (`ALLOWED`, N53), or the backup job's four
-// `BACKUP_{READ,WRITE}_{ACCESS_KEY_ID,SECRET_ACCESS_KEY}` (spec 0012 P25). Importing `server-only` from
+// `BACKUP_{READ,WRITE}_{ACCESS_KEY_ID,SECRET_ACCESS_KEY}` (spec 0012 P25), or the OpenAI key's name
+// `OPENAI_API_KEY` (spec 0019 AC27, plan §10). Importing `server-only` from
 // a client component already fails `next build`; this catches the rest, e.g. a client file that
 // copies the header by hand.
 // Root `verify` runs it after `build`. A missing or empty directory fails too, so the check never
@@ -28,6 +29,7 @@ const PATTERNS = [
   /BACKUP_READ_SECRET_ACCESS_KEY/,
   /BACKUP_WRITE_ACCESS_KEY_ID/,
   /BACKUP_WRITE_SECRET_ACCESS_KEY/,
+  /OPENAI_API_KEY/,
 ];
 
 // The one place a name may stand, cut out before the search (spec 0013 N53): Better Auth's browser

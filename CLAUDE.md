@@ -137,7 +137,8 @@ Pinned on purpose; each "not newer" has a reason and a condition to move on.
 `next build`), the agents' guard hooks and root `scripts/*.mjs` (lint, `node --test`). Last, after
 `build`, `check:web-bundle` (`scripts/check-web-bundle.mjs`) fails when a file under
 `web/.next/static` (the browser bundle) contains `x-proxy-secret` (any case), `PROXY_SECRET`,
-`S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_SECRET` or the
+`S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_SECRET`,
+`OPENAI_API_KEY` or the
 backup job's `BACKUP_{READ,WRITE}_{ACCESS_KEY_ID,SECRET_ACCESS_KEY}`, or when that directory is
 missing or empty; the one exception is Better Auth's env getter of `BETTER_AUTH_SECRET` in its
 browser client, cut out in exactly its shape (spec 0013 N53). Then `check:web-shells`
@@ -169,6 +170,12 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   keys; it refuses to run in production.
 - `api/src/storage/`: the S3 bucket (`StorageService`: `put`, `exists`, `deletePrefix`,
   `signedUrl`) and `keys.ts`, the one place object keys are built and checked.
+- `api/src/ai/`: OpenAI (spec 0019 plan §3): `AiModule` provides `AI_SETTINGS` (the
+  `OPENAI_API_KEY` and `FITTING_*` env) and `AI_PROVIDER`, `OpenAiProvider` with a key, else (and
+  always with `NODE_ENV=test`) `FakeAiProvider`, which answers without the network and refuses
+  on the marker `refuse:<reason>` in a photo's bytes or a text; a test sets its `delayMs`.
+  `OpenAiClient` (fetch, no SDK) calls `/v1/images/edits`, `/v1/responses` and `/v1/moderations`
+  at `OPENAI_ORIGIN`; `checks/` hold `PhotoChecker`, `PromptChecker` and `ModerationChecker`.
 - `api/src/backup/`: the backup job (spec 0012), a plain Node process outside Nest, run as
   `dist/backup/main.js` from the `backup` target of `api/Dockerfile` (image `ai-fitting-backup`):
   a nightly service, `--once`, and `--pre-deploy <tag>` for the deploy. Its object names are
@@ -616,6 +623,22 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   answers `{ paths, skipped }`, resolved at request time, the categories read past the page cache
   (`readActiveCategories`, V28); nginx answers 404 for `/healthz` and everything under it, so only
   the container reaches it.
+- `api` AI (spec 0019): every call to OpenAI goes through `AI_PROVIDER` (`api/src/ai/`), never a
+  direct `fetch`. A check inside a request (`checkPhoto`, `checkPrompt`) runs its two calls, the
+  vision model `FITTING_VISION_MODEL` and the moderation endpoint, in parallel under one deadline
+  of `FITTING_CHECK_TIMEOUT_MS` (A45), or of the caller's `timeoutMs` (an activity's budget); a
+  flagged image or text answers the reason `moderation`, a malformed verdict of the model counts as
+  accepted with a warning, and a passed deadline or a cancelled caller signal throws an
+  `AiProviderError` whose `isTimeout` or `reason: 'aborted'` says which (the routes that will call
+  the checks, `POST /me/photos` and `POST /fittings`, answer a timeout as 503 with nothing stored).
+  The client makes three attempts (`retry: false` makes one, for an activity with a retry policy of
+  its own) for a network error, a 429 or a 5xx, none for another 4xx, `insufficient_quota` or a
+  timeout; `AiProviderError` carries the operation, reason, status, OpenAI's `error.code` and
+  request id, never the input or the key, and Sentry cuts requests to `api.openai.com` to method
+  and origin as the bucket's. `assertServerEnv` refuses production without `OPENAI_API_KEY` and,
+  everywhere, a `FITTING_CHECK_TIMEOUT_MS` above half of `REQUEST_TIMEOUT_MS`; the worker's
+  `assertWorkerEnv` refuses production without the key; outside production an empty key is a
+  warning at start and the fake provider. Tests and CI never set the key (AC27).
 - `api` storage (spec 0011): one private bucket. The first segment of a key is its class, since
   Timeweb's lifecycle rules match prefixes only: `media/` (the catalog media, no expiry; the
   database keeps the key without `media/`, nginx and the seed add it), `keep/users/<userId>/…`

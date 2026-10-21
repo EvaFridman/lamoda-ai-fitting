@@ -31,6 +31,15 @@ services:
       S3_BUCKET: ${S3_BUCKET:?set S3_BUCKET}
       S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?set S3_ACCESS_KEY_ID}
       S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?set S3_SECRET_ACCESS_KEY}
+      # It runs the generations (spec 0019 plan §10): the OpenAI key and the fitting settings of the
+      # api (app.yml); the worker refuses to start without the key in production (AC27).
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      FITTING_MODEL: ${FITTING_MODEL:-gpt-image-2}
+      FITTING_VISION_MODEL: ${FITTING_VISION_MODEL:-gpt-6-luna}
+      FITTING_MONTHLY_LIMIT: ${FITTING_MONTHLY_LIMIT:-10}
+      FITTING_TIMEOUT_SECONDS: ${FITTING_TIMEOUT_SECONDS:-180}
+      FITTING_CHECK_TIMEOUT_MS: ${FITTING_CHECK_TIMEOUT_MS:-4000}
+      FITTING_PHOTO_MAX_BYTES: ${FITTING_PHOTO_MAX_BYTES:-20971520}
       # The api's own Sentry project (SENTRY_DSN in .env is web's); empty turns it off.
       SENTRY_DSN: ${API_SENTRY_DSN:-}
       SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}

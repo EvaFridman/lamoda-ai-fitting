@@ -610,7 +610,11 @@ BACKUP_READ_SECRET_ACCESS_KEY=$s3_secret
 BACKUP_WRITE_ACCESS_KEY_ID=$s3_key_id
 BACKUP_WRITE_SECRET_ACCESS_KEY=$s3_secret
 BACKUP_AGE_RECIPIENT=$backup_recipient
+OPENAI_API_KEY=deploy-check-openai-api-key
 EOF
+# The placeholder key only lets the production api and worker start (they refuse an empty one,
+# spec 0019 AC27): with it the real provider is built, so this check must never call a route or a
+# workflow that reaches OpenAI (an upload, a fitting), or CI would send it a request.
 unset s3_key_id s3_secret
 # The emulator's admin user, from the same keys; in a file, so they stay off its command line.
 sed -n -e 's/^S3_ACCESS_KEY_ID=/AWS_ACCESS_KEY_ID=/p' -e 's/^S3_SECRET_ACCESS_KEY=/AWS_SECRET_ACCESS_KEY=/p' \

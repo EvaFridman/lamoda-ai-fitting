@@ -3,6 +3,7 @@ import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { SentryModule } from '@sentry/nestjs/setup';
 
+import { AiModule } from './ai/ai.module.js';
 import { AiGenerationsModule } from './ai-generations/ai-generations.module.js';
 import { AttributesModule } from './attributes/attributes.module.js';
 import { AuthModule } from './auth/auth.module.js';
@@ -39,6 +40,8 @@ import { UsersModule } from './users/users.module.js';
     AuthModule,
     RedisModule,
     StorageModule,
+    // OpenAI's checks and the fake provider (spec 0019 plan §3).
+    AiModule,
     TemporalClientModule,
     ThrottlingModule,
     RealtimeModule,

@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { assertServerEnv, type ServerEnv, serverEnvWarnings, validateEnv } from './env.js';
+import {
+  assertServerEnv,
+  assertWorkerEnv,
+  type ServerEnv,
+  serverEnvWarnings,
+  validateEnv,
+  workerEnvWarnings,
+} from './env.js';
 
 const valid = {
   WEB_ORIGIN: 'http://localhost:3001',
@@ -461,6 +468,9 @@ describe('assertServerEnv', () => {
     GOOGLE_CLIENT_SECRET: 'google-client-secret',
     AUTH_FAKE_OIDC_URL: '',
     AUTH_FAKE_OIDC_PUBLIC_URL: '',
+    OPENAI_API_KEY: 'sk-test-key',
+    REQUEST_TIMEOUT_MS: 10_000,
+    FITTING_CHECK_TIMEOUT_MS: 4000,
   };
 
   it('accepts production with every secret set and no fake provider', () => {
@@ -515,6 +525,9 @@ describe('assertServerEnv', () => {
         GOOGLE_CLIENT_SECRET: '',
         AUTH_FAKE_OIDC_URL: 'http://oidc:4010',
         AUTH_FAKE_OIDC_PUBLIC_URL: 'http://localhost:4010',
+        OPENAI_API_KEY: '',
+        REQUEST_TIMEOUT_MS: 10_000,
+        FITTING_CHECK_TIMEOUT_MS: 4000,
       }),
     );
 
@@ -523,6 +536,7 @@ describe('assertServerEnv', () => {
         'BETTER_AUTH_SECRET: must be set in production; ' +
         'GOOGLE_CLIENT_ID: must be set in production; ' +
         'GOOGLE_CLIENT_SECRET: must be set in production; ' +
+        'OPENAI_API_KEY: must be set in production; ' +
         'AUTH_FAKE_OIDC_URL: must be empty in production; ' +
         'AUTH_FAKE_OIDC_PUBLIC_URL: must be empty in production',
     );
@@ -540,6 +554,9 @@ describe('assertServerEnv', () => {
           GOOGLE_CLIENT_SECRET: '',
           AUTH_FAKE_OIDC_URL: 'http://oidc:4010',
           AUTH_FAKE_OIDC_PUBLIC_URL: 'http://localhost:4010',
+          OPENAI_API_KEY: '',
+          REQUEST_TIMEOUT_MS: 10_000,
+          FITTING_CHECK_TIMEOUT_MS: 4000,
         }),
       ).not.toThrow();
     },
@@ -555,6 +572,9 @@ describe('serverEnvWarnings', () => {
     GOOGLE_CLIENT_SECRET: '',
     AUTH_FAKE_OIDC_URL: '',
     AUTH_FAKE_OIDC_PUBLIC_URL: '',
+    OPENAI_API_KEY: 'sk-test-key',
+    REQUEST_TIMEOUT_MS: 10_000,
+    FITTING_CHECK_TIMEOUT_MS: 4000,
   };
 
   it.each(['development', 'test'] as const)(
@@ -577,6 +597,145 @@ describe('serverEnvWarnings', () => {
     expect(serverEnvWarnings({ ...base, PROXY_SECRET: 'p'.repeat(32) }).join(' ')).not.toContain(
       'p'.repeat(32),
     );
+  });
+});
+
+describe('validateEnv OpenAI and fitting settings', () => {
+  it('applies the defaults', () => {
+    const env = validateEnv(valid);
+
+    expect(env.OPENAI_API_KEY).toBe('');
+    expect(env.FITTING_MODEL).toBe('gpt-image-2');
+    expect(env.FITTING_VISION_MODEL).toBe('gpt-6-luna');
+    expect(env.FITTING_MONTHLY_LIMIT).toBe(10);
+    expect(env.FITTING_TIMEOUT_SECONDS).toBe(180);
+    expect(env.FITTING_CHECK_TIMEOUT_MS).toBe(4000);
+    expect(env.FITTING_PHOTO_MAX_BYTES).toBe(20_971_520);
+  });
+
+  // A made-up value with none of a real key's shape, so the secret scan stays quiet.
+  it('accepts a key', () => {
+    expect(validateEnv({ ...valid, OPENAI_API_KEY: 'test-openai-key_1' }).OPENAI_API_KEY).toBe(
+      'test-openai-key_1',
+    );
+  });
+
+  it.each(['sk-abc def', ' sk-abc', 'sk-abc\t'])(
+    'refuses OPENAI_API_KEY %j, naming the variable but not the value',
+    (value) => {
+      const message = thrownMessage(() => validateEnv({ ...valid, OPENAI_API_KEY: value }));
+
+      expect(message).toMatch(/OPENAI_API_KEY/);
+      expect(message).not.toContain(value);
+    },
+  );
+
+  it.each(['FITTING_MODEL', 'FITTING_VISION_MODEL'])('accepts a model name in %s', (name) => {
+    expect(validateEnv({ ...valid, [name]: 'gpt-image-2.5-sunburst' })).toMatchObject({
+      [name]: 'gpt-image-2.5-sunburst',
+    });
+  });
+
+  it.each(['FITTING_MODEL', 'FITTING_VISION_MODEL'])(
+    'refuses a space, a slash or empty in %s',
+    (name) => {
+      for (const value of ['gpt 5', 'a/b', '']) {
+        expect(thrownMessage(() => validateEnv({ ...valid, [name]: value }))).toMatch(
+          new RegExp(name),
+        );
+      }
+    },
+  );
+
+  it.each([
+    ['FITTING_MONTHLY_LIMIT', '1', 1, ['0', '1001', '1.5', 'abc']],
+    ['FITTING_MONTHLY_LIMIT', '1000', 1000, []],
+    ['FITTING_TIMEOUT_SECONDS', '30', 30, ['29', '601', 'abc']],
+    ['FITTING_TIMEOUT_SECONDS', '600', 600, []],
+    ['FITTING_CHECK_TIMEOUT_MS', '1000', 1000, ['999', '10001', 'abc']],
+    ['FITTING_CHECK_TIMEOUT_MS', '10000', 10_000, []],
+    ['FITTING_PHOTO_MAX_BYTES', '1', 1, ['0', '52428801', '-1', 'abc']],
+    ['FITTING_PHOTO_MAX_BYTES', '52428800', 52_428_800, []],
+  ])('bounds of %s: accepts %s, refuses the outside', (name, value, expected, refused) => {
+    expect(validateEnv({ ...valid, [name]: value })).toMatchObject({ [name]: expected });
+    for (const bad of refused) {
+      expect(thrownMessage(() => validateEnv({ ...valid, [name]: bad }))).toMatch(new RegExp(name));
+    }
+  });
+});
+
+describe('OpenAI key and check timeout in the server and worker checks', () => {
+  const server: ServerEnv = {
+    NODE_ENV: 'production',
+    PROXY_SECRET: 'p'.repeat(32),
+    BETTER_AUTH_SECRET: 'b'.repeat(32),
+    GOOGLE_CLIENT_ID: 'id',
+    GOOGLE_CLIENT_SECRET: 'secret',
+    AUTH_FAKE_OIDC_URL: '',
+    AUTH_FAKE_OIDC_PUBLIC_URL: '',
+    OPENAI_API_KEY: 'sk-key',
+    REQUEST_TIMEOUT_MS: 10_000,
+    FITTING_CHECK_TIMEOUT_MS: 4000,
+  };
+
+  it('refuses production with an empty OPENAI_API_KEY, naming the variable', () => {
+    expect(() => assertServerEnv({ ...server, OPENAI_API_KEY: '' })).toThrow(
+      'Invalid environment: OPENAI_API_KEY: must be set in production',
+    );
+  });
+
+  it.each(['development', 'production', 'test'] as const)(
+    'refuses a check timeout over half of REQUEST_TIMEOUT_MS with NODE_ENV=%s',
+    (nodeEnv) => {
+      expect(() =>
+        assertServerEnv({ ...server, NODE_ENV: nodeEnv, FITTING_CHECK_TIMEOUT_MS: 5001 }),
+      ).toThrow(/FITTING_CHECK_TIMEOUT_MS/);
+    },
+  );
+
+  it.each(['development', 'production', 'test'] as const)(
+    'accepts a check timeout of exactly half with NODE_ENV=%s',
+    (nodeEnv) => {
+      expect(() =>
+        assertServerEnv({ ...server, NODE_ENV: nodeEnv, FITTING_CHECK_TIMEOUT_MS: 5000 }),
+      ).not.toThrow();
+    },
+  );
+
+  it('throws in the worker in production with an empty key, naming the variable', () => {
+    expect(() => assertWorkerEnv({ NODE_ENV: 'production', OPENAI_API_KEY: '' })).toThrow(
+      /OPENAI_API_KEY/,
+    );
+  });
+
+  it.each([
+    ['production', 'sk-key'],
+    ['development', ''],
+    ['test', ''],
+  ] as const)('passes in the worker with NODE_ENV=%s and key %j', (nodeEnv, key) => {
+    expect(() => assertWorkerEnv({ NODE_ENV: nodeEnv, OPENAI_API_KEY: key })).not.toThrow();
+  });
+
+  it('warns outside production about an empty key, in the server and the worker', () => {
+    const withAuth = {
+      ...server,
+      NODE_ENV: 'development',
+      BETTER_AUTH_SECRET: 'b'.repeat(32),
+    } as const;
+    const empty = { ...withAuth, OPENAI_API_KEY: '' };
+
+    expect(serverEnvWarnings(empty)).toHaveLength(1);
+    expect(serverEnvWarnings(empty)[0]).toMatch(/OPENAI_API_KEY/);
+    expect(serverEnvWarnings(withAuth)).toEqual([]);
+    expect(workerEnvWarnings({ NODE_ENV: 'test', OPENAI_API_KEY: '' })[0]).toMatch(
+      /OPENAI_API_KEY/,
+    );
+    expect(workerEnvWarnings({ NODE_ENV: 'test', OPENAI_API_KEY: 'k' })).toEqual([]);
+  });
+
+  it('does not warn in production', () => {
+    expect(workerEnvWarnings({ NODE_ENV: 'production', OPENAI_API_KEY: '' })).toEqual([]);
+    expect(serverEnvWarnings({ ...server, OPENAI_API_KEY: '' })).toEqual([]);
   });
 });
 

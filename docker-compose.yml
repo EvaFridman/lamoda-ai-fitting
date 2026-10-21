@@ -55,6 +55,17 @@ x-api-env: &api-env
   SENTRY_DSN: ${SENTRY_DSN:-}
   SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-}
 
+# AI fitting (spec 0019 plan §10), for the api (the checks) and the worker (the generation) only:
+# s3-init needs no key. An empty key selects the fake provider; the defaults are the api's own.
+x-ai-env: &ai-env
+  OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+  FITTING_MODEL: ${FITTING_MODEL:-gpt-image-2}
+  FITTING_VISION_MODEL: ${FITTING_VISION_MODEL:-gpt-6-luna}
+  FITTING_MONTHLY_LIMIT: ${FITTING_MONTHLY_LIMIT:-10}
+  FITTING_TIMEOUT_SECONDS: ${FITTING_TIMEOUT_SECONDS:-180}
+  FITTING_CHECK_TIMEOUT_MS: ${FITTING_CHECK_TIMEOUT_MS:-4000}
+  FITTING_PHOTO_MAX_BYTES: ${FITTING_PHOTO_MAX_BYTES:-20971520}
+
 # Sources over the image's copy. The anonymous volume keeps the Prisma client generated inside the
 # image visible under the mounted src/ (after a schema change: `docker compose up -d --build
 # --renew-anon-volumes --wait api temporal-worker`). prisma/ is mounted so new migrations land in
@@ -194,7 +205,7 @@ services:
     # The default repeats `name:` above; change both together.
     image: ${COMPOSE_PROJECT_NAME:-ai-fitting}-api:dev
     environment:
-      <<: *api-env
+      <<: [*api-env, *ai-env]
       # Sign-in (spec 0013 plan §8); the worker does not need it. Empty locally is allowed.
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
@@ -266,7 +277,8 @@ services:
       target: dev
     image: ${COMPOSE_PROJECT_NAME:-ai-fitting}-api:dev
     command: ['npm', 'run', 'start:worker:dev']
-    environment: *api-env
+    environment:
+      <<: [*api-env, *ai-env]
     volumes: *api-volumes
     depends_on: *infra-healthy
 

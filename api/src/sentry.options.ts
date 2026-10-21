@@ -5,6 +5,8 @@ import {
   onUnhandledRejectionIntegration,
 } from '@sentry/nestjs';
 
+import { OPENAI_ORIGIN } from './ai/openai-origin.js';
+
 // Sentry 11 collects user info, cookies, headers (X-Proxy-Secret among them), query parameters and
 // request/response bodies by default; reports from the api carry none of them (the request context
 // sets only the user's id), as web's
@@ -27,6 +29,10 @@ const dataCollection: NonNullable<NodeOptions['dataCollection']> = {
 // before Nest and its validated config exist.
 export function sentryOptions(env: NodeJS.ProcessEnv): NodeOptions {
   const storage = storageOrigin(env.S3_ENDPOINT);
+  // A request to OpenAI (spec 0019 plan §3) is cut the same way: its path names the endpoint only,
+  // but the query of a future call could carry more; the method and the origin tell enough.
+  const cutToOrigin = (breadcrumb: Breadcrumb) =>
+    withoutStoragePath(withoutStoragePath(breadcrumb, storage), OPENAI_ORIGIN);
   return {
     // `||`, not `??`: an empty value from compose means off.
     dsn: env.SENTRY_DSN || undefined,
@@ -43,7 +49,7 @@ export function sentryOptions(env: NodeJS.ProcessEnv): NodeOptions {
     // Console output of libraries would ride along with every later error of the process (the
     // worker has no scope per activity), whatever data it holds.
     beforeBreadcrumb: (breadcrumb) =>
-      breadcrumb.category === 'console' ? null : withoutStoragePath(breadcrumb, storage),
+      breadcrumb.category === 'console' ? null : cutToOrigin(breadcrumb),
     // Sentry's default ("warn") only logs an unhandled rejection, so a failed start of the server
     // or the worker would leave a process that is alive but does nothing. "strict" reports it and
     // exits, as Node does without Sentry, and the container restarts.
@@ -53,8 +59,11 @@ export function sentryOptions(env: NodeJS.ProcessEnv): NodeOptions {
       isThrottled(event) || isRedisCommand(event)
         ? null
         : withoutStoragePaths(
-            withoutRedisCommands(withoutUserAgent(withoutRequestData(event))),
-            storage,
+            withoutStoragePaths(
+              withoutRedisCommands(withoutUserAgent(withoutRequestData(event))),
+              storage,
+            ),
+            OPENAI_ORIGIN,
           ),
   };
 }

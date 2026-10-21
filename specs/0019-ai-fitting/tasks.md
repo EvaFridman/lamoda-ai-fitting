@@ -48,7 +48,7 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       (plan §2); `constraint-fields.ts` rows; the migration e2e.
       Check: `prisma migrate dev` on an empty and on a seeded database; `npm run verify`.
       Commit: `feat(api): add user photos, category slots and the file deletion outbox`
-- [ ] **T3. The OpenAI module and its settings.** `api/src/ai/`: settings from env
+- [x] **T3. The OpenAI module and its settings.** `api/src/ai/`: settings from env
       (`OPENAI_API_KEY`, `FITTING_*`), `OpenAiClient`, the `AI_PROVIDER` token with the real and
       the fake implementation, `PhotoChecker`, `PromptChecker`, `ModerationChecker`;
       `assertServerEnv` for api and worker; `.env.example`, `docker-compose.yml`,

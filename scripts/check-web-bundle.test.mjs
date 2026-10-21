@@ -82,6 +82,19 @@ describe('check-web-bundle', () => {
     });
   }
 
+  it('fails on the env name OPENAI_API_KEY (spec 0019 AC27)', () => {
+    put('chunks/fitting.js', 'process.env.OPENAI_API_KEY');
+    const result = check();
+    assert.equal(result.status, 1, result.stderr);
+    assert.match(result.stderr, /fitting\.js: OPENAI_API_KEY/);
+  });
+
+  it('passes the other fitting settings', () => {
+    put('chunks/fitting.js', 'process.env.FITTING_MODEL+process.env.FITTING_MONTHLY_LIMIT');
+    const result = check();
+    assert.equal(result.status, 0, result.stderr);
+  });
+
   it("passes Better Auth's env getter of BETTER_AUTH_SECRET (N53)", () => {
     put(
       'chunks/auth.js',

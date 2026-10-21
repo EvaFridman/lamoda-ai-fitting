@@ -791,6 +791,35 @@ deletion of files», с видом и id: их добавить в списки 
    (ниже). Секрет показывается при создании; новый выпускается там же, а старый удаляется
    после деплоя с новым.
 
+### AI-примерка (OpenAI)
+
+Проверки фото и текста (api) и генерация (воркер Temporal) идут напрямую в OpenAI (спека 0019 A4):
+модель картинок `gpt-image-2`, маленькая vision-модель `gpt-6-luna` и бесплатный endpoint
+модерации. Один ключ — секрет `OPENAI_API_KEY` (ниже); без него api и воркер в production не
+стартуют, а CD останавливается до сервера. Локально, в тестах и CI ключ пуст, и работает поддельный
+провайдер, который в OpenAI не ходит.
+
+1. **Ключ:** platform.openai.com → API keys → Create new secret key, отдельный ключ для этого
+   проекта (чтобы его можно было отозвать). Показывается один раз — сразу в GitHub (блок ниже).
+   Ключ без пробелов и символов ``$`"'\;&|<>()#~`` (у OpenAI их нет).
+2. **Доступность с сервера** (до начала фазы 2 спеки 0019, A4): сервер в России, которой нет в
+   списке стран OpenAI. На сервере без ключа:
+
+   ```bash
+   curl -sS -o /dev/null -w '%{http_code}\n' https://api.openai.com/v1/models
+   ```
+
+   `401` — api.openai.com доступен; `403` (в теле `unsupported_country_region_territory`) —
+   региональная блокировка, маршрут решает владелец, работа над генерацией не продолжается.
+
+3. **Настройки моделей и лимитов** — не секреты и не переменные GitHub: `FITTING_MODEL`
+   (`gpt-image-2`; `gpt-image-2.5-sunburst` — альтернатива без релиза), `FITTING_VISION_MODEL`
+   (`gpt-6-luna`), `FITTING_MONTHLY_LIMIT` (10 примерок в месяц), `FITTING_TIMEOUT_SECONDS` (180),
+   `FITTING_CHECK_TIMEOUT_MS` (4000, не больше половины `REQUEST_TIMEOUT_MS`) и
+   `FITTING_PHOTO_MAX_BYTES` (20 МБ, вместе с лимитом nginx маршрута загрузки). В production
+   действуют значения по умолчанию из `deploy/compose/app.yml` и `worker.yml`; меняются коммитом в
+   эти файлы (`.env` сервера CD переписывает).
+
 ### Environment `production` (GitHub)
 
 Окружение, в котором работают джоб деплоя и, при push в `main`, джоб сборки образов (ему нужен
@@ -879,6 +908,15 @@ Client secret клиента Google («Вход через Google»; gh спро
 
 ```bash
 gh secret set GOOGLE_CLIENT_SECRET --env production
+```
+
+Ключ OpenAI («AI-примерка (OpenAI)» выше; спека 0019): api и воркер в production без него не
+стартуют, CD останавливается. Без пробелов и символов ``$`"'\;&|<>()#~``, как ключи S3 ниже. Нужен
+уже первому деплою со спекой 0019 (CD проверяет его до сервера), то есть до слияния её фазы 1;
+генерация начинает ходить в OpenAI с фазы 2. gh спросит значение, ввод не отображается:
+
+```bash
+gh secret set OPENAI_API_KEY --env production
 ```
 
 Общий секрет nginx, web и api (заголовок `X-Proxy-Secret`): только с ним api верит адресу клиента и
@@ -987,7 +1025,7 @@ gh variable list
    `SENTRY_AUTH_TOKEN`, `PROXY_SECRET` (и `PROXY_SECRET_NEXT`, только во время смены),
    `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_SECRET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`,
    `BACKUP_READ_ACCESS_KEY_ID`, `BACKUP_READ_SECRET_ACCESS_KEY`, `BACKUP_WRITE_ACCESS_KEY_ID`,
-   `BACKUP_WRITE_SECRET_ACCESS_KEY`.
+   `BACKUP_WRITE_SECRET_ACCESS_KEY`, `OPENAI_API_KEY`.
 2. `DEPLOY_HOST`, `DEPLOY_USER`, `SITE_DOMAIN`, `POSTGRES_USER`, `POSTGRES_DB`, `MEDIA_BASE_URL`,
    `S3_ENDPOINT`, `S3_BUCKET`, `GOOGLE_CLIENT_ID`, `BACKUP_BUCKET`, `BACKUP_AGE_RECIPIENT`.
 3. Пусто.

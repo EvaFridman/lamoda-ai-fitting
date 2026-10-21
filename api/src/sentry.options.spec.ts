@@ -623,6 +623,58 @@ describe('sentryOptions with S3_ENDPOINT', () => {
   });
 });
 
+describe('sentryOptions with requests to OpenAI', () => {
+  const url = 'https://api.openai.com/v1/responses?x=1';
+
+  it('cuts a span of a request to OpenAI to the method and the origin', () => {
+    const event = {
+      type: 'transaction',
+      spans: [
+        {
+          description: `POST ${url}`,
+          data: {
+            'url.full': url,
+            'url.path': '/v1/responses',
+            'url.query': '?x=1',
+            'http.request.method': 'POST',
+          },
+        },
+      ],
+    } as unknown as TransactionEvent;
+
+    const result = sentryOptions({}).beforeSendTransaction?.(event, {}) as TransactionEvent;
+
+    expect(result.spans?.[0]?.description).toBe('POST https://api.openai.com');
+    expect(result.spans?.[0]?.data).toEqual({
+      'url.full': 'https://api.openai.com',
+      'http.request.method': 'POST',
+    });
+  });
+
+  it('cuts the url of an http breadcrumb to the origin', () => {
+    const crumb = sentryOptions({}).beforeBreadcrumb?.(
+      { category: 'http', data: { url, 'url.query': 'x=1', method: 'POST' } },
+      undefined,
+    );
+
+    expect(crumb?.data).toEqual({ url: 'https://api.openai.com', method: 'POST' });
+  });
+
+  it('cuts both the storage and OpenAI in one breadcrumb hook', () => {
+    const options = sentryOptions({ S3_ENDPOINT: 'http://s3:8333' });
+
+    expect(
+      options.beforeBreadcrumb?.(
+        { category: 'http', data: { url: 'http://s3:8333/bucket/a' } },
+        undefined,
+      )?.data,
+    ).toEqual({ url: 'http://s3:8333' });
+    expect(
+      options.beforeBreadcrumb?.({ category: 'http', data: { url } }, undefined)?.data,
+    ).toEqual({ url: 'https://api.openai.com' });
+  });
+});
+
 describe('the SDK with sentryOptions', () => {
   afterEach(async () => {
     await Sentry.close();
