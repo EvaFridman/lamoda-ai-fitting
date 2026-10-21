@@ -75,7 +75,7 @@ T11).
       Check: kit tests (keyboard, a click navigates); header test (four links, hrefs, none
       `aria-disabled`) (AC2); `npm run verify`.
       Commit: `feat(web): link the profile menu to the account`
-- [ ] **T9. The account pages (U5–U7, U10, U12, U13).** `app/customer/` with the `noindex`
+- [x] **T9. The account pages (U5–U7, U10, U12, U13).** `app/customer/` with the `noindex`
       layout; `widgets/account-shell` (menu, current section, invitation, narrow-screen list and
       way back); `_pages/customer`, `_pages/account-stubs`, `_pages/account-data` with its title only;
       `robots.txt`'s `/customer` (plan §5); the zone `account` with `account-menu.section`,

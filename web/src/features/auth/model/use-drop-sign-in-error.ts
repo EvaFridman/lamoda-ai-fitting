@@ -13,8 +13,9 @@ export interface SignInErrorParams {
 }
 
 // Drops a failed sign-in's `error` and `error_description` from the address (spec 0013 N54), signed
-// in or not, so a code left there never opens the login modal later, e.g. after a sign-out.
-export function useDropSignInError(): SignInErrorParams {
+// in or not, so a code left there never opens the login modal later, e.g. after a sign-out. With
+// `drop` false the address is left to another copy on the page that drops it.
+export function useDropSignInError(drop = true): SignInErrorParams {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -22,9 +23,9 @@ export function useDropSignInError(): SignInErrorParams {
   const rest = withoutSignInError(searchParams).toString();
 
   useEffect(() => {
-    if (code === null) return;
+    if (!drop || code === null) return;
     router.replace(rest ? `${pathname}?${rest}` : pathname, { scroll: false });
-  }, [code, rest, pathname, router]);
+  }, [drop, code, rest, pathname, router]);
 
   return { code, rest };
 }
