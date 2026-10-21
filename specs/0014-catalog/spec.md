@@ -4,7 +4,7 @@ Status: accepted (2026-10-19); amended 2026-10-19 at the plan after the owner's 
 the row of applied filters and the breadcrumbs (AC3, AC7, O5), search by article (AC8, O14);
 amended 2026-10-19 after the check against 0012, 0013 and 0015 (AC6, AC15, AC18, O33–O39);
 amended 2026-10-19 at the review of PR 1 (AC1, AC14, AC23, O40–O48) and its second round (AC14,
-O49, O50).
+O49, O50); amended 2026-10-21 at T13a (the taint deferred, O76).
 
 Issues #68 and #71. Decisions: `clarifications.md` (O1–O50).
 
@@ -26,7 +26,7 @@ page goes.
 - Indexes, a cache for the filter counts, the database pool with its timeouts (O17, O18, O36), a
   stable facets test (O38).
 - nginx's rate limit for pages and for `/media/`, and a full CSP (O19, O20, O24, O39).
-- The proxy secret tainted against reaching the browser (O37).
+- The proxy secret tainted against reaching the browser (O37); deferred to the backlog (O76).
 - Catalog analytics in the event catalog of spec 0015 (O22, O23, O35).
 - SEO and accessibility of the catalog (O25–O30, O32).
 - A development-only script for a large catalog (O13).

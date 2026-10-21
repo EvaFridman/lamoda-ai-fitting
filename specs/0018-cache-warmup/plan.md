@@ -1,7 +1,7 @@
 # 0018 page cache and warm-up on deploy: plan
 
 Status: accepted (2026-10-20); amended 2026-10-20 at the review of PR 1 (§2, §3's key, §4's bound
-and pace, §5, §9, §10).
+and pace, §5, §9, §10); amended 2026-10-21 after 0014 deferred the proxy secret's taint (O76).
 
 How [spec.md](spec.md) is built. Decisions: [clarifications.md](clarifications.md) (V1–V18).
 No new dependencies: web already has `ioredis` (`web/src/shared/redis/`), Next is 16.3.8.
@@ -77,7 +77,7 @@ ${REDIS_CACHE_MAXMEMORY:-128mb} --maxmemory-policy allkeys-lru`, no volume, `mem
   `cachedApiFetch` (`@/shared/api/server`): `apiFetch`'s path, timeout, schema and error steps,
   without the visitor's address, request id or `X-Proxy-Secret`. The api counts it under web's
   own address (V15). Its arguments are the query only. The header's profile, search and session
-  stay outside, as now. `PROXY_SECRET` is tainted (0014 T13a) and never reaches a cached
+  stay outside, as now. `PROXY_SECRET` (not tainted, 0014 O76) never reaches a cached
   function's arguments or closure, which Next would serialize into the entry and its key.
 - **Build (AC16).** Callers keep `await connection()` before the cached call, inside `<Suspense>`
   (`header-categories.tsx`, the catalog page, `sitemap.ts`), so `next build` calls none of them

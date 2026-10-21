@@ -2,7 +2,7 @@
 
 Status: accepted (2026-10-19); amended 2026-10-19 after the check against 0012, 0013 and 0015
 (T5, T9, T12, T13, T13a, T20, T23); amended 2026-10-19 at the review of PR 1 (T6, T10, T11, T24,
-O40–O48) and its second round (T10).
+O40–O48) and its second round (T10); amended 2026-10-21 at T13a (deferred, O76).
 Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## How the work flows
@@ -163,11 +163,11 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       sign-in's `error` left in the address for the login modal); the page renders the first batch
       from the server with no browser request (AC7, part); `npm run verify`.
       Commit: `feat(web): load the catalog from the url on the server`
-- [ ] **T13a. Tainted proxy secret.** `experimental_taintUniqueValue` on `PROXY_SECRET` and the
-      config flag (plan §3.2, O37); backlog "Taint the proxy secret".
-      Check: a test that passes the secret to a client component fails as expected; `npm run
-verify`; `check:web-bundle` still passes.
-      Commit: `feat(web): keep the proxy secret out of client props`
+- [x] **T13a. Tainted proxy secret, deferred.** The flag runs `app` on `react@experimental`, so
+      the taint is not taken (O76, plan §3.2); backlog "Taint the proxy secret" stays, its condition
+      updated. Documents only.
+      Check: `npm run format:check`.
+      Commit: `docs(specs): defer the proxy secret's taint`
 - [ ] **T14. The virtual grid.** `@tanstack/react-virtual` (version pinned per plan §3.3, approved
       in the commit message if it needs an install script); `widgets/product-grid`: rows by width,
       loading the next batch, the "Дальше" link, `?cursor=` rendering, return to the place, the

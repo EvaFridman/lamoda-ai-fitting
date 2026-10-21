@@ -122,9 +122,10 @@ removes it from this list. Found by the agents' first security audit and trial r
 - **Taint the proxy secret.** `check:web-bundle` finds the names of `PROXY_SECRET` in the browser
   bundle, but a server component that passes `getServerEnv()` (or the value) to a client component
   puts the secret into the page's HTML at request time (0007 H32). Taint it in `server-env.ts`
-  (`experimental_taintUniqueValue`, Next's `experimental.taint`), so such a render fails. Take it
-  with the first real page, when server components start passing props to client ones; check first
-  that the flag works on the Next version then in use.
+  (`experimental_taintUniqueValue`, Next's `experimental.taint`), so such a render fails. Deferred
+  by 0014 O76: on Next 16.3 the flag runs the whole `app` directory on `react@experimental`. Take
+  it when the taint API ships in stable React and the flag no longer switches the channel (Next's
+  `taint.md`).
 - **Footer links.** The footer copies Lamoda's items, but only the personal data policy has a page
   (0008 J22): each other item becomes a link when its page appears. The list is
   `widgets/footer/config/items.ts`.
