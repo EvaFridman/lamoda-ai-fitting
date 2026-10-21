@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { dehydrate, QueryClient, queryOptions } from '@tanstack/react-query';
+import { dehydrate, infiniteQueryOptions, QueryClient, queryOptions } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
@@ -11,7 +11,7 @@ vi.mock('@/shared/config/server', () => ({
 vi.mock('@sentry/nextjs', () => ({ captureException: vi.fn() }));
 
 import { ApiError, buildPath } from './index';
-import { prefetch } from './prefetch';
+import { prefetch, prefetchInfinite } from './prefetch';
 import { apiFetch } from './server';
 
 const ID = '3f2b8c1e-5a4d-4e6f-8a9b-0c1d2e3f4a5b';
@@ -42,6 +42,52 @@ const fetchMock = vi.fn();
 beforeEach(() => {
   fetchMock.mockReset();
   vi.stubGlobal('fetch', fetchMock);
+});
+
+const pagedSchema = z.object({ items: z.array(brandSchema), nextCursor: z.string().nullable() });
+
+const brandBatchOptions = () =>
+  infiniteQueryOptions({
+    queryKey: ['test', 'brand-batches'],
+    queryFn: ({ pageParam }) =>
+      apiFetch(buildPath('/brands', {}, { cursor: pageParam ?? undefined }), pagedSchema),
+    initialPageParam: null as string | null,
+    getNextPageParam: (last) => last.nextCursor,
+  });
+
+describe('prefetchInfinite', () => {
+  it('returns undefined and dehydrates the first page only', async () => {
+    fetchMock.mockImplementation(() =>
+      Promise.resolve(new Response(JSON.stringify({ items: [brand], nextCursor: 'c1' }))),
+    );
+    const client = new QueryClient();
+    await expect(prefetchInfinite(client, brandBatchOptions())).resolves.toBeUndefined();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(new URL(String(fetchMock.mock.calls[0]?.[0])).searchParams.has('cursor')).toBe(false);
+    const { queries } = dehydrate(client);
+    expect(queries).toHaveLength(1);
+    expect(queries[0]?.queryKey).toEqual(['test', 'brand-batches']);
+    expect(queries[0]?.state.data).toEqual({
+      pages: [{ items: [brand], nextCursor: 'c1' }],
+      pageParams: [null],
+    });
+  });
+
+  it('returns the ApiError without retrying, and dehydrates nothing', async () => {
+    fetchMock.mockImplementation(() => Promise.resolve(new Response('{}', { status: 503 })));
+    const client = new QueryClient({ defaultOptions: { queries: { retry: 3, retryDelay: 0 } } });
+    const result = await prefetchInfinite(client, brandBatchOptions());
+    expect(result).toBeInstanceOf(ApiError);
+    expect(result).toMatchObject({ kind: 'http', status: 503 });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(dehydrate(client).queries).toHaveLength(0);
+  });
+
+  it('returns a schema error as the error', async () => {
+    fetchMock.mockImplementation(() => Promise.resolve(new Response(JSON.stringify({ items: 1 }))));
+    const result = await prefetchInfinite(new QueryClient(), brandBatchOptions());
+    expect(result).toMatchObject({ kind: 'schema' });
+  });
 });
 
 describe('prefetch', () => {

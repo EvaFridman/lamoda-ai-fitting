@@ -22,6 +22,18 @@ describe('entities/product public entry', () => {
     }
   });
 
+  it('exports the infinite list hook, options and limits', async () => {
+    const entry = await import('./index');
+    for (const name of ['useProductBatches', 'productInfiniteOptions']) {
+      expect(typeof (entry as Record<string, unknown>)[name], name).toBe('function');
+    }
+    expect(entry.PRODUCT_SEARCH_MAX_LENGTH).toBe(100);
+    expect(entry.PRODUCT_SIZE_MAX_LENGTH).toBe(20);
+    expect(entry.PRODUCT_MAX_PRICE).toBe(99_999_999.99);
+    expect(entry.PRODUCT_FILTER_MAX_VALUES).toBe(50);
+    expect('getProductBatch' in entry).toBe(false);
+  });
+
   it('exports the filter, size and sort helpers', async () => {
     const entry = await import('./index');
     for (const name of ['chipValue', 'splitFacetAttributes', 'compareSizes', 'sortSizes']) {

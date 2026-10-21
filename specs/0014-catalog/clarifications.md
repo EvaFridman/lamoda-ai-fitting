@@ -416,3 +416,36 @@ Second round, on the review of `4817711`:
   owner weighed and rejected: accept that no rollback past PR 3 is possible and say so in `deploy/README.md`; no code,
   but a broken PR 3 would be left by a revert through CI and CD, or by hand on the server.
   (code-reviewer, owner, T12.)
+
+## Decided at T13
+
+- **O71. The deploy checks want a product from the api.** With products on `/catalog`,
+  `smoke-test.sh` wants at least one product card on it (the card's `<article`), not a product of
+  the seed by name, so removing a seed product never fails a deploy. `/catalog/dresses` keeps its
+  check of "Платья" (O69), the category's name from the api. `request-loop.sh` stays on
+  `/catalog/dresses` and wants both its heading and a card. The alternative weighed: a seed
+  product's name, more specific but tied to the seed. (Owner, T13.)
+- **O72. A cursor the api refuses shows the first batch.** A `?cursor=` the list answers 400
+  `INVALID_CURSOR` (O54: malformed, another sort's, empty) renders the first batch of the same
+  filters and sort, not the error state, so a batch link saved before a change of the sort does not
+  look broken. The address is not rewritten. T13 parses `cursor` into the URL state but renders the
+  first batch for any cursor; T14, which renders `?cursor=`, applies this rule. The alternative
+  weighed: the error state. (Owner, T13.)
+- **O73. The category comes from the path only.** The address's query never sets `categoryId`:
+  `/catalog?categoryId=…` shows the whole catalog and `/catalog/<slug>?categoryId=…` its own
+  category, so one selection has one address, the canonical one of O26. A category is a page, not
+  a filter: the catalog's categories are links to `/catalog/<slug>`, and
+  `Catalog Filter Applied` has no `category` value (plan §3.6; `catalog.category` counts the
+  clicks). The cost: no choice of several categories at once, which the spec does not ask for; a
+  later spec that wants it adds the parameter and its rule against the path. The alternative
+  weighed: `categoryId` as a query filter. (code-reviewer, owner, T13.)
+- **O74. A batch the server could not load is requested again by the browser.** When the server's
+  first batch fails, the page renders the error text and still mounts the browser's list, which
+  requests the batch (retrying a network error or a 503 twice, `shouldRetry`) and replaces the text
+  with the products; without JavaScript the text stays. A category whose read fails still shows
+  only the error. The alternative weighed: the error until a reload. (code-reviewer, owner, T13.)
+- **O75. No prefetch of the card links while no product page exists.** The cards link to
+  `/products/<id>` (O7), which answers 404 until the product page's spec; `CatalogProductCard`
+  takes `prefetch` and the catalog passes `false`, or Next would request every visible card's
+  page in production. Backlog "Product card link" turns it back on with that page. (code-reviewer,
+  owner, T13.)

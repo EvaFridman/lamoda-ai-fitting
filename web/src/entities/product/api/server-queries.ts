@@ -1,13 +1,15 @@
 import 'server-only';
 
-import { queryOptions } from '@tanstack/react-query';
+import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
 
 import { buildPath, type PageQuery } from '@/shared/api';
 import { apiFetch } from '@/shared/api/server';
 
 import {
+  productBatchQuery,
   productFilters,
   productListQuery,
+  type ProductBatchQuery,
   type ProductFilters,
   type ProductListQuery,
 } from '../model/filters';
@@ -30,6 +32,14 @@ import { productKeys, productPageQuery } from './keys';
 // GET /products.
 export async function getProducts(query: ProductListQuery = {}): Promise<ProductList> {
   return apiFetch(buildPath('/products', {}, productListQuery(query)), productListSchema);
+}
+
+// GET /products, one batch of the infinite list: the first with no cursor.
+export async function getProductBatch(
+  query: ProductBatchQuery = {},
+  cursor: string | null = null,
+): Promise<ProductList> {
+  return apiFetch(buildPath('/products', {}, productBatchQuery(query, cursor)), productListSchema);
 }
 
 // GET /products/facets: the filter counts for the same filters, without the page and the order.
@@ -77,6 +87,16 @@ export async function getProductAttributeValues(
 
 export function productListOptions(query: ProductListQuery = {}) {
   return queryOptions({ queryKey: productKeys.list(query), queryFn: () => getProducts(query) });
+}
+
+// The browser's `productInfiniteOptions` with the same key and page params, for `prefetchInfinite`.
+export function productInfiniteOptions(query: ProductBatchQuery = {}) {
+  return infiniteQueryOptions({
+    queryKey: productKeys.infinite(query),
+    queryFn: ({ pageParam }) => getProductBatch(query, pageParam),
+    initialPageParam: null as string | null,
+    getNextPageParam: (last) => last.nextCursor,
+  });
 }
 
 export function productFacetsOptions(filters: ProductFilters = {}) {

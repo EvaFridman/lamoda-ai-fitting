@@ -153,7 +153,9 @@ removes it from this list. Found by the agents' first security audit and trial r
   and checks what `strip-attributes.ts` and the recordings' image blocking already cover.
 - **Product card link.** `CatalogProductCard` (0009 K15) takes its link address as a prop: no
   product page exists yet. The spec that places the card on a page passes the address; once the
-  product page exists, its spec decides whether the card builds the address itself.
+  product page exists, its spec decides whether the card builds the address itself, and turns
+  the link's prefetch back on: the catalog passes `prefetch={false}` while `/products/<id>` is a
+  404 (spec 0014 O75).
 - **Mobile filters.** The kit's filters and the catalog filters of 0009 are desktop dropdowns only
   (0003 D9, 0009 K16); on a phone Lamoda shows them in a bottom sheet. Build it with the catalog
   page spec.

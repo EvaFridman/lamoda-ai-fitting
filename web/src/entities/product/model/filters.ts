@@ -6,6 +6,13 @@ export const PRODUCT_SORTS = ['new', 'price_asc', 'price_desc', 'discount', 'rat
 
 export type ProductSort = (typeof PRODUCT_SORTS)[number];
 
+// The api's limits on the filters (`SEARCH_MAX_LENGTH`, `SIZE_MAX_LENGTH`, `MAX_PRICE`,
+// `MAX_QUERY_LIST_VALUES` of `common/validation/rules.ts`), in characters, not UTF-16 units.
+export const PRODUCT_SEARCH_MAX_LENGTH = 100;
+export const PRODUCT_SIZE_MAX_LENGTH = 20;
+export const PRODUCT_MAX_PRICE = 99_999_999.99;
+export const PRODUCT_FILTER_MAX_VALUES = 50;
+
 // The filters GET /products and GET /products/facets share. Arrays go out as repeated keys.
 export interface ProductFilters {
   categoryId?: readonly string[];
@@ -22,6 +29,9 @@ export interface ProductFilters {
 export interface ProductListQuery extends ProductFilters, PageQuery {
   sort?: ProductSort;
 }
+
+// The infinite list: batches by cursor, never by offset (spec 0014 O11).
+export type ProductBatchQuery = Omit<ProductListQuery, 'offset'>;
 
 // Trimmed, and an empty search or list is no filter: the api refuses `q=`, `size=` and untrimmed
 // text (400), and `['']` or `[]` must share `{}`'s key.
@@ -61,4 +71,9 @@ export function productFilters({
 export function productListQuery(query: ProductListQuery = {}) {
   const { limit, offset, sort } = query;
   return { ...productFilters(query), limit, offset, sort };
+}
+
+// One batch of the infinite list: the first with no cursor, the next after `cursor`.
+export function productBatchQuery(query: ProductBatchQuery, cursor: string | null) {
+  return { ...productListQuery({ ...query, offset: undefined }), cursor: cursor ?? undefined };
 }
