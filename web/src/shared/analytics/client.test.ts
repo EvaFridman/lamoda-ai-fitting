@@ -144,6 +144,32 @@ describe('analytics client', () => {
     });
   });
 
+  it('sends a beacon at once with sendNow, and only two arguments without it', async () => {
+    const client = await load('tok');
+    await client.startAnalytics();
+    client.track('Account Deleted', {}, { sendNow: true });
+    expect(sdk.track).toHaveBeenLastCalledWith(
+      'Account Deleted',
+      {},
+      { transport: 'sendBeacon', send_immediately: true },
+    );
+    client.track('Account Deleted', {}, {});
+    expect(sdk.track.mock.calls[1]).toEqual(['Account Deleted', {}]);
+    client.track('Account Deleted', {}, { sendNow: false });
+    expect(sdk.track.mock.calls[2]).toEqual(['Account Deleted', {}]);
+    client.track('Account Deleted', {});
+    expect(sdk.track.mock.calls[3]).toEqual(['Account Deleted', {}]);
+  });
+
+  it('sendNow is a no-op before start and after stop', async () => {
+    const client = await load('tok');
+    client.track('Account Deleted', {}, { sendNow: true });
+    await client.startAnalytics();
+    client.stopAnalytics();
+    client.track('Account Deleted', {}, { sendNow: true });
+    expect(sdk.track).not.toHaveBeenCalled();
+  });
+
   it('does not opt in when the SDK is not opted out', async () => {
     const client = await load('tok');
     await client.startAnalytics();

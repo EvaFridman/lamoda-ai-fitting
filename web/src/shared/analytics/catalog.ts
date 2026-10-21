@@ -147,6 +147,14 @@ export const catalog = defineCatalog({
       perVisit: 0.01,
       properties: {},
     },
+    'Account Deleted': {
+      zone: 'account',
+      type: 'interaction',
+      description:
+        'Аккаунт удалён: после ответа api, до того как SDK забудет пользователя, поэтому приходит с его id. `Signed Out` вместе с ним не отправляется.',
+      perVisit: 0.001,
+      properties: {},
+    },
   },
   elements: {
     'ui-kit.button-primary': {
@@ -213,6 +221,21 @@ export const catalog = defineCatalog({
         'Кнопка «Войти» в приглашении, которое видит вышедший посетитель вместо раздела кабинета.',
       clicksPerVisit: 0.01,
       hoversPerVisit: 0.01,
+    },
+    'account-delete.open': {
+      zone: 'account',
+      type: 'interaction',
+      description: '«Удалить аккаунт» на странице «Мои данные»: открывает подтверждение.',
+      clicksPerVisit: 0.003,
+      hoversPerVisit: 0.005,
+    },
+    'account-delete.cancel': {
+      zone: 'account',
+      type: 'interaction',
+      description:
+        '«Отмена» в подтверждении удаления. Закрытие по Esc, крестику или фону не отправляется: это открытия минус удаления и отмены.',
+      clicksPerVisit: 0.002,
+      hoversPerVisit: 0.002,
     },
   },
 });

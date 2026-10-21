@@ -158,3 +158,22 @@ from the menus with the same suffix ("Мои заказы — Lamoda AI Fitting"
 **U24. The invitation's title is the section's.** Plan §5's invitation has "a title, a line of
 text and a Button": its title is the section's own heading ("Мои заказы"), shown in every state of
 the session, so the visitor sees where they are; the line is U18's text. No heading of its own.
+
+## Added in T11
+
+**U25. A deletion answered 401 ends as one that succeeded.** `DELETE /me` answers 401 when the
+session is already gone: the account deleted in another tab within the 5 minutes of the session's
+signed copy (0013 N18), or the session ended there. The tab then forgets the user as after a
+deletion (`reset()` and a full load of the home page), without `Account Deleted`, which the other
+tab sent. Any other failure keeps the modal open with its text. Found by the QA and security
+reviews of T11. That 401 is expected, so it is not reported to Sentry: `clientFetch` takes
+`{ expectedStatus }`, a status still thrown as an `ApiError` but not reported, and `deleteMe`
+passes 401 (found by the code review of T11). A 5xx is reported even when passed there, so the
+option cannot hide an outage (security review of T11).
+
+**U26. The deletion modal opens with the focus on "Отмена".** Not on "Удалить", so a stray Enter
+or Space does not delete the account. The kit's `Modal` takes the element to focus first.
+
+**U27. `CLAUDE.md`'s analytics section changes with T11.** Its "`identify` and `reset` are called
+only by `useSignInAnalytics`" stops being true in T11's commit (`DeleteAccount` calls `reset`), so
+that sentence is fixed there; the rest of `CLAUDE.md` stays with T12.

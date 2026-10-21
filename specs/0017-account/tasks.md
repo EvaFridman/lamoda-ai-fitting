@@ -96,7 +96,7 @@ T11).
       (AC7–AC10, AC12); `qa-tester`: save, reload, the header's name, the api stopped, attributes
       free of personal data (AC8, AC12, AC15); `npm run verify`.
       Commit: `feat(web): let a user edit their own data`
-- [ ] **T11. Account deletion (U4, U17).** `features/delete-account`; `track`'s `{ sendNow }`
+- [x] **T11. Account deletion (U4, U17).** `features/delete-account`; `track`'s `{ sendNow }`
       (a beacon, plan §5); `account-delete.open`,
       `account-delete.cancel`, `Account Deleted` in the catalog. The backlog loses "The "Мои
       данные" page" and gains "A deleted user's history in Mixpanel" (plan §8).

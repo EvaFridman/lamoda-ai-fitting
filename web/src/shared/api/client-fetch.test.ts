@@ -166,6 +166,57 @@ describe('clientFetch with a null schema', () => {
   });
 });
 
+describe('clientFetch with an expected status', () => {
+  const unauthorized = (): Response =>
+    jsonResponse({ error: { code: 'UNAUTHORIZED', message: 'm', details: [] } }, 401);
+
+  it('throws the expected status as an ApiError without reporting it', async () => {
+    fetchMock.mockResolvedValue(unauthorized());
+    await expect(
+      clientFetch(THINGS, null, undefined, { expectedStatus: 401 }),
+    ).rejects.toMatchObject({ kind: 'http', status: 401, code: 'UNAUTHORIZED' });
+    expect(capture).not.toHaveBeenCalled();
+  });
+
+  it('reports the same status when it is not the expected one', async () => {
+    fetchMock.mockResolvedValue(unauthorized());
+    await expect(clientFetch(THINGS, null)).rejects.toMatchObject({ status: 401 });
+    expect(capture).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports another http status', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ error: { code: 'SERVICE_UNAVAILABLE' } }, 503));
+    await expect(
+      clientFetch(THINGS, null, undefined, { expectedStatus: 401 }),
+    ).rejects.toMatchObject({ kind: 'http', status: 503 });
+    expect(capture).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports a 5xx even when it is the expected status', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ error: { code: 'SERVICE_UNAVAILABLE' } }, 503));
+    await expect(
+      clientFetch(THINGS, null, undefined, { expectedStatus: 503 }),
+    ).rejects.toMatchObject({ kind: 'http', status: 503 });
+    expect(capture).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports a network error', async () => {
+    fetchMock.mockRejectedValue(new TypeError('Failed to fetch'));
+    await expect(
+      clientFetch(THINGS, null, undefined, { expectedStatus: 401 }),
+    ).rejects.toMatchObject({ kind: 'network' });
+    expect(capture).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports a schema failure even when the status matches no error', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ ok: 'yes' }));
+    await expect(
+      clientFetch(THINGS, schema, undefined, { expectedStatus: 200 }),
+    ).rejects.toMatchObject({ kind: 'schema' });
+    expect(capture).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('clientFetch without AbortSignal.any', () => {
   beforeEach(() => {
     vi.stubGlobal(

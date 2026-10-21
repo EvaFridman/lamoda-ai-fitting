@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/nextjs';
 import { QueryClient } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -33,12 +34,20 @@ function call(): { url: URL; init: RequestInit } {
   return { url: new URL(String(url)), init };
 }
 
+// The report throttle lives as long as the module: each test starts past every earlier window.
+let clock = Date.now();
+
 beforeEach(() => {
+  clock += 10 * 60_000;
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(clock);
+  vi.mocked(Sentry.captureException).mockReset();
   fetchMock.mockReset();
   vi.stubGlobal('fetch', fetchMock);
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
@@ -110,12 +119,42 @@ describe('deleteMe', () => {
     expect(init.body).toBeUndefined();
   });
 
-  it('fails as http for a 401', async () => {
+  it('fails as http for a 401 and does not report it', async () => {
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify({ error: { code: 'UNAUTHORIZED', message: 'm', details: [] } }), {
         status: 401,
       }),
     );
     await expect(deleteMe()).rejects.toMatchObject({ kind: 'http', status: 401 });
+    expect(Sentry.captureException).not.toHaveBeenCalled();
+  });
+
+  it('still reports a 503', async () => {
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({ error: { code: 'SERVICE_UNAVAILABLE', message: 'm', details: [] } }),
+        { status: 503 },
+      ),
+    );
+    await expect(deleteMe()).rejects.toMatchObject({ kind: 'http', status: 503 });
+    expect(Sentry.captureException).toHaveBeenCalledTimes(1);
+  });
+
+  it('still reports a network error', async () => {
+    fetchMock.mockRejectedValue(new TypeError('Failed to fetch'));
+    await expect(deleteMe()).rejects.toMatchObject({ kind: 'network' });
+    expect(Sentry.captureException).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('updateMe reporting', () => {
+  it('reports a 401 (only deleteMe expects it)', async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ error: { code: 'UNAUTHORIZED', message: 'm', details: [] } }), {
+        status: 401,
+      }),
+    );
+    await expect(updateMe({})).rejects.toMatchObject({ status: 401 });
+    expect(Sentry.captureException).toHaveBeenCalledTimes(1);
   });
 });

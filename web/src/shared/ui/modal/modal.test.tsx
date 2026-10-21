@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useRef } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { Button, Modal, ModalClose } from '@/shared/ui';
@@ -9,6 +10,20 @@ type User = ReturnType<typeof userEvent.setup>;
 // Base UI turns pointer events off on the page while a modal is open and the styles that give them
 // back to the dialog are not loaded in jsdom, so user-event's pointer-events check is off.
 const setup = () => userEvent.setup({ pointerEventsCheck: 0 });
+
+function TwoButtons({ useInitialFocus }: { useInitialFocus: boolean }) {
+  const secondRef = useRef<HTMLButtonElement>(null);
+  return (
+    <Modal
+      trigger={<Button>Удалить</Button>}
+      title="Удалить товар?"
+      initialFocus={useInitialFocus ? secondRef : undefined}
+    >
+      <Button>Первая</Button>
+      <Button ref={secondRef}>Вторая</Button>
+    </Modal>
+  );
+}
 
 function Example({ onOpenChange }: { onOpenChange?: (open: boolean) => void }) {
   return (
@@ -83,6 +98,23 @@ describe('Modal', () => {
       expect(screen.getByRole('dialog')).toContainElement(document.activeElement as HTMLElement),
     );
     expect(trigger).not.toHaveFocus();
+  });
+
+  it('focuses the first focusable element by default', async () => {
+    const user = setup();
+    render(<TwoButtons useInitialFocus={false} />);
+    await open(user, 'click');
+
+    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Первая' })).toHaveFocus());
+  });
+
+  it('focuses the element given as initialFocus when it opens', async () => {
+    const user = setup();
+    render(<TwoButtons useInitialFocus />);
+    await open(user, 'click');
+
+    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Вторая' })).toHaveFocus());
+    expect(screen.getByRole('button', { name: 'Первая' })).not.toHaveFocus();
   });
 
   it('hides the content outside from assistive technology while open', async () => {

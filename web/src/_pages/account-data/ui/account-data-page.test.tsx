@@ -86,6 +86,7 @@ describe('AccountDataPage', () => {
     expect(container.querySelector('[aria-busy="true"]')).not.toBeNull();
     expect(screen.queryByRole('form')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Сохранить' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Удалить аккаунт' })).not.toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(new URL(String(fetchMock.mock.calls[0]?.[0])).pathname).toBe('/api/me');
   });
@@ -98,6 +99,7 @@ describe('AccountDataPage', () => {
     expect(screen.getByRole('textbox', { name: 'Дата рождения' })).toHaveValue('12.05.1990');
     expect(screen.getByRole('button', { name: 'Сохранить' })).toBeDisabled();
     expect(screen.getByText(me.email)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Удалить аккаунт' })).toBeInTheDocument();
   });
 
   it('shows the error text of a failed read, and "Повторить" reads it again', async () => {
@@ -115,6 +117,7 @@ describe('AccountDataPage', () => {
       'Сервис временно недоступен, попробуйте позже',
     );
     expect(screen.queryByRole('button', { name: 'Сохранить' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Удалить аккаунт' })).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'Повторить' }));
     expect(await screen.findByRole('textbox', { name: 'Имя' })).toHaveValue('Ева');

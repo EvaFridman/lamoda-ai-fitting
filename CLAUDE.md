@@ -356,7 +356,8 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   network error, a timeout, a schema failure, a 5xx or a 401 to Sentry (`report.ts`), one event per
   cause (kind, method, route template, and an `http` answer's status) per 60 s, counted per server
   process or browser tab; other 4xx, 429, refused paths and a status the caller expects
-  (`callAuth`'s `acceptStatus`: the 401 of `revoke-sessions`) are not reported. A component that
+  (`callAuth`'s `acceptStatus`: the 401 of `revoke-sessions`; `clientFetch`'s `expectedStatus`,
+  still thrown: the 401 of `DELETE /me`, spec 0017 U25) are not reported. A component that
   catches an error renders it with `errorText` and passes it to `reportFailure` (an `ApiError` is
   already reported, anything else is sent then). A page loads data on the server with `prefetch`
   (`@/shared/api/server`, which returns a failure instead of throwing) into a `HydrationBoundary`,
@@ -419,8 +420,11 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   as a decline until the page reloads); the banner and "Настройки cookies" render only with a token.
   Sign-in (spec 0013 N13): `client.ts`'s `identify(id, { signedIn })` ties the SDK to the user's id
   only (no email or name), now or at the next start after consent, and with `signedIn` sends
-  `Signed In` after it; `reset()` forgets the user. Both are called only by
-  `useSignInAnalytics` (`features/auth`, mounted once by the header's profile icon): `identify` on
+  `Signed In` after it; `reset()` forgets the user. `identify` is called only by
+  `useSignInAnalytics`, `reset` by it, by `SignOutItems` (`features/auth`, after `Signed Out`) and
+  by `DeleteAccount` (`features/delete-account`, before its full load of the home page, after
+  `Account Deleted` or, on a 401, without it, spec 0017 U25).
+  `useSignInAnalytics` (`features/auth`, mounted once by the header's profile icon) calls `identify` on
   every page load with a session, `reset` whenever the session is `signed-out` and not `failed`, so
   every real end (a sign-out here, in another tab or browser, an expiry) forgets the user and a
   failed read does not. An identity left by another user is reset before `identify`. Its events

@@ -1,6 +1,7 @@
 'use client';
 
 import { UserInitials, useMe } from '@/entities/user';
+import { DeleteAccount } from '@/features/delete-account';
 import { ProfileForm } from '@/features/edit-profile';
 import { errorText } from '@/shared/api';
 import { Button, Skeleton } from '@/shared/ui';
@@ -29,6 +30,7 @@ function AccountData() {
         <UserInitials user={me.data} />
         {/* Another user's answer starts a new form: the typed values are the user's own. */}
         <ProfileForm key={me.data.id} user={me.data} />
+        <DeleteAccount />
       </div>
     );
   }

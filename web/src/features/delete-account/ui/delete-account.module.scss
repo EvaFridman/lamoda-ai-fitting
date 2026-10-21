@@ -1,0 +1,13 @@
+// "Удалить аккаунт" at its own width, in the page's text size, like the kit's links; the failure's
+// text in the kit's error colour.
+
+.trigger {
+  align-self: flex-start;
+}
+
+.error {
+  margin: 0;
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  color: var(--color-error);
+}
