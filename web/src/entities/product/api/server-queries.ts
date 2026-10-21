@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
+import { cache } from 'react';
 
 import { buildPath, type PageQuery } from '@/shared/api';
 import { apiFetch } from '@/shared/api/server';
@@ -42,9 +43,21 @@ export async function getProductBatch(
   return apiFetch(buildPath('/products', {}, productBatchQuery(query, cursor)), productListSchema);
 }
 
+// One request per path within a server render: the catalog's metadata and its page ask for the
+// same counts (spec 0014 O107). Keyed by the path's string, since `cache` compares its arguments
+// by reference and two filter objects never meet.
+const facetsRequests = cache(() => new Map<string, Promise<ProductFacets>>());
+
 // GET /products/facets: the filter counts for the same filters, without the page and the order.
 export async function getProductFacets(filters: ProductFilters = {}): Promise<ProductFacets> {
-  return apiFetch(buildPath('/products/facets', {}, productFilters(filters)), productFacetsSchema);
+  const path = buildPath('/products/facets', {}, productFilters(filters));
+  const requests = facetsRequests();
+  let request = requests.get(path.path);
+  if (request === undefined) {
+    request = apiFetch(path, productFacetsSchema);
+    requests.set(path.path, request);
+  }
+  return request;
 }
 
 // GET /products/:id.

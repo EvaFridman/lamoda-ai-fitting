@@ -625,3 +625,14 @@ build` passes. (owner, T19.)
   the document's address). A move to a category with the same `q`, Back or Forward, a reload and
   a filter change are not searches; a start from a cursor sends nothing (O44). (owner, T20
   review.)
+
+## Decided at the review of PR 3
+
+- **O106. `@tanstack/react-virtual` is pinned to `~3.14.21`.** Plan §3.3 says 3.14.x and the grid
+  reads `itemSizeCache`, which the documented API does not name: a minor release could change it
+  unseen by the tests, whose virtualizer is mocked. A move to 3.15 is its own change, checked in a
+  browser. (owner, PR #96 review.)
+- **O107. One counts request per page view.** `generateMetadata` (the description's count on an
+  indexed address) and the page's prefetch ask for the same `GET /products/facets`; the server's
+  `getProductFacets` keeps one request per path within a render (`cache` of a map, keyed by the
+  path's string), so a view costs the visitor's quota one read, not two. (PR #96 review.)
