@@ -188,7 +188,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       "Mobile filters".
       Check: Vitest of the drawer applying to the URL; `qa-tester` at 375 px (AC4); `npm run verify`.
       Commit: `feat(web): show the catalog filters in a drawer on phones`
-- [ ] **T17. Header search and categories.** `features/header-search` opens `/catalog?q=` (O15), with
+- [x] **T17. Header search and categories.** `features/header-search` opens `/catalog?q=` (O15), with
       the placeholder "Товар, бренд или артикул" (O14); the header categories become links (O16).
       Check: Vitest of both (AC9); `qa-tester` from `/privacy`; `npm run verify`.
       Commit: `feat(web): search and browse the catalog from the header`

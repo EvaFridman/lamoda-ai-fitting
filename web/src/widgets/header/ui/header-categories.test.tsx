@@ -64,17 +64,32 @@ describe('HeaderCategories', () => {
     expect(reportFailureMock).not.toHaveBeenCalled();
   });
 
-  it('renders no links', async () => {
+  it('renders each category as a link to its catalog page, in the api order', async () => {
     getCategoriesMock.mockResolvedValue({
       items: [category('1', 'Обувь', 1), category('2', 'Одежда', 2)],
       total: 2,
     });
 
-    const { container } = render(await HeaderCategories());
+    render(await HeaderCategories());
 
-    expect(screen.queryByRole('link')).not.toBeInTheDocument();
-    expect(container.querySelector('[href]')).toBeNull();
-    expect(container.querySelector('a')).toBeNull();
+    const links = screen.getAllByRole('link');
+    expect(links.map((link) => link.textContent)).toEqual(['Обувь', 'Одежда']);
+    expect(screen.getByRole('link', { name: 'Обувь' })).toHaveAttribute('href', '/catalog/slug-1');
+    expect(screen.getByRole('link', { name: 'Одежда' })).toHaveAttribute('href', '/catalog/slug-2');
+  });
+
+  it('encodes a slug into one path segment', async () => {
+    getCategoriesMock.mockResolvedValue({
+      items: [{ ...category('1', 'Особая', 1), slug: 'a/b?c d#é' }],
+      total: 1,
+    });
+
+    render(await HeaderCategories());
+
+    expect(screen.getByRole('link', { name: 'Особая' })).toHaveAttribute(
+      'href',
+      '/catalog/a%2Fb%3Fc%20d%23%C3%A9',
+    );
   });
 
   it.each([
