@@ -1,7 +1,7 @@
 # 0018 page cache and warm-up on deploy: clarifications
 
 Status: accepted (2026-10-20); amended 2026-10-20 at the plan (V10's figures, V15) and at the
-review of PR 1 (V7, V9, V12, V15, V16–V18); amended 2026-10-21 at T4 (V19, V20) and at T5 (V19: no push before the pull request).
+review of PR 1 (V7, V9, V12, V15, V16–V18); amended 2026-10-21 at T4 (V19, V20), at T5 (V19: no push before the pull request) and at T6 (V19: T6 before 0014 too; V21, V22).
 
 The owner's decisions for this spec. Ids `V1`, `V2`, … are referred to by the spec, the plan and
 code comments. All decisions below: owner, 2026-10-20.
@@ -157,10 +157,11 @@ without it. The owner weighed starting it apart, with a warning only.
 
 ## Added at T4
 
-**V19. T4 and T5 before spec 0014 closes.** Neither needs 0014's routes: T4 changes only the
-infrastructure and T5 only the api's filter-counts cache, which is on `main`. Both are done early,
+**V19. T4–T6 before spec 0014 closes.** None needs 0014's routes: T4 changes only the
+infrastructure, T5 only the api's filter-counts cache, which is on `main`, and T6 only adds the
+page cache's handler, which nothing calls until T7 (amended at T6). All three are done early,
 committed on `feat/0018-page-cache`, but the pull request is not opened until spec 0014 is closed
-and the branch is rebased on a `main` with its routes; T6 onwards wait for that too. The branch is
+and the branch is rebased on a `main` with its routes; T7 onwards wait for that too. The branch is
 not pushed before then: its first push is the one that opens the pull request (amended at T5; until
 then its commits exist only on the owner's machine).
 `ci-deploy-check.sh` first runs the new `redis-cache` when the pull request opens; locally only
@@ -174,3 +175,24 @@ and could push the container past its 128 MB limit (T4's review). This takes bac
 volume stays". The owner weighed a higher `mem_limit` (about 192 MB) and keeping the snapshots,
 checked by the memory peak in T5's e2e. The removal of backlog "Redis memory limit" moves from T4
 to T5, which takes the filter counts out of this Redis.
+
+## Added at T6
+
+**V21. The handler's logic runs as TypeScript in plain Node; web's own Redis client goes.** Next
+imports `web/cache-handlers/redis.mjs` by path, outside the bundle, so it reaches the logic in
+`web/src/shared/page-cache/handler.mts` through Node 26's type stripping: that file imports only
+types and holds no `server-only`, `@/` alias or enum, and the `.mjs` reads `REDIS_CACHE_URL` from
+the environment itself. `web/src/shared/redis/` (`getRedis`, on `REDIS_URL`) is removed: nothing
+imported it, and the handler, outside the bundle, has its own client. The owner weighed the logic
+as plain `.mjs` with JSDoc types, and keeping `getRedis` pointed at `REDIS_CACHE_URL`.
+
+**V22. A hashed key and a size limit come with T7; an ACL waits in the backlog.** From T6's
+security review. Next's cache key holds the cached function's arguments, which Sentry's Redis spans
+could record and whose length nothing bounds: T7 stores entries under
+`page-cache:v1:<build id>:<sha256 of Next's key>` (as the api's `facets:v1:<sha256>`) and checks
+that a Redis span in Sentry carries no arguments; the build id stays in the clear, so AC4 holds.
+T7 also stores no entry over a size limit (1 MB), so one large answer cannot evict the rest of the
+caches' Redis. An ACL on `redis-cache` (web writes only `page-cache:*`, api only `facets:*`), so
+that no other container can plant an entry served to every visitor, goes to the backlog: it needs
+access to the internal network first. The owner weighed doing the first two at T6, before anything
+calls the cache.

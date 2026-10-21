@@ -177,6 +177,9 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   imports only downward: `_app → _pages → widgets → features → entities → shared`. A slice or a
   `shared` segment exposes `index.ts` (browser-safe) and/or `server.ts`, which starts with
   `import 'server-only'`; one with only server-only exports has only `server.ts` (the `fsd` skill).
+  The one segment with neither is `shared/page-cache`: only `web/cache-handlers/redis.mjs`, the
+  page cache's handler that Next loads by path with plain Node, imports its `handler.mts` (no
+  `server-only`, no `@/`, types only; spec 0018 V21).
   An entity slice's `ui` segment only displays: its components take entity data, the current
   choice (`value`, `checked`), if any, and either callbacks (`onApply`, `onValueChange`,
   `onCheckedChange`) or the links the page builds (`href`,

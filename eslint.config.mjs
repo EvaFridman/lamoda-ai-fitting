@@ -17,7 +17,7 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
-const webFiles = ['web/**/*.{ts,tsx,js,jsx,mjs}'];
+const webFiles = ['web/**/*.{ts,tsx,mts,js,jsx,mjs}'];
 
 // Hook rules come from the React team's eslint-plugin-react-hooks (it also carries the React
 // Compiler rules). @eslint-react ships copies of several of them under the same names; they are

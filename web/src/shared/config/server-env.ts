@@ -13,8 +13,14 @@ const serverEnvSchema = z
     // The site's public address, e.g. https://lamoda-ai-fitting.ru: the base of absolute links in
     // metadata (`metadataBase`, spec 0014 O67).
     SITE_URL: z.url({ protocol: /^https?$/ }),
-    // redis://host:6379
-    REDIS_URL: z.string().regex(/^rediss?:\/\//, 'must be a redis:// URL'),
+    // The caches' Redis, redis://redis-cache:6379 (spec 0018 V4). The page cache's handler
+    // (`cache-handlers/redis.mjs`) reads it itself, outside the bundle; checked here too, so a
+    // malformed value fails the api reads as a wrong API_URL does, not only a cache that never
+    // works. A Redis that is down is no error here (V5).
+    REDIS_CACHE_URL: z.string().regex(/^rediss?:\/\//, 'must be a redis:// URL'),
+    // How long a cached catalog read stays fresh, in seconds (spec 0018 V3): after it the next
+    // request gets the entry and refreshes it in the background.
+    PAGE_CACHE_REVALIDATE_SECONDS: z.coerce.number().int().min(1).max(3600).default(60),
     // The deployed image tag (commit hash); `dev` locally.
     APP_VERSION: z.string().min(1).default('dev'),
     // Sent to the api as X-Proxy-Secret, so it takes the visitor's address and the request id from

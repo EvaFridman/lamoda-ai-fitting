@@ -2,8 +2,8 @@
 
 Status: accepted (2026-10-20); amended 2026-10-20 at the review of PR 1 (V17's measurement before
 PR 2's merge, T10's bound, T15's three measurements); amended 2026-10-21 at T4 (T4 and T5 before
-spec 0014 closes, V19; the backlog item moved to T5, V20) and at T5 (no push before the pull
-request, V19).
+spec 0014 closes, V19; the backlog item moved to T5, V20), at T5 (no push before the pull
+request, V19) and at T6 (T6 before spec 0014 closes too, V19; T7's hashed key and entry limit, V22).
 
 Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
 
@@ -11,8 +11,8 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
 
 - One pull request per phase, merged with "Rebase and merge" once CI is green; the next branch
   starts from a fresh `main`.
-- PR 2's T4 and T5 are done before spec 0014 closes and committed on its branch, which is not
-  pushed until the pull request opens (V19); T6 onwards and the pull request start after spec 0014 is closed (its routes,
+- PR 2's T4–T6 are done before spec 0014 closes and committed on its branch, which is not
+  pushed until the pull request opens (V19); T7 onwards and the pull request start after spec 0014 is closed (its routes,
   `sitemap.ts`, `robots.ts`, `/healthz` and `entities/*/api/server-queries.ts` are on `main`) and
   the branch is rebased on that `main`. If spec 0017 is still open, its `/customer/*` routes join
   T9's exclusions at the rebase that brings them.
@@ -54,7 +54,7 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       Check: the facets cache e2e on the new client, the throttler e2e with a full Redis;
       `npm run verify`.
       Commit: `feat(api): keep the filter counts in the caches' redis`
-- [ ] **T6. The page cache's handler.** The handler's logic in `web/src/shared/page-cache/` with its
+- [x] **T6. The page cache's handler.** The handler's logic in `web/src/shared/page-cache/` with its
       tests (get, set in flight, failure, the 10 s skip, one log a minute), `web/cache-handlers/redis.mjs`,
       `cacheHandlers.remote` in `next.config.ts`, `REDIS_CACHE_URL` and
       `PAGE_CACHE_REVALIDATE_SECONDS` in `server-env.ts` (replacing `REDIS_URL`, which leaves web's
@@ -65,11 +65,13 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       Commit: `feat(web): add a redis handler for the page cache`
 - [ ] **T7. Cached catalog reads.** `cachedApiFetch` (`@/shared/api/server`), the cached variants of
       `getCategories`, `getCategoryBySlug`, the first page of products and the filter counts with
-      no filter (V15), `cacheLife` from env; `CLAUDE.md`'s web conventions (the cache's rules);
-      backlog "Page cache in a read-only image".
+      no filter (V15), `cacheLife` from env; the handler's key hashed and its 1 MB entry limit
+      (V22); `CLAUDE.md`'s web conventions (the cache's rules); backlog "Page cache in a read-only
+      image".
       Check: `cachedApiFetch` tests (no address, request id or secret); query tests (a filter, a
-      sort, `q` or a cursor bypasses the cache); `qa-tester`: AC1, AC2, AC3, AC5 on the local stack;
-      `npm run verify`.
+      sort, `q` or a cursor bypasses the cache); handler tests (the hashed key, an entry over the
+      limit not stored); a Redis span in Sentry carries no arguments (V22); `qa-tester`: AC1, AC2,
+      AC3, AC5 on the local stack; `npm run verify`.
       Commit: `feat(web): cache the catalog's public reads`
 - [ ] **T8. The first-request measurement.** `scripts/measure-first-request.mjs` and its `node --test`,
       run by `cd.yml` after `smoke-test.sh` and by `ci-deploy-check.sh` (plan §5).
