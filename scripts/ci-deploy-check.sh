@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Runs the production setup on this machine with images built by ci-build-images.sh and checks a
 # blue-green deploy end to end, with the same deploy.sh the server runs:
-#   1. deploy <tag> (blue), smoke test through nginx; the seed loaded the demo catalog; nginx's
+#   1. deploy <tag> (blue), the first request's time measured (spec 0018 plan §5, printed only),
+#      smoke test through nginx; the seed loaded the demo catalog; nginx's
 #      request id is on the response and on nginx's and the api's log lines (spec 0006 AC14);
 #      nginx's security headers on api and web and on nginx's own errors (AC13);
 #      nginx's limits per address: a flood, a 2 MB body, an 11th socket (AC10–AC12), a 51st request
@@ -706,6 +707,8 @@ endgroup
 
 group "deploy $tag (first deploy, blue)"
 ENV_FILE="$env_file" deploy/scripts/deploy.sh "$tag" 2>&1 | tee "$work/deploy-1.log"
+# The first visitor, before the smoke test warms these pages (spec 0018 V25); numbers only.
+node scripts/measure-first-request.mjs https://localhost /catalog /catalog/dresses
 scripts/smoke-test.sh https://localhost "$tag"
 first_counts="$(counts)"
 echo "$first_counts"
