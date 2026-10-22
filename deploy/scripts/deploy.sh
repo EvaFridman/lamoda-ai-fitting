@@ -396,6 +396,8 @@ switch_out="$(switch_to "$target" 2>&1)" \
 previous_state="$(cat "$state_file" 2>/dev/null || true)"
 if ! write_state "$(printf 'COLOR=%s\nTAG=%s\nPREVIOUS_COLOR=%s\nPREVIOUS_TAG=%s' \
   "$target" "$tag" "$active" "$active_tag")"; then
+  # Printed first, so the held output reaches the log whichever way the deploy ends (V31).
+  if [ -n "$switch_out" ]; then printf '%s\n' "$switch_out" >&2; fi
   if [ -n "$active" ] && switch_to "$active" >&2; then
     fail "the state could not be written; switched back to $active"
   fi
