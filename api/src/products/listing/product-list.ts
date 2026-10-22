@@ -9,7 +9,6 @@ export interface ProductPageQuery {
   after?: Prisma.Sql;
   sort: ProductSort;
   limit: number;
-  offset?: number;
 }
 
 export function productPageSql({
@@ -17,12 +16,11 @@ export function productPageSql({
   after = Prisma.sql`TRUE`,
   sort,
   limit,
-  offset = 0,
 }: ProductPageQuery): Prisma.Sql {
   return Prisma.sql`
     SELECT p.id, p.created_at AS "createdAt", p.price, p.discount, p.rating
     FROM products p WHERE ${where} AND ${after}
-    ORDER BY ${PRODUCT_ORDER_SQL[sort]} LIMIT ${limit} OFFSET ${offset}`;
+    ORDER BY ${PRODUCT_ORDER_SQL[sort]} LIMIT ${limit}`;
 }
 
 export function productCountSql(where: Prisma.Sql): Prisma.Sql {

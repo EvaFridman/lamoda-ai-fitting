@@ -21,12 +21,7 @@ export const productKeys = {
   // Every batch loaded so far is one cache entry; each next cursor is its page param, not in the
   // key. The batch it starts from (`?cursor=`, O29) is: a list from another start is another list.
   infinite: (query: ProductBatchQuery = {}, start: string | null = null) =>
-    [
-      ...productKeys.all,
-      'infinite',
-      productListQuery({ ...query, offset: undefined }),
-      start,
-    ] as const,
+    [...productKeys.all, 'infinite', productListQuery(query), start] as const,
   facets: (filters: ProductFilters = {}) =>
     [...productKeys.all, 'facets', productFilters(filters)] as const,
   detail: (id: string) => [...productKeys.all, 'detail', id] as const,

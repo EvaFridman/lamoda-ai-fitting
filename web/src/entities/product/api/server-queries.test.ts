@@ -154,7 +154,6 @@ describe('getProducts', () => {
       hasDiscount: true,
       sort: 'price_asc',
       limit: 20,
-      offset: 40,
     });
     const { searchParams } = requested();
     expect(searchParams.getAll('categoryId')).toEqual([ID, ID2]);
@@ -164,14 +163,14 @@ describe('getProducts', () => {
     expect(searchParams.get('hasDiscount')).toBe('true');
     expect(searchParams.get('sort')).toBe('price_asc');
     expect(searchParams.get('limit')).toBe('20');
-    expect(searchParams.get('offset')).toBe('40');
+    expect([...searchParams.keys()]).not.toContain('offset');
     expect([...searchParams.keys()]).not.toContain('brandId');
     expect([...searchParams.keys()]).not.toContain('maxPrice');
   });
 
   it('does not send unknown keys of a wider object', async () => {
     respondWith(EMPTY_PAGE);
-    const wider = { q: 'x', admin: 'yes', extra: [1] };
+    const wider = { q: 'x', admin: 'yes', extra: [1], offset: 40 };
     await getProducts(wider);
     expect([...requested().searchParams.keys()]).toEqual(['q']);
   });

@@ -2507,17 +2507,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "offset",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "minimum": 0,
-              "maximum": 2147483647,
-              "default": 0,
-              "type": "number"
-            }
           }
         ],
         "responses": {

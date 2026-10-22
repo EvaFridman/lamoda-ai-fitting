@@ -78,13 +78,13 @@ describe('productInfiniteOptions keys', () => {
       expect.objectContaining({ q: 'dress', size: ['M'], categoryId: [ID], limit: 12 }),
       null,
     ]);
-    expect(key[2].offset).toBeUndefined();
+    expect(key[2]).not.toHaveProperty('offset');
     expect(server.productInfiniteOptions(QUERY).queryKey).toEqual(key);
     expect(productKeys.infinite(QUERY)).toEqual(key);
   });
 
   it('ignores an offset smuggled into the query', () => {
-    const wide = { ...QUERY, offset: 40 } as typeof QUERY;
+    const wide = { ...QUERY, offset: 40 };
     expect(productInfiniteOptions(wide).queryKey).toEqual(browserKey());
   });
 

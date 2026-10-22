@@ -285,7 +285,9 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   `@SignedIn()` controller and on either on a socket handler. There is no admin token (spec 0013
   AC6). Both global guards are registered in `AppModule`, the throttler first, so a refused request
   is counted against that route's limit (counters are per route, spec 0006 F22). Lists take
-  `PaginationQueryDto` and answer `Paginated<T>` (`common/pagination/`).
+  `PaginationQueryDto` and answer `Paginated<T>` (`common/pagination/`), except `GET /products`:
+  `limit` and `cursor` only (an `offset` answers 400), answering `CursorPaginated<T>` (spec 0014
+  O11, O44).
 - `api` `PATCH /me` (spec 0017, `me/`) saves the signed-in user's own data through
   `MeService.update` (`UsersService.update`, a missing row answers 401): its `UpdateMeDto` (not `UpdateUserDto`) takes only `lastName`,
   `firstName`, `patronymic`, `dateOfBirth` and `gender`, each optional; `null` clears a name or the

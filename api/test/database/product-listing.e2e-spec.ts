@@ -457,7 +457,7 @@ describe('product list: Russian search', () => {
     for (let n = 0; n < 3; n += 1) await product(scope, { name: `Платье ${n}`, createdAt: at(n) });
     await product(scope, { name: 'Джинсы' });
 
-    const page = await get(`${scope.query}&${q('платье')}&limit=2&offset=0`);
+    const page = await get(`${scope.query}&${q('платье')}&limit=2`);
 
     expect(page.total).toBe(3);
     expect(page.items).toHaveLength(2);
@@ -699,7 +699,7 @@ describe('product list: combining and paging', () => {
     }
   });
 
-  it('total is the filtered count and limit and offset page through it', async () => {
+  it('total is the filtered count on the first batch and limit and cursor page through it', async () => {
     const scope = await newScope();
     const withDiscount: string[] = [];
     for (let n = 0; n < 5; n += 1) {
@@ -709,15 +709,13 @@ describe('product list: combining and paging', () => {
     const expected = [...withDiscount].reverse();
     const query = `${scope.query}&hasDiscount=true`;
 
-    const first = await get(`${query}&limit=2&offset=0`);
-    const second = await get(`${query}&limit=2&offset=2`);
-    const beyond = await get(`${query}&limit=2&offset=4`);
+    const first = await get(`${query}&limit=2`);
+    const second = await get(`${query}&limit=2&cursor=${first.nextCursor}`);
 
     expect(first.total).toBe(3);
     expect(first.items.map((item) => item.id)).toEqual(expected.slice(0, 2));
-    expect(second.total).toBe(3);
+    expect(second.total).toBeNull();
     expect(second.items.map((item) => item.id)).toEqual(expected.slice(2));
-    expect(beyond).toEqual({ items: [], total: 3, nextCursor: null });
     expect(first.nextCursor).toEqual(expect.any(String));
     expect(second.nextCursor).toBeNull();
   });
@@ -812,10 +810,14 @@ describe('product list: sorts', () => {
 
     const full = await ids(`${scope.query}&sort=price_asc`);
     const paged: string[] = [];
-    for (let offset = 0; offset < 7; offset += 3) {
-      const page = await get(`${scope.query}&sort=price_asc&limit=3&offset=${offset}`);
+    let cursor: string | null = null;
+    do {
+      const page: Page = await get(
+        `${scope.query}&sort=price_asc&limit=3${cursor === null ? '' : `&cursor=${cursor}`}`,
+      );
       paged.push(...page.items.map((item) => item.id));
-    }
+      cursor = page.nextCursor;
+    } while (cursor !== null);
 
     expect(paged).toEqual(full);
     expect(sorted(...paged)).toEqual(sorted(...all));

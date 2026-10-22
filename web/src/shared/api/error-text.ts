@@ -95,7 +95,7 @@ export function errorText(error: unknown): string {
 
 // A field's broken rule. The codes are class-validator's rule names in upper snake case
 // (api/src/common/validation/), the database rules' codes (common/filters/to-app-exception.ts),
-// `INVALID_ID` of a path id, `INVALID_CURSOR` and `NOT_WITH_CURSOR` of the product list's cursor
+// `INVALID_ID` of a path id, `INVALID_CURSOR` of the product list's cursor
 // (products/dto/product-list-query.dto.ts), `MATCHES_STATUS` of a generation's status and result
 // (ai-generations/generation-triple.ts), `IN_OWNER_FOLDER` of a file key outside the owner's
 // folder (storage/owner-check.ts, spec 0011 M8) and `TOO_MANY_ERRORS` of a cut list (spec 0006 F14).
@@ -123,7 +123,6 @@ export const DETAIL_TEXTS = {
   IS_DATE_OF_BIRTH: 'Дата с 01.01.1900, возраст не меньше 14 лет',
   IS_NOT_BELOW: 'Не может быть меньше нижней границы',
   INVALID_CURSOR: 'Список устарел, обновите страницу',
-  NOT_WITH_CURSOR: 'Неверный запрос списка',
   WHITELIST_VALIDATION: 'Неизвестное поле',
   INVALID_ID: 'Неверный идентификатор',
   ALREADY_EXISTS: 'Это значение уже занято',
