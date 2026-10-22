@@ -4,7 +4,13 @@ import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
 import { cache } from 'react';
 
 import { buildPath, type PageQuery } from '@/shared/api';
-import { apiFetch } from '@/shared/api/server';
+import {
+  apiFetch,
+  cachedApiFetch,
+  cachedData,
+  type CachedRead,
+  pageCacheOpen,
+} from '@/shared/api/server';
 
 import {
   productBatchQuery,
@@ -35,12 +41,41 @@ export async function getProducts(query: ProductListQuery = {}): Promise<Product
   return apiFetch(buildPath('/products', {}, productListQuery(query)), productListSchema);
 }
 
+type FilterValues = ReturnType<typeof productFilters>;
+
+// The page cache takes only a catalog's or a category's own reads (spec 0018 V15): no filter but
+// one category, the default order and size, no cursor. Anything else is keyed by what the visitor
+// typed, so it goes on their behalf, as before; so does every read while the cache is skipped (V24).
+function isCacheable({
+  categoryId,
+  ...rest
+}: FilterValues & Partial<ReturnType<typeof productBatchQuery>>): boolean {
+  return (
+    (categoryId?.length ?? 0) <= 1 &&
+    Object.values(rest).every((v) => v === undefined) &&
+    pageCacheOpen()
+  );
+}
+
+// The page cache's reads (spec 0018 plan §3): public catalog data, keyed by their arguments only.
+async function cachedProductBatch(query: FilterValues): Promise<CachedRead<ProductList>> {
+  'use cache: remote';
+  return cachedApiFetch(buildPath('/products', {}, query), productListSchema);
+}
+
+async function cachedProductFacets(filters: FilterValues): Promise<CachedRead<ProductFacets>> {
+  'use cache: remote';
+  return cachedApiFetch(buildPath('/products/facets', {}, filters), productFacetsSchema);
+}
+
 // GET /products, one batch of the infinite list: the first with no cursor.
 export async function getProductBatch(
   query: ProductBatchQuery = {},
   cursor: string | null = null,
 ): Promise<ProductList> {
-  return apiFetch(buildPath('/products', {}, productBatchQuery(query, cursor)), productListSchema);
+  const params = productBatchQuery(query, cursor);
+  if (isCacheable(params)) return cachedData(await cachedProductBatch(productFilters(params)));
+  return apiFetch(buildPath('/products', {}, params), productListSchema);
 }
 
 // One request per path within a server render: the catalog's metadata and its page ask for the
@@ -50,11 +85,14 @@ const facetsRequests = cache(() => new Map<string, Promise<ProductFacets>>());
 
 // GET /products/facets: the filter counts for the same filters, without the page and the order.
 export async function getProductFacets(filters: ProductFilters = {}): Promise<ProductFacets> {
-  const path = buildPath('/products/facets', {}, productFilters(filters));
+  const params = productFilters(filters);
+  const path = buildPath('/products/facets', {}, params);
   const requests = facetsRequests();
   let request = requests.get(path.path);
   if (request === undefined) {
-    request = apiFetch(path, productFacetsSchema);
+    request = isCacheable(params)
+      ? cachedProductFacets(params).then(cachedData)
+      : apiFetch(path, productFacetsSchema);
     requests.set(path.path, request);
   }
   return request;

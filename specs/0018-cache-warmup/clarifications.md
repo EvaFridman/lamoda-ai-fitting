@@ -1,7 +1,7 @@
 # 0018 page cache and warm-up on deploy: clarifications
 
 Status: accepted (2026-10-20); amended 2026-10-20 at the plan (V10's figures, V15) and at the
-review of PR 1 (V7, V9, V12, V15, V16–V18); amended 2026-10-21 at T4 (V19, V20), at T5 (V19: no push before the pull request) and at T6 (V19: T6 before 0014 too; V21, V22).
+review of PR 1 (V7, V9, V12, V15, V16–V18); amended 2026-10-21 at T4 (V19, V20), at T5 (V19: no push before the pull request) and at T6 (V19: T6 before 0014 too; V21, V22); amended 2026-10-22 at T7 (V23, V24).
 
 The owner's decisions for this spec. Ids `V1`, `V2`, … are referred to by the spec, the plan and
 code comments. All decisions below: owner, 2026-10-20.
@@ -196,3 +196,38 @@ caches' Redis. An ACL on `redis-cache` (web writes only `page-cache:*`, api only
 that no other container can plant an entry served to every visitor, goes to the backlog: it needs
 access to the internal network first. The owner weighed doing the first two at T6, before anything
 calls the cache.
+
+## Added at T7
+
+**V23. A cached read answers its failure as a value, not stored.** Next 16.3 passes an error thrown
+inside `'use cache'` through the entry's RSC stream: in production the caller gets a plain `Error`
+with a digest, not the `ApiError`, and Next logs it. A category's 404 would then not become `null`
+(an error in place of `notFound()`), `errorText` would give only the general text, and
+`reportFailure` would send a second Sentry event. So a cached function never throws for a failed
+api read: it returns `{ failure }` with the `ApiError`'s fields and calls
+`cacheLife({ revalidate: 0, expire: 0 })`, which Next takes as the entry's lifetime (the shortest
+wins) and the handler does not store (`expire` 0); the caller rebuilds the `ApiError`, and the rest
+goes as today (`callApi` reported it once). This replaces plan §3's "throws out of it". The owner
+weighed throwing as planned (those three effects), and on a failure a second, uncached read through
+`apiFetch` for the real error (two timeouts, up to 10 s, with the api down, and twice its requests).
+
+**V24. No read of the visitor's choosing, and no read while Redis is skipped, spends web's quota.**
+From T7's security review: a cache miss counts under web's own address, one `read` quota for all
+visitors (V15). (1) A category by its slug is taken from the cached list of active categories (the
+header's entry); a slug not in it (unknown, inactive, created since the list was read, or the list
+failed) is read on the visitor's behalf, uncached, as `proxy.ts` does. A cached read by slug would
+have let a visitor spend web's quota with made-up slugs that `proxy.ts` lets through (a prefetch
+header, a failed check), and kept a deleted category up to the entry's hour. (2) While the handler
+skips Redis (down, slow, still connecting) it publishes until when in a process-wide slot of
+`globalThis`, and the app reads on the visitor's behalf meanwhile, as before this spec; once the
+skip ends, the next read goes through the cache and probes Redis. So V5's "web works without the
+cache" holds without turning an outage into one shared quota. The owner weighed, for (1), the list
+alone (a new category answers 404 until the list refreshes) and a cached read by slug with misses on
+the visitor's behalf (the deleted category stays); for (2), accepting the risk (`redis-cache` is
+recreated only by an `infra.yml` change) and an in-memory LRU in the handler. `proxy.ts` passing a
+request on after its own check's 429 goes to the backlog. An accepted risk (the second review):
+the page cache shares `redis-cache` (`allkeys-lru`) with the api's filter counts, whose keys follow
+the visitor's `q`, so a flood of searches from many addresses could evict the page cache's entries
+while Redis stays up, and their misses would count under web's address. It needs on the order of
+the whole 128 MB of counts a minute, and the pages' keys are read on every view; a memory of its
+own for the page cache was weighed.

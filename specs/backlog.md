@@ -119,6 +119,10 @@ removes it from this list. Found by the agents' first security audit and trial r
   text only says "wait a little" (0007 H25), while the minute window can mean up to 60 s. Show the
   wait, or retry after it, when the header is there; nginx's own 429 has none (0006 F32) and keeps
   the "wait a little" text.
+- **The category check after a 429.** `proxy.ts`'s category check (`category-proxy.ts`, spec 0014
+  O65) passes the request on to the page when its own read fails, a 429 too, so a visitor over
+  their quota still gets the page rendered, and its reads tried again (spec 0018 T7's security
+  review, V24). Answer a 429 of the check with the api's 429 instead.
 - **Taint the proxy secret.** `check:web-bundle` finds the names of `PROXY_SECRET` in the browser
   bundle, but a server component that passes `getServerEnv()` (or the value) to a client component
   puts the secret into the page's HTML at request time (0007 H32). Taint it in `server-env.ts`
@@ -129,18 +133,14 @@ removes it from this list. Found by the agents' first security audit and trial r
 - **Footer links.** The footer copies Lamoda's items, but only the personal data policy has a page
   (0008 J22): each other item becomes a link when its page appears. The list is
   `widgets/footer/config/items.ts`.
-- **Page cache in a read-only image.** The web runtime user writes only to `.next/cache`. Next keeps
-  regenerated ISR pages and `'use cache'` results with revalidation under `.next/server/app/`, so
-  the first such page fails to write them (a warning, cache only in memory, per blue-green copy).
-  Before it lands, choose a `cacheHandler` (Redis is already there) or a writable cache path.
 - **Cache warm-up on deploy (issue #41).** Before nginx switches to the new copy, `deploy.sh` checks
   only health (`up --wait`, the api's `/health/ready`): no page or catalog route is requested, so the
   first visitors pay for the cold copy (Next loads a page's modules on its first request, the api
   opens its database connections), and a page that fails to render is first seen by a visitor. Add
   a step between readiness and the switch that requests the main pages and the catalog's GET routes
   from the new copy and stops the deploy unless they answer 200. Owner, 2026-10-15: done together
-  with the catalog page spec, which brings the caches to warm ("Page cache in a read-only image"
-  above, and the filter counts' Redis cache of spec 0014 plan §2.6); there is nothing to warm in
+  with the catalog page spec, which brings the caches to warm (the page cache in Redis of spec 0018,
+  and the filter counts' Redis cache of spec 0014 plan §2.6); there is nothing to warm in
   Next's cache or Redis before it. Spec 0014 left it here (O21): measure the first request to `/`
   after a deploy against later ones first.
 - **Signed links in reports.** A signed storage link carries `X-Amz-Credential=<S3_ACCESS_KEY_ID>/…`

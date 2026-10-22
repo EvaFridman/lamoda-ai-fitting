@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // React's `cache` memoizes only inside a server render; the mock stands in for one render's scope,
 // and `renderScope.active = false` for a call outside any render (a new value every time).
@@ -16,9 +16,15 @@ vi.mock('react', async (importOriginal) => ({
     },
 }));
 vi.mock('server-only', () => ({}));
-vi.mock('next/headers', () => ({ headers: () => Promise.resolve(new Headers()) }));
+vi.mock('next/headers', () => ({
+  headers: () => Promise.resolve(new Headers({ 'x-real-ip': '203.0.113.7' })),
+}));
 vi.mock('@/shared/config/server', () => ({
-  getServerEnv: () => ({ API_URL: 'http://api:3000', PROXY_SECRET: '' }),
+  getServerEnv: () => ({
+    API_URL: 'http://api:3000',
+    PROXY_SECRET: 's'.repeat(32),
+    PAGE_CACHE_REVALIDATE_SECONDS: 60,
+  }),
 }));
 
 import { ApiError } from '@/shared/api';
@@ -27,6 +33,7 @@ import { productKeys } from './keys';
 import {
   getProduct,
   getProductAttributeValues,
+  getProductBatch,
   getProductFacets,
   getProductImages,
   getProducts,
@@ -351,6 +358,130 @@ describe('getProductFacets within one render', () => {
     await expect(getProductFacets({ q: 'x' })).resolves.toEqual(facets);
     await expect(getProductFacets({ q: 'x' })).resolves.toEqual(facets);
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+});
+
+const SECRET = 's'.repeat(32);
+
+function sentHeaders(): Headers {
+  return new Headers((fetchMock.mock.calls[0]?.[1] as RequestInit).headers);
+}
+
+// A query that is not the catalog's or a category's own: the visitor typed it.
+const OTHER_QUERIES: [string, object][] = [
+  ['brandId', { brandId: [ID] }],
+  ['size', { size: ['M'] }],
+  ['attributeValueId', { attributeValueId: [ID] }],
+  ['q', { q: 'red' }],
+  ['minPrice', { minPrice: 100 }],
+  ['maxPrice', { maxPrice: 900 }],
+  ['hasDiscount', { hasDiscount: true }],
+  ['two categoryIds', { categoryId: [ID, ID2] }],
+  ['a category with a brand', { categoryId: [ID], brandId: [ID2] }],
+];
+
+describe.each([
+  ['getProductBatch', (query: object) => getProductBatch(query), EMPTY_PAGE, '/products'],
+  ['getProductFacets', (query: object) => getProductFacets(query), facets, '/products/facets'],
+] as const)('%s and the page cache', (_name, read, body, pathname) => {
+  it.each([
+    ['no filters', {}, ''],
+    ['one category', { categoryId: [ID] }, `?categoryId=${ID}`],
+    ['one category with blanks', { categoryId: [ID, ' '], q: '  ' }, `?categoryId=${ID}`],
+  ])('reads %s without the visitor or the proxy secret', async (_n, query, search) => {
+    respondWith(body);
+    await read(query);
+    const sent = sentHeaders();
+    expect(sent.has('x-proxy-secret')).toBe(false);
+    expect(sent.has('x-forwarded-for')).toBe(false);
+    expect(sent.has('x-request-id')).toBe(false);
+    expect(requested().pathname).toBe(pathname);
+    expect(requested().search).toBe(search);
+  });
+
+  it.each(OTHER_QUERIES)('reads %s on behalf of the visitor', async (_n, query) => {
+    respondWith(body);
+    await read(query);
+    expect(sentHeaders().get('x-proxy-secret')).toBe(SECRET);
+    expect(sentHeaders().get('x-forwarded-for')).toBe('203.0.113.7');
+    expect(requested().pathname).toBe(pathname);
+  });
+
+  it('throws an ApiError from a cached read', async () => {
+    respondWith({}, 500);
+    const error = await read({}).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({ kind: 'http', status: 500 });
+  });
+});
+
+describe.each([
+  ['getProductBatch', (query: object) => getProductBatch(query), EMPTY_PAGE, '/products'],
+  ['getProductFacets', (query: object) => getProductFacets(query), facets, '/products/facets'],
+] as const)('%s while the page cache is skipped', (_name, read, body, pathname) => {
+  const slot = globalThis as Record<symbol, unknown>;
+  const SKIP = Symbol.for('lamoda-ai-fitting.page-cache.skip-until');
+
+  afterEach(() => {
+    delete slot[SKIP];
+  });
+
+  it('reads an otherwise cached query on behalf of the visitor', async () => {
+    slot[SKIP] = Date.now() + 60_000;
+    respondWith(body);
+    await read({ categoryId: [ID] });
+    expect(sentHeaders().get('x-proxy-secret')).toBe(SECRET);
+    expect(sentHeaders().get('x-forwarded-for')).toBe('203.0.113.7');
+    expect(requested().pathname).toBe(pathname);
+    expect(requested().search).toBe(`?categoryId=${ID}`);
+  });
+
+  it('goes through the cache again once the time has passed', async () => {
+    slot[SKIP] = Date.now() - 1;
+    respondWith(body);
+    await read({ categoryId: [ID] });
+    expect(sentHeaders().has('x-proxy-secret')).toBe(false);
+  });
+
+  it('goes through the cache when the slot is 0', async () => {
+    slot[SKIP] = 0;
+    respondWith(body);
+    await read({});
+    expect(sentHeaders().has('x-proxy-secret')).toBe(false);
+  });
+});
+
+describe('getProductBatch', () => {
+  it('requests the same path with a sort, a limit or a cursor, on behalf of the visitor', async () => {
+    const cases: [object, string | null, string][] = [
+      [{ sort: 'price_asc' }, null, '?sort=price_asc'],
+      [{ limit: 20 }, null, '?limit=20'],
+      [{}, 'abc', '?cursor=abc'],
+      [{ categoryId: [ID] }, 'abc', `?categoryId=${ID}&cursor=abc`],
+    ];
+    for (const [query, cursor, search] of cases) {
+      fetchMock.mockReset();
+      respondWith(EMPTY_PAGE);
+      await getProductBatch(query, cursor);
+      expect(sentHeaders().get('x-proxy-secret')).toBe(SECRET);
+      expect(requested().pathname).toBe('/products');
+      expect(requested().search).toBe(search);
+    }
+  });
+
+  it('returns the page of a cached read', async () => {
+    const page = { items: [listItem()], total: 1, nextCursor: null };
+    respondWith(page);
+    await expect(getProductBatch({ categoryId: [ID] })).resolves.toEqual(page);
+  });
+});
+
+describe('getProductFacets and sort', () => {
+  it('ignores a sort and a limit: still a cached read', async () => {
+    respondWith(facets);
+    await getProductFacets({ sort: 'rating', limit: 5, offset: 5 } as object);
+    expect(sentHeaders().has('x-proxy-secret')).toBe(false);
+    expect(requested().search).toBe('');
   });
 });
 
