@@ -1,6 +1,6 @@
 # 0014 catalog page: plan
 
-Status: accepted (2026-10-19); amended 2026-10-19 after the owner's Lamoda references (O5, O14)
+Status: done (2026-10-22). History, not instructions. Accepted 2026-10-19; amended 2026-10-19 after the owner's Lamoda references (O5, O14)
 and after the check against 0012, 0013 and 0015 (O35–O39, §1, §2.7, §3.2, §3.6, §3.7, §5, §8);
 amended 2026-10-19 at the review of PR 1 (O40–O48; the article test inside `toProductSql` and
 the price indexes, §2.2, §2.4) and its second round (the cursor conditions' index bounds, §2.3;

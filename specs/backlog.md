@@ -55,6 +55,11 @@ removes it from this list. Found by the agents' first security audit and trial r
   a client sends while that read runs (up to 2 s) still becomes a socket, held until the
   connection closes (0013 N41). Limit the sockets of one connection with the first real socket
   feature (0006 F8).
+- **`types {}` in the `/api/socket.io` refusal.** `location ~* ^/api/socket\.io` answers its 404
+  with `default_type application/json` but without `types {}`, so a path ending in a known
+  extension (`/api/socket.io/a.html`) gets that extension's type instead of JSON, as nginx's named
+  error locations did before spec 0014's PR 4 gave them `types {}` (PR #97 review, O115). Add it
+  there with a case in `ci-deploy-check.sh`.
 
 ## api
 
@@ -142,6 +147,11 @@ removes it from this list. Found by the agents' first security audit and trial r
   and a user's id in its path (0011 M34). The spec that shows a user's photo through such a link
   keeps its `src` out of Sentry (events, breadcrumbs) and Mixpanel (heatmap clicks, recordings),
   and checks what `strip-attributes.ts` and the recordings' image blocking already cover.
+- **Signed links in the CSP.** web's policy allows images only from `'self'`, `data:` and `blob:`
+  (`web/src/shared/csp/policy.ts`, spec 0014 O112). A signed storage link is on
+  `S3_PUBLIC_ENDPOINT`'s origin, so the browser blocks it: the first page that shows a user's photo
+  through one (spec 0019) adds that origin to `img-src`, from the server env, with its test (0014
+  O113).
 - **Product card link.** The catalog's cards link to `/products/<id>` (spec 0014 O7) with
   `prefetch={false}` (`widgets/product-grid`) while that address is a 404 (O75). The product
   page's spec turns the prefetch back on and decides whether `CatalogProductCard` (0009 K15)

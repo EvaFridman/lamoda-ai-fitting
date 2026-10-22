@@ -1,6 +1,8 @@
 # 0014 catalog page
 
-Status: accepted (2026-10-19); amended 2026-10-19 at the plan after the owner's Lamoda references:
+Status: done (2026-10-22): all 24 criteria pass, AC23 with Accessibility 97 (O108)
+([tasks.md](tasks.md), acceptance record). History, not instructions. Accepted 2026-10-19;
+amended 2026-10-19 at the plan after the owner's Lamoda references:
 the row of applied filters and the breadcrumbs (AC3, AC7, O5), search by article (AC8, O14);
 amended 2026-10-19 after the check against 0012, 0013 and 0015 (AC6, AC15, AC18, O33–O39);
 amended 2026-10-19 at the review of PR 1 (AC1, AC14, AC23, O40–O48) and its second round (AC14,
