@@ -33,8 +33,9 @@ const TIME = /^(\d{2})\/(\w{3})\/(\d{4}):(\d{2}):(\d{2}):(\d{2}) ([+-])(\d{2})(\
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 // The main server's locations, in the order nginx picks them for these paths: `/healthz` and
-// `/_next/static/` are apart from the pages because T23 answers the first with 404 and gives the
-// second a location without the page limit. A request line with no path (garbage nginx answers 400)
+// `/_next/static/` are apart from the pages because T23 answers the first with 404 and does not
+// count the second in the page limit (only its plain GETs: nginx's `$edge_pages_key` counts an
+// encoded path, another method or a Range as a page, which this grouping does not tell apart). A request line with no path (garbage nginx answers 400)
 // reaches no location.
 const GROUPS = [
   ['invalid', (path) => !path.startsWith('/')],

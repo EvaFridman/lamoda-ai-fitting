@@ -227,7 +227,8 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Check: the script's tests on a sample log; `npm run verify`.
       Commit: `feat(deploy): measure the page requests of one visit`
 - 👤 makes the visit and runs the script on the server; the numbers go into T23.
-- [ ] **T23. Rate limit for pages and media.** The `edge_pages` and `edge_media` zones from the
+  Measured 2026-10-22 (O109): pages peak 11/s, 14 in total; photos 10, 10/s; static 19/s; no 429.
+- [x] **T23. Rate limit for pages and media.** The `edge_pages` and `edge_media` zones from the
       measurement, `/_next/static/` and `location = /healthz` (plan §5, O39); the fallback to `/`
       in `deploy/compose/app.yml`'s web health check goes, and `deploy/README.md`'s paragraph on
       a rollback before PR 3 then says such a rollback no longer becomes healthy (O70);

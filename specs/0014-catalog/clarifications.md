@@ -645,3 +645,24 @@ build` passes. (owner, T19.)
   gave `/catalog` and `/catalog/dresses` Accessibility 97, not AC23's 100; the owner accepts 97
   and nothing is changed for it. Which audits lost the points was not recorded, so O47's fix or
   backlog item does not apply: this entry is the recorded reason. (owner, 2026-10-22.)
+
+## Decided at T23
+
+- **O109. The measured visit has no second batch.** Production's catalog holds 30 products and a
+  batch is 60, so plan §5's "scroll 5 batches" cannot be done. The owner's visit (2026-10-22:
+  `/catalog`, 2 filters, a category) is taken as the measurement: pages peak 11 r/s with Next's
+  prefetches, 14 in total; photos 10, all in one second; static files 19 in a second; no 429.
+  Another batch is one api request and its photos, under `/api/`'s and `/media/`'s own limits.
+  So `edge_pages` is 33 r/s with a burst of 33. (owner, T23.)
+- **O110. `/media/` takes one batch at once.** The visit's 10 photos are the seed's shared ones;
+  60 cards with photos of their own may ask for more than 30 at once. So `edge_media` keeps
+  plan §5's rate (30 r/s, 3× the visit) but its burst is one batch, 60 photos, not 30. Random keys
+  are still held at 30 a second. (owner, T23.)
+- **O111. Static files are told apart by the raw request, not by a location.** Plan §5's own
+  location for `/_next/static/` let `/x%2F..%2F_next/static/a` past the page limit: nginx decodes
+  it into that location, Next reads the raw path and renders its not-found page. So there is one
+  `location /`, and `$edge_pages_key` leaves out of `edge_pages` only a GET or HEAD of
+  `/_next/static/` whose raw path nginx and Next cannot read apart (no `%2F`, `%2e`, `..`, `\`) and
+  that has no `Range`, `If-Match` or `If-Unmodified-Since` (on which Next renders its 416 and 412
+  pages). Everything else counts as a page. `ci-deploy-check.sh`'s slow-upload test holds its
+  slots with GETs carrying a body. (owner, T23 security review.)
