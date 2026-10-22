@@ -1,6 +1,7 @@
 # 0014 catalog page: tasks
 
-Status: accepted (2026-10-19); amended 2026-10-19 after the check against 0012, 0013 and 0015
+Status: done (2026-10-22): all 24 criteria pass, AC23 with Accessibility 97 (O108; record below).
+History, not instructions. Accepted 2026-10-19; amended 2026-10-19 after the check against 0012, 0013 and 0015
 (T5, T9, T12, T13, T13a, T20, T23); amended 2026-10-19 at the review of PR 1 (T6, T10, T11, T24,
 O40–O48) and its second round (T10); amended 2026-10-21 at T13a (deferred, O76); amended
 2026-10-22 at T25 (PR 5 for the close, O113).
@@ -252,7 +253,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## PR 5 · `docs/0014-close` · closing
 
-- [ ] **T25. Close the spec.** The production checks of PR 3 and PR 4 from the owner, the
+- [x] **T25. Close the spec.** The production checks of PR 3 and PR 4 from the owner, the
       acceptance record below with T24's open points as known limits and the backlog item for
       0019's `img-src` (O113), every file gets `Status: done`, `CLAUDE.md` and the READMEs as
       plan §8. Starts from a fresh `main` after PR 4's deploy.
@@ -261,4 +262,48 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## Acceptance record
 
-Filled in by T25.
+Production checks on 2026-10-22 by the owner, on two deploys. PR 3's (#96): Lighthouse in
+PageSpeed Insights on `/catalog` and `/catalog/dresses`, Google's Rich Results test,
+validator.schema.org and Yandex's microdata validator, Mixpanel's live events, one
+`GET /products/facets` per view in the api's log (O107), and the 1440 and 375 px screenshots
+compared with Lamoda's catalog. PR 4's (#97, main `fb084e6`, `/health/live` answered that
+version): `curl -I` of the pages, `/api/` and `/media/`, a flood of `/catalog`, an ordinary visit
+with the Network panel open, the console of `/catalog` with and without consent, and the phone
+drawer's accessible name at 375 px. The local criteria rest on the checks of the tasks named and
+the tests below. `npm run verify` on the closing commit passed.
+
+| AC   | Result | Evidence                                                                                                                                                                                                                                                                                                                                                                    |
+| ---- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AC1  | pass   | Production: `/` → 307 `/catalog` (`smoke-test.sh` in CD). Locally: T11's `curl -I`; `catalog-page.test.tsx` with and without a slug.                                                                                                                                                                                                                                        |
+| AC2  | pass   | T11's `curl -I` of an unknown and an inactive slug → 404 (`web/proxy.ts`, O65); `category-proxy.test.ts` "rewrites a missing category to the not-found path".                                                                                                                                                                                                               |
+| AC3  | pass   | Owner compared the 1440 px screenshot with Lamoda's (2026-10-22); T15's `qa-tester`; `catalog-filters.test.tsx`, `catalog-heading.test.tsx`, `columns.test.ts`.                                                                                                                                                                                                             |
+| AC4  | pass   | Owner compared the 375 px screenshot with Lamoda's; the discount is a switch row, not an accordion (O88); T16's `qa-tester`; `catalog-filters.drawer.test.tsx`, `catalog-filters-drawer.test.tsx`.                                                                                                                                                                          |
+| AC5  | pass   | `catalog-product-card.test.tsx`, `product-grid.test.tsx`: `/products/<id>`; `catalog-product-card.prefetch.test.tsx` passes `prefetch` to the link, and `widgets/product-grid` sets it `false` while that page is missing (O75).                                                                                                                                            |
+| AC6  | pass   | T12's `rg`: only specs, history and unrelated words; `openapi.json` has no `/hello`; web's health check is `/healthz`, the `/` fallback gone at T23 (O70); T11's `/healthz` 200 with the api stopped.                                                                                                                                                                       |
+| AC7  | pass   | `url-state.test.ts`, `catalog-browser.url.test.tsx`, `catalog-filters.test.tsx`; T15's `qa-tester` applies, reloads and opens a new tab.                                                                                                                                                                                                                                    |
+| AC8  | pass   | `product-listing.e2e-spec.ts` with the real stemmer: "платья", "плат", a brand, a category, an article in any case, "плтье" empty (T5).                                                                                                                                                                                                                                     |
+| AC9  | pass   | `header-search.test.tsx`, `header-search.submitted.test.tsx`, `header-categories.test.tsx`; T17's `qa-tester` from `/privacy`.                                                                                                                                                                                                                                              |
+| AC10 | pass   | `catalog-browser.test.tsx`: the empty state and its "Очистить фильтры".                                                                                                                                                                                                                                                                                                     |
+| AC11 | pass   | T14's `qa-tester` on the 50 000-product dev catalog: scrolled to the last product, the DOM held a few rows beyond the visible; `product-grid.test.tsx`.                                                                                                                                                                                                                     |
+| AC12 | pass   | `product-cursor.e2e-spec.ts`: rows inserted and deleted between batches, per sort, never repeat or go missing (T6).                                                                                                                                                                                                                                                         |
+| AC13 | pass   | T14's `qa-tester`; `product-grid.restore.test.tsx`, `scroll-memory.test.ts`.                                                                                                                                                                                                                                                                                                |
+| AC14 | pass   | T10's `EXPLAIN` table above: every sort and a search use an index unforced, later batches show the cursor as `Index Cond`.                                                                                                                                                                                                                                                  |
+| AC15 | pass   | `product-facets-cache.e2e-spec.ts` (the second request does not reach the database, Redis down still answers); `database-timeouts.e2e-spec.ts` (T9): statement timeout and exhausted pool → 503, `/health/live` answers.                                                                                                                                                    |
+| AC16 | pass   | Production: 100 parallel `/catalog` from the owner's Mac → 90 × 200 `text/html`, 10 × 429 `application/json`; an ordinary visit (`/catalog`, filters, a category) had no 429. CI: `ci-deploy-check.sh`'s floods and visit (T23). Limits from the measured visit (O109, O110).                                                                                               |
+| AC17 | pass   | Production: `curl -I` shows one CSP of web's on `/catalog` and `/catalog/dresses` (nonce, `$RT` hash, Mixpanel and Sentry in `connect-src`, `frame-ancestors 'none'`), only `frame-ancestors` on `/api/`; the console of `/catalog` shows no violation without consent and after «Принять». `policy.test.ts`, `proxy.test.ts`, `check:web-shells` in `verify` (O112, O114). |
+| AC18 | pass   | Production: Mixpanel's live events show each event and element, no `q` text, nothing without consent. `catalog-browser.analytics.test.tsx`, `catalog-filters.analytics.test.tsx`, `product-grid.analytics.test.tsx`, `catalog.test.ts` (0015's checks).                                                                                                                     |
+| AC19 | pass   | `metadata.test.ts` per address, `preview-image.test.ts`; Lighthouse SEO 100 in production (the title, description, canonical).                                                                                                                                                                                                                                              |
+| AC20 | pass   | `sitemap.test.ts` (with a failed api), `robots.test.ts`.                                                                                                                                                                                                                                                                                                                    |
+| AC21 | pass   | Production: Rich Results, validator.schema.org and Yandex's validator with no errors; `json-ld.test.ts` (`<` escaped), `catalog-json-ld.test.tsx` (the nonce).                                                                                                                                                                                                              |
+| AC22 | pass   | T14's `curl /catalog`: the first batch and "Дальше" in the HTML; `product-grid.traversal.test.tsx`.                                                                                                                                                                                                                                                                         |
+| AC23 | pass   | Production: SEO 100, Accessibility 97 on both pages, accepted by the owner (O108); the phone drawer's dialog has an accessible name. T18's `qa-tester` keyboard pass; the live regions and focus in `catalog-browser.test.tsx`, `product-grid.test.tsx`.                                                                                                                    |
+| AC24 | pass   | `npm run verify` on the closing commit; CI of `fb084e6` built the web image with no api, Redis or database.                                                                                                                                                                                                                                                                 |
+
+Known limits (T24's open points, O113):
+
+- Whether nginx or Next serves `_global-error.html` as a ready file was not seen; if it is, its
+  inline scripts carry no nonce and the CSP blocks them (`check:web-shells` skips that page).
+- Next's 416 page under `/_next/static/` (a `Range` the file cannot serve) carries no CSP of web's,
+  since `proxy.ts` does not run there; nginx still adds its `frame-ancestors 'none'`.
+- Spec 0019's signed storage links need `S3_PUBLIC_ENDPOINT`'s origin in `img-src`: backlog
+  "Signed links in the CSP".

@@ -1,12 +1,14 @@
 # 0014 catalog page: clarifications
 
-Status: accepted (2026-10-19); amended 2026-10-19 at the plan: the whole greeting goes (O33), web's
+Status: done (2026-10-22). History, not instructions. Accepted 2026-10-19; amended 2026-10-19 at
+the plan: the whole greeting goes (O33), web's
 own health route (O34), Lamoda's layout of applied filters and the breadcrumbs (O5), search by
 article (O14); amended 2026-10-19 after the check against 0012, 0013 and 0015 (O35–O39);
 amended 2026-10-19 at the review of PR 1 (O40–O48), its second round (O5's description, O46,
 O49, O50) and its third round (O49's lag); amended 2026-10-21 at T13a (O76: the taint deferred) and at T20 (O97–O105: analytics);
 amended 2026-10-22 at the review of PR 3 (O106, O107) and its production checks (O108: AC23's
-Accessibility 97 accepted) and at T25 (O113: the close in a pull request of its own) and the review of PR 4 (O114).
+Accessibility 97 accepted) and at T25 (O113: the close in a pull request of its own) and the review of PR 4 (O114) and
+at the close (O115: what plan §8 asked that the close does not do).
 
 The owner's decisions for this spec. Ids `O1`, `O2`, … are referred to by the spec, the plan and
 code comments. All decisions below: owner, 2026-10-19.
@@ -699,3 +701,16 @@ build` passes. (owner, T19.)
   `check_visit` waits 5 s, not 3, after the floods: `edge_media` takes 2 s to refill and the
   floods' tail may run late. A plain miss under `/_next/static/` needs nothing: Next answers it
   with a text 404 without rendering a page. (owner, PR #97 review.)
+
+## Decided at the close
+
+- **O115. What plan §8 asked that the close does not do.** Spec 0012 closed first (2026-10-19), and
+  a folder with `Status: done` is never edited, so its "Redis holds only rate-limit counters"
+  stays as it was written; no living document repeats it, and `CLAUDE.md` describes the filter
+  counts' cache in Redis. Redis stays out of the backups: a lost cache only costs a recompute. Of
+  plan §8's backlog items every one was removed by the task that closed it; "Product card link"
+  stays for its prefetch (O75), "Taint the proxy secret" stays (O76), and the two items O21 left
+  ("Page cache in a read-only image", "Cache warm-up on deploy") are spec 0018's (its V13). The
+  close adds two backlog items: 0019's `img-src` (O113) and `types {}` in nginx's
+  `location ~* ^/api/socket\.io`, the one note of PR #97's fourth review, which the owner moved to
+  the backlog. (owner, 2026-10-22.)

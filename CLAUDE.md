@@ -17,7 +17,10 @@ from it through nginx, users' files with signed links and their deletion through
 `0011-s3-storage`; sign-in with Google, sessions, the admin token's removal, user routes that serve
 only the signed-in user's own data, account deletion and the header's profile menu by `0013-auth`;
 nightly encrypted copies of the database and the bucket, a database copy before a deploy migrates
-and the restore procedures by `0012-backups`, whose production checks are a backlog item; the
+and the restore procedures by `0012-backups`, whose production checks are a backlog item; the catalog at `/catalog` and
+`/catalog/<slug>` (full-text search, cursor paging in a virtual grid, filters in the URL, the
+filter counts' cache, the database pool's limits, SEO, page and media limits in nginx and the
+Content Security Policy) by `0014-catalog`; the
 analytics events' catalog, its document `EVENTS.md`, their checks, the rule
 `.claude/rules/analytics.md` and the `analytics` agent by `0015-analytics-events`; the account
 pages under `/customer`, the page "Мои данные" with `PATCH /me` and deleting the account
@@ -335,6 +338,13 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   only on the classes in `SKIPPED` of `test/throttle-markers.e2e-spec.ts` (health, the gateway; a new one is
   added there on purpose). A per-route `@Throttle()` names one of its tier's two throttlers
   (`expensive-minute`), not `default`; that test fails on any other name.
+- `api` product search (spec 0014): `q` of `GET /products` and `/products/facets` matches
+  `products.search_vector` (the name, brand and category, Russian stemming, a GIN index) with
+  `to_tsquery('russian', …)`, the last word as a prefix from `MIN_PREFIX_LENGTH` (2) characters,
+  or an article in any case (`toProductSql`, `products/listing/product-filter.ts`). Triggers of
+  the migration `…_product_search` on `products`, `brands` and `categories` keep the vector up to
+  date, so a rename there rewrites its products' vectors (backlog "Catalog renames when catalog
+  writes open").
 - `api` filter counts (`GET /products/facets`) are cached in Redis by `ProductFacetsCache`
   (`products/listing/facets-cache.ts`, spec 0014 plan §2.6) for `FACETS_CACHE_TTL_SECONDS` (60 s),
   under `facets:v1:<sha256>` of the normalized filter, `q` as sent (O58) (`facetsCacheKey`, which names every field of
@@ -504,6 +514,11 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   signed out (a failed read too, so a sign-in whose session read fails on the way back loses its
   `Signed In`, N55), on "Back" from the browser's cache or after a failed start. A sign-in seen
   without consent is not kept: a later consent sends only the identity.
+- `web` catalog (spec 0014): `/catalog` and `/catalog/<slug>` keep the filters, the sort, `q` and
+  `cursor` in the address, read and written only by `_pages/catalog/model/url-state.ts` (unknown
+  parameters dropped, `q` cut to 100); a filter change replaces the address and drops `cursor`.
+  The first batch is prefetched on the server, the next ones load by cursor in
+  `widgets/product-grid`'s virtual grid; with no JavaScript, "Дальше" opens `?cursor=`.
 - `web` data from the api renders at request time inside `<Suspense>`: the web image must build with
   no api, Redis or database running. So a page has sent its static shell with 200 before it reads
   anything, and a `notFound()` there is a soft 404 (the not-found page with `noindex`). A real 404
