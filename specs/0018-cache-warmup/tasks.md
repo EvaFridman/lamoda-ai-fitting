@@ -73,13 +73,14 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       limit not stored); a Redis span in Sentry carries no arguments (V22); `qa-tester`: AC1, AC2,
       AC3, AC5 on the local stack; `npm run verify`.
       Commit: `feat(web): cache the catalog's public reads`
-- [ ] **T8. The first-request measurement.** `scripts/measure-first-request.mjs` and its `node --test`,
-      run by `cd.yml` after `smoke-test.sh` and by `ci-deploy-check.sh` (plan §5).
+- [x] **T8. The first-request measurement.** `scripts/measure-first-request.mjs` and its `node --test`,
+      run by `cd.yml` before `smoke-test.sh` (V25) and by `ci-deploy-check.sh` (plan §5).
       Check: its tests; its output in `ci-deploy-check.sh` in CI; `npm run verify`.
       Commit: `feat(ci): measure the first request after a deploy`
 - 👤 Before the merge, with the owner, who picks the moment: the script from PR 2's branch runs
   against production right after the nearest deploy, the first measurement, neither cache nor
-  warm-up (V17), kept for the acceptance record.
+  warm-up (V17), kept for the acceptance record; that deploy's smoke test has already requested
+  the pages (V25).
 - 👤 merges PR 2 at a quiet time; the deploy's measurement (cache, no warm-up) is kept for the
   acceptance record (AC14).
 

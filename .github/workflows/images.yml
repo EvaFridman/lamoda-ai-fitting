@@ -34,6 +34,12 @@ jobs:
         with:
           persist-credentials: false
 
+      # The project's Node for scripts/measure-first-request.mjs in the deploy check (no packages).
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
       - name: Image tag and registry
         id: tag
         # The short commit hash is the image tag and the version the site reports; GHCR needs a

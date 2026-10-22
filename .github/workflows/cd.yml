@@ -155,6 +155,15 @@ jobs:
         with:
           persist-credentials: false
 
+      # The project's Node for scripts/measure-first-request.mjs (no packages). Only the measurement
+      # needs it, so a failed setup skips that step and does not stop the deploy.
+      - name: Set up Node
+        id: node
+        continue-on-error: true
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
       - name: SSH to the server as the deploy user
         env:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
@@ -252,6 +261,18 @@ jobs:
         run: |
           # shellcheck disable=SC2029
           ssh server "DEPLOY_PROFILE=server /opt/ai-fitting/deploy/scripts/deploy.sh '$IMAGE_TAG'"
+
+      - name: Measure the first request
+        # The first visitor after the switch, before the smoke test warms these pages (spec 0018
+        # V25): the first request's time against the median of five more, read by the owner (AC14);
+        # it exits 0 whatever it measures, and a crash of its own must not fail a deploy already
+        # switched (a failed run would also refuse a later rollback to this version).
+        if: steps.node.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 5
+        env:
+          SITE_DOMAIN: ${{ vars.SITE_DOMAIN }}
+        run: node scripts/measure-first-request.mjs "https://$SITE_DOMAIN" /catalog /catalog/dresses
 
       - name: Check from outside
         # From the internet, through DNS and the firewall, the site must report the new version.

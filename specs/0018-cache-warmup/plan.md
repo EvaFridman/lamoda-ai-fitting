@@ -3,9 +3,9 @@
 Status: accepted (2026-10-20); amended 2026-10-20 at the review of PR 1 (§2, §3's key, §4's bound
 and pace, §5, §9, §10); amended 2026-10-21 after 0014 deferred the proxy secret's taint (O76);
 amended 2026-10-21 at T4 (§1, V19; §2, V20), at T5 (§1, V19; §2, the worker's `REDIS_CACHE_URL`)
-and at T6 (§1, V19; §3's handler, V21, V22); amended 2026-10-22 at T7 (§3's errors, V23; §3's reads, V24).
+and at T6 (§1, V19; §3's handler, V21, V22); amended 2026-10-22 at T7 (§3's errors, V23; §3's reads, V24) and at T8 (§5's order, V25).
 
-How [spec.md](spec.md) is built. Decisions: [clarifications.md](clarifications.md) (V1–V24).
+How [spec.md](spec.md) is built. Decisions: [clarifications.md](clarifications.md) (V1–V25).
 No new dependencies: web already has `ioredis` (its `package.json`), Next is 16.3.8.
 
 ## 1. Pull requests and release order
@@ -145,8 +145,9 @@ ${REDIS_CACHE_MAXMEMORY:-128mb} --maxmemory-policy allkeys-lru`, no volume, `mem
 - **`scripts/measure-first-request.mjs <base-url> <path>...`** (with its `node --test`, as 0014
   T22's `measure-page-requests.mjs`). For each path, the time of the first request and the median
   of five more, through nginx; prints them and the ratio; exits 0 (the threshold is read by the
-  owner, AC14). `cd.yml` runs it after `smoke-test.sh` for `/catalog` and one category;
-  `ci-deploy-check.sh` too.
+  owner, AC14). `cd.yml` runs it right after the deploy and before `smoke-test.sh`, which would
+  otherwise be the first visitor (V25), for `/catalog` and one category; `ci-deploy-check.sh` too,
+  after its first deploy.
 - **Three measurements (V17).** Before PR 2 is merged, the script from its branch runs against
   production right after a deploy: neither cache nor warm-up. PR 2's deploy records the numbers
   with the cache but without the warm-up (a new release's cache is empty, so its first request is

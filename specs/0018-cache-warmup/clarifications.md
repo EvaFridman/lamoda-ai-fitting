@@ -1,7 +1,7 @@
 # 0018 page cache and warm-up on deploy: clarifications
 
 Status: accepted (2026-10-20); amended 2026-10-20 at the plan (V10's figures, V15) and at the
-review of PR 1 (V7, V9, V12, V15, V16–V18); amended 2026-10-21 at T4 (V19, V20), at T5 (V19: no push before the pull request) and at T6 (V19: T6 before 0014 too; V21, V22); amended 2026-10-22 at T7 (V23, V24).
+review of PR 1 (V7, V9, V12, V15, V16–V18); amended 2026-10-21 at T4 (V19, V20), at T5 (V19: no push before the pull request) and at T6 (V19: T6 before 0014 too; V21, V22); amended 2026-10-22 at T7 (V23, V24) and at T8 (V25).
 
 The owner's decisions for this spec. Ids `V1`, `V2`, … are referred to by the spec, the plan and
 code comments. All decisions below: owner, 2026-10-20.
@@ -231,3 +231,15 @@ the visitor's `q`, so a flood of searches from many addresses could evict the pa
 while Redis stays up, and their misses would count under web's address. It needs on the order of
 the whole 128 MB of counts a minute, and the pages' keys are read on every view; a memory of its
 own for the page cache was weighed.
+
+## Added at T8
+
+**V25. The measurement goes before the smoke test.** `smoke-test.sh` requests `/catalog` and
+`/catalog/dresses`, and `deploy.sh` requests no page, so the smoke test is the first visitor after
+a switch: a measurement after it, as plan §5 had it, sees Next's modules loaded and, from PR 2 on,
+the page cache filled. So `cd.yml` and `ci-deploy-check.sh` (after its first deploy) run
+`measure-first-request.mjs` right after `deploy.sh` and before `smoke-test.sh`; it exits 0 whatever
+it measures, so a broken site is still caught by the smoke test that follows. V17's first
+measurement is run by hand after a deploy from `main`, whose smoke test has already run: the
+record says so. The owner weighed a category the smoke test does not request (`/catalog` would
+stay warm) and keeping the plan's order (AC14's numbers lowered by the smoke test's warm-up).
