@@ -152,7 +152,9 @@ with a message to start it. The project `unit` (everything else) needs no Docker
 `web/src/**/*.test.ts(x)` and need no Docker: `npm --prefix web test`.
 
 Before calling a task done: `npm run verify`. Before opening a pull request, also a clean install
-the way CI does it (`npm ci` in the root and in each package), then `verify` again.
+the way CI does it (`npm ci` in the root and in each package), then `verify` again. Inside a phase
+of spec 0019 a task ends with `typecheck`, `lint` and its own tests, and the full `verify` runs
+once at the phase's end (spec 0019 A58).
 
 ## Structure
 
