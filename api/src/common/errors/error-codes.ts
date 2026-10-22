@@ -13,6 +13,8 @@ export const ERROR_CODES = [
   'NOT_FOUND',
   'ALREADY_EXISTS',
   'IN_USE',
+  // A per-user limit is spent (spec 0019 plan §5): a sixth saved fitting photo.
+  'LIMIT_REACHED',
   'PAYLOAD_TOO_LARGE',
   'TOO_MANY_REQUESTS',
   'SERVICE_UNAVAILABLE',
@@ -34,6 +36,7 @@ export const ERROR_STATUS: Readonly<Record<ErrorCode, HttpStatus>> = {
   NOT_FOUND: HttpStatus.NOT_FOUND,
   ALREADY_EXISTS: HttpStatus.CONFLICT,
   IN_USE: HttpStatus.CONFLICT,
+  LIMIT_REACHED: HttpStatus.CONFLICT,
   PAYLOAD_TOO_LARGE: HttpStatus.PAYLOAD_TOO_LARGE,
   TOO_MANY_REQUESTS: HttpStatus.TOO_MANY_REQUESTS,
   SERVICE_UNAVAILABLE: HttpStatus.SERVICE_UNAVAILABLE,

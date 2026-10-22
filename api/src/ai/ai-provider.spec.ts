@@ -1,6 +1,14 @@
+import sharp from 'sharp';
 import { describe, expect, it, vi } from 'vitest';
 
-import { createAiProvider, deadlineMs, FakeAiProvider, OpenAiProvider } from './ai-provider.js';
+import { goodPhoto, refusedPhoto } from '../../test/support/photos.js';
+import {
+  createAiProvider,
+  deadlineMs,
+  FakeAiProvider,
+  OpenAiProvider,
+  solidColourReason,
+} from './ai-provider.js';
 import { AiProviderError } from './ai-provider.error.js';
 import type { AiSettings } from './ai-settings.js';
 import { OpenAiClient } from './openai-client.js';
@@ -173,6 +181,82 @@ describe('FakeAiProvider', () => {
     ]) {
       expect((await failureOf(call)).isTimeout).toBe(true);
     }
+  });
+});
+
+describe('solidColourReason and the colour refusals', () => {
+  const REASONS = ['dark', 'not_full', 'many_people', 'child', 'no_person', 'moderation'] as const;
+  const image = (buffer: Buffer, mimeType: 'image/jpeg' | 'image/webp' = 'image/jpeg') => ({
+    bytes: new Uint8Array(buffer),
+    mimeType,
+  });
+  const fake = () => new FakeAiProvider({ checkTimeoutMs: 1000 });
+
+  it.each(REASONS)('names the reason of a solid %s image', async (reason) => {
+    expect(await solidColourReason(await refusedPhoto(reason))).toBe(reason);
+  });
+
+  it.each(['jpeg', 'png', 'webp'] as const)('reads a solid image in %s', async (format) => {
+    expect(await solidColourReason(await refusedPhoto('child', { format }))).toBe('child');
+  });
+
+  it('reads a solid image after a lossy WebP re-encode', async () => {
+    const webp = await sharp(await refusedPhoto('many_people'))
+      .webp({ quality: 60 })
+      .toBuffer();
+
+    expect(await solidColourReason(webp)).toBe('many_people');
+  });
+
+  it('answers null for a noisy photo, in every format', async () => {
+    for (const format of ['jpeg', 'png', 'webp'] as const) {
+      expect(await solidColourReason(await goodPhoto({ format }))).toBeNull();
+    }
+  });
+
+  it('answers null for a solid image of another colour', async () => {
+    const grey = await sharp({
+      create: { width: 8, height: 8, channels: 3, background: { r: 128, g: 128, b: 128 } },
+    })
+      .png()
+      .toBuffer();
+
+    expect(await solidColourReason(grey)).toBeNull();
+  });
+
+  it('answers null for bytes that are not an image', async () => {
+    expect(await solidColourReason(new TextEncoder().encode('refuse:dark'))).toBeNull();
+    expect(await solidColourReason(new Uint8Array())).toBeNull();
+  });
+
+  it.each(REASONS)('checkPhoto refuses a solid %s image', async (reason) => {
+    expect(await fake().checkPhoto(image(await refusedPhoto(reason)))).toEqual({
+      ok: false,
+      reason,
+    });
+  });
+
+  it('checkPhoto accepts a noisy photo', async () => {
+    expect(await fake().checkPhoto(image(await goodPhoto()))).toEqual({ ok: true });
+  });
+
+  it('checkPhoto still refuses by the byte marker', async () => {
+    expect(await fake().checkPhoto(bytes('refuse:dark'))).toEqual({ ok: false, reason: 'dark' });
+  });
+
+  it('moderateImage flags only the magenta image', async () => {
+    expect(await fake().moderateImage(image(await refusedPhoto('moderation')))).toEqual({
+      flagged: true,
+      categories: ['sexual'],
+    });
+    expect(await fake().moderateImage(image(await refusedPhoto('child')))).toEqual({
+      flagged: false,
+      categories: [],
+    });
+    expect(await fake().moderateImage(image(await goodPhoto()))).toEqual({
+      flagged: false,
+      categories: [],
+    });
   });
 });
 

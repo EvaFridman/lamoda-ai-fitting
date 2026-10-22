@@ -241,7 +241,9 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   counts the rest; a detail's `field` keeps at most 100 characters and its `message` 200. A JSON
   body over `BODY_LIMIT` (at most 1 MB) answers 413 `PAYLOAD_TOO_LARGE`. Only JSON bodies are read
   (Nest's default parsers off, `bodyParser: false`): a route that needs form bodies turns the
-  urlencoded parser on with the same limit (spec 0006 F26).
+  urlencoded parser on with the same limit (spec 0006 F26); the one multipart route,
+  `POST /me/photos`, reads its body itself with `busboy` (`me/photos/photo-upload.ts`, spec 0019
+  plan §5), up to `FITTING_PHOTO_MAX_BYTES`.
   Codes and their statuses (`ERROR_STATUS`) are `api/src/common/errors/error-codes.ts`; throw
   `AppException` or its subclasses (`common/errors/app.exception.ts`, the status follows from the
   code), and let Prisma errors through: `AppExceptionFilter`
@@ -312,7 +314,17 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   date, `firstName` too, while `gender` is changed but never cleared (`ValidateIf` + `IsEnum`, not
   `@IsOptional()`, so `null` answers 400, U9). Any other field (`email`, `phone`, a storage key) is
   refused by the whitelist; an empty body answers 200 unchanged. It is the `write` tier and goes
-  through `signOutWhenGone`, as `GET` and `DELETE /me` do.
+  through `signOutWhenGone` (`me/sign-out-when-gone.ts`), as `GET` and `DELETE /me` do.
+- `api` `POST /me/photos` (spec 0019 plan §5, `me/photos/`, `@Expensive()`): the multipart body
+  (`photo`, `save` = `true` by default) read by `busboy`, `sharp` turns the JPG, PNG or WebP into a
+  WebP of at most 2048 px without metadata (anything else: 400 with the detail `IS_IMAGE`), the
+  check `checkPhoto` runs on that WebP (a refusal: the detail `PHOTO_REFUSED`, its reason in the
+  message; a failed or timed-out check: 503, nothing stored), then one transaction locks the user's
+  row (gone: 401 through `signOutWhenGone`), counts the saved photos (a sixth: 409 `LIMIT_REACHED`;
+  `save=false` makes a transient one, not counted), writes the object under `userPhotoKey` with a
+  3 s limit (a failure: 503, no row; an object left by an abort or a failed insert goes with the
+  user's folder) and the row; the first saved photo is the default. The answer is
+  `UserPhotoDto` with a signed `url`. A54–A57 say why.
 - `api` sign-in (spec 0013): Better Auth (`auth/`) with Google only (locally the fake provider of
   the compose service `oidc`), mounted by `mountAuth()` (from `createHttpApp()`) at `/api/auth`
   as an Express route ahead of Nest's; only the routes in `AUTH_ROUTES` (`auth-routes.ts`) answer,
@@ -629,8 +641,9 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   of `FITTING_CHECK_TIMEOUT_MS` (A45), or of the caller's `timeoutMs` (an activity's budget); a
   flagged image or text answers the reason `moderation`, a malformed verdict of the model counts as
   accepted with a warning, and a passed deadline or a cancelled caller signal throws an
-  `AiProviderError` whose `isTimeout` or `reason: 'aborted'` says which (the routes that will call
-  the checks, `POST /me/photos` and `POST /fittings`, answer a timeout as 503 with nothing stored).
+  `AiProviderError` whose `isTimeout` or `reason: 'aborted'` says which (the routes that call the
+  checks, `POST /me/photos` and, later, `POST /fittings`, answer any `AiProviderError` as 503 with
+  nothing stored).
   The client makes three attempts (`retry: false` makes one, for an activity with a retry policy of
   its own) for a network error, a 429 or a 5xx, none for another 4xx, `insufficient_quota` or a
   timeout; `AiProviderError` carries the operation, reason, status, OpenAI's `error.code` and

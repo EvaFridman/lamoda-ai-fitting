@@ -71,5 +71,10 @@ function isRecordNotFound(error: unknown): boolean {
 }
 
 function gone(): UnauthorizedError {
+  return userGone();
+}
+
+// The 401 of a signed-in user whose row is gone (N31), for every route of the user's own data.
+export function userGone(): UnauthorizedError {
   return new UnauthorizedError('The signed-in user no longer exists');
 }

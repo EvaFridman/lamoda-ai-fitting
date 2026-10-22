@@ -60,7 +60,8 @@ function ownRules(constraints: Record<string, string>): [string, string][] {
 export const MAX_FIELD_LENGTH = 100;
 export const MAX_MESSAGE_LENGTH = 200;
 
-function clip(text: string, max: number): string {
+// Exported for a detail built outside the pipe (the photo upload's parts, me/photos).
+export function clip(text: string, max: number): string {
   const chars = Array.from(text);
   return chars.length <= max ? text : `${chars.slice(0, max - 1).join('')}…`;
 }

@@ -5354,6 +5354,127 @@
         ]
       }
     },
+    "/me/photos": {
+      "post": {
+        "operationId": "MePhotosController_upload",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "photo"
+                ],
+                "properties": {
+                  "photo": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "A JPG, PNG or WebP of at most FITTING_PHOTO_MAX_BYTES (20 MB); stored as WebP of at most 2048 px without metadata."
+                  },
+                  "save": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "`false` stores a one-time photo: not among the saved ones (at most 5), deleted with its generation or after an hour unused."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserPhotoDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error codes: `VALIDATION_FAILED`, `BAD_JSON`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error codes: `UNAUTHORIZED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error codes: `LIMIT_REACHED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error codes: `PAYLOAD_TOO_LARGE`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error codes: `TOO_MANY_REQUESTS`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error codes: `INTERNAL_ERROR`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error codes: `SERVICE_UNAVAILABLE`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "tags": [
+          "me"
+        ]
+      }
+    },
     "/fitting-sessions": {
       "get": {
         "operationId": "FittingSessionsController_list",
@@ -7757,6 +7878,51 @@
           }
         }
       },
+      "UserPhotoDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "nullable": true,
+            "description": "Reads the photo for S3_SIGNED_URL_TTL_SECONDS (15 minutes); null when the stored key is outside the owner's folder."
+          },
+          "isDefault": {
+            "type": "boolean",
+            "description": "The photo preselected in the try-on; one per user."
+          },
+          "transient": {
+            "type": "boolean",
+            "description": "A one-time photo (uploaded with save=false): not among the saved ones, deleted with its generation or after an hour unused."
+          },
+          "width": {
+            "type": "number",
+            "description": "Of the stored WebP, at most 2048 px.",
+            "example": 1536
+          },
+          "height": {
+            "type": "number",
+            "example": 2048
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "url",
+          "isDefault",
+          "transient",
+          "width",
+          "height",
+          "createdAt"
+        ]
+      },
       "FittingSessionResponseDto": {
         "type": "object",
         "properties": {
@@ -8048,6 +8214,7 @@
           "NOT_FOUND",
           "ALREADY_EXISTS",
           "IN_USE",
+          "LIMIT_REACHED",
           "PAYLOAD_TOO_LARGE",
           "TOO_MANY_REQUESTS",
           "SERVICE_UNAVAILABLE",

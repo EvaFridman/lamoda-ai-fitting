@@ -15,6 +15,8 @@ const E20_STATUS: ReadonlyArray<readonly [ErrorCode, number]> = [
   ['NOT_FOUND', 404],
   ['ALREADY_EXISTS', 409],
   ['IN_USE', 409],
+  // Spec 0019 plan §5.
+  ['LIMIT_REACHED', 409],
   ['PAYLOAD_TOO_LARGE', 413],
   ['TOO_MANY_REQUESTS', 429],
   ['SERVICE_UNAVAILABLE', 503],

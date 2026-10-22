@@ -354,6 +354,56 @@ generation runs once per attempt); a cancelled activity rethrows its signal's re
 two the `generate` activity uses is decided at T10/T11. Assumption, owner to confirm (T3, from
 the temporal review).
 
+**A53. The fake provider refuses a photo by its colour.** The photo check runs on sharp's WebP
+(plan §5), where no byte of the upload survives, so the byte marker `refuse:<reason>` (plan §3)
+cannot reach it through `POST /me/photos`. The fake provider therefore also reads a solid-colour
+image as a refusal, one colour per reason (`REFUSAL_COLOURS` in `ai-provider.ts`: black `dark`,
+red `not_full`, green `many_people`, blue `child`, yellow `no_person`, magenta `moderation`); a
+real photo is never one colour, so an honest one passes. The e2e and a check by hand make such
+images with `api/test/support/photos.ts`; the text marker stays for prompts and for a check called
+with raw bytes. Assumption, owner to confirm (T4).
+
+**A54. The upload's order and its transaction.** `POST /me/photos` counts the saved photos
+before any model call (a sixth saved one is 409 `LIMIT_REACHED` without spending a check), then
+runs sharp, then the check, then one transaction that locks the user's row (`SELECT … FOR UPDATE`;
+no row is 401, as `/me`), counts again (final, A31), writes the object into the bucket and then the
+row. The object is written inside the transaction under its own limit of 3 s (`PUT_TIMEOUT_MS`,
+below the transaction's 5 s), so a failed or slow bucket write is aborted and leaves no row and, as
+a rule, no object (an abort between the body sent and the answer may leave one), answered 503; a
+row that fails after the write (a database rule) leaves an object too. Such an object is cleared
+by the user's folder deletion (spec 0011 M7). The user's row is also read before the check, so a
+gone user costs no model call. The first saved photo, or the first after the default was deleted,
+is the default. Assumption, owner to confirm (T4; the write's limit and the early read from the
+code review).
+
+**A55. The upload's refusals.** A missing `photo` part, a body that is not `multipart/form-data`
+and a file that is not a readable JPG, PNG or WebP (HEIC, GIF, SVG, TIFF, a truncated image, one
+decoding to over 50 megapixels) all answer 400 `VALIDATION_FAILED` with the detail
+`IS_IMAGE` on `photo` (AC4: one text for the user, «Нужно изображение JPG, PNG или WebP»); a
+part other than `photo` and `save` answers `WHITELIST_VALIDATION`, as the DTOs do, and a `save`
+other than `true`/`false` answers `IS_BOOLEAN`; a body busboy cannot parse answers
+`VALIDATION_FAILED` «The body cannot be read», as body-parser's errors do. A refusal of the check
+is the detail `PHOTO_REFUSED` on `photo` with the reason in its message («photo was refused:
+child»), the moderation's one included; its text «Фото не подходит для примерки» is the fallback,
+the screens of board 5 read the reason (T7). `LIMIT_REACHED`'s text: «Достигнут лимит, больше
+добавить нельзя». A check that fails for any other reason than its deadline (OpenAI down, a
+refused key) answers the same 503 as a timeout, with nothing stored. Accepted for the prototype
+(from the reviews): an upload holds its 20 MB in the api's memory while it is read, and a PNG or
+WebP of up to 50 megapixels (a 48 MP phone photo) decodes to about 150 MB for the time of the
+request; the `expensive` tier limits one address, not the process, so many addresses at once can
+fill the container's memory (a semaphore as the facet slots' is the fallback). Assumption, owner
+to confirm (T4).
+
+**A56. The upload signs a gone user out.** `POST /me/photos` goes through the same
+`signOutWhenGone` as `/me` (0013 N31, N38): a deleted user's cached session gets 401 with the
+session cookies expired. Plan §5 did not say; the helper moved from `MeController` to
+`me/sign-out-when-gone.ts` for both controllers. Assumption, owner to confirm (T4).
+
+**A57. The deploy check's upload checks.** `ci-deploy-check.sh` sends a 2 MB body to
+`/api/me/photos` and expects the api's 401 (nobody signed in; the body is not read), which shows
+nginx let it through, and a 21 MB body, which nginx refuses with 413 in the api's format; `/api/`
+keeps its 1 MB check. Assumption, owner to confirm (T4).
+
 ## Canvas and decisions
 
 Where the canvas differs from the decisions above, the decision wins:

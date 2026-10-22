@@ -57,7 +57,7 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       Check: unit tests of the client and the checkers on recorded answers; the env spec; CI's
       bundle check with the new pattern; `npm run verify`.
       Commit: `feat(api): add the openai client, the checkers and their settings`
-- [ ] **T4. Upload a photo.** `POST /me/photos` (`@Expensive()`, multipart, `sharp`, the photo
+- [x] **T4. Upload a photo.** `POST /me/photos` (`@Expensive()`, multipart, `sharp`, the photo
       check with its time limit (A45), `save=false` for a transient photo (A24),
       `StorageService.put`), its DTOs and errors: the code `LIMIT_REACHED` and the detail codes
       `PHOTO_REFUSED` and `IS_IMAGE` with their texts in web's `ERROR_TEXTS`/`DETAIL_TEXTS`; the

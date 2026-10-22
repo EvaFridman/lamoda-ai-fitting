@@ -1,7 +1,14 @@
+import sharp from 'sharp';
+
 import { AiProviderError } from './ai-provider.error.js';
 import type { AiSettings } from './ai-settings.js';
 import { ModerationChecker, type ModerationResult } from './checks/moderation-checker.js';
-import { PHOTO_VISION_REASONS, type PhotoCheck, PhotoChecker } from './checks/photo-checker.js';
+import {
+  PHOTO_VISION_REASONS,
+  type PhotoCheck,
+  PhotoChecker,
+  type PhotoRefusalReason,
+} from './checks/photo-checker.js';
 import {
   PROMPT_CLASSIFICATION_REASONS,
   type PromptCheck,
@@ -93,6 +100,46 @@ export function deadlineMs(
 // reason of the check (`refuse:child`, `refuse:unrelated`) or `refuse:moderation`.
 const MARKER = /refuse:([a-z_]+)/;
 
+// The marker of a photo that went through the upload: the check runs on sharp's WebP (plan §5),
+// where no byte of the upload survives, so there the marker is the photo's colour, one solid
+// colour per reason. A real photo is never one colour, so an honest one passes; `dark` is a black
+// photo, as a real check would see it. The e2e and a check by hand make such images
+// (test/support/photos.ts).
+export const REFUSAL_COLOURS: Readonly<
+  Record<PhotoRefusalReason, readonly [number, number, number]>
+> = {
+  dark: [0, 0, 0],
+  not_full: [255, 0, 0],
+  many_people: [0, 255, 0],
+  child: [0, 0, 255],
+  no_person: [255, 255, 0],
+  moderation: [255, 0, 255],
+};
+// Lossy WebP moves a solid colour by a level or two; a photo's channels spread far wider.
+const COLOUR_TOLERANCE = 12;
+
+// The reason of a solid-colour image, null for anything else (a photo, an unreadable buffer).
+export async function solidColourReason(bytes: Uint8Array): Promise<PhotoRefusalReason | null> {
+  let channels: { mean: number; stdev: number }[];
+  try {
+    ({ channels } = await sharp(Buffer.from(bytes)).stats());
+  } catch {
+    return null;
+  }
+  // A grey image has one channel; an alpha channel, if any, is not looked at.
+  const [r, g, b] = channels.length < 3 ? [channels[0], channels[0], channels[0]] : channels;
+  if (r === undefined || g === undefined || b === undefined) return null;
+  const means = [r, g, b];
+  if (means.some((channel) => channel.stdev > COLOUR_TOLERANCE)) return null;
+  const found = (Object.entries(REFUSAL_COLOURS) as [PhotoRefusalReason, readonly number[]][]).find(
+    ([, colour]) =>
+      colour.every(
+        (level, index) => Math.abs((means[index]?.mean ?? Number.NaN) - level) <= COLOUR_TOLERANCE,
+      ),
+  );
+  return found?.[0] ?? null;
+}
+
 // The provider without a key (locally, in tests and CI, A4): deterministic answers, no network.
 // A test sets `delayMs` on the instance (plan §3: not an env variable) to see the deadline pass.
 export class FakeAiProvider implements AiProvider {
@@ -103,7 +150,8 @@ export class FakeAiProvider implements AiProvider {
 
   async checkPhoto(image: ImageInput, options: AiCallOptions = {}): Promise<PhotoCheck> {
     await this.wait(options);
-    const reason = marker(Buffer.from(image.bytes).toString('latin1'));
+    const reason =
+      marker(Buffer.from(image.bytes).toString('latin1')) ?? (await solidColourReason(image.bytes));
     if (reason === 'moderation') return { ok: false, reason };
     if (isOneOf(reason, PHOTO_VISION_REASONS)) return { ok: false, reason };
     return { ok: true };
@@ -119,7 +167,9 @@ export class FakeAiProvider implements AiProvider {
 
   async moderateImage(image: ImageInput, options: AiCallOptions = {}): Promise<ModerationResult> {
     await this.wait(options);
-    const flagged = marker(Buffer.from(image.bytes).toString('latin1')) === 'moderation';
+    const flagged =
+      (marker(Buffer.from(image.bytes).toString('latin1')) ??
+        (await solidColourReason(image.bytes))) === 'moderation';
     return { flagged, categories: flagged ? ['sexual'] : [] };
   }
 
