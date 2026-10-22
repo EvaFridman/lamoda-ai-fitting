@@ -162,9 +162,20 @@ ${REDIS_CACHE_MAXMEMORY:-128mb} --maxmemory-policy allkeys-lru`, no volume, `mem
 ## 6. Deploy time limit (V11)
 
 `cd.yml`'s `deploy` job gets `timeout-minutes: 30`: the slowest deploy seen took 12.5 minutes
-(a slow GHCR pull, backlog), and the warm-up adds at most 2. GitHub then cancels the job; the ssh
-session ends and `deploy.sh` is stopped where it is. Before the switch that leaves the running copy
-serving; the step's own risk is §10.
+(a slow GHCR pull, backlog), and the warm-up adds at most 2. GitHub then cancels the job and the
+ssh session ends. It has no pty, so `deploy.sh` gets no signal: it stops at its next log line, whose
+write to the closed session raises SIGPIPE; a command in progress runs on until it writes to the
+log (docker's client then dies, a container of `compose run` keeps running). Before the
+switch that leaves the running copy serving; the step's own risk is §10.
+
+So that the next deploy can go on (V29): bash runs `deploy.sh`'s EXIT trap on that SIGPIPE too, so
+`.deploy-lock` goes; and `deploy.sh` writes `.deploy-state` right after `switch_to`, not at its end,
+so the state names the colour nginx serves before the worker and the backup job are replaced. The
+write is a rename (a full disk leaves the old file whole, and a failed one switches back), the
+switch's output waits until it is done (so no log line falls between the two), and a switch back
+puts the old state back only once nginx serves the old colour. `ci-deploy-check.sh` checks both: the state is recorded
+before the worker in the first deploy's log, and a deploy whose stderr is a closed pipe fails and
+leaves no lock.
 
 ## 7. Rules for agents and people (V8)
 
@@ -237,8 +248,11 @@ None: no page, element or event changes.
   are about three per category (V15), so the misses stay far below web's `read` quota, and the
   counters' Redis is untouched.
 - **A cancelled deploy after the switch.** If GitHub's limit cancels the job after `switch_to`,
-  the worker or the backup job may stay on the old version until the next deploy. The limit (30
-  min) is far above a normal deploy, so this is accepted.
+  the worker or the backup job may stay on the old version until the next deploy; `.deploy-state`
+  already names the new colour (§6, V29). A cancel inside a `switch_to` (forward, or back after a
+  failed check) once nginx has reloaded and before the state's rename, about a second, would still
+  leave them apart. The limit (30 min) is far above a normal
+  deploy, so this is accepted.
 - **Two Redis in local development.** One more container for each copy of the stack; the second
   copy of the stack (README) needs no new port.
 

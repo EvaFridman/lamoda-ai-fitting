@@ -68,6 +68,19 @@ Details and commands: `deploy/README.md`.
   warms up `/` only. `WARMUP_EXTRA_PATH` (a check's knob, never set by CD) reaches the script
   through `exec -e`, never the container's environment. A change to the step or the script is
   checked in `ci-deploy-check.sh` (the lines, a stopped deploy, the rollback run).
+- CD's `deploy` job has `timeout-minutes: 30` (spec 0018 V11): far above the slowest deploy seen
+  (12.5 min, a slow GHCR pull) plus the warm-up's 2. GitHub then cancels the job and the ssh
+  session ends; it has no pty, so `deploy.sh` dies of SIGPIPE at its next log line, and bash's EXIT
+  trap still removes `.deploy-lock` (a `trap … PIPE` of its own would stop that on bash 5.3). A
+  command in progress runs on until it writes to the log; docker's client then dies too, and a
+  container it ran (`compose run`) keeps running without its `--rm`. Before the switch the active
+  copy keeps serving; after it the worker or the backup job may stay on the old version until the
+  next deploy (accepted), while `.deploy-state`, written (by a rename) right after `switch_to`,
+  whose output waits until then, already names the serving colour (V29), so the next deploy never
+  targets it; a switch back restores it only once nginx is back. `ci-deploy-check.sh` checks the
+  lock and the order. A cancelled run is not a
+  successful check run, so CD by hand refuses a rollback to that hash. A step that makes deploys
+  slower revisits the limit.
 - A changed `PROXY_SECRET` recreates nginx; `deploy.sh` first checks that the serving api already
   trusts it (as `PROXY_SECRET_NEXT`) and stops otherwise. Rotation takes two deploys
   (`deploy/README.md`).

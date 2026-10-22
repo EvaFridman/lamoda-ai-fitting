@@ -49,6 +49,9 @@ fail() { log "FAILED: $*"; exit 1; }
 
 # One deploy at a time (CI also serializes, this guards manual runs). mkdir is atomic everywhere.
 mkdir "$lock_dir" 2>/dev/null || fail "another deploy holds $lock_dir (remove it if that deploy died)"
+# bash runs it on a fatal signal too: CD's time limit ends the ssh session, which has no pty, and the
+# next log line's SIGPIPE still removes the lock. No trap of its own for PIPE: bash 5.3 then skips
+# this one (spec 0018 V29).
 trap 'rmdir "$lock_dir"' EXIT
 
 infra() { docker compose -f "$compose_dir/infra.yml" --env-file "$env_file" "$@"; }
@@ -82,6 +85,11 @@ EOF
     if ! nginx -t -q; then cp active.conf.prev active.conf; exit 1; fi
     nginx -s reload
   "
+}
+
+# Replaces the state file by a rename, so a failed write (a full disk) leaves the old one whole.
+write_state() {
+  printf '%s\n' "$1" > "$state_file.tmp" && mv -f "$state_file.tmp" "$state_file"
 }
 
 # Applies the deployed nginx template to the running nginx. The image renders templates into
@@ -379,7 +387,22 @@ fi
 
 # 4. Switch, then confirm from outside that the new version answers.
 log "switching nginx to $target"
-switch_to "$target" || fail "nginx rejected the new upstream; ${active:-nothing} keeps serving"
+# The switch's output (nginx's reload notice) is held until the state is written: written to a
+# session already ended, it would stop the deploy between the switch and the record (V29).
+switch_out="$(switch_to "$target" 2>&1)" \
+  || { printf '%s\n' "$switch_out" >&2; fail "nginx rejected the new upstream; ${active:-nothing} keeps serving"; }
+# Recorded at once, so a deploy cut off from here on (CD's time limit) leaves the state naming the
+# colour nginx serves, and the next deploy never targets the serving copy (spec 0018 V29).
+previous_state="$(cat "$state_file" 2>/dev/null || true)"
+if ! write_state "$(printf 'COLOR=%s\nTAG=%s\nPREVIOUS_COLOR=%s\nPREVIOUS_TAG=%s' \
+  "$target" "$tag" "$active" "$active_tag")"; then
+  if [ -n "$active" ] && switch_to "$active" >&2; then
+    fail "the state could not be written; switched back to $active"
+  fi
+  fail "the state could not be written and nginx serves $target; set COLOR=$target in $state_file by hand"
+fi
+if [ -n "$switch_out" ]; then printf '%s\n' "$switch_out" >&2; fi
+log "recorded $target ($tag) as the serving copy"
 served=""
 for _ in $(seq 1 20); do
   served="$(served_version || true)"
@@ -389,7 +412,17 @@ done
 if [ "$served" != "$tag" ]; then
   if [ -n "$active" ]; then
     log "the site reports '${served:-nothing}', not $tag: switching back to $active"
-    switch_to "$active" || true
+    # The state follows nginx: it names $active again only once nginx serves it, and the switch's
+    # output waits for it, as on the way forward.
+    if back_out="$(switch_to "$active" 2>&1)"; then
+      write_state "$previous_state" || log "WARNING: the state still names $target; nginx serves $active"
+      if [ -n "$back_out" ]; then printf '%s\n' "$back_out" >&2; fi
+    else
+      printf '%s\n' "$back_out" >&2
+      log "WARNING: nginx did not switch back and still serves $target, as the state says"
+    fi
+  else
+    rm -f "$state_file"
   fi
   fail "$tag does not serve the site"
 fi
@@ -405,9 +438,6 @@ worker up -d --remove-orphans >&2 || log "WARNING: the worker did not start; the
 #     before the job (no backup image, P24) leaves the old one.
 log "replacing the backup job with $tag"
 backup up -d --remove-orphans >&2 || log "WARNING: the backup job did not start with $tag; the site is fine, the nightly copies are not"
-
-printf 'COLOR=%s\nTAG=%s\nPREVIOUS_COLOR=%s\nPREVIOUS_TAG=%s\n' \
-  "$target" "$tag" "$active" "$active_tag" > "$state_file"
 
 # 6. Old app images go after every successful deploy too (see prune_app_images).
 prune_app_images || log "WARNING: old app images were not all removed; the site is fine, check the disk"

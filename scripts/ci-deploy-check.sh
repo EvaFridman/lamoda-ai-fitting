@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 # Runs the production setup on this machine with images built by ci-build-images.sh and checks a
 # blue-green deploy end to end, with the same deploy.sh the server runs:
+#   0. a deploy whose log goes to a closed pipe, as after CD's time limit ends the ssh session,
+#      dies at its first log line and leaves no lock (spec 0018 V29);
 #   1. deploy <tag> (blue): its log shows the warm-up of every listed page and category before
-#      the switch, none of it through nginx (spec 0018 AC8, AC11, AC13); the first request's time
+#      the switch, none of it through nginx (spec 0018 AC8, AC11, AC13), and the state recorded
+#      before the worker is replaced (V29); the first request's time
 #      measured (spec 0018 plan §5, printed only),
 #      smoke test through nginx; the seed loaded the demo catalog; nginx's
 #      request id is on the response and on nginx's and the api's log lines (spec 0006 AC14);
@@ -632,7 +635,7 @@ teardown() {
   docker rm -f -v "$probe_container" "$s3_container" > /dev/null 2>&1 || true
   docker compose -f deploy/compose/infra.yml --env-file "$env_file" --profile server down --volumes \
     || true
-  rm -f .deploy-state
+  rm -f .deploy-state .deploy-state.tmp
   # It holds the run's env files with their one-off keys (spec 0011 M35).
   rm -rf "$work"
   docker image rm "ai-fitting-api:$second" "ai-fitting-web:$second" "ai-fitting-api:$broken" \
@@ -748,9 +751,34 @@ done
 echo "the storage emulator serves the bucket ai-fitting, media/ readable without a key, behind the probe"
 endgroup
 
+group "a deploy cut off from its log (spec 0018 V29)"
+# CD's time limit ends the ssh session, which has no pty: the server's deploy.sh gets no signal and
+# writes its next log line to a pipe no one reads. The reader is gone before deploy.sh starts, so it
+# dies of SIGPIPE at its first line, before step 1, and its EXIT trap must still remove the lock.
+log_closed="$work/log-closed"
+set +e
+bash -c 'while [ ! -e "$1" ]; do sleep 0.1; done; shift; exec "$@"' _ "$log_closed" \
+  env ENV_FILE="$env_file" deploy/scripts/deploy.sh "$tag" 2>&1 | { exec 0<&-; touch "$log_closed"; }
+cut_status="${PIPESTATUS[0]}"
+set -e
+if [ "$cut_status" -eq 0 ] || [ -e .deploy-lock ] || [ -e .deploy-state ]; then
+  echo "ci-deploy-check: a deploy cut off from its log exited $cut_status" \
+    "$([ -e .deploy-lock ] && echo 'and left .deploy-lock')$([ -e .deploy-state ] && echo ' and wrote .deploy-state')" >&2
+  rmdir .deploy-lock 2> /dev/null || true
+  exit 1
+fi
+echo "a deploy cut off from its log exited $cut_status and removed its lock"
+endgroup
+
 group "deploy $tag (first deploy, blue)"
 ENV_FILE="$env_file" deploy/scripts/deploy.sh "$tag" 2>&1 | tee "$work/deploy-1.log"
 check_warmup_log "$work/deploy-1.log" blue
+# spec 0018 V29: the state names blue as soon as nginx serves it, before the worker is replaced.
+recorded="$(grep -n -m 1 'recorded blue (' "$work/deploy-1.log" | cut -d: -f1 || true)"
+replaced="$(grep -n -m 1 'replacing the Temporal worker' "$work/deploy-1.log" | cut -d: -f1 || true)"
+[ -n "$recorded" ] && [ -n "$replaced" ] && [ "$recorded" -lt "$replaced" ] \
+  || { echo "ci-deploy-check: the state is not recorded before the worker is replaced (lines '$recorded', '$replaced')" >&2; exit 1; }
+echo "the state named blue before the worker was replaced"
 # spec 0018 AC13: the warm-up asked web from inside its container, so no page has passed nginx yet
 # (the deploy's own requests through it are for /media/).
 nginx_log="$(docker compose -f deploy/compose/infra.yml --env-file "$env_file" logs nginx 2>&1)"

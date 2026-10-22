@@ -105,10 +105,12 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       `CLAUDE.md`'s Production and deploys; backlog "Cache warm-up on deploy (issue #41)".
       Check: `ci-deploy-check.sh` in CI (AC8–AC11, AC13); `npm run verify`.
       Commit: `feat(deploy): warm up the new copy before the switch`
-- [ ] **T12. The deploy's time limit.** `timeout-minutes: 30` on `cd.yml`'s `deploy` job (plan §6);
-      `.claude/rules/deploy.md`; backlog "No time limit on the deploy step".
-      Check: read at review (AC15); `npm run verify`.
-      Commit: `ci(ci): limit the deploy job to 30 minutes`
+- [x] **T12. The deploy's time limit.** `timeout-minutes: 30` on `cd.yml`'s `deploy` job (plan §6);
+      `deploy.sh`: `.deploy-state` written after `switch_to` (V29); `ci-deploy-check.sh`: that and
+      the lock removed after a closed log; `.claude/rules/deploy.md`; backlog "No time limit on the deploy
+      step".
+      Check: read at review (AC15); `ci-deploy-check.sh` in CI (V29); `npm run verify`.
+      Commit: `ci(deploy): limit the deploy job to 30 minutes and record the state at the switch`
 - [ ] **T13. The rule for new pages.** `.claude/rules/web-pages.md` (plan §7) and
       `.claude/README.md` if its list of rules changes.
       Check: the rule loads for a file under `web/app` (a new session); `npm run verify`.
