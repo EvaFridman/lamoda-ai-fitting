@@ -16,7 +16,8 @@ export function cursorPaginatedSchema<Item extends z.ZodType>(item: Item) {
   });
 }
 
-// `limit` (1–100, default 60) and `offset` of every list route.
+// `limit` (1–100, default 60) and `offset` of every list route but `/products`, which takes only
+// `limit` and pages by cursor (spec 0014 O11).
 export interface PageQuery {
   limit?: number;
   offset?: number;

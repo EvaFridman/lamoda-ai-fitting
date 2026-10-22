@@ -21,9 +21,8 @@ describe('the infinite list keys', () => {
   });
 
   it('ignore an offset, as the batches have none', () => {
-    expect(productKeys.infinite({ ...query, offset: 40 } as typeof query, 'c')).toEqual(
-      productKeys.infinite(query, 'c'),
-    );
+    const wide = { ...query, offset: 40 };
+    expect(productKeys.infinite(wide, 'c')).toEqual(productKeys.infinite(query, 'c'));
   });
 
   it('are equal for the server and the browser, with a start and without', () => {

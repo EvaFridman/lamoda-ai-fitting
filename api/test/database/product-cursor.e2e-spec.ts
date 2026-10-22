@@ -408,37 +408,25 @@ describe('product list by cursor: keys compare as numbers', () => {
   });
 });
 
-describe('product list by cursor: offset', () => {
-  it('still pages by offset with the total, and gives a next cursor that continues the list', async () => {
+describe('product list: the first batch and the cursor batches', () => {
+  it('gives the total on the first batch only and continues the list by the cursor', async () => {
     const scope = await newScope();
     const created: string[] = [];
-    for (let index = 0; index < 6; index += 1) {
+    for (let index = 0; index < 5; index += 1) {
       created.push(await product(scope, { createdAt: at(index) }));
     }
     const order = [...created].reverse();
 
-    const byOffset = await get(`${scope.query}&limit=2&offset=2`);
-    const next = await get(`${scope.query}&limit=2&cursor=${byOffset.nextCursor}`);
+    const first = await get(`${scope.query}&limit=2`);
+    const second = await get(`${scope.query}&limit=2&cursor=${first.nextCursor}`);
+    const third = await get(`${scope.query}&limit=2&cursor=${second.nextCursor}`);
 
-    expect(byOffset.total).toBe(6);
-    expect(byOffset.items.map((item) => item.id)).toEqual(order.slice(2, 4));
-    expect(next.items.map((item) => item.id)).toEqual(order.slice(4, 6));
-    expect(next.total).toBeNull();
-  });
-
-  it('gives no next cursor on the last offset batch', async () => {
-    const scope = await newScope();
-    for (let index = 0; index < 3; index += 1) await product(scope, { createdAt: at(index) });
-
-    const page = await get(`${scope.query}&limit=2&offset=2`);
-
-    expect(page.items).toHaveLength(1);
-    expect(page.nextCursor).toBeNull();
-    expect(page.total).toBe(3);
-  });
-
-  it('accepts offset=0 without a cursor', async () => {
-    expect((await get('limit=1&offset=0')).total).toEqual(expect.any(Number));
+    expect(first.total).toBe(5);
+    expect(first.items.map((item) => item.id)).toEqual(order.slice(0, 2));
+    expect(second.total).toBeNull();
+    expect(second.items.map((item) => item.id)).toEqual(order.slice(2, 4));
+    expect(third.items.map((item) => item.id)).toEqual(order.slice(4));
+    expect(third.nextCursor).toBeNull();
   });
 });
 
@@ -642,14 +630,18 @@ describe('product list by cursor: 400 VALIDATION_FAILED', () => {
     expect(JSON.stringify(response.body)).not.toContain('secret-marker');
   });
 
-  it('refuses an offset sent with a cursor, with a detail on offset', async () => {
+  it.each([0, 5])('refuses offset=%i as an unknown parameter', async (offset) => {
+    expect(await refused(`/products?offset=${offset}`)).toEqual([
+      { field: 'offset', code: 'WHITELIST_VALIDATION', message: expect.any(String) as string },
+    ]);
+  });
+
+  it('refuses an offset sent with a valid cursor, with a detail on offset only', async () => {
     const cursor = await validCursor('new');
 
-    for (const offset of [0, 5]) {
-      expect(await refused(`/products?cursor=${cursor}&offset=${offset}`), String(offset)).toEqual([
-        { field: 'offset', code: 'NOT_WITH_CURSOR', message: expect.any(String) as string },
-      ]);
-    }
+    expect(await refused(`/products?cursor=${cursor}&offset=1`)).toEqual([
+      { field: 'offset', code: 'WHITELIST_VALIDATION', message: expect.any(String) as string },
+    ]);
   });
 
   it('refuses a bad cursor and an offset together with both details', async () => {
@@ -657,8 +649,18 @@ describe('product list by cursor: 400 VALIDATION_FAILED', () => {
 
     expect(details.map((detail) => `${detail.field}:${detail.code}`).sort()).toEqual([
       'cursor:INVALID_CURSOR',
-      'offset:NOT_WITH_CURSOR',
+      'offset:WHITELIST_VALIDATION',
     ]);
+  });
+
+  it('still pages the other lists by limit and offset', async () => {
+    const scope = await newScope();
+    const id = await product(scope);
+    const categories = await http().get('/categories?limit=1&offset=1');
+    const images = await http().get(`/products/${id}/images?limit=1&offset=1`);
+
+    expect(categories.status).toBe(200);
+    expect(images.status).toBe(200);
   });
 
   it('does not take a cursor on the facets', async () => {

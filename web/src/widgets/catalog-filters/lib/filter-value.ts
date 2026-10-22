@@ -3,7 +3,7 @@ import type { PriceRange } from '@/shared/ui';
 
 // The catalog's selection as the row shows and changes it: the filters, the search and the sort.
 // The category is the page's path (O73), the batch the list's.
-export type CatalogFilterValue = Omit<ProductListQuery, 'categoryId' | 'limit' | 'offset'>;
+export type CatalogFilterValue = Omit<ProductListQuery, 'categoryId' | 'limit'>;
 
 // A filter or the search narrows the list; the sort only orders it.
 export function hasAppliedFilters(value: CatalogFilterValue): boolean {

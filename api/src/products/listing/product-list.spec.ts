@@ -7,19 +7,19 @@ import { PRODUCT_SORTS } from './product-sort.js';
 const where = Prisma.sql`p.brand_id = ${'b1'}`;
 
 describe('productPageSql', () => {
-  it('binds the filter values, then the limit and the offset', () => {
-    const sql = productPageSql({ where, sort: 'new', limit: 20, offset: 40 });
+  it('binds the filter values, then the limit, and has no offset', () => {
+    const sql = productPageSql({ where, sort: 'new', limit: 20 });
 
-    expect(sql.values).toEqual(['b1', 20, 40]);
-    expect(sql.sql).toContain('LIMIT ? OFFSET ?');
+    expect(sql.values).toEqual(['b1', 20]);
+    expect(sql.sql).toContain('LIMIT ?');
+    expect(sql.sql).not.toContain('OFFSET');
     expect(sql.sql).not.toContain('20');
-    expect(sql.sql).not.toContain('40');
   });
 
-  it('starts at the first row and offset 0 without an after condition or an offset', () => {
+  it('starts at the first row without an after condition', () => {
     const sql = productPageSql({ where, sort: 'new', limit: 5 });
 
-    expect(sql.values).toEqual(['b1', 5, 0]);
+    expect(sql.values).toEqual(['b1', 5]);
     expect(sql.sql.replaceAll(/\s+/g, ' ')).toContain('AND TRUE ORDER BY');
   });
 
@@ -27,7 +27,7 @@ describe('productPageSql', () => {
     const after = Prisma.sql`p.discount < ${7}`;
     const sql = productPageSql({ where, after, sort: 'discount', limit: 5 });
 
-    expect(sql.values).toEqual(['b1', 7, 5, 0]);
+    expect(sql.values).toEqual(['b1', 7, 5]);
     expect(sql.sql).toContain('p.discount < ?');
   });
 
@@ -46,14 +46,14 @@ describe('productPageSql', () => {
     ['discount', 'p.discount DESC, p.id DESC'],
     ['rating', 'p.rating DESC NULLS LAST, p.id DESC'],
   ] as const)('orders the sort %s by %s', (sort, order) => {
-    const sql = productPageSql({ where, sort, limit: 1, offset: 0 });
+    const sql = productPageSql({ where, sort, limit: 1 });
 
     expect(sql.sql.replaceAll(/\s+/g, ' ')).toContain(`ORDER BY ${order} LIMIT`);
   });
 
   it('ends every sort with the id, so ties page in one fixed order', () => {
     for (const sort of PRODUCT_SORTS) {
-      const sql = productPageSql({ where, sort, limit: 1, offset: 0 });
+      const sql = productPageSql({ where, sort, limit: 1 });
 
       expect(sql.sql, sort).toContain('p.id DESC LIMIT');
     }

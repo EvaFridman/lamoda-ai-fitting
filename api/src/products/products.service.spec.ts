@@ -98,7 +98,7 @@ describe('ProductsService.list', () => {
 
     await service.list(query({ limit: 5 }));
 
-    expect(pages()[0]?.values.slice(-2)).toEqual([6, 0]);
+    expect(pages()[0]?.values.at(-1)).toBe(6);
   });
 
   it('has no next cursor when the batch is not past the limit', async () => {
@@ -157,14 +157,12 @@ describe('ProductsService.list', () => {
     expect(sql?.sql).not.toContain(idOf(2));
   });
 
-  it('with an offset counts, pages from the offset and still gives a next cursor', async () => {
+  it('never offsets the page statement', async () => {
     pageRows([keyRow(3), keyRow(4), keyRow(5)]);
 
-    const result = await service.list(query({ offset: 2 }));
+    await service.list(query());
 
-    expect(pages()[0]?.values.slice(-2)).toEqual([3, 2]);
-    expect(result.total).toBe(7);
-    expect(result.nextCursor).toBe(encodeProductCursor('new', keyRow(4)));
+    expect(pages()[0]?.sql).not.toContain('OFFSET');
   });
 
   describe('rating', () => {
@@ -180,8 +178,8 @@ describe('ProductsService.list', () => {
       expect(pages()).toHaveLength(2);
       expect(pages()[1]?.sql).toContain('p.rating IS NULL');
       // One row past the batch is wanted: 3 in all, 1 found by the first condition.
-      expect(pages()[0]?.values.slice(-2)).toEqual([3, 0]);
-      expect(pages()[1]?.values.slice(-2)).toEqual([2, 0]);
+      expect(pages()[0]?.values.at(-1)).toBe(3);
+      expect(pages()[1]?.values.at(-1)).toBe(2);
       expect(result.items.map((item) => item.id)).toEqual([idOf(2), idOf(8)]);
       expect(result.nextCursor).toBe(encodeProductCursor('rating', unrated[0]!));
     });

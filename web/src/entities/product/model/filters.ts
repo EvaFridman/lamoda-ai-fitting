@@ -25,13 +25,14 @@ export interface ProductFilters {
   hasDiscount?: boolean;
 }
 
-// GET /products: the filters plus a page and an order.
-export interface ProductListQuery extends ProductFilters, PageQuery {
+// GET /products: the filters plus a batch size and an order. It pages by cursor only, so it takes
+// no `offset` (spec 0014 O11, plan §4).
+export interface ProductListQuery extends ProductFilters, Pick<PageQuery, 'limit'> {
   sort?: ProductSort;
 }
 
-// The infinite list: batches by cursor, never by offset (spec 0014 O11).
-export type ProductBatchQuery = Omit<ProductListQuery, 'offset'>;
+// The infinite list: the list's query, batched by cursor.
+export type ProductBatchQuery = ProductListQuery;
 
 // Trimmed, and an empty search or list is no filter: the api refuses `q=`, `size=` and untrimmed
 // text (400), and `['']` or `[]` must share `{}`'s key.
@@ -69,11 +70,11 @@ export function productFilters({
 }
 
 export function productListQuery(query: ProductListQuery = {}) {
-  const { limit, offset, sort } = query;
-  return { ...productFilters(query), limit, offset, sort };
+  const { limit, sort } = query;
+  return { ...productFilters(query), limit, sort };
 }
 
 // One batch of the infinite list: the first with no cursor, the next after `cursor`.
 export function productBatchQuery(query: ProductBatchQuery, cursor: string | null) {
-  return { ...productListQuery({ ...query, offset: undefined }), cursor: cursor ?? undefined };
+  return { ...productListQuery(query), cursor: cursor ?? undefined };
 }

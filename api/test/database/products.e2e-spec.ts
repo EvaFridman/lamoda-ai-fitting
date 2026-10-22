@@ -36,7 +36,8 @@ interface Detail extends ListItem {
 
 interface Page<T> {
   items: T[];
-  total: number;
+  total: number | null;
+  nextCursor: string | null;
 }
 
 let testApp: TestApp;
@@ -79,13 +80,17 @@ async function createProduct(overrides: Record<string, unknown> = {}): Promise<D
 
 async function listAll(): Promise<ListItem[]> {
   const items: ListItem[] = [];
-  for (let offset = 0; ; offset += 100) {
-    const response = await http().get(`/products?limit=100&offset=${offset}`);
+  let cursor: string | null = null;
+  do {
+    const response = await http().get(
+      cursor === null ? '/products?limit=100' : `/products?limit=100&cursor=${cursor}`,
+    );
     expect(response.status).toBe(200);
     const page = response.body as Page<ListItem>;
     items.push(...page.items);
-    if (offset + 100 >= page.total) return items;
-  }
+    cursor = page.nextCursor;
+  } while (cursor !== null);
+  return items;
 }
 
 function expectError(
@@ -166,19 +171,24 @@ describe('products: access', () => {
 });
 
 describe('products: list', () => {
-  it('answers { items, total } and pages with limit and offset', async () => {
+  it('answers { items, total, nextCursor } and pages with limit and cursor', async () => {
     await createProduct();
     await createProduct();
     await createProduct();
     const all = await listAll();
-    const response = await http().get('/products?limit=2&offset=1');
+    const first = await http().get('/products?limit=2');
 
-    expect(response.status).toBe(200);
-    expect(response.body).toEqual({
-      items: all.slice(1, 3),
+    expect(first.status).toBe(200);
+    expect(first.body).toEqual({
+      items: all.slice(0, 2),
       total: all.length,
       nextCursor: expect.any(String) as string,
     });
+    const second = await http().get(
+      `/products?limit=2&cursor=${(first.body as Page<ListItem>).nextCursor}`,
+    );
+    expect((second.body as Page<ListItem>).items).toEqual(all.slice(2, 4));
+    expect((second.body as Page<ListItem>).total).toBeNull();
   });
 
   it('orders by createdAt desc, then id desc: the newest first', async () => {

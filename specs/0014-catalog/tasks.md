@@ -218,7 +218,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## PR 4 · `feat/0014-catalog-edge` · offset out, page limits, CSP and closing
 
-- [ ] **T21. No offset in the product list.** Plan §4: the DTO, `openapi.json`, web's
+- [x] **T21. No offset in the product list.** Plan §4: the DTO, `openapi.json`, web's
       `ProductListQuery`.
       Check: e2e: `offset` on `/products` → 400, other lists keep it; `npm run verify`.
       Commit: `refactor(api): page the product list by cursor only`

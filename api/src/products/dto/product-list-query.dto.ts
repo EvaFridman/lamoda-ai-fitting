@@ -1,14 +1,13 @@
 import { ApiPropertyOptional, IntersectionType, PickType } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsIn, IsInt, IsOptional, Max, Min, ValidateBy } from 'class-validator';
+import { IsIn, IsOptional, ValidateBy } from 'class-validator';
 
-import { MAX_OFFSET, PaginationQueryDto } from '../../common/pagination/pagination-query.dto.js';
+import { PaginationQueryDto } from '../../common/pagination/pagination-query.dto.js';
 import { decodeProductCursor } from '../listing/product-cursor.js';
 import { PRODUCT_SORTS, type ProductSort } from '../listing/product-sort.js';
 import { ProductFilterQueryDto } from './product-filter-query.dto.js';
 
 // The product list: its filters, paging and sort (spec 0004 E13–E15, E45). It pages by `cursor`
-// (spec 0014 O11); `offset` stays until the web that uses the cursor is deployed (plan §4).
+// only (spec 0014 O11, plan §4): `offset` is an unknown parameter here, unlike the other lists.
 export class ProductListQueryDto extends IntersectionType(
   PickType(PaginationQueryDto, ['limit'] as const),
   ProductFilterQueryDto,
@@ -24,16 +23,6 @@ export class ProductListQueryDto extends IntersectionType(
   @IsOptional()
   @IsProductCursor()
   cursor?: string;
-
-  // No default, unlike the other lists: a sent `offset` is told from one left out (O54).
-  @ApiPropertyOptional({ minimum: 0, maximum: MAX_OFFSET, default: 0 })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(0)
-  @Max(MAX_OFFSET)
-  @IsNotWithCursor()
-  offset?: number;
 }
 
 // Code INVALID_CURSOR (O54); the message never repeats the cursor. Not checked while `sort` is
@@ -47,17 +36,6 @@ function IsProductCursor(): PropertyDecorator {
         return !PRODUCT_SORTS.includes(sort) || decodeProductCursor(value, sort) !== null;
       },
       defaultMessage: () => '$property must be the nextCursor of a batch with the same sort',
-    },
-  });
-}
-
-function IsNotWithCursor(): PropertyDecorator {
-  return ValidateBy({
-    name: 'notWithCursor',
-    validator: {
-      validate: (_value: unknown, args) =>
-        (args?.object as ProductListQueryDto).cursor === undefined,
-      defaultMessage: () => '$property must not be sent with cursor',
     },
   });
 }

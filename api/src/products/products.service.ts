@@ -62,13 +62,7 @@ export class ProductsService {
           if (keys.length > limit) break;
           keys.push(
             ...(await tx.$queryRaw<ProductKeyRow[]>(
-              productPageSql({
-                where,
-                after,
-                sort,
-                limit: limit + 1 - keys.length,
-                offset: query.offset,
-              }),
+              productPageSql({ where, after, sort, limit: limit + 1 - keys.length }),
             )),
           );
         }
