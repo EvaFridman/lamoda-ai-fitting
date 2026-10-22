@@ -55,6 +55,7 @@ function categoryRecord(categoryId: string, name: string, slug: string) {
     isActive: true,
     description: null,
     sortOrder: 1,
+    slot: null,
     createdAt: DATE,
     updatedAt: DATE,
   };
