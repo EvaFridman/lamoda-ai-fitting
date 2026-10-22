@@ -274,3 +274,20 @@ everything under it, as nginx does (`location = /healthz` and `^~ /healthz/`, so
 a page), so the list answers with no policy or category lookup. The answer is
 `{ "paths": [...], "skipped": <count> }`, its categories read from the api past the page cache: a
 copy rolled back to may hold an hour-old list (V7, found at T9's review).
+
+## Added at T12
+
+**V29. A deploy cut by the time limit leaves a state the next one can trust.** T12's review found
+plan §6 and §10 wrong: `deploy.sh` wrote `.deploy-state` only after the worker and the backup job,
+so a job cancelled after the switch left nginx on the new colour and the state on the old one, and
+the next deploy recreated (or, failing, stopped) the copy that serves the site. The owner chose to
+fix it in T12: `.deploy-state` is written right after `switch_to` (the old one put back when the
+deploy switches back, once nginx serves the old colour; written by a rename; the switch's output
+held until the state is written). The ssh session runs with no pty, so the server's `deploy.sh`
+gets no signal: it dies of SIGPIPE at its next log line, and a command in progress runs on until it
+writes to the log. The
+review feared the lock stays then; tried on bash 5.1, 5.2 (Ubuntu 22.04, 24.04) and 5.3, bash runs
+the EXIT trap on SIGPIPE and SIGTERM, so `.deploy-lock` goes, and a `trap … PIPE` of its own made
+bash 5.3 skip the EXIT trap: none is added, and `ci-deploy-check.sh` checks that the lock goes.
+Not taken: `ssh -tt` (it merges stderr into stdout and adds `\r` to the log) and a manual procedure
+in place of the fix.

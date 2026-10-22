@@ -25,11 +25,15 @@ jobs:
   deploy:
     name: Deploy to production
     runs-on: ubuntu-latest
+    # Far above the slowest deploy seen (12.5 min) plus the warm-up (at most 2): a stuck pull or
+    # `up --wait` stops here instead of holding the queue for GitHub's 6 hours. A deploy stopped
+    # before the switch leaves the running copy serving (spec 0018 V11).
+    timeout-minutes: 30
     # Secrets and variables of the environment; it accepts deployments from protected branches only.
     environment:
       name: production
       url: https://${{ vars.SITE_DOMAIN }}
-    # One deploy at a time; a deploy in progress is never cancelled.
+    # One deploy at a time; a newer run never cancels one in progress (only the time limit or a manual cancel does).
     concurrency:
       group: production
       cancel-in-progress: false

@@ -23,9 +23,12 @@ removes it from this list. Found by the agents' first security audit and trial r
   (`cache-from`/`cache-to`, e.g. `type=gha`) keeps unchanged layers' digests, so a deploy pulls
   only `dist`. Check that a cached layer still gets the base image's security updates (a base image
   bump changes its digest).
-- **No time limit on the deploy step.** `cd.yml` sets no `timeout-minutes`, so a deploy stuck in a
-  pull or in `up --wait` holds the run, and the deploys queued behind it, for GitHub's 6 hours. Set
-  a limit above the slowest normal deploy; the running copy keeps serving when it stops.
+- **A deploy cut off by the time limit may run on.** CD's ssh session has no pty, so a `deploy.sh`
+  in a command that writes nothing (a pull, `up --wait`) keeps going after GitHub cancels the job
+  (spec 0018 V29). The next CD run rewrites `/opt/ai-fitting/.env` and `deploy/` before
+  `deploy.sh` meets the lock, so the old process may go on with the new files (a new
+  `PROXY_SECRET` not checked by its step 1b). Check `.deploy-lock` over ssh as CD's first server
+  step and stop while it is held.
 
 ## nginx and realtime
 

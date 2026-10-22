@@ -36,6 +36,7 @@ npm-debug.log*
 
 # State and lock of deploy/scripts/deploy.sh on the machine that deploys
 .deploy-state
+.deploy-state.tmp
 .deploy-lock/
 
 # Claude Code personal overrides (shared settings live in .claude/settings.json)
