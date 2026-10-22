@@ -252,7 +252,11 @@ headers) and the page (`headers()`), so both send the proxy secret (spec 0006 F1
 page reads its category, products and counts from the page cache, and only the proxy's read goes
 on the visitor's behalf. The check takes `/catalog/dresses?sort=price_asc`: a sort bypasses the
 cache (V15), so the page's batch is read as the visitor again and both lines stay checked. The
-owner weighed one line through the plain page (the page's path unchecked).
+check requires both routes on lines with nginx's id, not a count of lines: while the page cache is
+skipped the page reads more as the visitor and would make up a missing line. The owner weighed one
+line through the plain page (the page's path unchecked). An accepted risk: when the cached list of
+active categories fails during the check, the page reads the category by its slug itself, and that
+line would hide a proxy that sends no secret; a marker on the proxy's read was weighed.
 
 **V27. The measurement does not check certificates.** `measure-first-request.mjs` keeps
 `rejectUnauthorized: false` against production too, as `smoke-test.sh -k`: it sends nothing secret,
