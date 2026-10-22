@@ -86,7 +86,7 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
 
 ## PR 3 · `feat/0018-deploy-warmup` · the warm-up and the deploy's time limit
 
-- [ ] **T9. The warm-up list.** `web/src/_app/warmup/routes.ts` (routes, sources, `EXCLUDED` with
+- [x] **T9. The warm-up list.** `web/src/_app/warmup/routes.ts` (routes, sources, `EXCLUDED` with
       reasons), `routes.test.ts`, `app/healthz/warmup/route.ts`, nginx's `location ^~ /healthz`
       (plan §4); `CLAUDE.md`'s rule for a new page route.
       Check: `routes.test.ts` (AC11's entries, AC12 over a fixture tree); `/healthz/warmup` locally

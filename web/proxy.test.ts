@@ -132,11 +132,13 @@ describe('config.matcher', () => {
     '/api/auth/get-session',
     '/media/x',
     '/healthz',
+    '/healthz/',
+    '/healthz/warmup',
   ])('skips %s', (path) => {
     expect(matcher.test(path)).toBe(false);
   });
 
-  it.each(['/healthzx', '/healthz/', '/apix', '/mediax'])('still matches %s', (path) => {
+  it.each(['/healthzx', '/apix', '/mediax'])('still matches %s', (path) => {
     expect(matcher.test(path)).toBe(true);
   });
 });

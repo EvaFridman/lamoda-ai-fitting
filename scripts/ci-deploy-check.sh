@@ -7,8 +7,8 @@
 #      nginx's security headers on api and web and on nginx's own errors (AC13);
 #      nginx's limits per address: a flood, a 2 MB body, an 11th socket (AC10–AC12), a 51st request
 #      in progress and an unfinished header (F36); a flood of pages and of photos is refused while
-#      one catalog visit stays under (spec 0014 AC16); /healthz answers 404 from outside (spec 0014
-#      plan §5); the seed uploaded its photos and nginx serves
+#      one catalog visit stays under (spec 0014 AC16); /healthz and /healthz/warmup answer 404 from
+#      outside (spec 0014 plan §5, spec 0018 plan §4); the seed uploaded its photos and nginx serves
 #      them at /media/ (spec 0011 AC2, AC3), from its cache while the storage answers 5xx (M36);
 #      Temporal's retention is 24 hours (spec 0013 N45), then changed for the next deploy; the
 #      database had no migrations yet, so a copy went to the backup bucket before they ran (spec
@@ -742,11 +742,14 @@ check_security_headers /catalog/no-such-category page
 # The socket location and nginx's 403 for readiness: a location's own add_header would drop them.
 check_security_headers '/socket.io/?EIO=4&transport=polling'
 check_security_headers /api/health/ready
-# web's health route is for the container's check only (spec 0014 plan §5).
-got="$(curl -sk --max-time 10 -o "$work/healthz.json" -w "%{http_code} %{content_type} $security_w" \
-  https://localhost/healthz || true)"
-expect_error "/healthz from outside" "$got" "404 application/json $security" \
-  "$(cat "$work/healthz.json")" ROUTE_NOT_FOUND
+# web's health route and warm-up list are for the container only (spec 0014 plan §5, spec 0018
+# plan §4).
+for path in /healthz /healthz/warmup; do
+  got="$(curl -sk --max-time 10 -o "$work/healthz.json" -w "%{http_code} %{content_type} $security_w" \
+    "https://localhost$path" || true)"
+  expect_error "$path from outside" "$got" "404 application/json $security" \
+    "$(cat "$work/healthz.json")" ROUTE_NOT_FOUND
+done
 endgroup
 
 group "the copy before the first migrations"

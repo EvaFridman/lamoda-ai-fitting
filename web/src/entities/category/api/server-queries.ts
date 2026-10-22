@@ -39,11 +39,22 @@ export async function getCategories(query: CategoryListQuery = {}): Promise<Cate
   return apiFetch(buildPath('/categories', {}, normalized), categoryListSchema);
 }
 
+const ACTIVE_CATEGORIES: CategoryListQuery = { isActive: true, limit: CATEGORY_LIST_MAX };
+
 // Every active category (the api's page maximum), once per render: the header and a category
 // page's lookup share it, and one cached entry.
 export const getActiveCategories = cache((): Promise<CategoryList> =>
-  getCategories({ isActive: true, limit: CATEGORY_LIST_MAX }),
+  getCategories(ACTIVE_CATEGORIES),
 );
+
+// The same list straight from the api, past the page cache, for a list that must be current: the
+// deploy's warm-up (spec 0018 V7), where a copy rolled back to may hold an entry up to an hour old.
+export async function readActiveCategories(): Promise<CategoryList> {
+  return apiFetch(
+    buildPath('/categories', {}, categoryListQuery(ACTIVE_CATEGORIES)),
+    categoryListSchema,
+  );
+}
 
 // GET /categories/:id.
 export async function getCategory(id: string): Promise<Category> {

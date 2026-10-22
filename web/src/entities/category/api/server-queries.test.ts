@@ -24,6 +24,7 @@ import {
   getCategories,
   getCategory,
   getCategoryBySlug,
+  readActiveCategories,
 } from './server-queries';
 
 const DATE = '2026-10-01T12:00:00.000Z';
@@ -138,6 +139,48 @@ describe('getActiveCategories', () => {
     const sent = sentHeaders();
     expect(sent.has('x-proxy-secret')).toBe(false);
     expect(sent.has('x-forwarded-for')).toBe(false);
+  });
+});
+
+describe('readActiveCategories', () => {
+  it('asks for the same path as getActiveCategories, on the visitor behalf even with the cache open', async () => {
+    respondWith({ items: [category], total: 1 });
+    await getActiveCategories();
+    const cachedPath = requested().pathname + requested().search;
+
+    fetchMock.mockClear();
+    respondWith({ items: [category], total: 1 });
+    await readActiveCategories();
+    const url = requested();
+    expect(url.pathname + url.search).toBe(cachedPath);
+    expect(url.search).toBe('?limit=100&isActive=true');
+    const sent = sentHeaders();
+    expect(sent.get('x-proxy-secret')).toBe('s'.repeat(32));
+    expect(sent.get('x-forwarded-for')).toBe('203.0.113.7');
+  });
+
+  it('returns the parsed list and drops extra fields', async () => {
+    respondWith({ items: [{ ...category, extra: 1 }], total: 1 });
+    await expect(readActiveCategories()).resolves.toEqual({ items: [category], total: 1 });
+  });
+
+  it('reads the api on every call', async () => {
+    respondWith({ items: [category], total: 1 });
+    await readActiveCategories();
+    await readActiveCategories();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('propagates an http failure as an ApiError', async () => {
+    respondWith({}, 500);
+    const error = await readActiveCategories().catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({ kind: 'http', status: 500 });
+  });
+
+  it('propagates a network failure as an ApiError', async () => {
+    fetchMock.mockRejectedValue(new TypeError('fetch failed'));
+    await expect(readActiveCategories()).rejects.toMatchObject({ kind: 'network' });
   });
 });
 

@@ -27,8 +27,8 @@ export async function proxy(request: NextRequest) {
 }
 
 // Not Next's static files, images and `next dev`'s HMR socket, nor what nginx sends elsewhere in
-// production (`/api/`, `/media/`, `/healthz` from inside): none is a page. Any other path may
-// render one, a not-found page under `/_next/` too, so it gets the policy.
+// production (`/api/`, `/media/`, `/healthz` and `/healthz/warmup` from inside): none is a page.
+// Any other path may render one, a not-found page under `/_next/` too, so it gets the policy.
 export const config = {
-  matcher: '/((?!_next/static/|_next/image|_next/webpack-hmr|api/|media/|healthz$).*)',
+  matcher: '/((?!_next/static/|_next/image|_next/webpack-hmr|api/|media/|healthz$|healthz/).*)',
 };
