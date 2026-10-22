@@ -167,18 +167,22 @@ server {
   # F12, F17), so web and browsers handle one format. An error_page in a location replaces these, so
   # a location that sets its own repeats them. The named locations set no add_header: one would drop
   # the server's (HSTS, X-Request-Id, the security headers), and nginx's 429 sends no Retry-After (the api's own does).
+  # `types {}` keeps the type JSON: nginx would take it from the URI's extension (`/media/a.webp`).
   error_page 413 @payload_too_large;
   error_page 429 @too_many_requests;
 
   location @payload_too_large {
+    types {}
     default_type application/json;
     return 413 '{"error":{"code":"PAYLOAD_TOO_LARGE","message":"The body is too large","details":[]}}';
   }
   location @too_many_requests {
+    types {}
     default_type application/json;
     return 429 '{"error":{"code":"TOO_MANY_REQUESTS","message":"Too many requests, try again later","details":[]}}';
   }
   location @api_unavailable {
+    types {}
     default_type application/json;
     return 503 '{"error":{"code":"SERVICE_UNAVAILABLE","message":"The api is unavailable, try again later","details":[]}}';
   }
