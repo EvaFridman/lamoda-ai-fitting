@@ -13,7 +13,7 @@ const bytes = (text: string) => ({
 
 const settings: AiSettings = {
   nodeEnv: 'production',
-  apiKey: 'sk-key',
+  apiKey: 'test-openai-key_1',
   model: 'gpt-image-2',
   visionModel: 'vision',
   timeoutSeconds: 180,
@@ -189,7 +189,7 @@ describe('OpenAiProvider', () => {
 
   function provider(fetchImpl: ReturnType<typeof hangingFetch>, checkTimeoutMs = 20) {
     const client = new OpenAiClient({
-      apiKey: 'sk-key',
+      apiKey: 'test-openai-key_1',
       logger,
       fetch: fetchImpl as unknown as typeof globalThis.fetch,
       backoffMs: [0, 0],
@@ -324,7 +324,7 @@ describe('OpenAiProvider', () => {
       ),
     );
     const client = new OpenAiClient({
-      apiKey: 'sk-key',
+      apiKey: 'test-openai-key_1',
       logger,
       fetch: fetch as unknown as typeof globalThis.fetch,
     });
@@ -352,24 +352,29 @@ describe('deadlineMs', () => {
 });
 
 describe('createAiProvider', () => {
-  it('gives the fake provider without a key', () => {
-    expect(createAiProvider({ ...settings, apiKey: '' }, logger)).toBeInstanceOf(FakeAiProvider);
-  });
+  it.each(['production', 'development', 'test'] as const)(
+    'gives the fake provider without a key under NODE_ENV=%s',
+    (nodeEnv) => {
+      expect(createAiProvider({ ...settings, nodeEnv, apiKey: '' }, logger)).toBeInstanceOf(
+        FakeAiProvider,
+      );
+    },
+  );
 
-  it('gives the fake provider under NODE_ENV=test even with a key', () => {
-    const provider = createAiProvider({ ...settings, nodeEnv: 'test' }, logger);
-
-    expect(provider).toBeInstanceOf(FakeAiProvider);
-    expect(provider.name).toBe('fake');
-  });
-
-  it.each(['production', 'development'] as const)(
-    'gives the OpenAI provider with a key under NODE_ENV=%s',
+  it.each(['development', 'test'] as const)(
+    'gives the fake provider under NODE_ENV=%s even with a key (A49)',
     (nodeEnv) => {
       const provider = createAiProvider({ ...settings, nodeEnv }, logger);
 
-      expect(provider).toBeInstanceOf(OpenAiProvider);
-      expect(provider.name).toBe('openai');
+      expect(provider).toBeInstanceOf(FakeAiProvider);
+      expect(provider.name).toBe('fake');
     },
   );
+
+  it('gives the OpenAI provider only in production with a key', () => {
+    const provider = createAiProvider({ ...settings, nodeEnv: 'production' }, logger);
+
+    expect(provider).toBeInstanceOf(OpenAiProvider);
+    expect(provider.name).toBe('openai');
+  });
 });

@@ -143,10 +143,13 @@ function isOneOf<T extends string>(value: string | null, values: readonly T[]): 
   return value !== null && (values as readonly string[]).includes(value);
 }
 
-// The real provider with a key, the fake without one; in tests always the fake, whatever the
-// environment holds (AC27: tests and CI never reach OpenAI).
+// The real provider in production only (A49, the owner's decision): development, tests and CI get
+// the fake one whatever key the environment holds, so nothing but the site reaches OpenAI (AC27).
+// Production without a key does not start (assertServerEnv, assertWorkerEnv).
 export function createAiProvider(settings: AiSettings, logger: AiLogger): AiProvider {
-  if (settings.apiKey === '' || settings.nodeEnv === 'test') return new FakeAiProvider(settings);
+  if (settings.nodeEnv !== 'production' || settings.apiKey === '') {
+    return new FakeAiProvider(settings);
+  }
   return new OpenAiProvider(
     new OpenAiClient({ apiKey: settings.apiKey, logger }),
     settings,

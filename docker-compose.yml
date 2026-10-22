@@ -56,7 +56,8 @@ x-api-env: &api-env
   SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-}
 
 # AI fitting (spec 0019 plan §10), for the api (the checks) and the worker (the generation) only:
-# s3-init needs no key. An empty key selects the fake provider; the defaults are the api's own.
+# s3-init needs no key. Outside production the fake provider answers and the key is ignored (A49);
+# the defaults are the api's own.
 x-ai-env: &ai-env
   OPENAI_API_KEY: ${OPENAI_API_KEY:-}
   FITTING_MODEL: ${FITTING_MODEL:-gpt-image-2}

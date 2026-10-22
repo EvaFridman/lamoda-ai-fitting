@@ -255,8 +255,8 @@ export function assertWorkerEnv(env: WorkerEnv): void {
 
 // What the server logs as a warning at start outside production, where assertServerEnv lets it
 // pass: with no auth secret Better Auth signs cookies with its own default one, which anyone can
-// read in its source (spec 0013 PR 2 review); with no OpenAI key the fake provider answers every
-// check and generation (spec 0019 plan §3).
+// read in its source (spec 0013 PR 2 review); an OpenAI key is ignored, since only production
+// reaches OpenAI (spec 0019 A49).
 export function serverEnvWarnings(env: ServerEnv): string[] {
   if (env.NODE_ENV === 'production') return [];
   const warnings: string[] = [];
@@ -269,11 +269,12 @@ export function serverEnvWarnings(env: ServerEnv): string[] {
   return [...warnings, ...workerEnvWarnings(env)];
 }
 
-// The same for the worker: the one warning about the fake provider.
+// The same for the worker: outside production the fake provider answers every check and
+// generation whatever the key says (A49), so a key set there is a mistake worth a line.
 export function workerEnvWarnings(env: WorkerEnv): string[] {
-  if (env.NODE_ENV === 'production' || env.OPENAI_API_KEY !== '') return [];
+  if (env.NODE_ENV === 'production' || env.OPENAI_API_KEY === '') return [];
   return [
-    'OPENAI_API_KEY is empty: the fake AI provider answers the photo and text checks and the ' +
-      'generations; nothing reaches OpenAI',
+    'OPENAI_API_KEY is set but ignored outside production: the fake AI provider answers the photo ' +
+      'and text checks and the generations; nothing reaches OpenAI',
   ];
 }

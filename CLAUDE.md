@@ -171,9 +171,9 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
 - `api/src/storage/`: the S3 bucket (`StorageService`: `put`, `exists`, `deletePrefix`,
   `signedUrl`) and `keys.ts`, the one place object keys are built and checked.
 - `api/src/ai/`: OpenAI (spec 0019 plan §3): `AiModule` provides `AI_SETTINGS` (the
-  `OPENAI_API_KEY` and `FITTING_*` env) and `AI_PROVIDER`, `OpenAiProvider` with a key, else (and
-  always with `NODE_ENV=test`) `FakeAiProvider`, which answers without the network and refuses
-  on the marker `refuse:<reason>` in a photo's bytes or a text; a test sets its `delayMs`.
+  `OPENAI_API_KEY` and `FITTING_*` env) and `AI_PROVIDER`: `OpenAiProvider` in production only,
+  elsewhere always `FakeAiProvider` (A49), which answers without the network and refuses on the
+  marker `refuse:<reason>` in a photo's bytes or a text; a test sets its `delayMs`.
   `OpenAiClient` (fetch, no SDK) calls `/v1/images/edits`, `/v1/responses` and `/v1/moderations`
   at `OPENAI_ORIGIN`; `checks/` hold `PhotoChecker`, `PromptChecker` and `ModerationChecker`.
 - `api/src/backup/`: the backup job (spec 0012), a plain Node process outside Nest, run as
@@ -637,8 +637,9 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   request id, never the input or the key, and Sentry cuts requests to `api.openai.com` to method
   and origin as the bucket's. `assertServerEnv` refuses production without `OPENAI_API_KEY` and,
   everywhere, a `FITTING_CHECK_TIMEOUT_MS` above half of `REQUEST_TIMEOUT_MS`; the worker's
-  `assertWorkerEnv` refuses production without the key; outside production an empty key is a
-  warning at start and the fake provider. Tests and CI never set the key (AC27).
+  `assertWorkerEnv` refuses production without the key; outside production the fake provider
+  answers whatever the key says, and a key set there is a warning at start. Only the site reaches
+  OpenAI; tests and CI never set the key (AC27).
 - `api` storage (spec 0011): one private bucket. The first segment of a key is its class, since
   Timeweb's lifecycle rules match prefixes only: `media/` (the catalog media, no expiry; the
   database keeps the key without `media/`, nginx and the seed add it), `keep/users/<userId>/…`

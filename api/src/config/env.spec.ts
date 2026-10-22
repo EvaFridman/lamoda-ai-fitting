@@ -468,7 +468,7 @@ describe('assertServerEnv', () => {
     GOOGLE_CLIENT_SECRET: 'google-client-secret',
     AUTH_FAKE_OIDC_URL: '',
     AUTH_FAKE_OIDC_PUBLIC_URL: '',
-    OPENAI_API_KEY: 'sk-test-key',
+    OPENAI_API_KEY: 'test-openai-key_1',
     REQUEST_TIMEOUT_MS: 10_000,
     FITTING_CHECK_TIMEOUT_MS: 4000,
   };
@@ -572,7 +572,7 @@ describe('serverEnvWarnings', () => {
     GOOGLE_CLIENT_SECRET: '',
     AUTH_FAKE_OIDC_URL: '',
     AUTH_FAKE_OIDC_PUBLIC_URL: '',
-    OPENAI_API_KEY: 'sk-test-key',
+    OPENAI_API_KEY: '',
     REQUEST_TIMEOUT_MS: 10_000,
     FITTING_CHECK_TIMEOUT_MS: 4000,
   };
@@ -585,6 +585,23 @@ describe('serverEnvWarnings', () => {
       expect(warnings).toHaveLength(1);
       expect(warnings[0]).toMatch(/BETTER_AUTH_SECRET/);
       expect(warnings[0]).toMatch(/scripts\/init-env\.sh/);
+    },
+  );
+
+  it.each(['development', 'test'] as const)(
+    'adds the ignored-key warning to the secret one with NODE_ENV=%s',
+    (nodeEnv) => {
+      const warnings = serverEnvWarnings({
+        ...base,
+        NODE_ENV: nodeEnv,
+        OPENAI_API_KEY: 'test-openai-key_1',
+      });
+
+      expect(warnings).toHaveLength(2);
+      expect(warnings[0]).toMatch(/BETTER_AUTH_SECRET/);
+      expect(warnings[1]).toMatch(/OPENAI_API_KEY/);
+      expect(warnings[1]).toMatch(/ignored/);
+      expect(warnings.join(' ')).not.toContain('test-openai-key_1');
     },
   );
 
@@ -673,7 +690,7 @@ describe('OpenAI key and check timeout in the server and worker checks', () => {
     GOOGLE_CLIENT_SECRET: 'secret',
     AUTH_FAKE_OIDC_URL: '',
     AUTH_FAKE_OIDC_PUBLIC_URL: '',
-    OPENAI_API_KEY: 'sk-key',
+    OPENAI_API_KEY: 'test-openai-key_1',
     REQUEST_TIMEOUT_MS: 10_000,
     FITTING_CHECK_TIMEOUT_MS: 4000,
   };
@@ -709,33 +726,45 @@ describe('OpenAI key and check timeout in the server and worker checks', () => {
   });
 
   it.each([
-    ['production', 'sk-key'],
+    ['production', 'test-openai-key_1'],
     ['development', ''],
     ['test', ''],
   ] as const)('passes in the worker with NODE_ENV=%s and key %j', (nodeEnv, key) => {
     expect(() => assertWorkerEnv({ NODE_ENV: nodeEnv, OPENAI_API_KEY: key })).not.toThrow();
   });
 
-  it('warns outside production about an empty key, in the server and the worker', () => {
-    const withAuth = {
-      ...server,
-      NODE_ENV: 'development',
-      BETTER_AUTH_SECRET: 'b'.repeat(32),
-    } as const;
-    const empty = { ...withAuth, OPENAI_API_KEY: '' };
+  it.each(['development', 'test'] as const)(
+    'warns that a set key is ignored with NODE_ENV=%s, in the server and the worker',
+    (nodeEnv) => {
+      const withKey = { ...server, NODE_ENV: nodeEnv };
+      const key = 'test-openai-key_1';
 
-    expect(serverEnvWarnings(empty)).toHaveLength(1);
-    expect(serverEnvWarnings(empty)[0]).toMatch(/OPENAI_API_KEY/);
-    expect(serverEnvWarnings(withAuth)).toEqual([]);
-    expect(workerEnvWarnings({ NODE_ENV: 'test', OPENAI_API_KEY: '' })[0]).toMatch(
-      /OPENAI_API_KEY/,
-    );
-    expect(workerEnvWarnings({ NODE_ENV: 'test', OPENAI_API_KEY: 'k' })).toEqual([]);
-  });
+      const serverWarnings = serverEnvWarnings(withKey);
+      const workerWarnings = workerEnvWarnings({ NODE_ENV: nodeEnv, OPENAI_API_KEY: key });
 
-  it('does not warn in production', () => {
-    expect(workerEnvWarnings({ NODE_ENV: 'production', OPENAI_API_KEY: '' })).toEqual([]);
-    expect(serverEnvWarnings({ ...server, OPENAI_API_KEY: '' })).toEqual([]);
+      expect(serverWarnings).toHaveLength(1);
+      expect(serverWarnings[0]).toMatch(/OPENAI_API_KEY/);
+      expect(serverWarnings[0]).toMatch(/ignored/);
+      expect(workerWarnings).toHaveLength(1);
+      expect(workerWarnings[0]).toMatch(/OPENAI_API_KEY/);
+      expect(workerWarnings[0]).toMatch(/ignored/);
+      expect(serverWarnings.join(' ') + workerWarnings.join(' ')).not.toContain(key);
+    },
+  );
+
+  it.each(['development', 'test'] as const)(
+    'does not warn about an empty key with NODE_ENV=%s',
+    (nodeEnv) => {
+      expect(serverEnvWarnings({ ...server, NODE_ENV: nodeEnv, OPENAI_API_KEY: '' })).toEqual([]);
+      expect(workerEnvWarnings({ NODE_ENV: nodeEnv, OPENAI_API_KEY: '' })).toEqual([]);
+    },
+  );
+
+  it('does not warn in production, with the key set or empty', () => {
+    for (const key of ['', 'test-openai-key_1']) {
+      expect(workerEnvWarnings({ NODE_ENV: 'production', OPENAI_API_KEY: key })).toEqual([]);
+      expect(serverEnvWarnings({ ...server, OPENAI_API_KEY: key })).toEqual([]);
+    }
   });
 });
 
