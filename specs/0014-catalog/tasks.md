@@ -237,11 +237,11 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       Check: `ci-deploy-check.sh` in CI: a flood of `/catalog` and of `/media/` → 429 in the api's
       format, one visit stays under (AC16, local half); `npm run verify`.
       Commit: `feat(deploy): limit page and media requests per client`
-- [ ] **T24. Content Security Policy.** `web/proxy.ts` with the nonce, the JSON-LD's nonce, nginx's
+- [x] **T24. Content Security Policy.** `web/proxy.ts` with the nonce, the JSON-LD's nonce, nginx's
       header handling for pages (plan §5); `CLAUDE.md`; backlog "Full CSP for web".
       Check: Vitest of the header; the deploy check sees the header on `/catalog` and only
       `frame-ancestors` on `/api/`; the browser console shows no violation locally, with and without
-      consent, with the owner's development Mixpanel token in `.env` so the SDK and its recorder
+      consent, with the owner's placeholder Mixpanel token in `.env` so the SDK and its recorder
       load (O45); `npm run verify`.
       Commit: `feat(web): add a content security policy`
 - [ ] **T25. Close the spec.** The production checks with the owner (AC16, AC17 after the deploy,

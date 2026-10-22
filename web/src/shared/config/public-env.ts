@@ -8,3 +8,6 @@
 export const mixpanelToken = process.env.NEXT_PUBLIC_MIXPANEL_TOKEN ?? '';
 
 export const analyticsEnabled = mixpanelToken !== '';
+
+/** The browser's Sentry DSN; empty turns browser reports off. Its origin is in the CSP. */
+export const sentryDsn = process.env.NEXT_PUBLIC_SENTRY_DSN ?? '';

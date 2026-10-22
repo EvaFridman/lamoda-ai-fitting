@@ -9,6 +9,7 @@ import { isRefusedCursor, type ProductBatchQuery } from '@/entities/product';
 import { productFacetsOptions, productInfiniteOptions } from '@/entities/product/server';
 import { errorText, reportFailure } from '@/shared/api';
 import { prefetch, prefetchInfinite } from '@/shared/api/server';
+import { requestNonce } from '@/shared/csp/server';
 import { Breadcrumbs } from '@/shared/ui';
 
 import { catalogCategoriesQuery } from '../model/categories';
@@ -131,6 +132,7 @@ async function CatalogProducts({ title, state, categoryId, breadcrumbs }: Catalo
   if (failure !== undefined) reportFailure(failure);
   const firstBatch = queryClient.getQueryData(productInfiniteOptions(batchQuery, start).queryKey)
     ?.pages[0];
+  const nonce = await requestNonce();
   // Only what loaded is dehydrated (TanStack skips failed queries). Next keeps the page mounted
   // when only the query changes; the browser starts another list (and grid) for another start.
   return (
@@ -139,6 +141,7 @@ async function CatalogProducts({ title, state, categoryId, breadcrumbs }: Catalo
         breadcrumbs={breadcrumbs}
         products={firstBatch?.items ?? []}
         isCatalogRoot={categoryId === undefined}
+        nonce={nonce}
       />
       <CatalogBrowser
         title={title}

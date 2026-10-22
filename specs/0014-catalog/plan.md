@@ -423,23 +423,30 @@ in production, so no deployed web sends it.
   it repeats 413 and 429, as the template's comment requires.
   - `ci-deploy-check.sh`'s slow-upload connection test (it relies on `/` having no rate limit; now a GET with a body) moves
     to `/_next/static/`, which still has no limit.
-- **CSP.** `web/proxy.ts`, Next 16's middleware, runs on page routes and not on `/_next/static`,
-  `/media` or `/api`. It sets a per-request nonce and the header:
+- **CSP.** `web/proxy.ts`, Next 16's middleware, runs on page routes and not on `/_next/static/`,
+  `/_next/image`, `next dev`'s HMR socket, `/media/`, `/api/` or `/healthz`. It sets a per-request nonce and the header (amended at T24,
+  O112: no `'strict-dynamic'`, React's shell script by its hash):
   ```
-  default-src 'self'; script-src 'self' 'nonce-<n>' 'strict-dynamic';
+  default-src 'self'; script-src 'self' 'nonce-<n>' '<hashes of the shells' inline scripts>';
   style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:;
-  connect-src 'self' https://api-eu.mixpanel.com <sentry ingest origin>;
+  connect-src 'self' https://api-eu.mixpanel.com <origin of NEXT_PUBLIC_SENTRY_DSN>;
   font-src 'self'; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self';
   form-action 'self'; object-src 'none'
   ```
+  `next dev` adds `'unsafe-eval'` to `script-src` (React rebuilds server error stacks with it).
   - Styles need `'unsafe-inline'`: Next and Base UI inject style attributes.
+  - The static shell `cacheComponents` prerenders has no nonce: its script tags load by `'self'`,
+    React's inline script by its hash (`web/src/shared/csp/shell-script-hashes.json`).
+    `scripts/check-web-shells.mjs`, in `verify` after the build, fails on a shell's inline script
+    without a nonce whose hash is not listed.
   - nginx keeps `frame-ancestors 'none'` for non-page answers. For pages it passes web's header
-    through and does not add its own, since two CSP headers intersect.
+    through and does not add its own, since two CSP headers intersect: a `map` of the upstream's
+    header leaves nginx's out only when that one says `frame-ancestors 'none'` already.
   - The JSON-LD `<script>` takes the nonce.
   - Mixpanel's recording worker and its CDN load come from the npm package (bundled), so no extra
     origin is needed. The recorder runs in a `blob:` worker, hence `worker-src 'self' blob:` (O45).
-    The local check uses a Mixpanel development project's token in `.env` (the owner's), since an
-    empty token loads no SDK. Production is checked in the browser console (AC17).
+    The local check uses a placeholder token in `.env` (the owner's, O45), since an empty token
+    loads no SDK. Production is checked in the browser console (AC17).
 - `deploy/README.md` "Лимиты nginx" gains the page limit and the CSP.
 
 ## 6. Risks
