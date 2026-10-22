@@ -133,16 +133,6 @@ removes it from this list. Found by the agents' first security audit and trial r
 - **Footer links.** The footer copies Lamoda's items, but only the personal data policy has a page
   (0008 J22): each other item becomes a link when its page appears. The list is
   `widgets/footer/config/items.ts`.
-- **Cache warm-up on deploy (issue #41).** Before nginx switches to the new copy, `deploy.sh` checks
-  only health (`up --wait`, the api's `/health/ready`): no page or catalog route is requested, so the
-  first visitors pay for the cold copy (Next loads a page's modules on its first request, the api
-  opens its database connections), and a page that fails to render is first seen by a visitor. Add
-  a step between readiness and the switch that requests the main pages and the catalog's GET routes
-  from the new copy and stops the deploy unless they answer 200. Owner, 2026-10-15: done together
-  with the catalog page spec, which brings the caches to warm (the page cache in Redis of spec 0018,
-  and the filter counts' Redis cache of spec 0014 plan §2.6); there is nothing to warm in
-  Next's cache or Redis before it. Spec 0014 left it here (O21): measure the first request to `/`
-  after a deploy against later ones first.
 - **Signed links in reports.** A signed storage link carries `X-Amz-Credential=<S3_ACCESS_KEY_ID>/…`
   and a user's id in its path (0011 M34). The spec that shows a user's photo through such a link
   keeps its `src` out of Sentry (events, breadcrumbs) and Mixpanel (heatmap clicks, recordings),
