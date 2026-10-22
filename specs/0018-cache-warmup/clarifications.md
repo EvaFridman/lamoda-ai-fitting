@@ -1,7 +1,7 @@
 # 0018 page cache and warm-up on deploy: clarifications
 
 Status: accepted (2026-10-20); amended 2026-10-20 at the plan (V10's figures, V15) and at the
-review of PR 1 (V7, V9, V12, V15, V16–V18); amended 2026-10-21 at T4 (V19, V20), at T5 (V19: no push before the pull request) and at T6 (V19: T6 before 0014 too; V21, V22); amended 2026-10-22 at T7 (V23, V24), at T8 (V25) and at the review of PR 2 (V26, V27), at T9 (V28), at T12 (V29), at T13 (V30) and at the review of PR 3 (V31).
+review of PR 1 (V7, V9, V12, V15, V16–V18); amended 2026-10-21 at T4 (V19, V20), at T5 (V19: no push before the pull request) and at T6 (V19: T6 before 0014 too; V21, V22); amended 2026-10-22 at T7 (V23, V24), at T8 (V25) and at the review of PR 2 (V26, V27), at T9 (V28), at T12 (V29), at T13 (V30), at the review of PR 3 (V31) and at T14 (V14 decided).
 
 The owner's decisions for this spec. Ids `V1`, `V2`, … are referred to by the spec, the plan and
 code comments. All decisions below: owner, 2026-10-20.
@@ -37,6 +37,15 @@ content security policy carries a nonce per request), and its entries are larger
 render time of `/catalog` and of a category page with the data cached. If rendering is a notable
 part of the first request, the grid's segment of pages with no filters is cached too, as a task of
 this spec added with the owner or as a spec of its own; otherwise markup stays uncached.
+
+Decided at T14 (owner, 2026-10-22): markup stays uncached. PR 3's deploy (f97cadf) logged, from
+inside the new web container with the data cached, a repeated request of 91 ms for `/catalog` and
+46–140 ms for the six categories (`/catalog/dresses` 98 ms); the first request of the copy (875 ms
+for `/catalog`) is taken by the warm-up before the switch. That deploy's outside measurement
+(AC14's third) gave a first request equal to the median: `/catalog` 946 / 944 ms (1.00),
+`/catalog/dresses` 733 / 755 ms (0.97). Rendering is no longer a part of the first request that
+the switch exposes; a markup cache would only shorten every request by about the render time, at
+the cost listed above. The owner weighed caching the grid of pages with no filters (a new spec).
 
 ## Redis
 
