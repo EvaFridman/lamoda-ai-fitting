@@ -222,7 +222,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       `ProductListQuery`.
       Check: e2e: `offset` on `/products` → 400, other lists keep it; `npm run verify`.
       Commit: `refactor(api): page the product list by cursor only`
-- [ ] **T22. Measuring a catalog visit.** `scripts/measure-page-requests.mjs` with its `node --test`
+- [x] **T22. Measuring a catalog visit.** `scripts/measure-page-requests.mjs` with its `node --test`
       (plan §5).
       Check: the script's tests on a sample log; `npm run verify`.
       Commit: `feat(deploy): measure the page requests of one visit`

@@ -407,8 +407,9 @@ in production, so no deployed web sends it.
 
 - **Measurement (O24).** The owner makes one visit in a browser: open `/catalog`, scroll 5
   batches, apply 2 filters, open a category. `scripts/measure-page-requests.mjs` (Node, no new
-  dependency) then reads nginx's access log for that client address. The owner runs it on the
-  server over `ssh`. It prints the requests per second, at peak and in total, for the page
+  dependency) then reads nginx's access log for that client address. The server has no Node, so
+  the owner runs it on the Mac, with that address's lines of the log piped from the server over
+  `ssh` (filtered there). It prints the requests per second, at peak and in total, for the page
   locations. The numbers go to `tasks.md`.
 - **Page limit.** A zone `edge_pages` with the rate and burst at 3× the measured peak, on
   `location /` and `/catalog`. `/_next/static/` gets its own location without the limit (backlog
