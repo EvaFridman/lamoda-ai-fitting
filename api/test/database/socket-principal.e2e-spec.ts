@@ -337,6 +337,15 @@ describe('socket principal (database e2e)', () => {
     const error = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
     const capture = vi.mocked(Sentry.captureException);
 
+    // The Redis clients (contexts 'Redis' and 'RedisCache') also warn, on their reconnects to the
+    // closed port, at any time: only the adapter's own warnings count here.
+    function adapterWarnings(): unknown[][] {
+      return warn.mock.calls.filter((_call, index) => {
+        const logger = warn.mock.contexts[index] as { context?: string } | undefined;
+        return logger?.context === SocketIoAdapter.name;
+      });
+    }
+
     async function connectWithFailure(failure: Error): Promise<void> {
       const user = await signIn(app);
       warn.mockClear();
@@ -371,7 +380,7 @@ describe('socket principal (database e2e)', () => {
         tags: { 'error.code': 'SERVICE_UNAVAILABLE' },
       });
       expect(error).toHaveBeenCalledTimes(1);
-      expect(warn).not.toHaveBeenCalled();
+      expect(adapterWarnings()).toHaveLength(0);
     });
 
     it('reports an error that is not a SessionUnavailableError', async () => {
@@ -408,7 +417,7 @@ describe('socket principal (database e2e)', () => {
       await connectWithFailure(new SessionUnavailableError('x', false));
 
       expect(capture).not.toHaveBeenCalled();
-      expect(warn).toHaveBeenCalledTimes(1);
+      expect(adapterWarnings()).toHaveLength(1);
       expect(error).not.toHaveBeenCalled();
     });
 
@@ -418,16 +427,17 @@ describe('socket principal (database e2e)', () => {
       passMinute();
 
       await connectWithFailure(refusal);
-      expect(warn).toHaveBeenCalledTimes(1);
+      expect(adapterWarnings()).toHaveLength(1);
 
       await connectWithFailure(refusal);
       await connectWithFailure(refusal);
-      expect(warn).not.toHaveBeenCalled();
+      expect(adapterWarnings()).toHaveLength(0);
 
       passMinute();
       await connectWithFailure(refusal);
-      expect(warn).toHaveBeenCalledTimes(1);
-      expect(warn).toHaveBeenCalledWith(expect.objectContaining({ alsoSinceLastLine: 2 }));
+      const lines = adapterWarnings();
+      expect(lines).toHaveLength(1);
+      expect(lines[0]![0]).toEqual(expect.objectContaining({ alsoSinceLastLine: 2 }));
       expect(capture).not.toHaveBeenCalled();
     });
 

@@ -329,6 +329,21 @@ describe('createPageCacheHandler entry size', () => {
     expect(log).toHaveBeenLastCalledWith(expect.stringContaining('pages read the api directly'));
   });
 
+  it('does not spend the probe on an oversized entry: the next call still tries Redis', async () => {
+    const { handler, redis, clock, publish } = setup();
+    redis.get.mockRejectedValueOnce(new Error('down'));
+    await handler.get('k', []);
+    clock.at += 10_000;
+    publish.mockClear();
+
+    await handler.set('big', Promise.resolve(entryOfJsonSize(MAX_ENTRY_BYTES + 1)));
+    expect(redis.set).not.toHaveBeenCalled();
+    expect(publish).not.toHaveBeenCalled();
+
+    await handler.get('k', []);
+    expect(redis.get).toHaveBeenCalledTimes(2);
+  });
+
   it('does not let a failure line hide an oversize line in the same minute', async () => {
     const { handler, redis, clock, log } = setup();
     redis.get.mockRejectedValueOnce(new Error('down'));
