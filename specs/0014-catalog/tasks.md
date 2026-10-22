@@ -2,7 +2,8 @@
 
 Status: accepted (2026-10-19); amended 2026-10-19 after the check against 0012, 0013 and 0015
 (T5, T9, T12, T13, T13a, T20, T23); amended 2026-10-19 at the review of PR 1 (T6, T10, T11, T24,
-O40–O48) and its second round (T10); amended 2026-10-21 at T13a (deferred, O76).
+O40–O48) and its second round (T10); amended 2026-10-21 at T13a (deferred, O76); amended
+2026-10-22 at T25 (PR 5 for the close, O113).
 Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
 
 ## How the work flows
@@ -20,7 +21,7 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
   (O1; 0013 closed on 2026-10-19).
 - T20 starts after spec 0015's event catalog is on `main` (O35), and PR 3 merges only after T20
   (O40). T11–T12 may ship ahead as their own pull request if the web phase drags on (O46).
-- The pull request of PR 4 carries `Closes #68` and `Closes #71` under "Что сделано".
+- The pull request of PR 5 carries `Closes #68` and `Closes #71` under "Что сделано" (O113).
 
 ## PR 1 · `docs/0014-catalog` · documents
 
@@ -244,15 +245,19 @@ Implements [plan.md](plan.md). `👤` marks a step only the owner can do.
       consent, with the owner's placeholder Mixpanel token in `.env` so the SDK and its recorder
       load (O45); `npm run verify`.
       Commit: `feat(web): add a content security policy`
-- [ ] **T25. Close the spec.** The production checks with the owner (AC16, AC17 after the deploy,
-      and the evidence of PR 3's checks), the acceptance record below, every file gets
-      `Status: done`, `CLAUDE.md` and the READMEs as plan §8.
+- 👤 merges PR 4; after the deploy, checks the page limit and the console of `/catalog` in
+  production (AC16, AC17), and checks that the phone drawer's dialog has an accessible name (a
+  suspicion of T18's QA). Lighthouse (AC23), the validators (AC21) and the live events (AC18) were
+  checked after PR 3's deploy (2026-10-22) and are not repeated (O113).
+
+## PR 5 · `docs/0014-close` · closing
+
+- [ ] **T25. Close the spec.** The production checks of PR 3 and PR 4 from the owner, the
+      acceptance record below with T24's open points as known limits and the backlog item for
+      0019's `img-src` (O113), every file gets `Status: done`, `CLAUDE.md` and the READMEs as
+      plan §8. Starts from a fresh `main` after PR 4's deploy.
       Check: every criterion has evidence; `npm run verify`.
       Commit: `docs(specs): close spec 0014`
-- 👤 merges PR 4; after the deploy, checks the page limit and the console of `/catalog` in
-  production (AC16, AC17), and runs Lighthouse Accessibility on `/catalog` and one category (AC23;
-  T18's local run was not possible, `qa-tester` cannot start Lighthouse). Check that the phone
-  drawer's dialog has an accessible name (a suspicion of T18's QA).
 
 ## Acceptance record
 

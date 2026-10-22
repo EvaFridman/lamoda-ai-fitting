@@ -6,7 +6,7 @@ article (O14); amended 2026-10-19 after the check against 0012, 0013 and 0015 (O
 amended 2026-10-19 at the review of PR 1 (O40–O48), its second round (O5's description, O46,
 O49, O50) and its third round (O49's lag); amended 2026-10-21 at T13a (O76: the taint deferred) and at T20 (O97–O105: analytics);
 amended 2026-10-22 at the review of PR 3 (O106, O107) and its production checks (O108: AC23's
-Accessibility 97 accepted).
+Accessibility 97 accepted) and at T25 (O113: the close in a pull request of its own).
 
 The owner's decisions for this spec. Ids `O1`, `O2`, … are referred to by the spec, the plan and
 code comments. All decisions below: owner, 2026-10-19.
@@ -676,3 +676,16 @@ build` passes. (owner, T19.)
   shells' inline scripts, checked against every build by `scripts/check-web-shells.mjs`. Any script
   of our own origin may run: the api's and `/media/`'s answers are not JavaScript and go with
   `nosniff`, so a browser does not run them as scripts. (owner, T24.)
+
+## Decided at T25
+
+- **O113. The spec closes in a pull request of its own, after PR 4's deploy.** AC16 and AC17 are
+  checked in production, so only after PR 4 is deployed, and a folder with `Status: done` is not
+  edited again. So T25 leaves PR 4 for a PR 5, `docs/0014-close`, opened after the owner's checks
+  of PR 4's deploy (AC16, AC17, the phone drawer's accessible name); PR 3's production checks
+  (Lighthouse, AC21's validators, AC18's live events) are not repeated. That pull request, not
+  PR 4's, carries `Closes #68` and `Closes #71`. T24's open points go into the acceptance record as
+  known limits: whether `_global-error.html` is served as a ready file (its inline scripts would
+  then be blocked), Next's 416 page under `/_next/static/` carries no CSP of web's, and spec 0019's
+  signed storage links need `S3_PUBLIC_ENDPOINT`'s origin in `img-src` (a backlog item for 0019).
+  (owner, 2026-10-22.)
