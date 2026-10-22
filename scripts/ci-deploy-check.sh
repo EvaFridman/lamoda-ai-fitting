@@ -140,7 +140,8 @@ check_security_headers() {
       content-security-policy) expected="frame-ancestors 'none'" ;;
       referrer-policy) expected=strict-origin-when-cross-origin ;;
     esac
-    got="$(awk -F': ' -v n="$name" 'tolower($1) == n { print $2 }' <<< "$headers")"
+    # The value is everything after the name's ": " (web's CSP holds "data: blob:" too).
+    got="$(awk -F': ' -v n="$name" 'tolower($1) == n { sub(/^[^:]*: /, ""); print }' <<< "$headers")"
     if [ "$name" = content-security-policy ] && [ "$kind" = page ]; then
       [ "$(wc -l <<< "$got")" -eq 1 ] \
         && grep -qE "^default-src 'self'; script-src 'self' 'nonce-[A-Za-z0-9+/=]+' " <<< "$got" \
