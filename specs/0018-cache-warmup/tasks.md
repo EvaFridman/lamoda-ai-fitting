@@ -119,7 +119,7 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
 
 ## PR 4 · `docs/0018-close` · production checks and closing
 
-- [ ] **T14. Markup cache: the decision (V14).** The render times from PR 3's warm-up lines and the
+- [x] **T14. Markup cache: the decision (V14).** The render times from PR 3's warm-up lines and the
       measurements of both deploys, shown to the owner; the decision recorded in
       `clarifications.md`. If the grid of pages with no filters is to be cached, the plan and this
       file are amended with the owner first, or a new spec is opened.
