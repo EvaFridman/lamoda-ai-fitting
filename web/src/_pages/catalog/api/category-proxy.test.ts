@@ -18,6 +18,7 @@ const category = {
   isActive: true,
   description: null,
   sortOrder: 1,
+  slot: null,
   createdAt: '2026-10-01T12:00:00.000Z',
   updatedAt: '2026-10-01T12:00:00.000Z',
 };

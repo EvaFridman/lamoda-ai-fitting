@@ -96,6 +96,7 @@ function answer(input: unknown): Response {
           isActive: true,
           description: null,
           sortOrder: 0,
+          slot: null,
           createdAt: DATE,
           updatedAt: DATE,
         },
