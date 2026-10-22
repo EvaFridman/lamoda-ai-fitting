@@ -25,6 +25,8 @@ export const ERROR_TEXTS = {
   NOT_FOUND: 'Не найдено: возможно, запись удалили',
   ALREADY_EXISTS: 'Такая запись уже есть',
   IN_USE: 'Нельзя удалить: запись используется',
+  // A per-user limit (spec 0019 plan §5): a sixth saved fitting photo.
+  LIMIT_REACHED: 'Достигнут лимит, больше добавить нельзя',
   PAYLOAD_TOO_LARGE: 'Слишком много данных в одном запросе',
   TOO_MANY_REQUESTS: TOO_MANY_REQUESTS_TEXT,
   SERVICE_UNAVAILABLE: 'Сервис временно недоступен, попробуйте позже',
@@ -98,7 +100,9 @@ export function errorText(error: unknown): string {
 // `INVALID_ID` of a path id, `INVALID_CURSOR` of the product list's cursor
 // (products/dto/product-list-query.dto.ts), `MATCHES_STATUS` of a generation's status and result
 // (ai-generations/generation-triple.ts), `IN_OWNER_FOLDER` of a file key outside the owner's
-// folder (storage/owner-check.ts, spec 0011 M8) and `TOO_MANY_ERRORS` of a cut list (spec 0006 F14).
+// folder (storage/owner-check.ts, spec 0011 M8), `IS_IMAGE` and `PHOTO_REFUSED` of a fitting
+// photo (me/photos, spec 0019 plan §5: a file that is not a JPG, PNG or WebP, and a photo the
+// check refused, its reason in the message) and `TOO_MANY_ERRORS` of a cut list (spec 0006 F14).
 export const DETAIL_TEXTS = {
   IS_STRING: 'Должно быть текстом',
   IS_NUMBER: 'Должно быть числом',
@@ -130,6 +134,8 @@ export const DETAIL_TEXTS = {
   CONSTRAINT_VIOLATION: 'Недопустимое значение',
   MATCHES_STATUS: 'Не соответствует статусу генерации',
   IN_OWNER_FOLDER: 'Файл принадлежит другому пользователю или ещё не загружен',
+  IS_IMAGE: 'Нужно изображение JPG, PNG или WebP',
+  PHOTO_REFUSED: 'Фото не подходит для примерки',
   TOO_MANY_ERRORS: 'И другие ошибки',
 } as const satisfies Record<string, string>;
 

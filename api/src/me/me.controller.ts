@@ -4,13 +4,14 @@ import type { Response } from 'express';
 
 import { SignedIn } from '../common/auth/access.decorators.js';
 import { CurrentUserId } from '../common/auth/current-principal.decorator.js';
-import { UnauthorizedError } from '../common/errors/app.exception.js';
 import { UserResponseDto } from '../users/dto/user-response.dto.js';
 import { UpdateMeDto } from './dto/update-me.dto.js';
-import { type AuthCookie, MeService } from './me.service.js';
+import { MeService } from './me.service.js';
+import { expireSessionCookies, signOutWhenGone } from './sign-out-when-gone.js';
 
 // The signed-in user's own data (spec 0013 N8, N11; 0017 U1). A deleted user's cached session gets
-// 401 on every route (N31), and that answer expires the session cookies too (N38).
+// 401 on every route (N31), and that answer expires the session cookies too (N38,
+// sign-out-when-gone.ts, shared with the photos' routes of spec 0019).
 @ApiTags('me')
 @Controller('me')
 @SignedIn()
@@ -23,7 +24,7 @@ export class MeController {
     @CurrentUserId() userId: string,
     @Res({ passthrough: true }) res: Response,
   ): Promise<UserResponseDto> {
-    return this.signOutWhenGone(res, () => this.me.get(userId));
+    return signOutWhenGone(res, this.cookies, () => this.me.get(userId));
   }
 
   // The user's own names, date of birth and gender (spec 0017 U2); nothing else can be sent (AC11).
@@ -34,7 +35,7 @@ export class MeController {
     @Body() dto: UpdateMeDto,
     @Res({ passthrough: true }) res: Response,
   ): Promise<UserResponseDto> {
-    return this.signOutWhenGone(res, () => this.me.update(userId, dto));
+    return signOutWhenGone(res, this.cookies, () => this.me.update(userId, dto));
   }
 
   // Deletes the account and signs this browser out at once: the answer expires the session
@@ -46,36 +47,9 @@ export class MeController {
     @CurrentUserId() userId: string,
     @Res({ passthrough: true }) res: Response,
   ): Promise<void> {
-    await this.signOutWhenGone(res, () => this.me.delete(userId));
-    await this.expireSessionCookies(res);
+    await signOutWhenGone(res, this.cookies, () => this.me.delete(userId));
+    await expireSessionCookies(res, this.cookies);
   }
 
-  // MeService's 401 means the user is gone: the browser is signed out with it, so neither its
-  // cached copy nor the token outlives the account (N38). Other failures keep the cookies.
-  private async signOutWhenGone<T>(res: Response, run: () => Promise<T>): Promise<T> {
-    try {
-      return await run();
-    } catch (error) {
-      if (error instanceof UnauthorizedError) {
-        await this.expireSessionCookies(res);
-      }
-      throw error;
-    }
-  }
-
-  // A handler that outlived REQUEST_TIMEOUT_MS has had its 503 sent already: nothing to set then.
-  private async expireSessionCookies(res: Response): Promise<void> {
-    if (res.headersSent) return;
-    for (const { name, attributes } of await this.me.sessionCookies()) {
-      res.clearCookie(name, {
-        path: attributes.path,
-        domain: attributes.domain,
-        secure: attributes.secure,
-        // Express's types take lower case only (its `cookie` lower-cases the value either way).
-        sameSite: attributes.sameSite?.toLowerCase() as
-          Lowercase<NonNullable<AuthCookie['attributes']['sameSite']>> | undefined,
-        httpOnly: true,
-      });
-    }
-  }
+  private readonly cookies = () => this.me.sessionCookies();
 }

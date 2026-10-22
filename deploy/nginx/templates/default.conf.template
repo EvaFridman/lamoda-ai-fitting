@@ -155,7 +155,7 @@ server {
   add_header Strict-Transport-Security "max-age=31536000" always;
 
   # The api reads at most BODY_LIMIT (100 KB, at most 1 MB) and web takes no uploads (spec 0006
-  # F12). The photo upload spec opens a larger limit for its own route.
+  # F12). The photo upload, `location = /api/me/photos` below, takes 20 MB (spec 0019 A31).
   client_max_body_size 1m;
 
   # An idle keep-alive connection is closed after 15 s, not the image's 65 s (spec 0006 F36).
@@ -234,6 +234,22 @@ server {
   location /api/auth/ {
     limit_req zone=edge_api burst=40 nodelay;
     proxy_pass http://api;
+    proxy_read_timeout 60s;
+    error_page 413 @payload_too_large;
+    error_page 429 @too_many_requests;
+    error_page 502 504 =503 @api_unavailable;
+  }
+
+  # The photo upload (spec 0019 A31, plan §10): 20 MB on this route only, the rest of /api/ keeps
+  # 1 MB; FITTING_PHOTO_MAX_BYTES and this value move together. An exact location wins over the
+  # /api/ prefix below, whose limits and error pages it repeats. nginx buffers the body before the
+  # api sees it (proxy_request_buffering is on), so a slow upload is not under the api's request
+  # timeout; client_body_timeout's 10 s per pause still cuts it (spec 0006 F36, accepted for a
+  # prototype).
+  location = /api/me/photos {
+    client_max_body_size 20m;
+    limit_req zone=edge_api burst=40 nodelay;
+    proxy_pass http://api/me/photos;
     proxy_read_timeout 60s;
     error_page 413 @payload_too_large;
     error_page 429 @too_many_requests;

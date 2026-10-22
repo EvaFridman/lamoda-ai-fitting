@@ -11,7 +11,8 @@
 #      request id is on the response and on nginx's and the api's log lines (spec 0006 AC14);
 #      nginx's security headers on api and web and on nginx's own errors (AC13);
 #      nginx's limits per address: a flood, a 2 MB body, an 11th socket (AC10–AC12), a 51st request
-#      in progress and an unfinished header (F36); a flood of pages and of photos is refused while
+#      in progress and an unfinished header (F36); the upload route takes a 2 MB body and refuses
+#      21 MB (spec 0019 AC4); a flood of pages and of photos is refused while
 #      one catalog visit stays under (spec 0014 AC16); /healthz and /healthz/warmup answer 404 from
 #      outside (spec 0014 plan §5, spec 0018 plan §4); the seed uploaded its photos and nginx serves
 #      them at /media/ (spec 0011 AC2, AC3), from its cache while the storage answers 5xx (M36);
@@ -321,6 +322,20 @@ check_edge_limits() {
     -w "%{http_code} %{content_type} $security_w" -H 'Content-Type: application/json' \
     --data-binary @- https://localhost/api/products || true)"
   expect_error "a 2 MB body" "$got" "413 application/json $security" "$(cat "$work/413.json")" \
+    PAYLOAD_TOO_LARGE
+
+  # Spec 0019 AC4: the upload route takes 20 MB, so a 2 MB body reaches the api, which answers 401
+  # before reading it (nobody is signed in), while a 21 MB body answers nginx's 413 in the api's
+  # format. The body is never parsed, so its boundary is any.
+  got="$(head -c 2097152 /dev/zero | tr '\0' a | curl -sk --max-time 10 -o "$work/upload-401.json" \
+    -w "%{http_code} %{content_type} $security_w" -H 'Content-Type: multipart/form-data; boundary=x' \
+    --data-binary @- https://localhost/api/me/photos || true)"
+  expect_error "a 2 MB upload" "$got" "401 application/json $security" "$(cat "$work/upload-401.json")" \
+    UNAUTHORIZED
+  got="$(head -c 22020096 /dev/zero | tr '\0' a | curl -sk --max-time 10 -o "$work/upload-413.json" \
+    -w "%{http_code} %{content_type} $security_w" -H 'Content-Type: multipart/form-data; boundary=x' \
+    --data-binary @- https://localhost/api/me/photos || true)"
+  expect_error "a 21 MB upload" "$got" "413 application/json $security" "$(cat "$work/upload-413.json")" \
     PAYLOAD_TOO_LARGE
 
   # AC12: one address holds 10 sockets; the 11th is refused with 429 in the api's format while

@@ -144,6 +144,37 @@ describe('storage against the emulator', () => {
     await expect(storage.exists(userPhotoKey(USER))).resolves.toBe(false);
   });
 
+  it('put with an already aborted signal throws a StorageError and stores nothing', async () => {
+    const key = userPhotoKey(USER);
+
+    const error: unknown = await storage
+      .put(key, BODY, {
+        contentType: 'image/webp',
+        ownerUserId: USER,
+        abortSignal: AbortSignal.abort(),
+      })
+      .then(
+        () => undefined,
+        (e: unknown) => e,
+      );
+
+    expect(error).toBeInstanceOf(StorageError);
+    expect(error).toMatchObject({ operation: 'PutObject' });
+    await expect(storage.exists(key)).resolves.toBe(false);
+  });
+
+  it('put with a signal that stays open stores the object', async () => {
+    const key = userPhotoKey(USER);
+
+    await storage.put(key, BODY, {
+      contentType: 'image/webp',
+      ownerUserId: USER,
+      abortSignal: AbortSignal.timeout(10_000),
+    });
+
+    await expect(storage.exists(key)).resolves.toBe(true);
+  });
+
   it('deletePrefix clears more than a thousand keys and spares other folders', async () => {
     const generationId = randomUUID();
     const folder = generationFolder(USER, generationId);

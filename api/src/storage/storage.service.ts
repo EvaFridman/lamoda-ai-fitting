@@ -27,6 +27,8 @@ export interface PutOptions {
   // Required for a user's file (`keep/…`), which must lie in this user's folder; stored as the
   // object's metadata `x-amz-meta-owner-user-id` for audits and manual cleanup (spec 0011 M7).
   ownerUserId?: string;
+  // Stops the request in flight (a write inside a database transaction's time, spec 0019 A54).
+  abortSignal?: AbortSignal;
 }
 
 // The app's bucket (spec 0011 M1). Keys come from keys.ts; every method refuses any other shape
@@ -42,7 +44,7 @@ export class StorageService implements OnApplicationShutdown {
 
   async put(key: string, body: Uint8Array, options: PutOptions): Promise<void> {
     assertKey(key);
-    const { contentType, cacheControl, ownerUserId } = options;
+    const { contentType, cacheControl, ownerUserId, abortSignal } = options;
     // A signed link serves the object with this type: HTML or SVG would run in the browser.
     if (!CONTENT_TYPES.has(contentType)) {
       throw new Error('Only WebP images are stored');
@@ -60,6 +62,7 @@ export class StorageService implements OnApplicationShutdown {
           CacheControl: cacheControl,
           Metadata: ownerUserId === undefined ? undefined : { 'owner-user-id': ownerUserId },
         }),
+        { abortSignal },
       ),
     );
   }
