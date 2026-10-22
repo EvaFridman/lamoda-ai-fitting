@@ -5,6 +5,7 @@ import type { Redis } from 'ioredis';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { emptyCatalogPrisma } from '../support/empty-catalog.js';
 import { startTestRedis, type TestRedis, usedMemory } from '../support/redis.js';
 
 vi.setConfig({ testTimeout: 60_000, hookTimeout: 90_000 });
@@ -26,7 +27,11 @@ describe('the rate limit with a full counters Redis (noeviction)', () => {
     const { AppModule } = await import('../../src/app.module.js');
     const { createHttpApp } = await import('../../src/common/http/http-app.js');
     const { REDIS } = await import('../../src/redis/redis.module.js');
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    const { PrismaService } = await import('../../src/prisma/prisma.service.js');
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(PrismaService)
+      .useValue(emptyCatalogPrisma())
+      .compile();
     app = await createHttpApp(
       (adapter, options) =>
         moduleRef.createNestApplication<NestExpressApplication>(adapter, options),
@@ -57,7 +62,7 @@ describe('the rate limit with a full counters Redis (noeviction)', () => {
   it('counts in Redis while it has room, then keeps the limit on the fallback once it is full', async () => {
     // Before it is full the counters land in Redis, so what follows proves the fallback and not
     // a Redis that was never reached.
-    expect(await statuses('/hello', 2)).toEqual([200, 200]);
+    expect(await statuses('/categories', 2)).toEqual([200, 200]);
     const allKeys = await redis.client.keys('*');
     expect(allKeys.length).toBeGreaterThan(0);
     // Only the minute windows: the 1-second burst counters may expire before the final check.
