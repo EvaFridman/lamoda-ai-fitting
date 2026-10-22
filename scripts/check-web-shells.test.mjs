@@ -33,14 +33,21 @@ describe('check-web-shells', () => {
     assert.equal(scriptHash(TIMING), 'sha256-7mu4H06fwDCjmnxxr/xNHyuQC6pLTHr4M2E4jXw5WZs=');
   });
 
-  it('passes listed inline scripts, scripts with src and scripts with a nonce', () => {
+  it('passes listed inline scripts and scripts with src', () => {
     put(
       'catalog.html',
-      `<script src="/_next/static/chunks/a.js" async=""></script><script>${TIMING}</script>` +
-        '<script nonce="abc">self.__next_f.push([1])</script>',
+      `<script src="/_next/static/chunks/a.js" async=""></script><script>${TIMING}</script>`,
     );
-    put('customer/account.html', `<script>${TIMING}</script>`);
+    put('customer/account.html', `<script nonce="abc">${TIMING}</script>`);
     assert.deepEqual(findBlockedScripts(dir, [scriptHash(TIMING)]), []);
+  });
+
+  it('reports an unlisted inline script with a nonce, since a build-time nonce matches no request', () => {
+    put('catalog.html', '<script nonce="abc">self.__next_f.push([1])</script>');
+    assert.deepEqual(
+      findBlockedScripts(dir, []).map(({ hash }) => hash),
+      [scriptHash('self.__next_f.push([1])')],
+    );
   });
 
   it('reports an inline script whose hash is not listed, in a nested shell too', () => {
@@ -53,15 +60,23 @@ describe('check-web-shells', () => {
     );
   });
 
-  it('reports a script with an empty nonce or only a data-src or data-nonce', () => {
+  it('reports a script with an empty src, only a data-src or src= inside another value', () => {
     put(
       'catalog.html',
-      '<script nonce="">a()</script><script data-src="/x.js">b()</script>' +
-        '<script data-nonce="abc">c()</script>',
+      `<script src="">a()</script><script SRC=''>b()</script><script data-src="/x.js">c()</script>` +
+        '<script data-x=" src=y">d()</script><script data-q="a src=b>c">e()</script>',
     );
     assert.deepEqual(
       findBlockedScripts(dir, []).map(({ hash }) => hash),
-      [scriptHash('a()'), scriptHash('b()'), scriptHash('c()')],
+      ['a()', 'b()', 'c()', 'd()', 'e()'].map(scriptHash),
+    );
+  });
+
+  it('passes a src in any case and unquoted, and reads a closing tag with a space', () => {
+    put('catalog.html', '<script SRC=/a.js></script ><script >f()</script >');
+    assert.deepEqual(
+      findBlockedScripts(dir, []).map(({ hash }) => hash),
+      [scriptHash('f()')],
     );
   });
 

@@ -7,7 +7,8 @@ the price indexes, §2.2, §2.4) and its second round (the cursor conditions' in
 the count from the facets, O49, §3.3, §3.4) and its third round (the rating cursor in two
 branches, §2.3; `aria-setsize` bounded by the loaded cards, §3.4); amended 2026-10-21 at T13a (the
 taint deferred, O76, §3.2, §8) and at T18 (focus after clearing, two live regions, O90, O91,
-§3.4) and at T20 (the analytics' details, O97–O105, §3.6).
+§3.4) and at T20 (the analytics' details, O97–O105, §3.6); amended 2026-10-22 at the review of
+PR 4 (the shell check hashes nonced scripts, O114, §5).
 
 How `spec.md` (AC1–AC24) is built. Decisions: `clarifications.md` (O1–O69; §3.1 and §3.7 amended
 at T11 by O65–O69).
@@ -438,7 +439,7 @@ in production, so no deployed web sends it.
   - The static shell `cacheComponents` prerenders has no nonce: its script tags load by `'self'`,
     React's inline script by its hash (`web/src/shared/csp/shell-script-hashes.json`).
     `scripts/check-web-shells.mjs`, in `verify` after the build, fails on a shell's inline script
-    without a nonce whose hash is not listed.
+    (a nonced one too, O114) whose hash is not listed.
   - nginx keeps `frame-ancestors 'none'` for non-page answers. For pages it passes web's header
     through and does not add its own, since two CSP headers intersect: a `map` of the upstream's
     header leaves nginx's out only when that one says `frame-ancestors 'none'` already.

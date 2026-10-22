@@ -137,7 +137,7 @@ backup job's `BACKUP_{READ,WRITE}_{ACCESS_KEY_ID,SECRET_ACCESS_KEY}`, or when th
 missing or empty; the one exception is Better Auth's env getter of `BETTER_AUTH_SECRET` in its
 browser client, cut out in exactly its shape (spec 0013 N53). Then `check:web-shells`
 (`scripts/check-web-shells.mjs`) fails when a page shell under `web/.next/server/app` (but
-`_global-error.html`) holds an inline script with no nonce whose hash is not in
+`_global-error.html`) holds an inline script (a nonce in it too) whose hash is not in
 `web/src/shared/csp/shell-script-hashes.json` (the CSP, spec 0014 O112). Docker must be running for `verify` and
 `npm test`: the Vitest project `database` (`api/test/database/`) starts a throwaway PostgreSQL,
 SeaweedFS and Temporal with Testcontainers (`api/test/support/`), never the development ones; without Docker it fails

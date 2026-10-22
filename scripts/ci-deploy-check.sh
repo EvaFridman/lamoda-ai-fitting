@@ -224,10 +224,10 @@ check_flood() {
 # spec 0014 AC16, the local half: one catalog visit is under the page and photo limits. The visit
 # measured in production made 14 page requests; a batch has 60 photos. All at once (at most 40 in
 # progress, under edge_conns), from the address the floods above used, once its buckets refilled
-# (33 pages in 1 s, 60 photos in 2 s).
+# (33 pages in 1 s, 60 photos in 2 s; 5 s leaves room for a flood's tail, O114).
 check_visit() {
   local out n429 failed
-  sleep 3
+  sleep 5
   out="$(in_nginx sh -c "$inner --parallel --parallel-immediate --parallel-max 40 \
     -o /dev/null -o /dev/null -w '%{http_code}\n' \
     'https://localhost/catalog?visit=[1-14]' 'https://localhost/media/no-such-key.webp?visit=[1-60]'; true")"
