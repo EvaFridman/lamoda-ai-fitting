@@ -135,7 +135,10 @@ Pinned on purpose; each "not newer" has a reason and a condition to move on.
 `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_SECRET` or the
 backup job's `BACKUP_{READ,WRITE}_{ACCESS_KEY_ID,SECRET_ACCESS_KEY}`, or when that directory is
 missing or empty; the one exception is Better Auth's env getter of `BETTER_AUTH_SECRET` in its
-browser client, cut out in exactly its shape (spec 0013 N53). Docker must be running for `verify` and
+browser client, cut out in exactly its shape (spec 0013 N53). Then `check:web-shells`
+(`scripts/check-web-shells.mjs`) fails when a page shell under `web/.next/server/app` (but
+`_global-error.html`) holds an inline script with no nonce whose hash is not in
+`web/src/shared/csp/shell-script-hashes.json` (the CSP, spec 0014 O112). Docker must be running for `verify` and
 `npm test`: the Vitest project `database` (`api/test/database/`) starts a throwaway PostgreSQL,
 SeaweedFS and Temporal with Testcontainers (`api/test/support/`), never the development ones; without Docker it fails
 with a message to start it. The project `unit` (everything else) needs no Docker. `web` tests
@@ -509,6 +512,22 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   A `<Link>` prefetch skips that check. A client component of the root layout that reads the URL
   (`usePathname`, `useSearchParams`) sits inside its own `<Suspense>`, or every route with a dynamic
   segment fails the build.
+- `web` Content Security Policy (spec 0014 plan §5, O112): `web/proxy.ts` (its test
+  `web/proxy.test.ts` next to it) runs on every path that may render a page (not
+  `/_next/static/`, `/_next/image`, `next dev`'s HMR socket, `/api/`, `/media/`, `/healthz`),
+  makes a nonce per request and sets the policy of
+  `contentSecurityPolicy` (`@/shared/csp/server`) on the answer and on the request, where Next
+  reads the nonce for the scripts it renders per request; a server component that renders a
+  `<script>` takes `requestNonce()` (the JSON-LD). Scripts are `'self'`, the nonce and the hashes
+  of `shell-script-hashes.json`, no `'strict-dynamic'`: the shell `cacheComponents` prerenders has
+  no nonce, so its script tags load by `'self'` and React's inline one by its hash (`verify`'s
+  `check:web-shells`; a new hash is added only after reading the script). `connect-src` is
+  `'self'`, Mixpanel's EU origin and the origin of `sentryDsn` (`@/shared/config`); images and
+  everything else only `'self'` (and `data:`, `blob:` for images): a page that loads from another
+  origin (a signed storage link, a connection) adds it to the policy. Styles allow
+  `'unsafe-inline'` (Next, Base UI), workers `blob:` (the recorder, O45), `next dev` adds
+  `'unsafe-eval'`. nginx adds its `frame-ancestors 'none'` to every answer except one whose CSP
+  already says `frame-ancestors 'none'` (`$edge_csp`), so a page carries one policy.
 - `web` routes (spec 0014): `/` redirects to `/catalog` (307, `redirects()` in `next.config.ts`);
   `/healthz` answers 200 without calling the api. The root layout's title template is
   `%s — Виртуальная примерка | Lamoda AI Fitting` (`siteTitle`, `@/shared/config`); a page with a

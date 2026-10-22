@@ -93,4 +93,69 @@ describe('categoryProxy', () => {
     expect(response.headers.get('x-middleware-next')).toBe('1');
     expect(rewrittenTo(response)).toBeNull();
   });
+
+  it('forwards no extra request headers when it gets none', async () => {
+    find.mockResolvedValue(category);
+    const response = await categoryProxy(request('/catalog/dresses'));
+    expect(response.headers.get('x-middleware-override-headers')).toBeNull();
+  });
+});
+
+describe('categoryProxy with request headers', () => {
+  const forwarded = new Headers({
+    'x-nonce': 'n1',
+    'content-security-policy': "default-src 'self'",
+  });
+
+  function expectForwarded(response: Response): void {
+    expect(response.headers.get('x-middleware-request-x-nonce')).toBe('n1');
+    expect(response.headers.get('x-middleware-request-content-security-policy')).toBe(
+      "default-src 'self'",
+    );
+  }
+
+  it('forwards them on a prefetch', async () => {
+    const response = await categoryProxy(
+      request('/catalog/dresses', { 'next-router-prefetch': '1' }),
+      forwarded,
+    );
+    expect(response.headers.get('x-middleware-next')).toBe('1');
+    expectForwarded(response);
+  });
+
+  it('forwards them on the catalog own routes', async () => {
+    const response = await categoryProxy(request('/catalog/opengraph-image'), forwarded);
+    expect(response.headers.get('x-middleware-next')).toBe('1');
+    expectForwarded(response);
+  });
+
+  it('forwards them for an active category', async () => {
+    find.mockResolvedValue(category);
+    const response = await categoryProxy(request('/catalog/dresses'), forwarded);
+    expect(response.headers.get('x-middleware-next')).toBe('1');
+    expectForwarded(response);
+  });
+
+  it.each([
+    ['missing', null],
+    ['inactive', { ...category, isActive: false }],
+  ])('forwards them on the rewrite of a %s category', async (_name, found) => {
+    find.mockResolvedValue(found);
+    const response = await categoryProxy(request('/catalog/none'), forwarded);
+    expect(new URL(rewrittenTo(response) ?? '').pathname).toBe('/_category-not-found');
+    expectForwarded(response);
+  });
+
+  it('forwards them on the rewrite of a malformed escape', async () => {
+    const response = await categoryProxy(request('/catalog/%E0%A4%A'), forwarded);
+    expect(new URL(rewrittenTo(response) ?? '').pathname).toBe('/_category-not-found');
+    expectForwarded(response);
+  });
+
+  it('forwards them when the api fails', async () => {
+    find.mockRejectedValue(new Error('down'));
+    const response = await categoryProxy(request('/catalog/dresses'), forwarded);
+    expect(response.headers.get('x-middleware-next')).toBe('1');
+    expectForwarded(response);
+  });
 });

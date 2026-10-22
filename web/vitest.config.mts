@@ -6,7 +6,8 @@ export default defineConfig({
   resolve: { tsconfigPaths: true },
   test: {
     environment: 'jsdom',
-    include: ['src/**/*.test.{ts,tsx}'],
+    // proxy.ts is Next's file at the root, so its test sits next to it.
+    include: ['src/**/*.test.{ts,tsx}', 'proxy.test.ts'],
     setupFiles: ['./vitest.setup.ts'],
     // CSS modules are compiled and keep their class names (`.button` stays `button`), so a test
     // can check which variant class a component got.

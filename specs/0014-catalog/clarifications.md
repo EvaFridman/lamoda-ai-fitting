@@ -240,8 +240,9 @@ The review of PR 1 (#87) was posted as a comment on 2026-10-19.
   is `null`, and web keeps the first batch's total. The offset answer stays as it is until PR 4
   removes it. (Note 8; amends O11.)
 - **O45. The CSP allows the recorder's worker.** The policy has `worker-src 'self' blob:` from the
-  start. T24 checks the browser console locally with a token of a Mixpanel development project,
-  which the owner puts into `.env`. (Note 6.)
+  start. T24 checks the browser console locally with a placeholder token the owner puts into
+  `.env` (amended at T24: no development project; any non-empty token loads the SDK and its
+  recorder, and Mixpanel refuses its events, so no data is sent). (Note 6.)
 - **O46. Some tasks of PR 3 may go ahead alone.** If the web phase drags on, T11 and T12 (routes,
   redirect and removals) may ship as their own pull request before the rest of PR 3. Such a pull
   request keeps PR 3's release conditions: PR 2 in production (T11 needs the category by slug), and
@@ -666,3 +667,12 @@ build` passes. (owner, T19.)
   that has no `Range`, `If-Match` or `If-Unmodified-Since` (on which Next renders its 416 and 412
   pages). Everything else counts as a page. `ci-deploy-check.sh`'s slow-upload test holds its
   slots with GETs carrying a body. (owner, T23 security review.)
+- **O112. The CSP allows our own scripts and the shells' by hash, without `'strict-dynamic'`.**
+  The static shell `cacheComponents` prerenders at build time has no nonce: a production build
+  showed Next's script tags and React's inline `$RT` script in it without one, the nonce only on
+  what streams per request. Under plan §5's `'strict-dynamic'`, `'self'` no longer counts, and the
+  page would not hydrate. Rendering every page per request would keep it, at the cost of the shell
+  and of spec 0018's page cache. So `script-src` is `'self'`, the nonce and the hashes of the
+  shells' inline scripts, checked against every build by `scripts/check-web-shells.mjs`. Any script
+  of our own origin may run: the api's and `/media/`'s answers are not JavaScript and go with
+  `nosniff`, so a browser does not run them as scripts. (owner, T24.)

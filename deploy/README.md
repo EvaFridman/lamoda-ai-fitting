@@ -105,6 +105,8 @@ nginx: его ограничивает только таймаут в 10 с.
 (`SOCKET_MAX_MESSAGE_BYTES`). `worker_connections` остаётся 1024 на воркер из образа (сокет
 занимает два соединения); когда их не хватает, в логе nginx «worker_connections are not enough».
 Поднять — свой `nginx.conf` и больший `nofile`. Проверяет `scripts/ci-deploy-check.sh`.
+Content Security Policy страниц web и то, как nginx её пропускает, — в «Заголовках безопасности»
+(раздел «Сертификат HTTPS»).
 
 ## Откат
 
@@ -1003,10 +1005,20 @@ ssh ai-fitting 'cd /opt/ai-fitting && docker compose -f deploy/compose/infra.yml
 **Заголовки безопасности** (спека 0006 F9, F38): основной сервер nginx отдаёт на каждый ответ api,
 web и свой собственный (413, 429, 503) `X-Content-Type-Options: nosniff`,
 `Content-Security-Policy: frame-ancestors 'none'` и `Referrer-Policy: strict-origin-when-cross-origin`.
-Редиректы (порт 80, `www`) их не отдают. У `/_next/image` (Next) и статики Swagger (Express) есть
-своя CSP. Браузер применяет обе политики, поэтому `proxy_hide_header Content-Security-Policy` не
-ставят: он убрал бы песочницу Next для картинок. Ни одна `location` не задаёт свой `add_header`: он
-отменил бы все заголовки уровня server, включая HSTS. Локально nginx нет, поэтому нет и заголовков.
+Редиректы (порт 80, `www`) их не отдают. Исключение — CSP страниц web (спека 0014 plan §5, O112):
+`web/proxy.ts` ставит на каждую страницу полную политику с nonce на запрос, и nginx своей не
+добавляет (`map` `$edge_csp`: если в CSP ответа уже есть `frame-ancestors 'none'`; любой другой
+политике апстрима nginx добавляет свою). Две политики браузер
+применяет обе, так что вторая ничего бы не дала. Скрипты страниц разрешены со своего домена, по
+nonce и по хешам инлайн-скриптов статической оболочки (`web/src/shared/csp/shell-script-hashes.json`,
+сверяет `scripts/check-web-shells.mjs` в `verify`); соединения — свой домен, Mixpanel
+(`api-eu.mixpanel.com`) и Sentry (адрес из `NEXT_PUBLIC_SENTRY_DSN`). Нарушения видны только в
+консоли браузера: отчётов о них сайт не собирает. Откат политики — revert `web/proxy.ts`.
+У `/_next/image` (Next) и статики Swagger (Express) есть своя CSP без `frame-ancestors`, к ней nginx
+добавляет свою. Браузер применяет обе политики, поэтому `proxy_hide_header Content-Security-Policy`
+не ставят: он убрал бы песочницу Next для картинок. Ни одна `location` не задаёт свой `add_header`:
+он отменил бы все заголовки уровня server, включая HSTS. Локально nginx нет, поэтому из этих
+заголовков там есть только CSP страниц (с `'unsafe-eval'` в `next dev`).
 
 ## Предыдущий стек на сервере
 

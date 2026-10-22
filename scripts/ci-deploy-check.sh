@@ -126,11 +126,12 @@ check_request_id() {
 # AC13 (spec 0006 F9): nginx's security headers, as curl's -w prints them with $security_w (a
 # repeated header prints as "a, b" and fails the match). check_security_headers reads the whole
 # header instead and wants each exactly once; not for /_next/image or Swagger's static files, which
-# add a CSP of their own.
+# add a CSP of their own. With `page`, the CSP is web's full one (spec 0014 AC17, plan §5): nginx
+# adds none, so it is one header with a nonce, scripts from 'self' and no framing.
 security_w='%header{x-content-type-options}|%header{content-security-policy}|%header{referrer-policy}'
 security="nosniff|frame-ancestors 'none'|strict-origin-when-cross-origin"
 check_security_headers() {
-  local path="$1" headers name expected got
+  local path="$1" kind="${2:-}" headers name expected got
   headers="$(curl -sk --max-time 10 -o /dev/null -D - "https://localhost$path" | tr -d '\r')" \
     || { echo "ci-deploy-check: $path: the request failed" >&2; return 1; }
   for name in x-content-type-options content-security-policy referrer-policy; do
@@ -140,10 +141,17 @@ check_security_headers() {
       referrer-policy) expected=strict-origin-when-cross-origin ;;
     esac
     got="$(awk -F': ' -v n="$name" 'tolower($1) == n { print $2 }' <<< "$headers")"
+    if [ "$name" = content-security-policy ] && [ "$kind" = page ]; then
+      [ "$(wc -l <<< "$got")" -eq 1 ] \
+        && grep -qE "^default-src 'self'; script-src 'self' 'nonce-[A-Za-z0-9+/=]+' " <<< "$got" \
+        && grep -qF "frame-ancestors 'none'" <<< "$got" \
+        || { echo "ci-deploy-check: $path answers $name '$got', expected web's one policy" >&2; return 1; }
+      continue
+    fi
     [ "$got" = "$expected" ] \
       || { echo "ci-deploy-check: $path answers $name '$got', expected one '$expected'" >&2; return 1; }
   done
-  echo "$path carries the security headers once"
+  echo "$path carries the security headers once${kind:+, the CSP of web}"
 }
 
 # Runs a command in the nginx container. Its curl reaches nginx from 127.0.0.1, another address
@@ -181,8 +189,11 @@ nginx_log_count() {
   docker compose -f deploy/compose/infra.yml --env-file "$env_file" logs nginx 2>&1 \
     | grep -c "$1" || true
 }
+# With `page`, web's answers carry its own one policy instead (spec 0014 plan §5), nginx's 429s
+# still nginx's.
+page_security="nosniff\|default-src 'self'; script-src 'self' 'nonce-[A-Za-z0-9+/=]+' [^|,]*frame-ancestors 'none'[^|,]*\|strict-origin-when-cross-origin$"
 check_flood() {
-  local what="$1" request="$2" zone="$3" total="${4:-100}" out n429 json429 bodies bare before after conns
+  local what="$1" request="$2" zone="$3" total="${4:-100}" kind="${5:-}" out n429 json429 bodies bare before after conns
   before="$(nginx_log_count "limiting requests.* by zone \"$zone\"")"
   conns="$(nginx_log_count 'limiting connections by zone "edge_conns"')"
   # A transfer that fails shows in the counts, so curl's exit code is ignored.
@@ -197,7 +208,11 @@ check_flood() {
   json429="$(grep -c '^429 application/json ' <<< "$out" || true)"
   bodies="$(in_nginx sh -c "grep -lF '{\"error\":{\"code\":\"TOO_MANY_REQUESTS\"' /tmp/flood/* | wc -l")"
   # AC13: the api's answers and nginx's 429 alike (a failed transfer, 000, has no headers).
-  bare="$(grep -v '^000 ' <<< "$out" | grep -vcF " $security" || true)"
+  if [ "$kind" = page ]; then
+    bare="$(grep -v '^000 ' <<< "$out" | grep -vF " $security" | grep -vcE " $page_security" || true)"
+  else
+    bare="$(grep -v '^000 ' <<< "$out" | grep -vcF " $security" || true)"
+  fi
   [ "$n429" -gt 0 ] && [ "$json429" -eq "$n429" ] && [ "$bodies" -eq "$n429" ] && [ "$bare" -eq 0 ] || {
     printf 'ci-deploy-check: a flood of %s: %s of %s answered 429, %s as JSON, %s with the code, %s without the security headers:\n%s\n' \
       "$what" "$n429" "$total" "$json429" "$bodies" "$bare" "$(sort <<< "$out" | uniq -c)" >&2
@@ -234,10 +249,10 @@ check_edge_limits() {
   check_flood "liveness" "'https://localhost/api/health/live?n=[1-200]'" edge_health 200
   # spec 0014 AC16: web's pages and /media/, with random missing keys (O39: a 404 is cached per
   # key, so each new one reaches the bucket).
-  check_flood "pages" "'https://localhost/catalog?n=[1-100]'" edge_pages
+  check_flood "pages" "'https://localhost/catalog?n=[1-100]'" edge_pages 100 page
   # nginx decodes %2F into /_next/static/a, Next renders its not-found page: counted as a page.
   check_flood "pages behind an encoded /_next/static/" \
-    "'https://localhost/x%2F..%2F_next/static/a?n=[1-100]'" edge_pages
+    "'https://localhost/x%2F..%2F_next/static/a?n=[1-100]'" edge_pages 100 page
   # A range past a file's end makes Next render its 416 page.
   check_flood "static files with a Range" \
     "-H 'Range: bytes=999999999-' 'https://localhost/_next/static/a?n=[1-100]'" edge_pages
@@ -702,7 +717,12 @@ echo "$first_counts"
 check_request_id '/api/categories?limit=1' blue
 check_request_id /catalog/dresses blue 2
 check_security_headers '/api/categories?limit=1'
+# `/` is Next's redirect, answered before proxy.ts runs: nginx's policy only.
 check_security_headers /
+check_security_headers /catalog page
+check_security_headers /catalog/dresses page
+# An unknown category: proxy.ts's rewrite to the not-found page keeps the policy.
+check_security_headers /catalog/no-such-category page
 # The socket location and nginx's 403 for readiness: a location's own add_header would drop them.
 check_security_headers '/socket.io/?EIO=4&transport=polling'
 check_security_headers /api/health/ready

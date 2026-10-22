@@ -71,6 +71,17 @@ map "${S3_ENDPOINT}" $s3_origin {
 proxy_cache_path /var/cache/nginx/media levels=1:2 keys_zone=media:10m max_size=1g inactive=7d
   use_temp_path=off;
 
+# nginx's own CSP, only for an answer without a policy that forbids framing already: web's pages
+# carry their full one with `frame-ancestors 'none'` (spec 0014 plan §5), and two policies
+# intersect, so a second would add nothing there. Everything else (the api, /media/, nginx's own
+# errors, Next's /_next/image and Swagger's files) gets `frame-ancestors 'none'` (spec 0006 F9),
+# an upstream policy that allows any framing too: the browser applies both. An empty value sends
+# no header.
+map $upstream_http_content_security_policy $edge_csp {
+  "~*(^|;)\s*frame-ancestors\s+'none'\s*(;|$)" "";
+  default "frame-ancestors 'none'";
+}
+
 server_tokens off;
 gzip on;
 gzip_types text/plain text/css application/json application/javascript image/svg+xml;
@@ -178,11 +189,11 @@ server {
 
   # Security headers on every response of api, web and nginx itself (spec 0006 F9). A few answers
   # carry a CSP of their own (Next's on /_next/image, Express's on Swagger's static files); browsers
-  # apply both, so no proxy_hide_header: hiding Next's would drop its sandbox for images. A full
-  # Content Security Policy for web's pages comes with them. Not on the redirect servers above: a
-  # 301 has nothing to frame or sniff (F38).
+  # apply both, so no proxy_hide_header: hiding Next's would drop its sandbox for images. web's pages
+  # carry the full one, and nginx adds none to them ($edge_csp above). Not on the redirect servers
+  # above: a 301 has nothing to frame or sniff (F38).
   add_header X-Content-Type-Options nosniff always;
-  add_header Content-Security-Policy "frame-ancestors 'none'" always;
+  add_header Content-Security-Policy $edge_csp always;
   add_header Referrer-Policy strict-origin-when-cross-origin always;
 
   # The api's shared secret (spec 0006 F13), sent by proxy-headers.inc; `location /` empties it.
