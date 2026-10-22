@@ -1,14 +1,23 @@
 // @vitest-environment node
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('server-only', () => ({}));
-vi.mock('next/headers', () => ({ headers: () => Promise.resolve(new Headers()) }));
-vi.mock('@/shared/config/server', () => ({
-  getServerEnv: () => ({ API_URL: 'http://api:3000', PROXY_SECRET: '' }),
+vi.mock('next/headers', () => ({
+  headers: () => Promise.resolve(new Headers({ 'x-real-ip': '203.0.113.7' })),
 }));
+vi.mock('@/shared/config/server', () => ({
+  getServerEnv: () => ({
+    API_URL: 'http://api:3000',
+    PROXY_SECRET: 's'.repeat(32),
+    PAGE_CACHE_REVALIDATE_SECONDS: 60,
+  }),
+}));
+
+import { ApiError } from '@/shared/api';
 
 import { categoryKeys } from './keys';
 import {
+  getActiveCategories,
   categoryListOptions,
   categoryOptions,
   findCategoryBySlug,
@@ -45,6 +54,91 @@ function requested(): URL {
 beforeEach(() => {
   fetchMock.mockReset();
   vi.stubGlobal('fetch', fetchMock);
+});
+
+function sentHeaders(): Headers {
+  return new Headers((fetchMock.mock.calls[0]?.[1] as RequestInit).headers);
+}
+
+describe('getCategories and the page cache', () => {
+  it('reads a first page without the visitor or the proxy secret', async () => {
+    respondWith({ items: [], total: 0 });
+    await getCategories({ limit: 10, isActive: true });
+    const sent = sentHeaders();
+    expect(sent.has('x-proxy-secret')).toBe(false);
+    expect(sent.has('x-forwarded-for')).toBe(false);
+    expect(sent.has('x-request-id')).toBe(false);
+    expect(requested().pathname).toBe('/categories');
+  });
+
+  it('reads a page with an offset on behalf of the visitor', async () => {
+    respondWith({ items: [], total: 0 });
+    await getCategories({ limit: 10, offset: 10 });
+    const sent = sentHeaders();
+    expect(sent.get('x-proxy-secret')).toBe('s'.repeat(32));
+    expect(sent.get('x-forwarded-for')).toBe('203.0.113.7');
+    expect(requested().searchParams.get('offset')).toBe('10');
+    expect(requested().searchParams.get('limit')).toBe('10');
+  });
+
+  it('treats offset 0 as an offset', async () => {
+    respondWith({ items: [], total: 0 });
+    await getCategories({ offset: 0 });
+    expect(sentHeaders().get('x-proxy-secret')).toBe('s'.repeat(32));
+  });
+
+  it('throws an ApiError from a cached first page', async () => {
+    respondWith({}, 500);
+    const error = await getCategories().catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({ kind: 'http', status: 500 });
+  });
+});
+
+describe('getCategories while the page cache is skipped', () => {
+  const slot = globalThis as Record<symbol, unknown>;
+  const SKIP = Symbol.for('lamoda-ai-fitting.page-cache.skip-until');
+
+  afterEach(() => {
+    delete slot[SKIP];
+  });
+
+  it('reads a first page on behalf of the visitor', async () => {
+    slot[SKIP] = Date.now() + 60_000;
+    respondWith({ items: [], total: 0 });
+    await getCategories({ limit: 10, isActive: true });
+    expect(sentHeaders().get('x-proxy-secret')).toBe('s'.repeat(32));
+    expect(sentHeaders().get('x-forwarded-for')).toBe('203.0.113.7');
+    expect(requested().pathname).toBe('/categories');
+    expect(requested().searchParams.get('limit')).toBe('10');
+  });
+
+  it('goes through the cache again once the time has passed', async () => {
+    slot[SKIP] = Date.now() - 1;
+    respondWith({ items: [], total: 0 });
+    await getCategories();
+    expect(sentHeaders().has('x-proxy-secret')).toBe(false);
+  });
+
+  it('goes through the cache when the slot is 0', async () => {
+    slot[SKIP] = 0;
+    respondWith({ items: [], total: 0 });
+    await getCategories();
+    expect(sentHeaders().has('x-proxy-secret')).toBe(false);
+  });
+});
+
+describe('getActiveCategories', () => {
+  it('requests the active categories, 100 at most, from the cache without the visitor', async () => {
+    respondWith({ items: [category], total: 1 });
+    await expect(getActiveCategories()).resolves.toEqual({ items: [category], total: 1 });
+    const url = requested();
+    expect(url.pathname).toBe('/categories');
+    expect(url.search).toBe('?limit=100&isActive=true');
+    const sent = sentHeaders();
+    expect(sent.has('x-proxy-secret')).toBe(false);
+    expect(sent.has('x-forwarded-for')).toBe(false);
+  });
 });
 
 describe('getCategories', () => {
@@ -187,11 +281,87 @@ describe('findCategoryBySlug', () => {
 });
 
 describe('getCategoryBySlug', () => {
-  it('finds a category and answers null for a missing one', async () => {
-    respondWith(category);
+  const SECRET = 's'.repeat(32);
+  const inactive = { ...category, id: 'b1b2c3d4-5a4d-4e6f-8a9b-0c1d2e3f4a5b', slug: 'old' };
+
+  interface Routes {
+    list?: { body: unknown; status?: number };
+    bySlug?: { body: unknown; status?: number };
+  }
+
+  function route({ list, bySlug }: Routes): void {
+    fetchMock.mockImplementation((input: unknown) => {
+      const { pathname } = new URL(String(input));
+      const answer = pathname.startsWith('/categories/by-slug/') ? bySlug : list;
+      return Promise.resolve(
+        new Response(JSON.stringify(answer?.body ?? {}), { status: answer?.status ?? 200 }),
+      );
+    });
+  }
+
+  function calls(kind: 'list' | 'bySlug'): { url: URL; headers: Headers }[] {
+    return fetchMock.mock.calls
+      .map(([input, init]) => ({
+        url: new URL(String(input)),
+        headers: new Headers((init as RequestInit).headers),
+      }))
+      .filter(({ url }) => url.pathname.startsWith('/categories/by-slug/') === (kind === 'bySlug'));
+  }
+
+  it('returns a listed category from the cached list, with no by-slug request', async () => {
+    route({ list: { body: { items: [inactive, category], total: 2 } } });
     await expect(getCategoryBySlug('dresses')).resolves.toEqual(category);
-    respondWith({}, 404);
+    expect(calls('bySlug')).toHaveLength(0);
+    const [list, ...rest] = calls('list');
+    expect(rest).toHaveLength(0);
+    expect(list?.url.pathname).toBe('/categories');
+    expect(list?.url.searchParams.get('isActive')).toBe('true');
+    expect(list?.headers.has('x-proxy-secret')).toBe(false);
+    expect(list?.headers.has('x-forwarded-for')).toBe(false);
+  });
+
+  it.each([
+    ['inactive', 'old', 200],
+    ['unknown', 'nothing', 404],
+    ['new', 'fresh', 200],
+  ])('reads %s slug on the visitor behalf', async (_name, slug, status) => {
+    const found = { ...category, slug };
+    route({
+      list: { body: { items: [category], total: 1 } },
+      bySlug: { body: status === 200 ? found : {}, status },
+    });
+    await expect(getCategoryBySlug(slug)).resolves.toEqual(status === 200 ? found : null);
+    const [request, ...rest] = calls('bySlug');
+    expect(rest).toHaveLength(0);
+    expect(request?.url.pathname).toBe(`/categories/by-slug/${slug}`);
+    expect(request?.headers.get('x-proxy-secret')).toBe(SECRET);
+    expect(request?.headers.get('x-forwarded-for')).toBe('203.0.113.7');
+  });
+
+  it.each(['', '.', '..'])('answers null for %j without a by-slug request', async (slug) => {
+    route({ list: { body: { items: [category], total: 1 } } });
+    await expect(getCategoryBySlug(slug)).resolves.toBeNull();
+    expect(calls('bySlug')).toHaveLength(0);
+  });
+
+  it('falls back to the visitor by-slug read when the list fails', async () => {
+    route({ list: { body: {}, status: 500 }, bySlug: { body: category } });
+    await expect(getCategoryBySlug('dresses')).resolves.toEqual(category);
+    const [request] = calls('bySlug');
+    expect(request?.headers.get('x-proxy-secret')).toBe(SECRET);
+    expect(request?.headers.get('x-forwarded-for')).toBe('203.0.113.7');
+  });
+
+  it('answers null when the list fails and the slug is unknown', async () => {
+    route({ list: { body: {}, status: 500 }, bySlug: { body: {}, status: 404 } });
     await expect(getCategoryBySlug('none')).resolves.toBeNull();
+  });
+
+  it('throws an ApiError for a 500 on the by-slug read', async () => {
+    route({ list: { body: { items: [], total: 0 } }, bySlug: { body: {}, status: 500 } });
+    const error = await getCategoryBySlug('x').catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({ kind: 'http', status: 500 });
   });
 });
 

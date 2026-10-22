@@ -63,7 +63,7 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       Check: handler tests (AC2's refresh, AC4, AC5); `next build` and the web image with no api or
       Redis (AC16); the handler and `ioredis` are in `.next/standalone`; `npm run verify`.
       Commit: `feat(web): add a redis handler for the page cache`
-- [ ] **T7. Cached catalog reads.** `cachedApiFetch` (`@/shared/api/server`), the cached variants of
+- [x] **T7. Cached catalog reads.** `cachedApiFetch` (`@/shared/api/server`), the cached variants of
       `getCategories`, `getCategoryBySlug`, the first page of products and the filter counts with
       no filter (V15), `cacheLife` from env; the handler's key hashed and its 1 MB entry limit
       (V22); `CLAUDE.md`'s web conventions (the cache's rules); backlog "Page cache in a read-only

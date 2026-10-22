@@ -382,7 +382,34 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   from `buildPath('/products/:id', { id }, query)` (`@/shared/api`): each param is encoded into one
   segment, and an empty, `.` or `..` param, like a path off the api's origin, is an `ApiError` of
   kind `path` before any request. It reads the visitor's request from `headers()`; `proxy.ts`, which
-  has no `headers()`, passes the request's headers as its fourth argument.
+  has no `headers()`, passes the request's headers as its fourth argument. The one exception is the
+  page cache's reads, below.
+- `web` page cache (spec 0018): the public catalog's reads with no filter (V15) are cached in the
+  caches' Redis through `'use cache: remote'`, in the entity slices' `server-queries.ts`: the first
+  page of `getCategories`, and `getProductBatch` and `getProductFacets` when the query holds nothing
+  but at most one `categoryId` (no filter, sort, `limit` or cursor); anything else goes through
+  `apiFetch` as the visitor. `getCategoryBySlug` (the page's) takes an active category from the
+  cached list of active ones and reads any other slug as the visitor, as `proxy.ts`'s
+  `findCategoryBySlug` does, so no slug a visitor types becomes a key or spends web's quota (V24);
+  the header and that lookup share `getActiveCategories`, once per render. While the handler skips
+  Redis it publishes until when in a slot of `globalThis` (`SKIP_UNTIL`, a `Symbol.for`), and
+  `pageCacheOpen()` sends every read as the visitor meanwhile, so a Redis outage does not put all
+  visitors into web's one quota (V24): a failure or a lost connection (reconnecting too) for 10 s,
+  then one probe; a client's first connection after the process starts for 1 s at a time, not
+  logged. A cached function takes only the query (its arguments, and anything its closure
+  captures, become the cache key and are stored: never a header, a cookie, a secret or user data)
+  and calls `cachedApiFetch` (`@/shared/api/server`): `apiFetch` without the visitor's address,
+  request id or `X-Proxy-Secret`, so its misses count under web's own address. Its lifetime is
+  `cacheLife({ stale: 60, revalidate: PAGE_CACHE_REVALIDATE_SECONDS, expire: 3600 })`: past
+  `revalidate` the next request gets the entry and refreshes it in the background. A failed read is
+  returned as `{ failure }` with lifetime 0, so it is not stored, and `cachedData` throws it again as
+  the `ApiError` (an error thrown inside `'use cache'` reaches the caller as a plain `Error`, V23),
+  so nothing else may throw inside a cached function (a path that `buildPath` could refuse is built
+  by its caller). A failed refresh leaves the stored entry as it was, served until `expire`. The handler
+  (`cache-handlers/redis.mjs` → `shared/page-cache/handler.mts`) stores an entry under
+  `page-cache:v1:<build id>:<sha256 of Next's key>`, so releases never share entries and Redis and
+  Sentry's Redis spans see no arguments, stores none over 1 MB, and on a failed or slow Redis (200
+  ms) answers a miss, logged at most once a minute, then skips Redis for 10 s (V5, V22).
 - `web` calls the api from the browser only through `clientFetch` (`@/shared/api`): the site's own
   `/api` (no public api address, no cross-origin calls), no secret, a 15 s timeout, the same
   response step and errors as `apiFetch`. In production nginx serves `/api/`; locally `next dev`

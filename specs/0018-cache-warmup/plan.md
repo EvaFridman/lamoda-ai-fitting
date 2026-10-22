@@ -3,9 +3,9 @@
 Status: accepted (2026-10-20); amended 2026-10-20 at the review of PR 1 (§2, §3's key, §4's bound
 and pace, §5, §9, §10); amended 2026-10-21 after 0014 deferred the proxy secret's taint (O76);
 amended 2026-10-21 at T4 (§1, V19; §2, V20), at T5 (§1, V19; §2, the worker's `REDIS_CACHE_URL`)
-and at T6 (§1, V19; §3's handler, V21, V22).
+and at T6 (§1, V19; §3's handler, V21, V22); amended 2026-10-22 at T7 (§3's errors, V23; §3's reads, V24).
 
-How [spec.md](spec.md) is built. Decisions: [clarifications.md](clarifications.md) (V1–V22).
+How [spec.md](spec.md) is built. Decisions: [clarifications.md](clarifications.md) (V1–V24).
 No new dependencies: web already has `ioredis` (its `package.json`), Next is 16.3.8.
 
 ## 1. Pull requests and release order
@@ -78,10 +78,12 @@ ${REDIS_CACHE_MAXMEMORY:-128mb} --maxmemory-policy allkeys-lru`, no volume, `mem
   serializes the config at build). After `n` s the next request gets the entry and refreshes it in
   the background (AC2); after an hour unused it expires.
 - **Which reads (V15).** In the server twins of the entity slices (`entities/*/api/server-queries.ts`
-  of spec 0014): `getCategories` (header, sitemap, the warm-up list), `getCategoryBySlug` (under its
-  `React.cache`), the first page of products and the filter counts. A query function picks the
-  cached variant only for the empty query of a category (no filter, default sort, no `q`, no
-  cursor); anything else calls the api as today.
+  of spec 0014): `getCategories` (header, sitemap, the warm-up list), the first page of products
+  and the filter counts. A query function picks the cached variant only for the empty query of a
+  category (no filter, default sort, no `q`, no cursor); anything else calls the api as today.
+  `getCategoryBySlug` (under its `React.cache`) takes an active category from the cached list of
+  active ones and reads any other slug on the visitor's behalf (V24). While the handler skips
+  Redis, every read goes on the visitor's behalf (`pageCacheOpen()`, V24).
 - **No visitor data in the cache (AC3).** A cached function cannot read headers, so it calls a new
   `cachedApiFetch` (`@/shared/api/server`): `apiFetch`'s path, timeout, schema and error steps,
   without the visitor's address, request id or `X-Proxy-Secret`. The api counts it under web's
@@ -91,8 +93,10 @@ ${REDIS_CACHE_MAXMEMORY:-128mb} --maxmemory-policy allkeys-lru`, no volume, `mem
 - **Build (AC16).** Callers keep `await connection()` before the cached call, inside `<Suspense>`
   (`header-categories.tsx`, the catalog page, `sitemap.ts`), so `next build` calls none of them
   and the image builds with no api or Redis. The handler module connects only on its first `get`.
-- **Errors.** A failed api read inside a cached function throws out of it and is not stored; the
-  caller's `prefetch` turns it into a failure as today.
+- **Errors (V23).** A failed api read inside a cached function does not throw (Next would hand the
+  caller a plain `Error` in place of the `ApiError`): it returns `{ failure }` with the error's
+  fields and sets `cacheLife({ revalidate: 0, expire: 0 })`, so the entry is not stored. The caller
+  rebuilds the `ApiError` and throws it, and `prefetch` turns it into a failure as today.
 
 ## 4. Warm-up (V6–V8)
 

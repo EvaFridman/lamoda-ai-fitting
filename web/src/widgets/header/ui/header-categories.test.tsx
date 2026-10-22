@@ -2,20 +2,20 @@ import { render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { type Category } from '@/entities/category';
-import { getCategories } from '@/entities/category/server';
+import { getActiveCategories } from '@/entities/category/server';
 import { ApiError, reportFailure } from '@/shared/api';
 
 import { HeaderCategories } from './header-categories';
 
 vi.mock('server-only', () => ({}));
 vi.mock('next/server', () => ({ connection: vi.fn().mockResolvedValue(undefined) }));
-vi.mock('@/entities/category/server', () => ({ getCategories: vi.fn() }));
+vi.mock('@/entities/category/server', () => ({ getActiveCategories: vi.fn() }));
 vi.mock('@/shared/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/shared/api')>()),
   reportFailure: vi.fn(),
 }));
 
-const getCategoriesMock = vi.mocked(getCategories);
+const getCategoriesMock = vi.mocked(getActiveCategories);
 const reportFailureMock = vi.mocked(reportFailure);
 
 function category(id: string, name: string, sortOrder: number): Category {
@@ -43,7 +43,7 @@ describe('HeaderCategories', () => {
     await HeaderCategories();
 
     expect(getCategoriesMock).toHaveBeenCalledTimes(1);
-    expect(getCategoriesMock).toHaveBeenCalledWith({ isActive: true, limit: 100 });
+    expect(getCategoriesMock).toHaveBeenCalledWith();
   });
 
   it('lists the names in the order the api returned them, and nothing else', async () => {

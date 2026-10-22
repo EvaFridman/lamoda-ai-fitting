@@ -36,7 +36,7 @@ export function isIndexable({ query, cursor }: CatalogUrlState): boolean {
 }
 
 // The filter counts of the unfiltered page, for a description; once per render. `undefined` when
-// they fail: apiFetch reports it, and the page shows its own failure. Asked only for an indexed
+// they fail: the api client reports it, and the page shows its own failure. Asked only for an indexed
 // address: a page with `noindex` goes without the count, and saves the visitor's
 // quota a read.
 const unfilteredFacets = cache(
@@ -115,7 +115,7 @@ export async function generateCategoryMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const indexable = isIndexable(parseCatalogUrl(await searchParams));
-  // A failure is reported by apiFetch and shown by the page; an inactive category is the page's soft
+  // A failure is reported by the api client and shown by the page; an inactive category is the page's soft
   // 404 (O65). Either falls back to the catalog's title, not indexed.
   const category = await getCategoryBySlug(slug).catch(() => null);
   if (!category?.isActive) {

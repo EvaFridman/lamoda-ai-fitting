@@ -1,8 +1,8 @@
 import NextLink from 'next/link';
 import { connection } from 'next/server';
 
-import { type Category, CATEGORY_LIST_MAX } from '@/entities/category';
-import { getCategories } from '@/entities/category/server';
+import type { Category } from '@/entities/category';
+import { getActiveCategories } from '@/entities/category/server';
 import { reportFailure } from '@/shared/api';
 
 import styles from './header.module.scss';
@@ -12,8 +12,9 @@ import styles from './header.module.scss';
 // reports anything else.
 async function load(): Promise<Category[]> {
   try {
-    // More categories than the api's page would not fit one row anyway (plan §2).
-    return (await getCategories({ isActive: true, limit: CATEGORY_LIST_MAX })).items;
+    // More categories than the api's page would not fit one row anyway (plan §2); the same read a
+    // category page's lookup makes, once per render.
+    return (await getActiveCategories()).items;
   } catch (error) {
     reportFailure(error);
     return [];

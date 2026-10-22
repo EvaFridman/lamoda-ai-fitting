@@ -21,10 +21,21 @@ export interface PageCacheOptions {
   buildId: () => string;
   log?: (message: string) => void;
   now?: () => number;
+  // Tells the app until when the cache is skipped (0: open), so its reads go on the visitor's
+  // behalf meanwhile (V24). By default the process-wide `SKIP_UNTIL` slot of `globalThis`.
+  publishSkipUntil?: (until: number) => void;
 }
+
+// The slot shared with the app's bundle (`pageCacheOpen` of `@/shared/api/server`, which names the
+// same string: this file imports nothing, the bundle cannot import it).
+export const SKIP_UNTIL = Symbol.for('lamoda-ai-fitting.page-cache.skip-until');
+// While a client is still connecting, the app's reads skip the cache this long, then look again.
+const NOT_READY_SKIP_MS = 1000;
 
 // Bump with any change to the stored shape: blue and green share the caches' Redis.
 const KEY_PREFIX = 'page-cache:v1';
+// The largest entry stored, as written to Redis: one large answer cannot evict the rest (V22).
+export const MAX_ENTRY_BYTES = 1024 * 1024;
 // After a failure Redis is skipped this long, then one request tries again (V5, as 0014 O56).
 const SKIP_MS = 10_000;
 const LOG_INTERVAL_MS = 60_000;
@@ -43,12 +54,19 @@ interface StoredEntry {
 export function createPageCacheHandler(options: PageCacheOptions): CacheHandler {
   const log = options.log ?? ((message: string) => console.warn(message));
   const now = options.now ?? Date.now;
+  const publishSkipUntil =
+    options.publishSkipUntil ??
+    ((until: number) => {
+      (globalThis as Record<symbol, unknown>)[SKIP_UNTIL] = until;
+    });
   const pendingSets = new Map<string, Promise<void>>();
   let client: PageCacheRedis | undefined;
   let prefix: string | undefined;
   let failing = false;
+  let everReady = false;
   let skipUntil = 0;
   let lastLogAt = -Infinity;
+  let lastOversizeLogAt = -Infinity;
 
   function report(reason: string): void {
     const at = now();
@@ -57,10 +75,25 @@ export function createPageCacheHandler(options: PageCacheOptions): CacheHandler 
     log(`page cache: ${reason}; pages read the api directly`);
   }
 
+  // Not a failure: Redis works, one entry is left out. Its own once a minute, so it neither hides
+  // nor is hidden by a failure's line.
+  function reportOversize(): void {
+    const at = now();
+    if (at - lastOversizeLogAt < LOG_INTERVAL_MS) return;
+    lastOversizeLogAt = at;
+    log('page cache: an entry over 1 MB is not stored');
+  }
+
+  function succeed(): void {
+    if (failing) publishSkipUntil(0);
+    failing = false;
+  }
+
   // The error only: the key would carry the cached function's arguments.
   function fail(what: string, error: unknown): void {
     failing = true;
     skipUntil = now() + SKIP_MS;
+    publishSkipUntil(skipUntil);
     report(`${what} (${error instanceof Error ? error.message : String(error)})`);
   }
 
@@ -70,6 +103,7 @@ export function createPageCacheHandler(options: PageCacheOptions): CacheHandler 
       if (now() < skipUntil) return undefined;
       // This request tries Redis; the ones that arrive while it waits go without it.
       skipUntil = now() + SKIP_MS;
+      publishSkipUntil(skipUntil);
     }
     try {
       client ??= options.createClient();
@@ -79,10 +113,15 @@ export function createPageCacheHandler(options: PageCacheOptions): CacheHandler 
       return undefined;
     }
     if (client.status !== 'ready') {
-      // A client still making its first connection (every process start) is no failure.
-      if (!STARTING.has(client.status)) report(`Redis not connected (${client.status})`);
+      // A client still making its first connection (every process start) is no failure: the app
+      // looks again in a second. A lost one, reconnecting (`connecting` again) too, is skipped as a
+      // failed command is.
+      if (!everReady && !failing && STARTING.has(client.status)) {
+        publishSkipUntil(now() + NOT_READY_SKIP_MS);
+      } else fail('Redis not connected', new Error(client.status));
       return undefined;
     }
+    everReady = true;
     return { redis: client, keyPrefix: prefix };
   }
 
@@ -95,12 +134,12 @@ export function createPageCacheHandler(options: PageCacheOptions): CacheHandler 
       if (!target) return undefined;
       let raw: string | null;
       try {
-        raw = await target.redis.get(target.keyPrefix + cacheKey);
+        raw = await target.redis.get(target.keyPrefix + (await hashKey(cacheKey)));
       } catch (error) {
         fail('Redis failed', error);
         return undefined;
       }
-      failing = false;
+      succeed();
       if (raw === null) return undefined;
       const stored = parse(raw);
       // Past `revalidate` the entry is still returned: Next serves it and refreshes it in the
@@ -145,14 +184,19 @@ export function createPageCacheHandler(options: PageCacheOptions): CacheHandler 
           expire: entry.expire,
           revalidate: entry.revalidate,
         };
+        const json = JSON.stringify(stored);
+        if (Buffer.byteLength(json) > MAX_ENTRY_BYTES) {
+          reportOversize();
+          return;
+        }
         try {
           await target.redis.set(
-            target.keyPrefix + cacheKey,
-            JSON.stringify(stored),
+            target.keyPrefix + (await hashKey(cacheKey)),
+            json,
             'EX',
             Math.ceil(entry.expire),
           );
-          failing = false;
+          succeed();
         } catch (error) {
           fail('Redis failed', error);
         }
@@ -171,6 +215,13 @@ export function createPageCacheHandler(options: PageCacheOptions): CacheHandler 
     },
     async updateTags() {},
   };
+}
+
+// Next's key holds the cached function's arguments, unbounded in length: Redis, its log and Sentry's
+// Redis spans get its sha256 only (V22). Web Crypto is global in Node, so nothing is imported.
+async function hashKey(cacheKey: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(cacheKey));
+  return Buffer.from(digest).toString('hex');
 }
 
 async function readAll(entry: CacheEntry): Promise<Buffer> {

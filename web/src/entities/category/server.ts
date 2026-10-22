@@ -3,6 +3,7 @@ import 'server-only';
 export {
   categoryListOptions,
   categoryOptions,
+  getActiveCategories,
   getCategories,
   findCategoryBySlug,
   getCategory,

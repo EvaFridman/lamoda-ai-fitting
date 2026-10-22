@@ -1,7 +1,18 @@
 // @vitest-environment node
+import { createHash } from 'node:crypto';
+
 import { describe, expect, it, vi } from 'vitest';
 
-import { createPageCacheHandler, type PageCacheRedis } from './handler.mjs';
+import {
+  createPageCacheHandler,
+  MAX_ENTRY_BYTES,
+  type PageCacheRedis,
+  SKIP_UNTIL,
+} from './handler.mjs';
+
+function sha256(text: string): string {
+  return createHash('sha256').update(text).digest('hex');
+}
 
 interface Entry {
   value: ReadableStream<Uint8Array>;
@@ -56,13 +67,15 @@ function setup(options: { status?: string; clock?: { at: number } } = {}) {
   const createClient = vi.fn(() => redis);
   const buildId = vi.fn(() => 'build1');
   const log = vi.fn();
+  const publish = vi.fn<(until: number) => void>();
   const handler = createPageCacheHandler({
     createClient,
     buildId,
     log,
     now: () => clock.at,
+    publishSkipUntil: publish,
   });
-  return { store, redis, clock, createClient, buildId, log, handler };
+  return { store, redis, clock, createClient, buildId, log, publish, handler };
 }
 
 describe('createPageCacheHandler laziness and keys', () => {
@@ -76,15 +89,34 @@ describe('createPageCacheHandler laziness and keys', () => {
     expect(buildId).toHaveBeenCalledTimes(1);
   });
 
-  it('keys entries by build id and Next key', async () => {
+  it('keys entries by build id and the sha256 of the Next key', async () => {
     const { handler, redis } = setup();
     await handler.set('abc', Promise.resolve(entryOf()));
     expect(redis.set).toHaveBeenCalledWith(
-      'page-cache:v1:build1:abc',
+      `page-cache:v1:build1:${sha256('abc')}`,
       expect.any(String),
       'EX',
       300,
     );
+    await handler.get('abc', []);
+    expect(redis.get).toHaveBeenCalledWith(`page-cache:v1:build1:${sha256('abc')}`);
+  });
+
+  it('never gives Redis the Next key, which holds the cached function arguments', async () => {
+    const { handler, redis } = setup();
+    const key = '["build","remote:0",{"q":"distinctive-search-text"}]';
+    await handler.set(key, Promise.resolve(entryOf()));
+    await handler.get(key, []);
+    const sent = JSON.stringify([...redis.get.mock.calls, ...redis.set.mock.calls]);
+    expect(sent).not.toContain('distinctive-search-text');
+    expect(sent).not.toContain(key);
+  });
+
+  it('gives different Next keys different Redis keys', async () => {
+    const { handler, redis } = setup();
+    await handler.set('a', Promise.resolve(entryOf()));
+    await handler.set('b', Promise.resolve(entryOf()));
+    expect(redis.set.mock.calls[0]?.[0]).not.toBe(redis.set.mock.calls[1]?.[0]);
   });
 
   it('does not share entries between two builds (AC4)', async () => {
@@ -221,6 +253,195 @@ describe('createPageCacheHandler set and get', () => {
   });
 });
 
+describe('createPageCacheHandler entry size', () => {
+  const VALUE = new TextEncoder().encode('<html>');
+
+  // The JSON the handler writes, in its key order.
+  function storedJson(entry: Omit<Entry, 'value'>): string {
+    return JSON.stringify({
+      value: Buffer.from(VALUE).toString('base64'),
+      tags: entry.tags,
+      stale: entry.stale,
+      timestamp: entry.timestamp,
+      expire: entry.expire,
+      revalidate: entry.revalidate,
+    });
+  }
+
+  // An entry whose stored JSON is exactly `target` bytes, padded by a tag.
+  function entryOfJsonSize(target: number): Entry {
+    const bare = entryOf({ tags: ['a', ''] });
+    const padding = target - Buffer.byteLength(storedJson(bare));
+    const tags = ['a', 'x'.repeat(padding)];
+    expect(Buffer.byteLength(storedJson({ ...bare, tags }))).toBe(target);
+    return entryOf({ value: streamOf(VALUE), tags });
+  }
+
+  it('stores an entry whose JSON is exactly at the limit', async () => {
+    const { handler, redis, log } = setup();
+    await handler.set('k', Promise.resolve(entryOfJsonSize(MAX_ENTRY_BYTES)));
+    expect(redis.set).toHaveBeenCalledTimes(1);
+    expect(Buffer.byteLength(redis.set.mock.calls[0]![1])).toBe(MAX_ENTRY_BYTES);
+    expect(log).not.toHaveBeenCalled();
+  });
+
+  it('does not store an entry whose JSON is one byte over the limit, and logs it without the key', async () => {
+    const { handler, redis, log } = setup();
+    const key = 'distinctive-key-text';
+    await handler.set(key, Promise.resolve(entryOfJsonSize(MAX_ENTRY_BYTES + 1)));
+    expect(redis.set).not.toHaveBeenCalled();
+    expect(log).toHaveBeenCalledTimes(1);
+    expect(log).toHaveBeenCalledWith('page cache: an entry over 1 MB is not stored');
+    expect(log.mock.calls[0]![0]).not.toContain(key);
+    expect(await handler.get(key, [])).toBeUndefined();
+  });
+
+  it('logs a second oversized entry within a minute only once', async () => {
+    const { handler, log } = setup();
+    await handler.set('a', Promise.resolve(entryOfJsonSize(MAX_ENTRY_BYTES + 1)));
+    await handler.set('b', Promise.resolve(entryOfJsonSize(MAX_ENTRY_BYTES + 1)));
+    expect(log).toHaveBeenCalledTimes(1);
+  });
+
+  it('logs an oversized entry again after a minute', async () => {
+    const { handler, clock, log } = setup();
+    await handler.set('a', Promise.resolve(entryOfJsonSize(MAX_ENTRY_BYTES + 1)));
+    clock.at += 60_000;
+    await handler.set('b', Promise.resolve(entryOfJsonSize(MAX_ENTRY_BYTES + 1)));
+    expect(log).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not count an oversized entry as a Redis failure', async () => {
+    const { handler, redis, publish } = setup();
+    await handler.set('a', Promise.resolve(entryOfJsonSize(MAX_ENTRY_BYTES + 1)));
+    await handler.set('b', Promise.resolve(entryOf()));
+    expect(redis.set).toHaveBeenCalledTimes(1);
+    expect(publish).not.toHaveBeenCalled();
+  });
+
+  it('does not let an oversize line hide a failure line in the same minute', async () => {
+    const { handler, redis, log } = setup();
+    await handler.set('a', Promise.resolve(entryOfJsonSize(MAX_ENTRY_BYTES + 1)));
+    redis.get.mockRejectedValueOnce(new Error('down'));
+    await handler.get('k', []);
+    expect(log).toHaveBeenCalledTimes(2);
+    expect(log).toHaveBeenLastCalledWith(expect.stringContaining('Redis failed'));
+    expect(log).toHaveBeenLastCalledWith(expect.stringContaining('pages read the api directly'));
+  });
+
+  it('does not let a failure line hide an oversize line in the same minute', async () => {
+    const { handler, redis, clock, log } = setup();
+    redis.get.mockRejectedValueOnce(new Error('down'));
+    await handler.get('k', []);
+    clock.at += 10_000;
+    await handler.set('a', Promise.resolve(entryOfJsonSize(MAX_ENTRY_BYTES + 1)));
+    expect(log).toHaveBeenCalledTimes(2);
+    expect(log).toHaveBeenLastCalledWith('page cache: an entry over 1 MB is not stored');
+  });
+});
+
+describe('createPageCacheHandler publishing the skip', () => {
+  it('publishes nothing while Redis works', async () => {
+    const { handler, publish } = setup();
+    await handler.get('k', []);
+    await handler.set('k', Promise.resolve(entryOf()));
+    expect(publish).not.toHaveBeenCalled();
+  });
+
+  it('publishes now + 10 s on a failure', async () => {
+    const { handler, redis, publish } = setup();
+    redis.get.mockRejectedValueOnce(new Error('down'));
+    await handler.get('k', []);
+    expect(publish).toHaveBeenCalledTimes(1);
+    expect(publish).toHaveBeenCalledWith(11_000);
+  });
+
+  it('publishes now + 10 s on a failed set and on a setup failure', async () => {
+    const one = setup();
+    one.redis.set.mockRejectedValueOnce(new Error('OOM'));
+    await one.handler.set('k', Promise.resolve(entryOf()));
+    expect(one.publish).toHaveBeenCalledWith(11_000);
+
+    const publish = vi.fn();
+    const handler = createPageCacheHandler({
+      createClient: () => {
+        throw new Error('bad url');
+      },
+      buildId: () => 'b',
+      log: vi.fn(),
+      now: () => 5_000,
+      publishSkipUntil: publish,
+    });
+    await handler.get('k', []);
+    expect(publish).toHaveBeenCalledWith(15_000);
+  });
+
+  it('publishes now + 10 s again when a probe starts, then 0 on its success', async () => {
+    const { handler, redis, clock, publish } = setup();
+    redis.get.mockRejectedValueOnce(new Error('down'));
+    await handler.get('k', []);
+    clock.at += 10_000;
+    await handler.get('k', []);
+    expect(publish.mock.calls.map(([until]) => until)).toEqual([11_000, 21_000, 0]);
+  });
+
+  it('publishes 0 only on the first success after a failure', async () => {
+    const { handler, redis, clock, publish } = setup();
+    redis.get.mockRejectedValueOnce(new Error('down'));
+    await handler.get('k', []);
+    clock.at += 10_000;
+    await handler.get('a', []);
+    await handler.get('b', []);
+    await handler.set('c', Promise.resolve(entryOf()));
+    expect(publish.mock.calls.filter(([until]) => until === 0)).toHaveLength(1);
+  });
+
+  it('publishes the next probe, not 0, when the probe fails', async () => {
+    const { handler, redis, clock, publish } = setup();
+    redis.get.mockRejectedValue(new Error('down'));
+    await handler.get('k', []);
+    clock.at += 10_000;
+    await handler.get('k', []);
+    expect(publish.mock.calls.map(([until]) => until)).toEqual([11_000, 21_000, 21_000]);
+  });
+
+  it.each(['wait', 'connect', 'connecting'])(
+    'publishes now + 1 s while the client is %s',
+    async (status) => {
+      const { handler, publish } = setup({ status });
+      await handler.get('k', []);
+      expect(publish).toHaveBeenCalledWith(2_000);
+    },
+  );
+
+  it('writes the globalThis slot by default, and SKIP_UNTIL is that slot', async () => {
+    const slot = globalThis as Record<symbol, unknown>;
+    expect(SKIP_UNTIL).toBe(Symbol.for('lamoda-ai-fitting.page-cache.skip-until'));
+    try {
+      const redis = {
+        status: 'ready',
+        get: vi.fn<PageCacheRedis['get']>().mockRejectedValueOnce(new Error('down')),
+        set: vi.fn(),
+      };
+      redis.get.mockResolvedValue(null);
+      const clock = { at: 1_000 };
+      const handler = createPageCacheHandler({
+        createClient: () => redis,
+        buildId: () => 'b',
+        log: vi.fn(),
+        now: () => clock.at,
+      });
+      await handler.get('k', []);
+      expect(slot[SKIP_UNTIL]).toBe(11_000);
+      clock.at += 10_000;
+      await handler.get('k', []);
+      expect(slot[SKIP_UNTIL]).toBe(0);
+    } finally {
+      delete slot[SKIP_UNTIL];
+    }
+  });
+});
+
 describe('createPageCacheHandler when Redis fails', () => {
   it('turns a failed get into a miss and skips Redis for 10 s, then tries again', async () => {
     const { handler, redis, clock } = setup();
@@ -281,13 +502,123 @@ describe('createPageCacheHandler when Redis fails', () => {
     },
   );
 
+  it.each(['reconnecting', 'close', 'end'])(
+    'treats a %s client as a failure: skips 10 s, publishes it, probes once, then recovers',
+    async (status) => {
+      const { handler, redis, clock, publish, log } = setup({ status });
+      await handler.get('k', []);
+      expect(publish.mock.calls.map(([until]) => until)).toEqual([11_000]);
+      expect(log).toHaveBeenCalledWith(
+        `page cache: Redis not connected (${status}); pages read the api directly`,
+      );
+
+      // Within the skip the client is not even looked at.
+      redis.status = 'ready';
+      clock.at += 9_999;
+      expect(await handler.get('k', [])).toBeUndefined();
+      expect(redis.get).not.toHaveBeenCalled();
+
+      clock.at += 1;
+      await handler.get('k', []);
+      expect(redis.get).toHaveBeenCalledTimes(1);
+      expect(publish.mock.calls.map(([until]) => until)).toEqual([11_000, 21_000, 0]);
+    },
+  );
+
+  it('restarts the skip when the probe still finds the client not connected', async () => {
+    const { handler, clock, publish } = setup({ status: 'reconnecting' });
+    await handler.get('k', []);
+    clock.at += 10_000;
+    await handler.get('k', []);
+    expect(publish.mock.calls.map(([until]) => until)).toEqual([11_000, 21_000, 21_000]);
+  });
+
+  it('keeps the 10 s skip when a never-ready client that failed is found connecting by the probe', async () => {
+    const { handler, redis, clock, publish, log } = setup({ status: 'reconnecting' });
+    await handler.get('k', []);
+    expect(publish.mock.calls.map(([until]) => until)).toEqual([11_000]);
+    expect(log).toHaveBeenCalledTimes(1);
+
+    redis.status = 'connecting';
+    clock.at += 10_000;
+    publish.mockClear();
+    await handler.get('k', []);
+    expect(publish.mock.calls.map(([until]) => until)).toEqual([21_000, 21_000]);
+    expect(publish).not.toHaveBeenCalledWith(22_000);
+
+    redis.status = 'ready';
+    clock.at += 9_999;
+    expect(await handler.get('k', [])).toBeUndefined();
+    await handler.set('k', Promise.resolve(entryOf()));
+    expect(redis.get).not.toHaveBeenCalled();
+    expect(redis.set).not.toHaveBeenCalled();
+
+    clock.at += 1;
+    await handler.get('k', []);
+    expect(redis.get).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['wait', 'connect', 'connecting'])(
+    'does not count a %s client as a failure: it is looked at again on every call',
+    async (status) => {
+      const { handler, redis, publish } = setup({ status });
+      await handler.get('k', []);
+      redis.status = 'ready';
+      await handler.get('k', []);
+      expect(redis.get).toHaveBeenCalledTimes(1);
+      expect(publish.mock.calls.map(([until]) => until)).toEqual([2_000]);
+    },
+  );
+
+  it('counts a connecting client as a failure once it has been ready (ioredis retries through connecting)', async () => {
+    const { handler, redis, clock, publish, log } = setup();
+    await handler.get('k', []);
+    expect(publish).not.toHaveBeenCalled();
+
+    redis.get.mockRejectedValueOnce(new Error('down'));
+    await handler.get('k', []);
+    expect(publish.mock.calls.map(([until]) => until)).toEqual([11_000]);
+    expect(log).toHaveBeenCalledTimes(1);
+
+    redis.status = 'connecting';
+    clock.at += 10_000;
+    publish.mockClear();
+    await handler.get('k', []);
+    expect(publish.mock.calls.map(([until]) => until)).toEqual([21_000, 21_000]);
+    expect(publish).not.toHaveBeenCalledWith(22_000);
+
+    redis.status = 'ready';
+    clock.at += 9_999;
+    expect(await handler.get('k', [])).toBeUndefined();
+    expect(redis.get).toHaveBeenCalledTimes(2);
+
+    clock.at += 1;
+    await handler.get('k', []);
+    expect(redis.get).toHaveBeenCalledTimes(3);
+  });
+
+  it('counts a connecting client as a failure after a lost connection that was ready', async () => {
+    const { handler, redis, clock, publish } = setup();
+    await handler.get('k', []);
+    redis.status = 'reconnecting';
+    await handler.get('k', []);
+    expect(publish.mock.calls.map(([until]) => until)).toEqual([11_000]);
+
+    redis.status = 'connecting';
+    clock.at += 10_000;
+    await handler.get('k', []);
+    expect(publish.mock.calls.map(([until]) => until)).toEqual([11_000, 21_000, 21_000]);
+    expect(redis.get).toHaveBeenCalledTimes(1);
+  });
+
   it('logs a client that is not connected again only after 60 s', async () => {
     const { handler, clock, log } = setup({ status: 'reconnecting' });
     await handler.get('k', []);
     clock.at += 59_999;
     await handler.get('k', []);
     expect(log).toHaveBeenCalledTimes(1);
-    clock.at += 1;
+    // The probe above restarted the skip to 70 999.
+    clock.at = 71_000;
     await handler.get('k', []);
     expect(log).toHaveBeenCalledTimes(2);
   });
@@ -369,7 +700,7 @@ describe('createPageCacheHandler when Redis fails', () => {
       const probe = deferred<string | null>();
       redis.get.mockReturnValueOnce(probe.promise);
       const gets = [handler.get('a', []), handler.get('b', []), handler.get('c', [])];
-      expect(redis.get).toHaveBeenCalledTimes(2);
+      await vi.waitFor(() => expect(redis.get).toHaveBeenCalledTimes(2));
       probe.resolve(null);
       expect(await Promise.all(gets)).toEqual([undefined, undefined, undefined]);
       expect(redis.get).toHaveBeenCalledTimes(2);
@@ -388,6 +719,7 @@ describe('createPageCacheHandler when Redis fails', () => {
       const probe = deferred<string | null>();
       redis.get.mockReturnValueOnce(probe.promise);
       const gets = [handler.get('a', []), handler.get('b', [])];
+      await vi.waitFor(() => expect(redis.get).toHaveBeenCalledTimes(2));
       probe.reject(new Error('still down'));
       await Promise.all(gets);
       expect(redis.get).toHaveBeenCalledTimes(2);
@@ -489,7 +821,7 @@ describe('createPageCacheHandler stored values', () => {
     ],
   ])('treats %s as a miss', async (_name, raw) => {
     const { handler, store } = setup();
-    store.set('page-cache:v1:build1:k', raw);
+    store.set(`page-cache:v1:build1:${sha256('k')}`, raw);
     expect(await handler.get('k', [])).toBeUndefined();
   });
 });

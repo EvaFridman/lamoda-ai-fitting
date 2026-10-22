@@ -11,7 +11,7 @@ import { ApiError } from './api-error';
 import { callApi, type Parsed } from './call-api';
 import type { ApiPath } from './path';
 
-const TIMEOUT_MS = 5000;
+export const SERVER_TIMEOUT_MS = 5000;
 
 // nginx's $request_id: 32 hex characters, the only form the api takes.
 const REQUEST_ID = /^[\da-f]{32}$/i;
@@ -36,11 +36,26 @@ function requestId(incoming: Headers): string | undefined {
   return id && REQUEST_ID.test(id) ? id : undefined;
 }
 
+// The api's address of `path`. `buildPath` makes only paths on the api's origin; this holds even for
+// a forged ApiPath, since an absolute or `//host` path would leave API_URL, and the secret with it.
+export function apiUrl(path: ApiPath): URL {
+  const { API_URL: base } = getServerEnv();
+  const url = new URL(path.path, base);
+  if (url.origin !== new URL(base).origin) {
+    throw new ApiError(`path leaves the api: ${url.host}`, {
+      kind: 'path',
+      template: path.template,
+    });
+  }
+  return url;
+}
+
 // The only way server code calls the api: over the internal network (API_URL), on behalf of the
 // visitor (their address and the request id forwarded, vouched for by the proxy secret), with a
 // timeout, and with the response checked against a schema, so a changed api fails here and not deep
 // in a page. Request-time only: it reads the incoming request's headers, from `headers()` or, in
 // `proxy.ts`, where that is not available, from `incoming` (the request's own, spec 0014 O65).
+// The page cache's reads go through `cachedApiFetch` instead.
 export async function apiFetch<Schema extends z.ZodType>(
   path: ApiPath,
   schema: Schema,
@@ -48,15 +63,7 @@ export async function apiFetch<Schema extends z.ZodType>(
   incoming?: Headers,
 ): Promise<Parsed<Schema>> {
   const env = getServerEnv();
-  const url = new URL(path.path, env.API_URL);
-  // `buildPath` makes only paths on the api's origin; this holds even for a forged ApiPath, since
-  // an absolute or `//host` path would leave API_URL, and the secret with it.
-  if (url.origin !== new URL(env.API_URL).origin) {
-    throw new ApiError(`path leaves the api: ${url.host}`, {
-      kind: 'path',
-      template: path.template,
-    });
-  }
+  const url = apiUrl(path);
   const requestHeaders = new Headers(init?.headers);
   for (const name of PROXY_HEADERS) requestHeaders.delete(name);
   const pageRequest = incoming ?? (await headers());
@@ -75,7 +82,7 @@ export async function apiFetch<Schema extends z.ZodType>(
       // A redirect to another host would take the secret along: fetch drops only its own
       // credential headers.
       redirect: 'error',
-      signal: AbortSignal.timeout(TIMEOUT_MS),
+      signal: AbortSignal.timeout(SERVER_TIMEOUT_MS),
     },
     // The same id as the api's log lines and Sentry events for this call.
     { requestId: id },
