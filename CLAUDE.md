@@ -569,7 +569,8 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   segment fails the build.
 - `web` Content Security Policy (spec 0014 plan §5, O112): `web/proxy.ts` (its test
   `web/proxy.test.ts` next to it) runs on every path that may render a page (not
-  `/_next/static/`, `/_next/image`, `next dev`'s HMR socket, `/api/`, `/media/`, `/healthz`),
+  `/_next/static/`, `/_next/image`, `next dev`'s HMR socket, `/api/`, `/media/`, `/healthz` and
+  everything under it),
   makes a nonce per request and sets the policy of
   `contentSecurityPolicy` (`@/shared/csp/server`) on the answer and on the request, where Next
   reads the nonce for the scripts it renders per request; a server component that renders a
@@ -602,6 +603,17 @@ the way CI does it (`npm ci` in the root and in each package), then `verify` aga
   categories, only the catalog when the api fails) and `/robots.txt` (`/customer`, `/ui-kit`,
   `/healthz` disallowed, the sitemap named) render per request; `app/` re-exports both from
   `_pages/catalog`.
+- `web` warm-up list (spec 0018 plan §4): every route of `web/app` (a page, a route handler, a
+  metadata file such as `sitemap.ts` or `opengraph-image.tsx`) is in `WARMUP` or in `EXCLUDED`
+  with its reason (`web/src/_app/warmup/routes.ts`); `routes.test.ts` fails on a route in neither
+  (or both) and on an entry no file backs (but a `redirect` one, `/`, which must be a source of
+  `redirects()` in `next.config.ts`), so a new page route is added there in the same commit.
+  Warm up what a visitor reaches without signing in; exclude what reads the user's data or is not
+  for visitors (`/customer/*`, `/ui-kit`). A dynamic route names its source (`/catalog/[slug]`:
+  the first 50 active categories, V16). `/healthz/warmup` (re-exported from `@/_app/server`)
+  answers `{ paths, skipped }`, resolved at request time, the categories read past the page cache
+  (`readActiveCategories`, V28); nginx answers 404 for `/healthz` and everything under it, so only
+  the container reaches it.
 - `api` storage (spec 0011): one private bucket. The first segment of a key is its class, since
   Timeweb's lifecycle rules match prefixes only: `media/` (the catalog media, no expiry; the
   database keeps the key without `media/`, nginx and the seed add it), `keep/users/<userId>/…`
@@ -666,8 +678,8 @@ needs the policy updated first: `deploy/README.md`, "Хранилище S3"), wi
 the api's error format and nothing of the visitor's request passed on. nginx limits
 requests, sockets and requests in progress per client address above the api's own quotas, web's
 pages at 3× a measured catalog visit and `/media/` at 3× its rate with a burst of one batch
-(spec 0014 O109–O111; plain GETs of `/_next/static/` are not counted, `/healthz` answers 404
-from outside), slow clients to 10 s, and bodies to 1 MB, and
+(spec 0014 O109–O111; plain GETs of `/_next/static/` are not counted, `/healthz` and everything
+under it answer 404 from outside), slow clients to 10 s, and bodies to 1 MB, and
 answers 429, 413 and
 `/api/`'s 502/504 (as 503) in the api's error format (`deploy/README.md`, "Лимиты nginx"). How deploys, rollbacks and images work: `.claude/rules/deploy.md`, loaded when you work on
 deploy, CI, Docker or `scripts/` files, and `deploy/README.md`. Production secrets never pass through the chat;

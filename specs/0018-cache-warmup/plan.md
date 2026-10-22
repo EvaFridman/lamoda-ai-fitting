@@ -101,18 +101,20 @@ ${REDIS_CACHE_MAXMEMORY:-128mb} --maxmemory-policy allkeys-lru`, no volume, `mem
 ## 4. Warm-up (V6–V8)
 
 - **The list.** `web/src/_app/warmup/routes.ts` holds every warm-up route: a static path, or a
-  pattern with its source (`/catalog/[slug]` ← every active category, through `getCategories`, at
+  pattern with its source (`/catalog/[slug]` ← every active category, through `readActiveCategories`, past the page cache (V28), at
   most 50, V16; the answer also names how many were left out). `EXCLUDED` holds the routes that are never warmed up, each with its reason:
-  `/customer/*` (0017, the user's data), `/ui-kit`, `/dev/*`, `/healthz`, `/healthz/warmup`.
-  Warmed up: `/`, `/catalog`, `/catalog/[slug]`, `/catalog/opengraph-image`, `/privacy`,
-  `/sitemap.xml`, `/robots.txt`.
+  `/customer/*` (0017, the user's data), `/ui-kit`, `/healthz`, `/healthz/warmup` (`/dev/*` once
+  a file backs it, V28).
+  Warmed up: `/`, `/catalog`, `/catalog/[slug]`, `/catalog/opengraph-image`,
+  `/catalog/twitter-image` (V28), `/privacy`, `/sitemap.xml`, `/robots.txt`.
 - **The check (AC12).** `routes.test.ts` walks `web/app` for `page.tsx` and `route.ts` (and the
-  metadata routes `sitemap.ts`, `robots.ts`, `opengraph-image.tsx`), turns each into its route
-  pattern and fails on one in neither list, and on an entry of either that no file backs.
-- **The addresses.** `app/healthz/warmup/route.ts` (re-exported from `_app/warmup`) answers JSON
-  `{ "paths": [...] }`, the routes resolved to addresses at request time (`connection()`). nginx
-  answers 404 for `/healthz` and everything under it (`location ^~ /healthz`, extending 0014 T23's
-  `location = /healthz`), so it is reached only from inside.
+  metadata routes `sitemap.ts`, `robots.ts`, `opengraph-image.tsx`, `twitter-image.tsx`, the icons
+  and the manifest), turns each into its route pattern and fails on one in neither list, and on an
+  entry of either that no file backs.
+- **The addresses.** `app/healthz/warmup/route.ts` (re-exported from `_app/warmup` through `@/_app/server`) answers JSON
+  `{ "paths": [...], "skipped": <count> }` (V28), the routes resolved to addresses at request time (`connection()`). nginx
+  answers 404 for `/healthz` and everything under it (`location ^~ /healthz/` next to 0014 T23's
+  `location = /healthz`, so `/healthzx` stays a page, V28), so it is reached only from inside.
 - **The step.** `deploy/scripts/warmup.mjs`, piped into the target's web container:
   `app "$target" "$tag" exec -T web node --input-type=module - < "$here/warmup.mjs"`. It reads the
   list from `http://127.0.0.1:3001/healthz/warmup`, then requests each address twice: a cold pass,

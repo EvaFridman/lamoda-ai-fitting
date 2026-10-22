@@ -370,8 +370,14 @@ server {
     return 503 '{"error":{"code":"SERVICE_UNAVAILABLE","message":"The storage is unavailable, try again later","details":[]}}';
   }
 
-  # web's health route is for the container's health check only (spec 0014 O34).
+  # web's health route is for the container's health check only (spec 0014 O34), its warm-up list
+  # for the deploy's step inside the container (spec 0018 plan §4): nothing under /healthz is public.
   location = /healthz {
+    default_type application/json;
+    return 404 '{"error":{"code":"ROUTE_NOT_FOUND","message":"Route not found","details":[]}}';
+  }
+
+  location ^~ /healthz/ {
     default_type application/json;
     return 404 '{"error":{"code":"ROUTE_NOT_FOUND","message":"Route not found","details":[]}}';
   }

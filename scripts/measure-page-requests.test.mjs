@@ -34,7 +34,7 @@ const SAMPLE = [
   line(VISITOR, '14:00:06', 'GET /api/auth/get-session HTTP/1.1'),
   line(VISITOR, '14:00:06', 'GET /api/socket.io/?EIO=4&transport=polling HTTP/1.1'),
   line(VISITOR, '14:00:06', 'GET /api/health/ready HTTP/1.1'),
-  line(VISITOR, '14:00:07', 'GET /healthz HTTP/1.1'),
+  line(VISITOR, '14:00:07', 'GET /healthz/warmup HTTP/1.1'),
   line(VISITOR, '14:00:09', 'GET /catalog/zhenskoe HTTP/1.1'),
   line('198.51.100.1', '14:00:01', 'GET /catalog HTTP/1.1'),
   line('2001:db8::7', '14:00:01', 'GET /media/products/4.jpg HTTP/1.1'),

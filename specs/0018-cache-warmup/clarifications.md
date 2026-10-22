@@ -262,3 +262,15 @@ line would hide a proxy that sends no secret; a marker on the proxy's read was w
 `rejectUnauthorized: false` against production too, as `smoke-test.sh -k`: it sends nothing secret,
 a forged answer would only change the numbers the owner reads, and TLS is checked apart. The owner
 weighed checking certificates for any host but `localhost`.
+
+## Added at T9
+
+**V28. The Twitter image is warmed up; nothing under `/healthz` passes `proxy.ts`.** The plan's
+lists missed `app/catalog/twitter-image.tsx`, and the check fails on a route in neither: it is
+warmed up as the Open Graph image is, the same static picture link previews ask for (the owner
+weighed excluding it as a copy). `/dev/*` leaves `EXCLUDED`: no file backs it, and the check fails
+on such an entry; a development page adds it back. `proxy.ts`'s matcher skips `/healthz` and
+everything under it, as nginx does (`location = /healthz` and `^~ /healthz/`, so `/healthzx` stays
+a page), so the list answers with no policy or category lookup. The answer is
+`{ "paths": [...], "skipped": <count> }`, its categories read from the api past the page cache: a
+copy rolled back to may hold an hour-old list (V7, found at T9's review).
