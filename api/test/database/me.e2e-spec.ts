@@ -10,6 +10,7 @@ import type { Auth } from '../../src/auth/auth.js';
 import { AUTH } from '../../src/auth/auth.module.js';
 import { generationFolder, userPhotoKey } from '../../src/storage/keys.js';
 import type { StorageService } from '../../src/storage/storage.service.js';
+import { goodPhoto } from '../support/photos.js';
 import { signIn, type SignedIn } from '../support/sign-in.js';
 import { createTestApp, type TestApp } from '../support/test-app.js';
 import {
@@ -683,5 +684,33 @@ describe('DELETE /me starts the file deletion (AC12)', () => {
     // An empty folder does not show that the workflow succeeded: it must complete, not fail.
     await testApp.app.get(Client).workflow.getHandle(`delete-files-user-${who.userId}`).result();
     expect(await keysUnder(`keep/users/${other.userId}/`)).toEqual([otherKey]);
+  }, 60_000);
+
+  it('removes the saved photos’ files and the outbox row of a deleted account (AC28)', async () => {
+    const who = await signIn(testApp.app);
+    for (let index = 0; index < 2; index++) {
+      await httpOf(testApp)
+        .post('/me/photos')
+        .set({ Cookie: who.cookie })
+        .attach('photo', await goodPhoto(), { filename: 'a.jpg' })
+        .expect(201);
+    }
+    expect(await keysUnder(`keep/users/${who.userId}/`)).toHaveLength(2);
+
+    await httpOf(testApp).delete('/me').set({ Cookie: who.cookie }).expect(204);
+
+    await vi.waitFor(async () => expect(await keysUnder(`keep/users/${who.userId}/`)).toEqual([]), {
+      timeout: 30_000,
+      interval: 250,
+    });
+    await testApp.app.get(Client).workflow.getHandle(`delete-files-user-${who.userId}`).result();
+    await vi.waitFor(
+      async () =>
+        expect(
+          await testApp.prisma.fileDeletion.findMany({ where: { rowId: who.userId } }),
+        ).toEqual([]),
+      { timeout: 30_000, interval: 250 },
+    );
+    expect(await testApp.prisma.userPhoto.count({ where: { userId: who.userId } })).toBe(0);
   }, 60_000);
 });

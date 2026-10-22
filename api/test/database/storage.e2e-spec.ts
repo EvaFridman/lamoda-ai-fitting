@@ -203,6 +203,24 @@ describe('storage against the emulator', () => {
     await expect(storage.deletePrefix(folder)).resolves.toBe(0);
   }, 120_000);
 
+  it('deletePrefix of a photo key deletes that object and leaves the user’s other photos', async () => {
+    const doomed = userPhotoKey(USER);
+    const kept = userPhotoKey(USER);
+    await storage.put(doomed, BODY, { contentType: 'image/webp', ownerUserId: USER });
+    await storage.put(kept, BODY, { contentType: 'image/webp', ownerUserId: USER });
+    const requests: number[] = [];
+
+    await expect(storage.deletePrefix(doomed, undefined, (n) => requests.push(n))).resolves.toBe(1);
+
+    await expect(storage.exists(doomed)).resolves.toBe(false);
+    await expect(storage.exists(kept)).resolves.toBe(true);
+    // The list and the delete.
+    expect(requests).toEqual([0, 0]);
+    const repeat: number[] = [];
+    await expect(storage.deletePrefix(doomed, undefined, (n) => repeat.push(n))).resolves.toBe(0);
+    expect(repeat).toEqual([0]);
+  });
+
   describe('signedUrl', () => {
     it('serves the object for 900 seconds', async () => {
       const key = userPhotoKey(USER);

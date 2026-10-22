@@ -9,7 +9,7 @@ import {
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Inject, Injectable, type OnApplicationShutdown } from '@nestjs/common';
 
-import { isDeletableFolder, isInUserFolder, isUserFileKey, isValidKey } from './keys.js';
+import { isDeletablePrefix, isInUserFolder, isUserFileKey, isValidKey } from './keys.js';
 import {
   S3_CLIENT,
   S3_SIGNING_CLIENT,
@@ -84,16 +84,23 @@ export class StorageService implements OnApplicationShutdown {
   }
 
   // Deletes every object under one user's or one generation's folder (keys.ts: userFolders,
-  // generationFolder); returns how many. Repeating it is harmless: an empty folder deletes nothing.
-  // Throws if any object is not deleted, so an activity that calls it retries. `abortSignal` (an
-  // activity's cancellation) stops the request in flight.
-  async deletePrefix(prefix: string, abortSignal?: AbortSignal): Promise<number> {
-    if (!isDeletableFolder(prefix)) {
-      throw new Error("deletePrefix takes only a user's or a generation's folder");
+  // generationFolder) or one photo's key (userPhotoKey); returns how many. Repeating it is
+  // harmless: an empty folder deletes nothing. Throws if any object is not deleted, so an activity
+  // that calls it retries. `abortSignal` (an activity's cancellation) stops the request in flight;
+  // `onRequest` is called with the count so far before each request to the storage (the
+  // activity's heartbeat, spec 0019 A39).
+  async deletePrefix(
+    prefix: string,
+    abortSignal?: AbortSignal,
+    onRequest?: (deleted: number) => void,
+  ): Promise<number> {
+    if (!isDeletablePrefix(prefix)) {
+      throw new Error("deletePrefix takes only a user's or a generation's folder or a photo's key");
     }
     let deleted = 0;
     let continuationToken: string | undefined;
     do {
+      onRequest?.(deleted);
       // At most 1,000 keys a page, the most one DeleteObjects takes.
       const page = await this.request('ListObjectsV2', () =>
         this.client.send(
@@ -107,6 +114,7 @@ export class StorageService implements OnApplicationShutdown {
       );
       const keys = (page.Contents ?? []).flatMap(({ Key }) => (Key === undefined ? [] : [Key]));
       if (keys.length > 0) {
+        onRequest?.(deleted);
         const result = await this.request('DeleteObjects', () =>
           this.client.send(
             new DeleteObjectsCommand({

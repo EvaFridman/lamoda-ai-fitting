@@ -418,6 +418,34 @@ a phase overlap in what it checks and its runs are the heaviest on the stack. De
 owner on 2026-10-22, during T4; the brief of `spec-finder` stays per task (a brief for the whole
 phase would be loaded again in every task's session).
 
+**A59. The photo routes and the outbox's details.** Where plan §4–§5 did not say, T5 took the
+cautious side. `GET /me/photos` lists the saved photos oldest first (the order they were uploaded,
+the id second), a gone user gets an empty array (0013 N31: a read finds nothing). `PATCH
+/me/photos/:id` takes `{ isDefault: true }` only (`false` is refused with the detail `IS_IN`, an
+existing code): the default is moved, never cleared. `DELETE /me/photos/:id` makes no other photo
+the default; the next saved upload is (A54), so after deleting the default a user with other
+photos has none preselected until they choose or upload one. A transient photo is invisible to all
+three routes (404 on PATCH and DELETE, as another user's or a missing one): it belongs to its
+generation and the housekeeping. PATCH and DELETE lock the user's row as the upload does (a gone
+user is 401 with the cookies expired, A56; two changes of the default at once cannot both pass the
+one-default index). A photo's deletion goes through the outbox with its key as the prefix:
+`isDeletablePrefix` accepts a folder of 0011 M7 or one photo's key, and `deletePrefix` lists the
+bucket by it, so the key's file name must be exactly `<uuid>.webp` (`isUserPhotoKey`): a shorter
+name would also match the keys it starts (from the security review). A failed workflow start is a
+warning in the log, not a Sentry event (0011 M32 reported a loss; now the schedule starts the row
+within about eleven minutes, and a Temporal outage shows in `/health/ready`); a deletion the
+workflow could not finish (a refused prefix, M33) keeps its row with `startedAt` set as the trace,
+and the schedule does not restart it. The housekeeping takes 100 rows of each kind per run, leaves
+outbox rows younger than a minute to the api that wrote them, and starts `deleteFiles` from an
+activity through the worker's own client (`Context.current().client`) with the api's id and
+`USE_EXISTING` (a child workflow cannot take that policy); one row whose start keeps failing stops
+none of the others (the run fails after every batch, as `deleteFiles` does, M33), and the run's
+timeout is 8 minutes, below the interval, so a cut run never makes the next one skipped.
+`deletePrefix` heartbeats before each request to the storage under a heartbeat timeout of 1 minute
+and a `startToCloseTimeout` of 10 minutes (one request ends within 45 s by the client's own
+limits, 15 s times its three attempts, so the timeout fires only for a dead worker; a long folder
+that heartbeats is no longer cut at 30 s). Assumption, owner to confirm (T5).
+
 ## Canvas and decisions
 
 Where the canvas differs from the decisions above, the decision wins:

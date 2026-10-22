@@ -169,6 +169,9 @@ const SIGNED_IN_HANDLERS = [
   'MeController.delete',
   'MeController.get',
   'MeController.update',
+  'MePhotosController.delete',
+  'MePhotosController.list',
+  'MePhotosController.setDefault',
   'MePhotosController.upload',
 ];
 

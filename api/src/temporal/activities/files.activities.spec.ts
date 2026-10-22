@@ -1,6 +1,7 @@
 import { ApplicationFailure, CancelledFailure, Context } from '@temporalio/activity';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import type { PrismaClient } from '../../generated/prisma/client.js';
 import { StorageError } from '../../storage/storage.error.js';
 import type { StorageService } from '../../storage/storage.service.js';
 import { createFileActivities } from './files.activities.js';
@@ -9,13 +10,30 @@ const USER = '0199c2f0-aaaa-7000-8000-000000000001';
 const GENERATION = '0199c2f0-bbbb-7000-8000-000000000002';
 
 function setup() {
-  const deletePrefix = vi.fn<(prefix: string, signal?: AbortSignal) => Promise<number>>();
-  const activities = createFileActivities({ deletePrefix } as unknown as StorageService);
+  const deletePrefix =
+    vi.fn<
+      (prefix: string, signal?: AbortSignal, onPage?: (deleted: number) => void) => Promise<number>
+    >();
+  const deleteMany = vi.fn<(args: unknown) => Promise<{ count: number }>>();
+  deleteMany.mockResolvedValue({ count: 1 });
+  const activities = createFileActivities(
+    { deletePrefix } as unknown as StorageService,
+    { fileDeletion: { deleteMany } } as unknown as PrismaClient,
+  );
   const cancellation = new AbortController();
+  const heartbeat = vi.fn<(details?: unknown) => void>();
   const current = vi
     .spyOn(Context, 'current')
-    .mockReturnValue({ cancellationSignal: cancellation.signal } as Context);
-  return { deletePrefix, activities, current, cancellation, signal: cancellation.signal };
+    .mockReturnValue({ cancellationSignal: cancellation.signal, heartbeat } as unknown as Context);
+  return {
+    deletePrefix,
+    deleteMany,
+    heartbeat,
+    activities,
+    current,
+    cancellation,
+    signal: cancellation.signal,
+  };
 }
 
 afterEach(() => {
@@ -61,7 +79,32 @@ describe('deletePrefix activity', () => {
 
     await expect(activities.deletePrefix(prefix)).resolves.toBe(7);
 
-    expect(deletePrefix).toHaveBeenCalledExactlyOnceWith(prefix, signal);
+    expect(deletePrefix).toHaveBeenCalledExactlyOnceWith(prefix, signal, expect.any(Function));
+  });
+
+  it('deletes a photo by its key', async () => {
+    const { activities, deletePrefix } = setup();
+    deletePrefix.mockResolvedValue(1);
+    const key = `keep/users/${USER}/photos/${GENERATION}.webp`;
+
+    await expect(activities.deletePrefix(key)).resolves.toBe(1);
+
+    expect(deletePrefix.mock.calls[0]?.[0]).toBe(key);
+  });
+
+  it('heartbeats with the count of every request the storage reports', async () => {
+    const { activities, deletePrefix, heartbeat } = setup();
+    deletePrefix.mockImplementation((_prefix, _signal, onRequest) => {
+      onRequest?.(0);
+      onRequest?.(0);
+      onRequest?.(1000);
+      onRequest?.(1000);
+      return Promise.resolve(1500);
+    });
+
+    await activities.deletePrefix(`keep/users/${USER}/`);
+
+    expect(heartbeat.mock.calls).toEqual([[0], [0], [1000], [1000]]);
   });
 
   it('lets a storage error through as it is, so it is retried', async () => {
@@ -90,5 +133,30 @@ describe('deletePrefix activity', () => {
 
     await expect(activities.deletePrefix(`keep/users/${USER}/`)).rejects.toBe(failure);
     expect(signal.aborted).toBe(false);
+  });
+});
+
+describe('completeFileDeletion activity', () => {
+  it('deletes the outbox row by id', async () => {
+    const { activities, deleteMany } = setup();
+
+    await activities.completeFileDeletion('row-1');
+
+    expect(deleteMany).toHaveBeenCalledExactlyOnceWith({ where: { id: 'row-1' } });
+  });
+
+  it('does nothing and does not fail when the row is already gone', async () => {
+    const { activities, deleteMany } = setup();
+    deleteMany.mockResolvedValue({ count: 0 });
+
+    await expect(activities.completeFileDeletion('row-1')).resolves.toBeUndefined();
+  });
+
+  it('lets a database failure through, so it is retried', async () => {
+    const { activities, deleteMany } = setup();
+    const failure = new Error('db down');
+    deleteMany.mockRejectedValue(failure);
+
+    await expect(activities.completeFileDeletion('row-1')).rejects.toBe(failure);
   });
 });

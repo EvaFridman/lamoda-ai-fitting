@@ -289,6 +289,63 @@ describe('StorageService', () => {
       }
     });
 
+    it('calls onRequest before each request with the count deleted so far', async () => {
+      const events: string[] = [];
+      send.mockImplementation((command: unknown) => {
+        if (command instanceof DeleteObjectsCommand) {
+          events.push('delete');
+        }
+        if (command instanceof ListObjectsV2Command) {
+          events.push('list');
+          return Promise.resolve(
+            command.input.ContinuationToken === undefined
+              ? {
+                  Contents: [{ Key: 'a' }, { Key: 'b' }],
+                  IsTruncated: true,
+                  NextContinuationToken: 't1',
+                }
+              : { Contents: [{ Key: 'c' }], IsTruncated: false },
+          );
+        }
+        return Promise.resolve({});
+      });
+      const onRequest = vi.fn((deleted: number) => {
+        events.push(`request ${deleted}`);
+      });
+
+      await service.deletePrefix(folder, undefined, onRequest);
+
+      expect(onRequest.mock.calls).toEqual([[0], [0], [2], [2]]);
+      expect(events).toEqual([
+        'request 0',
+        'list',
+        'request 0',
+        'delete',
+        'request 2',
+        'list',
+        'request 2',
+        'delete',
+      ]);
+    });
+
+    it('calls onRequest once for an empty folder', async () => {
+      send.mockResolvedValue({ Contents: undefined, IsTruncated: false });
+      const onRequest = vi.fn();
+
+      await service.deletePrefix(folder, undefined, onRequest);
+
+      expect(onRequest.mock.calls).toEqual([[0]]);
+    });
+
+    it('takes a photo key as a prefix', async () => {
+      send.mockResolvedValue({ Contents: undefined, IsTruncated: false });
+      const key = userPhotoKey(USER);
+
+      await expect(service.deletePrefix(key)).resolves.toBe(0);
+
+      expect((send.mock.calls[0]?.[0] as ListObjectsV2Command).input.Prefix).toBe(key);
+    });
+
     it('throws on a truncated page without a continuation token, after deleting its keys', async () => {
       send.mockImplementation((command: unknown) =>
         Promise.resolve(

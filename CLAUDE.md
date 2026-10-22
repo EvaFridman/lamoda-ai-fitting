@@ -326,7 +326,14 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   `save=false` makes a transient one, not counted), writes the object under `userPhotoKey` with a
   3 s limit (a failure: 503, no row; an object left by an abort or a failed insert goes with the
   user's folder) and the row; the first saved photo is the default. The answer is
-  `UserPhotoDto` with a signed `url`. A54–A57 say why.
+  `UserPhotoDto` with a signed `url`. A54–A57 say why. `GET /me/photos` answers the saved photos
+  as a plain array, oldest first (not `Paginated<T>`, plan §5; a gone user gets an empty one);
+  `PATCH /me/photos/:id` takes only `{ isDefault: true }` (`SetDefaultPhotoDto`, `false` answers
+  the detail `IS_IN`) and moves the default; `DELETE /me/photos/:id` (204) deletes the row with
+  its outbox entry in one transaction and the file after it, and makes no other photo the default
+  (the next saved upload is, A54). A transient photo, another user's or a missing one answers 404
+  on both; both lock the user's row as the upload does, so a gone user answers 401 through
+  `signOutWhenGone` (A59).
 - `api` sign-in (spec 0013): Better Auth (`auth/`) with Google only (locally the fake provider of
   the compose service `oidc`), mounted by `mountAuth()` (from `createHttpApp()`) at `/api/auth`
   as an Express route ahead of Nest's; only the routes in `AUTH_ROUTES` (`auth-routes.ts`) answer,
@@ -338,7 +345,8 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   `verifications` rows are deleted, 1000 per statement, every day at 03:00 Moscow time by the
   Temporal schedule `delete-expired-auth-rows` (workflow `deleteExpiredAuthRows`). The worker
   creates it at start, or brings an existing one to the code's settings at every start; a pause
-  set by hand stays (N27, N50). Production needs
+  set by hand stays (N27, N50; `temporal/schedules.ts`, shared with `fitting-housekeeping`,
+  spec 0019 A38). Production needs
   `BETTER_AUTH_SECRET` (32+ letters or digits, not a proxy secret), `GOOGLE_CLIENT_ID` and
   `GOOGLE_CLIENT_SECRET`, and refuses the fake provider's `AUTH_FAKE_OIDC_*` (`assertServerEnv`);
   elsewhere an empty `BETTER_AUTH_SECRET` logs a warning at start (`serverEnvWarnings`, N51).
@@ -665,10 +673,18 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   (`owner-check.ts`; a new user has no folder yet, so any key is refused). Responses carry
   a signed link instead (`*ImageUrl`, `S3_SIGNED_URL_TTL_SECONDS`, 15 min by default), signed only
   for a key in the owner's folder, else `null` and a warning naming the row and the field. Deleting
-  a user, a fitting session or a generation commits, then `FileDeletion` starts the Temporal
-  workflow `deleteFiles` (id `delete-files-<kind>-<id>`), which clears the folders and retries a
-  failed storage request without limit; a folder outside `keys.ts`'s shapes fails at once, and the
-  workflow fails after all the other folders are done (M33). A failed start never fails the delete and is logged with the folders.
+  a user, a fitting session, a generation or a photo writes its folders (a photo: its key) into
+  the outbox `file_deletions` in the delete's transaction (`FileDeletion.enqueue`, spec 0019 A38),
+  then after the commit `FileDeletion.start` starts the Temporal workflow `deleteFiles` (id
+  `delete-files-<kind>-<id>`, `file-deletion-id.ts`) and marks the row started; the workflow clears
+  the folders, retries a failed storage request without limit, heartbeats before each request (A39)
+  and deletes the row when every folder is gone; a prefix outside `keys.ts`'s shapes
+  (`isDeletablePrefix`) fails at once, and the workflow fails after all the other folders are done
+  (M33), keeping the row. A failed start never fails the delete: it is logged (no Sentry), and the
+  schedule `fitting-housekeeping` (workflow `housekeeping`, every 10 minutes, overlap skipped,
+  kept like `delete-expired-auth-rows`) starts the rows older than a minute left unstarted, 100 per
+  run, through the worker's own client with the same id (a run of at most 8 minutes), and before
+  that deletes the transient photos older than an hour (A24) into the same outbox.
   `StorageError` carries the operation, S3 code, status and request id, never a key; Sentry keeps no
   storage paths (requests to `S3_ENDPOINT` are cut to method and origin, a failed deletion sends
   only the kind and the id). `REQUEST_TIMEOUT_MS` stays at 6000 or more: a delete may wait up to

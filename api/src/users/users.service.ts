@@ -92,9 +92,13 @@ export class UsersService {
   }
 
   // The files go after the row, by the id the database holds (keys use it in lower case).
+  // The row and its outbox entry go in one transaction (spec 0019 A38), the files after the commit.
   async delete(id: string): Promise<void> {
-    const user = await this.prisma.user.delete({ where: { id }, select: { id: true } });
-    await this.fileDeletion.startFileDeletion('user', user.id, userFolders(user.id));
+    const queued = await this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.delete({ where: { id }, select: { id: true } });
+      return this.fileDeletion.enqueue(tx, 'user', user.id, userFolders(user.id));
+    });
+    await this.fileDeletion.start(queued);
   }
 
   // `emailVerified` is Better Auth's (always true from Google), not part of the answer.

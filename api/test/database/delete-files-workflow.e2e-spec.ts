@@ -29,8 +29,10 @@ describe('deleteFiles workflow', () => {
   const calls: string[] = [];
   const refused = new Set<string>();
   const hung = new Set<string>();
-  // Ends the hung stubs, so no activity outlives the test: with no heartbeat, a workflow's
-  // cancellation never reaches them.
+  const completed: string[] = [];
+  // Ends the hung stubs, so no activity outlives the test. They heartbeat while they wait: the
+  // workflow's cancellation reaches an activity in the answer to a heartbeat, and the heartbeat
+  // timeout does not fire.
   let releaseHung: () => void = () => {};
   const released = new Promise<void>((resolve) => {
     releaseHung = resolve;
@@ -47,15 +49,26 @@ describe('deleteFiles workflow', () => {
           throw ApplicationFailure.nonRetryable('refused', 'InvalidPrefix');
         }
         if (hung.has(prefix)) {
-          const signal = Context.current().cancellationSignal;
-          await new Promise<void>((resolve) => {
-            signal.addEventListener('abort', () => {
-              resolve();
+          const context = Context.current();
+          const beat = setInterval(() => {
+            context.heartbeat();
+          }, 500);
+          try {
+            await new Promise<void>((resolve) => {
+              context.cancellationSignal.addEventListener('abort', () => {
+                resolve();
+              });
+              void released.then(resolve);
             });
-            void released.then(resolve);
-          });
+          } finally {
+            clearInterval(beat);
+          }
         }
         return 1;
+      },
+      completeFileDeletion(deletionId: string): Promise<void> {
+        completed.push(deletionId);
+        return Promise.resolve();
       },
     });
     connection = await Connection.connect({ address: settings.address });
@@ -76,9 +89,50 @@ describe('deleteFiles workflow', () => {
     } as const;
   }
 
-  function start(list: string[]) {
-    return client.workflow.execute('deleteFiles', { ...options(), args: [{ prefixes: list }] });
+  function start(list: string[], deletionId?: string) {
+    return client.workflow.execute('deleteFiles', {
+      ...options(),
+      args: [{ prefixes: list, deletionId }],
+    });
   }
+
+  it(
+    'completes the outbox row with its id after a clean run',
+    async () => {
+      const id = randomUUID();
+
+      await expect(start(prefixes(3, randomUUID()), id)).resolves.toBeUndefined();
+
+      expect(completed.filter((done) => done === id)).toEqual([id]);
+    },
+    TIMEOUT,
+  );
+
+  it(
+    'keeps the outbox row after a run with a refused folder',
+    async () => {
+      const id = randomUUID();
+      const list = prefixes(3, randomUUID());
+      refused.add(list[1] ?? '');
+
+      await expect(start(list, id)).rejects.toBeInstanceOf(WorkflowFailedError);
+
+      expect(completed).not.toContain(id);
+    },
+    TIMEOUT,
+  );
+
+  it(
+    'completes no row for a run without a deletion id',
+    async () => {
+      const before = completed.length;
+
+      await expect(start(prefixes(2, randomUUID()))).resolves.toBeUndefined();
+
+      expect(completed).toHaveLength(before);
+    },
+    TIMEOUT,
+  );
 
   it(
     'completes when every folder is deleted',

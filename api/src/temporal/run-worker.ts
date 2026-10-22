@@ -13,6 +13,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { StorageService } from '../storage/storage.service.js';
 import { createActivities } from './activities/index.js';
 import { AUTH_CLEANUP_SCHEDULE_ID, ensureAuthCleanupSchedule } from './auth-cleanup-schedule.js';
+import { ensureHousekeepingSchedule, HOUSEKEEPING_SCHEDULE_ID } from './housekeeping-schedule.js';
 import { sentryActivityInterceptor } from './sentry-activity.interceptor.js';
 import { WorkerModule } from './worker.module.js';
 
@@ -44,15 +45,20 @@ async function bootstrap(): Promise<void> {
     taskQueue,
     // The compiled workflows next to this file (dist/temporal/workflows in the image).
     workflowsPath: fileURLToPath(new URL('./workflows/index.js', import.meta.url)),
-    activities: createActivities(app.get(StorageService), app.get(PrismaService)),
+    // The housekeeping activity starts `deleteFiles` on `taskQueue` through the worker's own
+    // client (spec 0019 A38, `Context.current().client`).
+    activities: createActivities(app.get(StorageService), app.get(PrismaService), taskQueue),
     interceptors: { activity: [sentryActivityInterceptor] },
   });
 
-  // The schedule of the daily cleanup (spec 0013 N50), on the worker's connection. A failure stops
-  // the worker; production's compose restarts it (`restart: unless-stopped`), which tries again.
+  // The schedules of the daily cleanup (spec 0013 N50) and the fitting's housekeeping (spec 0019
+  // A38), on the worker's connection. A failure stops the worker; production's compose restarts it
+  // (`restart: unless-stopped`), which tries again.
   const schedules = new ScheduleClient({ connection, namespace });
-  const done = await ensureAuthCleanupSchedule(schedules, taskQueue);
-  logger.log(`Temporal schedule "${AUTH_CLEANUP_SCHEDULE_ID}" ${done}`);
+  const authDone = await ensureAuthCleanupSchedule(schedules, taskQueue);
+  logger.log(`Temporal schedule "${AUTH_CLEANUP_SCHEDULE_ID}" ${authDone}`);
+  const housekeepingDone = await ensureHousekeepingSchedule(schedules, taskQueue);
+  logger.log(`Temporal schedule "${HOUSEKEEPING_SCHEDULE_ID}" ${housekeepingDone}`);
 
   logger.log(`Temporal worker polling task queue "${taskQueue}"`);
   // Resolves after SIGTERM/SIGINT: the SDK stops polling and cancels the running activities (no

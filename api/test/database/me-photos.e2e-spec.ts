@@ -16,7 +16,18 @@ import { signIn, type SignedIn } from '../support/sign-in.js';
 import { StorageError } from '../../src/storage/storage.error.js';
 import { StorageService } from '../../src/storage/storage.service.js';
 import { createTestApp, type TestApp } from '../support/test-app.js';
-import { createTestS3Client, testStorageSettings } from '../support/test-storage.js';
+import { FileDeletion } from '../../src/temporal/file-deletion.js';
+import { WorkflowStarter } from '../../src/temporal/workflow-starter.js';
+import {
+  createTestS3Client,
+  createTestStorageService,
+  testStorageSettings,
+} from '../support/test-storage.js';
+import {
+  startTestWorker,
+  testTemporalSettings,
+  type TestWorker,
+} from '../support/test-temporal.js';
 
 interface Detail {
   field: string;
@@ -43,11 +54,15 @@ describe('POST /me/photos (spec 0019 AC1, AC3, AC4, A45)', () => {
   let testApp: TestApp;
   let s3: S3Client;
   let fake: FakeAiProvider;
+  let workerStorage: StorageService;
+  let worker: TestWorker;
+  const temporal = testTemporalSettings();
 
   beforeAll(async () => {
     s3 = createTestS3Client();
     testApp = await createTestApp({
       access: 'production',
+      temporal,
       // A short check deadline, so a timed-out check does not take seconds.
       override: (builder) =>
         builder.overrideProvider(AI_SETTINGS).useFactory({
@@ -59,10 +74,14 @@ describe('POST /me/photos (spec 0019 AC1, AC3, AC4, A45)', () => {
         }),
     });
     fake = testApp.app.get<FakeAiProvider>(AI_PROVIDER);
-  }, 60_000);
+    workerStorage = createTestStorageService();
+    worker = await startTestWorker(temporal, workerStorage, testApp.prisma);
+  }, 120_000);
 
   afterAll(async () => {
+    await worker.stop();
     await testApp.close();
+    workerStorage.onApplicationShutdown();
     s3.destroy();
   });
 
@@ -560,6 +579,405 @@ describe('POST /me/photos (spec 0019 AC1, AC3, AC4, A45)', () => {
         expect(header).toMatch(/Expires=Thu, 01 Jan 1970/);
       }
       expect(await keysOf(who.userId)).toEqual([]);
+    });
+  });
+
+  // A signed-in user with `count` saved photos, the first the default.
+  async function withPhotos(count: number, save = 'true'): Promise<[SignedIn, PhotoBody[]]> {
+    const who = await signIn(testApp.app);
+    const photos: PhotoBody[] = [];
+    for (let index = 0; index < count; index++) {
+      photos.push((await post(who, await goodPhoto(), save).expect(201)).body as PhotoBody);
+    }
+    return [who, photos];
+  }
+
+  // The cookie header of a user whose row is gone but whose signed session copy still passes
+  // (spec 0013 N31): the request then reaches the route.
+  async function cookieOfGoneUser(who: SignedIn): Promise<string> {
+    const { authCookies } = await testApp.app.get<Auth>(AUTH).$context;
+    const session = await http().get('/api/auth/get-session').set({ Cookie: who.cookie });
+    const data = (session.headers['set-cookie'] as string[] | undefined)
+      ?.find((line) => line.startsWith(`${authCookies.sessionData.name}=`))
+      ?.split(';')[0];
+    expect(data, 'the cached session copy').toBeTruthy();
+    await testApp.prisma.user.delete({ where: { id: who.userId } });
+    return `${who.cookie}; ${data}`;
+  }
+
+  async function expectSessionCookiesExpired(response: request.Response) {
+    const { authCookies } = await testApp.app.get<Auth>(AUTH).$context;
+    const headers = (response.headers['set-cookie'] as string[] | undefined) ?? [];
+    for (const name of [
+      authCookies.sessionToken.name,
+      authCookies.sessionData.name,
+      authCookies.dontRememberToken.name,
+    ]) {
+      const header = headers.find((line) => line.startsWith(`${name}=;`));
+      expect(header, name).toBeDefined();
+      expect(header).toMatch(/Expires=Thu, 01 Jan 1970/);
+    }
+  }
+
+  const get = (who: SignedIn | null) => {
+    const req = http().get('/me/photos');
+    return who === null ? req : req.set({ Cookie: who.cookie });
+  };
+  const patch = (who: SignedIn | null, id: string, body: object = { isDefault: true }) => {
+    const req = http().patch(`/me/photos/${id}`);
+    return (who === null ? req : req.set({ Cookie: who.cookie })).send(body);
+  };
+  const remove = (who: SignedIn | null, id: string) => {
+    const req = http().delete(`/me/photos/${id}`);
+    return who === null ? req : req.set({ Cookie: who.cookie });
+  };
+
+  describe('GET /me/photos', () => {
+    it('answers an empty array for a user with no photos', async () => {
+      const who = await signIn(testApp.app);
+
+      const response = await get(who);
+
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual([]);
+    });
+
+    it('lists the saved photos oldest first with signed links, and not the one-time ones (AC3)', async () => {
+      const [who, photos] = await withPhotos(3);
+      await post(who, await goodPhoto(), 'false').expect(201);
+
+      const response = await get(who);
+
+      expect(response.status).toBe(200);
+      const body = response.body as PhotoBody[];
+      expect(Array.isArray(body)).toBe(true);
+      expect(body.map((photo) => photo.id)).toEqual(photos.map((photo) => photo.id));
+      expect(body.map((photo) => photo.isDefault)).toEqual([true, false, false]);
+      expect(body.every((photo) => !photo.transient)).toBe(true);
+      expect(body.every((photo) => typeof photo.url === 'string')).toBe(true);
+      expect((await fetch(body[0]?.url ?? '')).status).toBe(200);
+    });
+
+    it('lists only the own photos', async () => {
+      const [, mine] = await withPhotos(1);
+      const [other] = await withPhotos(2);
+
+      const body = (await get(other)).body as PhotoBody[];
+
+      expect(body).toHaveLength(2);
+      expect(body.map((photo) => photo.id)).not.toContain(mine[0]?.id);
+    });
+
+    it('answers 401 UNAUTHORIZED to an anonymous visitor', async () => {
+      const response = await get(null);
+
+      expect(response.status).toBe(401);
+      expect(errorOf(response).code).toBe('UNAUTHORIZED');
+    });
+
+    it('answers an empty array for a user whose row is gone', async () => {
+      const [who] = await withPhotos(1);
+      const cookie = await cookieOfGoneUser(who);
+
+      const response = await http().get('/me/photos').set({ Cookie: cookie });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual([]);
+    });
+  });
+
+  describe('PATCH /me/photos/:id (AC3)', () => {
+    it('makes another saved photo the default and clears the previous one', async () => {
+      const [who, [first, second]] = await withPhotos(2);
+
+      const response = await patch(who, second?.id ?? '');
+
+      expect(response.status).toBe(200);
+      expect(response.body).toMatchObject({ id: second?.id, isDefault: true, transient: false });
+      const rows = await rowsOf(who.userId);
+      expect(rows.filter((row) => row.isDefault).map((row) => row.id)).toEqual([second?.id]);
+      expect(rows.find((row) => row.id === first?.id)?.isDefault).toBe(false);
+      const listed = (await get(who)).body as PhotoBody[];
+      expect(listed.map((photo) => [photo.id, photo.isDefault])).toEqual([
+        [first?.id, false],
+        [second?.id, true],
+      ]);
+    });
+
+    it('keeps the default when it is made the default again', async () => {
+      const [who, [first]] = await withPhotos(2);
+
+      const response = await patch(who, first?.id ?? '');
+
+      expect(response.status).toBe(200);
+      expect(response.body).toMatchObject({ id: first?.id, isDefault: true });
+      expect((await rowsOf(who.userId)).filter((row) => row.isDefault)).toHaveLength(1);
+    });
+
+    it('answers 400 IS_IN on isDefault for false, and changes nothing', async () => {
+      const [who, [first]] = await withPhotos(1);
+
+      const response = await patch(who, first?.id ?? '', { isDefault: false });
+
+      expect(response.status).toBe(400);
+      expect(errorOf(response).code).toBe('VALIDATION_FAILED');
+      expect(errorOf(response).details).toContainEqual(
+        expect.objectContaining({ field: 'isDefault', code: 'IS_IN' }),
+      );
+      expect((await rowsOf(who.userId))[0]?.isDefault).toBe(true);
+    });
+
+    it('answers 400 for an empty body', async () => {
+      const [who, [first]] = await withPhotos(1);
+
+      const response = await patch(who, first?.id ?? '', {});
+
+      expect(response.status).toBe(400);
+      expect(errorOf(response).code).toBe('VALIDATION_FAILED');
+    });
+
+    it('answers 400 WHITELIST_VALIDATION for a field it does not know', async () => {
+      const [who, [first]] = await withPhotos(1);
+
+      const response = await patch(who, first?.id ?? '', { isDefault: true, transient: true });
+
+      expect(response.status).toBe(400);
+      expect(errorOf(response).details).toContainEqual(
+        expect.objectContaining({ field: 'transient', code: 'WHITELIST_VALIDATION' }),
+      );
+      expect((await rowsOf(who.userId))[0]?.transient).toBe(false);
+    });
+
+    it('answers 404 NOT_FOUND for a one-time photo', async () => {
+      const [who, [transient]] = await withPhotos(1, 'false');
+
+      const response = await patch(who, transient?.id ?? '');
+
+      expect(response.status).toBe(404);
+      expect(errorOf(response).code).toBe('NOT_FOUND');
+      expect((await rowsOf(who.userId))[0]?.isDefault).toBe(false);
+    });
+
+    it('answers 404 for another user’s photo and changes nothing', async () => {
+      const [, [, theirs]] = await withPhotos(2);
+      const [me] = await withPhotos(1);
+
+      const response = await patch(me, theirs?.id ?? '');
+
+      expect(response.status).toBe(404);
+      expect(errorOf(response).code).toBe('NOT_FOUND');
+      const row = await testApp.prisma.userPhoto.findUnique({ where: { id: theirs?.id } });
+      expect(row?.isDefault).toBe(false);
+    });
+
+    it('keeps the earlier default when the photo is not found', async () => {
+      const [who] = await withPhotos(2);
+
+      await patch(who, randomUUID()).expect(404);
+
+      const rows = await rowsOf(who.userId);
+      expect(rows.filter((row) => row.isDefault)).toHaveLength(1);
+    });
+
+    it('answers 400 for an id that is not a uuid', async () => {
+      const who = await signIn(testApp.app);
+
+      const response = await patch(who, 'not-a-uuid');
+
+      expect(response.status).toBe(400);
+      expect(errorOf(response).code).toBe('INVALID_ID');
+    });
+
+    it('answers 401 to an anonymous visitor', async () => {
+      const response = await patch(null, randomUUID());
+
+      expect(response.status).toBe(401);
+      expect(errorOf(response).code).toBe('UNAUTHORIZED');
+    });
+
+    it('answers 401 with the session cookies expired when the user row is gone', async () => {
+      const [who, [first]] = await withPhotos(1);
+      const cookie = await cookieOfGoneUser(who);
+
+      const response = await http()
+        .patch(`/me/photos/${first?.id ?? ''}`)
+        .set({ Cookie: cookie })
+        .send({ isDefault: true });
+
+      expect(response.status).toBe(401);
+      expect(errorOf(response).code).toBe('UNAUTHORIZED');
+      await expectSessionCookiesExpired(response);
+    });
+
+    it('leaves exactly one default under parallel changes (the user row is locked)', async () => {
+      const [who, photos] = await withPhotos(4);
+
+      const responses = await Promise.all(photos.map((photo) => patch(who, photo.id)));
+
+      expect(responses.map((response) => response.status)).toEqual([200, 200, 200, 200]);
+      expect((await rowsOf(who.userId)).filter((row) => row.isDefault)).toHaveLength(1);
+    });
+  });
+
+  describe('DELETE /me/photos/:id (AC1, AC3, A54)', () => {
+    it('answers 204, removes the row and the file, and the link answers 404 (AC1)', async () => {
+      const [who, [photo]] = await withPhotos(1);
+
+      await remove(who, photo?.id ?? '').expect(204);
+
+      expect(await rowsOf(who.userId)).toEqual([]);
+      await vi.waitFor(async () => expect(await keysOf(who.userId)).toEqual([]), {
+        timeout: 30_000,
+        interval: 250,
+      });
+      expect((await fetch(photo?.url ?? '')).status).toBe(404);
+      expect((await get(who)).body).toEqual([]);
+    });
+
+    it('writes an outbox row of the kind photo with the photo’s key, then the worker removes it', async () => {
+      const [who, [photo]] = await withPhotos(1);
+      const key = (await rowsOf(who.userId))[0]?.imageKey ?? '';
+      const fileDeletion = testApp.app.get(FileDeletion);
+      const start = vi.spyOn(fileDeletion, 'start').mockResolvedValueOnce();
+
+      await remove(who, photo?.id ?? '').expect(204);
+
+      start.mockRestore();
+      const [queued] = await testApp.prisma.fileDeletion.findMany({
+        where: { rowId: photo?.id },
+      });
+      expect(queued).toMatchObject({
+        kind: 'photo',
+        rowId: photo?.id,
+        prefixes: [key],
+        startedAt: null,
+      });
+      expect(await keysOf(who.userId)).toEqual([key]);
+      await fileDeletion.start({
+        id: queued?.id ?? '',
+        kind: 'photo',
+        rowId: photo?.id ?? '',
+        prefixes: [key],
+      });
+      await vi.waitFor(
+        async () => {
+          expect(await keysOf(who.userId)).toEqual([]);
+          expect(
+            await testApp.prisma.fileDeletion.findMany({ where: { rowId: photo?.id } }),
+          ).toEqual([]);
+        },
+        { timeout: 30_000, interval: 250 },
+      );
+    });
+
+    it('deletes only that photo’s file and keeps the others’', async () => {
+      const [who, [first, second]] = await withPhotos(2);
+      const keys = (await rowsOf(who.userId)).map((row) => row.imageKey);
+      const doomed = (await rowsOf(who.userId)).find((row) => row.id === second?.id)?.imageKey;
+
+      await remove(who, second?.id ?? '').expect(204);
+
+      await vi.waitFor(
+        async () => expect(await keysOf(who.userId)).toEqual(keys.filter((key) => key !== doomed)),
+        { timeout: 30_000, interval: 250 },
+      );
+      expect(((await get(who)).body as PhotoBody[]).map((photo) => photo.id)).toEqual([first?.id]);
+    });
+
+    it('promotes no other photo to the default; the next saved upload becomes it (A54)', async () => {
+      const [who, [first, second]] = await withPhotos(2);
+
+      await remove(who, first?.id ?? '').expect(204);
+
+      const rows = await rowsOf(who.userId);
+      expect(rows.map((row) => [row.id, row.isDefault])).toEqual([[second?.id, false]]);
+      const next = await post(who, await goodPhoto()).expect(201);
+      expect((next.body as PhotoBody).isDefault).toBe(true);
+    });
+
+    it('frees a place under the limit of five', async () => {
+      const [who, photos] = await withPhotos(5);
+      await post(who, await goodPhoto()).expect(409);
+
+      await remove(who, photos[4]?.id ?? '').expect(204);
+
+      await post(who, await goodPhoto()).expect(201);
+    });
+
+    it('answers 404 NOT_FOUND for a repeated delete', async () => {
+      const [who, [photo]] = await withPhotos(1);
+      await remove(who, photo?.id ?? '').expect(204);
+
+      const response = await remove(who, photo?.id ?? '');
+
+      expect(response.status).toBe(404);
+      expect(errorOf(response).code).toBe('NOT_FOUND');
+    });
+
+    it('answers 404 for a one-time photo and keeps it', async () => {
+      const [who, [transient]] = await withPhotos(1, 'false');
+
+      const response = await remove(who, transient?.id ?? '');
+
+      expect(response.status).toBe(404);
+      expect(await rowsOf(who.userId)).toHaveLength(1);
+      expect(await keysOf(who.userId)).toHaveLength(1);
+    });
+
+    it('answers 404 for another user’s photo and keeps it with its file', async () => {
+      const [owner, [theirs]] = await withPhotos(1);
+      const [me] = await withPhotos(1);
+
+      const response = await remove(me, theirs?.id ?? '');
+
+      expect(response.status).toBe(404);
+      expect(await rowsOf(owner.userId)).toHaveLength(1);
+      expect(await keysOf(owner.userId)).toHaveLength(1);
+      expect((await fetch(theirs?.url ?? '')).status).toBe(200);
+    });
+
+    it('answers 404 for a random uuid and 400 for an id that is not a uuid', async () => {
+      const who = await signIn(testApp.app);
+
+      expect((await remove(who, randomUUID())).status).toBe(404);
+      const bad = await remove(who, 'not-a-uuid');
+      expect(bad.status).toBe(400);
+      expect(errorOf(bad).code).toBe('INVALID_ID');
+    });
+
+    it('answers 401 to an anonymous visitor', async () => {
+      const response = await remove(null, randomUUID());
+
+      expect(response.status).toBe(401);
+      expect(errorOf(response).code).toBe('UNAUTHORIZED');
+    });
+
+    it('answers 401 with the session cookies expired when the user row is gone', async () => {
+      const [who, [photo]] = await withPhotos(1);
+      const cookie = await cookieOfGoneUser(who);
+
+      const response = await http()
+        .delete(`/me/photos/${photo?.id ?? ''}`)
+        .set({ Cookie: cookie });
+
+      expect(response.status).toBe(401);
+      expect(errorOf(response).code).toBe('UNAUTHORIZED');
+      await expectSessionCookiesExpired(response);
+    });
+
+    it('answers 204 with Temporal unreachable for the start, and keeps the outbox row unstarted', async () => {
+      const [who, [photo]] = await withPhotos(1);
+      const start = vi
+        .spyOn(testApp.app.get(WorkflowStarter), 'start')
+        .mockRejectedValueOnce(new Error('Temporal is down'));
+
+      const response = await remove(who, photo?.id ?? '');
+
+      start.mockRestore();
+      expect(response.status).toBe(204);
+      const [queued] = await testApp.prisma.fileDeletion.findMany({ where: { rowId: photo?.id } });
+      expect(queued).toMatchObject({ kind: 'photo', startedAt: null });
+      expect(await rowsOf(who.userId)).toEqual([]);
     });
   });
 });
