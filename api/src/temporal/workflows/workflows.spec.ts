@@ -20,5 +20,6 @@ describe('temporal code', () => {
     });
     expect(code).toContain('async function deleteFiles');
     expect(code).toContain('async function deleteExpiredAuthRows');
+    expect(code).toContain('async function housekeeping');
   });
 });

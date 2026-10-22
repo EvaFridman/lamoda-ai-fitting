@@ -171,13 +171,17 @@ export class AiGenerationsService {
   // The files go after the row: its own folder only, so a key of it elsewhere in the owner's folder
   // (the user's photo) stays (spec 0011 M24). Someone else's generation is P2025, 404.
   async delete(userId: string, id: string): Promise<void> {
-    const generation = await this.prisma.aiGeneration.delete({
-      where: { id, session: { userId } },
-      select: { id: true, session: { select: { userId: true } } },
+    // The row and its outbox entry in one transaction (spec 0019 A38); the files after the commit.
+    const queued = await this.prisma.$transaction(async (tx) => {
+      const generation = await tx.aiGeneration.delete({
+        where: { id, session: { userId } },
+        select: { id: true, session: { select: { userId: true } } },
+      });
+      return this.fileDeletion.enqueue(tx, 'generation', generation.id, [
+        generationFolder(generation.session.userId, generation.id),
+      ]);
     });
-    await this.fileDeletion.startFileDeletion('generation', generation.id, [
-      generationFolder(generation.session.userId, generation.id),
-    ]);
+    await this.fileDeletion.start(queued);
   }
 
   private async toResponse({

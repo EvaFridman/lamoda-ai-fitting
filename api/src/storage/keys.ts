@@ -45,7 +45,7 @@ function isSegment(value: string): boolean {
   return SEGMENT.test(value) && !value.includes('..');
 }
 
-// The only prefixes deletePrefix takes: one user's folder in a retention class
+// The folders deletePrefix takes: one user's folder in a retention class
 // (`<class>/users/<userId>/`, userFolders) or one generation's folder (generationFolder). A class,
 // `media/` or any other prefix is refused, so one call never clears more than one user's files.
 export function isDeletableFolder(prefix: string): boolean {
@@ -73,6 +73,36 @@ export function isDeletableFolder(prefix: string): boolean {
     isSegment(generationId) &&
     rest.length === 0
   );
+}
+
+// The file name userPhotoKey makes: a key is deleted by listing the bucket with it as the prefix,
+// so the name must be one no other key starts with (`<uuid>.webp`, a fixed length; a key such as
+// `…/photos/a` would also match `…/photos/a.webp`).
+const PHOTO_FILE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.webp$/;
+
+// Whether `key` is one fitting photo of a user (userPhotoKey's shape, `keep/users/<userId>/photos/
+// <uuid>.webp`): what deleting one photo clears (spec 0019 plan §5, through the outbox).
+export function isUserPhotoKey(key: string): boolean {
+  if (!isValidKey(key)) {
+    return false;
+  }
+  const [retentionClass, users, userId, photos, file, ...rest] = key.split('/');
+  return (
+    retentionClass === KEEP_CLASS &&
+    users === 'users' &&
+    userId !== undefined &&
+    isSegment(userId) &&
+    photos === 'photos' &&
+    file !== undefined &&
+    PHOTO_FILE.test(file) &&
+    rest.length === 0
+  );
+}
+
+// The only prefixes deletePrefix takes: a deletable folder (isDeletableFolder) or one photo's key.
+// Listing the bucket by a whole key finds that object alone (PHOTO_FILE).
+export function isDeletablePrefix(prefix: string): boolean {
+  return isDeletableFolder(prefix) || isUserPhotoKey(prefix);
 }
 
 // The bucket key of a catalog image whose database key is `key`.

@@ -146,6 +146,72 @@ describe('files deleted through Temporal', () => {
     );
   });
 
+  it('deletes the outbox row once the files are gone', async () => {
+    const { prisma } = testApp;
+    const userId = await createUser(testApp);
+    const sessionId = await createSession(prisma, userId, true);
+    const generation = await createGeneration(prisma, s3, userId, sessionId);
+
+    await remove(testApp, `/ai-generations/${generation.id}`, userId).expect(204);
+
+    await expectKeysGone(s3, generationFolder(userId, generation.id));
+    await vi.waitFor(
+      async () =>
+        expect(await prisma.fileDeletion.findMany({ where: { rowId: generation.id } })).toEqual([]),
+      { timeout: 30_000, interval: 250 },
+    );
+  });
+
+  it('writes one outbox row per kind with the folders to delete', async () => {
+    const { prisma } = testApp;
+    const userId = await createUser(testApp);
+    const visitorId = await createUser(testApp);
+    const sessionId = await createSession(prisma, userId, true);
+    const generation = await createGeneration(prisma, s3, userId, sessionId);
+    // Held back from the worker, so the row is still there to read.
+    const start = vi.spyOn(testApp.app.get(FileDeletion), 'start').mockResolvedValue();
+    try {
+      await remove(testApp, `/fitting-sessions/${sessionId}`, userId).expect(204);
+      await remove(testApp, `/users/${userId}`, visitorId).expect(204);
+    } finally {
+      start.mockRestore();
+    }
+
+    const rows = await prisma.fileDeletion.findMany({
+      where: { rowId: { in: [sessionId, userId] } },
+    });
+    const byKind = new Map(rows.map((row) => [row.kind, row]));
+    expect(byKind.get('session')).toMatchObject({
+      rowId: sessionId,
+      prefixes: [generationFolder(userId, generation.id)],
+      startedAt: null,
+    });
+    expect(byKind.get('user')).toMatchObject({
+      rowId: userId,
+      prefixes: [`keep/users/${userId}/`],
+      startedAt: null,
+    });
+  });
+
+  it('a failed outbox write rolls the delete back', async () => {
+    const { prisma } = testApp;
+    const userId = await createUser(testApp);
+    const sessionId = await createSession(prisma, userId, true);
+    await createGeneration(prisma, s3, userId, sessionId);
+    const start = vi.spyOn(testApp.app.get(FileDeletion), 'start').mockResolvedValue();
+    const enqueue = vi
+      .spyOn(testApp.app.get(FileDeletion), 'enqueue')
+      .mockRejectedValueOnce(new Error('outbox down'));
+    try {
+      await remove(testApp, `/fitting-sessions/${sessionId}`, userId).expect(500);
+    } finally {
+      enqueue.mockRestore();
+      start.mockRestore();
+    }
+
+    expect(await prisma.fittingSession.findUnique({ where: { id: sessionId } })).not.toBeNull();
+  });
+
   it('deleting a session removes its generations’ folders and keeps the rest', async () => {
     const { prisma } = testApp;
     const userId = await createUser(testApp);
@@ -334,13 +400,32 @@ describe('a delete with no worker on the task queue', () => {
   it('starting the same workflow id twice while it runs does not fail', async () => {
     const userId = await createUser(testApp);
     const fileDeletion = testApp.app.get(FileDeletion);
-    const prefixes = [`keep/users/${userId}/`];
+    const queued = await testApp.prisma.$transaction((tx) =>
+      fileDeletion.enqueue(tx, 'user', userId, [`keep/users/${userId}/`]),
+    );
 
-    await expect(fileDeletion.startFileDeletion('user', userId, prefixes)).resolves.toBeUndefined();
-    await expect(fileDeletion.startFileDeletion('user', userId, prefixes)).resolves.toBeUndefined();
+    await expect(fileDeletion.start(queued)).resolves.toBeUndefined();
+    await expect(fileDeletion.start(queued)).resolves.toBeUndefined();
 
     const handle = testApp.app.get(Client).workflow.getHandle(`delete-files-user-${userId}`);
     expect((await handle.describe()).status.name).toBe('RUNNING');
+  });
+
+  it('writes an outbox row for a delete and marks it started, though no worker finishes it', async () => {
+    const { prisma } = testApp;
+    const userId = await createUser(testApp);
+    const sessionId = await createSession(prisma, userId, true);
+    const generation = await createGeneration(prisma, s3, userId, sessionId);
+
+    await remove(testApp, `/ai-generations/${generation.id}`, userId).expect(204);
+
+    const row = await prisma.fileDeletion.findFirst({ where: { rowId: generation.id } });
+    expect(row).toMatchObject({
+      kind: 'generation',
+      rowId: generation.id,
+      prefixes: [generationFolder(userId, generation.id)],
+    });
+    expect(row?.startedAt).toBeInstanceOf(Date);
   });
 });
 
@@ -372,6 +457,18 @@ describe('a delete with Temporal unreachable', () => {
     expect(Date.now() - began).toBeLessThan(7000);
     expect(await prisma.aiGeneration.findUnique({ where: { id: generation.id } })).toBeNull();
     expect(await keysUnder(s3, generationFolder(userId, generation.id))).toHaveLength(2);
+  }, 20_000);
+
+  it('keeps the outbox row unstarted for the housekeeping schedule', async () => {
+    const { prisma } = testApp;
+    const userId = await createUser(testApp);
+    const sessionId = await createSession(prisma, userId, true);
+    const generation = await createGeneration(prisma, s3, userId, sessionId);
+
+    await remove(testApp, `/ai-generations/${generation.id}`, userId).expect(204);
+
+    const row = await prisma.fileDeletion.findFirst({ where: { rowId: generation.id } });
+    expect(row).toMatchObject({ kind: 'generation', startedAt: null });
   }, 20_000);
 
   it('closing the app during a start raises no unhandled rejection or uncaught exception', async () => {

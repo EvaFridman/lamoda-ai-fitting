@@ -204,22 +204,16 @@ removes it from this list. Found by the agents' first security audit and trial r
 
 - **SDK version ranges.** `@temporalio/client` is `"1.24"` while the other SDK packages are
   `"^1.24.0"`; align them so all SDK packages move together.
-- **Outbox for file deletion.** A row's delete commits, then `FileDeletion` starts `deleteFiles`
-  (spec 0011 T8); an api killed between the two (OOM, SIGKILL) leaves the files with no log line.
-  Users can delete their accounts since 0013 (`DELETE /me`), but no route writes into users'
-  folders yet (0013 N37). With the photo upload spec, before the first user's file: write the
-  deletion into a table in the delete's transaction and start workflows from it.
 - **Deletions after a restored copy.** Returning a database copy to production (0012 P31) finds
   what was deleted after the copy in `deleteFiles`' history (24 hours) or by comparing with the old
-  database; a fitting session with no generations starts no workflow and a failed start leaves only
-  a Sentry event, so both are added by hand. Files uploaded after the copy by users the copy holds
-  stay in their folders with no row. With the outbox above, the restore can read the deletions from
-  the old database's table; with the photo upload spec, remove a user's files no row refers to.
-- **Heartbeats for long activities.** No activity heartbeats: a cancelled workflow's running
-  attempt goes on until its timeout (`deletePrefix`: at most 30 s, harmless, the delete is
-  idempotent), and a dead worker is noticed only then. With the photo upload and AI generation
-  activities, where a cancellation must stop a paid call, add `heartbeatTimeout` and `heartbeat()`
-  to them and to `deletePrefix`.
+  database; a fitting session with no generations starts no workflow, so it is added by hand, and a
+  deletion whose start failed is a row of the outbox `file_deletions` (0019 A38) with `started_at`
+  null, read from the old database (`deploy/README.md`). Files uploaded after the copy by users
+  the copy holds stay in their folders with no row: the restore could remove a user's files no row
+  refers to.
+- **Heartbeats for the generation's activities.** `deletePrefix` heartbeats since spec 0019 T5
+  (A39); the generation's activities, where a cancellation must stop a paid call, get
+  `heartbeatTimeout` and `heartbeat()` with spec 0019's phase 2 (plan §4), which removes this item.
 - **Temporal history backup.** Spec 0012 backs up only PostgreSQL and the app bucket (0012 P1):
   Temporal's history is a SQLite file on the `temporaldata` volume. A lost volume loses unfinished
   workflows (`deleteFiles`, later generations), which may leave a deleted user's files in the
@@ -237,10 +231,6 @@ removes it from this list. Found by the agents' first security audit and trial r
 
 Left for later specs by `0002-database-schema` (its `clarifications.md` has the decisions).
 
-- **Photo upload limits.** Spec 0011 gave the storage, server-named keys and deletion of a user's
-  or a generation's files. What photo upload still owes: limits on size and type, re-encoding to
-  WebP, and a retention period for old photo snapshots of C14 (one more key class and lifecycle
-  rule, `storage/keys.ts`).
 - **Production checks of the backups.** Spec 0012 closed on its tests and `ci-deploy-check.sh`
   (0012 P32); what needs production is left. A `--once` on the server (`deploy/README.md`,
   «Бэкапы») gives the first copies before any night. After the first night: the backup bucket's listing

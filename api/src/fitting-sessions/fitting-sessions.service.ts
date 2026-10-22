@@ -127,7 +127,7 @@ export class FittingSessionsService {
   // locked: a generation created at the same time either commits before the lock (and is read) or
   // waits for it and fails on the gone session (400), so the cascade takes no generation unread.
   async delete(userId: string, id: string): Promise<void> {
-    const { session, generationIds } = await this.prisma.$transaction(async (tx) => {
+    const queued = await this.prisma.$transaction(async (tx) => {
       const locked = await tx.$queryRaw<unknown[]>`
         SELECT 1 FROM fitting_sessions WHERE id = ${id}::uuid AND user_id = ${userId}::uuid
         FOR UPDATE`;
@@ -142,12 +142,14 @@ export class FittingSessionsService {
         where: { id },
         select: { id: true, userId: true },
       });
-      return { session: deleted, generationIds: generations.map((generation) => generation.id) };
+      // The outbox row goes with the delete (spec 0019 A38); the files after the commit.
+      return this.fileDeletion.enqueue(
+        tx,
+        'session',
+        deleted.id,
+        generations.map((generation) => generationFolder(deleted.userId, generation.id)),
+      );
     });
-    await this.fileDeletion.startFileDeletion(
-      'session',
-      session.id,
-      generationIds.map((generationId) => generationFolder(session.userId, generationId)),
-    );
+    await this.fileDeletion.start(queued);
   }
 }

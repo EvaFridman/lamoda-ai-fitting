@@ -10,6 +10,7 @@ import { userPhotoKey } from '../../storage/keys.js';
 import { ownedLink } from '../../storage/owner-check.js';
 import { StorageError } from '../../storage/storage.error.js';
 import { StorageService } from '../../storage/storage.service.js';
+import { FileDeletion } from '../../temporal/file-deletion.js';
 import { userGone } from '../me.service.js';
 import type { UserPhotoDto } from './dto/user-photo.dto.js';
 import { type FittingPhoto, NotAnImageError, toFittingPhoto } from './photo-image.js';
@@ -56,8 +57,65 @@ export class MePhotosService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
+    private readonly fileDeletion: FileDeletion,
     @Inject(AI_PROVIDER) private readonly ai: AiProvider,
   ) {}
+
+  // The saved photos (not the transient ones, A24), in the order they were uploaded, at most
+  // MAX_SAVED_PHOTOS: a plain array, not Paginated<T> (plan §5). A gone user has none (spec 0013
+  // N31: a read finds nothing).
+  async list(userId: string): Promise<UserPhotoDto[]> {
+    const rows = await this.prisma.userPhoto.findMany({
+      where: { userId, transient: false },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    });
+    return Promise.all(rows.map((row) => this.toResponse(row)));
+  }
+
+  // Makes one saved photo the default (AC3), the earlier default no longer. The user's row is
+  // locked, as in the upload, so two changes at once cannot both pass the one-default index (and a
+  // gone user is 401); another user's, a transient or a missing photo is 404 (P2025, spec 0013
+  // N8).
+  async setDefault(userId: string, id: string): Promise<UserPhotoDto> {
+    const row = await this.prisma.$transaction(async (tx) => {
+      await this.lockUser(tx, userId);
+      await tx.userPhoto.updateMany({
+        where: { userId, isDefault: true, NOT: { id } },
+        data: { isDefault: false },
+      });
+      return tx.userPhoto.update({
+        where: { id, userId, transient: false },
+        data: { isDefault: true },
+      });
+    });
+    return this.toResponse(row);
+  }
+
+  // Deletes one saved photo: the row and its outbox entry in one transaction (spec 0019 A38), the
+  // file after the commit. No other photo becomes the default: the next saved upload does (A54).
+  // Another user's, a transient or a missing photo is 404 (P2025).
+  async delete(userId: string, id: string): Promise<void> {
+    const queued = await this.prisma.$transaction(async (tx) => {
+      await this.lockUser(tx, userId);
+      const photo = await tx.userPhoto.delete({
+        where: { id, userId, transient: false },
+        select: { id: true, imageKey: true },
+      });
+      return this.fileDeletion.enqueue(tx, 'photo', photo.id, [photo.imageKey]);
+    });
+    await this.fileDeletion.start(queued);
+  }
+
+  // A deleted user's cached session may still pass (spec 0013 N31): no row is 401, and the lock
+  // serialises the user's writes until the commit.
+  private async lockUser(tx: Prisma.TransactionClient, userId: string): Promise<void> {
+    const owner = await tx.$queryRaw<
+      { id: string }[]
+    >`SELECT id FROM users WHERE id = ${userId}::uuid FOR UPDATE`;
+    if (owner.length === 0) {
+      throw userGone();
+    }
+  }
 
   // In this order, so a refused upload costs as little as it can (A54): the user's row and the
   // limit (reads, before any model call), sharp, the check, then the object and the row in one
@@ -98,14 +156,8 @@ export class MePhotosService {
     }
     const key = userPhotoKey(userId);
     const row = await this.prisma.$transaction(async (tx) => {
-      // A deleted user's cached session may still pass (spec 0013 N31): no row is 401, and the
-      // lock holds the count below until the commit.
-      const owner = await tx.$queryRaw<
-        { id: string }[]
-      >`SELECT id FROM users WHERE id = ${userId}::uuid FOR UPDATE`;
-      if (owner.length === 0) {
-        throw userGone();
-      }
+      // The lock holds the count below until the commit.
+      await this.lockUser(tx, userId);
       let isDefault = false;
       if (upload.save) {
         if ((await this.savedCount(tx, userId)) >= MAX_SAVED_PHOTOS) {

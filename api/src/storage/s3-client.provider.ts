@@ -62,7 +62,7 @@ export function createS3Client(
     requestChecksumCalculation: 'WHEN_REQUIRED',
     responseChecksumValidation: 'WHEN_REQUIRED',
     // The SDK waits without limit by default: a storage that does not answer would hold a request
-    // (and an activity's attempt, past its 30 s startToCloseTimeout) for good. socketTimeout is the
+    // (and an activity's attempt, past its heartbeat timeout) for good. socketTimeout is the
     // longest silence on the socket, not a bound on the whole transfer (a slow upload of the seed
     // goes on). Not requestTimeout: without throwOnRequestTimeout it only logs a warning.
     requestHandler: {

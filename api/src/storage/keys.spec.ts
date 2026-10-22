@@ -8,8 +8,10 @@ import {
   generationInputKey,
   generationResultKey,
   isDeletableFolder,
+  isDeletablePrefix,
   isInUserFolder,
   isUserFileKey,
+  isUserPhotoKey,
   isValidKey,
   MEDIA_CACHE_CONTROL,
   mediaKey,
@@ -140,6 +142,37 @@ describe('isDeletableFolder', () => {
     'other/users/u1/',
   ])('refuses %j', (prefix) => {
     expect(isDeletableFolder(prefix)).toBe(false);
+  });
+});
+
+describe('isUserPhotoKey and isDeletablePrefix', () => {
+  it('accept what userPhotoKey builds', () => {
+    const key = userPhotoKey(USER);
+    expect(isUserPhotoKey(key)).toBe(true);
+    expect(isDeletablePrefix(key)).toBe(true);
+  });
+
+  it('isDeletablePrefix accepts the folders too', () => {
+    expect(isDeletablePrefix(`keep/users/${USER}/`)).toBe(true);
+    expect(isDeletablePrefix(generationFolder(USER, GENERATION))).toBe(true);
+  });
+
+  it.each([
+    ['the photos folder', `keep/users/${USER}/photos/`],
+    ['a nested file', `keep/users/${USER}/photos/a/b.webp`],
+    ['a media key', 'media/seed/products/a1/1.webp'],
+    ['a generation key', generationResultKey(USER, GENERATION)],
+    ['an invalid user segment', 'keep/users/a..b/photos/x.webp'],
+    ['an invalid file segment', `keep/users/${USER}/photos/..`],
+    ['a name that is not a uuid', `keep/users/${USER}/photos/a.webp`],
+    ['a uuid with another extension', `keep/users/${USER}/photos/${GENERATION}.png`],
+    ['an upper-case uuid', `keep/users/${USER}/photos/${GENERATION.toUpperCase()}.webp`],
+    ['a uuid without an extension', `keep/users/${USER}/photos/${GENERATION}`],
+    ['another class', `tmp/users/${USER}/photos/x.webp`],
+    ['an empty key', ''],
+  ])('refuse %s', (_name, key) => {
+    expect(isUserPhotoKey(key)).toBe(false);
+    expect(isDeletablePrefix(key)).toBe(false);
   });
 });
 

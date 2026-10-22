@@ -25,14 +25,15 @@ let runtimeInstalled = false;
 
 // A worker of the app's workflows and activities on `settings.taskQueue`, as run-worker.ts builds
 // it, with the activities' services given by the test (a StorageService on the emulator, the
-// client of the throwaway database, such as a TestApp's `prisma`). Bundling the workflows takes
-// seconds: start it in `beforeAll` with a long timeout, `stop()` in `afterAll`.
+// client of the throwaway database, such as a TestApp's `prisma`); the housekeeping activity
+// starts workflows through the worker's own client. Bundling the workflows takes seconds: start it
+// in `beforeAll` with a long timeout, `stop()` in `afterAll`.
 export function startTestWorker(
   settings: TemporalSettings,
   storage: StorageService,
   prisma: PrismaClient,
 ): Promise<TestWorker> {
-  return startTestWorkerWith(settings, createActivities(storage, prisma));
+  return startTestWorkerWith(settings, createActivities(storage, prisma, settings.taskQueue));
 }
 
 // The same worker with activities of the test, e.g. stubs, to check a workflow's own logic apart

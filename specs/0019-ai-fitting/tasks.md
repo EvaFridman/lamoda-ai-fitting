@@ -69,7 +69,7 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       Check: database e2e for a good photo, each refusal, a non-image, an oversized body, a
       sixth photo, a timed-out check; `ci-deploy-check.sh` in CI; `npm run verify`.
       Commit: `feat(api): upload a fitting photo with its check`
-- [ ] **T5. List, default and delete; the outbox.** `GET /me/photos`, `PATCH /me/photos/:id`,
+- [x] **T5. List, default and delete; the outbox.** `GET /me/photos`, `PATCH /me/photos/:id`,
       `DELETE /me/photos/:id` and `DELETE /me` with `FileDeletion` through `file_deletions`, the
       schedule `fitting-housekeeping` (unstarted deletions, transient photos older than an hour);
       `deletePrefix` heartbeats (A38, A39); backlog items removed.
