@@ -147,6 +147,8 @@ describe('qa-tester rules', () => {
       bash('docker compose logs --tail=50 --no-color api temporal-worker'),
       bash('docker compose stop redis'),
       bash('docker compose start redis'),
+      bash('docker compose stop redis-cache'),
+      bash('docker compose logs --tail 50 redis-cache'),
       bash('docker compose stop s3'),
       bash('docker compose logs --tail 50 s3 s3-init'),
       bash('docker compose up -d --wait'),
