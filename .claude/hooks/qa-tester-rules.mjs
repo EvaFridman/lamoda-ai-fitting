@@ -31,6 +31,7 @@ const ALLOWED = `only http://localhost on ports ${PORTS.join(', ')}`;
 const SERVICES = new Set([
   'postgres',
   'redis',
+  'redis-cache',
   'temporal',
   'temporal-worker',
   's3',
