@@ -404,6 +404,16 @@ session cookies expired. Plan §5 did not say; the helper moved from `MeControll
 nginx let it through, and a 21 MB body, which nginx refuses with 413 in the api's format; `/api/`
 keeps its 1 MB check. Assumption, owner to confirm (T4).
 
+**A58. The full `verify` runs once per phase.** Inside a phase a task ends with `typecheck`,
+`lint` and the task's own tests (the unit specs and the database e2e it touched, as `test-writer`
+runs them), not with the whole `npm run verify`: here it takes 6–8 minutes, needs this copy's
+api, web and worker stopped (Docker on the Mac is at its limit; the stack was OOM-killed during
+T4), and at T4 four runs found only the rebase's leftovers. The full `verify` runs at the end of
+the phase, after the clean install, and in the pre-push hook, so nothing reaches the pull request
+unchecked; a breakage between tasks is then fixed once, before the push. The agents of
+`finish-task` (`test-writer`, `qa-tester`, the reviewers) stay as they are. Decided by the owner
+on 2026-10-22, during T4.
+
 ## Canvas and decisions
 
 Where the canvas differs from the decisions above, the decision wins:

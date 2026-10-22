@@ -12,7 +12,9 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
   hand) asks the owner which copy's stack to use.
 - The owner reviews at phase boundaries (A2). Inside a phase each task is: a brief from
   `spec-finder`, a time estimate, the code, `finish-task` whole, one commit that ticks its box, then
-  the next task in a fresh session (or after `/clear`). At the end of a phase: a clean `npm ci` in
+  the next task in a fresh session (or after `/clear`). A task's check is `typecheck`, `lint` and
+  its own tests (the unit specs and the database e2e it touched), not the whole `npm run verify`
+  (A58). At the end of a phase: a clean `npm ci` in
   the root and in each package, `npm run verify`, the push, the pull request in the owner's format,
   and a stop with the summary (what was done, what the agents found, the assumptions taken).
 - `security-reviewer` joins every task that touches routes, input, env, compose, nginx, CI or the
