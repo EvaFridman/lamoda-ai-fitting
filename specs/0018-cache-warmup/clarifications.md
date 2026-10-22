@@ -1,7 +1,7 @@
 # 0018 page cache and warm-up on deploy: clarifications
 
 Status: accepted (2026-10-20); amended 2026-10-20 at the plan (V10's figures, V15) and at the
-review of PR 1 (V7, V9, V12, V15, V16–V18); amended 2026-10-21 at T4 (V19, V20), at T5 (V19: no push before the pull request) and at T6 (V19: T6 before 0014 too; V21, V22); amended 2026-10-22 at T7 (V23, V24), at T8 (V25) and at the review of PR 2 (V26, V27).
+review of PR 1 (V7, V9, V12, V15, V16–V18); amended 2026-10-21 at T4 (V19, V20), at T5 (V19: no push before the pull request) and at T6 (V19: T6 before 0014 too; V21, V22); amended 2026-10-22 at T7 (V23, V24), at T8 (V25) and at the review of PR 2 (V26, V27), at T9 (V28), at T12 (V29) and at T13 (V30).
 
 The owner's decisions for this spec. Ids `V1`, `V2`, … are referred to by the spec, the plan and
 code comments. All decisions below: owner, 2026-10-20.
@@ -291,3 +291,14 @@ the EXIT trap on SIGPIPE and SIGTERM, so `.deploy-lock` goes, and a `trap … PI
 bash 5.3 skip the EXIT trap: none is added, and `ci-deploy-check.sh` checks that the lock goes.
 Not taken: `ssh -tt` (it merges stderr into stdout and adds `\r` to the log) and a manual procedure
 in place of the fix.
+
+## Added at T13
+
+**V30. The rule for new pages also loads where cached reads are written.** T13's reviews found
+plan §7's `paths` (`web/app/**`, `web/src/_pages/**`, `web/src/_app/**`) narrower than V8
+(`web/app/**` and `web/src/**`): the rule's page cache section describes code in the entity slices'
+`api` segment and in `shared/api`, where it did not load. The owner chose to add
+`web/src/entities/*/api/**` and `web/src/shared/api/**` (the segment, not `server-queries.ts`, since
+a new slice may lay its reads out otherwise). Not taken: plan §7's paths alone (`CLAUDE.md` holds
+the same rules) and `web/src/**`, which loads the rule for the kit, the features and the entities'
+UI, where it has nothing to say.

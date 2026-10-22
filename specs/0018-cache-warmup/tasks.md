@@ -111,7 +111,7 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       step".
       Check: read at review (AC15); `ci-deploy-check.sh` in CI (V29); `npm run verify`.
       Commit: `ci(deploy): limit the deploy job to 30 minutes and record the state at the switch`
-- [ ] **T13. The rule for new pages.** `.claude/rules/web-pages.md` (plan §7) and
+- [x] **T13. The rule for new pages.** `.claude/rules/web-pages.md` (plan §7) and
       `.claude/README.md` if its list of rules changes.
       Check: the rule loads for a file under `web/app` (a new session); `npm run verify`.
       Commit: `docs(tooling): add the rule for new web pages`

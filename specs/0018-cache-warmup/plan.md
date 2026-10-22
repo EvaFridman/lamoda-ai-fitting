@@ -3,9 +3,9 @@
 Status: accepted (2026-10-20); amended 2026-10-20 at the review of PR 1 (§2, §3's key, §4's bound
 and pace, §5, §9, §10); amended 2026-10-21 after 0014 deferred the proxy secret's taint (O76);
 amended 2026-10-21 at T4 (§1, V19; §2, V20), at T5 (§1, V19; §2, the worker's `REDIS_CACHE_URL`)
-and at T6 (§1, V19; §3's handler, V21, V22); amended 2026-10-22 at T7 (§3's errors, V23; §3's reads, V24) and at T8 (§5's order, V25).
+and at T6 (§1, V19; §3's handler, V21, V22); amended 2026-10-22 at T7 (§3's errors, V23; §3's reads, V24) and at T8 (§5's order, V25), at T9 (§4's lists and answer, V28), at T12 (§6, §10, V29) and at T13 (§7's paths, V30).
 
-How [spec.md](spec.md) is built. Decisions: [clarifications.md](clarifications.md) (V1–V27).
+How [spec.md](spec.md) is built. Decisions: [clarifications.md](clarifications.md) (V1–V30).
 No new dependencies: web already has `ioredis` (its `package.json`), Next is 16.3.8.
 
 ## 1. Pull requests and release order
@@ -183,7 +183,8 @@ leaves no lock.
   visitor data, reads with no filters only, the lifetime) and the warm-up rule: a new page route
   goes into `_app/warmup/routes.ts` or its exclusions with a reason, `routes.test.ts` fails
   otherwise. Production and deploys: the warm-up step and its stop.
-- **`.claude/rules/web-pages.md`** (new, `paths: web/app/**, web/src/_pages/**, web/src/_app/**`):
+- **`.claude/rules/web-pages.md`** (new, `paths: web/app/**, web/src/_pages/**, web/src/_app/**`,
+  `web/src/entities/*/api/**`, `web/src/shared/api/**`, V30):
   the same rule for a new page, the cache's rules, and that a product page names its address
   source (for example the first products of each category).
 - **`.claude/rules/deploy.md`**: the warm-up step between readiness and the switch, on a rollback
