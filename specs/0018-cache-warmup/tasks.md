@@ -93,7 +93,7 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       lists every demo category; `ci-deploy-check.sh`: it answers 404 through nginx;
       `npm run verify`.
       Commit: `feat(web): list the routes to warm up on deploy`
-- [ ] **T10. The warm-up script.** `deploy/scripts/warmup.mjs` and `warmup.test.mjs`; the root `test`
+- [x] **T10. The warm-up script.** `deploy/scripts/warmup.mjs` and `warmup.test.mjs`; the root `test`
       and `lint` globs gain `deploy/scripts/*.mjs` (plan §4).
       Check: its tests (a 500, a timeout, the budget, a 404 list, the 307, one page a second in the
       cold pass and no pause in the repeated one, the bound of 50 and the skipped count, V16);
