@@ -153,8 +153,8 @@ with a message to start it. The project `unit` (everything else) needs no Docker
 
 Before calling a task done: `npm run verify`. Before opening a pull request, also a clean install
 the way CI does it (`npm ci` in the root and in each package), then `verify` again. Inside a phase
-of spec 0019 a task ends with `typecheck`, `lint` and its own tests, and the full `verify` runs
-once at the phase's end (spec 0019 A58).
+of spec 0019 a task ends with `typecheck`, `lint` and its own tests, `qa-tester` runs once per
+phase at its last task, and the full `verify` runs once at the phase's end (spec 0019 A58).
 
 ## Structure
 

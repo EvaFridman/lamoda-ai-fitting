@@ -410,9 +410,13 @@ runs them), not with the whole `npm run verify`: here it takes 6–8 minutes, ne
 api, web and worker stopped (Docker on the Mac is at its limit; the stack was OOM-killed during
 T4), and at T4 four runs found only the rebase's leftovers. The full `verify` runs at the end of
 the phase, after the clean install, and in the pre-push hook, so nothing reaches the pull request
-unchecked; a breakage between tasks is then fixed once, before the push. The agents of
-`finish-task` (`test-writer`, `qa-tester`, the reviewers) stay as they are. Decided by the owner
-on 2026-10-22, during T4.
+unchecked; a breakage between tasks is then fixed once, before the push. `test-writer` and the
+reviewers stay per task: the tests of a task guard it while the next one changes the same module
+(T4's found two bugs before T5–T7 built on them). `qa-tester` runs once per phase, at its last
+task, on the phase's acceptance criteria as a whole (phase 1: AC1–AC4 at T7), since the tasks of
+a phase overlap in what it checks and its runs are the heaviest on the stack. Decided by the
+owner on 2026-10-22, during T4; the brief of `spec-finder` stays per task (a brief for the whole
+phase would be loaded again in every task's session).
 
 ## Canvas and decisions
 
