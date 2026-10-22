@@ -1,7 +1,7 @@
 # 0018 page cache and warm-up on deploy: clarifications
 
 Status: accepted (2026-10-20); amended 2026-10-20 at the plan (V10's figures, V15) and at the
-review of PR 1 (V7, V9, V12, V15, V16–V18); amended 2026-10-21 at T4 (V19, V20), at T5 (V19: no push before the pull request) and at T6 (V19: T6 before 0014 too; V21, V22); amended 2026-10-22 at T7 (V23, V24) and at T8 (V25).
+review of PR 1 (V7, V9, V12, V15, V16–V18); amended 2026-10-21 at T4 (V19, V20), at T5 (V19: no push before the pull request) and at T6 (V19: T6 before 0014 too; V21, V22); amended 2026-10-22 at T7 (V23, V24), at T8 (V25) and at the review of PR 2 (V26, V27).
 
 The owner's decisions for this spec. Ids `V1`, `V2`, … are referred to by the spec, the plan and
 code comments. All decisions below: owner, 2026-10-20.
@@ -243,3 +243,18 @@ it measures, so a broken site is still caught by the smoke test that follows. V1
 measurement is run by hand after a deploy from `main`, whose smoke test has already run: the
 record says so. The owner weighed a category the smoke test does not request (`/catalog` would
 stay warm) and keeping the plan's order (AC14's numbers lowered by the smoke test's warm-up).
+
+## Added at the review of PR 2
+
+**V26. The request id through a page goes by a sort.** `ci-deploy-check.sh` checked that a request
+to `/catalog/dresses` leaves nginx's id on two of the api's lines, web's proxy (the request's
+headers) and the page (`headers()`), so both send the proxy secret (spec 0006 F10). Since T7 that
+page reads its category, products and counts from the page cache, and only the proxy's read goes
+on the visitor's behalf. The check takes `/catalog/dresses?sort=price_asc`: a sort bypasses the
+cache (V15), so the page's batch is read as the visitor again and both lines stay checked. The
+owner weighed one line through the plain page (the page's path unchecked).
+
+**V27. The measurement does not check certificates.** `measure-first-request.mjs` keeps
+`rejectUnauthorized: false` against production too, as `smoke-test.sh -k`: it sends nothing secret,
+a forged answer would only change the numbers the owner reads, and TLS is checked apart. The owner
+weighed checking certificates for any host but `localhost`.

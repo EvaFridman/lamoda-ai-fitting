@@ -174,8 +174,6 @@ export function createPageCacheHandler(options: PageCacheOptions): CacheHandler 
         // A stream that fails part way is not stored: a partial entry would be a broken page.
         const value = await readAll(entry).catch(() => undefined);
         if (value === undefined) return;
-        const target = ready();
-        if (!target) return;
         const stored: StoredEntry = {
           value: value.toString('base64'),
           tags: entry.tags,
@@ -185,10 +183,14 @@ export function createPageCacheHandler(options: PageCacheOptions): CacheHandler 
           revalidate: entry.revalidate,
         };
         const json = JSON.stringify(stored);
+        // Before `ready()`: while Redis is failing, it spends the one probe on a command that must
+        // follow, and an entry not sent would extend the skip by 10 s.
         if (Buffer.byteLength(json) > MAX_ENTRY_BYTES) {
           reportOversize();
           return;
         }
+        const target = ready();
+        if (!target) return;
         try {
           await target.redis.set(
             target.keyPrefix + (await hashKey(cacheKey)),

@@ -96,12 +96,19 @@ counts() {
 count_of() { sed -n "s/^$1=//p" <<< "$2"; }
 
 # AC14 (spec 0006 F10): a request to <path> that sends its own X-Request-Id gets exactly one back,
-# nginx's (32 hex characters), and that id is on at least <api lines> (default 1) of the api's
-# log lines and on nginx's. Through a category page (`/catalog/dresses`, 2 lines) the api's lines
-# are web's calls, one from its proxy (the request's headers) and one from the page (`headers()`),
-# so it checks that both send the proxy secret.
+# nginx's (32 hex characters), and that id is on nginx's log and on the api's: on a line of each
+# api route given (the start of its `url`), or with none given on any line. Through a category page
+# (`/catalog/dresses?sort=price_asc`) the api's lines are web's calls: the category by its slug from
+# the proxy (the request's headers) and the products from the page (`headers()`), so it checks that
+# both send the proxy secret. Routes, not a count: while the page cache is skipped the page reads
+# more as the visitor and would make up a missing line. The sort keeps the page's batch out of the
+# page cache, whose reads carry no visitor's id (spec 0018 V26).
+# The page's two reads on the visitor's behalf: the proxy's and the batch (`/products/facets` is
+# another route).
+page_routes=('/categories/by-slug/dresses' '/products?')
 check_request_id() {
-  local path="$1" color="$2" lines="${3:-1}" ids id i nginx_log api_log
+  local path="$1" color="$2" ids id i route found nginx_log api_log id_lines
+  local routes=("${@:3}")
   ids="$(curl -sk --max-time 10 -o /dev/null -D - -H 'X-Request-Id: chosen-by-the-client' \
     "https://localhost$path" | tr -d '\r' | awk -F': ' 'tolower($1) == "x-request-id" { print $2 }')" \
     || { echo "ci-deploy-check: $path: the request failed" >&2; return 1; }
@@ -115,12 +122,17 @@ check_request_id() {
     api_log="$(docker logs "ai-fitting-$color-api-1" 2>&1)"
     # The api's own id ("req":{"id":...}), not the x-request-id header it also logs: an untrusted
     # request has nginx's id only in the header.
-    grep -qF "request_id=$id" <<< "$nginx_log" \
-      && [ "$(grep -cF "\"id\":\"$id\"" <<< "$api_log")" -ge "$lines" ] \
-      && { echo "request id $id of $path is on nginx's and $lines+ of the api's log lines"; return 0; }
+    id_lines="$(grep -F "\"id\":\"$id\"" <<< "$api_log" || true)"
+    found=1
+    grep -qF "request_id=$id" <<< "$nginx_log" && [ -n "$id_lines" ] || found=0
+    for route in "${routes[@]}"; do
+      grep -qF "\"url\":\"$route" <<< "$id_lines" || found=0
+    done
+    [ "$found" = 1 ] \
+      && { echo "request id $id of $path is on nginx's and the api's log lines ${routes[*]}"; return 0; }
     sleep 1
   done
-  echo "ci-deploy-check: request id $id of $path is missing from nginx's log or from $lines of the api's lines" >&2
+  echo "ci-deploy-check: request id $id of $path is missing from nginx's log or from the api's lines ${routes[*]:-}" >&2
   return 1
 }
 
@@ -719,7 +731,7 @@ echo "$first_counts"
   || { echo "ci-deploy-check: the seed did not load the demo catalog" >&2; exit 1; }
 # /api/categories?limit=1, not /api/health/live: the api does not log health checks.
 check_request_id '/api/categories?limit=1' blue
-check_request_id /catalog/dresses blue 2
+check_request_id '/catalog/dresses?sort=price_asc' blue "${page_routes[@]}"
 check_security_headers '/api/categories?limit=1'
 # `/` is Next's redirect, answered before proxy.ts runs: nginx's policy only.
 check_security_headers /
@@ -910,7 +922,7 @@ set_proxy_secrets "$old_secret" "$new_secret"
 ENV_FILE="$env_file" deploy/scripts/deploy.sh "$tag"
 scripts/smoke-test.sh https://localhost "$tag"
 check_request_id '/api/categories?limit=1' blue
-check_request_id /catalog/dresses blue 2
+check_request_id '/catalog/dresses?sort=price_asc' blue "${page_routes[@]}"
 endgroup
 
 group "rotation, deploy 2 fails: PROXY_SECRET is the new one, the api of $broken is never ready"
@@ -946,10 +958,10 @@ grep -qF "copy skipped: $broken predates the backup job" "$work/broken.err" \
   printenv PROXY_SECRET)" = "$new_secret" ] \
   || { echo "ci-deploy-check: nginx was not recreated with the new PROXY_SECRET" >&2; exit 1; }
 # blue keeps serving, started with the old secret and the new one as PROXY_SECRET_NEXT: it trusts
-# nginx (the new secret, /api/categories?limit=1) and its own web (the old one, /catalog/dresses).
+# nginx (the new secret, /api/categories?limit=1) and its own web (the old one, the category page).
 scripts/smoke-test.sh https://localhost "$tag"
 check_request_id '/api/categories?limit=1' blue
-check_request_id /catalog/dresses blue 2
+check_request_id '/catalog/dresses?sort=price_asc' blue "${page_routes[@]}"
 endgroup
 
 group "a secret blue does not accept is refused before nginx is recreated"
@@ -980,7 +992,7 @@ backup_image_for "$second"
 ENV_FILE="$env_file" deploy/scripts/deploy.sh "$second"
 scripts/smoke-test.sh https://localhost "$second"
 check_request_id '/api/categories?limit=1' green
-check_request_id /catalog/dresses green 2
+check_request_id '/catalog/dresses?sort=price_asc' green "${page_routes[@]}"
 if docker image inspect "ai-fitting-api:$tag-stale" > /dev/null 2>&1; then
   echo "ci-deploy-check: the deploy kept an app image no container uses" >&2
   exit 1

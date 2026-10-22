@@ -5,7 +5,7 @@ and pace, §5, §9, §10); amended 2026-10-21 after 0014 deferred the proxy secr
 amended 2026-10-21 at T4 (§1, V19; §2, V20), at T5 (§1, V19; §2, the worker's `REDIS_CACHE_URL`)
 and at T6 (§1, V19; §3's handler, V21, V22); amended 2026-10-22 at T7 (§3's errors, V23; §3's reads, V24) and at T8 (§5's order, V25).
 
-How [spec.md](spec.md) is built. Decisions: [clarifications.md](clarifications.md) (V1–V25).
+How [spec.md](spec.md) is built. Decisions: [clarifications.md](clarifications.md) (V1–V27).
 No new dependencies: web already has `ioredis` (its `package.json`), Next is 16.3.8.
 
 ## 1. Pull requests and release order
