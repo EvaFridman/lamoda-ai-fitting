@@ -6,7 +6,7 @@ article (O14); amended 2026-10-19 after the check against 0012, 0013 and 0015 (O
 amended 2026-10-19 at the review of PR 1 (O40–O48), its second round (O5's description, O46,
 O49, O50) and its third round (O49's lag); amended 2026-10-21 at T13a (O76: the taint deferred) and at T20 (O97–O105: analytics);
 amended 2026-10-22 at the review of PR 3 (O106, O107) and its production checks (O108: AC23's
-Accessibility 97 accepted) and at T25 (O113: the close in a pull request of its own).
+Accessibility 97 accepted) and at T25 (O113: the close in a pull request of its own) and the review of PR 4 (O114).
 
 The owner's decisions for this spec. Ids `O1`, `O2`, … are referred to by the spec, the plan and
 code comments. All decisions below: owner, 2026-10-19.
@@ -689,3 +689,13 @@ build` passes. (owner, T19.)
   then be blocked), Next's 416 page under `/_next/static/` carries no CSP of web's, and spec 0019's
   signed storage links need `S3_PUBLIC_ENDPOINT`'s origin in `img-src` (a backlog item for 0019).
   (owner, 2026-10-22.)
+
+## Decided at the review of PR 4
+
+- **O114. The shell check hashes nonced scripts; the visit check waits 5 s.** A nonce written into
+  a prerendered shell never equals a request's, so `check-web-shells.mjs` passes only scripts with
+  `src` and checks every inline one by its hash, a nonced one too; it reads the attributes pair by
+  pair, so `src=` inside another attribute's value does not count. `ci-deploy-check.sh`'s
+  `check_visit` waits 5 s, not 3, after the floods: `edge_media` takes 2 s to refill and the
+  floods' tail may run late. A plain miss under `/_next/static/` needs nothing: Next answers it
+  with a text 404 without rendering a page. (owner, PR #97 review.)

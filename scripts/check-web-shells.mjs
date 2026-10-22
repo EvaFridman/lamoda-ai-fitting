@@ -3,8 +3,9 @@
 // shell at build time, when there is no request and so no nonce: its inline scripts run only by a
 // hash in the policy's list, `web/src/shared/csp/shell-script-hashes.json`. Today that is React's
 // one `$RT` timing script; a React or Next update that adds or changes one fails here instead of in
-// visitors' consoles. Scripts with `src` load from the site's own origin ('self'), scripts with a
-// `nonce` attribute already carry one.
+// visitors' consoles. Scripts with `src` load from the site's own origin ('self'). An inline script
+// with a `nonce` attribute is checked like the rest: a nonce written at build time never equals a
+// request's.
 // `_global-error.html` is skipped: a page made entirely at build time, whose inline scripts hold
 // that build's data, so no fixed list of hashes covers them.
 // Root `verify` runs it after `build`. A missing directory or one with no shell fails too, so the
@@ -27,10 +28,20 @@ const HASHES_FILE = path.join(
   'shell-script-hashes.json',
 );
 const SKIPPED = new Set(['_global-error.html']);
-const SCRIPT = /<script\b([^>]*)>([\s\S]*?)<\/script>/gi;
-// A `src` or `nonce` attribute with a value: an empty nonce matches no policy, and `data-src` is
-// another attribute.
-const LOADED_OR_NONCED = /(?:^|\s)(?:src|nonce)\s*=\s*(?:"[^"]+"|'[^']+'|[^\s"'>]+)/i;
+// The attributes may hold a quoted `>`; a browser closes the script at `</script >` too.
+const SCRIPT = /<script\b((?:[^>"']|"[^"]*"|'[^']*')*)>([\s\S]*?)<\/script\s*>/gi;
+const ATTRIBUTE = /([^\s"'=/>]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+)))?/g;
+
+/**
+ * Whether the attributes name a `src` with a value, read pair by pair so that `src=` inside another
+ * attribute's value does not count: an empty one loads nothing, and `data-src` is another attribute.
+ */
+function loadsSource(attributes) {
+  for (const [, name, double, single, bare] of attributes.matchAll(ATTRIBUTE)) {
+    if (name.toLowerCase() === 'src' && (double ?? single ?? bare ?? '') !== '') return true;
+  }
+  return false;
+}
 
 /** A script's hash as a CSP source names it, without the quotes. */
 export function scriptHash(text) {
@@ -38,7 +49,7 @@ export function scriptHash(text) {
 }
 
 /**
- * The inline scripts without a nonce whose hash is not in `allowed`, per shell under `dir`. Throws
+ * The inline scripts whose hash is not in `allowed`, per shell under `dir`. Throws
  * when `dir` is missing or holds no shell.
  */
 export function findBlockedScripts(dir, allowed) {
@@ -51,7 +62,7 @@ export function findBlockedScripts(dir, allowed) {
   const blocked = [];
   for (const file of shells) {
     for (const [, attributes, text] of fs.readFileSync(file, 'utf8').matchAll(SCRIPT)) {
-      if (LOADED_OR_NONCED.test(attributes)) continue;
+      if (loadsSource(attributes)) continue;
       const hash = scriptHash(text);
       if (!allowed.includes(hash)) blocked.push({ file, hash, text: text.slice(0, 80) });
     }
