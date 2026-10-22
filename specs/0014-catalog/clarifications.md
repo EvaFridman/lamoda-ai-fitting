@@ -4,7 +4,9 @@ Status: accepted (2026-10-19); amended 2026-10-19 at the plan: the whole greetin
 own health route (O34), Lamoda's layout of applied filters and the breadcrumbs (O5), search by
 article (O14); amended 2026-10-19 after the check against 0012, 0013 and 0015 (O35–O39);
 amended 2026-10-19 at the review of PR 1 (O40–O48), its second round (O5's description, O46,
-O49, O50) and its third round (O49's lag); amended 2026-10-21 at T13a (O76: the taint deferred) and at T20 (O97–O105: analytics).
+O49, O50) and its third round (O49's lag); amended 2026-10-21 at T13a (O76: the taint deferred) and at T20 (O97–O105: analytics);
+amended 2026-10-22 at the review of PR 3 (O106, O107) and its production checks (O108: AC23's
+Accessibility 97 accepted).
 
 The owner's decisions for this spec. Ids `O1`, `O2`, … are referred to by the spec, the plan and
 code comments. All decisions below: owner, 2026-10-19.
@@ -636,3 +638,10 @@ build` passes. (owner, T19.)
   indexed address) and the page's prefetch ask for the same `GET /products/facets`; the server's
   `getProductFacets` keeps one request per path within a render (`cache` of a map, keyed by the
   path's string), so a view costs the visitor's quota one read, not two. (PR #96 review.)
+
+## Decided at the production checks of PR 3
+
+- **O108. Accessibility 97 is accepted for AC23.** Lighthouse (PageSpeed Insights) on production
+  gave `/catalog` and `/catalog/dresses` Accessibility 97, not AC23's 100; the owner accepts 97
+  and nothing is changed for it. Which audits lost the points was not recorded, so O47's fix or
+  backlog item does not apply: this entry is the recorded reason. (owner, 2026-10-22.)
