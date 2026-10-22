@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Runs the production setup on this machine with images built by ci-build-images.sh and checks a
 # blue-green deploy end to end, with the same deploy.sh the server runs:
-#   1. deploy <tag> (blue), the first request's time measured (spec 0018 plan §5, printed only),
+#   1. deploy <tag> (blue): its log shows the warm-up of every listed page and category before
+#      the switch, none of it through nginx (spec 0018 AC8, AC11, AC13); the first request's time
+#      measured (spec 0018 plan §5, printed only),
 #      smoke test through nginx; the seed loaded the demo catalog; nginx's
 #      request id is on the response and on nginx's and the api's log lines (spec 0006 AC14);
 #      nginx's security headers on api and web and on nginx's own errors (AC13);
@@ -25,7 +27,8 @@
 #      its backup image is missing (spec 0012 P24) and when the storage refuses its copy (AC2);
 #   3. rotate PROXY_SECRET in two deploys (spec 0006 F21), with a failed one in between:
 #      a. set PROXY_SECRET_NEXT and roll back to <tag>, still running in blue: deploy.sh recreates
-#         it, so it accepts the next secret too;
+#         it, so it accepts the next secret too, and warms it up before the switch (spec 0018
+#         AC10);
 #      b. make the next secret PROXY_SECRET and deploy an image whose api is never ready: nginx is
 #         recreated with the new secret, the deploy fails, and blue still trusts nginx and web;
 #         that version has neither the backup job nor its image, so its deploy skips the copy
@@ -33,6 +36,9 @@
 #      c. a third secret, unknown to blue, is refused by deploy.sh before nginx is recreated;
 #      d. deploy <tag>-next (green) with the new secret only; an app image no container uses is
 #         removed, the images of blue and green stay;
+#      e. deploy <tag>-unwarmed (blue) with WARMUP_EXTRA_PATH, an address that answers 404: the
+#         warm-up stops it before the switch, blue is stopped, green keeps serving (spec 0018
+#         AC9), and the knob is not in blue's environment;
 #   4. with the serving api stopped, /api/ answers 503 in the api's format (F33);
 #   5. no request that reached the storage carried X-Proxy-Secret (spec 0011 plan §7).
 # nginx runs on its temporary self-signed certificate, SITE_DOMAIN is localhost, ports 80 and 443
@@ -54,6 +60,7 @@ tag="${IMAGE_TAG:?set IMAGE_TAG}"
 second="$tag-next"
 broken="$tag-broken"
 migrating="${tag}abc"
+unwarmed="$tag-unwarmed"
 # deploy.sh removes the app images no container uses, the backup image after each deploy too: this
 # name, outside its prefix, keeps the image for the later deploys' tags.
 backup_source="deploy-check-backup:$tag"
@@ -94,6 +101,30 @@ counts() {
           OR NOT EXISTS (SELECT 1 FROM product_attribute_values x WHERE x.product_id = p.id)"
 }
 count_of() { sed -n "s/^$1=//p" <<< "$2"; }
+
+# spec 0018 AC8, AC11: the deploy's log <file> shows the warm-up of <color> before nginx switched to
+# it, with both times for every address of the list (V28) and the page of every active category,
+# none skipped (the demo catalog has fewer than 50).
+check_warmup_log() {
+  local file="$1" color="$2" slugs path status warmed switched
+  slugs="$(docker compose -f deploy/compose/infra.yml --env-file "$env_file" exec -T postgres \
+    psql -U ai_fitting -d ai_fitting -tA -c 'SELECT slug FROM categories WHERE is_active ORDER BY slug')"
+  [ -n "$slugs" ] || { echo "ci-deploy-check: no active category to look for in $file" >&2; return 1; }
+  grep -qE '^warm-up: [0-9]+ addresses, 0 categories over the bound skipped$' "$file" \
+    || { echo "ci-deploy-check: $file has no warm-up count with none skipped" >&2; return 1; }
+  for path in / /catalog $(sed 's|^|/catalog/|' <<< "$slugs") /catalog/opengraph-image \
+    /catalog/twitter-image /privacy /sitemap.xml /robots.txt; do
+    # `/` is Next's redirect, not followed.
+    if [ "$path" = / ]; then status=307; else status=200; fi
+    grep -qE "^warm-up: $path $status, first [0-9]+ ms, repeated [0-9]+ ms\$" "$file" \
+      || { echo "ci-deploy-check: $file has no warm-up line for $path" >&2; return 1; }
+  done
+  warmed="$(grep -n '^warm-up: ' "$file" | tail -n 1 | cut -d: -f1)"
+  switched="$(grep -n "switching nginx to $color" "$file" | head -n 1 | cut -d: -f1)"
+  [ -n "$switched" ] && [ "$warmed" -lt "$switched" ] \
+    || { echo "ci-deploy-check: in $file the warm-up does not come before the switch to $color (lines '$warmed', '$switched')" >&2; return 1; }
+  echo "$file: $color warmed up /catalog and $(wc -l <<< "$slugs") category pages before the switch"
+}
 
 # AC14 (spec 0006 F10): a request to <path> that sends its own X-Request-Id gets exactly one back,
 # nginx's (32 hex characters), and that id is on nginx's log and on the api's: on a line of each
@@ -719,7 +750,14 @@ endgroup
 
 group "deploy $tag (first deploy, blue)"
 ENV_FILE="$env_file" deploy/scripts/deploy.sh "$tag" 2>&1 | tee "$work/deploy-1.log"
-# The first visitor, before the smoke test warms these pages (spec 0018 V25); numbers only.
+check_warmup_log "$work/deploy-1.log" blue
+# spec 0018 AC13: the warm-up asked web from inside its container, so no page has passed nginx yet
+# (the deploy's own requests through it are for /media/).
+nginx_log="$(docker compose -f deploy/compose/infra.yml --env-file "$env_file" logs nginx 2>&1)"
+! grep -qE '"GET /(catalog|privacy|sitemap\.xml|robots\.txt| )' <<< "$nginx_log" \
+  || { echo "ci-deploy-check: a warm-up request went through nginx" >&2; exit 1; }
+echo "no warm-up request went through nginx"
+# The first visitor after the warm-up, before the smoke test (spec 0018 V25); numbers only.
 node scripts/measure-first-request.mjs https://localhost /catalog /catalog/dresses
 scripts/smoke-test.sh https://localhost "$tag"
 first_counts="$(counts)"
@@ -922,7 +960,9 @@ new_secret="$(openssl rand -hex 32)"
 
 group "rotation, deploy 1: PROXY_SECRET_NEXT set, roll back to $tag (blue, still running)"
 set_proxy_secrets "$old_secret" "$new_secret"
-ENV_FILE="$env_file" deploy/scripts/deploy.sh "$tag"
+ENV_FILE="$env_file" deploy/scripts/deploy.sh "$tag" 2>&1 | tee "$work/rollback.log"
+# spec 0018 AC10: a rollback warms up the copy it switches to as well.
+check_warmup_log "$work/rollback.log" blue
 scripts/smoke-test.sh https://localhost "$tag"
 check_request_id '/api/categories?limit=1' blue
 check_request_id '/catalog/dresses?sort=price_asc' blue "${page_routes[@]}"
@@ -1004,6 +1044,31 @@ for image in "ai-fitting-api:$tag" "ai-fitting-web:$tag" "ai-fitting-api:$second
   docker image inspect "$image" > /dev/null 2>&1 \
     || { echo "ci-deploy-check: the deploy removed $image, which a container uses" >&2; exit 1; }
 done
+endgroup
+
+group "a failed warm-up stops the deploy of $unwarmed before the switch"
+# spec 0018 AC9: the images of <tag> under a new tag, so blue is started again as a new version,
+# and one more address that answers 404. Last before the api stops: it leaves blue stopped.
+docker tag "ai-fitting-api:$tag" "ai-fitting-api:$unwarmed"
+docker tag "ai-fitting-web:$tag" "ai-fitting-web:$unwarmed"
+backup_image_for "$unwarmed"
+if WARMUP_EXTRA_PATH=/catalog/no-such ENV_FILE="$env_file" deploy/scripts/deploy.sh "$unwarmed" 2>&1 \
+  | tee "$work/deploy-unwarmed.log"; then
+  echo "ci-deploy-check: the deploy whose warm-up meets a 404 was expected to fail" >&2
+  exit 1
+fi
+grep -qF 'warm-up failed: /catalog/no-such (answered 404); stopped blue, green keeps serving' \
+  "$work/deploy-unwarmed.log" \
+  && ! grep -qF 'switching nginx' "$work/deploy-unwarmed.log" \
+  || { echo "ci-deploy-check: the deploy failed, but not at the warm-up of /catalog/no-such, or it switched" >&2; exit 1; }
+[ "$(docker inspect -f '{{.State.Running}}' ai-fitting-blue-web-1)" = false ] \
+  || { echo "ci-deploy-check: blue still runs after its failed warm-up" >&2; exit 1; }
+# The knob reaches the script's process only (deploy.sh's `exec -e`).
+blue_env="$(docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' ai-fitting-blue-web-1)"
+! grep -q '^WARMUP_EXTRA_PATH=' <<< "$blue_env" \
+  || { echo "ci-deploy-check: WARMUP_EXTRA_PATH is in blue's web environment" >&2; exit 1; }
+scripts/smoke-test.sh https://localhost "$second"
+echo "the 404 of /catalog/no-such stopped the deploy of $unwarmed before the switch; $second keeps serving"
 endgroup
 
 # Last: it leaves the site without an api.

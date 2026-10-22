@@ -672,7 +672,11 @@ the backup bucket's `pre-deploy/` if the release brings a migration not yet appl
 a throwaway container of the `ai-fitting-backup` image, `deploy/compose/backup.yml`; a version from
 before that image skips it, P24), runs the migrations, then the seed (the demo catalog
 and its photos, a no-op once loaded), then fetches one catalog photo from the bucket and through
-nginx; a failure of any stops it, the running copy keeps serving. nginx serves `/media/<key>` from
+nginx; a failure of any stops it, the running copy keeps serving. After the new copy's readiness
+and before the switch, a rollback too, it warms the copy up from inside its web container
+(`deploy/scripts/warmup.mjs`, every address of `/healthz/warmup` twice, both times logged; spec
+0018 V6–V8): any status but the expected one, a 10 s answer or 120 s in all stops the copy and the
+deploy, the running copy keeps serving. nginx serves `/media/<key>` from
 the bucket's `media/<key>` (the bucket lets only the server's address read it, so a new address
 needs the policy updated first: `deploy/README.md`, "Хранилище S3"), with a cache, a 404 or 503 in
 the api's error format and nothing of the visitor's request passed on. nginx limits

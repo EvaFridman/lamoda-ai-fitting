@@ -60,6 +60,14 @@ Details and commands: `deploy/README.md`.
   without the seed (a rollback to a version from before it) logs "seed skipped" and deploys. A
   rollback to the copy that still runs applies nginx and switches it: no migrations, no seed, no photo check; compose recreates that copy first
   when `.env` or `app.yml` changed since it started (a rotated secret), and it must pass readiness.
+- Between readiness and the switch, for a new version and a rollback alike, `deploy.sh` warms up
+  the target (spec 0018 V6–V8): `deploy/scripts/warmup.mjs`, piped into its web container
+  (`exec -T`, `127.0.0.1`, never through nginx), requests every address of `/healthz/warmup`
+  twice and logs both times; any status but 200 (`/`'s 307), a 10 s answer or 120 s in all stops
+  the target and the deploy, the active copy keeps serving. An image from before the list (404)
+  warms up `/` only. `WARMUP_EXTRA_PATH` (a check's knob, never set by CD) reaches the script
+  through `exec -e`, never the container's environment. A change to the step or the script is
+  checked in `ci-deploy-check.sh` (the lines, a stopped deploy, the rollback run).
 - A changed `PROXY_SECRET` recreates nginx; `deploy.sh` first checks that the serving api already
   trusts it (as `PROXY_SECRET_NEXT`) and stops otherwise. Rotation takes two deploys
   (`deploy/README.md`).

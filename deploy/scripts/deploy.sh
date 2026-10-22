@@ -8,6 +8,8 @@
 #   ENV_FILE        values for the compose files (default: .env at the repository root)
 #   DEPLOY_PROFILE  `server` also runs certbot (default: none)
 #   IMAGE_REGISTRY  e.g. ghcr.io/evafridman/ (default: none, local images); with it, images are pulled
+#   WARMUP_EXTRA_PATH  one more address for the warm-up, a check's knob (default: none; CD never
+#                   sets it, ci-deploy-check.sh sets one that answers 404)
 #
 # Exit 0: <image-tag> serves the site. Exit 1: it does not, and whatever served before still does.
 set -euo pipefail
@@ -355,6 +357,25 @@ for _ in $(seq 1 10); do
 done
 [ -n "$ready" ] \
   || { app "$target" "$tag" stop >&2 || true; fail "$target is not ready; stopped it, ${active:-nothing} keeps serving"; }
+
+# Warm-up from inside web (spec 0018 V6–V8), for a new copy and a rollback alike: every address of
+# its /healthz/warmup twice, the caches filled before a visitor comes; anything but the expected
+# status, a slow answer or the step past 120 s stops the deploy. An image from before the list
+# requests / only (the script says so). WARMUP_EXTRA_PATH is a check's knob (ci-deploy-check.sh)
+# and reaches the script's process only, never the container's environment. The script's lines go
+# to the log; its last line on stderr names the address that failed.
+log "warming up $target"
+warmup_env=()
+[ -z "${WARMUP_EXTRA_PATH:-}" ] || warmup_env=(-e "WARMUP_EXTRA_PATH=$WARMUP_EXTRA_PATH")
+warmup_status=0
+{ warmup_err="$(app "$target" "$tag" exec -T ${warmup_env[@]+"${warmup_env[@]}"} web \
+  node --input-type=module - < "$root/deploy/scripts/warmup.mjs" 2>&1 >&3)" || warmup_status=$?; } 3>&2
+[ -z "$warmup_err" ] || printf '%s\n' "$warmup_err" >&2
+if [ "$warmup_status" -ne 0 ]; then
+  failed_at="$(sed -n 's/^warm-up failed: //p' <<< "$warmup_err" | tail -n 1)"
+  app "$target" "$tag" stop >&2 || true
+  fail "warm-up failed: ${failed_at:-exit $warmup_status}; stopped $target, ${active:-nothing} keeps serving"
+fi
 
 # 4. Switch, then confirm from outside that the new version answers.
 log "switching nginx to $target"

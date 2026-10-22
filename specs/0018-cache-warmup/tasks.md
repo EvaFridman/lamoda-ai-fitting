@@ -99,7 +99,7 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       cold pass and no pause in the repeated one, the bound of 50 and the skipped count, V16);
       `npm run verify`.
       Commit: `feat(deploy): add the warm-up script`
-- [ ] **T11. The warm-up step.** `deploy.sh` after readiness and before the switch, the stop and the
+- [x] **T11. The warm-up step.** `deploy.sh` after readiness and before the switch, the stop and the
       older images' fallback; `WARMUP_EXTRA_PATH`; `ci-deploy-check.sh` (the lines, a stopped
       deploy, the rollback run); `deploy/README.md` «Как идёт деплой»; `.claude/rules/deploy.md`;
       `CLAUDE.md`'s Production and deploys; backlog "Cache warm-up on deploy (issue #41)".
