@@ -5,7 +5,9 @@
 #      request id is on the response and on nginx's and the api's log lines (spec 0006 AC14);
 #      nginx's security headers on api and web and on nginx's own errors (AC13);
 #      nginx's limits per address: a flood, a 2 MB body, an 11th socket (AC10–AC12), a 51st request
-#      in progress and an unfinished header (F36); the seed uploaded its photos and nginx serves
+#      in progress and an unfinished header (F36); a flood of pages and of photos is refused while
+#      one catalog visit stays under (spec 0014 AC16); /healthz answers 404 from outside (spec 0014
+#      plan §5); the seed uploaded its photos and nginx serves
 #      them at /media/ (spec 0011 AC2, AC3), from its cache while the storage answers 5xx (M36);
 #      Temporal's retention is 24 hours (spec 0013 N45), then changed for the next deploy; the
 #      database had no migrations yet, so a copy went to the backup bucket before they ran (spec
@@ -170,8 +172,9 @@ expect_error() {
 }
 
 # AC10: a flood of requests at once from one address (100, or 200 to liveness) gets nginx's 429 in
-# the api's format past the burst (40 on /api/, 100 on liveness). Unknown routes, broken JSON and
-# liveness: the api's own limit never counts them, so every 429 here is nginx's.
+# the api's format past the burst (40 on /api/, 100 on liveness, 33 on pages, 60 on /media/).
+# Unknown routes, broken JSON, liveness, pages and photos: the api's own limit never counts them
+# (a page's api reads are web's, under the throwaway quota), so every 429 here is nginx's.
 # At most 40 at once: past 50 in progress the connection limit (edge_conns) would answer the same
 # 429, so nginx's log must show the request zone <zone> refusing them.
 nginx_log_count() {
@@ -203,6 +206,25 @@ check_flood() {
   echo "a flood of $what: $n429 of $total answered nginx's 429 in the api's format, all with the security headers"
 }
 
+# spec 0014 AC16, the local half: one catalog visit is under the page and photo limits. The visit
+# measured in production made 14 page requests; a batch has 60 photos. All at once (at most 40 in
+# progress, under edge_conns), from the address the floods above used, once its buckets refilled
+# (33 pages in 1 s, 60 photos in 2 s).
+check_visit() {
+  local out n429 failed
+  sleep 3
+  out="$(in_nginx sh -c "$inner --parallel --parallel-immediate --parallel-max 40 \
+    -o /dev/null -o /dev/null -w '%{http_code}\n' \
+    'https://localhost/catalog?visit=[1-14]' 'https://localhost/media/no-such-key.webp?visit=[1-60]'; true")"
+  n429="$(grep -c '^429$' <<< "$out" || true)"
+  failed="$(grep -c '^000$' <<< "$out" || true)"
+  [ "$(wc -l <<< "$out")" -eq 74 ] && [ "$n429" -eq 0 ] && [ "$failed" -eq 0 ] || {
+    printf 'ci-deploy-check: one visit (14 pages, 60 photos) got:\n%s\n' "$(sort <<< "$out" | uniq -c)" >&2
+    return 1
+  }
+  echo "one visit, 14 pages and 60 photos at once, stays under nginx's limits"
+}
+
 check_edge_limits() {
   local i status got holders held
   check_flood "unknown routes" "'https://localhost/api/no-such-route-[1-100]'" edge_api
@@ -210,6 +232,17 @@ check_edge_limits() {
     "-X POST -H 'Content-Type: application/json' -d '{' 'https://localhost/api/products?n=[1-100]'" \
     edge_api
   check_flood "liveness" "'https://localhost/api/health/live?n=[1-200]'" edge_health 200
+  # spec 0014 AC16: web's pages and /media/, with random missing keys (O39: a 404 is cached per
+  # key, so each new one reaches the bucket).
+  check_flood "pages" "'https://localhost/catalog?n=[1-100]'" edge_pages
+  # nginx decodes %2F into /_next/static/a, Next renders its not-found page: counted as a page.
+  check_flood "pages behind an encoded /_next/static/" \
+    "'https://localhost/x%2F..%2F_next/static/a?n=[1-100]'" edge_pages
+  # A range past a file's end makes Next render its 416 page.
+  check_flood "static files with a Range" \
+    "-H 'Range: bytes=999999999-' 'https://localhost/_next/static/a?n=[1-100]'" edge_pages
+  check_flood "photos" "'https://localhost/media/no-such-key-[1-100].webp'" edge_media
+  check_visit
   # The flooding address is over its limit; a visitor at a normal pace from this machine is served.
   for i in 1 2 3 4 5; do
     status="$(curl -sk --max-time 10 -o /dev/null -w '%{http_code}' 'https://localhost/api/categories?limit=1' \
@@ -260,22 +293,22 @@ check_edge_limits() {
     "$(cat "$work/404.json")" ROUTE_NOT_FOUND
 
   # F36: one address has at most 50 requests in progress anywhere. 50 uploads whose body never
-  # comes (curl reads it from a `sleep`) hold their slots through `/`, which has no rate limit,
-  # until client_body_timeout (10 s); meanwhile a 51st request is refused. All in one shell in the
+  # comes (curl reads it from a `sleep`) hold their slots through a GET of `/_next/static/`, which
+  # has no rate limit, until client_body_timeout (10 s); meanwhile a 51st request is refused. All in one shell in the
   # container, so docker's own delays do not eat the 10 s. Not `pkill sleep` at the end: the
   # image's reload loop sleeps too; anchored, or `-f` would match this shell's own command line.
   local out
   out="$(in_nginx sh -c "for i in \$(seq 50); do
-      sleep 29 | $inner -T - -X POST -o /dev/null https://localhost/ 2> /dev/null &
+      sleep 29 | $inner -T - -X GET -o /dev/null https://localhost/_next/static/check 2> /dev/null &
     done
     i=0
-    while [ \$(pgrep -f '^curl .* -T - -X POST' | wc -l) -lt 50 ] && [ \$i -lt 30 ]; do
+    while [ \$(pgrep -f '^curl .* -T - -X GET' | wc -l) -lt 50 ] && [ \$i -lt 30 ]; do
       sleep 0.1; i=\$((i + 1))
     done
     sleep 1
-    echo \$(pgrep -f '^curl .* -T - -X POST' | wc -l)
+    echo \$(pgrep -f '^curl .* -T - -X GET' | wc -l)
     $inner --max-time 5 -o /tmp/request-51 -w '%{http_code} %{content_type} $security_w\n' \
-      https://localhost/
+      https://localhost/_next/static/check
     pkill curl; pkill -f '^sleep 29'; true")"
   held="$(sed -n 1p <<< "$out")"
   got="$(sed -n 2p <<< "$out")"
@@ -371,6 +404,8 @@ check_media() {
       && ! grep -qiE '^(x-amz-|x-rgw-|seaweed-)' <<< "$headers" \
       || { printf 'ci-deploy-check: /media/%s answers:\n%s\n' "$key" "$headers" >&2; return 1; }
     n=$((n + 1))
+    # Under edge_media's 30 a second, however many photos the seed has (spec 0014 O110).
+    sleep 0.04
   done <<< "$keys"
   echo "$n catalog images: 200, image/webp, Cache-Control: public, max-age=86400, no x-amz-*, x-rgw-*, Seaweed-*"
   first="$(head -n 1 <<< "$keys")"
@@ -671,6 +706,11 @@ check_security_headers /
 # The socket location and nginx's 403 for readiness: a location's own add_header would drop them.
 check_security_headers '/socket.io/?EIO=4&transport=polling'
 check_security_headers /api/health/ready
+# web's health route is for the container's check only (spec 0014 plan §5).
+got="$(curl -sk --max-time 10 -o "$work/healthz.json" -w "%{http_code} %{content_type} $security_w" \
+  https://localhost/healthz || true)"
+expect_error "/healthz from outside" "$got" "404 application/json $security" \
+  "$(cat "$work/healthz.json")" ROUTE_NOT_FOUND
 endgroup
 
 group "the copy before the first migrations"

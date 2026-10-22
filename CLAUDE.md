@@ -584,8 +584,11 @@ nginx; a failure of any stops it, the running copy keeps serving. nginx serves `
 the bucket's `media/<key>` (the bucket lets only the server's address read it, so a new address
 needs the policy updated first: `deploy/README.md`, "Хранилище S3"), with a cache, a 404 or 503 in
 the api's error format and nothing of the visitor's request passed on. nginx limits
-requests, sockets and requests in progress per client address above the api's own quotas, slow
-clients to 10 s, and bodies to 1 MB, and answers 429, 413 and
+requests, sockets and requests in progress per client address above the api's own quotas, web's
+pages at 3× a measured catalog visit and `/media/` at 3× its rate with a burst of one batch
+(spec 0014 O109–O111; plain GETs of `/_next/static/` are not counted, `/healthz` answers 404
+from outside), slow clients to 10 s, and bodies to 1 MB, and
+answers 429, 413 and
 `/api/`'s 502/504 (as 503) in the api's error format (`deploy/README.md`, "Лимиты nginx"). How deploys, rollbacks and images work: `.claude/rules/deploy.md`, loaded when you work on
 deploy, CI, Docker or `scripts/` files, and `deploy/README.md`. Production secrets never pass through the chat;
 commands that change the server (`ssh ai-fitting`) need the owner's confirmation.

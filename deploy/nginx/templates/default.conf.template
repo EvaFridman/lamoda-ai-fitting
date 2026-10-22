@@ -30,6 +30,24 @@ limit_conn_zone $binary_remote_addr zone=edge_sockets:10m;
 # Liveness has its own, generous zone: the deploy's request loop sends about 10 r/s to it from one
 # address (spec 0006 F36).
 limit_req_zone $binary_remote_addr zone=edge_health:10m rate=50r/s;
+# web's pages, 3 times the peak of one measured catalog visit with its prefetches (11 r/s), and
+# /media/, 3 times that visit's photos (10 r/s) with a burst of one batch's 60 photos (spec 0014
+# O19, O24, O39, O109, O110). Next's static files have no limit: a page loads dozens of them.
+# Read from the raw request line: nginx matches locations on the decoded path, Next on its own
+# reading, so a path the two could read apart (%2F, %2e, `..`, `\`) counts as a page. An empty key
+# is not counted. Chunk names keep only %5B and %5D (`[slug]`). A Range or a failing If-Match or
+# If-Unmodified-Since makes Next render its error page (416, 412), so such a request counts too:
+# the prefix breaks the match.
+map "$http_range$http_if_match$http_if_unmodified_since" $edge_static_conditional {
+  "" "";
+  default "c";
+}
+map "$edge_static_conditional$request_method $request_uri" $edge_pages_key {
+  "~^(GET|HEAD) /_next/static/(?!.*\.\.)([A-Za-z0-9._~/-]|%5[BbDd])*(\?.*)?$" "";
+  default $binary_remote_addr;
+}
+limit_req_zone $edge_pages_key zone=edge_pages:10m rate=33r/s;
+limit_req_zone $binary_remote_addr zone=edge_media:10m rate=30r/s;
 # Requests one address has in progress anywhere on the site, slow bodies included (F36).
 limit_conn_zone $binary_remote_addr zone=edge_conns:10m;
 limit_req_status 429;
@@ -242,13 +260,15 @@ server {
   }
 
   # The catalog media: /media/<key> is the bucket's media/<key>, which the bucket lets only this
-  # server read, without a key (spec 0011 M3, M15). Read-only, no rate limit yet (only edge_conns,
-  # backlog "Rate limit for web pages"). No add_header here: the server's would be dropped.
+  # server read, without a key (spec 0011 M3, M15). Read-only. A missing key's 404 is cached per
+  # key, so random keys would each reach the bucket: edge_media holds them back (spec 0014 O39). No
+  # add_header here: the server's would be dropped.
   location /media/ {
     # GET allows HEAD too. Any other method is refused, as the api refuses a method a route lacks.
     limit_except GET {
       deny all;
     }
+    limit_req zone=edge_media burst=60 nodelay;
     # The key only: the query string stays here (the storage would act on one, e.g.
     # ?response-content-type= replaces the answer's type, M30) and is not in the cache key, so
     # it cannot split the cache. A key ending in / is a folder: the emulator answers it with an
@@ -335,9 +355,17 @@ server {
     return 503 '{"error":{"code":"SERVICE_UNAVAILABLE","message":"The storage is unavailable, try again later","details":[]}}';
   }
 
+  # web's health route is for the container's health check only (spec 0014 O34).
+  location = /healthz {
+    default_type application/json;
+    return 404 '{"error":{"code":"ROUTE_NOT_FOUND","message":"Route not found","details":[]}}';
+  }
+
   # web gets the address and the request id but not the secret: it has its own and forwards both
-  # to the api with it.
+  # to the api with it. Pages (and their prefetches) count in edge_pages; Next's static files,
+  # dozens per page and cached by the browser, do not ($edge_pages_key, spec 0014 plan §5).
   location / {
+    limit_req zone=edge_pages burst=33 nodelay;
     set $proxy_secret "";
     proxy_pass http://web;
   }

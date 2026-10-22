@@ -410,15 +410,18 @@ in production, so no deployed web sends it.
   dependency) then reads nginx's access log for that client address. The server has no Node, so
   the owner runs it on the Mac, with that address's lines of the log piped from the server over
   `ssh` (filtered there). It prints the requests per second, at peak and in total, for the page
-  locations. The numbers go to `tasks.md`.
+  locations. The numbers go to `tasks.md`. Production's catalog had no second batch, so the visit
+  scrolled none (O109).
 - **Page limit.** A zone `edge_pages` with the rate and burst at 3× the measured peak, on
-  `location /` and `/catalog`. `/_next/static/` gets its own location without the limit (backlog
-  "Rate limit for web pages"). The api-format 429 goes through `@too_many_requests`.
+  `location /` and `/catalog`. `/_next/static/` is not counted (backlog "Rate limit for web
+  pages"): by the raw request line, only a GET or HEAD whose path nginx and Next cannot read apart
+  (no `%2F`, `%2e`, `..` or `\`) and with no `Range`, `If-Match` or `If-Unmodified-Since` (Next
+  renders its 416 and 412 pages), so no such request renders a page past the limit (T23 review). The api-format 429 goes through `@too_many_requests`.
   `location = /healthz` answers 404.
 - **`/media/` limit (O39).** A zone `edge_media` on the existing `/media/` location, with the rate
-  and burst at 3× the photos of the measured visit. Its 429 follows the location's own error pages:
+  at 3× the photos of the measured visit and the burst one batch's 60 photos (O110). Its 429 follows the location's own error pages:
   it repeats 413 and 429, as the template's comment requires.
-  - `ci-deploy-check.sh`'s slow-POST connection test (it relies on `/` having no rate limit) moves
+  - `ci-deploy-check.sh`'s slow-upload connection test (it relies on `/` having no rate limit; now a GET with a body) moves
     to `/_next/static/`, which still has no limit.
 - **CSP.** `web/proxy.ts`, Next 16's middleware, runs on page routes and not on `/_next/static`,
   `/media` or `/api`. It sets a per-request nonce and the header:

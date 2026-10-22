@@ -34,11 +34,6 @@ removes it from this list. Found by the agents' first security audit and trial r
   requests; each lasts at most 10 s (header) or 15 s (keep-alive, spec 0006 F36). A per-address connection limit on 80/443 in the
   server's firewall (`ct count`, `deploy/ansible/base.yml`) closes it; the owner applies it, with
   a way back in case the rule cuts off the site or SSH.
-- **Rate limit for web pages.** `/` has no `limit_req` (spec 0006 F37). Add one after the catalog
-  pages of 0007: move `/_next/static/` to its own location (`/media/` has one since spec 0011, with
-  no `limit_req` yet; it comes first: nginx caches a missing key's 404 per key, so random keys each
-  reach the bucket, held back only by the connection limit), measure how many requests a page makes with Next's prefetch, and set the rate
-  above that.
 - **HTTP/2.** nginx serves HTTP/1.1 only: with HTTP/2 every reload drops a few requests (spec 0004
   E38). Bringing it back needs nginx to stop reloading in normal work: blue-green switching through
   a DNS name nginx re-resolves (`resolve`) instead of a rewritten upstream and a reload, the
