@@ -148,14 +148,13 @@ stack.** State: `draft` (as today), `screen` (`list` | `sort` | `size` | `brand`
 
 ## 4. Focus kept when the counts fail (W13; AC15)
 
-`CatalogBrowser` keeps the last facets it had for the filters only, by two changes, since neither
-covers both cases:
-
-- while the new counts load: `useProductFacets` with TanStack's `placeholderData:
-keepPreviousData` (placeholder data shows only while the query is `pending`);
-- once they have failed: TanStack leaves `data` `undefined`, so the page keeps the last successful
-  answer itself (state updated in render when `facets.data` changes, reset on another category,
-  which mounts a new page) and passes `facets.data ?? lastFacets` to the filters.
+`CatalogBrowser` keeps the last facets it had for the filters only. While the new counts load and
+once they have failed, TanStack's `data` is `undefined`, so the page keeps the last successful
+answer itself, with the category it was counted for (state updated in render when `facets.data`
+changes), and passes `facets.data ?? lastFacets` to the filters only while that category is the
+page's. So another category never shows the counts of the one before, whether or not Next mounts
+a new page for it (it does for another slug; tests mount the component directly and cannot see
+that). No `keepPreviousData` (W23).
 
 The chips stay mounted with the previous counts, so the focus stays on the applied chip. The title's count, the live region and `categoryRows` keep reading the current answer
 only. Closes backlog «Focus lost when the filter counts fail».

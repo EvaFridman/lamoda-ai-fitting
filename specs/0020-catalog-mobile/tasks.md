@@ -42,11 +42,12 @@ Status: accepted (2026-10-23); amended 2026-10-23 at the review of PR 1 (T4, T5,
       Check: Vitest (fallbacks, `renderList`); `npm run verify` with `check:web-shells` unchanged;
       qa-tester AC1–AC3 at 375 and 1280 px with the api slowed.
       Commit: `fix(web): show the catalog's placeholders while a category loads`
-- [ ] **T5. Focus kept when the counts fail (W13; plan §4).** The filters read the last facets
-      while new ones load (`keepPreviousData`) and after they fail (the last answer kept by the
-      page: a second change, not given by `keepPreviousData`); backlog item removed.
-      Check: Vitest AC15, a pending and a failed refetch each; qa-tester with the facets request
-      failing.
+- [x] **T5. Focus kept when the counts fail (W13, W23; plan §4).** The filters read the last
+      facets the page kept for its category while new ones load and after they fail; backlog
+      item removed.
+      Check: Vitest AC15, a pending and a failed refetch each, and a failed one after the category
+      changed (no counts of the earlier category); qa-tester with the facets request failing on
+      category A, then a step to category B: B's chips never show A's counts.
       Commit: `fix(web): keep the catalog's filter chips while their counts load`
 
 ### The filters sheet

@@ -21,8 +21,9 @@ function priceBounds(query: CatalogQuery): number {
 
 // "Catalog Filter Applied" for each filter a change of the selection changed (O101): `values` is
 // how many are chosen after it, 0 when the filter is gone; the values themselves are never sent.
-// An attribute is a colour or not by the current counts (`attributes`); chosen values of an
-// attribute the counts do not list (they failed, or no longer have it) count as one `attribute`.
+// An attribute is a colour or not by the counts the filters show (`attributes`: the current answer
+// or the one the page kept, 0020 plan §4); chosen values of an attribute the counts do not list
+// (there are none, or they no longer have it) count as one `attribute`.
 export function filterChanges(
   before: CatalogQuery,
   after: CatalogQuery,
