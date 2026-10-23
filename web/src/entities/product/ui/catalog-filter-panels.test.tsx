@@ -74,6 +74,108 @@ describe('ColorFilterPanel', () => {
   });
 });
 
+describe('ColorFilterPanel in the sheet layout', () => {
+  it('says "Поиск" in the search, not "Найдите цвет"', () => {
+    render(
+      <ColorFilterPanel attribute={colour} value={[]} onValueChange={vi.fn()} layout="sheet" />,
+    );
+
+    expect(screen.getByRole('searchbox', { name: 'Поиск: Цвет' })).toHaveAttribute(
+      'placeholder',
+      'Поиск',
+    );
+  });
+
+  it('shows the chip "Выбрать все" with selectAll, and a click ticks every shown value', async () => {
+    const user = userEvent.setup();
+    const onValueChange = vi.fn();
+    render(
+      <ColorFilterPanel
+        attribute={colour}
+        value={[]}
+        onValueChange={onValueChange}
+        layout="sheet"
+        selectAll
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Выбрать все' }));
+
+    expect(onValueChange).toHaveBeenCalledWith([id(101), id(102)]);
+  });
+
+  it('has no chip without selectAll', () => {
+    render(
+      <ColorFilterPanel attribute={colour} value={[]} onValueChange={vi.fn()} layout="sheet" />,
+    );
+
+    expect(screen.queryByRole('button', { name: 'Выбрать все' })).not.toBeInTheDocument();
+  });
+});
+
+// The kit's class is the only sign of the layout: the rows keep their roles and names.
+describe('the sheet layout of the list panels', () => {
+  const brands = [{ id: id(1), name: 'Nike', count: 12 }];
+  const sizes = [{ size: 'M', count: 3 }];
+
+  it('puts the kit panel in its sheet form', () => {
+    render(
+      <>
+        <ColorFilterPanel attribute={colour} value={[]} onValueChange={vi.fn()} layout="sheet" />
+        <AttributeFilterPanel
+          attribute={material}
+          value={[]}
+          onValueChange={vi.fn()}
+          layout="sheet"
+        />
+        <BrandFilterPanel brands={brands} value={[]} onValueChange={vi.fn()} layout="sheet" />
+        <SizeFilterPanel sizes={sizes} value={[]} onValueChange={vi.fn()} layout="sheet" />
+        <ProductSortFilterPanel value="new" onValueChange={vi.fn()} layout="sheet" />
+      </>,
+    );
+
+    for (const name of ['Цвет', 'Материал', 'Бренд', 'Размер']) {
+      expect(screen.getByRole('group', { name }).parentElement, name).toHaveClass('sheet');
+    }
+    expect(screen.getByRole('radiogroup', { name: 'Сортировка' })).toHaveClass('sheet');
+  });
+
+  it('keeps the list form by default', () => {
+    render(
+      <>
+        <ColorFilterPanel attribute={colour} value={[]} onValueChange={vi.fn()} />
+        <AttributeFilterPanel attribute={material} value={[]} onValueChange={vi.fn()} />
+        <BrandFilterPanel brands={brands} value={[]} onValueChange={vi.fn()} />
+        <SizeFilterPanel sizes={sizes} value={[]} onValueChange={vi.fn()} />
+        <ProductSortFilterPanel value="new" onValueChange={vi.fn()} />
+      </>,
+    );
+
+    for (const name of ['Цвет', 'Материал', 'Бренд', 'Размер']) {
+      expect(screen.getByRole('group', { name }).parentElement, name).not.toHaveClass('sheet');
+    }
+    expect(screen.getByRole('radiogroup', { name: 'Сортировка' })).not.toHaveClass('sheet');
+  });
+});
+
+describe('ColorFilterPanel selectAll in the list layout', () => {
+  it('has no chip by default and ticks all shown values with selectAll', async () => {
+    const user = userEvent.setup();
+    const onValueChange = vi.fn();
+    const { rerender } = render(
+      <ColorFilterPanel attribute={colour} value={[]} onValueChange={onValueChange} />,
+    );
+    expect(screen.queryByRole('button', { name: 'Выбрать все' })).not.toBeInTheDocument();
+
+    rerender(
+      <ColorFilterPanel attribute={colour} value={[]} onValueChange={onValueChange} selectAll />,
+    );
+    await user.click(screen.getByRole('button', { name: 'Выбрать все' }));
+
+    expect(onValueChange).toHaveBeenCalledWith([id(101), id(102)]);
+  });
+});
+
 describe('AttributeFilterPanel', () => {
   it('has no search for a short list and reports the ticked id', async () => {
     const user = userEvent.setup();

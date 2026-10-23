@@ -2,15 +2,20 @@ interface ColouredAttribute {
   values: readonly { colorHex: string | null }[];
 }
 
-// Colour attributes (at least one value has a colour: the filter draws swatches) and the rest, each
-// in the api's order. Any attribute may be coloured, not only "Цвет" (K5).
+// A colour attribute: at least one value has a colour, so the filter draws swatches. Any attribute
+// may be coloured, not only "Цвет" (K5).
+export function isColourAttribute(attribute: ColouredAttribute): boolean {
+  return attribute.values.some((value) => value.colorHex !== null);
+}
+
+// Colour attributes and the rest, each in the api's order.
 export function splitFacetAttributes<T extends ColouredAttribute>(
   attributes: readonly T[],
 ): { colours: T[]; others: T[] } {
   const colours: T[] = [];
   const others: T[] = [];
   for (const attribute of attributes) {
-    (attribute.values.some((value) => value.colorHex !== null) ? colours : others).push(attribute);
+    (isColourAttribute(attribute) ? colours : others).push(attribute);
   }
   return { colours, others };
 }

@@ -39,6 +39,9 @@ describe('entities/product public entry', () => {
     for (const name of ['chipValue', 'splitFacetAttributes', 'compareSizes', 'sortSizes']) {
       expect(typeof (entry as Record<string, unknown>)[name], name).toBe('function');
     }
+    for (const name of ['attribute', 'brand', 'size', 'price', 'sort'] as const) {
+      expect(typeof entry.filterSummary[name], name).toBe('function');
+    }
     expect(entry.PRODUCT_SORT_ORDER).toEqual([
       'new',
       'price_desc',
