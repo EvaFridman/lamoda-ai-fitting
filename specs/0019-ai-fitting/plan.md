@@ -126,28 +126,36 @@ reason?: dark | not_full | many_people | child | no_person }` with «refuse only
 ## 4. The workflow `generateFitting` (A26–A28, A32, A39)
 
 - **Start.** `FittingsService.start` commits the row (status `pending`, the limit reserved) and
-  then `WorkflowStarter.start('generateFitting', { workflowId: 'fitting-<generationId>', args:
-[{ generationId }] })`; a failed start marks the row failed with `provider_error` and releases
+  then `WorkflowStarter.start('generateFitting', { workflowId: fittingWorkflowId(generationId),
+args: [{ generationId, timeoutSeconds }] })` (`timeoutSeconds` is `FITTING_TIMEOUT_SECONDS`,
+  A68); a failed start marks the row failed with `provider_error` and releases
   the unit, logged and sent to Sentry with the id only (as `FileDeletion` does).
 - **Activities** (`temporal/activities/fitting.activities.ts`, built by `createActivities` with
-  `AI_PROVIDER`, `StorageService`, `PrismaClient`, the publisher): `loadInputs`, `checkPrompt`,
-  `generate` (the one call to the edits endpoint with `FITTING_TIMEOUT_SECONDS` as its timeout,
-  heartbeating the elapsed time every 10 s on a timer while it waits, `heartbeatTimeout` 30 s,
-  `startToCloseTimeout` = `FITTING_TIMEOUT_SECONDS` + 30 s; on cancellation aborts the request),
-  `moderate`, `storeResult`, `complete`, `notify`. `generate` runs once (`maximumAttempts: 1`,
+  `AI_PROVIDER`, `StorageService`, `PrismaClient`; T13 adds the publisher): `markProcessing`,
+  `generate` (reads the photo and the items' first images from the bucket and re-encodes them,
+  A29, makes the one call to the edits endpoint with `FITTING_TIMEOUT_SECONDS` as its timeout,
+  re-encodes the picture and writes it to the generation's folder, A68; heartbeating the elapsed
+  time every 10 s on a timer while it runs, `heartbeatTimeout` 30 s, `startToCloseTimeout` =
+  `FITTING_TIMEOUT_SECONDS` + 60 s; on cancellation aborts the request), `moderate` (reads the
+  result from the bucket), `discardResult`, `complete`, and `notify` (T13). No image and no text of
+  the user goes through the workflow's history: the activities pass ids and codes only (A68). The
+  text was checked by `POST /fittings` (A45), so the workflow does not check it again (A68).
+  `generate` runs once (`maximumAttempts: 1`,
   A67): the client repeats only a request that never reached OpenAI, and anything else (a 5xx, a
   timeout, a connection lost after the request was sent, a worker lost mid-call) ends the fitting
   `provider_error` or `model_timeout`, not counted against the limit, since OpenAI may have billed
-  that picture and has no idempotency key; refusals and the timeout are
-  `ApplicationFailure.nonRetryable` with the failure code as `type`.
+  that picture and has no idempotency key; the timeout and the failures are
+  `ApplicationFailure.nonRetryable` with the failure code as `type`, the model's refusal is a
+  result (`moderation`), so it reaches no Sentry.
 - **Workflow.** Marks `processing`; runs the chain; on any end calls `complete`
   (status, `countsAgainstLimit` false unless completed and the quota's unit taken back then (A20),
   a transient photo's row and file deleted through the outbox (A24), `finishedAt`)
-  and `notify`. `complete` is idempotent: it moves the row out of `pending`/`processing` with a
+  and `notify` (T13). A failed fitting's written result is deleted first (`discardResult`).
+  `complete` is idempotent: it moves the row out of `pending`/`processing` with a
   conditional update and takes the unit back in the same transaction only when that update
-  changed the row, so a retried activity changes nothing (A20). A workflow that is cancelled (the
-  row deleted meanwhile; its unit stays spent, A47) stops at the next activity: `complete` finds
-  no row and returns. Added to `workflows.spec.ts`; the e2e drives it
+  changed the row, so a retried activity changes nothing (A20). A cancelled workflow (the row
+  deleted, A47) discards a written result and calls `complete` with the unit kept, outside the
+  cancellation: a row that is gone changes nothing, one still there ends `failed` and stays spent. Added to `workflows.spec.ts`; the e2e drives it
   with stub activities as `delete-files-workflow.e2e-spec.ts` does.
 - **`deletePrefix`** gets `heartbeat()` per batch and a `heartbeatTimeout` (A39).
 - **The outbox (A38).** `FileDeletion.startFileDeletion` becomes: the caller's transaction inserts

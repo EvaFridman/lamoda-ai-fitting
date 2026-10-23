@@ -8,6 +8,7 @@ import { ScheduleClient } from '@temporalio/client';
 import { NativeConnection, Worker } from '@temporalio/worker';
 import { Logger } from 'nestjs-pino';
 
+import { AI_PROVIDER, type AiProvider } from '../ai/ai-provider.js';
 import { assertWorkerEnv, type Env, type WorkerEnv, workerEnvWarnings } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { StorageService } from '../storage/storage.service.js';
@@ -45,9 +46,14 @@ async function bootstrap(): Promise<void> {
     taskQueue,
     // The compiled workflows next to this file (dist/temporal/workflows in the image).
     workflowsPath: fileURLToPath(new URL('./workflows/index.js', import.meta.url)),
-    // The housekeeping activity starts `deleteFiles` on `taskQueue` through the worker's own
-    // client (spec 0019 A38, `Context.current().client`).
-    activities: createActivities(app.get(StorageService), app.get(PrismaService), taskQueue),
+    // The housekeeping activity and a fitting's `complete` start `deleteFiles` on `taskQueue`
+    // through the worker's own client (spec 0019 A38, `Context.current().client`).
+    activities: createActivities(
+      app.get(StorageService),
+      app.get(PrismaService),
+      taskQueue,
+      app.get<AiProvider>(AI_PROVIDER),
+    ),
     interceptors: { activity: [sentryActivityInterceptor] },
   });
 

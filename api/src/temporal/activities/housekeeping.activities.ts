@@ -1,8 +1,9 @@
 import { Context } from '@temporalio/activity';
 
 import type { PrismaClient } from '../../generated/prisma/client.js';
-import { deleteFilesWorkflowId, type QueuedFileDeletion } from '../file-deletion-id.js';
-import type { deleteFiles } from '../workflows/delete-files.workflow.js';
+import type { QueuedFileDeletion } from '../file-deletion-id.js';
+import { RUNNING_STATUSES } from './fitting.activities.js';
+import { startFileDeletion } from './start-file-deletion.js';
 
 export type HousekeepingActivities = ReturnType<typeof createHousekeepingActivities>;
 
@@ -13,6 +14,10 @@ export const HOUSEKEEPING_BATCH_SIZE = 100;
 export const UNSTARTED_DELETION_AGE_MS = 60_000;
 // A one-time photo (spec 0019 A24) left unused goes after an hour.
 export const TRANSIENT_PHOTO_AGE_MS = 60 * 60_000;
+// A running generation keeps its transient photo for at most this long: one stuck in `pending` or
+// `processing` (a start that never reached Temporal, a workflow terminated by hand) does not keep
+// a photo the user did not save for ever.
+export const RUNNING_PHOTO_HOLD_MS = 24 * 60 * 60_000;
 
 // The activities of the schedule `fitting-housekeeping` (spec 0019 A38, plan §4); `prisma` is the
 // worker's PrismaService. `deleteFiles` is started through the worker's own client
@@ -23,15 +28,21 @@ export function createHousekeepingActivities(prisma: PrismaClient, taskQueue: st
     // Deletes the rows of transient photos older than an hour (A24), oldest first, one batch per
     // run, and writes their deletions into the outbox in the same transaction; returns them for
     // the workflow to start. An answer lost after the commit (a retry) finds the photos gone and
-    // returns none: their outbox rows, younger than a minute, are started by the next run. (A
-    // generation's photo is deleted by the generation, spec 0019 PR 3, which also keeps a running
-    // generation's photo out of this batch once `photo_id` exists.)
+    // returns none: their outbox rows, younger than a minute, are started by the next run. A photo
+    // a running generation of the last day uses stays (a long queue at OpenAI may pass the hour):
+    // the generation's `complete` deletes it when it ends (fitting.activities.ts).
     async expireTransientPhotos(): Promise<QueuedFileDeletion[]> {
       return prisma.$transaction(async (tx) => {
         const photos = await tx.userPhoto.findMany({
           where: {
             transient: true,
             createdAt: { lt: new Date(Date.now() - TRANSIENT_PHOTO_AGE_MS) },
+            generations: {
+              none: {
+                status: { in: [...RUNNING_STATUSES] },
+                createdAt: { gt: new Date(Date.now() - RUNNING_PHOTO_HOLD_MS) },
+              },
+            },
           },
           orderBy: { createdAt: 'asc' },
           take: HOUSEKEEPING_BATCH_SIZE,
@@ -66,22 +77,9 @@ export function createHousekeepingActivities(prisma: PrismaClient, taskQueue: st
       });
     },
 
-    // Starts the deletion's workflow under the same id as the api would (a running one is kept,
-    // USE_EXISTING; a closed one with that id runs again, which is harmless: the deletion is
-    // idempotent) and marks the row started. A row the workflow already deleted is marked on no
-    // row. The client is the worker's: it closes after every running activity has ended.
+    // Starts one deletion (start-file-deletion.ts) through the worker's own client.
     async startFileDeletion(deletion: QueuedFileDeletion): Promise<void> {
-      const { id, kind, rowId, prefixes } = deletion;
-      await Context.current().client.workflow.start<typeof deleteFiles>('deleteFiles', {
-        workflowId: deleteFilesWorkflowId(kind, rowId),
-        taskQueue,
-        workflowIdConflictPolicy: 'USE_EXISTING',
-        args: [{ prefixes, deletionId: id }],
-      });
-      await prisma.fileDeletion.updateMany({
-        where: { id, startedAt: null },
-        data: { startedAt: new Date() },
-      });
+      await startFileDeletion(Context.current().client, prisma, taskQueue, deletion);
     },
   };
 }

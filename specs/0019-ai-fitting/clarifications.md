@@ -710,6 +710,45 @@ default filtering applies) and `gpt-image-2` refuses `input_fidelity` (its input
 fidelity), so neither is sent; `safety_identifier` (a hashed user id for OpenAI's abuse
 monitoring) is not sent for now (the owner).
 
+**A68. The workflow's activities (T11).** The owner decided on 2026-10-23: no image goes through
+Temporal's history (its payloads are limited to 2 MB, and the photos are personal data), so
+plan §4's `loadInputs` and `storeResult` are steps of `generate`, which reads the photo and the
+items' first images from the bucket (`StorageService.get`), makes the one paid call and writes
+the re-encoded result to the generation's folder; `moderate` reads it from there, and
+`complete` sets `result_image_key` only for a completed fitting; a failed one's file is deleted
+first (`discardResult`). The workflow's arguments, results and failures carry ids, codes and
+OpenAI's request id only. The owner also decided: the workflow does not check the text again
+(`checkPrompt` goes; `POST /fittings` checks it, A45), and `notify` comes with T13 (the workflow
+ends with `complete` until then; the phase ships in one pull request, so no workflow version is
+needed). Assumptions, owner to confirm at the phase summary: `generate`'s `startToCloseTimeout`
+is `FITTING_TIMEOUT_SECONDS` + 60 s (plan §4 said + 30 s; the reads, sharp and the write sit
+inside it), passed by the api in the workflow's arguments (`timeoutSeconds`), since workflow code
+reads no environment, and the model's deadline is that same value (not the worker's own
+setting), so `generate` passing its time limit is `model_timeout` too; `generate` claims the paid
+call by setting `started_at` once (a conditional update), so a second run of one row (a reset by
+hand, a duplicate start) pays nothing and ends `provider_error`; `generate` and `moderate` are
+cancelled with `WAIT_CANCELLATION_COMPLETED`, so a result is never written after its discard;
+the fitting's end (`discardResult`, `complete`) runs outside the cancellation whatever step was
+cancelled, and only the workflow's own cancellation counts as one (an activity cancelled by a
+worker's shutdown is `provider_error`, unspent); a failure's text and cause reach the history
+and Sentry only for the errors whose text is known to hold no user input (`AiProviderError`,
+`StorageError`, the activity's own); the photo's key is checked against the row's user folder
+before it is read; a model's refusal is a result, not an `ApplicationFailure`, so it reaches
+no Sentry, while a timeout and a failure do (once, `maximumAttempts: 1`); `markProcessing` and
+`complete` are retried without limit (a fitting that never ends would keep its unit and its
+fingerprint), `moderate` three times, `discardResult` five (a file left behind goes with the
+generation's folder when its row is deleted); a cancelled workflow discards a written result and
+calls `complete` with the unit kept outside the cancellation, so a row still there (a cancel by
+hand) ends `failed` `provider_error` with `error_message` `cancelled` and stays spent, as A47's
+delete does (T12's delete removes the row before it cancels); `complete` locks the user's row and
+deletes a transient photo only when no other running generation uses it, and the housekeeping
+leaves such a photo alone past its hour while a running generation of the last 24 hours uses it
+(a stuck row keeps it no longer); the quota's month is the Moscow month of the row's
+`created_at` (`fittings/quota-month.ts`, which T12's start uses too); a regeneration's
+`prompt_text` is its comment and its wishes are the original try-on's (the first ancestor
+without a parent, none when that one is deleted; T12 may store them otherwise); the items go to
+the model in the order of their product ids.
+
 ## Canvas and decisions
 
 Where the canvas differs from the decisions above, the decision wins:

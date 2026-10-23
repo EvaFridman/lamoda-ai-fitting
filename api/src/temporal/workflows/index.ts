@@ -2,4 +2,5 @@
 // sandbox, so only workflow code may be exported from here.
 export { deleteExpiredAuthRows } from './delete-expired-auth-rows.workflow.js';
 export { deleteFiles } from './delete-files.workflow.js';
+export { generateFitting } from './generate-fitting.workflow.js';
 export { housekeeping } from './housekeeping.workflow.js';
