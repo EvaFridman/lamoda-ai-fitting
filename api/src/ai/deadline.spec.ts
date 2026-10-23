@@ -6,12 +6,33 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+// Waits for the abort event the way fetch does, with a listener. Node holds the timeout signal of
+// AbortSignal.timeout weakly while nothing listens, so a test that only polls `aborted` may have
+// that signal collected before its timer fires, and then never sees the abort.
+function abortedWithin(signal: AbortSignal, ms: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) {
+      resolve();
+      return;
+    }
+    const guard = setTimeout(() => reject(new Error(`not aborted within ${ms} ms`)), ms);
+    signal.addEventListener(
+      'abort',
+      () => {
+        clearTimeout(guard);
+        resolve();
+      },
+      { once: true },
+    );
+  });
+}
+
 describe('withDeadline', () => {
   it('aborts with a TimeoutError once the time has passed', async () => {
     const signal = withDeadline(10);
 
     // A loaded machine (CI) may fire a 10 ms timer late; the wait only has to outlast it.
-    await vi.waitFor(() => expect(signal.aborted).toBe(true), { timeout: 5000 });
+    await abortedWithin(signal, 5000);
     expect(abortKind(signal.reason)).toBe('timeout');
   });
 
@@ -80,7 +101,7 @@ describe('abortKind', () => {
   it('is a timeout for the signal of withDeadline once the time has passed', async () => {
     const signal = withDeadline(10, new AbortController().signal);
 
-    await vi.waitFor(() => expect(signal.aborted).toBe(true), { timeout: 5000 });
+    await abortedWithin(signal, 5000);
 
     expect(abortKind(new TypeError('x'), signal)).toBe('timeout');
   });
