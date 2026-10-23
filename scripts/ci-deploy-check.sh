@@ -326,11 +326,12 @@ check_edge_limits() {
 
   # Spec 0019 AC4: the upload route takes 20 MB, so a 2 MB body reaches the api, which answers 401
   # before reading it (nobody is signed in), while a 21 MB body answers nginx's 413 in the api's
-  # format. The body is never parsed, so its boundary is any.
+  # format. The body is never parsed, so its boundary is any. The 401 is the api's own answer,
+  # whose type carries Express's charset; nginx's own errors do not.
   got="$(head -c 2097152 /dev/zero | tr '\0' a | curl -sk --max-time 10 -o "$work/upload-401.json" \
     -w "%{http_code} %{content_type} $security_w" -H 'Content-Type: multipart/form-data; boundary=x' \
     --data-binary @- https://localhost/api/me/photos || true)"
-  expect_error "a 2 MB upload" "$got" "401 application/json $security" "$(cat "$work/upload-401.json")" \
+  expect_error "a 2 MB upload" "$got" "401 application/json; charset=utf-8 $security" "$(cat "$work/upload-401.json")" \
     UNAUTHORIZED
   got="$(head -c 22020096 /dev/zero | tr '\0' a | curl -sk --max-time 10 -o "$work/upload-413.json" \
     -w "%{http_code} %{content_type} $security_w" -H 'Content-Type: multipart/form-data; boundary=x' \

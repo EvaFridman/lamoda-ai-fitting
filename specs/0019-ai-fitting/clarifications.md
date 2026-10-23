@@ -471,6 +471,12 @@ page. The CSP's `img-src` takes `<origin>/<bucket>/keep/users/` from web's own
 Sentry drops spans and breadcrumbs holding `X-Amz-` or `/keep/users/` (the browser's tracing names
 a span after each image with its whole link, A37). Assumption, owner to confirm (T7).
 
+**A61. A broken body of a successful answer is not retried.** The OpenAI client retries a network
+error before the answer's headers, but a body of a 200 that breaks while it is read is answered at
+once as `malformed_answer` (the caller's 503), not retried: in phase 2 the same client calls
+`/v1/images/edits`, where a retry after a 200 would pay for a second image. Revisited with the
+generation's activity retries in phase 2. Decided by the owner on 2026-10-23 (review of PR 2).
+
 ## Canvas and decisions
 
 Where the canvas differs from the decisions above, the decision wins:
