@@ -98,6 +98,19 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
 
 ## PR 3 · `feat/0019-generation` · generation
 
+- [ ] **T9a. web: the photo screens as the canvas draws them** (runs before T9, A63.8).
+      `PhotoTips` with the seven pictograms of A62 as inline SVG components (board 4: two
+      «хорошо» and five «плохо» tiles with
+      the ✓/✕ marks, the «Коротко» list; on phones the tips screen with «Понятно», then the consent
+      screen 4.2), the refusal screen's preview of the chosen file (board 5; «Фото скрыто» for
+      `child`), «Мои фото» as `SavedPhotoCard` (board 10: the badge «По умолчанию», the radio
+      «Сделать основным», the trash icon button, the dashed «Добавить фото» card, the delete modal
+      with the thumbnail; on phones rows and a `Sheet`), the kit's `Sheet` with its `/ui-kit`
+      section (plan §7). The texts of A60 and T7's tests' subjects stay.
+      Check: web tests of the three screens (the pictograms render, the preview is an object URL
+      revoked on unmount, the controls keep their actions); `qa-tester` on AC2 and AC3's defaults;
+      `npm run verify`.
+      Commit: `feat(web): draw the photo screens as the canvas does`
 - [ ] **T9. Migrations: generations and the fingerprint.** The new columns of `ai_generations`
       (plan §2), the partial unique index on `(user_id, fingerprint)` over the running statuses
       with its row in `constraint-fields.ts` (A32), `generation_products.attribute_value_id` and
@@ -136,22 +149,26 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
 - [ ] **T14. web: the fitting entity, the realtime client and the kit's additions.**
       `entities/fitting` (schemas, keys, the hooks with the polling, the contract test),
       `@/shared/realtime` (`socket.io-client`, the dev rewrite, plan §6), the kit's
-      `ProgressBar`, `Sheet`, `CountBadge`, `Chip`/`ChipGroup` with their `/ui-kit` sections.
+      `ProgressBar`, `CountBadge`, `Chip`/`ChipGroup` with their `/ui-kit` sections (`Sheet` came
+      with T9a); `TryOnButton`'s three states (A63.2) as a `Button` example.
       Check: web tests of the hooks, of the connection opening and closing with the session, and
       of the components; `npm run verify`.
       Commit: `feat(web): add the fitting entity, the realtime client and the kit's additions`
 - [ ] **T15. web: the try-on of one item.** The features `start-fitting`, `regenerate-fitting`,
       `try-colour` and `fitting-events` (the toast of A11, A34), the widget `try-on` (boards 3,
       5, 6, 7, 11, 12 for one item: the picker, the wait with its estimate, the result with the
-      colours, the regeneration sheet, the limit and error screens); mounted from
-      `/customer/fittings?product=<id>` until the product page exists (not tracked, removed in
-      T20).
+      colours, the regeneration sheet, the limit and error screens, each with the texts and states
+      A62 lists for its board, the default photo preselected, A63.4, the tiles' hover); mounted
+      from `/customer/fittings?product=<id>` until the product page exists (not tracked, removed
+      in T20).
       Check: web tests of each screen, of the polling and of the toast; `qa-tester` on AC5–AC12,
       AC19, AC20;
       `npm run verify`.
       Commit: `feat(web): try an item on in the browser`
-- [ ] **T16. web: the history list.** `/customer/fittings` (board 9 without compare: the tabs, the
-      cards, open, delete, the empty state), the analytics zone `fitting` (its first entries).
+- [ ] **T16. web: the history list.** `/customer/fittings` (board 9 without compare: the subtitle,
+      the tabs, the cards with their badges and thumbnails, open, delete, the empty state, the
+      `LimitMeter` under `AccountShell`'s side menu; A62), the analytics zone `fitting` (its first
+      entries).
       Check: web tests; `qa-tester` on AC17's list and deletion; `npm run verify`.
       Commit: `feat(web): list the fitting history`
 - [ ] **T17. Close phase 2.** `CLAUDE.md`, `README.md` (the fitting, the models, the push); the
@@ -174,14 +191,17 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       Check: web tests of the metadata and the 404; the warm-up list check; `npm run verify`.
       Commit: `feat(web): add the product page`
 - [ ] **T20. web: the gallery, the buy box and the try-on entry.** `widgets/product-gallery`,
-      `widgets/product-buy-box` (rating, price, colour and size, the stubs of A33, `TryOnActions`,
-      the limit meter, «Вы это примеряли»), the kit's `Gallery` with its `/ui-kit` section; the
+      `widgets/product-buy-box` (rating, price, colour and size, the stubs of A33, the primary
+      `TryOnButton` with «К образу» beside it (A63.2) and its «В образе» state, the limit meter
+      with its three texts, «Вы это примеряли»; A62), the kit's `Gallery` with its `/ui-kit`
+      section; the
       try-on widget opens from the page and its temporary entry of T15 is removed.
       Check: web tests; `qa-tester` on AC21, AC24, AC5 from the page; `npm run verify`.
       Commit: `feat(web): the product page's gallery and buy box`
 - [ ] **T21. web: «О товаре» and «С этим товаром выбирают».** The description and attributes
-      block, `widgets/related-products` with the cards' hanger (inert until phase 4) and the
-      «В корзину» stubs.
+      block, `widgets/related-products` with the «В корзину» stubs; `CatalogProductCard`'s two
+      corners (the hanger, inert until T26, and the heart stub) and its hover (A63.1), which the
+      catalog's cards get at the same time.
       Check: web tests; `npm run verify`.
       Commit: `feat(web): the product page's details and related products`
 - [ ] **T22. Analytics of the product page.** The zone `product` in `catalog.ts`, `EVENTS.md`,
@@ -205,18 +225,21 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
 - [ ] **T25. web: the header's icon and the drawer.** `entities/fitting-room`,
       `features/fitting-room` (the `LookToggle` actions, the slot rows' actions, the replace and
       remove toasts with «Вернуть»), the widget `fitting-room-drawer` (board 2: the slots, the
-      colour per item, the wishes field, the sum, the stubs, «Очистить»), the header's
-      `FittingRoomButton` with its counter (A10, A12).
+      colour per item and the size stub (A63.3), the wishes field, the sum, the stubs, «Очистить»,
+      the loading and empty states; the texts of A62), the header's `FittingRoomButton` with its
+      counter (A10, A12).
       Check: web tests; `qa-tester` on AC13, AC16; `npm run verify`.
       Commit: `feat(web): the fitting room in the header`
 - [ ] **T26. web: looks.** «Примерить образ» → the try-on widget for a look (board 3.2), the look
-      result (board 8: the items, the colours, the sum, the stubs), the colour change of one item
-      (AC15), the hanger on the related products and the catalog's cards.
+      result (board 8: the items, the colours, the sum, the stubs, the sheet's «Какая именно?»
+      step; A62), the colour change of one item (AC15), the cards' hanger made live with its
+      tooltip (A62, A63.1) in the catalog and on the related products.
       Check: web tests; `qa-tester` on AC14, AC15; `npm run verify`.
       Commit: `feat(web): try a look on`
 - [ ] **T27. web: history actions and compare.** «Примерить ещё раз» (the repeat of A7),
-      compare two entries side by side (board 9, A41), the actions menu, «Поделиться» disabled
-      (A14).
+      compare two entries side by side (board 9, A41; the selection mode, «Чем отличаются», no
+      «Заменить запись», A63.5), the actions menu and the phones' sheet, «Поделиться» disabled
+      (A14, A63.6), the repeat's toast; the texts of A62.
       Check: web tests; `qa-tester` on AC17, AC18; `npm run verify`.
       Commit: `feat(web): repeat and compare fittings`
 - [ ] **T28. Analytics of the fitting.** The rest of the zone `fitting` (the room, the look, the

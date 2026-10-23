@@ -188,6 +188,7 @@ the next spec (A8).
 - The kit covers the pages with `Modal`, `Drawer`, `Toast`, `Tabs`, `Checkbox`, `Switch`,
   `Select`, `Skeleton`, `Spinner`, `Button`; what it lacks (a count badge, a progress bar, a file
   input, a gallery, a bottom sheet, state cards, icons) is added to the kit and to `/ui-kit`.
-- Spec 0014's catalog cards keep their one action slot (0009 K10), which the hanger fills.
+- Spec 0014's catalog cards get the canvas's two corners in place of their one action slot
+  (0009 K10): the hanger top left, the heart stub top right, and a hover (A63.1).
 - Lamoda's own numbers in the canvas (40 try-ons, 436 reviews, 23 try-ons in the history) are
   sample data; the limit is 10 (A5) and the counts are the user's own.

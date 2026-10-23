@@ -459,7 +459,9 @@ under it says the photos are not used for training and links `/privacy`. A file 
 refused in the browser before its upload. At five saved photos the upload button is off with a
 note, the api's `LIMIT_REACHED` stays the backstop; «Удалить» and «Сделать основным» are text
 buttons, not the canvas's icon. Upload, default and delete are `useMutation`s with no retry and
-`gcTime: 0`; a 404 of the last two (the photo deleted elsewhere) reads the list again without an
+`gcTime: 0` (amended 2026-10-23: the example photos, as the canvas's pictograms, the refused
+photo's preview and board 10's controls return by A63.8); a 404 of the last two (the photo deleted
+elsewhere) reads the list again without an
 error. Analytics (plan §9 named the entries, not their values): `Photo Uploaded` (`saved`
 boolean, `source` `file`/`camera`, `place` `photos` (the try-on adds its value in phase 2),
 `first` boolean: the upload that gave the consents), `Photo Refused` (`reason` the api's codes
@@ -476,6 +478,151 @@ error before the answer's headers, but a body of a 200 that breaks while it is r
 once as `malformed_answer` (the caller's 503), not retried: in phase 2 the same client calls
 `/v1/images/edits`, where a retry after a 200 would pay for a second image. Revisited with the
 generation's activity retries in phase 2. Decided by the owner on 2026-10-23 (review of PR 2).
+
+**A62. The canvas's details per phase.** On 2026-10-23, after phase 1 merged, the canvas was read
+board by board against this spec, the plan and the tasks. Boards 2–12 and the components of board
+13 were already in them; what follows are the texts and states the boards draw that the tasks did
+not name. They are binding as the canvas's texts are (spec «Entry points, flows, texts and
+states follow the canvas»), with the sample numbers replaced as «Canvas and decisions» says.
+
+- _Board 3, the picker (T15):_ the subtitle «Изображение приблизительное: модель ещё учится»; the
+  photo with the lock plate «Видите только вы»; the strip of saved photos with the badge «По
+  умолчанию» on the default one (the boards say «по умолчанию» and «основное»: one word, the one
+  `PhotoThumb` already shows on «Мои фото»), the tile «+ Новое», and the link «Управлять» to «Мои
+  фото»; the switch «Сохранить фото для следующих примерок» with its caption on («Касается нового
+  фото. Выключите — фото используется один раз и удалится после примерки») and off («Выключено:
+  фото используется один раз и удалится после примерки. Результат останется в истории»); the state
+  3.3 while a new photo uploads («Загружаем и проверяем фото…» over the dimmed photo, «Примерить»
+  disabled); the `LimitMeter` «Осталось N примерок в этом месяце»; the line «Фото не используются
+  для обучения моделей · Как мы храним фото» linking `/privacy`; for a look (3.2, T26) the
+  `ItemsStrip` with «Образ · N вещей», the sum, the link «Изменить» to the room and the meter text
+  «Образ целиком — 1 примерка · осталось N».
+- _Board 5 in the try-on (T15):_ the refusal screens gain the notice «Примерка не списана · осталось
+  N» (phase 1 has no quota); the reason texts of A55 and T7 stay.
+- _Board 6, the wait (T15):_ the loader is the user's photo blurred with the sweeping dots
+  (`TryOnLoader`; no animation under `prefers-reduced-motion`); the stage list «Проверили фото»,
+  «Определили позу и фигуру», «Надеваем <вещь>», «Прорисовываем детали» (done ✓ / current with a
+  spinner / next in grey) on desktop, the current stage alone on phones; the percent and «Осталось
+  около N секунд»; the notice «Можно закрыть страницу — результат сохранится в истории. Пришлём
+  уведомление, когда будет готово.»; the button «Закрыть и продолжить покупки» (phones: «Свернуть»);
+  the toast «Примерка готова: <вещь>» with the item's thumbnail and «Открыть»; for a look the
+  `ItemsStrip` under the progress.
+- _Board 7, the result (T15):_ the `AiLabel` «Сгенерировано ИИ» on the image and the caption
+  «Изображение приблизительное, могут быть неточности в посадке, длине и цвете.» under it; the line
+  «Сохранили в историю примерок · <date>» (the link opens the history); the four `ResultActions`
+  tiles «Поделиться» (disabled, A14), «Скачать», «Во весь экран», «К образу»; the item block with
+  the size select and the stubs (A33); `ColorTryOn` «Примерить другой цвет · в один клик, на этом же
+  фото» with the states current (outlined), tried (a ✓ badge, «Уже примерено»: opens at once, free),
+  generating (a spinner over it, the other colours disabled with «Пока идёт примерка, другие цвета
+  недоступны») and the caption «Новый цвет — 1 примерка. Цвета с галочкой уже примерены: откроются
+  сразу и бесплатно.»; while a colour generates the meter says «Списали 1 примерку · осталось N» and
+  a line «<Цвет> вариант сохранён в истории»; the link «Примерить на другом фото» back to the
+  picker; the button «Хотите что-то поменять в образе?» (the same label on boards 7 and 8; A6
+  quotes it short) opening the sheet «Что поменять?» («Отметьте, что
+  получилось неточно — учтём при новой попытке.», the chips «Лицо», «Фигура», «Вещь», «Фон»,
+  «Другое», the comment «Комментарий, по желанию» with «N / 300», the button «Перегенерировать» and
+  the caption «Новый результат появится отдельной записью в истории.» followed by A6's wording of
+  the cost).
+- _Boards 11 and 12 (T15):_ «Примерить» disabled with the caption «Примерки снова будут доступны
+  <date>» (the buy box) or «Примерки закончились · снова с <date>» (phones); the limit card
+  «Примерки на этот месяц закончились» / «Новые N примерок появятся <date>.» / «История и
+  примерочная работают как обычно: можно смотреть прошлые результаты и собирать образ заранее.»
+  with the buttons
+  «Открыть историю примерок» and «Перейти в примерочную», on phones a meter «0 из N»; the error card
+  А (a timeout) «Не получилось примерить» / «Сервис примерки не ответил вовремя. Так бывает при
+  большой нагрузке — попробуйте ещё раз через минуту.» with «Попробовать ещё раз» and «Закрыть»,
+  the card Б (moderation) «Не можем показать результат» / «Изображение не прошло автоматическую
+  проверку. Чаще всего помогает другое фото — в полный рост и в простой одежде.» with the grey
+  plate «Результат скрыт» in the image's place and the buttons «Попробовать ещё раз» and «Другое
+  фото»; both with the notice «Примерка не списана · осталось N».
+- _Board 9, the history (T16, T27):_ the subtitle «N примерок · фото видите только вы»; the tabs
+  «Все», «Одна вещь», «Образы»; a card with the small «ИИ» badge, up to three item thumbnails and
+  «+N», the kind badge «Образ» or «Перегенерация», the item and colour for one item, the date
+  («Сегодня, 14:06», else the day); the actions menu «Открыть», «Примерить ещё раз», «Поделиться»
+  (disabled), «Скачать», «Удалить» (red); the selection mode «Выбрано N из 2» with «Отмена» and
+  «Сравнить»; the toast of a repeat «Такая примерка уже есть — открыли готовый результат. Лимит не
+  потрачен.» with «Открыть»; the `LimitMeter` under the side menu of `widgets/account-shell`
+  («Осталось N из M примерок», «Обновится <date>»); the empty state «Здесь появятся ваши
+  примерки» / «Каждый результат сохраняется автоматически: к нему можно вернуться, сравнить с
+  другим или поделиться.» with «Выбрать вещь для
+  примерки»; on phones the actions sheet (with «Сравнить с другой»); the compare page «← История
+  примерок», «Сравнение», the two columns with «В корзину», «Открыть» and the favourite stub, the
+  aside «Чем отличаются» (Цвет, Фото, Цена), on phones «Отличается» / «Фото» and the buttons «<Цвет>
+  в корзину» per column.
+- _Board 1, the product page (T20, T21):_ the `LimitMeter` under the buy box's buttons («Осталось N
+  примерок в этом месяце»; at three or fewer «Осталось N — мало» in the caution colour, AC19; at
+  zero «Закончились · снова с <date>»); after «К образу» the button reads «В образе» (pressed, a
+  ✓); the toast «<Вещь> в примерочной: <слот>» with «Открыть»; `TriedOnNote` «Вы это примеряли» /
+  «<date> · <цвет>» with «Смотреть»; the related cards carry the hanger and the heart as the
+  catalog's do (A63).
+- _Board 2, the room (T24, T25):_ the subtitle «N из 5 вещей · по одной в каждом слоте. Образ
+  целиком — одна примерка.»; a slot row with the kind, the item, the price, the colour select and
+  the size stub (A63), «В корзину» and «Убрать»; an empty slot with its caption («Слот свободен:
+  сумка, шарф или головной убор» for the accessory) and the link «Подобрать в каталоге»; the
+  `PromptField` «Пожелания к образу · по желанию» with the placeholder «Например: заправить рубашку
+  в юбку, тренч накинуть на плечи», the caption «Учтём при генерации. Не меняет вещи и их цвета.»
+  and «N / 200»; the footer «Сумма образа» with the sum, «Примерить образ», «Всё в корзину», the
+  meter and «Очистить примерочную»; the replace toast «Заменили <слот>: <вещь> вместо <вещи>» with
+  «Вернуть» for 5 s, the remove toast «<Вещь> убран из примерочной» with «Вернуть»; the loading
+  state («Загружаем вещи…», skeleton rows, «Примерить образ» busy); the empty state «В примерочной
+  пока пусто» / «Нажмите «Добавить к образу» на товаре — вещи соберутся здесь, и вы примерите их
+  вместе за одну примерку.» with «Перейти в каталог» and a disabled «Примерить образ» (phones: the
+  five dashed slot cells); on phones the colour sheet «Цвет <вещи>» with «Готово».
+- _Board 8, the look result (T26):_ «Примерка образа», «N вещи · сохранено в истории · <date>»;
+  three tiles (no «К образу»); «Вещи образа» with the caption «Смена цвета одной вещи перегенерирует
+  весь образ на этом же фото» and a `LookItemRow` per item (thumbnail, name, price, `MiniSwatches`,
+  «В корзину», the favourite stub; «один цвет» for an item with one); «Сумма образа»; «Всё в корзину
+  · N вещи» and «Всё в избранное» (stubs); «Хотите что-то поменять в образе?» whose sheet adds the
+  step «Какая именно?» with an item chip per item; the link «Заменить вещь в примерочной»; the
+  inline state «Перегенерируем образ: <вещь> <цвет>» with the progress and «около N секунд · 1
+  примерка»; on phones the `ItemsStrip`, «Вещи образа» as a screen of its own.
+- _Hover (T15, T26):_ the canvas draws two hover states: the hanger `LookToggle` turns from grey to
+  black with the tooltip «Добавить к образу» (board 13 says «К образу»: the longer one, as the
+  button's label), and a `ResultActions` tile darkens to the tertiary background. The catalog card's
+  own hover is A63's.
+- _Board 14:_ the transition map matches the plan; its table «Когда тратится лимит» marks the
+  regeneration «0 (допущение — уточнить)», which A6 decided: the sheet's caption says the first one
+  is free and the next ones spend one try-on each.
+- _Phase 1 against boards 4, 5 and 10:_ T7 cut, by A60, the example photos of the tips, the refused
+  photo's preview and board 10's icon controls; A63 brings them back in T9a. The canvas's example
+  «photos» are seven vector pictograms (SVG, 1.3–2.5 KB each, no raster, scripts or links), the
+  canvas's assets `12f5a6ba…`, `cf994a3d…`, `ea627c52…`, `39c27dbd…`, `8bf2d6f8…`, `b258266e…`,
+  `c633502c…` (in the order of board 4's captions), so they become inline SVG components in
+  `features/upload-photo`, as the kit's icons are: web keeps no files of its own.
+
+**A63. Decisions of the canvas review.** The owner decided on 2026-10-23:
+
+1. _The catalog card carries both actions of the canvas:_ the hanger `LookToggle` in the photo's
+   top left corner and the heart in its top right, so 0009 K10's one `action` slot becomes two
+   corners. The heart is a stub (A33: enabled, tracked, the toast «В прототипе нет корзины и
+   избранного», never stays pressed); the hanger opens the fitting feature (adds the item to the
+   room, AC13). The card itself gets a hover on pointer devices (`@media (hover: hover)`): the
+   kit's `--shadow-box`, as `SearchField` has, plus the photo scaled to 1.03 inside its frame,
+   both over `--duration-slow` (the tokens zero it under `prefers-reduced-motion`). Lamoda's own
+   hover (the sizes and a photo slideshow) has no data here.
+2. _«Примерить» on the product page is board 13's `TryOnButton`:_ `Button` primary, size 56, with
+   the sparkle icon, in the buy box and never over the photo; its states default, loading and
+   disabled (the limit). «К образу» stays the outline button next to it. Board 1's secondary 40
+   pair («Примерить» and «К образу» under «Добавить в корзину») is superseded.
+3. _The room's slot rows show the canvas's size select as a stub:_ a `Select` with the sizes of
+   the product's size attribute when it has one, else the placeholder «Размер», sent nowhere (A8
+   keeps size out of the generation).
+4. _The picker preselects the default photo_ (AC3), not the last used one as board 3's hint says;
+   the hint «Последнее использованное фото выбирается автоматически» is not rendered.
+5. _«Заменить запись» on the compare page is dropped._
+6. _«Поделиться» stays disabled (A14):_ the share sheet of board 7.4 («Поделиться примеркой», the
+   link's preview, «Скопировать ссылку», «Отправить в мессенджер», «Скачать изображение») is not
+   built; it joins the backlog item «Share link of a result».
+7. _«нет в наличии» on a colour (boards 2.2 and 13) is not drawn:_ the catalog has no stock.
+8. _Phase 1's screens are brought to the canvas first thing in phase 2_ (T9a): the tips with the
+   pictograms of A62, the refused photo's preview (from the chosen file, in the browser; «Фото
+   скрыто» for `child`), «Мои фото» as `SavedPhotoCard` (the badge «По умолчанию», the radio
+   «Сделать основным», the trash icon button «Удалить фото N», the dashed «Добавить фото» card with
+   «в полный рост, один человек», the delete modal with the thumbnail; on phones rows and a sheet),
+   and on phones the tips as a screen of their own with «Понятно» before the consent screen 4.2
+   («Загрузите фото в полный рост», «Мы сохраним его, чтобы в следующий раз примерка шла в два
+   нажатия. Фото видите только вы.»). The texts of A60 stay. The two corners and the hover of 1
+   come with the product page (T21, the hanger inert there), the live hanger with T26.
 
 ## Canvas and decisions
 
@@ -494,6 +641,12 @@ Where the canvas differs from the decisions above, the decision wins:
 - «Таблица размеров» and the size advice are not rendered (A8); «HEIC» leaves the hint (A31).
 - The fingerprint of a repeat includes the free text (A7, A16); a look's «Пожелания» therefore make
   a new try-on when they change.
+- Board 1's «Примерить» as a secondary 40 button: board 13's primary `TryOnButton` (A63.2). The
+  picker's hint about the last used photo: the default is preselected (A63.4). «Заменить запись» on
+  the compare page: dropped (A63.5). The share sheet 7.4: not built (A14, A63.6). «нет в наличии»
+  on a colour: not drawn (A63.7). The default photo's badge: «По умолчанию» on every screen
+  (A62).
+- The catalog card's two corners (the hanger and the heart) and its hover: A63.1, over 0009 K10.
 
 ## Backlog
 
