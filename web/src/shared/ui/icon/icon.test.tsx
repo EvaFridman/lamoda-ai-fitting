@@ -113,8 +113,8 @@ const icons = Object.entries(ui).filter(([name]) => name.endsWith('Icon')) as [
 ][];
 
 describe('the icon set', () => {
-  it('exports 29 icons', () => {
-    expect(icons).toHaveLength(29);
+  it('exports 31 icons', () => {
+    expect(icons).toHaveLength(31);
   });
 
   it.each([
@@ -129,6 +129,7 @@ describe('the icon set', () => {
     ['RefreshIcon', ui.RefreshIcon],
     ['LockIcon', ui.LockIcon],
     ['CompareIcon', ui.CompareIcon],
+    ['FilterIcon', ui.FilterIcon],
   ])('scales the 24px drawing of %s to 16px', (_name, Icon) => {
     const { container } = render(<Icon size={16} />);
 

@@ -12,6 +12,7 @@ import {
 } from '@/shared/ui';
 
 import styles from './examples.module.scss';
+import { SheetScreensDemo } from './sheet-screens-demo';
 
 // The modal, the drawer and the hints. They open live only, not on load (D7z): an open modal or
 // drawer would take the focus and stop the page from scrolling, and a hint is a hover state (D11a).
@@ -103,6 +104,10 @@ export function OverlaysSection() {
             <p>Сортировка, цвет, бренд, размер, цена — разделы аккордеона.</p>
           </Drawer>
           <code className={styles.props}>side=&quot;bottom&quot;, footer</code>
+        </li>
+        <li className={styles.example}>
+          <SheetScreensDemo />
+          <code className={styles.props}>fullHeight, onBack, headerAction, closable=false</code>
         </li>
       </ul>
 

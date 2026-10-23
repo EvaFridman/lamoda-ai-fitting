@@ -52,7 +52,7 @@ Status: accepted (2026-10-23); amended 2026-10-23 at the review of PR 1 (T4, T5,
 
 ### The filters sheet
 
-- [ ] **T6. Kit pieces (plan §3).** `FilterIcon`; `Drawer`'s `fullHeight`, `onBack`,
+- [x] **T6. Kit pieces (plan §3).** `FilterIcon`; `Drawer`'s `fullHeight`, `onBack`,
       `headerAction`, `closable`; `CheckboxFilterPanel`'s `layout` and `selectAll`;
       `SortFilterPanel`'s `layout`; their `/ui-kit` examples.
       Check: Vitest of each prop (focus, names, ticking, "Выбрать все" with a search); `/ui-kit` at

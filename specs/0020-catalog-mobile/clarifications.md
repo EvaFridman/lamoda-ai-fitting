@@ -133,3 +133,16 @@ The review bot's open questions, answered by the owner.
   category (plan §4). TanStack's placeholder would cover only the loading, would have to be cut
   out of the title's count, the live region and `categoryRows` (`isPlaceholderData`), and could
   carry another category's counts into a page that stays mounted.
+
+## Added at T6 (2026-10-23)
+
+- **W24. "Выбрать все" only ticks.** The chip ticks every option the search leaves shown that is
+  not disabled, keeping the ticks of hidden ones; with all of them ticked it changes nothing and
+  stays (no "Снять все": the screen's "Сбросить" clears). It goes while no shown option can be
+  ticked: the search finds nothing, or every match is disabled.
+- **W25. The kit's "‹" (amends plan §3).** A plain 32px button drawn as the ×, not the outlined
+  `IconButton` (a 48 or 56 px square). Its name is the `Drawer`'s `backLabel` ("Назад" by
+  default; the filters' sheet passes "Назад к фильтрам", which T8's test checks), and `backRef`
+  gives it to the widget, which moves the focus onto it after a screen switch. Every drawer's
+  header is a row centred on the ×, so the title of the existing drawers sits about 6px higher.
+  `onOpenChangeComplete` lets the widget reset its screen once the sheet has left.

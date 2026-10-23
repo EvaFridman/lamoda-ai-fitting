@@ -106,10 +106,12 @@ Below 1024 px, as the accordion sheet today; it replaces it (W8).
 **Kit (`shared/ui`), each with its `/ui-kit` example.**
 
 - `Drawer`: `fullHeight` (bottom: `height: calc(100dvh - 48px)`, so switching screens does not
-  resize the sheet), `onBack` (a "‹" `IconButton` before the title, `aria-label="Назад к фильтрам"`,
-  `aria-describedby` the title, so a screen reader hears "Назад к фильтрам, Цвет" when the focus
-  lands on it, AC14), `headerAction` (a node on the right of the title, in place of the ×'s
-  position; the × stays on the list screen only via `closable`, default true).
+  resize the sheet), `onBack` (a "‹" button before the title, drawn as the ×, named by
+  `backLabel`, which the sheet sets to "Назад к фильтрам", `aria-describedby` the title, so a
+  screen reader hears "Назад к фильтрам, Цвет" when the focus lands on it, AC14; `backRef` for
+  the focus, W25), `headerAction` (a node on the right of the title, in place of the ×'s
+  position; the × stays on the list screen only via `closable`, default true),
+  `onOpenChangeComplete`.
 - `CheckboxFilterPanel`: `layout?: 'list' | 'sheet'` and `selectAll?: boolean`. `sheet`: rows of
   the value, its count in grey and a checkbox on the right, hairlines between; with `swatches`, the
   swatch is a decorative circle before the label and the checkbox stays on the right. `selectAll`:

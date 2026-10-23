@@ -22,3 +22,19 @@
   display: flex;
   padding: var(--space-2) 0;
 }
+
+// The sheet form (`layout="sheet"`): 44px rows (12px above and below a 20px line) split by hairlines, the circle on the right.
+.sheet .row {
+  flex-direction: row-reverse;
+  gap: var(--space-4);
+  padding: var(--space-3) 0;
+
+  & + .row {
+    border-top: var(--border-width) solid var(--color-border);
+  }
+
+  > :not([role='radio']) {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+}

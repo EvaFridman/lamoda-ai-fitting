@@ -118,6 +118,26 @@ export interface ColorSwatchProps extends Omit<
   className?: string;
 }
 
+// The swatch alone, decorative, before a label whose control is elsewhere: a row of the colour
+// filter's sheet form, its checkbox on the right (spec 0020).
+export function SwatchDot({
+  color,
+  className,
+}: {
+  color?: SwatchColor | HexColor;
+  className?: string;
+}) {
+  const look = swatchLook(color);
+  return (
+    <span
+      aria-hidden
+      className={[styles.swatch, className].filter(Boolean).join(' ')}
+      style={look.background === undefined ? undefined : { background: look.background }}
+      data-bordered={look.bordered || undefined}
+    />
+  );
+}
+
 // A row of the colour filter, as in Lamoda's FilterValue: an 18px round swatch in place of the
 // checkbox, the name and the count, the whole row clickable through the enclosing <label>. Base
 // UI renders the swatch as role="checkbox" with aria-checked; a ticked swatch shows a white tick,

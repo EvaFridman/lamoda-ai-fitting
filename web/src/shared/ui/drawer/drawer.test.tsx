@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { ComponentProps } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { Button, Drawer, DrawerClose } from '@/shared/ui';
@@ -92,6 +93,28 @@ describe('Drawer', () => {
     expect(onOpenChange).toHaveBeenLastCalledWith(false);
   });
 
+  it('calls onOpenChangeComplete with true after opening and false after closing', async () => {
+    const user = setup();
+    const onOpenChangeComplete = vi.fn();
+    render(
+      <Drawer
+        trigger={<Button>Корзина</Button>}
+        title="Ваша корзина"
+        onOpenChangeComplete={onOpenChangeComplete}
+      >
+        <p>Кардиган</p>
+      </Drawer>,
+    );
+    expect(onOpenChangeComplete).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Корзина' }));
+    await vi.waitFor(() => expect(onOpenChangeComplete).toHaveBeenLastCalledWith(true));
+
+    await user.keyboard('{Escape}');
+    await vi.waitFor(() => expect(onOpenChangeComplete).toHaveBeenLastCalledWith(false));
+    expect(onOpenChangeComplete).toHaveBeenCalledTimes(2);
+  });
+
   it('closes on the ×', async () => {
     const user = setup();
     render(<Example />);
@@ -138,6 +161,162 @@ describe('Drawer', () => {
 
     await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(onOpenChange).toHaveBeenLastCalledWith(false);
+  });
+
+  describe('onBack', () => {
+    function WithBack(props: Partial<ComponentProps<typeof Drawer>>) {
+      return (
+        <Drawer open title="Цвет" onBack={vi.fn()} {...props}>
+          <button type="button">Первый</button>
+        </Drawer>
+      );
+    }
+
+    // jsdom has no layout, so Base UI leaves the focus on the popup when it opens; the first Tab
+    // shows which control comes first in the order.
+    it('puts the "‹" first in the focus order, before the content and the ×', async () => {
+      const user = setup();
+      render(<WithBack open={undefined} trigger={<Button>Открыть</Button>} />);
+
+      await user.click(screen.getByRole('button', { name: 'Открыть' }));
+      const back = await screen.findByRole('button', { name: 'Назад' });
+      await vi.waitFor(() => expect(screen.getByRole('dialog')).toHaveFocus());
+
+      await user.tab();
+      expect(back).toHaveFocus();
+      await user.tab();
+      expect(screen.getByRole('button', { name: 'Первый' })).toHaveFocus();
+      await user.tab();
+      expect(screen.getByRole('button', { name: 'Закрыть' })).toHaveFocus();
+    });
+
+    it('is named by backLabel and described by the title', async () => {
+      render(<WithBack backLabel="Назад к фильтрам" title="Цвет" />);
+
+      const back = await screen.findByRole('button', { name: 'Назад к фильтрам' });
+      expect(back).toHaveAccessibleDescription('Цвет');
+    });
+
+    it('calls onBack on a click and does not close the drawer', async () => {
+      const user = setup();
+      const onBack = vi.fn();
+      const onOpenChange = vi.fn();
+      render(<WithBack onBack={onBack} onOpenChange={onOpenChange} />);
+
+      await user.click(await screen.findByRole('button', { name: 'Назад' }));
+
+      expect(onBack).toHaveBeenCalledTimes(1);
+      expect(onOpenChange).not.toHaveBeenCalled();
+    });
+
+    it('gives the button to backRef', async () => {
+      const ref = { current: null as HTMLButtonElement | null };
+      render(<WithBack backRef={ref} />);
+
+      const back = await screen.findByRole('button', { name: 'Назад' });
+      expect(ref.current).toBe(back);
+    });
+
+    it('has no "‹" without onBack: the content comes first, the × last', async () => {
+      const user = setup();
+      render(
+        <Drawer trigger={<Button>Открыть</Button>} title="Цвет">
+          <button type="button">Первый</button>
+        </Drawer>,
+      );
+
+      await user.click(screen.getByRole('button', { name: 'Открыть' }));
+      await vi.waitFor(() => expect(screen.getByRole('dialog')).toHaveFocus());
+      expect(screen.queryByRole('button', { name: 'Назад' })).not.toBeInTheDocument();
+
+      await user.tab();
+      expect(screen.getByRole('button', { name: 'Первый' })).toHaveFocus();
+      await user.tab();
+      expect(screen.getByRole('button', { name: 'Закрыть' })).toHaveFocus();
+    });
+  });
+
+  describe('closable', () => {
+    it('has no "Закрыть" with closable=false, and Esc still closes', async () => {
+      const user = setup();
+      const onOpenChange = vi.fn();
+      render(
+        <Drawer open title="Цвет" closable={false} onOpenChange={onOpenChange}>
+          <p>Текст</p>
+        </Drawer>,
+      );
+
+      await screen.findByRole('dialog', { name: 'Цвет' });
+      expect(screen.queryByRole('button', { name: 'Закрыть' })).not.toBeInTheDocument();
+
+      await user.keyboard('{Escape}');
+
+      expect(onOpenChange).toHaveBeenCalledWith(false);
+    });
+
+    it('has the × by default', async () => {
+      render(
+        <Drawer open title="Цвет">
+          <p>Текст</p>
+        </Drawer>,
+      );
+
+      expect(await screen.findByRole('button', { name: 'Закрыть' })).toBeInTheDocument();
+    });
+  });
+
+  it('renders headerAction and it works', async () => {
+    const user = setup();
+    const onClick = vi.fn();
+    render(
+      <Drawer
+        open
+        title="Цвет"
+        headerAction={
+          <button type="button" onClick={onClick}>
+            Сбросить
+          </button>
+        }
+      >
+        <p>Текст</p>
+      </Drawer>,
+    );
+
+    await user.click(await screen.findByRole('button', { name: 'Сбросить' }));
+
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  describe('fullHeight', () => {
+    it('adds its class to a bottom sheet only', async () => {
+      const { unmount } = render(
+        <Drawer open side="bottom" fullHeight title="Фильтры">
+          <p>Текст</p>
+        </Drawer>,
+      );
+      const bottom = await screen.findByRole('dialog', { name: 'Фильтры' });
+      const plain = bottom.className;
+      unmount();
+
+      render(
+        <Drawer open side="bottom" title="Фильтры">
+          <p>Текст</p>
+        </Drawer>,
+      );
+      const without = await screen.findByRole('dialog', { name: 'Фильтры' });
+      expect(plain).toMatch(/fullHeight/);
+      expect(without.className).not.toMatch(/fullHeight/);
+    });
+
+    it('is ignored on the right side', async () => {
+      render(
+        <Drawer open fullHeight title="Корзина">
+          <p>Текст</p>
+        </Drawer>,
+      );
+
+      expect((await screen.findByRole('dialog')).className).not.toMatch(/fullHeight/);
+    });
   });
 
   it('can be controlled: open shows it and onOpenChange reports the close request', async () => {

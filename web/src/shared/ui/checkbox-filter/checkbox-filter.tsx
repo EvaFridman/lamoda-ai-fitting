@@ -7,7 +7,12 @@ import { useRef, useState } from 'react';
 import { Button } from '../button/button';
 import { Checkbox } from '../checkbox/checkbox';
 import { CheckboxGroup } from '../checkbox-group/checkbox-group';
-import { ColorSwatch, type HexColor, type SwatchColor } from '../color-swatch/color-swatch';
+import {
+  ColorSwatch,
+  type HexColor,
+  type SwatchColor,
+  SwatchDot,
+} from '../color-swatch/color-swatch';
 import { useFilterDropdown } from '../filter-dropdown/filter-dropdown';
 import { CloseIcon, SearchIcon } from '../icon/icons';
 
@@ -47,6 +52,14 @@ export interface CheckboxFilterPanelProps extends CheckboxListOptions {
   // Called at every tick with the ticked values in the order of `options`. There is no
   // "Применить": whoever places the panel applies them (the phone drawer's "Показать N товаров").
   onValueChange: (value: string[]) => void;
+  // `list` by default: the box before each label, as in the dropdown. `sheet`: a screen of the
+  // filters' sheet (spec 0020), rows split by hairlines, the box on the right after the count;
+  // with `swatches` the swatch is a decorative circle before the label.
+  layout?: 'list' | 'sheet';
+  // A chip "Выбрать все" under the search that ticks every shown option that is not disabled,
+  // keeping the ticks of those the search hides; it never unticks, and goes while no shown option
+  // can be ticked (spec 0020 W24).
+  selectAll?: boolean;
 }
 
 // The content of a FilterDropdown: the list of CheckboxFilterPanel and "Применить". Ticks are a
@@ -85,6 +98,8 @@ export function CheckboxFilterPanel({
   searchable = false,
   searchPlaceholder = 'Поиск',
   swatches = false,
+  layout = 'list',
+  selectAll = false,
 }: CheckboxFilterPanelProps) {
   const [query, setQuery] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
@@ -93,9 +108,25 @@ export function CheckboxFilterPanel({
   const shown = needle
     ? options.filter((option) => option.label.toLocaleLowerCase('ru').includes(needle))
     : options;
+  const sheet = layout === 'sheet';
+
+  // In the order of the options, whatever order they were ticked in.
+  function report(ticked: string[]) {
+    onValueChange(
+      options.filter((option) => ticked.includes(option.value)).map((option) => option.value),
+    );
+  }
+
+  const tickable = shown.filter((option) => !option.disabled).map((option) => option.value);
+
+  // Nothing is reported when every option it would tick is ticked already.
+  function tickShown() {
+    if (tickable.every((ticked) => value.includes(ticked))) return;
+    report([...value, ...tickable]);
+  }
 
   return (
-    <div className={styles.panel}>
+    <div className={[styles.panel, sheet && styles.sheet].filter(Boolean).join(' ')}>
       {searchable ? (
         <div className={styles.searchRow}>
           <div className={styles.search}>
@@ -131,22 +162,37 @@ export function CheckboxFilterPanel({
           {shown.length === 0 ? 'Ничего не найдено' : null}
         </p>
       ) : null}
+      {selectAll && tickable.length > 0 ? (
+        <div className={styles.selectAllRow}>
+          <BaseButton className={styles.selectAll} onClick={tickShown}>
+            Выбрать все
+          </BaseButton>
+        </div>
+      ) : null}
       {shown.length > 0 ? (
         <CheckboxGroup
           aria-label={label}
           className={styles.list}
           value={value}
-          // In the order of the options, whatever order they were ticked in.
-          onValueChange={(ticked) =>
-            onValueChange(
-              options
-                .filter((option) => ticked.includes(option.value))
-                .map((option) => option.value),
-            )
-          }
+          onValueChange={report}
         >
           {shown.map((option) =>
-            swatches ? (
+            sheet ? (
+              <Checkbox
+                key={option.value}
+                value={option.value}
+                disabled={option.disabled}
+                className={styles.row}
+              >
+                <span className={styles.option}>
+                  {swatches ? <SwatchDot color={option.color} className={styles.dot} /> : null}
+                  <span className={styles.optionLabel}>{option.label}</span>{' '}
+                  {option.count === undefined ? null : (
+                    <span className={styles.count}>{option.count}</span>
+                  )}
+                </span>
+              </Checkbox>
+            ) : swatches ? (
               <ColorSwatch
                 key={option.value}
                 value={option.value}

@@ -241,10 +241,55 @@ describe('filters demo', () => {
   });
 });
 
+describe('sheet panels demo', () => {
+  function renderSheet() {
+    render(<UiKitPage />);
+    const state = screen.getByText(/^\{"sort":"[^"]*","colors"/);
+    return { state, panels: within(state.parentElement as HTMLElement) };
+  }
+
+  it('starts with the default sort and no colours', () => {
+    const { state, panels } = renderSheet();
+
+    expect(JSON.parse(state.textContent ?? '')).toEqual({ sort: 'popularity', colors: [] });
+    expect(panels.getByRole('radio', { name: 'Подобрали для вас' })).toBeChecked();
+    expect(panels.getByRole('checkbox', { name: 'Черный 48210' })).not.toBeChecked();
+  });
+
+  it('reports a picked sort and ticked colours', async () => {
+    const user = userEvent.setup();
+    const { state, panels } = renderSheet();
+
+    await user.click(panels.getByRole('radio', { name: 'Новинки' }));
+    await user.click(panels.getByRole('checkbox', { name: 'Синий 9318' }));
+    await user.click(panels.getByRole('checkbox', { name: 'Черный 48210' }));
+
+    expect(JSON.parse(state.textContent ?? '')).toEqual({
+      sort: 'new',
+      colors: ['black', 'blue'],
+    });
+  });
+
+  it('"Выбрать все" ticks the colours the search shows', async () => {
+    const user = userEvent.setup();
+    const { state, panels } = renderSheet();
+
+    await user.click(panels.getByRole('checkbox', { name: 'Черный 48210' }));
+    await user.type(panels.getByRole('searchbox', { name: 'Поиск: Цвет' }), 'й');
+    await user.click(panels.getByRole('button', { name: 'Выбрать все' }));
+
+    const { colors } = JSON.parse(state.textContent ?? '') as { colors: string[] };
+    expect(colors).toContain('black');
+    expect(colors).toContain('blue');
+    expect(colors).toContain('white');
+    expect(colors).not.toContain('print');
+  });
+});
+
 describe('filter panels demo', () => {
   function renderPanels() {
     render(<UiKitPage />);
-    const state = screen.getByText(/^\{"sort":/);
+    const state = screen.getByText(/^\{"sort":"[^"]*","brands"/);
     return { state, panels: within(state.parentElement as HTMLElement) };
   }
 

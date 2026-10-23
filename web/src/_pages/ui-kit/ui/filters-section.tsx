@@ -1,5 +1,5 @@
 import styles from './examples.module.scss';
-import { FilterPanelsDemo } from './filter-panels-demo';
+import { FilterPanelsDemo, SheetPanelsDemo } from './filter-panels-demo';
 import { FilterChipStates, OpenFilterState, OpenPriceState } from './filter-states';
 import { FiltersDemo } from './filters-demo';
 
@@ -28,6 +28,11 @@ export function FiltersSection() {
         CheckboxFilterPanel, PriceFilterPanel, SortFilterPanel (телефон, в Accordion)
       </h3>
       <FilterPanelsDemo />
+
+      <h3 className={styles.heading}>
+        CheckboxFilterPanel и SortFilterPanel, layout=&quot;sheet&quot; (экран шторки фильтров)
+      </h3>
+      <SheetPanelsDemo />
     </>
   );
 }
