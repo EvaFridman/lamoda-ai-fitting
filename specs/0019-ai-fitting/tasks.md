@@ -117,7 +117,7 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       `slot`, the extended status CHECK, `user_image_key` nullable, the backfill of `user_id`.
       Check: the migration e2e on old rows; `typecheck`, `lint` and the task's tests (A58).
       Commit: `feat(api): extend generations for fittings`
-- [ ] **T10. The image model and the prompts.** `gptImage2` behind `ImageModel` (the edits
+- [x] **T10. The image model and the prompts.** `gptImage2` behind `ImageModel` (the edits
       request, the answer parsing, the model's refusal), `prompts.ts`, the fake provider's result
       image (A17).
       Check: unit tests of the request shape and the answer parsing on recorded fixtures;

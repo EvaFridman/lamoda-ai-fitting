@@ -86,6 +86,19 @@ const imagesAnswer = z.object({
 });
 export type ImagesAnswer = z.infer<typeof imagesAnswer>;
 
+// An answer of the edits endpoint with OpenAI's request id, which the generation stores
+// (`providerRequestId`) for their support.
+export interface EditedImage {
+  answer: ImagesAnswer;
+  requestId: string | null;
+}
+
+// A parsed answer and the request id of its response.
+interface Answer<T> {
+  body: T;
+  requestId: string | null;
+}
+
 // The text the model answered, or null when it answered nothing or a refusal.
 export function outputText(answer: ResponsesAnswer): string | null {
   for (const item of answer.output) {
@@ -132,25 +145,35 @@ export class OpenAiClient {
 
   // POST /v1/images/edits with a multipart form (`model`, `prompt`, `image[]`, ...; the image
   // model builds it); the answer's `data[0].b64_json` is the picture.
-  editImage(form: FormData, options: CallOptions): Promise<ImagesAnswer> {
-    return this.request('edit_image', '/v1/images/edits', { body: form }, options, imagesAnswer);
+  async editImage(form: FormData, options: CallOptions): Promise<EditedImage> {
+    const { body, requestId } = await this.request(
+      'edit_image',
+      '/v1/images/edits',
+      { body: form },
+      options,
+      imagesAnswer,
+    );
+    return { answer: body, requestId };
   }
 
   // POST /v1/responses: a classification in JSON (the caller sets the model, the instructions and
   // the `json_schema` text format).
-  respond(body: object, options: CallOptions): Promise<ResponsesAnswer> {
-    return this.request('respond', '/v1/responses', json(body), options, responsesAnswer);
+  async respond(body: object, options: CallOptions): Promise<ResponsesAnswer> {
+    return (await this.request('respond', '/v1/responses', json(body), options, responsesAnswer))
+      .body;
   }
 
   // POST /v1/moderations with the free moderation model, for a text or an image given as a data
   // URL.
-  moderate(input: ModerationInput, options: CallOptions): Promise<ModerationAnswer> {
+  async moderate(input: ModerationInput, options: CallOptions): Promise<ModerationAnswer> {
     const body = {
       model: MODERATION_MODEL,
       input:
         'text' in input ? input.text : [{ type: 'image_url', image_url: { url: input.imageUrl } }],
     };
-    return this.request('moderate', '/v1/moderations', json(body), options, moderationAnswer);
+    return (
+      await this.request('moderate', '/v1/moderations', json(body), options, moderationAnswer)
+    ).body;
   }
 
   private async request<T>(
@@ -159,7 +182,7 @@ export class OpenAiClient {
     init: { body: RequestBody; headers?: Record<string, string> },
     { signal, retry = true }: CallOptions,
     schema: z.ZodType<T>,
-  ): Promise<T> {
+  ): Promise<Answer<T>> {
     const attempts = retry ? this.backoffMs.length + 1 : 1;
     for (let attempt = 1; ; attempt += 1) {
       let response: Response;
@@ -181,7 +204,12 @@ export class OpenAiClient {
       }
 
       const requestId = requestIdOf(response);
-      if (response.ok) return this.parse(operation, response, requestId, schema, signal);
+      if (response.ok) {
+        return {
+          body: await this.parse(operation, response, requestId, schema, signal),
+          requestId,
+        };
+      }
 
       const failure = new AiProviderError(
         operation,

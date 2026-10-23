@@ -663,6 +663,32 @@ names the running-duplicate index by the fingerprint's inputs (`photoId`, `items
 a colour's FK by `items` and the reasons' CHECK by `reasons` (`StartFittingDto` and the
 regeneration's body, plan §5).
 
+**A66. The image model's details (T10).** Plan §3 leaves these open. `AiProvider.generate(job)`
+always makes one attempt, `retry` ignored (A52, A61: the activity's retry policy repeats a
+transient failure, a repeat inside the client could pay again), and runs under
+`FITTING_TIMEOUT_SECONDS` unless the caller names its own `timeoutMs`; the model's refusal (a 400
+with `error.code` `moderation_blocked` or `content_policy_violation`, or an answer with no image)
+is a result `{ ok: false, reason: 'moderation' }`, not an error, and a timeout or any other failure
+is thrown as `AiProviderError` for the activity to map (`model_timeout`, `provider_error`). A
+network error or a 5xx may come after OpenAI made, and billed, the picture, so each of plan §4's
+two retries of a transient failure may pay once more: at most three paid calls per try-on, a
+risk the plan accepts and T11 bounds (`maximumAttempts`, the timeout non-retryable). The answer's
+picture is checked only by `storeResult`'s sharp (T11): one it cannot read is `provider_error`.
+A job carries 1 to 5 items (A29; both providers throw a plain `Error` before the request
+otherwise, a caller's bug that T11's activity does not retry). A
+regeneration's comment is its own field and its own prompt line after the wishes, so a
+regeneration keeps the parent's wishes too; a fixed line after both says they never change the
+person, the background or the items. The prompt tells the model to take only the item from a
+catalog photo, never the person wearing it. The
+fake provider's picture is the person's photo cut to 1024×1536, not a file under
+`api/test/fixtures/` (plan §3): the dev image has no `test/`, and the local stack shows the user's
+own photo as the result. A marker `fail:moderation`, `fail:provider_error` or `fail:timeout` in the
+wishes or the comment gets that failure from the fake (the prompt check lets `fail:` through), so a check by hand
+reaches every failure screen. The regeneration reasons are `face`, `figure`, `item`, `background`,
+`other` (the chips «Лицо», «Фигура», «Вещь», «Фон», «Другое»; `REGENERATION_REASONS` in
+`ai/prompts.ts`). The prompt is English and quotes every catalog name, the wishes and the comment as a JSON
+string, so a text cannot close its quote. Assumption, owner to confirm at the phase summary.
+
 ## Canvas and decisions
 
 Where the canvas differs from the decisions above, the decision wins:

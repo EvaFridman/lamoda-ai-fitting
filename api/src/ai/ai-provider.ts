@@ -1,6 +1,6 @@
 import sharp from 'sharp';
 
-import { AiProviderError } from './ai-provider.error.js';
+import { type AiOperation, AiProviderError } from './ai-provider.error.js';
 import type { AiSettings } from './ai-settings.js';
 import { ModerationChecker, type ModerationResult } from './checks/moderation-checker.js';
 import {
@@ -15,8 +15,20 @@ import {
   PromptChecker,
 } from './checks/prompt-checker.js';
 import { abortKind, sleep, withDeadline } from './deadline.js';
+import { gptImage2 } from './image-models/gpt-image-2.js';
+import {
+  assertFittingItems,
+  type FittingJob,
+  type GenerationResult,
+  type ImageModel,
+} from './image-models/image-model.js';
 import type { ImageInput } from './image-input.js';
-import { type AiLogger, type CallOptions, OpenAiClient } from './openai-client.js';
+import {
+  type AiLogger,
+  type CallOptions,
+  type EditedImage,
+  OpenAiClient,
+} from './openai-client.js';
 
 export const AI_PROVIDER = Symbol('AI_PROVIDER');
 
@@ -37,34 +49,71 @@ export interface AiCallOptions {
   retry?: boolean;
 }
 
-// What the routes and the activities see of the AI (spec 0019 plan §3): the checks here, the
-// generation when the image model lands (T10). Each call runs under one deadline, the settings'
-// check deadline unless the caller names its own, the caller's signal joined in; a deadline that
-// passes throws an AiProviderError whose `isTimeout` is true. In a route (`POST /me/photos`, T4;
-// `POST /fittings`, T9) that is a 503 with nothing stored (A45).
+// What the routes and the activities see of the AI (spec 0019 plan §3): the checks and the
+// generation. Each call runs under one deadline, the caller's own or else the settings' (the check
+// deadline; the generation's `FITTING_TIMEOUT_SECONDS`), the caller's signal joined in; a deadline
+// that passes throws an AiProviderError whose `isTimeout` is true. In a route (`POST /me/photos`,
+// T4; `POST /fittings`, T12) that is a 503 with nothing stored (A45).
 export interface AiProvider {
   // `openai`, what `aiProvider` stores (plan §3); `fake` where no key is set.
   readonly name: 'openai' | 'fake';
+  // The image model's short name, what `aiModel` stores (A43): `FITTING_MODEL`.
+  readonly model: string;
   checkPhoto(image: ImageInput, options?: AiCallOptions): Promise<PhotoCheck>;
   checkPrompt(text: string, options?: AiCallOptions): Promise<PromptCheck>;
   moderateImage(image: ImageInput, options?: AiCallOptions): Promise<ModerationResult>;
+  // The one paid call (A28). Always one attempt, whatever `retry` says: the activity's retry policy
+  // repeats a transient failure (A52), and a repeat inside the client could pay for more pictures
+  // (A61, A66). The model's refusal is a result, not an error; a timeout is `model_timeout`,
+  // anything else thrown `provider_error` (plan §3).
+  generate(job: FittingJob, options?: AiCallOptions): Promise<GenerationResult>;
 }
 
-// The real one: the three checkers over one OpenAiClient.
+// The real one: the three checkers and the image model over one OpenAiClient.
 export class OpenAiProvider implements AiProvider {
   readonly name = 'openai';
+  readonly model: string;
   private readonly photos: PhotoChecker;
   private readonly prompts: PromptChecker;
   private readonly moderation: ModerationChecker;
+  private readonly imageModel: ImageModel;
 
   constructor(
-    client: OpenAiClient,
-    private readonly settings: Pick<AiSettings, 'visionModel' | 'checkTimeoutMs'>,
+    private readonly client: OpenAiClient,
+    private readonly settings: Pick<
+      AiSettings,
+      'model' | 'visionModel' | 'checkTimeoutMs' | 'timeoutSeconds'
+    >,
     logger: AiLogger,
   ) {
     this.moderation = new ModerationChecker(client);
     this.photos = new PhotoChecker(client, this.moderation, settings.visionModel, logger);
     this.prompts = new PromptChecker(client, this.moderation, settings.visionModel, logger);
+    this.imageModel = gptImage2(settings.model);
+    this.model = this.imageModel.name;
+  }
+
+  async generate(job: FittingJob, options: AiCallOptions = {}): Promise<GenerationResult> {
+    const call: CallOptions = {
+      signal: withDeadline(
+        deadlineMs(options, this.settings.timeoutSeconds * 1000),
+        options.signal,
+      ),
+      retry: false,
+    };
+    let edited: EditedImage;
+    try {
+      edited = await this.client.editImage(this.imageModel.buildRequest(job), call);
+    } catch (error) {
+      if (error instanceof AiProviderError && this.imageModel.isRefusal(error)) {
+        return { ok: false, reason: 'moderation', requestId: error.requestId };
+      }
+      throw error;
+    }
+    const image = this.imageModel.parseAnswer(edited.answer);
+    return image === null
+      ? { ok: false, reason: 'moderation', requestId: edited.requestId }
+      : { ok: true, image, requestId: edited.requestId };
   }
 
   checkPhoto(image: ImageInput, options: AiCallOptions = {}): Promise<PhotoCheck> {
@@ -81,19 +130,17 @@ export class OpenAiProvider implements AiProvider {
 
   private callOptions(options: AiCallOptions): CallOptions {
     return {
-      signal: withDeadline(deadlineMs(options, this.settings), options.signal),
+      signal: withDeadline(deadlineMs(options, this.settings.checkTimeoutMs), options.signal),
       retry: options.retry,
     };
   }
 }
 
-// The call's deadline: the caller's, when it is a time, else the settings' check deadline.
-export function deadlineMs(
-  options: AiCallOptions,
-  settings: Pick<AiSettings, 'checkTimeoutMs'>,
-): number {
+// The call's deadline: the caller's, when it is a time, else the fallback (the settings' check
+// deadline, or the generation's).
+export function deadlineMs(options: AiCallOptions, fallbackMs: number): number {
   const ms = options.timeoutMs;
-  return ms !== undefined && Number.isFinite(ms) && ms >= 1 ? ms : settings.checkTimeoutMs;
+  return ms !== undefined && Number.isFinite(ms) && ms >= 1 ? ms : fallbackMs;
 }
 
 // The marker the e2e put into a photo's bytes or a text to get a refusal: `refuse:<reason>`, a
@@ -146,7 +193,35 @@ export class FakeAiProvider implements AiProvider {
   readonly name = 'fake';
   delayMs = 0;
 
-  constructor(private readonly settings: Pick<AiSettings, 'checkTimeoutMs'>) {}
+  readonly model: string;
+
+  constructor(
+    private readonly settings: Pick<AiSettings, 'model' | 'checkTimeoutMs' | 'timeoutSeconds'>,
+  ) {
+    this.model = settings.model;
+  }
+
+  // The person's photo as the result, cut to the real model's size (a deterministic picture, so
+  // the local stack and the e2e show a result with no file of their own). A marker `fail:<what>`
+  // in the wishes or the comment (the photo reaches here re-encoded, A53) answers as the model
+  // would: `fail:moderation` its refusal, `fail:provider_error` a 500 (transient, so the activity
+  // retries it), `fail:timeout` the deadline passing, so a check by hand reaches every failure
+  // screen.
+  async generate(job: FittingJob, options: AiCallOptions = {}): Promise<GenerationResult> {
+    assertFittingItems(job);
+    await this.wait(options, 'edit_image', this.settings.timeoutSeconds * 1000);
+    const failure = FAILURE_MARKER.exec(`${job.wishes ?? ''}\n${job.comment ?? ''}`)?.[1];
+    if (failure === 'moderation') return { ok: false, reason: 'moderation', requestId: null };
+    if (failure === 'provider_error') {
+      throw new AiProviderError('edit_image', 'http', 500, 'server_error', null);
+    }
+    if (failure === 'timeout') throw new AiProviderError('edit_image', 'timeout', null, null, null);
+    const image = await sharp(Buffer.from(job.person.bytes))
+      .resize(FAKE_RESULT_WIDTH, FAKE_RESULT_HEIGHT, { fit: 'cover' })
+      .webp()
+      .toBuffer();
+    return { ok: true, image: new Uint8Array(image), requestId: null };
+  }
 
   async checkPhoto(image: ImageInput, options: AiCallOptions = {}): Promise<PhotoCheck> {
     await this.wait(options);
@@ -174,16 +249,26 @@ export class FakeAiProvider implements AiProvider {
   }
 
   // The delay under the same deadline as a real call: a delay past it throws the same timeout.
-  private async wait(options: AiCallOptions): Promise<void> {
+  private async wait(
+    options: AiCallOptions,
+    operation: AiOperation = 'respond',
+    fallbackMs = this.settings.checkTimeoutMs,
+  ): Promise<void> {
     if (this.delayMs <= 0 && !options.signal?.aborted) return;
-    const signal = withDeadline(deadlineMs(options, this.settings), options.signal);
+    const signal = withDeadline(deadlineMs(options, fallbackMs), options.signal);
     try {
       await sleep(this.delayMs, signal);
     } catch (error) {
-      throw new AiProviderError('respond', abortKind(error, signal) ?? 'aborted', null, null, null);
+      throw new AiProviderError(operation, abortKind(error, signal) ?? 'aborted', null, null, null);
     }
   }
 }
+
+// The fake generation's failure marker (see FakeAiProvider.generate) and its picture's size, the
+// real model's `1024x1536`.
+const FAILURE_MARKER = /fail:([a-z_]+)/;
+const FAKE_RESULT_WIDTH = 1024;
+const FAKE_RESULT_HEIGHT = 1536;
 
 function marker(text: string): string | null {
   return MARKER.exec(text)?.[1] ?? null;

@@ -1,5 +1,5 @@
 import sharp from 'sharp';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { goodPhoto, refusedPhoto } from '../../test/support/photos.js';
 import {
@@ -18,6 +18,9 @@ const bytes = (text: string) => ({
   bytes: new TextEncoder().encode(text),
   mimeType: 'image/jpeg' as const,
 });
+
+const FAKE_SETTINGS = { model: 'gpt-image-2', timeoutSeconds: 180 };
+const OPENAI_SETTINGS = { model: 'gpt-image-2', timeoutSeconds: 180 };
 
 const settings: AiSettings = {
   nodeEnv: 'production',
@@ -41,7 +44,7 @@ async function failureOf(promise: Promise<unknown>): Promise<AiProviderError> {
 }
 
 describe('FakeAiProvider', () => {
-  const fake = () => new FakeAiProvider({ checkTimeoutMs: 20 });
+  const fake = () => new FakeAiProvider({ ...FAKE_SETTINGS, checkTimeoutMs: 20 });
 
   it('is named fake', () => {
     expect(fake().name).toBe('fake');
@@ -104,14 +107,14 @@ describe('FakeAiProvider', () => {
   });
 
   it('waits a delay that fits under the deadline', async () => {
-    const provider = new FakeAiProvider({ checkTimeoutMs: 1000 });
+    const provider = new FakeAiProvider({ ...FAKE_SETTINGS, checkTimeoutMs: 1000 });
     provider.delayMs = 5;
 
     expect(await provider.checkPrompt('plain')).toEqual({ allowed: true });
   });
 
   it('falls back to checkTimeoutMs for a timeoutMs of 0', async () => {
-    const provider = new FakeAiProvider({ checkTimeoutMs: 1000 });
+    const provider = new FakeAiProvider({ ...FAKE_SETTINGS, checkTimeoutMs: 1000 });
     provider.delayMs = 5;
 
     expect(await provider.checkPrompt('plain', { timeoutMs: 0 })).toEqual({ allowed: true });
@@ -133,7 +136,7 @@ describe('FakeAiProvider', () => {
   });
 
   it('throws aborted when the caller cancels during the delay', async () => {
-    const provider = new FakeAiProvider({ checkTimeoutMs: 5000 });
+    const provider = new FakeAiProvider({ ...FAKE_SETTINGS, checkTimeoutMs: 5000 });
     provider.delayMs = 5000;
     const controller = new AbortController();
     const result = failureOf(provider.checkPhoto(bytes('plain'), { signal: controller.signal }));
@@ -144,7 +147,7 @@ describe('FakeAiProvider', () => {
   });
 
   it('is aborted, not timed out, when the caller cancels with a CancelledFailure', async () => {
-    const provider = new FakeAiProvider({ checkTimeoutMs: 5000 });
+    const provider = new FakeAiProvider({ ...FAKE_SETTINGS, checkTimeoutMs: 5000 });
     provider.delayMs = 5000;
     const controller = new AbortController();
     const result = failureOf(provider.checkPrompt('plain', { signal: controller.signal }));
@@ -159,7 +162,7 @@ describe('FakeAiProvider', () => {
   });
 
   it('uses options.timeoutMs instead of the settings deadline', async () => {
-    const provider = new FakeAiProvider({ checkTimeoutMs: 20 });
+    const provider = new FakeAiProvider({ ...FAKE_SETTINGS, checkTimeoutMs: 20 });
     provider.delayMs = 100;
 
     expect(await provider.checkPhoto(bytes('plain'), { timeoutMs: 500 })).toEqual({ ok: true });
@@ -171,7 +174,7 @@ describe('FakeAiProvider', () => {
   });
 
   it('times out under a shorter options.timeoutMs than the settings deadline', async () => {
-    const provider = new FakeAiProvider({ checkTimeoutMs: 500 });
+    const provider = new FakeAiProvider({ ...FAKE_SETTINGS, checkTimeoutMs: 500 });
     provider.delayMs = 100;
 
     for (const call of [
@@ -190,7 +193,7 @@ describe('solidColourReason and the colour refusals', () => {
     bytes: new Uint8Array(buffer),
     mimeType,
   });
-  const fake = () => new FakeAiProvider({ checkTimeoutMs: 1000 });
+  const fake = () => new FakeAiProvider({ ...FAKE_SETTINGS, checkTimeoutMs: 1000 });
 
   it.each(REASONS)('names the reason of a solid %s image', async (reason) => {
     expect(await solidColourReason(await refusedPhoto(reason))).toBe(reason);
@@ -278,7 +281,11 @@ describe('OpenAiProvider', () => {
       fetch: fetchImpl as unknown as typeof globalThis.fetch,
       backoffMs: [0, 0],
     });
-    return new OpenAiProvider(client, { visionModel: 'vision', checkTimeoutMs }, logger);
+    return new OpenAiProvider(
+      client,
+      { ...OPENAI_SETTINGS, visionModel: 'vision', checkTimeoutMs },
+      logger,
+    );
   }
 
   it('is named openai', () => {
@@ -414,7 +421,7 @@ describe('OpenAiProvider', () => {
     });
     const openai = new OpenAiProvider(
       client,
-      { visionModel: 'vision', checkTimeoutMs: 4000 },
+      { ...OPENAI_SETTINGS, visionModel: 'vision', checkTimeoutMs: 4000 },
       logger,
     );
 
@@ -422,16 +429,311 @@ describe('OpenAiProvider', () => {
   });
 });
 
+describe('OpenAiProvider generate', () => {
+  const PICTURE = new Uint8Array([9, 8, 7, 6]);
+  const job = {
+    person: bytes('person'),
+    items: [
+      { ...bytes('item'), name: 'Shirt', category: 'Shirts', colour: null, image: bytes('i') },
+    ],
+  };
+
+  function answering(response: () => Response) {
+    return vi.fn((_url: string, _init: RequestInit) => Promise.resolve(response()));
+  }
+
+  function generator(fetchImpl: ReturnType<typeof answering>, checkTimeoutMs = 20) {
+    return new OpenAiProvider(
+      new OpenAiClient({
+        apiKey: 'test-openai-key_1',
+        logger,
+        fetch: fetchImpl as unknown as typeof globalThis.fetch,
+        backoffMs: [0, 0],
+      }),
+      { ...OPENAI_SETTINGS, visionModel: 'vision', checkTimeoutMs },
+      logger,
+    );
+  }
+
+  const picture = () =>
+    new Response(
+      JSON.stringify({ data: [{ b64_json: Buffer.from(PICTURE).toString('base64') }] }),
+      {
+        status: 200,
+        headers: { 'x-request-id': 'req_gen_1' },
+      },
+    );
+  const failure = (status: number, code: string | null, requestId = 'req_err_1') =>
+    new Response(JSON.stringify({ error: { code, message: 'm' } }), {
+      status,
+      headers: { 'x-request-id': requestId },
+    });
+
+  it('names the setting model', () => {
+    const openai = new OpenAiProvider(
+      new OpenAiClient({ apiKey: 'test-openai-key_1', logger }),
+      { ...OPENAI_SETTINGS, model: 'gpt-image-2.5-sunburst', visionModel: 'v', checkTimeoutMs: 1 },
+      logger,
+    );
+
+    expect(openai.model).toBe('gpt-image-2.5-sunburst');
+  });
+
+  it('returns the picture and the request id, posting to the edits endpoint', async () => {
+    const fetch = answering(picture);
+
+    const result = await generator(fetch).generate(job);
+
+    expect(result).toEqual({ ok: true, image: PICTURE, requestId: 'req_gen_1' });
+    const [url, init] = fetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('https://api.openai.com/v1/images/edits');
+    expect((init.body as FormData).get('model')).toBe('gpt-image-2');
+  });
+
+  it('counts an answer with no picture as moderation, with the request id', async () => {
+    const fetch = answering(
+      () => new Response('{"data":[]}', { status: 200, headers: { 'x-request-id': 'req_empty' } }),
+    );
+
+    expect(await generator(fetch).generate(job)).toEqual({
+      ok: false,
+      reason: 'moderation',
+      requestId: 'req_empty',
+    });
+  });
+
+  it('counts a 400 moderation_blocked as moderation, with the error request id', async () => {
+    const fetch = answering(() => failure(400, 'moderation_blocked', 'req_blocked'));
+
+    expect(await generator(fetch).generate(job)).toEqual({
+      ok: false,
+      reason: 'moderation',
+      requestId: 'req_blocked',
+    });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('throws another 400 as an error', async () => {
+    const fetch = answering(() => failure(400, 'invalid_value'));
+
+    expect(await failureOf(generator(fetch).generate(job))).toMatchObject({
+      operation: 'edit_image',
+      status: 400,
+      code: 'invalid_value',
+    });
+  });
+
+  it('makes one attempt of a 500 by default', async () => {
+    const fetch = answering(() => failure(500, 'server_error'));
+
+    const error = await failureOf(generator(fetch).generate(job));
+
+    expect(error).toMatchObject({ operation: 'edit_image', reason: 'http', status: 500 });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('makes one attempt with retry false', async () => {
+    const fetch = answering(() => failure(503, null));
+
+    await failureOf(generator(fetch).generate(job, { retry: false }));
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('makes one attempt of a 500 even with retry true', async () => {
+    const fetch = answering(() => failure(500, 'server_error'));
+
+    await failureOf(generator(fetch).generate(job, { retry: true }));
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  describe('deadline', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('is timeoutSeconds, not checkTimeoutMs, without timeoutMs', async () => {
+      const timeout = vi.spyOn(AbortSignal, 'timeout');
+
+      await generator(answering(picture), 20).generate(job);
+
+      expect(timeout).toHaveBeenCalledWith(180_000);
+      expect(timeout).not.toHaveBeenCalledWith(20);
+    });
+
+    it('is the caller timeoutMs when it is given', async () => {
+      const timeout = vi.spyOn(AbortSignal, 'timeout');
+
+      await generator(answering(picture), 20).generate(job, { timeoutMs: 90_000 });
+
+      expect(timeout).toHaveBeenCalledWith(90_000);
+      expect(timeout).not.toHaveBeenCalledWith(180_000);
+    });
+
+    it('times out a hanging request at timeoutMs', async () => {
+      const error = await failureOf(
+        provider(hangingFetch(), 60_000).generate(job, { timeoutMs: 20 }),
+      );
+
+      expect(error).toMatchObject({ operation: 'edit_image', reason: 'timeout' });
+      expect(error.isTimeout).toBe(true);
+    });
+
+    it('is aborted when the caller cancels', async () => {
+      const controller = new AbortController();
+      const result = failureOf(
+        provider(hangingFetch(), 60_000).generate(job, { signal: controller.signal }),
+      );
+
+      controller.abort(new DOMException('stop', 'AbortError'));
+
+      const error = await result;
+      expect(error).toMatchObject({ operation: 'edit_image', reason: 'aborted' });
+      expect(error.isTimeout).toBe(false);
+    });
+  });
+
+  // A network that never answers: it fails only when the call's signal aborts.
+  function hangingFetch() {
+    return vi.fn(
+      (_url: string, init: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init.signal?.addEventListener('abort', () => reject(init.signal?.reason), { once: true });
+        }),
+    );
+  }
+
+  function provider(fetchImpl: ReturnType<typeof hangingFetch>, checkTimeoutMs: number) {
+    return generator(fetchImpl as unknown as ReturnType<typeof answering>, checkTimeoutMs);
+  }
+});
+
+describe('FakeAiProvider generate', () => {
+  const fake = (checkTimeoutMs = 20) => new FakeAiProvider({ ...FAKE_SETTINGS, checkTimeoutMs });
+  const item = {
+    name: 'Shirt',
+    category: 'Shirts',
+    colour: null,
+    image: bytes('item'),
+  };
+  const jobOf = async (wishes?: string, itemCount = 1) => ({
+    person: { bytes: new Uint8Array(await goodPhoto()), mimeType: 'image/jpeg' as const },
+    items: Array.from({ length: itemCount }, () => item),
+    wishes,
+  });
+
+  it('names the setting model', () => {
+    expect(fake().model).toBe('gpt-image-2');
+  });
+
+  it.each([0, 6])('throws a plain Error for %i items, before any delay', async (count) => {
+    const provider = fake();
+    provider.delayMs = 5000;
+
+    const promise = provider.generate(await jobOf(undefined, count));
+
+    await expect(promise).rejects.toThrow(`A fitting takes 1 to 5 items, got ${count}`);
+    await expect(promise).rejects.not.toBeInstanceOf(AiProviderError);
+  });
+
+  it('accepts five items', async () => {
+    expect((await fake().generate(await jobOf(undefined, 5))).ok).toBe(true);
+  });
+
+  it('answers a 1024x1536 WebP made from the photo', async () => {
+    const result = await fake().generate(await jobOf());
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.requestId).toBeNull();
+    const meta = await sharp(Buffer.from(result.image)).metadata();
+    expect(meta).toMatchObject({ format: 'webp', width: 1024, height: 1536 });
+  });
+
+  it('answers the same bytes for the same input', async () => {
+    const job = await jobOf('hello');
+
+    const [first, second] = [await fake().generate(job), await fake().generate(job)];
+
+    expect(first).toEqual(second);
+  });
+
+  it('refuses on fail:moderation in the wishes', async () => {
+    expect(await fake().generate(await jobOf('please fail:moderation'))).toEqual({
+      ok: false,
+      reason: 'moderation',
+      requestId: null,
+    });
+  });
+
+  it('throws a transient 500 on fail:provider_error', async () => {
+    const error = await failureOf(fake().generate(await jobOf('fail:provider_error')));
+
+    expect(error).toMatchObject({ operation: 'edit_image', reason: 'http', status: 500 });
+    expect(error.isTransient).toBe(true);
+  });
+
+  it('throws a timeout on fail:timeout', async () => {
+    const error = await failureOf(fake().generate(await jobOf('fail:timeout')));
+
+    expect(error.isTimeout).toBe(true);
+    expect(error.operation).toBe('edit_image');
+  });
+
+  it('reads a failure marker from the regeneration comment too', async () => {
+    const job = { ...(await jobOf()), comment: 'fail:moderation' };
+
+    expect(await fake().generate(job)).toEqual({
+      ok: false,
+      reason: 'moderation',
+      requestId: null,
+    });
+    const error = await failureOf(fake().generate({ ...job, comment: 'fail:provider_error' }));
+    expect(error.status).toBe(500);
+  });
+
+  it('ignores an unknown failure marker', async () => {
+    expect((await fake().generate(await jobOf('fail:whatever'))).ok).toBe(true);
+  });
+
+  it('times out when delayMs is past timeoutMs', async () => {
+    const provider = fake();
+    provider.delayMs = 200;
+
+    const error = await failureOf(provider.generate(await jobOf(), { timeoutMs: 20 }));
+
+    expect(error.isTimeout).toBe(true);
+    expect(error.operation).toBe('edit_image');
+  });
+
+  it('waits under timeoutSeconds, not checkTimeoutMs', async () => {
+    const provider = fake(20);
+    provider.delayMs = 100;
+
+    expect((await provider.generate(await jobOf())).ok).toBe(true);
+  });
+
+  it('throws aborted for an already aborted caller signal', async () => {
+    const controller = new AbortController();
+    controller.abort(new DOMException('stop', 'AbortError'));
+
+    const error = await failureOf(fake().generate(await jobOf(), { signal: controller.signal }));
+
+    expect(error).toMatchObject({ operation: 'edit_image', reason: 'aborted' });
+  });
+});
+
 describe('deadlineMs', () => {
   it.each([undefined, 0, -5, Number.NaN, Number.POSITIVE_INFINITY, 0.5])(
     'falls back to checkTimeoutMs for a timeoutMs of %s',
     (timeoutMs) => {
-      expect(deadlineMs({ timeoutMs }, { checkTimeoutMs: 4000 })).toBe(4000);
+      expect(deadlineMs({ timeoutMs }, 4000)).toBe(4000);
     },
   );
 
   it.each([1, 2500])('uses a timeoutMs of %s', (timeoutMs) => {
-    expect(deadlineMs({ timeoutMs }, { checkTimeoutMs: 4000 })).toBe(timeoutMs);
+    expect(deadlineMs({ timeoutMs }, 4000)).toBe(timeoutMs);
   });
 });
 
