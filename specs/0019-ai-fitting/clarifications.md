@@ -740,14 +740,34 @@ fingerprint), `moderate` three times, `discardResult` five (a file left behind g
 generation's folder when its row is deleted); a cancelled workflow discards a written result and
 calls `complete` with the unit kept outside the cancellation, so a row still there (a cancel by
 hand) ends `failed` `provider_error` with `error_message` `cancelled` and stays spent, as A47's
-delete does (T12's delete removes the row before it cancels); `complete` locks the user's row and
-deletes a transient photo only when no other running generation uses it, and the housekeeping
-leaves such a photo alone past its hour while a running generation of the last 24 hours uses it
-(a stuck row keeps it no longer); the quota's month is the Moscow month of the row's
+delete does (T12's delete removes the row before it cancels); the housekeeping leaves a
+transient photo alone past its hour while a running generation of the last 24 hours uses it (a
+stuck row keeps it no longer; amended by A69: `complete` no longer deletes it); the quota's month is the Moscow month of the row's
 `created_at` (`fittings/quota-month.ts`, which T12's start uses too); a regeneration's
 `prompt_text` is its comment and its wishes are the original try-on's (the first ancestor
 without a parent, none when that one is deleted; T12 may store them otherwise); the items go to
 the model in the order of their product ids.
+
+**A69. The owner's answers to T11's review (2026-10-23).** (1) A result refused by the
+moderation gives its unit back, as A20 says, though the paid call was made. (2) A stop of the
+worker (a deploy replaces it in place) waits for running activities as long as a generation may
+take: `shutdownGraceTime` is the longest setting's limit, `FITTING_TIMEOUT_SECONDS_MAX` (600 s)
+plus 60 s (`generateTimeLimitSeconds`), not the worker's own, since a fitting started by a newer
+api may carry a longer one; a quiet worker exits at once. `deploy/compose/worker.yml` sets
+`stop_grace_period: 12m`, above it, so a deploy no longer cuts a paid call; polling stops at
+once, so new fittings wait in Temporal's queue meanwhile, and the deploy waits too (up to 11
+minutes): CD's job limit goes from 30 to 45 minutes (amends 0018 V11), since a job cancelled
+while compose stops the old worker would leave none until the next deploy. (3) A transient photo
+stays while the try-on is open, so a regeneration from its result can use it: `complete` does not
+delete it (amends A24's «the generation that uses it deletes it when it ends»); closing the
+try-on deletes it (a route of T12 that the widget of T15 calls), and the housekeeping deletes one
+whose last generation ended more than an hour ago, or one never used, an hour after its upload (a
+closed tab sends nothing). A regeneration from the history of a fitting whose transient photo is
+gone is refused by T12. The owner chose «closing the try-on window» over an hour after the last
+generation and over keeping the photo as long as its results. The housekeeping locks the users of
+its candidate photos (`FOR UPDATE`, as a start locks its user) and checks the photos again before
+it deletes them, so a regeneration started meanwhile keeps its photo; T12's start locks the
+user's row before it reads the photo (A20) and refuses a photo that is gone.
 
 ## Canvas and decisions
 

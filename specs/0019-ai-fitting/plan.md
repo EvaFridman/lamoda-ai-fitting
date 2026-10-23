@@ -149,7 +149,8 @@ args: [{ generationId, timeoutSeconds }] })` (`timeoutSeconds` is `FITTING_TIMEO
   result (`moderation`), so it reaches no Sentry.
 - **Workflow.** Marks `processing`; runs the chain; on any end calls `complete`
   (status, `countsAgainstLimit` false unless completed and the quota's unit taken back then (A20),
-  a transient photo's row and file deleted through the outbox (A24), `finishedAt`)
+  `finishedAt`; a transient photo stays for the open try-on and goes when it closes or with the
+  housekeeping, A69)
   and `notify` (T13). A failed fitting's written result is deleted first (`discardResult`).
   `complete` is idempotent: it moves the row out of `pending`/`processing` with a
   conditional update and takes the unit back in the same transaction only when that update

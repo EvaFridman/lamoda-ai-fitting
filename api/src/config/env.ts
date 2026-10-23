@@ -11,6 +11,10 @@ const proxySecret = () =>
     .default('');
 
 // An http(s) address, or empty when the feature is off.
+// The longest FITTING_TIMEOUT_SECONDS: the worker's stop waits for a generation this long (+ 60 s)
+// whatever its own setting (spec 0019 A69), and worker.yml's stop_grace_period is above it.
+export const FITTING_TIMEOUT_SECONDS_MAX = 600;
+
 const optionalUrl = () => z.union([z.literal(''), z.url({ protocol: /^https?$/ })]).default('');
 
 // Every environment variable the api reads. Validated once at startup: a missing or malformed
@@ -135,7 +139,12 @@ export const envSchema = z
     // Try-ons per user and calendar month (A5).
     FITTING_MONTHLY_LIMIT: z.coerce.number().int().min(1).max(1000).default(10),
     // Seconds one generation may take at the model (A28); the spec's assumption is three minutes.
-    FITTING_TIMEOUT_SECONDS: z.coerce.number().int().min(30).max(600).default(180),
+    FITTING_TIMEOUT_SECONDS: z.coerce
+      .number()
+      .int()
+      .min(30)
+      .max(FITTING_TIMEOUT_SECONDS_MAX)
+      .default(180),
     // Milliseconds a check inside a request (the photo check, the text check) may take, its two
     // calls in parallel, then 503 with nothing stored (A45). At most half of REQUEST_TIMEOUT_MS,
     // checked by assertServerEnv at the server's start: sharp and the bucket write keep the other

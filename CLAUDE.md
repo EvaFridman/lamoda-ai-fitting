@@ -756,9 +756,10 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   kept like `delete-expired-auth-rows`) starts the rows older than a minute left unstarted, 100 per
   run, through the worker's own client with the same id (a run of at most 8 minutes), and before
   that deletes the transient photos older than an hour (A24) into the same outbox, but one a
-  running generation uses: the workflow `generateFitting`'s `complete` deletes it when it ends
-  (`temporal/activities/fitting.activities.ts`, spec 0019 plan §4, A68; its images pass through
-  the bucket, never Temporal's history).
+  running generation of the last day uses or whose last generation ended within the hour (a
+  regeneration from the open try-on, spec 0019 A69). The workflow `generateFitting`
+  (`temporal/workflows/generate-fitting.workflow.ts`, plan §4, A68) passes its images through the
+  bucket, never Temporal's history.
   `StorageError` carries the operation, S3 code, status and request id, never a key; Sentry keeps no
   storage paths (requests to `S3_ENDPOINT` are cut to method and origin, a failed deletion sends
   only the kind and the id). `REQUEST_TIMEOUT_MS` stays at 6000 or more: a delete may wait up to

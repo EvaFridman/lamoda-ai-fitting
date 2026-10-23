@@ -18,7 +18,6 @@ import {
 } from '../../storage/keys.js';
 import { StorageError } from '../../storage/storage.error.js';
 import type { StorageService } from '../../storage/storage.service.js';
-import { startFileDeletion } from './start-file-deletion.js';
 
 export type FittingActivities = ReturnType<typeof createFittingActivities>;
 
@@ -69,12 +68,11 @@ export type FittingOutcome =
 // only the generation's id (and its user's, to discard a result after a cancellation): every
 // image is read from the bucket here and the result written there, so no photo goes into
 // Temporal's history and no payload nears its limit. `ai` is the worker's AI_PROVIDER, the rest
-// its Nest context; `taskQueue` is where a transient photo's deletion starts.
+// its Nest context.
 export function createFittingActivities(
   ai: AiProvider,
   storage: StorageService,
   prisma: PrismaClient,
-  taskQueue: string,
 ) {
   return {
     // Moves a `pending` row to `processing` and returns its user; a repeat finds it there and
@@ -182,30 +180,21 @@ export function createFittingActivities(
       );
     },
 
-    // Ends the fitting (plan §4, A20, A24): moves the row out of `pending`/`processing` with a
+    // Ends the fitting (plan §4, A20): moves the row out of `pending`/`processing` with a
     // conditional update and, only when that update changed it, in the same transaction takes the
-    // unit back for a failed fitting that counted, and deletes a transient photo no other running
-    // generation uses, with its outbox row. A repeat (a retry after a lost answer) or a row that is
-    // gone (a cancelled fitting keeps its unit, A47) changes nothing. The photo's file deletion
-    // starts after the commit; a failed start is left to the housekeeping schedule.
+    // unit back for a failed fitting that counted. A repeat (a retry after a lost answer) or a row
+    // that is gone (a cancelled fitting keeps its unit, A47) changes nothing. A transient photo
+    // stays for a regeneration while the try-on is open; the housekeeping deletes it (A69).
     async complete(generationId: string, outcome: FittingOutcome): Promise<void> {
-      const deletion = await prisma.$transaction(async (tx) => {
+      await prisma.$transaction(async (tx) => {
         const row = await tx.aiGeneration.findUnique({
           where: { id: generationId },
-          select: {
-            userId: true,
-            countsAgainstLimit: true,
-            createdAt: true,
-            photoId: true,
-          },
+          select: { userId: true, countsAgainstLimit: true, createdAt: true },
         });
         if (row?.userId == null) {
-          return null;
+          return;
         }
         const { userId } = row;
-        // Serialises with the user's starts (T12), which lock the same row: a start that takes
-        // this transient photo sees it either still running here or gone.
-        await tx.$queryRaw`SELECT id FROM users WHERE id = ${userId}::uuid FOR UPDATE`;
         // A failure gives the unit back unless it is to stay spent.
         const refund = outcome.status === 'failed' && outcome.keepUnit !== true;
         const changed = await tx.aiGeneration.updateMany({
@@ -223,53 +212,13 @@ export function createFittingActivities(
               : { resultImageKey: generationResultKey(userId, generationId) }),
           },
         });
-        if (changed.count === 0) {
-          return null;
-        }
-        if (refund && row.countsAgainstLimit) {
+        if (changed.count > 0 && refund && row.countsAgainstLimit) {
           await tx.fittingQuota.updateMany({
             where: { userId, month: quotaMonth(row.createdAt), used: { gt: 0 } },
             data: { used: { decrement: 1 } },
           });
         }
-        if (row.photoId === null) {
-          return null;
-        }
-        const others = await tx.aiGeneration.count({
-          where: {
-            photoId: row.photoId,
-            id: { not: generationId },
-            status: { in: [...RUNNING_STATUSES] },
-          },
-        });
-        if (others > 0) {
-          return null;
-        }
-        const photo = await tx.userPhoto.findUnique({
-          where: { id: row.photoId },
-          select: { id: true, imageKey: true, transient: true },
-        });
-        if (photo?.transient !== true) {
-          return null;
-        }
-        await tx.userPhoto.delete({ where: { id: photo.id } });
-        return tx.fileDeletion.create({
-          data: { kind: 'photo', rowId: photo.id, prefixes: [photo.imageKey] },
-          select: { id: true, kind: true, rowId: true, prefixes: true },
-        });
       });
-      if (deletion !== null) {
-        const context = Context.current();
-        try {
-          await startFileDeletion(context.client, prisma, taskQueue, deletion);
-        } catch (error) {
-          // Kind and id only (no storage path, spec 0011 M32); the schedule starts it.
-          context.log.warn(
-            'Could not start the deletion of a transient photo; the housekeeping schedule starts it',
-            { kind: deletion.kind, id: deletion.rowId, error: errorName(error) },
-          );
-        }
-      }
     },
   };
 }

@@ -13,6 +13,7 @@ import type {
   FittingFailureType,
   FittingOutcome,
 } from '../activities/fitting.activities.js';
+import { generateTimeLimitSeconds } from '../fitting-workflow-id.js';
 
 // The database steps: short writes, retried until the database answers (as completeFileDeletion),
 // since a fitting that never ends keeps its unit and blocks its fingerprint (A32).
@@ -48,10 +49,6 @@ const { discardResult } = proxyActivities<FittingActivities>({
   },
 });
 
-// `generate`'s time above the model's own deadline: reading the inputs from the bucket, sharp and
-// the result's write (A68).
-const GENERATE_OVERHEAD_SECONDS = 60;
-
 export interface GenerateFittingInput {
   generationId: string;
   // FITTING_TIMEOUT_SECONDS of the api that started it: `generate`'s time limit is this plus the
@@ -67,8 +64,8 @@ const FAILURE_TYPES: readonly string[] = [
 // One try-on (spec 0019 plan §4, A68), id `fitting-<generationId>` (fitting-workflow-id.ts),
 // started by the api after the row's commit. Marks the row `processing`; `generate` makes the one
 // paid call and writes the result to the bucket (once: A67); `moderate` checks it; `complete` ends
-// the row in any case (a failure gives the unit back, A20; a transient photo goes, A24). Only ids
-// and codes go through the history (no image, no text of the user). The end runs outside any
+// the row in any case (a failure gives the unit back, A20; a transient photo stays for the open
+// try-on, A69). Only ids and codes go through the history (no image, no text of the user). The end runs outside any
 // cancellation, so a fitting always ends: a cancelled workflow (the row deleted, A47, or a cancel
 // by hand) discards a written result, ends a row still there as failed with its unit kept, and
 // then ends as cancelled. Only the workflow's own cancellation counts as one: an activity
@@ -78,7 +75,7 @@ export async function generateFitting({
   timeoutSeconds,
 }: GenerateFittingInput): Promise<void> {
   const { generate } = proxyActivities<FittingActivities>({
-    startToCloseTimeout: `${timeoutSeconds + GENERATE_OVERHEAD_SECONDS} seconds`,
+    startToCloseTimeout: `${generateTimeLimitSeconds(timeoutSeconds)} seconds`,
     heartbeatTimeout: '30 seconds',
     retry: { maximumAttempts: 1 },
     // The cancellation reaches the activity at its next heartbeat; waiting for its end keeps a

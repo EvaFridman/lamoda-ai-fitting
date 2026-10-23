@@ -11,6 +11,10 @@ networks:
 services:
   temporal-worker:
     restart: unless-stopped
+    # A stop waits for running generations (spec 0019 A69): the worker's shutdownGraceTime is
+    # FITTING_TIMEOUT_SECONDS + 60 s, at most 11 minutes (env.ts allows 600 s); Docker kills it
+    # only after this. The worker exits as soon as its activities end, so a quiet stop is quick.
+    stop_grace_period: 12m
     image: ${IMAGE_REGISTRY:-}ai-fitting-api:${IMAGE_TAG:?set IMAGE_TAG}
     command: ['node', 'dist/temporal/worker.js']
     environment:
