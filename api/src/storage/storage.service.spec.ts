@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import {
   DeleteObjectsCommand,
+  GetObjectCommand,
   HeadObjectCommand,
   ListObjectsV2Command,
   PutObjectCommand,
@@ -197,6 +198,45 @@ describe('StorageService', () => {
         'message',
         'Storage HeadObject failed: ECONNRESET',
       );
+    });
+  });
+
+  describe('get', () => {
+    it('returns the body as bytes and passes the abort signal', async () => {
+      const bytes = new Uint8Array([1, 2, 3]);
+      send.mockResolvedValue({ Body: { transformToByteArray: () => Promise.resolve(bytes) } });
+      const { signal } = new AbortController();
+
+      await expect(service.get('media/a.webp', signal)).resolves.toBe(bytes);
+
+      const command = send.mock.calls[0]?.[0] as GetObjectCommand;
+      expect(command).toBeInstanceOf(GetObjectCommand);
+      expect(command.input).toEqual({ Bucket: 'bucket', Key: 'media/a.webp' });
+      expect(send.mock.calls[0]?.[1]).toEqual({ abortSignal: signal });
+    });
+
+    it('refuses an invalid key before any request', async () => {
+      await expect(service.get('../x')).rejects.toThrow();
+      expect(send).not.toHaveBeenCalled();
+    });
+
+    it('fails with a StorageError carrying the status of a missing object', async () => {
+      send.mockRejectedValue(s3Error(404));
+      const promise = service.get('media/a.webp');
+      await expect(promise).rejects.toBeInstanceOf(StorageError);
+      await expect(promise).rejects.toMatchObject({ operation: 'GetObject', status: 404 });
+    });
+
+    it('fails with a StorageError when the answer has no body', async () => {
+      send.mockResolvedValue({});
+      await expect(service.get('media/a.webp')).rejects.toBeInstanceOf(StorageError);
+    });
+
+    it('fails with a StorageError when reading the body fails', async () => {
+      send.mockResolvedValue({
+        Body: { transformToByteArray: () => Promise.reject(new Error('reset')) },
+      });
+      await expect(service.get('media/a.webp')).rejects.toMatchObject({ operation: 'GetObject' });
     });
   });
 

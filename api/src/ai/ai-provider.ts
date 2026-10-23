@@ -205,8 +205,8 @@ export class FakeAiProvider implements AiProvider {
   // The person's photo as the result, cut to the real model's size (a deterministic picture, so
   // the local stack and the e2e show a result with no file of their own). A marker `fail:<what>`
   // in the wishes or the comment (the photo reaches here re-encoded, A53) answers as the model
-  // would: `fail:moderation` its refusal, `fail:provider_error` a 500 (transient, so the activity
-  // retries it), `fail:timeout` the deadline passing, so a check by hand reaches every failure
+  // would: `fail:moderation` its refusal, `fail:provider_error` a 500 (never sent again: one
+  // generation, one payment, A67), `fail:timeout` the deadline passing, so a check by hand reaches every failure
   // screen.
   async generate(job: FittingJob, options: AiCallOptions = {}): Promise<GenerationResult> {
     assertFittingItems(job);

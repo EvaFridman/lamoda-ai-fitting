@@ -67,6 +67,23 @@ export class StorageService implements OnApplicationShutdown {
     );
   }
 
+  // The object's bytes: a fitting's photo, its products' images and its result, which the worker
+  // sends to OpenAI and moderates (spec 0019 plan §3). A missing object is a StorageError with
+  // status 404; `abortSignal` (an activity's cancellation) stops the request and the body's read.
+  async get(key: string, abortSignal?: AbortSignal): Promise<Uint8Array> {
+    assertKey(key);
+    return this.request('GetObject', async () => {
+      const answer = await this.client.send(
+        new GetObjectCommand({ Bucket: this.settings.bucket, Key: key }),
+        { abortSignal },
+      );
+      if (answer.Body === undefined) {
+        throw new Error('GetObject answered no body');
+      }
+      return answer.Body.transformToByteArray();
+    });
+  }
+
   async exists(key: string): Promise<boolean> {
     assertKey(key);
     try {

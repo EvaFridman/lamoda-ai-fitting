@@ -202,9 +202,6 @@ removes it from this list. Found by the agents' first security audit and trial r
   null, read from the old database (`deploy/README.md`). Files uploaded after the copy by users
   the copy holds stay in their folders with no row: the restore could remove a user's files no row
   refers to.
-- **Heartbeats for the generation's activities.** `deletePrefix` heartbeats since spec 0019 T5
-  (A39); the generation's activities, where a cancellation must stop a paid call, get
-  `heartbeatTimeout` and `heartbeat()` with spec 0019's phase 2 (plan §4), which removes this item.
 - **Temporal history backup.** Spec 0012 backs up only PostgreSQL and the app bucket (0012 P1):
   Temporal's history is a SQLite file on the `temporaldata` volume. A lost volume loses unfinished
   workflows (`deleteFiles`, later generations), which may leave a deleted user's files in the

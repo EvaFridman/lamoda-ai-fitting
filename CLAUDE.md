@@ -176,8 +176,8 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   (served at `/media/<key>`). `seed/large-catalog.ts` (`npm run seed:dev-large -- <count>`, spec
   0014 plan §2.8) adds development products `DEV-00001…` made of the demo catalog's, with its photo
   keys; it refuses to run in production.
-- `api/src/storage/`: the S3 bucket (`StorageService`: `put`, `exists`, `deletePrefix`,
-  `signedUrl`) and `keys.ts`, the one place object keys are built and checked.
+- `api/src/storage/`: the S3 bucket (`StorageService`: `put`, `get`, `exists`,
+  `deletePrefix`, `signedUrl`) and `keys.ts`, the one place object keys are built and checked.
 - `api/src/ai/`: OpenAI (spec 0019 plan §3): `AiModule` provides `AI_SETTINGS` (the
   `OPENAI_API_KEY` and `FITTING_*` env) and `AI_PROVIDER`: `OpenAiProvider` in production only,
   elsewhere always `FakeAiProvider` (A49), which answers without the network and refuses on the
@@ -755,7 +755,10 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   schedule `fitting-housekeeping` (workflow `housekeeping`, every 10 minutes, overlap skipped,
   kept like `delete-expired-auth-rows`) starts the rows older than a minute left unstarted, 100 per
   run, through the worker's own client with the same id (a run of at most 8 minutes), and before
-  that deletes the transient photos older than an hour (A24) into the same outbox.
+  that deletes the transient photos older than an hour (A24) into the same outbox, but one a
+  running generation uses: the workflow `generateFitting`'s `complete` deletes it when it ends
+  (`temporal/activities/fitting.activities.ts`, spec 0019 plan §4, A68; its images pass through
+  the bucket, never Temporal's history).
   `StorageError` carries the operation, S3 code, status and request id, never a key; Sentry keeps no
   storage paths (requests to `S3_ENDPOINT` are cut to method and origin, a failed deletion sends
   only the kind and the id). `REQUEST_TIMEOUT_MS` stays at 6000 or more: a delete may wait up to

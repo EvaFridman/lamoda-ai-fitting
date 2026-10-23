@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { NativeConnection, Runtime, Worker } from '@temporalio/worker';
 import { inject } from 'vitest';
 
+import { type AiProvider, FakeAiProvider } from '../../src/ai/ai-provider.js';
 import type { PrismaClient } from '../../src/generated/prisma/client.js';
 import type { StorageService } from '../../src/storage/storage.service.js';
 import { createActivities } from '../../src/temporal/activities/index.js';
@@ -28,12 +29,18 @@ let runtimeInstalled = false;
 // client of the throwaway database, such as a TestApp's `prisma`); the housekeeping activity
 // starts workflows through the worker's own client. Bundling the workflows takes seconds: start it
 // in `beforeAll` with a long timeout, `stop()` in `afterAll`.
+// The fitting's activities get the fake AI provider (A49) unless the test passes its own.
 export function startTestWorker(
   settings: TemporalSettings,
   storage: StorageService,
   prisma: PrismaClient,
+  ai: AiProvider = new FakeAiProvider({
+    model: 'gpt-image-2',
+    checkTimeoutMs: 4000,
+    timeoutSeconds: 180,
+  }),
 ): Promise<TestWorker> {
-  return startTestWorkerWith(settings, createActivities(storage, prisma, settings.taskQueue));
+  return startTestWorkerWith(settings, createActivities(storage, prisma, settings.taskQueue, ai));
 }
 
 // The same worker with activities of the test, e.g. stubs, to check a workflow's own logic apart

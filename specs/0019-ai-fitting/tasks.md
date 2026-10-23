@@ -123,7 +123,7 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       Check: unit tests of the request shape and the answer parsing on recorded fixtures;
       `npm run verify`.
       Commit: `feat(api): add the image model and the fitting prompt`
-- [ ] **T11. The workflow `generateFitting`.** Activities (plan §4) with heartbeats, the workflow,
+- [x] **T11. The workflow `generateFitting`.** Activities (plan §4) with heartbeats, the workflow,
       the worker module, `workflows.spec.ts`, the database e2e with stub activities (completed,
       failed, moderated, timed out, cancelled, retried, `complete` retried after a partial run).
       Check: the e2e; `temporal-reviewer`; `npm run verify`.
