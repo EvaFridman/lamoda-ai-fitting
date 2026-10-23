@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { FilterDropdown, SortFilter } from '@/shared/ui';
+import { FilterDropdown, SortFilter, SortFilterPanel } from '@/shared/ui';
 
 const options = [
   { value: 'popularity', label: 'Подобрали для вас' },
@@ -48,6 +48,58 @@ describe('SortFilter outside a FilterDropdown', () => {
     } finally {
       error.mockRestore();
     }
+  });
+});
+
+describe('SortFilterPanel', () => {
+  function Panel({
+    layout,
+    onValueChange,
+  }: {
+    layout?: 'list' | 'sheet';
+    onValueChange?: (value: string) => void;
+  }) {
+    const [sort, setSort] = useState('popularity');
+    return (
+      <SortFilterPanel
+        label="Сортировка"
+        layout={layout}
+        options={options}
+        value={sort}
+        onValueChange={(next) => {
+          setSort(next);
+          onValueChange?.(next);
+        }}
+      />
+    );
+  }
+
+  it.each([undefined, 'list', 'sheet'] as const)(
+    'in the %s layout names the group, checks the value and picks on a click',
+    async (layout) => {
+      const user = userEvent.setup();
+      const onValueChange = vi.fn();
+      render(<Panel layout={layout} onValueChange={onValueChange} />);
+
+      expect(screen.getByRole('radiogroup', { name: 'Сортировка' })).toBeInTheDocument();
+      expect(screen.getByRole('radio', { name: 'Подобрали для вас' })).toBeChecked();
+
+      await user.click(screen.getByRole('radio', { name: 'Новинки' }));
+
+      expect(onValueChange).toHaveBeenCalledWith('new');
+      expect(screen.getByRole('radio', { name: 'Новинки' })).toBeChecked();
+      expect(screen.getByRole('radio', { name: 'Подобрали для вас' })).not.toBeChecked();
+    },
+  );
+
+  it('picks by a click on the label text in the sheet layout', async () => {
+    const user = userEvent.setup();
+    const onValueChange = vi.fn();
+    render(<Panel layout="sheet" onValueChange={onValueChange} />);
+
+    await user.click(screen.getByText('Сначала дороже'));
+
+    expect(onValueChange).toHaveBeenCalledWith('price-desc');
   });
 });
 

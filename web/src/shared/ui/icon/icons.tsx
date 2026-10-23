@@ -14,6 +14,12 @@ export const ChevronUpIcon = createIcon('ChevronUpIcon', {
   24: <path d="M3 15l9-7 9 7" stroke="currentColor" />,
 });
 
+// "‹": back to the previous screen of a sheet (the filters' sheet, spec 0020).
+export const ChevronLeftIcon = createIcon('ChevronLeftIcon', {
+  16: <path d="M10 2l-5 6 5 6" stroke="currentColor" />,
+  24: <path d="M15 3l-7 9 7 9" stroke="currentColor" />,
+});
+
 export const ArrowForwardIcon = createIcon('ArrowForwardIcon', {
   16: <path d="M9 2l5 6.5L9 15M1 8.5h13" stroke="currentColor" />,
   24: <path d="M14 2.5l7 9-7 9M3 11.5h18" stroke="currentColor" />,
@@ -34,6 +40,18 @@ export const ArrowBackIcon = createIcon('ArrowBackIcon', {
 export const CloseIcon = createIcon('CloseIcon', {
   16: <path d="M2 14L14 2M2 2l12 12" stroke="currentColor" />,
   24: <path d="M4 20L20 4M4 4l16 16" stroke="currentColor" />,
+});
+
+// A funnel: the phone catalog's "Фильтры" (spec 0020 W10).
+export const FilterIcon = createIcon('FilterIcon', {
+  24: (
+    <path
+      d="M3.5 4.5h17l-6.5 8v6l-4 2v-8z"
+      stroke="currentColor"
+      strokeLinejoin="round"
+      vectorEffect="non-scaling-stroke"
+    />
+  ),
 });
 
 export const SearchIcon = createIcon('SearchIcon', {

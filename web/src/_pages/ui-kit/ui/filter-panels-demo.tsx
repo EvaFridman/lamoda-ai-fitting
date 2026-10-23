@@ -10,7 +10,13 @@ import {
   SortFilterPanel,
 } from '@/shared/ui';
 
-import { brandOptions, defaultSort, priceBounds, sortOptions } from '../config/filters';
+import {
+  brandOptions,
+  colorOptions,
+  defaultSort,
+  priceBounds,
+  sortOptions,
+} from '../config/filters';
 
 import styles from './examples.module.scss';
 
@@ -72,6 +78,43 @@ export function FilterPanelsDemo() {
       </div>
       <p className={styles.props} aria-live="polite">
         {JSON.stringify({ sort, brands, price })}
+      </p>
+    </div>
+  );
+}
+
+// The sheet forms of the panels (`layout="sheet"`), as on the screens of the phone filters' sheet:
+// the control on the right, hairlines between rows; the colours with a search and "Выбрать все",
+// which ticks what the search leaves shown.
+export function SheetPanelsDemo() {
+  const [sort, setSort] = useState(defaultSort);
+  const [colors, setColors] = useState<string[]>([]);
+
+  return (
+    <div className={styles.example}>
+      <div className={styles.panelColumn}>
+        <SortFilterPanel
+          label="Сортировка"
+          layout="sheet"
+          options={sortOptions}
+          value={sort}
+          onValueChange={setSort}
+        />
+      </div>
+      <div className={styles.panelColumn}>
+        <CheckboxFilterPanel
+          label="Цвет"
+          layout="sheet"
+          options={colorOptions}
+          value={colors}
+          onValueChange={setColors}
+          swatches
+          searchable
+          selectAll
+        />
+      </div>
+      <p className={styles.props} aria-live="polite">
+        {JSON.stringify({ sort, colors })}
       </p>
     </div>
   );

@@ -54,15 +54,24 @@ export function SortFilter({ options, value, onValueChange }: SortFilterProps) {
 export interface SortFilterPanelProps extends SortFilterProps {
   // The name of the list for screen readers: the title of the section it is in.
   label: string;
+  // `list` by default: the circle before each label. `sheet`: a screen of the filters' sheet
+  // (spec 0020), rows split by hairlines, the circle on the right.
+  layout?: 'list' | 'sheet';
 }
 
 // The same radios with no dropdown to close: a section of the phone drawer (spec 0014 O6), where
 // a pick is applied with the other filters.
-export function SortFilterPanel({ options, label, value, onValueChange }: SortFilterPanelProps) {
+export function SortFilterPanel({
+  options,
+  label,
+  value,
+  onValueChange,
+  layout = 'list',
+}: SortFilterPanelProps) {
   return (
     <RadioGroup
       aria-label={label}
-      className={styles.panel}
+      className={[styles.panel, layout === 'sheet' && styles.sheet].filter(Boolean).join(' ')}
       value={value}
       onValueChange={(next) => onValueChange(next)}
     >

@@ -1,9 +1,14 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useState } from 'react';
+import { type ComponentProps, useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { CheckboxFilter, type CheckboxFilterOption, FilterDropdown } from '@/shared/ui';
+import {
+  CheckboxFilter,
+  type CheckboxFilterOption,
+  CheckboxFilterPanel,
+  FilterDropdown,
+} from '@/shared/ui';
 
 const options: CheckboxFilterOption[] = [
   { value: 'evening', label: 'Вечерний', count: 10 },
@@ -330,6 +335,229 @@ describe('CheckboxFilter search', () => {
     expect(input).toHaveFocus();
     expect(screen.getAllByRole('checkbox')).toHaveLength(options.length);
     expect(screen.queryByRole('button', { name: 'Очистить' })).not.toBeInTheDocument();
+  });
+});
+
+describe('CheckboxFilterPanel', () => {
+  const panelOptions: CheckboxFilterOption[] = [
+    { value: 'evening', label: 'Вечерний', count: 10, color: '#112233' },
+    { value: 'business', label: 'Деловой', count: 20, color: '#FFFFFF' },
+    { value: 'casual', label: 'Повседневный' },
+    { value: 'sport', label: 'Спортивный', disabled: true },
+  ];
+
+  function Panel({
+    initial = [],
+    onValueChange,
+    ...props
+  }: {
+    initial?: string[];
+    onValueChange?: (value: string[]) => void;
+  } & Partial<ComponentProps<typeof CheckboxFilterPanel>>) {
+    const [value, setValue] = useState(initial);
+    return (
+      <CheckboxFilterPanel
+        label="Стиль"
+        options={panelOptions}
+        {...props}
+        value={value}
+        onValueChange={(next) => {
+          setValue(next);
+          onValueChange?.(next);
+        }}
+      />
+    );
+  }
+
+  describe('sheet layout', () => {
+    it('names each row by its label and count, with or without a swatch dot', () => {
+      const { rerender } = render(<Panel layout="sheet" />);
+      expect(screen.getByRole('checkbox', { name: 'Вечерний 10' })).toBeInTheDocument();
+      expect(screen.getByRole('checkbox', { name: 'Повседневный' })).toBeInTheDocument();
+
+      rerender(<Panel layout="sheet" swatches />);
+      expect(screen.getByRole('checkbox', { name: 'Вечерний 10' })).toBeInTheDocument();
+      expect(screen.getByRole('checkbox', { name: 'Деловой 20' })).toBeInTheDocument();
+    });
+
+    it('draws a decorative dot, not a swatch checkbox, when swatches is set', () => {
+      render(<Panel layout="sheet" swatches />);
+
+      const dots = document.querySelectorAll('[aria-hidden="true"][style*="background"]');
+      expect(dots).toHaveLength(2);
+      expect(screen.getAllByRole('checkbox')).toHaveLength(panelOptions.length);
+      for (const box of screen.getAllByRole('checkbox')) {
+        expect(box).not.toHaveAttribute('data-bordered');
+        expect(box.style.background).toBe('');
+      }
+    });
+
+    it('draws no dot without swatches', () => {
+      render(<Panel layout="sheet" />);
+
+      expect(document.querySelectorAll('[aria-hidden="true"][style*="background"]')).toHaveLength(
+        0,
+      );
+    });
+
+    it('ticks and unticks, reporting the values in the order of the options', async () => {
+      const user = userEvent.setup();
+      const onValueChange = vi.fn();
+      render(<Panel layout="sheet" swatches onValueChange={onValueChange} />);
+
+      await user.click(screen.getByRole('checkbox', { name: 'Повседневный' }));
+      await user.click(screen.getByRole('checkbox', { name: 'Вечерний 10' }));
+      expect(onValueChange).toHaveBeenLastCalledWith(['evening', 'casual']);
+      expect(screen.getByRole('checkbox', { name: 'Вечерний 10' })).toBeChecked();
+
+      await user.click(screen.getByRole('checkbox', { name: 'Вечерний 10' }));
+      expect(onValueChange).toHaveBeenLastCalledWith(['casual']);
+    });
+
+    it('ticks by a click on the label text', async () => {
+      const user = userEvent.setup();
+      const onValueChange = vi.fn();
+      render(<Panel layout="sheet" onValueChange={onValueChange} />);
+
+      await user.click(screen.getByText('Деловой'));
+
+      expect(onValueChange).toHaveBeenCalledWith(['business']);
+    });
+
+    it('does not tick a disabled option', async () => {
+      const user = userEvent.setup();
+      const onValueChange = vi.fn();
+      render(<Panel layout="sheet" onValueChange={onValueChange} />);
+
+      await user.click(screen.getByText('Спортивный'));
+
+      expect(onValueChange).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('selectAll', () => {
+    it('has no "Выбрать все" by default', () => {
+      render(<Panel />);
+
+      expect(screen.queryByRole('button', { name: 'Выбрать все' })).not.toBeInTheDocument();
+    });
+
+    it('ticks every option that is not disabled, in the order of the options', async () => {
+      const user = userEvent.setup();
+      const onValueChange = vi.fn();
+      render(<Panel selectAll initial={['casual']} onValueChange={onValueChange} />);
+
+      await user.click(screen.getByRole('button', { name: 'Выбрать все' }));
+
+      expect(onValueChange).toHaveBeenLastCalledWith(['evening', 'business', 'casual']);
+      expect(screen.getByRole('checkbox', { name: 'Спортивный' })).not.toBeChecked();
+    });
+
+    it('works in the sheet layout too', async () => {
+      const user = userEvent.setup();
+      const onValueChange = vi.fn();
+      render(<Panel selectAll layout="sheet" swatches onValueChange={onValueChange} />);
+
+      await user.click(screen.getByRole('button', { name: 'Выбрать все' }));
+
+      expect(onValueChange).toHaveBeenLastCalledWith(['evening', 'business', 'casual']);
+    });
+
+    it('with a search ticks only the shown options and keeps the hidden ticks', async () => {
+      const user = userEvent.setup();
+      const onValueChange = vi.fn();
+      render(<Panel selectAll searchable initial={['evening']} onValueChange={onValueChange} />);
+
+      await user.type(screen.getByRole('searchbox'), 'дел');
+      await user.click(screen.getByRole('button', { name: 'Выбрать все' }));
+
+      expect(onValueChange).toHaveBeenLastCalledWith(['evening', 'business']);
+      await user.click(screen.getByRole('button', { name: 'Очистить' }));
+      expect(screen.getByRole('checkbox', { name: 'Вечерний 10' })).toBeChecked();
+      expect(screen.getByRole('checkbox', { name: 'Деловой 20' })).toBeChecked();
+      expect(screen.getByRole('checkbox', { name: 'Повседневный' })).not.toBeChecked();
+    });
+
+    it('never unticks: a fully ticked list is not reported at all, however often it is pressed', async () => {
+      const user = userEvent.setup();
+      const onValueChange = vi.fn();
+      render(
+        <Panel
+          selectAll
+          initial={['evening', 'business', 'casual']}
+          onValueChange={onValueChange}
+        />,
+      );
+
+      await user.click(screen.getByRole('button', { name: 'Выбрать все' }));
+      await user.click(screen.getByRole('button', { name: 'Выбрать все' }));
+
+      expect(onValueChange).not.toHaveBeenCalled();
+      expect(
+        screen
+          .getAllByRole('checkbox')
+          .filter((box) => box.getAttribute('aria-checked') === 'true'),
+      ).toHaveLength(3);
+    });
+
+    it('reports once after a press that ticks something, then nothing on the next press', async () => {
+      const user = userEvent.setup();
+      const onValueChange = vi.fn();
+      render(<Panel selectAll initial={['casual']} onValueChange={onValueChange} />);
+
+      await user.click(screen.getByRole('button', { name: 'Выбрать все' }));
+      await user.click(screen.getByRole('button', { name: 'Выбрать все' }));
+
+      expect(onValueChange).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not report when the shown options are ticked and only hidden ones are not', async () => {
+      const user = userEvent.setup();
+      const onValueChange = vi.fn();
+      render(<Panel selectAll searchable initial={['business']} onValueChange={onValueChange} />);
+
+      await user.type(screen.getByRole('searchbox'), 'дел');
+      await user.click(screen.getByRole('button', { name: 'Выбрать все' }));
+
+      expect(onValueChange).not.toHaveBeenCalled();
+    });
+
+    it('is hidden while the shown options are all disabled', async () => {
+      const user = userEvent.setup();
+      render(<Panel selectAll searchable />);
+
+      await user.type(screen.getByRole('searchbox'), 'спорт');
+      expect(screen.getByRole('checkbox', { name: 'Спортивный' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Выбрать все' })).not.toBeInTheDocument();
+
+      await user.clear(screen.getByRole('searchbox'));
+      expect(screen.getByRole('button', { name: 'Выбрать все' })).toBeInTheDocument();
+    });
+
+    it('is hidden when every option is disabled', () => {
+      render(
+        <Panel
+          selectAll
+          options={[
+            { value: 'a', label: 'А', disabled: true },
+            { value: 'b', label: 'Б', disabled: true },
+          ]}
+        />,
+      );
+
+      expect(screen.queryByRole('button', { name: 'Выбрать все' })).not.toBeInTheDocument();
+    });
+
+    it('is hidden while the search finds nothing and back when it does', async () => {
+      const user = userEvent.setup();
+      render(<Panel selectAll searchable />);
+
+      await user.type(screen.getByRole('searchbox'), 'яяя');
+      expect(screen.queryByRole('button', { name: 'Выбрать все' })).not.toBeInTheDocument();
+
+      await user.clear(screen.getByRole('searchbox'));
+      expect(screen.getByRole('button', { name: 'Выбрать все' })).toBeInTheDocument();
+    });
   });
 });
 
