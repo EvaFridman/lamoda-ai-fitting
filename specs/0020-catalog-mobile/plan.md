@@ -1,6 +1,7 @@
 # 0020 catalog: loading and the phone layout: plan
 
-Status: accepted (2026-10-23).
+Status: accepted (2026-10-23); amended 2026-10-23 at the review of PR 1 (§1, §2, §3, §4, risks,
+verification: W19–W22).
 
 How `spec.md` (AC1–AC17) is built, with the decisions of `clarifications.md` (W0–W18). No new
 package, no api change, no migration. Paths are under `web/src/` unless they start otherwise.
@@ -32,6 +33,9 @@ no data.
 - `renderList()`: no data and no error → `ProductGridSkeleton` in place of `null`.
 - A filter or sort change keeps today's behaviour (AC3): `router.replace` on the same segment keeps
   the list shown until the new one arrives.
+- The page itself (W22): `.page` gets `min-height: 100dvh` (with its `content-box` padding, so the
+  footer starts below the window), loaded or not, so a short list or the empty state leaves room
+  under it instead of pulling the footer up when the placeholders give way.
 
 The fallbacks are part of the prerendered shells (`cacheComponents`): they add markup and no
 script, so `shell-script-hashes.json` and `check:web-shells` stay as they are (AC17). Next shows the
@@ -59,6 +63,10 @@ title (`display: block`), from 600 px it stays inline (0014 O5). While the count
   renders `<a href="/catalog">` on a category page and nothing on `/catalog`, so the arrow works
   without JavaScript; after mount `history` turns it into a button calling `router.back()`.
   The arrow reserves its width on `/catalog` too, so its appearance moves nothing.
+  `document.referrer` is a weak signal: empty after the `/` → `/catalog` redirect, a bookmark or a
+  new tab, and kept across a reload (a reload of a category page after a step on the site then goes
+  back to the previous document, which AC4 allows). The tests cover a reload, a direct link in a
+  new tab, an entry from another site, the redirect from `/` and a client-side step.
 
 **Phone bar (AC5, AC6).** A row with a hairline above and below: on the left the category toggle,
 on the right the filters' trigger. `.layout` below 600 px is a grid with the areas
@@ -128,21 +136,28 @@ stack.** State: `draft` (as today), `screen` (`list` | `sort` | `size` | `brand`
   "Показать N товаров" (today's count logic: `countDelayMs`, `settled`, "Показать товары").
 - A screen: `onBack` returns to `list` dropping `screenDraft` (W9); "Применить" copies
   `screenDraft` into `draft` and returns; `headerAction` "Сбросить" (lists of values) clears the
-  screen's filter in `screenDraft`. Sort: footer "По умолчанию" (disabled at the default) and
-  "Применить". Price: `PriceRangeFilterPanel` and "Применить". On entering, the focus goes to "‹"
+  screen's filter in `screenDraft`. Sort: footer "По умолчанию" (disabled at the default; sets
+  the default in `screenDraft` only, W19) and "Применить". Price: `PriceRangeFilterPanel` and "Применить". On entering, the focus goes to "‹"
   and the content scrolls to the top; on return, to the row it came from.
 - Closing (×, swipe, Escape, backdrop) drops everything (AC13); opening starts at `list` from the
   address's selection. The window crossing 1024 px still closes it.
 - "Показать N товаров" calls `onChange(draft)` once; the page sends `Catalog Filter Applied` and
-  `Catalog Sorted` as today (0014 O101, W18).
+  `Catalog Sorted` as today (0014 O101, W18). The sheet closes and the `Drawer` returns the focus
+  to its trigger, "Фильтры" (W20).
 - The desktop row's "Очистить фильтры" and the empty state's button keep `clearFilters` (W11).
 
 ## 4. Focus kept when the counts fail (W13; AC15)
 
-`CatalogBrowser` keeps the last facets it had (`useProductFacets` with TanStack's
-`placeholderData: keepPreviousData`, and the last successful answer while the new one has failed)
-for the filters only: the chips stay mounted with the previous counts, so the focus stays on the
-applied chip. The title's count, the live region and `categoryRows` keep reading the current answer
+`CatalogBrowser` keeps the last facets it had for the filters only, by two changes, since neither
+covers both cases:
+
+- while the new counts load: `useProductFacets` with TanStack's `placeholderData:
+keepPreviousData` (placeholder data shows only while the query is `pending`);
+- once they have failed: TanStack leaves `data` `undefined`, so the page keeps the last successful
+  answer itself (state updated in render when `facets.data` changes, reset on another category,
+  which mounts a new page) and passes `facets.data ?? lastFacets` to the filters.
+
+The chips stay mounted with the previous counts, so the focus stays on the applied chip. The title's count, the live region and `categoryRows` keep reading the current answer
 only. Closes backlog «Focus lost when the filter counts fail».
 
 ## 5. Analytics (W15–W18)
@@ -160,7 +175,8 @@ known-elements list of `catalog.test.ts` extended:
 
 The chips pass `{ surface: 'chips' }`, the sheet's rows `{ surface: 'sheet' }` (a colour row
 `catalog.filter-color`, another attribute `catalog.filter-attribute`, the switch
-`catalog.filter-discount`). No new event; `sdkPerVisit` stays 13. Estimate about 94 000 a month,
+`catalog.filter-discount`). Their descriptions say that a report of the chips alone filters on
+`surface != sheet`: sends before this spec have no `surface` (W15). No new event; `sdkPerVisit` stays 13. Estimate about 94 000 a month,
 under the 800 000 limit (`catalog.test.ts` checks it).
 
 ## 6. Docs
@@ -181,19 +197,20 @@ focus item removed (§4).
   tests query by role, so they see one. Tracked links: the hidden list cannot be clicked.
 - **`display: contents`** on `.column`: it drops the element's box; its `ref` (the scroll-up of
   0014 O82) reads `getBoundingClientRect()` of a box-less element, which is all zeros. Below 600 px
-  the scroll target becomes the bar (a ref on it); tested.
+  the scroll target becomes the bar (a ref on it); tested. `.column` stays a bare `div` with no
+  role or landmark: older Safari drops the semantics of an element with `display: contents`.
 - **Placeholders vs the virtual grid's restore (0014 O77).** The skeleton is a fallback of the
   server parts only; the grid's own restore after Back is unchanged.
 
 ## Verification
 
-| AC        | How                                                                                                                                                                                                                                                                                   |
-| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| AC1, AC2  | qa-tester at 375 and 1280 px with the api slowed (route delay): screenshots during the switch; the footer's `getBoundingClientRect().top` ≥ the window's height until the products show; Vitest: the fallbacks render `CatalogSkeleton`, `renderList()` renders `ProductGridSkeleton` |
-| AC3       | existing `catalog-browser` tests stay green                                                                                                                                                                                                                                           |
-| AC4       | Vitest of `back-target.ts` and `CatalogBack`; qa-tester: arrow after a step, none on `/catalog` opened directly, `/catalog` from a link opened in a new tab                                                                                                                           |
-| AC5–AC9   | qa-tester at 375, 700 and 1280 px (screenshots against W0); Vitest: toggle `aria-expanded`, rows keep the query, the dot's rule                                                                                                                                                       |
-| AC10–AC14 | Vitest of the drawer: rows, summaries, screens, "Применить"/"‹"/"По умолчанию"/"Сбросить", "Показать" applies once, close drops the draft, focus moves; qa-tester with the keyboard and at 375 px                                                                                     |
-| AC15      | Vitest: a failing facets refetch keeps the chip focused                                                                                                                                                                                                                               |
-| AC16      | analytics tests (`surface`, new elements' properties); Mixpanel live view on a local stack with a token (owner or qa-tester)                                                                                                                                                          |
-| AC17      | `npm run verify`; the CI deploy                                                                                                                                                                                                                                                       |
+| AC        | How                                                                                                                                                                                                                                                                                                                                    |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AC1, AC2  | qa-tester at 375 and 1280 px with the api slowed (route delay): screenshots during the switch; the footer's `getBoundingClientRect().top` ≥ the window's height during the switch and after it, a category with a few products too (W22); Vitest: the fallbacks render `CatalogSkeleton`, `renderList()` renders `ProductGridSkeleton` |
+| AC3       | existing `catalog-browser` tests stay green                                                                                                                                                                                                                                                                                            |
+| AC4       | Vitest of `back-target.ts` and `CatalogBack`; qa-tester: arrow after a step, none on `/catalog` opened directly, `/catalog` from a link opened in a new tab                                                                                                                                                                            |
+| AC5–AC9   | qa-tester at 375, 700 and 1280 px (screenshots against W0); Vitest: toggle `aria-expanded`, rows keep the query, the dot's rule                                                                                                                                                                                                        |
+| AC10–AC14 | Vitest of the drawer: rows, summaries, screens, "Применить"/"‹"/"По умолчанию"/"Сбросить", "Показать" applies once and returns the focus to "Фильтры", close drops the draft, focus moves; qa-tester with the keyboard and at 375 px                                                                                                   |
+| AC15      | Vitest: a failing facets refetch keeps the chip focused                                                                                                                                                                                                                                                                                |
+| AC16      | analytics tests (`surface`, new elements' properties); qa-tester reads the browser's requests to Mixpanel's EU endpoint on a local stack with a token (W21)                                                                                                                                                                            |
+| AC17      | `npm run verify`; the CI deploy                                                                                                                                                                                                                                                                                                        |

@@ -1,8 +1,9 @@
 # 0020 catalog: loading and the phone layout
 
-Status: accepted (2026-10-23).
+Status: accepted (2026-10-23); amended 2026-10-23 at the review of PR 1 (AC1, AC9, AC11, AC14,
+AC16).
 
-Decisions: `clarifications.md` (W0–W18).
+Decisions: `clarifications.md` (W0–W22).
 
 ## Goal
 
@@ -47,8 +48,9 @@ screenshots of a Lamoda category page, described in `clarifications.md`).
 ### Loading
 
 - **AC1.** At 375 px and 1280 px, with the api slowed down, a click on another category shows the
-  placeholders at once; the footer's top edge stays below the bottom of the window until the
-  products show, and the page never shows an empty main area.
+  placeholders at once; the footer's top edge stays below the bottom of the window, while the
+  placeholders show and after the products replace them, a short list too (W22), and the page
+  never shows an empty main area.
 - **AC2.** The same holds for the first load of `/catalog` and `/catalog/<slug>` and for Back to
   another category.
 - **AC3.** A filter or sort change keeps showing the current list until the new one arrives, as
@@ -68,8 +70,9 @@ screenshots of a Lamoda category page, described in `clarifications.md`).
 - **AC7.** The grid has two cards per row with no side margins and a thin line between cards; the
   card's price, brand and name are padded from its edges.
 - **AC8.** The breadcrumbs are under the list, not above the title.
-- **AC9.** At 700 px and at 1280 px the page looks as before this spec (apart from the sheet,
-  AC10–AC14, at 700 px).
+- **AC9.** At 700 px and at 1280 px the page is laid out as before this spec, apart from the
+  loading placeholders (AC1, AC2), the page's height (W22), the chips kept while the counts load
+  (AC15) and the sheet (AC10–AC14) at 700 px.
 
 ### Filters sheet (below 1024 px)
 
@@ -79,7 +82,8 @@ screenshots of a Lamoda category page, described in `clarifications.md`).
   footer has "Сбросить" (inactive while nothing is chosen) and "Показать N товаров".
 - **AC11.** A row opens its screen in the same sheet: "‹" and the filter's name at the top, and
   "Сбросить" on the right for a list of values. "Сортировка": radio buttons on the right of each
-  order, the footer "По умолчанию" and "Применить". A list of values: the value, its count and a
+  order, the footer "По умолчанию" (chooses the default order on the screen, kept by "Применить",
+  W19) and "Применить". A list of values: the value, its count and a
   checkbox on the right; "Цвет" also has a search field, "Выбрать все" and a swatch before each
   colour. "Цена": the price fields. Each screen's footer has "Применить".
 - **AC12.** "Применить" or "‹" on a screen returns to the list; "Применить" keeps the choice, "‹"
@@ -90,7 +94,8 @@ screenshots of a Lamoda category page, described in `clarifications.md`).
   opens again with the address's selection.
 - **AC14.** Keyboard: Tab reaches every row and control; opening a screen moves the focus to its
   "‹", returning moves it to the row it came from; Escape closes the sheet. A screen reader hears
-  the screen's name when it opens.
+  the screen's name when it opens. Any close of the sheet, "Показать N товаров" too, returns the
+  focus to "Фильтры" (W20).
 
 ### Focus
 
@@ -100,7 +105,8 @@ screenshots of a Lamoda category page, described in `clarifications.md`).
 ### Analytics and build
 
 - **AC16.** The events and tracked elements of `clarifications.md` («Analytics») are sent as listed
-  there, checked in Mixpanel's live view on a local stack with a token.
+  there, checked by the browser's requests to Mixpanel's EU endpoint on a local stack with a token
+  (the element, its zone and properties in each, W21).
 - **AC17.** `npm run verify` passes, the static shells add no inline script, and the CI deploy
   serves the new pages.
 

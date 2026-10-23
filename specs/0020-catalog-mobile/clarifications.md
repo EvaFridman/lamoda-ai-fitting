@@ -1,9 +1,9 @@
 # 0020 catalog: loading and the phone layout: clarifications
 
-Status: accepted (2026-10-23).
+Status: accepted (2026-10-23); amended 2026-10-23 at the review of PR 1 (W15, W19–W22).
 
 The owner's decisions for this spec. Ids `W1`, `W2`, … are referred to by the spec, the plan and
-code comments. W1–W7 and W15–W18 are the owner's answers given on 2026-10-23; W8–W14 were the
+code comments. W1–W7, W15–W18 and W19–W22 are the owner's answers given on 2026-10-23; W8–W14 were the
 main session's assumptions where no answer covered a fork, confirmed by the owner the same day.
 
 ## The reference
@@ -94,7 +94,9 @@ from about 89 000 to about 94 000 events a month, far below the 800 000 limit.
   `filter-color`, `filter-attribute`, `filter-price`, `filter-discount` and `catalog.sort` are
   also sent by the sheet's rows and gain the property `surface` (`chips`, `sheet`); their
   descriptions say "a chip in the row or a row in the sheet". An added property splits no history:
-  earlier sends lack it and were all chips. Reports of chips only filter on `surface`. Clicks per
+  earlier sends lack it and were all chips. So a report of the chips only filters on
+  `surface != sheet`, never `surface == chips`, which would drop every click before this spec;
+  the descriptions say so (corrected at the review of PR 1). Clicks per
   visit grow by 0.63 in all (sort 0.15, size, colour and brand 0.1 each, price 0.08, attribute and
   discount 0.05 each), hovers by 0.02.
 - **W16. New elements.** `catalog.back` (navigation, `target`: `history`, `catalog`; 0.1 clicks,
@@ -107,3 +109,19 @@ from about 89 000 to about 94 000 events a month, far below the 800 000 limit.
   comes as `Catalog Filter Applied` with `values: 0`), "Показать N товаров", anything inside a
   filter's screen ("Применить", "По умолчанию", "Выбрать все", the colour search, whose text is
   never sent) and the breadcrumbs.
+
+## Added at the review of PR 1 (2026-10-23)
+
+The review bot's open questions, answered by the owner.
+
+- **W19. "По умолчанию" only chooses.** On the sort screen it chooses the default order on the
+  screen, as a radio button would; "Применить" keeps it in the draft, "‹" drops it (W9).
+- **W20. The focus after "Показать N товаров".** It returns to "Фильтры", as after any close of the
+  sheet (the kit's `Drawer`); the page's live region reads the new count (0014 plan §3.4).
+- **W21. The analytics are checked by their requests.** `qa-tester` reads the browser's requests to
+  Mixpanel's EU endpoint on a local stack with a token: each send's element, zone and properties
+  (AC16). Nobody opens Mixpanel's live view for it (spec 0015 R25 keeps the data with the
+  `analytics` agent).
+- **W22. The catalog is never shorter than the window.** The page's `<main>` is at least the
+  window's height, loaded or not: a short list (or the empty state) leaves room under it, and the
+  footer never rises into the first screen when the placeholders give way.
