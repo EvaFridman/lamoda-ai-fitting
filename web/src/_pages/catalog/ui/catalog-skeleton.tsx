@@ -1,6 +1,7 @@
 import { Skeleton } from '@/shared/ui';
 import { ProductGridSkeleton } from '@/widgets/product-grid';
 
+import { CatalogBackSlot } from './catalog-back-slot';
 import { CatalogHeading } from './catalog-heading';
 
 import styles from './catalog-page.module.scss';
@@ -26,13 +27,18 @@ export function CatalogSkeleton({ title }: CatalogSkeletonProps) {
       </p>
       {title === undefined ? (
         <>
-          <Skeleton width={160} height={16} />
-          <div className={styles.heading}>
-            <Skeleton width={200} height={28} />
+          <div className={styles.inset}>
+            <Skeleton width={160} height={16} />
+          </div>
+          <div className={styles.headingRow}>
+            <CatalogBackSlot />
+            <div className={styles.heading}>
+              <Skeleton width={200} height={28} />
+            </div>
           </div>
         </>
       ) : (
-        <CatalogHeading title={title} countPending />
+        <CatalogHeading title={title} countPending back={false} />
       )}
       {/* Busy itself (D7af); the status stays outside, so it is read at once. */}
       <div className={styles.layout} aria-busy>

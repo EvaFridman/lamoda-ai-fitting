@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { isDocumentEntry } from './document-entry';
+import { documentPathname, isDocumentEntry } from './document-entry';
 
 function navigation(type: string, name = window.location.href) {
   vi.spyOn(performance, 'getEntriesByType').mockReturnValue([
@@ -37,5 +37,32 @@ describe('isDocumentEntry', () => {
   it('is false where the browser cannot list entries', () => {
     vi.stubGlobal('performance', {});
     expect(isDocumentEntry()).toBe(false);
+  });
+});
+
+describe('documentPathname', () => {
+  it('is the path of the address the document was loaded at, without its search', () => {
+    navigation('navigate', 'http://localhost/catalog/dresses?q=a#top');
+    expect(documentPathname()).toBe('/catalog/dresses');
+  });
+
+  it('does not depend on the navigation type', () => {
+    navigation('reload', 'http://localhost/customer');
+    expect(documentPathname()).toBe('/customer');
+  });
+
+  it('is undefined with no navigation entry', () => {
+    vi.spyOn(performance, 'getEntriesByType').mockReturnValue([]);
+    expect(documentPathname()).toBeUndefined();
+  });
+
+  it('is undefined where the browser cannot list entries', () => {
+    vi.stubGlobal('performance', {});
+    expect(documentPathname()).toBeUndefined();
+  });
+
+  it('is undefined for an entry whose name is not an address', () => {
+    navigation('navigate', 'not an address');
+    expect(documentPathname()).toBeUndefined();
   });
 });

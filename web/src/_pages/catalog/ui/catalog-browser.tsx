@@ -202,7 +202,13 @@ export function CatalogBrowser({
 
   return (
     <>
-      <CatalogHeading ref={headingRef} title={title} total={facets.data?.total} />
+      <CatalogHeading
+        ref={headingRef}
+        title={title}
+        total={facets.data?.total}
+        // A placeholder while the counts load, none after they fail (W14).
+        countPending={facets.isPending}
+      />
       {/* Two live regions, so a batch loading right after a change cannot replace the count
           before it is read. */}
       <p className={styles.status} aria-live="polite">
@@ -231,6 +237,7 @@ export function CatalogBrowser({
           aria-busy={firstBatchPending()}
         >
           <CatalogFilters
+            className={styles.inset}
             facets={filterFacets}
             value={query}
             onChange={select}
@@ -261,7 +268,11 @@ export function CatalogBrowser({
     // The grid's placeholders while the first batch loads (0020 plan §1).
     if (firstBatchPending()) return <ProductGridSkeleton />;
     if (data === undefined) {
-      return <p role="alert">{error === null ? failureText : errorText(error)}</p>;
+      return (
+        <p role="alert" className={styles.inset}>
+          {error === null ? failureText : errorText(error)}
+        </p>
+      );
     }
     const products = data.pages.flatMap((page) => page.items);
     if (products.length === 0) {
@@ -292,7 +303,11 @@ export function CatalogBrowser({
           moreHref={next === null ? undefined : catalogSearch({ query, cursor: next })}
           showMore={isFetchNextPageError}
         />
-        {isFetchNextPageError ? <p role="alert">{errorText(error)}</p> : null}
+        {isFetchNextPageError ? (
+          <p role="alert" className={styles.inset}>
+            {errorText(error)}
+          </p>
+        ) : null}
       </>
     );
   }

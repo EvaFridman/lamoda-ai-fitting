@@ -38,7 +38,7 @@ export interface CategoryPageProps extends CatalogPageProps {
 export function CatalogPage({ searchParams }: CatalogPageProps) {
   return (
     <main className={styles.page}>
-      <Breadcrumbs items={[{ label: catalogTitle }]} />
+      <Breadcrumbs items={[{ label: catalogTitle }]} className={styles.inset} />
       <Suspense fallback={<CatalogSkeleton title={catalogTitle} />}>
         <CatalogContent searchParams={searchParams} />
       </Suspense>
@@ -76,7 +76,11 @@ async function CategoryContent({ params, searchParams }: CategoryPageProps) {
     category = await getCategoryBySlug(slug);
   } catch (error) {
     reportFailure(error);
-    return <p role="alert">{errorText(error)}</p>;
+    return (
+      <p role="alert" className={styles.inset}>
+        {errorText(error)}
+      </p>
+    );
   }
   // `proxy.ts` answers 404 before this (O65). What it lets through ends here as a soft 404: a
   // category deactivated since, a prefetch (not checked) and a request whose check failed.
@@ -85,7 +89,10 @@ async function CategoryContent({ params, searchParams }: CategoryPageProps) {
   // The breadcrumbs and the heading go out without waiting for the products.
   return (
     <>
-      <Breadcrumbs items={[{ label: catalogTitle, href: '/catalog' }, { label: category.name }]} />
+      <Breadcrumbs
+        items={[{ label: catalogTitle, href: '/catalog' }, { label: category.name }]}
+        className={styles.inset}
+      />
       <Suspense fallback={<CatalogSkeleton title={category.name} />}>
         <CatalogProducts
           title={category.name}

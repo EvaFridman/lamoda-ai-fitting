@@ -72,7 +72,7 @@ Status: accepted (2026-10-23); amended 2026-10-23 at the review of PR 1 (T4, T5,
 
 ### The phone page
 
-- [ ] **T9. Heading row and back arrow (W4, W14; plan §2).** `CatalogHeading` as a row,
+- [x] **T9. Heading row and back arrow (W4, W14; plan §2).** `CatalogHeading` as a row,
       `CatalogBack`, `lib/back-target.ts`, the page's edge-to-edge padding; `catalog.back`.
       Check: Vitest of `back-target` and `CatalogBack` (a reload, a direct link in a new tab, an
       entry from another site, the redirect from `/`, a client-side step); qa-tester AC4.

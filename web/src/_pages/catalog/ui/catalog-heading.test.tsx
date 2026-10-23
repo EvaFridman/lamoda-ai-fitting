@@ -1,7 +1,13 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { CatalogHeading } from './catalog-heading';
+
+vi.mock('next/navigation', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next/navigation')>()),
+  useRouter: () => ({ back: vi.fn(), replace: vi.fn(), push: vi.fn() }),
+  usePathname: () => '/catalog/dresses',
+}));
 
 describe('CatalogHeading', () => {
   it('is the level 1 heading with the count after the title', () => {
@@ -48,5 +54,31 @@ describe('CatalogHeading', () => {
     expect(heading).toHaveAttribute('tabindex', '-1');
     heading.focus();
     expect(heading).toHaveFocus();
+  });
+
+  describe('the arrow', () => {
+    it('comes before the heading in the row', async () => {
+      render(<CatalogHeading title="Платья" total={128} />);
+      const arrow = await screen.findByRole('link', { name: 'Назад' });
+      const heading = screen.getByRole('heading', { level: 1 });
+      expect(
+        arrow.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    });
+
+    it('is not part of the heading, whose text stays the title and the count', async () => {
+      render(<CatalogHeading title="Платья" total={128} />);
+      await screen.findByRole('link', { name: 'Назад' });
+      const heading = screen.getByRole('heading', { level: 1 });
+      expect(heading).toHaveAccessibleName('Платья 128 товаров');
+      expect(heading).not.toContainElement(screen.getByRole('link', { name: 'Назад' }));
+    });
+
+    it('is left out with back={false}: no link or button, the heading stays', () => {
+      render(<CatalogHeading title="Платья" back={false} />);
+      expect(screen.queryByRole('link')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button')).not.toBeInTheDocument();
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Платья');
+    });
   });
 });

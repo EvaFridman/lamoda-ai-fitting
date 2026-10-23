@@ -146,3 +146,20 @@ The review bot's open questions, answered by the owner.
   gives it to the widget, which moves the focus onto it after a screen switch. Every drawer's
   header is a row centred on the ×, so the title of the existing drawers sits about 6px higher.
   `onOpenChangeComplete` lets the widget reset its screen once the sheet has left.
+- **W26. The back arrow's step (amends plan §2).** The tab counts a client-side step once the path
+  differs from the one the document was loaded at (its navigation entry), not from the second path
+  the arrow itself sees: the arrow lives only on the catalog, so a step from `/customer` to a
+  category by the header's link would otherwise go to `/catalog` instead of back. The flag stays
+  till a reload. A referrer of this site counts only while the tab has an earlier entry
+  (`history.length > 1`): a page a link of this site opened in a new tab has the referrer and no
+  history, and its arrow leads to `/catalog` (none on `/catalog`) instead of a button that does
+  nothing. Where the browser has the Navigation API (Chrome, Edge, Safari 26.2+, Firefox 147+),
+  the current entry's index alone decides: `navigation.entries()` holds only the adjacent entries
+  of this site, so an index above 0 means the previous entry is this site's, also after the
+  browser's "Back" to the document's first entry (which the flag and `history.length` cannot
+  tell); the flag, the referrer and `history.length` decide only without it. Accepted difference:
+  the header's search pushes `/catalog?q=…` on the same path, so with the API its page has the
+  arrow back to the catalog without `q`, without it none (only a path counts as a step). AC9 names
+  the count's placeholder among its exceptions. The arrow is drawn as the sheet's "‹" (W25): a plain 32px control, not the
+  outlined `IconButton`. The count's placeholder shows while the counts load on every width, as
+  the page's placeholders do (W2): a line of its own below 600 px, inline from 600 px.
