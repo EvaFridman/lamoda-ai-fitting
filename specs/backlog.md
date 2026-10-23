@@ -161,12 +161,6 @@ removes it from this list. Found by the agents' first security audit and trial r
   had, not at the top, and a click on `/catalog` itself does not scroll up (spec 0014 T14 QA). Next
   shows the list it kept (`cacheComponents`) and the redirect is not a new page to it. Decide
   whether the logo links to `/catalog` directly or scrolls to the top, with the header's next spec.
-- **Focus lost when the filter counts fail.** On the catalog, applying a filter keeps the focus on
-  its chip only while the new selection's counts are there: the server prefetches them, and when
-  that fails the row's filter chips unmount until the browser's request answers
-  (`widgets/catalog-filters`, `FacetFilters`), so the focus falls to `body` (spec 0014 T18 review).
-  Plan §3.4 says applying a filter does not move focus. Keep the chips (the previous counts, or
-  the chosen values) while the counts load, or move the focus to the `<h1>` then.
 - **Lowest price after the discount in the counts.** `GET /products/facets` answers `price.min`
   and `max` of the price before the discount, so the catalog's description has no "от N ₽" (spec
   0014 O94). Adding the lowest `finalPrice` changes the api's answer, `openapi.json` and the cache

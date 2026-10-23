@@ -4,7 +4,12 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 
 import { CatalogCategoryList, useCategories } from '@/entities/category';
-import { isRefusedCursor, useProductBatches, useProductFacets } from '@/entities/product';
+import {
+  isRefusedCursor,
+  type ProductFacets,
+  useProductBatches,
+  useProductFacets,
+} from '@/entities/product';
 import { isSubmitFresh, useSubmittedSearch } from '@/features/header-search';
 import { track, useTrackedElement } from '@/shared/analytics';
 import { errorText, reportFailure } from '@/shared/api';
@@ -84,6 +89,14 @@ export function CatalogBrowser({
     fetchNextPage,
   } = useProductBatches(batchQuery, from);
   const facets = useProductFacets(batchQuery);
+  // The filters' counts while the new ones load or after they fail: the last answer, for the
+  // category it was counted for, so the chips stay mounted and keep the focus (0020 plan §4).
+  const [kept, setKept] = useState<{ facets: ProductFacets; categoryId?: string } | null>(null);
+  if (facets.data !== undefined && facets.data !== kept?.facets) {
+    setKept({ facets: facets.data, categoryId });
+  }
+  const filterFacets =
+    facets.data ?? (kept !== null && kept.categoryId === categoryId ? kept.facets : undefined);
   const categories = useCategories(catalogCategoriesQuery);
   // The address of the visitor's last change, which the live region's count is read for (plan
   // §3.4): nothing on load, and not the old selection's count before the address changes.
@@ -152,7 +165,7 @@ export function CatalogBrowser({
     const parsed = parseCatalogUrl(new URLSearchParams(search));
     setFoundFor(catalogSearch(parsed));
     // One event per changed choice, the row's and the drawer's alike (O101).
-    for (const change of filterChanges(query, parsed.query, facets.data?.attributes ?? [])) {
+    for (const change of filterChanges(query, parsed.query, filterFacets?.attributes ?? [])) {
       track('Catalog Filter Applied', change);
     }
     const sort = sortChange(query, parsed.query);
@@ -218,7 +231,7 @@ export function CatalogBrowser({
           aria-busy={firstBatchPending()}
         >
           <CatalogFilters
-            facets={facets.data}
+            facets={filterFacets}
             value={query}
             onChange={select}
             categoryId={categoryId}

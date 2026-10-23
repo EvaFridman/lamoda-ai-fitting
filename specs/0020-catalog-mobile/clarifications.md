@@ -125,3 +125,11 @@ The review bot's open questions, answered by the owner.
 - **W22. The catalog is never shorter than the window.** The page's `<main>` is at least the
   window's height, loaded or not: a short list (or the empty state) leaves room under it, and the
   footer never rises into the first screen when the placeholders give way.
+
+## Added at T5 (2026-10-23)
+
+- **W23. The kept counts alone, no `keepPreviousData`.** The filters get the current answer or,
+  while there is none (loading or failed), the last successful answer the page kept for the same
+  category (plan §4). TanStack's placeholder would cover only the loading, would have to be cut
+  out of the title's count, the live region and `categoryRows` (`isPlaceholderData`), and could
+  carry another category's counts into a page that stays mounted.

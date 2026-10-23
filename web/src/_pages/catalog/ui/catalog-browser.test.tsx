@@ -389,6 +389,87 @@ describe('CatalogBrowser', () => {
       expect(focus).not.toHaveBeenCalled();
     });
 
+    describe("the filters' counts of the previous selection (0020 AC15)", () => {
+      it('keeps the chip mounted and focused while the new counts load', async () => {
+        stubApi(one);
+        discountedFacets = never;
+        const user = userEvent.setup();
+        const view = mount({ query: {} });
+        await screen.findByRole('heading', { name: 'Каталог 40 товаров' });
+
+        const chip = screen.getByRole('button', { name: 'Только со скидкой' });
+        await user.click(chip);
+        view.update({ query: { hasDiscount: true } });
+        await act(async () => {});
+
+        expect(screen.getByRole('button', { name: 'Только со скидкой' })).toBe(chip);
+        expect(chip).toHaveFocus();
+        // The heading and the live region read the current answer only: none yet.
+        expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Каталог$/);
+        expect(live()).toBeEmptyDOMElement();
+      });
+
+      it('keeps the chip focused and the counts when the new counts fail', async () => {
+        stubApi(one);
+        discountedFacets = () =>
+          json({ error: { code: 'INTERNAL', message: 'm', details: [] } }, 500);
+        const user = userEvent.setup();
+        const view = mount({ query: {} });
+        await screen.findByRole('heading', { name: 'Каталог 40 товаров' });
+
+        const chip = screen.getByRole('button', { name: 'Только со скидкой' });
+        await user.click(chip);
+        view.update({ query: { hasDiscount: true } });
+        await vi.waitFor(() =>
+          expect(
+            fetchMock.mock.calls.some(
+              ([input]) =>
+                pathOf(input).endsWith('/products/facets') && String(input).includes('hasDiscount'),
+            ),
+          ).toBe(true),
+        );
+        await vi.waitFor(() =>
+          expect(
+            view.client.getQueryState(productFacetsOptions({ hasDiscount: true }).queryKey)?.status,
+          ).toBe('error'),
+        );
+        await act(async () => {});
+
+        expect(screen.getByRole('button', { name: 'Только со скидкой' })).toBe(chip);
+        expect(chip).toHaveFocus();
+        expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Каталог$/);
+        expect(live()).toBeEmptyDOMElement();
+      });
+
+      it('shows no filters of another category when its counts fail', async () => {
+        const A = '11111111-1111-4111-8111-111111111111';
+        const B = '22222222-2222-4222-8222-222222222222';
+        fetchMock.mockImplementation((input: unknown) => {
+          const url = new URL(String(input), 'http://localhost');
+          if (url.pathname.endsWith('/products/facets') && url.search.includes(B)) {
+            return json({ error: { code: 'INTERNAL', message: 'm', details: [] } }, 500);
+          }
+          return side(input) ?? json(one);
+        });
+        const view = mount({ query: {}, categoryId: A });
+        await screen.findByRole('heading', { name: 'Каталог 40 товаров' });
+        expect(screen.getByRole('button', { name: 'Только со скидкой' })).toBeInTheDocument();
+
+        view.update({ query: {}, categoryId: B });
+        await vi.waitFor(() =>
+          expect(
+            view.client.getQueryState(productFacetsOptions({ categoryId: [B] }).queryKey)?.status,
+          ).toBe('error'),
+        );
+        await vi.waitFor(() =>
+          expect(
+            screen.queryByRole('button', { name: 'Только со скидкой' }),
+          ).not.toBeInTheDocument(),
+        );
+        expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Каталог$/);
+      });
+    });
+
     // On a batch page the new address has no cursor, so the server renders the same browser with
     // `start` gone; it stays mounted (no key) and starts over from the first batch.
     describe('a selection changed on a batch page', () => {
