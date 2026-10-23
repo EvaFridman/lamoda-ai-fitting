@@ -12,8 +12,8 @@ const API_PREFIX = '/api';
 // The timeout, or the caller's signal and the timeout, whichever fires first, with that signal's
 // reason (`TimeoutError` or `AbortError`), so `callApi` tells a timeout from a cancel. By hand, not
 // `AbortSignal.any`: Next's browser targets (Safari 16.4, Chrome 111) do not have it.
-function requestSignal(caller: AbortSignal | null | undefined): AbortSignal {
-  const timeout = AbortSignal.timeout(TIMEOUT_MS);
+function requestSignal(caller: AbortSignal | null | undefined, timeoutMs: number): AbortSignal {
+  const timeout = AbortSignal.timeout(timeoutMs);
   if (!caller) return timeout;
   const controller = new AbortController();
   for (const source of [caller, timeout]) {
@@ -31,6 +31,9 @@ export interface ClientFetchOptions {
   // reported (the 401 of `DELETE /me` once the session is gone, spec 0017 U25). A 5xx is reported
   // all the same.
   expectedStatus?: number;
+  // The request's whole time in place of the 15 s, for an upload: the browser's timer covers the
+  // body's upload too (spec 0019 plan §7).
+  timeoutMs?: number;
 }
 
 // The only way browser code calls the api: same origin, no secret and no forwarded headers (the
@@ -41,7 +44,7 @@ export async function clientFetch<Schema extends ResponseSchema>(
   path: ApiPath,
   schema: Schema,
   init?: RequestInit,
-  { expectedStatus }: ClientFetchOptions = {},
+  { expectedStatus, timeoutMs = TIMEOUT_MS }: ClientFetchOptions = {},
 ): Promise<Parsed<Schema>> {
   // A slice's browser options and its server options share their names (`@/entities/x` and
   // `@/entities/x/server`), so a server component can take the wrong ones. A bug in web, not an api
@@ -68,7 +71,7 @@ export async function clientFetch<Schema extends ResponseSchema>(
     url,
     path,
     schema,
-    { ...init, redirect: 'error', signal: requestSignal(init?.signal) },
+    { ...init, redirect: 'error', signal: requestSignal(init?.signal, timeoutMs) },
     {},
     expectedStatus,
   );

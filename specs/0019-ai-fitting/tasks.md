@@ -76,7 +76,7 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       Check: database e2e of the routes, of a deletion whose start fails and is retried by the
       schedule, and of `DELETE /me` leaving no photo in the bucket (AC28); `npm run verify`.
       Commit: `feat(api): list, choose and delete fitting photos through the deletion outbox`
-- [ ] **T6. web: the photo entity and the kit's additions.** `entities/user-photo` (schemas, keys,
+- [x] **T6. web: the photo entity and the kit's additions.** `entities/user-photo` (schemas, keys,
       hooks, contract test), the kit's `FileInput`, `Notice`, `StateCard` and icons with their
       `/ui-kit` sections (plan §7).
       Check: web tests of the hooks and components; `npm run verify`.

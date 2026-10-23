@@ -1,0 +1,62 @@
+// The kit's state card: centred content on the secondary background, the icon in a 64px white
+// circle, a headline-s title, body-m text in grey and the actions under it.
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-items: center;
+
+  padding: var(--space-8) var(--space-4);
+  border-radius: var(--radius-m);
+
+  text-align: center;
+
+  background-color: var(--color-background-secondary);
+}
+
+.icon {
+  display: grid;
+  place-items: center;
+
+  width: 64px;
+  height: 64px;
+  margin-bottom: var(--space-2);
+  border-radius: var(--radius-full);
+
+  background-color: var(--color-background);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-size-headline-s);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-headline-s);
+}
+
+.text {
+  max-width: 480px;
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+  color: var(--color-text-secondary);
+
+  > p {
+    margin: 0;
+  }
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: center;
+
+  margin-top: var(--space-3);
+}
+
+@media (width < 600px) {
+  .actions {
+    flex-direction: column;
+    align-self: stretch;
+  }
+}
