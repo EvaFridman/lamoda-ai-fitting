@@ -1,11 +1,16 @@
-// The pickers in a row (one under the other on a phone), the screens' tips, consents and notes in
-// the page's small text.
+// The pickers in a row (one under the other on a phone), board 10's dashed card, the screens'
+// consents and notes in the page's small text.
 
 .upload {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
   align-items: flex-start;
+}
+
+// In the grid of saved photos the card is the cell's width.
+.inCard {
+  align-items: stretch;
 }
 
 .actions {
@@ -19,68 +24,92 @@
   }
 }
 
+// Board 10: a dashed frame the height of a photo, a plus, «Добавить фото» and its hint.
+.card {
+  cursor: pointer;
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: center;
+
+  box-sizing: border-box;
+  aspect-ratio: 3 / 4;
+  margin: 0;
+  padding: var(--space-4);
+  border: var(--border-width) dashed var(--color-border-control);
+
+  font: inherit;
+  color: var(--color-text);
+
+  background-color: var(--color-background);
+
+  transition: border-color var(--duration-fast);
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.4;
+  }
+
+  @media (hover: hover) {
+    &:hover:not(:disabled) {
+      border-color: var(--color-border-active);
+    }
+  }
+}
+
+.cardTitle {
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+}
+
+.cardHint {
+  font-size: var(--font-size-caption);
+  line-height: var(--line-height-caption);
+  color: var(--color-text-secondary);
+}
+
 .screen {
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
 }
 
-.tips {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-4) var(--space-6);
-
-  @media (width < 600px) {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-.tipsTitle {
-  margin: 0 0 var(--space-2);
-  font-size: var(--font-size-body-m);
-  font-weight: 500;
-  line-height: var(--line-height-body-m);
-}
-
-.tipList {
+// Board 4.2: the picture in a grey circle, the heading and the line under it.
+.lead {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-
-  margin: 0;
-  padding: 0;
-
-  list-style: none;
-}
-
-.tip {
-  display: flex;
-  gap: var(--space-2);
+  gap: var(--space-3);
   align-items: flex-start;
-
-  font-size: var(--font-size-body-s);
-  line-height: var(--line-height-body-s);
 }
 
-.good,
-.bad {
-  flex: none;
-  margin-top: 2px;
+.leadIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+
+  background-color: var(--color-background-secondary);
 }
 
-.good {
-  color: var(--color-success);
-}
-
-.bad {
-  color: var(--color-error);
-}
-
-.format {
-  grid-column: 1 / -1;
-
+.leadTitle {
   margin: 0;
+  font-size: var(--font-size-headline-m);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-headline-m);
+}
 
+.leadText {
+  margin: 0;
   font-size: var(--font-size-body-s);
   line-height: var(--line-height-body-s);
   color: var(--color-text-secondary);
@@ -112,6 +141,13 @@
   margin-top: 2px;
 }
 
+.refusedText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+// Under the refusal's buttons, in the middle.
 .tipsLink {
-  align-self: flex-start;
+  margin: var(--space-2) auto 0;
 }

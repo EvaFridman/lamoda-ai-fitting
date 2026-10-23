@@ -31,6 +31,7 @@ import {
   SearchIcon,
   SparkleIcon,
   StarIcon,
+  TrashIcon,
   UploadIcon,
   VkIcon,
 } from '@/shared/ui';
@@ -69,6 +70,7 @@ const icons: { name: string; Icon: ComponentType<IconProps> }[] = [
   { name: 'RefreshIcon', Icon: RefreshIcon },
   { name: 'LockIcon', Icon: LockIcon },
   { name: 'CompareIcon', Icon: CompareIcon },
+  { name: 'TrashIcon', Icon: TrashIcon },
 ];
 
 // Every icon at both sizes. The icons take the colour of the text around them (currentColor).

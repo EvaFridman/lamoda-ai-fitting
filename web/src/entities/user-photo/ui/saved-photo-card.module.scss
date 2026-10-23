@@ -1,0 +1,91 @@
+// Board 10: the card is the 3:4 photo and a row under it, the date or the radio left, the bin
+// right; the phone's row is a 72×96 thumbnail, the badge or the text button over the date, and the
+// bin, with a line under it.
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.cardRow {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: space-between;
+
+  min-height: 44px;
+}
+
+.radioGroup {
+  min-width: 0;
+}
+
+// Read by a screen reader, not shown.
+.hidden {
+  position: absolute;
+
+  overflow: hidden;
+
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+
+  white-space: nowrap;
+
+  clip-path: inset(50%);
+}
+
+.delete {
+  margin-left: auto;
+}
+
+.date {
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  color: var(--color-text-secondary);
+}
+
+.row {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+
+  padding: var(--space-3) 0;
+  border-bottom: var(--border-width) solid var(--color-border);
+}
+
+.rowThumb {
+  flex: none;
+  width: 72px;
+  height: 96px;
+}
+
+.rowText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+
+  min-width: 0;
+
+  .date {
+    font-size: var(--font-size-caption);
+    line-height: var(--line-height-caption);
+  }
+}
+
+// As PhotoThumb's mark, beside the thumbnail.
+.badge {
+  padding: 0 6px;
+  border-radius: var(--radius-xs);
+
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  color: var(--color-background);
+
+  background-color: var(--color-text);
+}

@@ -1,0 +1,113 @@
+// Board 4's tiles: a 3:4 picture with a 24px mark in its top left corner, black for «хорошо», red
+// for «плохо», a 13/16 caption under it; the «Коротко» list on the secondary background.
+
+.tips {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-4) var(--space-3);
+
+  @media (width < 600px) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-3) var(--space-2);
+  }
+}
+
+.tip {
+  margin: 0;
+}
+
+.picture {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 3 / 4;
+  background-color: var(--color-background-secondary);
+
+  > svg {
+    display: block;
+  }
+}
+
+.mark {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+
+  color: var(--color-background);
+
+  // The marks' lines are drawn thicker than the kit's 1px, as on the canvas.
+  svg path {
+    stroke-width: 2.4px;
+  }
+
+  @media (width < 600px) {
+    top: var(--space-1);
+    left: var(--space-1);
+  }
+}
+
+.good {
+  background-color: var(--color-text);
+}
+
+.bad {
+  background-color: var(--color-error);
+}
+
+.caption {
+  margin-top: var(--space-2);
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+
+  @media (width < 600px) {
+    margin-top: var(--space-1);
+    font-size: var(--font-size-caption);
+    line-height: 14px;
+  }
+}
+
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  padding: var(--space-4);
+
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+
+  background-color: var(--color-background-secondary);
+
+  @media (width < 600px) {
+    grid-column: 1 / -1;
+  }
+}
+
+.summaryTitle {
+  margin: 0;
+  font-size: inherit;
+  font-weight: 500;
+  line-height: inherit;
+}
+
+.summaryList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  margin: 0;
+  padding: 0;
+
+  list-style: none;
+
+  > li::before {
+    content: '— ';
+  }
+}

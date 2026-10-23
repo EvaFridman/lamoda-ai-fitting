@@ -8,13 +8,15 @@ import {
   Modal,
   ModalClose,
   SearchIcon,
+  Sheet,
+  SheetClose,
   Tooltip,
 } from '@/shared/ui';
 
 import styles from './examples.module.scss';
 import { SheetScreensDemo } from './sheet-screens-demo';
 
-// The modal, the drawer and the hints. They open live only, not on load (D7z): an open modal or
+// The modal, the drawer, the sheet and the hints. They open live only, not on load (D7z): an open modal or
 // drawer would take the focus and stop the page from scrolling, and a hint is a hover state (D11a).
 export function OverlaysSection() {
   return (
@@ -108,6 +110,68 @@ export function OverlaysSection() {
         <li className={styles.example}>
           <SheetScreensDemo />
           <code className={styles.props}>fullHeight, onBack, headerAction, closable=false</code>
+        </li>
+        <li className={styles.example}>
+          <Drawer
+            trigger={<Button variant="outline">Сортировка</Button>}
+            title="Сортировка"
+            description="Порядок товаров в каталоге"
+            side="bottom"
+            closable={false}
+            footer={
+              <DrawerClose>
+                <Button fullWidth>Готово</Button>
+              </DrawerClose>
+            }
+          >
+            <p>Популярные, новинки, сначала дешевле, сначала дороже.</p>
+          </Drawer>
+          <code className={styles.props}>
+            side=&quot;bottom&quot;, description, closable=&#123;false&#125;
+          </code>
+        </li>
+      </ul>
+
+      <h3 className={styles.heading}>Sheet</h3>
+      <ul className={styles.row}>
+        <li className={styles.example}>
+          <Sheet
+            trigger={<Button variant="outline">Удалить фото</Button>}
+            title="Удалить фото?"
+            description="Фото и его копии удалятся. Результаты примерок в истории останутся."
+            media={<span className={styles.sheetMedia} aria-hidden />}
+            footer={
+              <>
+                <SheetClose>
+                  <Button fullWidth>Удалить</Button>
+                </SheetClose>
+                <SheetClose>
+                  <Button variant="outline" fullWidth>
+                    Отмена
+                  </Button>
+                </SheetClose>
+              </>
+            }
+          />
+          <code className={styles.props}>media, footer: кнопки одна под другой</code>
+        </li>
+      </ul>
+
+      <h3 className={styles.heading}>Modal: wide, media</h3>
+      <ul className={styles.row}>
+        <li className={styles.example}>
+          <Modal
+            trigger={<Button variant="outline">Фото не подошло</Button>}
+            title="Фото слишком тёмное"
+            description="Встаньте у окна днём или включите верхний свет."
+            media={<span className={styles.modalMedia} aria-hidden />}
+            wide
+          >
+            <ModalClose>
+              <Button fullWidth>Выбрать другое фото</Button>
+            </ModalClose>
+          </Modal>
+          <code className={styles.props}>wide, media; на телефоне во весь экран</code>
         </li>
       </ul>
 

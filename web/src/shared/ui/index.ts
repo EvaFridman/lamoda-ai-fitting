@@ -70,12 +70,13 @@ export {
   SearchIcon,
   SparkleIcon,
   StarIcon,
+  TrashIcon,
   UploadIcon,
   VkIcon,
 } from './icon/icons';
 export type { PaymentMarkProps } from './icon/payment-marks';
 export { MastercardMark, VisaMark } from './icon/payment-marks';
-export type { IconButtonProps, IconButtonSize } from './icon-button/icon-button';
+export type { IconButtonProps, IconButtonSize, IconButtonVariant } from './icon-button/icon-button';
 export { IconButton } from './icon-button/icon-button';
 export type { LinkButtonProps, LinkProps, LinkVariant } from './link/link';
 export { Link, LinkButton } from './link/link';
@@ -114,6 +115,8 @@ export type { SearchFieldProps } from './search-field/search-field';
 export { SearchField } from './search-field/search-field';
 export type { SelectOption, SelectProps } from './select/select';
 export { Select } from './select/select';
+export type { SheetProps } from './sheet/sheet';
+export { Sheet, SheetClose } from './sheet/sheet';
 export type { SizePickerOption, SizePickerProps } from './size-picker/size-picker';
 export { SizePicker } from './size-picker/size-picker';
 export type { SizeSelectorOption, SizeSelectorProps } from './size-selector/size-selector';

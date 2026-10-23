@@ -537,18 +537,26 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
 - The kit (`web/src/shared/ui`, its examples on `/ui-kit`) has, besides its controls,
   `MenuLinkItem` (Base UI's `Menu.LinkItem` rendering `next/link`; `MenuItem` has no link form),
   `LinkButton` (a `<button>` styled as the kit's `Link`, for an action that is not navigation),
-  `Modal`'s `initialFocus` (a ref of the element focused when it opens, else the first focusable
-  one) and `FileInput` (a kit `Button` that clicks a hidden `<input type="file">`, one file, with
-  `accept` and `capture`, spec 0019 A30). For the catalog's sheet (spec 0020) `Drawer` takes
-  `fullHeight` (a bottom sheet as high as it can be, so a `Drawer` nested in it, Base UI's nested
-  drawer, is as high and the outer one steps back behind it), `onBack` (a "‹" before the title,
-  `backLabel`, `backRef`), `headerAction` (a control before the ×), `initialFocus`, and passes
-  Base UI's close `reason` to `onOpenChange`; `CheckboxFilterPanel` and `SortFilterPanel` take
-  `layout: 'sheet'` (rows split by hairlines, the box or circle on the right), the checkbox panel
-  `selectAll` ("Выбрать все", W24); the icons include `FilterIcon`. Tracking handlers reach the kit and entity components as
+  `Modal`'s `initialFocus` (a ref of the element focused when it opens, `'popup'` for the frame
+  itself, else the first focusable one), `Modal`'s `wide` (up to 1000px, the whole window below 600px) and `media` (a picture's
+  column), `FileInput` (a kit `Button` that clicks a hidden `<input type="file">`, one file, with
+  `accept` and `capture`, spec 0019 A30; `bare` is a plain button the page styles), `IconButton`'s
+  `plain` and `Sheet` (spec 0019 A64: the kit's one bottom sheet is `Drawer side="bottom"`, which
+  takes `description`, `media` (a picture left of the heading, which then has no "‹" or header
+  action), `grip`, `closable` and `initialFocus`; `Sheet` is it with a grip and no ×). For the
+  catalog's sheet (spec 0020) `Drawer` takes `fullHeight` (a bottom sheet as high as it can be, so
+  a `Drawer` nested in it, Base UI's nested drawer, is as high and the outer one steps back behind
+  it), `onBack` (a "‹" before the title, `backLabel`, `backRef`), `headerAction` (a control before
+  the ×), and passes Base UI's close `reason` to `onOpenChange`; `CheckboxFilterPanel` and
+  `SortFilterPanel` take `layout: 'sheet'` (rows split by hairlines, the box or circle on the
+  right), the checkbox panel `selectAll` ("Выбрать все", W24); the icons include `FilterIcon`.
+  Phones are below 600px: `PHONE_QUERY` (`@/shared/config`) with `useMediaQuery` (`@/shared/lib`,
+  a client module) where the DOM must differ, else CSS. Tracking handlers reach the kit and entity
+  components as
   props, from the widget or page that calls `useTrackedElement`: `FilterDropdown`'s and the
   catalog filters' `chipEvents` (on the chip's trigger, not its ×), `FileInput`'s `events`,
-  `CatalogProductCard`'s and `CatalogCategoryList`'s `linkEvents`.
+  `CatalogProductCard`'s and `CatalogCategoryList`'s `linkEvents`, `SavedPhotoCard`'s
+  `makeDefaultEvents`.
 - `web` photos (spec 0019 plan §7): `entities/user-photo` reads `GET /me/photos` in the browser
   (`useMyPhotos`) under `userPhotoKeys.all`, which starts with `userKeys.all`, so a session's end
   drops it; `uploadPhoto` (multipart `photo` and `save`), `setDefaultPhoto` and `deletePhoto` are
@@ -562,7 +570,12 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   holds until the tab reloads, A60), refuses a file over `MAX_PHOTO_BYTES` before the upload (the
   api's limit less 64 KB of multipart, `lib/upload-error.ts`; its texts say 20 МБ) and turns the
   upload off at five saved photos. `/privacy` says the photos go to OpenAI and are not used for
-  training (A46).
+  training (A46). The screens follow the canvas's boards 4, 5 and 10 (A63.8): `PhotoTips` draws
+  the canvas's seven example pictures as inline SVG components (`ui/pictograms.tsx`, web keeps no
+  files); a refusal shows the chosen file from an object URL set on the `<img>` by an effect and
+  revoked when it goes (`RefusedPreview`, `mp-block`; none for `child`); «Мои фото» is
+  `SavedPhotoCard`s (`entities/user-photo`; its radio's value is a constant, since Base UI writes
+  it into a hidden input) and one `UploadPhoto` kept in the list's last item for both layouts.
 - An attribute value's `colorHex` is its swatch colour, `#RRGGBB` (either case) or `null` (an
   empty bordered circle); the DTOs and a CHECK in the migration refuse anything else. web draws it with
   `ColorSwatch`, and an attribute with at least one coloured value is a colour filter

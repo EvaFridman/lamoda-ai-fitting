@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -34,6 +34,8 @@ function photo(n: number, isDefault = false) {
     createdAt: '2026-10-23T10:00:00.000Z',
   };
 }
+
+const makeDefaultOf = (n: number) => ({ name: `Сделать основным фото ${n}` });
 
 const photos = (count: number) =>
   Array.from({ length: count }, (_, index) => photo(index + 1, index === 0));
@@ -154,11 +156,9 @@ describe('MyPhotos list', () => {
     renderPhotos();
     await screen.findByText(/3 из 5/);
 
-    expect(
-      screen.queryByRole('button', { name: 'Сделать фото 1 основным' }),
-    ).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Сделать фото 2 основным' })).toBeEnabled();
-    expect(screen.getByRole('button', { name: 'Сделать фото 3 основным' })).toBeEnabled();
+    expect(screen.queryByRole('radio', makeDefaultOf(1))).not.toBeInTheDocument();
+    expect(screen.getByRole('radio', makeDefaultOf(2))).toBeEnabled();
+    expect(screen.getByRole('radio', makeDefaultOf(3))).toBeEnabled();
     expect(screen.getAllByRole('button', { name: /^Удалить фото/ })).toHaveLength(3);
   });
 
@@ -193,14 +193,10 @@ describe('MyPhotos default photo', () => {
     );
     const user = setup();
     renderPhotos();
-    await user.click(await screen.findByRole('button', { name: 'Сделать фото 2 основным' }));
+    await user.click(await screen.findByRole('radio', makeDefaultOf(2)));
 
-    await vi.waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Сделать фото 1 основным' })).toBeInTheDocument(),
-    );
-    expect(
-      screen.queryByRole('button', { name: 'Сделать фото 2 основным' }),
-    ).not.toBeInTheDocument();
+    await vi.waitFor(() => expect(screen.getByRole('radio', makeDefaultOf(1))).toBeInTheDocument());
+    expect(screen.queryByRole('radio', makeDefaultOf(2))).not.toBeInTheDocument();
     const [patch] = calls('PATCH');
     expect(patch?.path).toBe(`/api/me/photos/${photo(2).id}`);
     expect(JSON.parse(String(patch?.init?.body))).toEqual({ isDefault: true });
@@ -221,7 +217,7 @@ describe('MyPhotos default photo', () => {
     );
     const user = setup();
     renderPhotos();
-    await user.click(await screen.findByRole('button', { name: 'Сделать фото 2 основным' }));
+    await user.click(await screen.findByRole('radio', makeDefaultOf(2)));
 
     await vi.waitFor(() => expect(calls('GET')).toHaveLength(2));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
@@ -235,7 +231,7 @@ describe('MyPhotos default photo', () => {
     );
     const user = setup();
     renderPhotos();
-    await user.click(await screen.findByRole('button', { name: 'Сделать фото 2 основным' }));
+    await user.click(await screen.findByRole('radio', makeDefaultOf(2)));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Сервис временно недоступен, попробуйте позже',
@@ -354,5 +350,235 @@ describe('MyPhotos deletion', () => {
     await user.keyboard('{Escape}');
     expect(screen.getByRole('dialog', { name: 'Удалить фото?' })).toBeInTheDocument();
     expect(calls('DELETE')).toHaveLength(1);
+  });
+
+  it("shows another photo's thumbnail when the confirmation opens again after «Отмена»", async () => {
+    api(() => photos(3));
+    const { user, dialog } = await openDeletion(2);
+    expect(within(dialog).getByRole('img', { name: 'Фото 2' })).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Отмена' }));
+    await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+    await user.click(screen.getByRole('button', { name: 'Удалить фото 3' }));
+
+    const again = await screen.findByRole('dialog', { name: 'Удалить фото?' });
+    expect(within(again).getByRole('img', { name: 'Фото 3' })).toHaveAttribute(
+      'src',
+      `${SIGNED}/p3.webp?X-Amz-Signature=sig3`,
+    );
+    expect(within(again).queryByRole('img', { name: 'Фото 2' })).not.toBeInTheDocument();
+  });
+
+  it('shows the chosen photo in the confirmation, without the default badge', async () => {
+    api(() => photos(3));
+    const { dialog } = await openDeletion(1);
+
+    const image = within(dialog).getByRole('img', { name: 'Фото 1' });
+    expect(image).toHaveAttribute('src', `${SIGNED}/p1.webp?X-Amz-Signature=sig1`);
+    expect(within(dialog).getAllByRole('img')).toHaveLength(1);
+    expect(dialog).not.toHaveTextContent('По умолчанию');
+    expect(image.closest('figure')).toHaveClass('mp-block');
+  });
+});
+
+describe('MyPhotos on a wide screen', () => {
+  it('puts the dashed «Добавить фото» card in the last cell of the grid, after the photos', async () => {
+    api(() => photos(3));
+    renderPhotos();
+    await screen.findByText(/3 из 5/);
+
+    const cells = within(screen.getAllByRole('list')[0]!).getAllByRole('listitem');
+    expect(cells).toHaveLength(4);
+    expect(within(cells[3]!).getByRole('button', { name: 'Добавить фото' })).toBeEnabled();
+    for (const cell of cells.slice(0, 3)) {
+      expect(within(cell).queryByRole('button', { name: 'Добавить фото' })).not.toBeInTheDocument();
+    }
+  });
+
+  it('keeps the card last and off at five photos', async () => {
+    api(() => photos(5));
+    renderPhotos();
+    await screen.findByText(/5 из 5/);
+
+    const cells = within(screen.getAllByRole('list')[0]!).getAllByRole('listitem');
+    expect(cells).toHaveLength(6);
+    expect(within(cells[5]!).getByRole('button', { name: 'Добавить фото' })).toBeDisabled();
+  });
+
+  it('says the photos are not used for training in the summary, with no separate lock line', async () => {
+    api(() => photos(2));
+    renderPhotos();
+
+    expect(
+      await screen.findByText('2 из 5 · видите только вы · не используются для обучения моделей'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/не видны другим людям/)).not.toBeInTheDocument();
+  });
+
+  it('gives the default photo no «Сделать основным» radio, and every other one its own', async () => {
+    api(() => photos(3));
+    renderPhotos();
+    await screen.findByText(/3 из 5/);
+
+    expect(screen.queryByRole('radiogroup', { name: 'Фото 1' })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('radiogroup')).toHaveLength(2);
+  });
+
+  it('puts the limit note after the list at five photos', async () => {
+    api(() => photos(5));
+    renderPhotos();
+    const note = await screen.findByText(/Можно сохранить до 5 фото/);
+
+    const list = screen.getAllByRole('list')[0]!;
+    expect(list).not.toContainElement(note);
+    expect(list.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
+
+describe('MyPhotos on a phone', () => {
+  beforeEach(() => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query === '(width < 600px)',
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }));
+  });
+
+  it('lists the photos as rows with text buttons, a lock line and the upload below', async () => {
+    api(() => photos(3));
+    renderPhotos();
+
+    expect(await screen.findByText('3 из 5 · видите только вы')).toBeInTheDocument();
+    expect(
+      screen.getByText('Фото не используются для обучения моделей и не видны другим людям.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('radio')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Сделать основным фото 2' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Сделать основным фото 3' })).toBeEnabled();
+    expect(screen.getAllByRole('button', { name: /^Удалить фото/ })).toHaveLength(3);
+    expect(screen.getAllByText('По умолчанию')).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Добавить фото' })).toBeEnabled();
+  });
+
+  it('holds the lock line, the limit note and the upload in the last item of the one list', async () => {
+    api(() => photos(5));
+    renderPhotos();
+    await screen.findByText(/5 из 5/);
+
+    const items = within(screen.getAllByRole('list')[0]!).getAllByRole('listitem');
+    expect(items).toHaveLength(6);
+    const last = items[5]!;
+    expect(last).toHaveTextContent(
+      'Фото не используются для обучения моделей и не видны другим людям.',
+    );
+    expect(last).toHaveTextContent('Можно сохранить до 5 фото');
+    expect(within(last).getByRole('button', { name: 'Добавить фото' })).toBeDisabled();
+  });
+
+  it('«Сделать основным» sends the PATCH of that photo', async () => {
+    api(() => photos(3));
+    const user = setup();
+    renderPhotos();
+    await user.click(await screen.findByRole('button', { name: 'Сделать основным фото 3' }));
+
+    await vi.waitFor(() => expect(calls('PATCH')).toHaveLength(1));
+    expect(calls('PATCH')[0]?.path).toBe(`/api/me/photos/${photo(3).id}`);
+  });
+
+  it('turns the upload off at five photos', async () => {
+    api(() => photos(5));
+    renderPhotos();
+    await screen.findByText(/5 из 5/);
+
+    expect(screen.getByRole('button', { name: 'Добавить фото' })).toBeDisabled();
+    expect(screen.getByText(/Можно сохранить до 5 фото/)).toBeInTheDocument();
+  });
+
+  it('confirms a deletion in a sheet with the thumbnail, opening on «Отмена» after «Удалить»', async () => {
+    api(
+      () => photos(3),
+      () => Promise.resolve(new Response(null, { status: 204 })),
+    );
+    const user = setup();
+    renderPhotos();
+    await user.click(await screen.findByRole('button', { name: 'Удалить фото 2' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Удалить фото?' });
+    expect(dialog).toHaveTextContent(
+      'Фото и его копии удалятся. Результаты примерок в истории останутся.',
+    );
+    expect(within(dialog).getByRole('img', { name: 'Фото 2' })).toHaveAttribute(
+      'src',
+      `${SIGNED}/p2.webp?X-Amz-Signature=sig2`,
+    );
+    expect(
+      within(dialog)
+        .getAllByRole('button')
+        .map((button) => button.textContent),
+    ).toEqual(['Удалить', 'Отмена']);
+    await vi.waitFor(() =>
+      expect(within(dialog).getByRole('button', { name: 'Отмена' })).toHaveFocus(),
+    );
+    expect(calls('DELETE')).toHaveLength(0);
+
+    await user.click(within(dialog).getByRole('button', { name: 'Удалить' }));
+
+    await vi.waitFor(() => expect(calls('DELETE')).toHaveLength(1));
+    expect(calls('DELETE')[0]?.path).toBe(`/api/me/photos/${photo(2).id}`);
+    await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('«Отмена» closes the sheet and sends nothing', async () => {
+    api(() => photos(3));
+    const user = setup();
+    renderPhotos();
+    await user.click(await screen.findByRole('button', { name: 'Удалить фото 2' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Удалить фото?' });
+
+    await user.click(within(dialog).getByRole('button', { name: 'Отмена' }));
+
+    await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(calls('DELETE')).toHaveLength(0);
+  });
+});
+
+describe('MyPhotos across the phone break', () => {
+  it('keeps the upload and its open tips (not remounted) when the window crosses 600px', async () => {
+    const listeners = new Set<() => void>();
+    let phone = false;
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      get matches() {
+        return query === '(width < 600px)' && phone;
+      },
+      media: query,
+      addEventListener: (_type: string, listener: () => void) => listeners.add(listener),
+      removeEventListener: (_type: string, listener: () => void) => listeners.delete(listener),
+    }));
+    const cross = (next: boolean) =>
+      act(() => {
+        phone = next;
+        for (const listener of listeners) listener();
+      });
+    api(() => photos(2));
+    const user = setup();
+    renderPhotos();
+    await user.click(await screen.findByRole('button', { name: 'Добавить фото' }));
+    const wide = await screen.findByRole('dialog', { name: 'Какое фото подойдёт' });
+    await user.click(within(wide).getByRole('checkbox', { name: 'На фото — я' }));
+
+    cross(true);
+
+    expect(await screen.findByRole('dialog', { name: 'Какое фото подойдёт' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Понятно' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Понятно' }));
+    // The checkbox ticked on the wide screen is still ticked: the upload kept its state.
+    const choose = await screen.findByRole('dialog', { name: 'Ваше фото' });
+    expect(within(choose).getByRole('checkbox', { name: 'На фото — я' })).toBeChecked();
+
+    cross(false);
+
+    expect(await screen.findByRole('dialog', { name: 'Какое фото подойдёт' })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'На фото — я' })).toBeChecked();
   });
 });

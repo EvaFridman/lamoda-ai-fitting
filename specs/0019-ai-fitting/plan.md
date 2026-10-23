@@ -269,7 +269,7 @@ status }` to the room; the worker's `notify` publishes the same JSON with its ow
   pages inside `AccountShell` (0017), browser-only (U11) and `noindex` through the existing
   `/customer` layout; `robots.ts` already disallows `/customer`.
 - **kit.** New: `CountBadge`, `ProgressBar`, `FileInput`, `Gallery`, `Sheet` (the mobile bottom
-  sheet on Drawer's tokens), `StateCard`, `Notice`, `Chip`/`ChipGroup` (the reason chips), icons
+  sheet: the kit's `Drawer` from the bottom with a grip and no ×, A64), `StateCard`, `Notice`, `Chip`/`ChipGroup` (the reason chips), icons
   `Hanger`, `Sparkle`, `Camera`, `Upload`, `Download`, `Fullscreen`, `Refresh`, `Lock`, `Compare`.
   Each gets its `/ui-kit` section. `TryOnButton` is the kit's `Button` primary 56 with the sparkle
   icon and the states default, loading and disabled (A63.2), shown as a `Button` example; the

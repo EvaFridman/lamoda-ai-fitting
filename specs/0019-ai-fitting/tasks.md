@@ -98,7 +98,7 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
 
 ## PR 3 · `feat/0019-generation` · generation
 
-- [ ] **T9a. web: the photo screens as the canvas draws them** (runs before T9, A63.8).
+- [x] **T9a. web: the photo screens as the canvas draws them** (runs before T9, A63.8).
       `PhotoTips` with the seven pictograms of A62 as inline SVG components (board 4: two
       «хорошо» and five «плохо» tiles with
       the ✓/✕ marks, the «Коротко» list; on phones the tips screen with «Понятно», then the consent

@@ -160,6 +160,55 @@
   margin-right: var(--space-2);
 }
 
+.description {
+  flex: none;
+
+  margin: 0;
+  padding: 0 var(--space-6) var(--space-4);
+
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+}
+
+// The picture left of the heading and the line (spec 0019 board 10.2); the line loses its own side
+// padding there.
+.head {
+  display: flex;
+  flex: none;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-6) 0;
+
+  .description {
+    padding-right: 0;
+    padding-left: 0;
+  }
+}
+
+// Room on the right for the ×, as the header row has it.
+.head.withClose {
+  padding-right: 56px;
+}
+
+.media {
+  flex: none;
+}
+
+.headText {
+  min-width: 0;
+}
+
+// A 36×4 grip at the top of the bottom sheet.
+.grip {
+  flex: none;
+
+  width: 36px;
+  height: 4px;
+  margin: var(--space-2) auto 0;
+  border-radius: 2px;
+
+  background-color: var(--color-border-neutral);
+}
+
 .content {
   overflow-y: auto;
   flex: 1;
@@ -184,6 +233,8 @@
   flex-wrap: wrap;
   gap: var(--space-2);
 
+  // At the bottom of the side modal even with no content above it.
+  margin-top: auto;
   padding: var(--space-4) var(--space-6);
   border-top: var(--border-width) solid var(--color-border);
 }

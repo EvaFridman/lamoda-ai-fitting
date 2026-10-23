@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-import { CameraIcon, FileInput, UploadIcon } from '@/shared/ui';
+import { CameraIcon, FileInput, PlusIcon, UploadIcon } from '@/shared/ui';
 
 import styles from './examples.module.scss';
 
@@ -39,6 +39,17 @@ export function FileInputDemo() {
             Загрузить фото
           </FileInput>
           <code className={styles.props}>disabled</code>
+        </li>
+        <li className={styles.example}>
+          <FileInput
+            accept={PHOTO_TYPES}
+            bare
+            className={styles.dashedCard}
+            onFileChange={setChosen}
+          >
+            <PlusIcon /> Добавить фото
+          </FileInput>
+          <code className={styles.props}>bare: вид задаёт страница</code>
         </li>
       </ul>
       <p className={styles.props} aria-live="polite">

@@ -6,14 +6,28 @@ import { useRef, useState } from 'react';
 import {
   deletePhoto,
   PhotoThumb,
+  SavedPhotoCard,
   setDefaultPhoto,
   useMyPhotos,
   userPhotoKeys,
+  type UserPhoto,
 } from '@/entities/user-photo';
 import { UploadPhoto } from '@/features/upload-photo';
 import { useTrackedElement } from '@/shared/analytics';
 import { ApiError, errorText, reportFailure } from '@/shared/api';
-import { Button, LinkButton, Modal, ModalClose, Notice, Skeleton, StateCard } from '@/shared/ui';
+import { PHONE_QUERY } from '@/shared/config';
+import { useMediaQuery } from '@/shared/lib';
+import {
+  Button,
+  LockIcon,
+  Modal,
+  ModalClose,
+  Notice,
+  Sheet,
+  SheetClose,
+  Skeleton,
+  StateCard,
+} from '@/shared/ui';
 
 import styles from './my-photos.module.scss';
 
@@ -27,16 +41,22 @@ function isGone(error: unknown): boolean {
   return error instanceof ApiError && error.kind === 'http' && error.status === 404;
 }
 
-// «Мои фото» (spec 0019 board 10, AC1, AC3): the saved photos, oldest first, read in the browser
-// (0017 U11); the default one marked, any other made the default with «Сделать основным»; a
-// deletion confirmed in a modal that opens on «Отмена»; the upload, off at five. Each photo is
-// named by its place ("Фото 2"), never by its data, and its link is only an image's `src` (A37).
-// Both writes are mutations with no retry and nothing kept (`gcTime: 0`), as the upload.
+// «Мои фото» (spec 0019 board 10, AC1, AC3, A63.8): the saved photos, oldest first, read in the
+// browser (0017 U11), as `SavedPhotoCard`s in a grid closed by the dashed «Добавить фото» card, or
+// on a phone as rows over the upload's button; the default one marked, any other made the default
+// with «Сделать основным»; a deletion confirmed in a modal (on a phone a sheet) with the photo's
+// thumbnail that opens on «Отмена»; the upload, off at five. Each photo is named by its place
+// ("Фото 2"), never by its data, and its link is only an image's `src` (A37). Both writes are
+// mutations with no retry and nothing kept (`gcTime: 0`), as the upload.
 export function MyPhotos() {
   const photos = useMyPhotos();
   const queryClient = useQueryClient();
-  // The id of the photo whose deletion the modal confirms.
+  const phone = useMediaQuery(PHONE_QUERY);
+  // The id of the photo whose deletion the confirmation asks about.
   const [target, setTarget] = useState<string | null>(null);
+  // The photo the confirmation shows: kept after it closes, so its thumbnail stays while the modal
+  // or the sheet fades out.
+  const [shown, setShown] = useState<{ photo: UserPhoto; position: number } | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [defaultError, setDefaultError] = useState<string | null>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
@@ -81,7 +101,7 @@ export function MyPhotos() {
     },
   });
 
-  // The deletion on its way keeps the modal open: it ends in the list or in its error.
+  // The deletion on its way keeps the confirmation open: it ends in the list or in its error.
   function changeOpen(next: boolean) {
     if (next || remove.isPending) return;
     setTarget(null);
@@ -125,92 +145,128 @@ export function MyPhotos() {
     );
   }
 
+  const targetThumb = shown && (
+    <PhotoThumb
+      photo={shown.photo}
+      alt={`Фото ${shown.position}`}
+      showDefault={false}
+      className={phone ? styles.sheetThumb : styles.modalThumb}
+    />
+  );
+  const deleteFailure = deleteError && (
+    <p className={styles.error} role="alert">
+      {deleteError}
+    </p>
+  );
+  const confirmDelete = (
+    <Button
+      fullWidth={phone}
+      loading={remove.isPending}
+      onClick={() => {
+        deleteElement.onClick();
+        if (target) remove.mutate(target);
+      }}
+      onPointerEnter={deleteElement.onPointerEnter}
+      onPointerLeave={deleteElement.onPointerLeave}
+    >
+      Удалить
+    </Button>
+  );
+  const cancelDelete = (
+    <Button ref={cancelRef} variant="outline" fullWidth={phone} disabled={remove.isPending}>
+      Отмена
+    </Button>
+  );
+
+  const cards = list.map((photo, index) => (
+    <li key={photo.id}>
+      <SavedPhotoCard
+        photo={photo}
+        position={index + 1}
+        layout={phone ? 'row' : 'card'}
+        busy={makeDefault.isPending}
+        onMakeDefault={() => makeDefault.mutate(photo.id)}
+        onDelete={() => {
+          setDeleteError(null);
+          setTarget(photo.id);
+          setShown({ photo, position: index + 1 });
+        }}
+        makeDefaultEvents={setDefaultElement}
+      />
+    </li>
+  ));
+
+  const limitNote = full && (
+    <Notice>
+      Можно сохранить до {MAX_SAVED_PHOTOS} фото. Чтобы добавить новое, удалите одно из сохранённых.
+    </Notice>
+  );
+
   return (
     <div className={styles.photos}>
       <p className={styles.summary}>
-        {list.length} из {MAX_SAVED_PHOTOS} · видите только вы · не используются для обучения
-        моделей
+        {list.length} из {MAX_SAVED_PHOTOS} · видите только вы
+        {phone ? '' : ' · не используются для обучения моделей'}
       </p>
       {defaultError && (
         <Notice tone="error" role="alert">
           {defaultError}
         </Notice>
       )}
-      <ul className={styles.grid}>
-        {list.map((photo, index) => (
-          <li key={photo.id} className={styles.card}>
-            <PhotoThumb photo={photo} alt={`Фото ${index + 1}`} />
-            <div className={styles.cardActions}>
-              {!photo.isDefault && (
-                <LinkButton
-                  disabled={makeDefault.isPending}
-                  onClick={() => {
-                    setDefaultElement.onClick();
-                    makeDefault.mutate(photo.id);
-                  }}
-                  onPointerEnter={setDefaultElement.onPointerEnter}
-                  onPointerLeave={setDefaultElement.onPointerLeave}
-                  aria-label={`Сделать фото ${index + 1} основным`}
-                >
-                  Сделать основным
-                </LinkButton>
-              )}
-              <LinkButton
-                variant="secondary"
-                className={styles.delete}
-                onClick={() => {
-                  setDeleteError(null);
-                  setTarget(photo.id);
-                }}
-                aria-label={`Удалить фото ${index + 1}`}
-              >
-                Удалить
-              </LinkButton>
-            </div>
-          </li>
-        ))}
+      {/* One list and one upload in the same place for both layouts: turning a phone across the
+          break keeps the upload's open screen and the photo on its way. */}
+      <ul className={phone ? styles.rows : styles.grid}>
+        {cards}
+        <li className={phone ? styles.addRow : styles.addCell}>
+          {phone && (
+            <p className={styles.privacy}>
+              <LockIcon size={16} className={styles.lock} />
+              Фото не используются для обучения моделей и не видны другим людям.
+            </p>
+          )}
+          {phone && limitNote}
+          <UploadPhoto place="photos" appearance={phone ? 'buttons' : 'card'} disabled={full} />
+        </li>
       </ul>
-      {full ? (
-        <Notice>
-          Можно сохранить до {MAX_SAVED_PHOTOS} фото. Чтобы добавить новое, удалите одно из
-          сохранённых.
-        </Notice>
-      ) : null}
-      <UploadPhoto place="photos" disabled={full} />
+      {!phone && limitNote}
 
-      <Modal
-        title="Удалить фото?"
-        description={DELETE_TEXT}
-        open={target !== null}
-        onOpenChange={changeOpen}
-        initialFocus={cancelRef}
-        footer={
-          <>
-            <Button
-              loading={remove.isPending}
-              onClick={() => {
-                deleteElement.onClick();
-                if (target) remove.mutate(target);
-              }}
-              onPointerEnter={deleteElement.onPointerEnter}
-              onPointerLeave={deleteElement.onPointerLeave}
-            >
-              Удалить
-            </Button>
-            <ModalClose>
-              <Button ref={cancelRef} variant="outline" disabled={remove.isPending}>
-                Отмена
-              </Button>
-            </ModalClose>
-          </>
-        }
-      >
-        {deleteError && (
-          <p className={styles.error} role="alert">
-            {deleteError}
-          </p>
-        )}
-      </Modal>
+      {phone ? (
+        <Sheet
+          title="Удалить фото?"
+          description={DELETE_TEXT}
+          media={targetThumb}
+          open={target !== null}
+          onOpenChange={changeOpen}
+          initialFocus={cancelRef}
+          footer={
+            <>
+              {confirmDelete}
+              <SheetClose>{cancelDelete}</SheetClose>
+            </>
+          }
+        >
+          {deleteFailure || undefined}
+        </Sheet>
+      ) : (
+        <Modal
+          title="Удалить фото?"
+          open={target !== null}
+          onOpenChange={changeOpen}
+          initialFocus={cancelRef}
+          footer={
+            <>
+              <ModalClose>{cancelDelete}</ModalClose>
+              {confirmDelete}
+            </>
+          }
+        >
+          <div className={styles.confirm}>
+            {targetThumb}
+            <p className={styles.confirmText}>{DELETE_TEXT}</p>
+          </div>
+          {deleteFailure}
+        </Modal>
+      )}
     </div>
   );
 }

@@ -624,6 +624,19 @@ states follow the canvas»), with the sample numbers replaced as «Canvas and de
    нажатия. Фото видите только вы.»). The texts of A60 stay. The two corners and the hover of 1
    come with the product page (T21, the hanger inert there), the live hanger with T26.
 
+**A64. One bottom sheet in the kit; spec 0020 runs alongside.** Spec 0020 (the catalog on phones,
+its documents merged 2026-10-23) extends the kit's `Drawer` for its filters sheet (`fullHeight`,
+`onBack`, `headerAction`, `closable`) and wants one form of the sheet (its W8). The owner decided on
+2026-10-23: plan §7's `Sheet` is not a component of its own but the kit's `Drawer` with
+`side="bottom"`, a grip and no × (`closable={false}`, the same prop and meaning as 0020's T6);
+`Drawer` gains `description`, `media` (a picture left of the heading, board 10.2), `grip` and
+`initialFocus` for it (T9a). The two specs run in parallel: whichever lands second on a shared file
+(the kit's `drawer.tsx`, `icons.tsx` and `index.ts`, `/ui-kit`, `CatalogProductCard` with T21 vs
+0020's T11, `analytics/catalog.ts` with its budget, `sdkPerVisit` and the monthly estimate
+recomputed together) merges the other's change. Both use the same widths: phones below 600 px
+(`PHONE_QUERY`, `@/shared/config`, for the browser's `useMediaQuery`; 0020 writes it in CSS), the
+account shell and the filters sheet below 1024 px.
+
 ## Canvas and decisions
 
 Where the canvas differs from the decisions above, the decision wins:

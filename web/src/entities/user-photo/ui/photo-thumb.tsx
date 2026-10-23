@@ -12,6 +12,8 @@ export interface PhotoThumbProps {
   alt: string;
   // The page's actions over the photo (make it the default, delete), with their own handlers.
   children?: ReactNode;
+  // `false` leaves the mark "По умолчанию" to the page, beside a small thumbnail (board 10's rows).
+  showDefault?: boolean;
   className?: string;
 }
 
@@ -19,7 +21,13 @@ export interface PhotoThumbProps {
 // photo is personal data (spec 0019 A37): the signed link is only the image's `src`, lazy and
 // never preloaded (no `priority`), and the container carries `mp-block`, so recordings leave it out. A photo
 // whose link the api could not sign (`url: null`) shows an empty frame.
-export function PhotoThumb({ photo, alt, children, className }: PhotoThumbProps) {
+export function PhotoThumb({
+  photo,
+  alt,
+  children,
+  showDefault = true,
+  className,
+}: PhotoThumbProps) {
   return (
     <figure className={['mp-block', styles.thumb, className].filter(Boolean).join(' ')}>
       {photo.url ? (
@@ -35,7 +43,9 @@ export function PhotoThumb({ photo, alt, children, className }: PhotoThumbProps)
       ) : (
         <span className={styles.empty} role="img" aria-label={alt} />
       )}
-      {photo.isDefault ? <figcaption className={styles.default}>По умолчанию</figcaption> : null}
+      {showDefault && photo.isDefault ? (
+        <figcaption className={styles.default}>По умолчанию</figcaption>
+      ) : null}
       {children}
     </figure>
   );

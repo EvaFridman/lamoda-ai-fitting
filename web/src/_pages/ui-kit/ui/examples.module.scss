@@ -179,6 +179,43 @@
   line-height: var(--line-height-body-m);
 }
 
+// A grey frame in place of a photo: the sheet's 60×80 thumbnail, the wide modal's 3:4 picture.
+.sheetMedia,
+.modalMedia {
+  display: block;
+  background-color: var(--color-background-secondary);
+}
+
+.sheetMedia {
+  width: 60px;
+  height: 80px;
+}
+
+.modalMedia {
+  aspect-ratio: 3 / 4;
+  width: min(360px, 100%);
+}
+
+// FileInput's `bare` button as «Мои фото» draws it: a dashed frame.
+.dashedCard {
+  cursor: pointer;
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: center;
+
+  width: 160px;
+  height: 120px;
+  border: var(--border-width) dashed var(--color-border-control);
+
+  font: inherit;
+  color: var(--color-text);
+
+  background: none;
+}
+
 .props {
   font-family: inherit;
   font-size: var(--font-size-body-s);
