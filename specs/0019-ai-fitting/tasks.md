@@ -111,11 +111,11 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       revoked on unmount, the controls keep their actions); `qa-tester` on AC2 and AC3's defaults;
       `npm run verify`.
       Commit: `feat(web): draw the photo screens as the canvas does`
-- [ ] **T9. Migrations: generations and the fingerprint.** The new columns of `ai_generations`
+- [x] **T9. Migrations: generations and the fingerprint.** The new columns of `ai_generations`
       (plan §2), the partial unique index on `(user_id, fingerprint)` over the running statuses
       with its row in `constraint-fields.ts` (A32), `generation_products.attribute_value_id` and
       `slot`, the extended status CHECK, `user_image_key` nullable, the backfill of `user_id`.
-      Check: the migration e2e on old rows; `npm run verify`.
+      Check: the migration e2e on old rows; `typecheck`, `lint` and the task's tests (A58).
       Commit: `feat(api): extend generations for fittings`
 - [ ] **T10. The image model and the prompts.** `gptImage2` behind `ImageModel` (the edits
       request, the answer parsing, the model's refusal), `prompts.ts`, the fake provider's result

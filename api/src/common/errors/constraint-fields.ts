@@ -5,6 +5,12 @@
 export const CONSTRAINT_FIELDS: Readonly<Record<string, readonly string[]>> = {
   // CHECK
   ai_generations_error_message_check: ['errorMessage'],
+  ai_generations_fingerprint_check: ['fingerprint'],
+  ai_generations_owner_check: ['userId'],
+  ai_generations_prompt_text_check: ['promptText'],
+  ai_generations_provider_request_id_check: ['providerRequestId'],
+  // The regeneration's body names its list `reasons` (spec 0019 plan §5).
+  ai_generations_regeneration_reasons_check: ['reasons'],
   ai_generations_result_image_key_check: ['resultImageKey'],
   ai_generations_status_check: ['status'],
   ai_generations_user_image_key_check: ['userImageKey'],
@@ -42,6 +48,13 @@ export const CONSTRAINT_FIELDS: Readonly<Record<string, readonly string[]>> = {
   // Better Auth's own writes (spec 0013 plan §2); its answers never pass the api's filter, so
   // these only name the field should another write hit them.
   accounts_provider_id_account_id_key: ['accountId'],
+  // One running generation per fingerprint (spec 0019 A32): another photo, items or text is
+  // another fitting. The route answers the running one first; this covers a write that skips it.
+  ai_generations_user_id_fingerprint_key: ['photoId', 'items', 'promptText'],
+  // The owner keys' targets (A65): `id` is unique on its own, so a write never hits these.
+  ai_generations_id_user_id_key: ['id'],
+  fitting_sessions_id_user_id_key: ['id'],
+  user_photos_id_user_id_key: ['id'],
   attribute_values_attribute_id_value_key: ['value'],
   attributes_name_key: ['name'],
   brands_name_key: ['name'],
@@ -66,10 +79,17 @@ export const CONSTRAINT_FIELDS: Readonly<Record<string, readonly string[]>> = {
 
   // Foreign keys: the field holding the reference.
   accounts_user_id_fkey: ['userId'],
+  // The owner keys (spec 0019 A65): someone else's photo, result or session is refused as missing.
+  ai_generations_parent_id_user_id_fkey: ['parentId'],
+  ai_generations_photo_id_user_id_fkey: ['photoId'],
   ai_generations_session_id_fkey: ['sessionId'],
+  ai_generations_session_id_user_id_fkey: ['sessionId'],
+  ai_generations_user_id_fkey: ['userId'],
   attribute_values_attribute_id_fkey: ['attributeId'],
   fitting_quota_user_id_fkey: ['userId'],
   fitting_sessions_user_id_fkey: ['userId'],
+  // A fitting's colours come in its list of items (spec 0019 plan §5).
+  generation_products_attribute_value_id_fkey: ['items'],
   generation_products_generation_id_fkey: ['generationId'],
   // A generation's products are sent as one list (spec 0004 E52).
   generation_products_product_id_fkey: ['productIds'],

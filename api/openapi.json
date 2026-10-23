@@ -8304,6 +8304,7 @@
           },
           "userImageKey": {
             "type": "string",
+            "nullable": true,
             "example": "keep/users/0b6f2a52-6d1e-4f8a-9c3b-2e7d5a1c4f90/generations/7c2e9b14-3a5d-4f6e-8b1c-9d0a2e4f6b8c/input.webp"
           },
           "userImageUrl": {

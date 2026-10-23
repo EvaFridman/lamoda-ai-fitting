@@ -52,6 +52,12 @@ describe('generationSchema', () => {
     });
   });
 
+  it('accepts a null user image key, as the api sends for a fitting that used a photo', () => {
+    const fitting = { ...generation, userImageKey: null, userImageUrl: null };
+
+    expect(generationSchema.parse(fitting)).toEqual(fitting);
+  });
+
   it('fails on an unknown status', () => {
     expect(generationSchema.safeParse({ ...generation, status: 'cancelled' }).success).toBe(false);
   });

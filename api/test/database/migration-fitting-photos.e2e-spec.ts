@@ -19,6 +19,7 @@ import { expectViolation } from '../support/violation.js';
 // their slots (A18), and the new tables carry the rules the plan names. The database is a copy of
 // the migrated template, put back into the state before the migration.
 const MIGRATION = '20261021120000_fitting_photos';
+const LATER_MIGRATION = '20261023120000_fittings';
 const apiRoot = fileURLToPath(new URL('../../', import.meta.url));
 const run = promisify(execFile);
 
@@ -40,6 +41,30 @@ beforeAll(async () => {
   await db.category.create({
     data: { name: `Other ${randomUUID()}`, slug: otherCategorySlug, isActive: true },
   });
+
+  // The later migration comes off first: it references user_photos and outfit_slot. Its columns go
+  // (with their foreign keys, indexes and CHECKs) and the status rule is the earlier one.
+  await db.$executeRawUnsafe(`ALTER TABLE ai_generations
+    DROP COLUMN counts_against_limit, DROP COLUMN failure_code, DROP COLUMN fingerprint,
+    DROP COLUMN finished_at, DROP COLUMN kind, DROP COLUMN parent_id, DROP COLUMN photo_id,
+    DROP COLUMN prompt_text, DROP COLUMN provider_request_id, DROP COLUMN regeneration_reasons,
+    DROP COLUMN started_at, DROP COLUMN user_id, ALTER COLUMN user_image_key SET NOT NULL`);
+  // The owner keys went with the columns; the unique indexes they pointed at stay on the others.
+  await db.$executeRawUnsafe(
+    'DROP INDEX fitting_sessions_id_user_id_key, user_photos_id_user_id_key',
+  );
+  await db.$executeRawUnsafe(`ALTER TABLE ai_generations
+    DROP CONSTRAINT IF EXISTS ai_generations_status_check,
+    ADD CONSTRAINT ai_generations_status_check CHECK (
+      (status = 'completed' AND result_image_key IS NOT NULL AND error_message IS NULL)
+      OR (status = 'failed' AND error_message IS NOT NULL)
+      OR (status IN ('pending', 'processing') AND result_image_key IS NULL AND error_message IS NULL)
+    )`);
+  await db.$executeRawUnsafe(
+    'ALTER TABLE generation_products DROP COLUMN attribute_value_id, DROP COLUMN slot',
+  );
+  await db.$executeRawUnsafe('DROP TYPE fitting_kind, fitting_failure');
+  await db.$executeRaw`DELETE FROM _prisma_migrations WHERE migration_name = ${LATER_MIGRATION}`;
 
   // The state before the migration: no tables, no column, no types, the migration not recorded.
   await db.$executeRawUnsafe('DROP TABLE user_photos, fitting_quota, file_deletions');
