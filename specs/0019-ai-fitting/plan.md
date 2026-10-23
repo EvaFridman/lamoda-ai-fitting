@@ -241,10 +241,14 @@ status }` to the room; the worker's `notify` publishes the same JSON with its ow
   components `AiLabel`, `LimitMeter`, `ItemsStrip`, `HistoryCard`), `fitting-room` (schemas,
   `useFittingRoom`, `putRoomItem`, `removeRoomItem`, `clearRoom`, `OutfitSlotRow`,
   `MiniSwatches`), `product` (existing; gains `ProductColourPicker` and `LookToggle` in its `ui`,
-  display-only per 0009 K7). The unused `entities/generation` schemas are replaced by `fitting`.
+  display-only per 0009 K7; `CatalogProductCard`'s one `action` slot becomes two corners, the
+  hanger top left and the heart top right, and the card gets its hover, the kit's `--shadow-box`
+  and the photo scaled to 1.03 inside its frame on pointer devices, A63.1). The unused
+  `entities/generation` schemas are replaced by `fitting`.
 - **features** (each a leaf: a feature imports no feature, the `fsd` skill). `upload-photo` (the
-  first-upload screen with the tips and the two consents kept in `localStorage` per browser, the
-  processing one naming OpenAI, A46, the file input with `capture`, the refusal screen),
+  first-upload screen with the tips (the canvas's seven pictograms as inline SVG components, A62)
+  and the two consents kept in `localStorage` per user (A60), the processing one naming OpenAI,
+  A46, the file input with `capture`, the refusal screen with the chosen file's preview, A63.8),
   `start-fitting` (the photo picker, the start
   request, the waiting screen with its estimate, the limit and error cards), `regenerate-fitting`
   (the reasons sheet), `try-colour`, `fitting-room` (the hanger toggles, the slot rows' actions,
@@ -267,7 +271,10 @@ status }` to the room; the worker's `notify` publishes the same JSON with its ow
 - **kit.** New: `CountBadge`, `ProgressBar`, `FileInput`, `Gallery`, `Sheet` (the mobile bottom
   sheet on Drawer's tokens), `StateCard`, `Notice`, `Chip`/`ChipGroup` (the reason chips), icons
   `Hanger`, `Sparkle`, `Camera`, `Upload`, `Download`, `Fullscreen`, `Refresh`, `Lock`, `Compare`.
-  Each gets its `/ui-kit` section. The canvas's fitting-specific components (`PhotoPicker`,
+  Each gets its `/ui-kit` section. `TryOnButton` is the kit's `Button` primary 56 with the sparkle
+  icon and the states default, loading and disabled (A63.2), shown as a `Button` example; the
+  hanger's tooltip uses the kit's `Tooltip`. The canvas's fitting-specific components
+  (`PhotoPicker`,
   `TryOnLoader`, `ResultActions`, `ColorTryOn`, `LookItemRow`, `CompareView`, `PhotoTips`,
   `ConsentBlock`, `OutfitSlot`, `SavedPhotoCard`, `TriedOnNote`) live in their slices.
 - **Personal data (A37).** A photo or a result renders only as `src` of `next/image`
