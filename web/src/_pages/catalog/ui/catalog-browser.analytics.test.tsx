@@ -25,6 +25,7 @@ vi.mock('next/navigation', async (importOriginal) => ({
 vi.mock('@/shared/analytics/client', () => ({ track: vi.fn() }));
 // The grid is replaced by a stub that asks for batches the way the real one does.
 vi.mock('@/widgets/product-grid', () => ({
+  ProductGridSkeleton: () => <p>grid-skeleton</p>,
   ProductGrid: (props: ProductGridProps) => (
     <div>
       <p>{`products:${props.products.length}`}</p>

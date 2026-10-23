@@ -21,6 +21,27 @@ describe('CatalogHeading', () => {
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Платья$/);
   });
 
+  it('draws a hidden placeholder of the count while it is pending, with no count text', () => {
+    render(<CatalogHeading title="Платья" countPending />);
+    const heading = screen.getByRole('heading', { level: 1 });
+    expect(heading).toHaveTextContent(/^Платья$/);
+    expect(heading.querySelector('[aria-hidden="true"]')).toBeInTheDocument();
+  });
+
+  it('draws no placeholder without the pending flag', () => {
+    render(<CatalogHeading title="Платья" />);
+    expect(
+      screen.getByRole('heading', { level: 1 }).querySelector('[aria-hidden="true"]'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows the count instead of the placeholder once the total is known', () => {
+    render(<CatalogHeading title="Платья" total={128} countPending />);
+    const heading = screen.getByRole('heading', { level: 1 });
+    expect(heading).toHaveTextContent('Платья 128 товаров');
+    expect(heading.querySelector('[aria-hidden="true"]')).not.toBeInTheDocument();
+  });
+
   it('can be focused by a script but is not in the tab order', () => {
     render(<CatalogHeading title="Платья" />);
     const heading = screen.getByRole('heading', { level: 1 });

@@ -9,7 +9,7 @@ import { isSubmitFresh, useSubmittedSearch } from '@/features/header-search';
 import { track, useTrackedElement } from '@/shared/analytics';
 import { errorText, reportFailure } from '@/shared/api';
 import { CatalogFilters, clearFilters, hasAppliedFilters } from '@/widgets/catalog-filters';
-import { ProductGrid } from '@/widgets/product-grid';
+import { ProductGrid, ProductGridSkeleton } from '@/widgets/product-grid';
 
 import { filterChanges, sortChange } from '../model/analytics';
 import { catalogCategoriesQuery, categoryRows } from '../model/categories';
@@ -211,7 +211,12 @@ export function CatalogBrowser({
             linkEvents={categoryLink}
           />
         </aside>
-        <div ref={columnRef} className={styles.column}>
+        <div
+          ref={columnRef}
+          className={styles.column}
+          // While the grid's placeholders show (D7af).
+          aria-busy={firstBatchPending()}
+        >
           <CatalogFilters
             facets={facets.data}
             value={query}
@@ -234,10 +239,16 @@ export function CatalogBrowser({
     return '';
   }
 
+  // The first batch loads, with no error to show instead.
+  function firstBatchPending() {
+    return data === undefined && error === null && failureText === undefined;
+  }
+
   function renderList() {
+    // The grid's placeholders while the first batch loads (0020 plan §1).
+    if (firstBatchPending()) return <ProductGridSkeleton />;
     if (data === undefined) {
-      const text = error === null ? failureText : errorText(error);
-      return text === undefined ? null : <p role="alert">{text}</p>;
+      return <p role="alert">{error === null ? failureText : errorText(error)}</p>;
     }
     const products = data.pages.flatMap((page) => page.items);
     if (products.length === 0) {

@@ -35,7 +35,7 @@ Status: accepted (2026-10-23); amended 2026-10-23 at the review of PR 1 (T4, T5,
 
 ### Placeholders and focus
 
-- [ ] **T4. Loading placeholders (W2; plan §1).** `ProductGridSkeleton` in `widgets/product-grid`;
+- [x] **T4. Loading placeholders (W2; plan §1).** `ProductGridSkeleton` in `widgets/product-grid`;
       `CatalogSkeleton` in `_pages/catalog/ui`; the fallbacks of `CatalogPage`, `CategoryPage` and
       `CategoryContent`; `renderList()` without data; `.page` at least the window's height (W22).
       Its `/ui-kit` example is not needed (a page part).

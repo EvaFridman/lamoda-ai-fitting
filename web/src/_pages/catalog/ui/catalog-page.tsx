@@ -15,8 +15,8 @@ import { Breadcrumbs } from '@/shared/ui';
 import { catalogCategoriesQuery } from '../model/categories';
 import { type CatalogUrlState, parseCatalogUrl } from '../model/url-state';
 import { CatalogBrowser } from './catalog-browser';
-import { CatalogHeading } from './catalog-heading';
 import { CatalogJsonLd, type CatalogJsonLdProps } from './catalog-json-ld';
+import { CatalogSkeleton } from './catalog-skeleton';
 
 import styles from './catalog-page.module.scss';
 
@@ -34,12 +34,12 @@ export interface CategoryPageProps extends CatalogPageProps {
 }
 
 // `/catalog`: every active product. The breadcrumbs and the heading stay static; the products, and
-// the heading's count with them, render per request.
+// the heading's count with them, render per request, the page's placeholders till then (0020 W2).
 export function CatalogPage({ searchParams }: CatalogPageProps) {
   return (
     <main className={styles.page}>
       <Breadcrumbs items={[{ label: catalogTitle }]} />
-      <Suspense fallback={<CatalogHeading title={catalogTitle} />}>
+      <Suspense fallback={<CatalogSkeleton title={catalogTitle} />}>
         <CatalogContent searchParams={searchParams} />
       </Suspense>
     </main>
@@ -47,11 +47,12 @@ export function CatalogPage({ searchParams }: CatalogPageProps) {
 }
 
 // A category's page. Its own component, not CatalogPage with optional params: Next passes `params`
-// to every page, `/catalog`'s too.
+// to every page, `/catalog`'s too. Until the category is read, its name is not known: the
+// placeholders draw the breadcrumbs and the title as lines too.
 export function CategoryPage({ params, searchParams }: CategoryPageProps) {
   return (
     <main className={styles.page}>
-      <Suspense fallback={null}>
+      <Suspense fallback={<CatalogSkeleton />}>
         <CategoryContent params={params} searchParams={searchParams} />
       </Suspense>
     </main>
@@ -85,7 +86,7 @@ async function CategoryContent({ params, searchParams }: CategoryPageProps) {
   return (
     <>
       <Breadcrumbs items={[{ label: catalogTitle, href: '/catalog' }, { label: category.name }]} />
-      <Suspense fallback={<CatalogHeading title={category.name} />}>
+      <Suspense fallback={<CatalogSkeleton title={category.name} />}>
         <CatalogProducts
           title={category.name}
           state={state}
