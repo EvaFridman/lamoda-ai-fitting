@@ -1,7 +1,7 @@
 # 0018 page cache and warm-up on deploy: clarifications
 
 Status: done (2026-10-22). History, not instructions. Accepted 2026-10-20; amended 2026-10-20 at the plan (V10's figures, V15) and at the
-review of PR 1 (V7, V9, V12, V15, V16–V18); amended 2026-10-21 at T4 (V19, V20), at T5 (V19: no push before the pull request) and at T6 (V19: T6 before 0014 too; V21, V22); amended 2026-10-22 at T7 (V23, V24), at T8 (V25) and at the review of PR 2 (V26, V27), at T9 (V28), at T12 (V29), at T13 (V30), at the review of PR 3 (V31), at T14 (V14 decided) and at T15 (V32).
+review of PR 1 (V7, V9, V12, V15, V16–V18); amended 2026-10-21 at T4 (V19, V20), at T5 (V19: no push before the pull request) and at T6 (V19: T6 before 0014 too; V21, V22); amended 2026-10-22 at T7 (V23, V24), at T8 (V25) and at the review of PR 2 (V26, V27), at T9 (V28), at T12 (V29), at T13 (V30), at the review of PR 3 (V31), at T14 (V14 decided), at T15 (V32) and at the review of PR 4 (V31's gap in CI).
 
 The owner's decisions for this spec. Ids `V1`, `V2`, … are referred to by the spec, the plan and
 code comments. All decisions below: owner, 2026-10-20.
@@ -318,7 +318,10 @@ UI, where it has nothing to say.
 that V29's held output of `switch_to` (nginx's reload notice) was printed only after the state was
 written: when `write_state` failed, both `fail`s of that branch ended the deploy without it, so the
 log lost what nginx said at the switch. The owner chose to print it at the top of the failure
-branch, before the switch back. Fixed in PR 4, not PR 3, to spare a review run.
+branch, before the switch back. Fixed in PR 4, not PR 3, to spare a review run. Accepted at the
+review of PR 4: `ci-deploy-check.sh` does not provoke a failed `write_state` (it would need the
+state's folder made read-only in the middle of a deploy), so this branch is read at review only;
+the fix is one print ahead of the two `fail`s.
 
 ## Added at T15
 
