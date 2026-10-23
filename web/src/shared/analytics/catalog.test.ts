@@ -371,6 +371,8 @@ describe('analytics catalog', () => {
       'Catalog Searched',
       'Catalog Sorted',
       'Login Opened',
+      'Photo Refused',
+      'Photo Uploaded',
       'Signed In',
       'Signed Out',
     ]);
@@ -394,6 +396,8 @@ describe('analytics catalog', () => {
       'Catalog Sorted': ['catalog', 'interaction'],
       'Catalog Searched': ['catalog', 'interaction'],
       'Catalog Batch Loaded': ['catalog', 'interaction'],
+      'Photo Uploaded': ['fitting', 'interaction'],
+      'Photo Refused': ['fitting', 'interaction'],
     });
   });
 
@@ -421,6 +425,10 @@ describe('analytics catalog', () => {
       'catalog.filter-price': ['catalog', 'interaction'],
       'catalog.filter-discount': ['catalog', 'interaction'],
       'catalog.sort': ['catalog', 'interaction'],
+      'photos.upload': ['fitting', 'interaction'],
+      'photos.camera': ['fitting', 'interaction'],
+      'photos.set-default': ['fitting', 'interaction'],
+      'photos.delete': ['fitting', 'interaction'],
     });
   });
 

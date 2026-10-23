@@ -151,7 +151,7 @@ describe('AccountShell', () => {
   });
 
   describe('menu', () => {
-    it('lists the four sections in order with their links', () => {
+    it('lists the five sections in order with their links', () => {
       signedIn();
       render(<AccountShell section="orders" />);
       const nav = screen.getByRole('navigation', { name: 'Личный кабинет' });
@@ -161,6 +161,7 @@ describe('AccountShell', () => {
         ['Магазины', '/customer/stores'],
         ['Мои данные', '/customer/account'],
         ['Мои примерки', '/customer/fittings'],
+        ['Мои фото', '/customer/photos'],
       ]);
     });
 
@@ -169,6 +170,7 @@ describe('AccountShell', () => {
       ['stores', 'Магазины'],
       ['data', 'Мои данные'],
       ['fittings', 'Мои примерки'],
+      ['photos', 'Мои фото'],
     ] as const)('marks only the link of the %s section as current', (section, title) => {
       render(<AccountShell section={section} />);
       const nav = screen.getByRole('navigation', { name: 'Личный кабинет' });

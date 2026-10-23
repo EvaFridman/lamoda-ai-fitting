@@ -107,6 +107,10 @@ services:
       # Sent with the visitor's address to the api (spec 0006 F13). Without it web would not start
       # and the running copy keeps serving (F20).
       PROXY_SECRET: ${PROXY_SECRET:?set PROXY_SECRET}
+      # The origin and bucket of the users' photos' signed links, which carry S3_ENDPOINT's host in
+      # production (the api's): the CSP lets images load from the bucket's keep/users/ (spec 0019).
+      S3_PUBLIC_ENDPOINT: ${S3_ENDPOINT:?set S3_ENDPOINT}
+      S3_BUCKET: ${S3_BUCKET:?set S3_BUCKET}
       # Server-side Sentry; empty turns it off. The browser's DSN is baked in at build time.
       SENTRY_DSN: ${SENTRY_DSN:-}
       SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}

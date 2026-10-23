@@ -83,9 +83,9 @@ export function defineCatalog<const C extends Catalog>(catalog: C & Checked<C>):
 export const catalog = defineCatalog({
   // The owner's estimates (R15, R17), set without traffic data: a demo site. The SDK sends about
   // 5 page views and 7 heatmap clicks a visit (`autocapture` is off; the catalog's categories are
-  // paths of their own, spec 0014 O102).
+  // paths of their own, spec 0014 O102); «Мои фото» adds about one more (spec 0019 plan §9).
   visitsPerMonth: 3_000,
-  sdkPerVisit: 12,
+  sdkPerVisit: 13,
   zones: {
     service: {
       title: 'Служебное',
@@ -110,6 +110,12 @@ export const catalog = defineCatalog({
       areas: ['catalog'],
       description:
         'Страницы `/catalog` и `/catalog/<slug>`: список категорий слева, ряд фильтров над сеткой (на узком экране — шторка «Фильтры»), сетка карточек.',
+    },
+    fitting: {
+      title: 'Примерка',
+      areas: ['photos'],
+      description:
+        'Онлайн-примерка (спека 0019). `photos` — фото для примерки: загрузка (подсказки и согласия первой загрузки, экран отказа) и страница «Мои фото» (`/customer/photos`).',
     },
   },
   commonEvents: {
@@ -207,6 +213,35 @@ export const catalog = defineCatalog({
         batch: { kind: 'number' },
       },
     },
+    'Photo Uploaded': {
+      zone: 'fitting',
+      type: 'interaction',
+      description:
+        'Фото для примерки загружено и прошло проверку: после ответа api. `saved` — сохранено в «Мои фото» (не одноразовое), `source` — выбрано из файлов или снято камерой, `place` — где загружено, `first` — первая загрузка в этом браузере (с подсказками и согласиями). Само фото и ссылка на него не отправляются.',
+      perVisit: 0.01,
+      properties: {
+        saved: { kind: 'boolean' },
+        source: { kind: 'enum', values: ['file', 'camera'] },
+        place: { kind: 'enum', values: ['photos'] },
+        first: { kind: 'boolean' },
+      },
+    },
+    'Photo Refused': {
+      zone: 'fitting',
+      type: 'interaction',
+      description:
+        'Проверка не пропустила фото: после ответа api. `reason` — причина: `dark` слишком темно, `not_full` не в полный рост, `many_people` больше одного человека, `child` похоже на ребёнка, `no_person` нет человека, `moderation` не прошло модерацию, `other` причина не распознана. `source`, `place`, `first` — как у `Photo Uploaded`.',
+      perVisit: 0.005,
+      properties: {
+        reason: {
+          kind: 'enum',
+          values: ['dark', 'not_full', 'many_people', 'child', 'no_person', 'moderation', 'other'],
+        },
+        source: { kind: 'enum', values: ['file', 'camera'] },
+        place: { kind: 'enum', values: ['photos'] },
+        first: { kind: 'boolean' },
+      },
+    },
   },
   elements: {
     'ui-kit.button-primary': {
@@ -241,11 +276,11 @@ export const catalog = defineCatalog({
       zone: 'auth',
       type: 'navigation',
       description:
-        'Раздел личного кабинета в меню профиля: «Мои заказы», «Магазины», «Мои данные» или «Мои примерки».',
+        'Раздел личного кабинета в меню профиля: «Мои заказы», «Магазины», «Мои данные», «Мои примерки» или «Мои фото».',
       clicksPerVisit: 0.04,
       hoversPerVisit: 0.06,
       properties: {
-        section: { kind: 'enum', values: ['orders', 'stores', 'data', 'fittings'] },
+        section: { kind: 'enum', values: ['orders', 'stores', 'data', 'fittings', 'photos'] },
       },
     },
     'account-menu.section': {
@@ -256,7 +291,7 @@ export const catalog = defineCatalog({
       clicksPerVisit: 0.05,
       hoversPerVisit: 0.06,
       properties: {
-        section: { kind: 'enum', values: ['orders', 'stores', 'data', 'fittings'] },
+        section: { kind: 'enum', values: ['orders', 'stores', 'data', 'fittings', 'photos'] },
       },
     },
     'account-menu.back': {
@@ -358,6 +393,36 @@ export const catalog = defineCatalog({
       description: 'Чип сортировки в ряду фильтров.',
       clicksPerVisit: 0.2,
       hoversPerVisit: 0.25,
+    },
+    'photos.upload': {
+      zone: 'fitting',
+      type: 'interaction',
+      description:
+        '«Добавить фото» или «Выбрать фото»: открывает выбор файла, а при первой загрузке — подсказки и согласия.',
+      clicksPerVisit: 0.02,
+      hoversPerVisit: 0.02,
+    },
+    'photos.camera': {
+      zone: 'fitting',
+      type: 'interaction',
+      description: '«Сделать фото»: на телефоне открывает камеру, на компьютере — выбор файла.',
+      clicksPerVisit: 0.005,
+      hoversPerVisit: 0.003,
+    },
+    'photos.set-default': {
+      zone: 'fitting',
+      type: 'interaction',
+      description: '«Сделать основным» у фото на странице «Мои фото».',
+      clicksPerVisit: 0.003,
+      hoversPerVisit: 0.003,
+    },
+    'photos.delete': {
+      zone: 'fitting',
+      type: 'interaction',
+      description:
+        '«Удалить» в подтверждении удаления фото. Кнопка с корзиной, которая открывает подтверждение, не отслеживается.',
+      clicksPerVisit: 0.002,
+      hoversPerVisit: 0.002,
     },
   },
 });

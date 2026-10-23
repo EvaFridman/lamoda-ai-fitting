@@ -97,6 +97,40 @@ describe('getServerEnv PAGE_CACHE_REVALIDATE_SECONDS', () => {
   });
 });
 
+describe('getServerEnv S3_PUBLIC_ENDPOINT', () => {
+  it('defaults to empty', async () => {
+    const getServerEnv = await load({});
+    expect(getServerEnv().S3_PUBLIC_ENDPOINT).toBe('');
+  });
+
+  it.each(['', 'http://localhost:8333', 'https://s3.example.ru'])('accepts %j', async (url) => {
+    const getServerEnv = await load({ S3_PUBLIC_ENDPOINT: url });
+    expect(getServerEnv().S3_PUBLIC_ENDPOINT).toBe(url);
+  });
+
+  it.each(['ftp://s3', 'localhost:8333', 'not a url'])('rejects %j', async (url) => {
+    const getServerEnv = await load({ S3_PUBLIC_ENDPOINT: url });
+    expect(() => getServerEnv()).toThrow(/S3_PUBLIC_ENDPOINT/);
+  });
+});
+
+describe('getServerEnv S3_BUCKET', () => {
+  it('defaults to empty', async () => {
+    const getServerEnv = await load({});
+    expect(getServerEnv().S3_BUCKET).toBe('');
+  });
+
+  it.each(['', 'ai-fitting', 'my.bucket-1'])('accepts %j', async (name) => {
+    const getServerEnv = await load({ S3_BUCKET: name });
+    expect(getServerEnv().S3_BUCKET).toBe(name);
+  });
+
+  it.each(['AI;x', 'a b', 'Upper', 'a', '-ab', 'ab-', 'a/b'])('rejects %j', async (name) => {
+    const getServerEnv = await load({ S3_BUCKET: name });
+    expect(() => getServerEnv()).toThrow(/S3_BUCKET/);
+  });
+});
+
 describe('getServerEnv PROXY_SECRET', () => {
   it('defaults to empty when absent', async () => {
     const getServerEnv = await load({});

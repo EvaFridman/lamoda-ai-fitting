@@ -81,7 +81,7 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       `/ui-kit` sections (plan §7).
       Check: web tests of the hooks and components; `npm run verify`.
       Commit: `feat(web): add the photo entity, the file input and the notice`
-- [ ] **T7. web: upload and «Мои фото».** `features/upload-photo` (board 4: hints, consents,
+- [x] **T7. web: upload and «Мои фото».** `features/upload-photo` (board 4: hints, consents,
       the input with `capture`, the refusal screen of board 5), the page `/customer/photos`
       (board 10: the grid, the default, the deletion modal), the consent text naming OpenAI and
       the paragraph of `/privacy` (A46), the fifth account section (A19), the zone `fitting` with

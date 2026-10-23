@@ -7,6 +7,11 @@ vi.mock('@/_pages/catalog/server', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/_pages/catalog/server')>()),
   categoryProxy: vi.fn(),
 }));
+// The storage's browser address of the local stack (spec 0019): its origin goes into img-src.
+vi.mock('@/shared/config/server', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/shared/config/server')>()),
+  getServerEnv: () => ({ S3_PUBLIC_ENDPOINT: 'http://localhost:8335', S3_BUCKET: 'ai-fitting' }),
+}));
 
 import { categoryProxy } from '@/_pages/catalog/server';
 
@@ -41,6 +46,13 @@ describe('proxy', () => {
     expect(nonceOf(policy)).not.toBe('');
     expect(forwarded(response, 'content-security-policy')).toBe(policy);
     expect(response.headers.get('x-middleware-override-headers')).toContain('x-nonce');
+  });
+
+  it("lets images load from the users' folders of the bucket, where their photos are", async () => {
+    const response = await proxy(request('/customer/photos'));
+    expect(response.headers.get('content-security-policy')).toContain(
+      "img-src 'self' data: blob: http://localhost:8335/ai-fitting/keep/users/;",
+    );
   });
 
   it("forwards the nonce of the policy as x-nonce, replacing a client's", async () => {

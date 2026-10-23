@@ -22,3 +22,37 @@ export const beforeSend: NonNullable<BrowserOptions['beforeSend']> = (event, hin
   // `includes`, not the first entry: a fingerprint set on a scope would come before report.ts's.
   return apiError && !event.fingerprint?.includes('api-failure') ? null : event;
 };
+
+// A user's photo is a signed storage link: its query carries `X-Amz-Credential` (the storage key's
+// id) and its path the user's id under `keep/users/` (spec 0011 M34, spec 0019 A37). The browser's
+// tracing names a span after each image it loads, with the whole link of another origin, so such
+// spans and breadcrumbs are dropped, whatever field holds the link.
+const SIGNED_LINK = /X-Amz-|\/keep\/users\//i;
+
+function holdsSignedLink(values: readonly unknown[]): boolean {
+  return values.some((value) => typeof value === 'string' && SIGNED_LINK.test(value));
+}
+
+export const beforeSendTransaction: NonNullable<BrowserOptions['beforeSendTransaction']> = (
+  event,
+) => {
+  if (event.spans) {
+    event.spans = event.spans.filter(
+      (span) => !holdsSignedLink([span.description, ...Object.values(span.data)]),
+    );
+  }
+  // The page load's own span keeps its attributes here, `lcp.url` among them: a photo that is the
+  // largest paint names its link. Those keys go, the transaction stays.
+  const rootData = event.contexts?.trace?.data;
+  if (rootData) {
+    for (const [key, value] of Object.entries(rootData)) {
+      if (holdsSignedLink([value])) delete rootData[key];
+    }
+  }
+  return event;
+};
+
+export const beforeBreadcrumb: NonNullable<BrowserOptions['beforeBreadcrumb']> = (breadcrumb) =>
+  holdsSignedLink([breadcrumb.message, ...Object.values(breadcrumb.data ?? {})])
+    ? null
+    : breadcrumb;

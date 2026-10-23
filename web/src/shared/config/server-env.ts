@@ -21,6 +21,17 @@ const serverEnvSchema = z
     // How long a cached catalog read stays fresh, in seconds (spec 0018 V3): after it the next
     // request gets the entry and refreshes it in the background.
     PAGE_CACHE_REVALIDATE_SECONDS: z.coerce.number().int().min(1).max(3600).default(60),
+    // The storage's address in the browser, the origin of signed links (spec 0011): the CSP lets
+    // images load from it (spec 0019). http://localhost:8333 locally, S3_ENDPOINT in production.
+    // Empty: no image from the storage loads.
+    S3_PUBLIC_ENDPOINT: z.union([z.literal(''), z.url({ protocol: /^https?$/ })]).default(''),
+    // The app's bucket (the api's): the CSP allows only its users' folders. Empty: as above.
+    S3_BUCKET: z
+      .union([
+        z.literal(''),
+        z.string().regex(/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/, 'must be an S3 bucket name'),
+      ])
+      .default(''),
     // The deployed image tag (commit hash); `dev` locally.
     APP_VERSION: z.string().min(1).default('dev'),
     // Sent to the api as X-Proxy-Secret, so it takes the visitor's address and the request id from

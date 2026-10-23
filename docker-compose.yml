@@ -338,6 +338,9 @@ services:
       # emulator lets anyone read media/ (M15).
       S3_ENDPOINT: http://s3:8333
       S3_BUCKET: ${S3_BUCKET:-ai-fitting}
+      # The browser's address of the emulator, the api's S3_PUBLIC_ENDPOINT: the CSP lets the
+      # users' photos load from S3_BUCKET's keep/users/ there (spec 0019).
+      S3_PUBLIC_ENDPOINT: http://localhost:${S3_HOST_PORT:-8333}
     volumes:
       - ./web/app:/app/app
       - ./web/src:/app/src

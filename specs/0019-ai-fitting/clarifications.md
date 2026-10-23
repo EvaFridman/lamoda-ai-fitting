@@ -446,6 +446,31 @@ and a `startToCloseTimeout` of 10 minutes (one request ends within 45 s by the c
 limits, 15 s times its three attempts, so the timeout fires only for a dead worker; a long folder
 that heartbeats is no longer cut at 30 s). Assumption, owner to confirm (T5).
 
+**A60. The photo screens and their analytics in detail.** The texts follow the canvas's boards 4,
+5 and 10; the tips are two lists without the canvas's example photos (web keeps no files of its
+own), the refusal screen shows no preview of the refused photo and no «Примерка не списана» line
+(no fittings in phase 1), and the crop, «Мы ошиблись? Сообщить» and the avatar teaser are not
+rendered (A41). The consent is a `localStorage` key per user, `fitting-photo-consent:<userId>`,
+written when a file is chosen with both boxes checked, so another person signed in on a shared
+device gives their own (the owner chose it over plan §7's one per browser at the security review,
+2026-10-23); the processing consent reads «Даю согласие на обработку фото
+для примерки: фото передаётся в OpenAI (США) для проверки и создания примерки», and the line
+under it says the photos are not used for training and links `/privacy`. A file over 20 MB is
+refused in the browser before its upload. At five saved photos the upload button is off with a
+note, the api's `LIMIT_REACHED` stays the backstop; «Удалить» and «Сделать основным» are text
+buttons, not the canvas's icon. Upload, default and delete are `useMutation`s with no retry and
+`gcTime: 0`; a 404 of the last two (the photo deleted elsewhere) reads the list again without an
+error. Analytics (plan §9 named the entries, not their values): `Photo Uploaded` (`saved`
+boolean, `source` `file`/`camera`, `place` `photos` (the try-on adds its value in phase 2),
+`first` boolean: the upload that gave the consents), `Photo Refused` (`reason` the api's codes
+plus `other`, `source`, `place`, `first`), elements `photos.upload`, `photos.camera`,
+`photos.set-default`, `photos.delete` (the confirming button), `sdkPerVisit` 12 → 13 for the one
+page. The CSP's `img-src` takes `<origin>/<bucket>/keep/users/` from web's own
+`S3_PUBLIC_ENDPOINT` (set to `S3_ENDPOINT` in production, whose host signed links carry there) and
+`S3_BUCKET`: a path, not the storage's whole origin, which every client's buckets share. web's
+Sentry drops spans and breadcrumbs holding `X-Amz-` or `/keep/users/` (the browser's tracing names
+a span after each image with its whole link, A37). Assumption, owner to confirm (T7).
+
 ## Canvas and decisions
 
 Where the canvas differs from the decisions above, the decision wins:

@@ -497,14 +497,15 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   rendered per request inside `<Suspense>` since the modal reads the query) is inert while the session
   loads, opens `LoginModal` signed out (a failed read too) and, signed in, the kit's `Menu`: a circle
   with the first letter of the name (or of the email) and the name or "Профиль" (no email or avatar,
-  N6; `user-label.ts`) in a `MenuHeader` with `mp-block`, the account's four sections as
+  N6; `user-label.ts`) in a `MenuHeader` with `mp-block`, the account's five sections as
   `MenuLinkItem`s (`shared/config/account-sections.ts`, spec 0017 AC2), a separator and `SignOutItems` ("Выйти", "Выйти со всех устройств"; a
   failure shows a toast). It also mounts `useDropUserQueries` (`features/auth`): whenever the
   session is `signed-out` and not `failed`, the queries of `userKeys.all` leave the cache, so the
   next person at the tab never sees `/me` (spec 0017 U22); another user signed in with no end
   seen in between resets them, so a page reads them again as that user.
 - `web` account (spec 0017): `/customer` and its sections `/customer/orders`, `stores`,
-  `account` ("Мои данные") and `fittings` (`web/app/customer/`, whose layout holds only the
+  `account` ("Мои данные"), `fittings` and `photos` ("Мои фото", spec 0019 A19: `_pages/photos`,
+  `widgets/my-photos`, `features/upload-photo`) (`web/app/customer/`, whose layout holds only the
   metadata: `noindex`, the titles; `robots.ts` disallows `/customer`). Every page is
   `AccountShell({ section })` (`widgets/account-shell`): the side menu of
   `shared/config/account-sections.ts` (the header reads the same list, since a widget imports no
@@ -586,7 +587,8 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   failed read does not. An identity left by another user is reset before `identify`. Its events
   and tracked elements are the catalog's zone `auth` (`Signed Out` goes before `reset`); the
   account's are the zone `account` (spec 0017 U14), the catalog page's the zone `catalog` (spec
-  0014 plan §3.6, O97–O103).
+  0014 plan §3.6, O97–O103), the fitting photos' the zone `fitting`, area `photos` (spec 0019
+  plan §9, A60).
   `Signed In` is sent once, on the page a sign-in of this tab came back to: `markSignInStarted()`
   (`features/auth`) puts the time in `sessionStorage` (`sign-in-started`, not an `mp_`/`__mp` key
   the SDK clearing removes) before leaving for Google, and a flag older than 10 minutes counts as
@@ -618,9 +620,11 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   of `shell-script-hashes.json`, no `'strict-dynamic'`: the shell `cacheComponents` prerenders has
   no nonce, so its script tags load by `'self'` and React's inline one by its hash (`verify`'s
   `check:web-shells`; a new hash is added only after reading the script). `connect-src` is
-  `'self'`, Mixpanel's EU origin and the origin of `sentryDsn` (`@/shared/config`); images and
-  everything else only `'self'` (and `data:`, `blob:` for images): a page that loads from another
-  origin (a signed storage link, a connection) adds it to the policy. Styles allow
+  `'self'`, Mixpanel's EU origin and the origin of `sentryDsn` (`@/shared/config`); images
+  `'self'`, `data:`, `blob:` and `<S3_PUBLIC_ENDPOINT's origin>/<S3_BUCKET>/keep/users/` of web's
+  server env (the signed links of users' photos; `S3_ENDPOINT` in production, spec 0019; a path,
+  since the storage's host serves every client's buckets), everything else only `'self'`:
+  a page that loads from another origin (a connection) adds it to the policy. Styles allow
   `'unsafe-inline'` (Next, Base UI), workers `blob:` (the recorder, O45), `next dev` adds
   `'unsafe-eval'`. nginx adds its `frame-ancestors 'none'` to every answer except one whose CSP
   already says `frame-ancestors 'none'` (`$edge_csp`), so a page carries one policy.

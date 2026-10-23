@@ -198,6 +198,7 @@ describe('HeaderProfile', () => {
       'Магазины',
       'Мои данные',
       'Мои примерки',
+      'Мои фото',
       'Выйти',
       'Выйти со всех устройств',
     ]);
@@ -205,7 +206,7 @@ describe('HeaderProfile', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('links the four sections to the account and leaves every item enabled (0017 AC2)', async () => {
+  it('links the five sections to the account and leaves every item enabled (0017 AC2)', async () => {
     signedIn(NAME);
     render(<HeaderProfile />);
     const { menu } = await openMenu();
@@ -214,6 +215,7 @@ describe('HeaderProfile', () => {
       ['Магазины', '/customer/stores'],
       ['Мои данные', '/customer/account'],
       ['Мои примерки', '/customer/fittings'],
+      ['Мои фото', '/customer/photos'],
     ]) {
       const item = within(menu).getByRole('menuitem', { name });
       expect(item.tagName).toBe('A');
@@ -300,7 +302,7 @@ describe('HeaderProfile', () => {
     const position = (node: Node) =>
       items.filter((item) => node.compareDocumentPosition(item) & Node.DOCUMENT_POSITION_PRECEDING)
         .length;
-    expect(position(separator)).toBe(4);
+    expect(position(separator)).toBe(5);
   });
 
   it('shows the initial and the name in a block the recordings skip', async () => {

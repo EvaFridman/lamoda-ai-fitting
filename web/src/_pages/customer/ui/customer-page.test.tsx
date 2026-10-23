@@ -21,10 +21,10 @@ vi.mock('next/navigation', () => ({
 }));
 
 describe('CustomerPage', () => {
-  it('shows the title and the four section links, no section content', () => {
+  it('shows the title and the five section links, no section content', () => {
     render(<CustomerPage />);
     expect(screen.getByRole('heading', { level: 1, name: 'Личный кабинет' })).toBeInTheDocument();
-    expect(screen.getAllByRole('link')).toHaveLength(4);
+    expect(screen.getAllByRole('link')).toHaveLength(5);
     expect(document.querySelector('[aria-busy="true"]')).toBeNull();
   });
 });
