@@ -28,6 +28,8 @@ import { CatalogFiltersDrawer } from './catalog-filters-drawer';
 
 import styles from './catalog-filters.module.scss';
 
+const chips = { surface: 'chips' } as const;
+
 export interface CatalogFiltersProps {
   // The filter counts of the current selection; until they load (or when they fail) the row has
   // only the sort and "Очистить фильтры".
@@ -60,8 +62,8 @@ export function CatalogFilters({ className, focusAfterClear, ...filters }: Catal
 // The desktop row of chips (O5): the sort, then the filters in 0009's order, then "Только со
 // скидкой", and "Очистить фильтры" while a filter or the search is applied. An applied filter is
 // its own black chip with its value and a ×; there is no separate row of chosen values. Its chips'
-// clicks and hovers are tracked, one element per kind of filter (plan §3.6); the drawer's are not
-// (O99).
+// clicks and hovers are tracked, one element per kind of filter (plan §3.6), with `surface` the
+// chips; the sheet's rows send the same elements with `surface` the sheet (spec 0020 W15).
 function FilterRow({
   facets,
   value,
@@ -69,7 +71,7 @@ function FilterRow({
   focusAfterClear,
 }: Omit<CatalogFiltersProps, 'className'>) {
   const change = (patch: Partial<CatalogFilterValue>) => onChange({ ...value, ...patch });
-  const sortChip = useTrackedElement('catalog.sort');
+  const sortChip = useTrackedElement('catalog.sort', chips);
 
   return (
     <FilterChips
@@ -97,12 +99,12 @@ function FacetFilters({
 }: Required<Omit<CatalogFiltersProps, 'className' | 'categoryId' | 'focusAfterClear'>>) {
   const { colours, others } = splitFacetAttributes(facets.attributes);
   const change = (patch: Partial<CatalogFilterValue>) => onChange({ ...value, ...patch });
-  const colorChip = useTrackedElement('catalog.filter-color');
-  const attributeChip = useTrackedElement('catalog.filter-attribute');
-  const brandChip = useTrackedElement('catalog.filter-brand');
-  const sizeChip = useTrackedElement('catalog.filter-size');
-  const priceChip = useTrackedElement('catalog.filter-price');
-  const discountChip = useTrackedElement('catalog.filter-discount');
+  const colorChip = useTrackedElement('catalog.filter-color', chips);
+  const attributeChip = useTrackedElement('catalog.filter-attribute', chips);
+  const brandChip = useTrackedElement('catalog.filter-brand', chips);
+  const sizeChip = useTrackedElement('catalog.filter-size', chips);
+  const priceChip = useTrackedElement('catalog.filter-price', chips);
+  const discountChip = useTrackedElement('catalog.filter-discount', chips);
 
   return (
     <>
