@@ -1,6 +1,6 @@
 # 0020 catalog: loading and the phone layout: tasks
 
-Status: accepted (2026-10-23).
+Status: accepted (2026-10-23); amended 2026-10-23 at the review of PR 1 (T4, T5, T8, T9).
 
 ## How the work flows
 
@@ -37,14 +37,16 @@ Status: accepted (2026-10-23).
 
 - [ ] **T4. Loading placeholders (W2; plan §1).** `ProductGridSkeleton` in `widgets/product-grid`;
       `CatalogSkeleton` in `_pages/catalog/ui`; the fallbacks of `CatalogPage`, `CategoryPage` and
-      `CategoryContent`; `renderList()` without data. Its `/ui-kit` example is not needed (a page
-      part).
+      `CategoryContent`; `renderList()` without data; `.page` at least the window's height (W22).
+      Its `/ui-kit` example is not needed (a page part).
       Check: Vitest (fallbacks, `renderList`); `npm run verify` with `check:web-shells` unchanged;
       qa-tester AC1–AC3 at 375 and 1280 px with the api slowed.
       Commit: `fix(web): show the catalog's placeholders while a category loads`
 - [ ] **T5. Focus kept when the counts fail (W13; plan §4).** The filters read the last facets
-      while new ones load or fail; backlog item removed.
-      Check: Vitest AC15; qa-tester with the facets request failing.
+      while new ones load (`keepPreviousData`) and after they fail (the last answer kept by the
+      page: a second change, not given by `keepPreviousData`); backlog item removed.
+      Check: Vitest AC15, a pending and a failed refetch each; qa-tester with the facets request
+      failing.
       Commit: `fix(web): keep the catalog's filter chips while their counts load`
 
 ### The filters sheet
@@ -59,18 +61,20 @@ Status: accepted (2026-10-23).
       `filterSummary`.
       Check: Vitest of `filterSummary` (sizes' order, colours, price, sort).
       Commit: `feat(web): add the catalog filters' sheet panels and summaries`
-- [ ] **T8. The sheet with screens (W6, W8–W11, W15, W16; plan §3, §5).** `CatalogFiltersDrawer`
+- [ ] **T8. The sheet with screens (W6, W8–W11, W15, W16, W19–W21; plan §3, §5).** `CatalogFiltersDrawer`
       rewritten; the trigger with `FilterIcon` and the dot; `resetSheet`, `hasSheetChoice`;
       `surface` on the chips and the rows, `catalog.sheet-open`; `catalog.ts`, `EVENTS.md`,
       `catalog.test.ts`.
-      Check: Vitest AC10–AC14, the analytics tests; qa-tester at 375 and 700 px with the keyboard.
+      Check: Vitest AC10–AC14, the analytics tests; qa-tester at 375 and 700 px with the keyboard,
+      and AC16 by the requests to Mixpanel (W21).
       Commit: `feat(web): open each catalog filter on its own screen of the sheet`
 
 ### The phone page
 
 - [ ] **T9. Heading row and back arrow (W4, W14; plan §2).** `CatalogHeading` as a row,
       `CatalogBack`, `lib/back-target.ts`, the page's edge-to-edge padding; `catalog.back`.
-      Check: Vitest of `back-target` and `CatalogBack`; qa-tester AC4.
+      Check: Vitest of `back-target` and `CatalogBack` (a reload, a direct link in a new tab, an
+      entry from another site, the redirect from `/`, a client-side step); qa-tester AC4.
       Commit: `feat(web): add the catalog's phone heading with a back arrow`
 - [ ] **T10. Phone bar and categories (W3, W10, W17; plan §2).** `CatalogCategoryToggle`,
       `CatalogCategoryList`'s `layout="rows"`, the bar's grid areas, the trigger in the bar, the
