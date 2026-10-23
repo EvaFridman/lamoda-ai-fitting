@@ -1,6 +1,7 @@
 # 0018 page cache and warm-up on deploy: tasks
 
-Status: accepted (2026-10-20); amended 2026-10-20 at the review of PR 1 (V17's measurement before
+Status: done (2026-10-22): all 16 criteria pass (record below). History, not instructions.
+Accepted 2026-10-20; amended 2026-10-20 at the review of PR 1 (V17's measurement before
 PR 2's merge, T10's bound, T15's three measurements); amended 2026-10-21 at T4 (T4 and T5 before
 spec 0014 closes, V19; the backlog item moved to T5, V20), at T5 (no push before the pull
 request, V19) and at T6 (T6 before spec 0014 closes too, V19; T7's hashed key and entry limit, V22).
@@ -125,7 +126,7 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       file are amended with the owner first, or a new spec is opened.
       Check: owner's decision recorded.
       Commit: `docs(specs): record the markup cache decision of spec 0018`
-- [ ] **T15. Close the spec.** The production checks with the owner: AC14's three measurements (V17),
+- [x] **T15. Close the spec.** The production checks with the owner: AC14's three measurements (V17),
       AC9 from the deploy log (a failed warm-up, if one happened, or `ci-deploy-check.sh`'s run);
       the acceptance record below; every file gets `Status: done`; `CLAUDE.md` and `README.md`
       checked against what was built.
@@ -135,4 +136,43 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
 
 ## Acceptance record
 
-Filled in at T15.
+Production checks on 2026-10-22 on three deploys (V17): the first measurement by hand from the
+laptop right after a deploy from `main` before PR 2's merge, whose smoke test had already requested
+both pages (V25); the second by `cd.yml` on PR 2's deploy (#99, CI run 39779389158); the third on
+PR 3's deploy (#100, `f97cadf`, CI run 39810902384, CD job 119941231883), which also logged the
+warm-up. The second and third run on GitHub's runner, far from the server, so their times are
+higher than the first's and only the ratios compare. AC8–AC11, AC13 and AC15's lock were read in the log of
+`ci-deploy-check.sh` on #100 (CI run 39796021451, job 119883375920). The local criteria rest on
+the checks of the tasks named and the tests below. `npm run verify` on the closing commit passed (api 3610 tests, web 3085, guards and scripts 665).
+
+AC14's measurements (first request / median of five later ones, ratio):
+
+| Deploy                          | `/catalog`          | `/catalog/dresses` |
+| ------------------------------- | ------------------- | ------------------ |
+| neither cache nor warm-up       | 208 / 145 ms, 1.43  | 181 / 140 ms, 1.30 |
+| PR 2: the cache, no warm-up     | 1306 / 665 ms, 1.96 | 619 / 628 ms, 0.99 |
+| PR 3: the cache and the warm-up | 946 / 944 ms, 1.00  | 733 / 755 ms, 0.97 |
+
+PR 3's warm-up lines in production (13 addresses, 0 categories skipped; first / repeated request
+from inside web, the repeated one the render time of V14): `/catalog` 875 / 91 ms, `dresses`
+169 / 98, `jeans` 151 / 49, `outerwear` 184 / 46, `t-shirts` 196 / 140, `hoodies` 93 / 50,
+`shoes` 88 / 58; every address answered its expected status.
+
+| AC   | Result | Evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ---- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AC1  | pass   | Locally: T7's `qa-tester` (ten requests of `/catalog` and of a category from two addresses within 60 s, each cached api route once in the api's log); `server-queries.test.ts` of `entities/category` and `entities/product` (a filter, a sort, `q`, `limit` or a cursor goes as the visitor).                                                                                                                                                                                                     |
+| AC2  | pass   | Locally: `handler.test.ts` "still returns an entry past revalidate, with revalidate unchanged (AC2)"; `cached-api-fetch.test.ts` "asks for stale 60, the configured revalidate and an hour"; T7's `qa-tester` (a renamed category by the second request after 60 s).                                                                                                                                                                                                                               |
+| AC3  | pass   | Locally: `cached-api-fetch.test.ts` "sends nothing of the visitor and never reads headers()"; `handler.test.ts` "never gives Redis the Next key, which holds the cached function arguments"; T7's `qa-tester` (signed-in and signed-out profiles on one page, the stored entries only catalog JSON).                                                                                                                                                                                               |
+| AC4  | pass   | Locally: `handler.test.ts` "keys entries by build id and the sha256 of the Next key", "does not share entries between two builds (AC4)": the key holds no copy's name, so blue and green of one image share it, and a new build never reads an earlier one's. Checked by these tests only, not by plan §9's local run of two processes and a rebuild (V32).                                                                                                                                        |
+| AC5  | pass   | Locally: `handler.test.ts` "turns a failed get into a miss and skips Redis for 10 s, then tries again", "logs at most once per 60 s over any number of failures, then again"; `cached-api-fetch.test.ts` `pageCacheOpen`; T7's `qa-tester` with `redis-cache` stopped.                                                                                                                                                                                                                             |
+| AC6  | pass   | Locally: `product-facets-cache-eviction.e2e-spec.ts` "stores the counts, evicts the oldest entries when full and keeps answering and writing"; T4's `redis-cli CONFIG GET maxmemory*` (128 MB, `allkeys-lru`).                                                                                                                                                                                                                                                                                     |
+| AC7  | pass   | Locally: `throttling-full-redis.e2e-spec.ts` "counts in Redis while it has room, then keeps the limit on the fallback once it is full"; T4's `redis-cli CONFIG GET maxmemory*` (64 MB, `noeviction`).                                                                                                                                                                                                                                                                                              |
+| AC8  | pass   | Production: PR 3's deploy logged the 13 warm-up lines above before the switch. CI: `ci-deploy-check.sh`'s first deploy, the lines `warm-up: <path> <status>, first N ms, repeated N ms` before "switching nginx". Locally: `warmup.test.mjs` "requests every address twice and prints a line for each".                                                                                                                                                                                            |
+| AC9  | pass   | Production: no warm-up failed on PR 3's deploy, so the stop is read from CI: `ci-deploy-check.sh`'s group "a failed warm-up stops the deploy of 844f960-unwarmed before the switch" logged `deploy: FAILED: warm-up failed: /catalog/no-such (answered 404); stopped blue, green keeps serving`. Locally: `warmup.test.mjs` "stops at a 500 and names the address", "stops at an answer whose body does not end in time", "stops when the step runs past its budget".                              |
+| AC10 | pass   | CI: `ci-deploy-check.sh`'s rollback to the running blue logged the 13 warm-up lines before "switching nginx to blue", and its check "blue warmed up /catalog and 6 category pages before the switch". Locally: `warmup.test.mjs` (a failure stops the step with exit 1).                                                                                                                                                                                                                           |
+| AC11 | pass   | Production and CI: `/`, `/catalog`, the six demo categories, both social images, `/privacy`, `/sitemap.xml` and `/robots.txt`, "0 categories over the bound skipped". Locally: `routes.test.ts` "warms up the pages a visitor reaches without signing in (AC11)", "resolves the routes to addresses at request time, a page per active category", "requests at most 50 categories and counts the rest (V16)"; `warmup.test.mjs` "warms up 50 categories and prints the count of the skipped ones". |
+| AC12 | pass   | Locally: `routes.test.ts` "fails on a new page in neither list", "fails on a route in both lists", "names every route of web/app once, warmed up or excluded, and nothing else" (part of `npm run verify`).                                                                                                                                                                                                                                                                                        |
+| AC13 | pass   | CI: `ci-deploy-check.sh` logged "no warm-up request went through nginx" and `/healthz/warmup` from outside answers 404 `ROUTE_NOT_FOUND`; the warm-up runs inside web's container (`docker compose exec`) against `127.0.0.1`.                                                                                                                                                                                                                                                                     |
+| AC14 | pass   | Production: the third measurement above, 1.00 and 0.97, under 2.                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| AC15 | pass   | Read at review of #100: `cd.yml`'s `deploy` job has `timeout-minutes: 30`, and `deploy.sh`'s lock and `.deploy-state` keep the running copy (V29; a cancelled run is not provoked in production). CI: `ci-deploy-check.sh`'s check of a deploy cut off from its log ("removed its lock"). Known limit: backlog "A deploy cut off by the time limit may run on".                                                                                                                                    |
+| AC16 | pass   | `npm run verify` on the closing commit; the CI of #100 (Images (PR), the web image built with no api, Redis or database running).                                                                                                                                                                                                                                                                                                                                                                  |

@@ -15,7 +15,7 @@
 [0011-s3-storage](specs/0011-s3-storage/), [0012-backups](specs/0012-backups/),
 [0013-auth](specs/0013-auth/), [0014-catalog](specs/0014-catalog/),
 [0015-analytics-events](specs/0015-analytics-events/),
-[0017-account](specs/0017-account/).
+[0017-account](specs/0017-account/), [0018-cache-warmup](specs/0018-cache-warmup/).
 
 ## Требования
 
