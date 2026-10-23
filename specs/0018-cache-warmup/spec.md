@@ -1,9 +1,10 @@
 # 0018 page cache and warm-up on deploy
 
-Status: accepted (2026-10-20); amended 2026-10-20 at the plan (V15) and at the review of PR 1
+Status: done (2026-10-22): all 16 criteria pass ([tasks.md](tasks.md), acceptance record). History,
+not instructions. Accepted 2026-10-20; amended 2026-10-20 at the plan (V15) and at the review of PR 1
 (AC11, AC14).
 
-Issue #41. Decisions: `clarifications.md` (V1–V18).
+Issue #41. Decisions: `clarifications.md` (V1–V32).
 
 ## Goal
 

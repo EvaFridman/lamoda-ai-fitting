@@ -24,7 +24,9 @@ Content Security Policy) by `0014-catalog`; the
 analytics events' catalog, its document `EVENTS.md`, their checks, the rule
 `.claude/rules/analytics.md` and the `analytics` agent by `0015-analytics-events`; the account
 pages under `/customer`, the page "Мои данные" with `PATCH /me` and deleting the account
-from its page by `0017-account` (all closed).
+from its page by `0017-account`; the caches' Redis and both Redis' memory limits, the page cache
+of the public catalog's reads, the deploy's warm-up and its route list, the first-request measurement after a deploy, the rule
+`.claude/rules/web-pages.md` and the deploy job's time limit by `0018-cache-warmup` (all closed).
 
 Keep this file true: update it in the same commit that changes what a section describes.
 
@@ -663,7 +665,7 @@ backup job, `deploy/compose/backup.yml`, are replaced in place; a changed `infra
 0018 V4, V10): `redis` holds the rate-limit counters only
 (`maxmemory` 64 MB, `noeviction`: once full the throttler counts in memory, spec 0006 F28;
 nothing on disk, V20);
-`redis-cache` (`REDIS_CACHE_URL`) is for caches only, for now the filter counts (128 MB, `allkeys-lru`, nothing on
+`redis-cache` (`REDIS_CACHE_URL`) is for caches only, the filter counts and web's page cache (128 MB, `allkeys-lru`, nothing on
 disk; recreating it empties them and is no outage, V5); the same two run locally, `redis-cache`
 with no host port. After the infrastructure is up, the deploy sets
 Temporal's `default` namespace retention to 24 hours (spec 0013 N45, read back by

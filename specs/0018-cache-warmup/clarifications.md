@@ -1,7 +1,7 @@
 # 0018 page cache and warm-up on deploy: clarifications
 
-Status: accepted (2026-10-20); amended 2026-10-20 at the plan (V10's figures, V15) and at the
-review of PR 1 (V7, V9, V12, V15, V16–V18); amended 2026-10-21 at T4 (V19, V20), at T5 (V19: no push before the pull request) and at T6 (V19: T6 before 0014 too; V21, V22); amended 2026-10-22 at T7 (V23, V24), at T8 (V25) and at the review of PR 2 (V26, V27), at T9 (V28), at T12 (V29), at T13 (V30), at the review of PR 3 (V31) and at T14 (V14 decided).
+Status: done (2026-10-22). History, not instructions. Accepted 2026-10-20; amended 2026-10-20 at the plan (V10's figures, V15) and at the
+review of PR 1 (V7, V9, V12, V15, V16–V18); amended 2026-10-21 at T4 (V19, V20), at T5 (V19: no push before the pull request) and at T6 (V19: T6 before 0014 too; V21, V22); amended 2026-10-22 at T7 (V23, V24), at T8 (V25) and at the review of PR 2 (V26, V27), at T9 (V28), at T12 (V29), at T13 (V30), at the review of PR 3 (V31), at T14 (V14 decided) and at T15 (V32).
 
 The owner's decisions for this spec. Ids `V1`, `V2`, … are referred to by the spec, the plan and
 code comments. All decisions below: owner, 2026-10-20.
@@ -319,3 +319,12 @@ that V29's held output of `switch_to` (nginx's reload notice) was printed only a
 written: when `write_state` failed, both `fail`s of that branch ended the deploy without it, so the
 log lost what nginx said at the switch. The owner chose to print it at the top of the failure
 branch, before the switch back. Fixed in PR 4, not PR 3, to spare a review run.
+
+## Added at T15
+
+**V32. AC4 rests on the handler's tests.** Plan §9 checks AC4 locally too: two `web` processes of
+one build share an entry, and a rebuilt image misses it. That run was never made, and production
+shows neither half (the warm-up and a rollback serve different builds). The owner accepted AC4 on
+the handler's tests alone: the Redis key is the build id and the sha256 of Next's key, with no
+name of a copy, so blue and green of one image read the same entries and a new build none of an
+earlier one's. Not taken: the local run of two processes and a rebuild before closing.
