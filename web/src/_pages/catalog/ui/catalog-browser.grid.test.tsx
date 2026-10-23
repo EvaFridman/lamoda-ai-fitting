@@ -13,6 +13,7 @@ vi.mock('next/navigation', async (importOriginal) => ({
 }));
 // The grid is replaced by a stub that shows what the browser list hands it.
 vi.mock('@/widgets/product-grid', () => ({
+  ProductGridSkeleton: () => <p>grid-skeleton</p>,
   ProductGrid: (props: ProductGridProps) => (
     <div>
       <p>{props.products.map((product) => product.name).join(',')}</p>
@@ -29,6 +30,7 @@ vi.mock('@/shared/api', async (importOriginal) => {
 });
 
 import { createBrowserQueryClient } from '@/_app/providers';
+import { productInfiniteOptions } from '@/entities/product';
 
 import { CatalogBrowser } from './catalog-browser';
 
@@ -99,6 +101,133 @@ afterEach(() => {
 });
 
 describe('CatalogBrowser and its grid', () => {
+  describe('while the first batch loads (0020 W2)', () => {
+    function pendingBatch() {
+      let answer: (response: Response) => void = () => {};
+      fetchMock.mockImplementation((input: unknown) => {
+        const other = side(input);
+        return other
+          ? Promise.resolve(other)
+          : new Promise<Response>((resolve) => (answer = resolve));
+      });
+      return (response: Response) => answer(response);
+    }
+
+    function renderBrowser(failureText?: string) {
+      render(
+        <QueryClientProvider client={createBrowserQueryClient()}>
+          <CatalogBrowser title="Каталог" query={{}} failureText={failureText} />
+        </QueryClientProvider>,
+      );
+    }
+
+    it('shows the grid placeholders, then the grid once the batch answers', async () => {
+      const answer = pendingBatch();
+      renderBrowser();
+      await act(async () => {});
+      expect(screen.getByText('grid-skeleton')).toBeInTheDocument();
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+
+      await act(async () => {
+        answer(json({ items: [productNamed(1)], total: 1, nextCursor: null }));
+      });
+      expect(await screen.findByText('Платье 1')).toBeInTheDocument();
+      expect(screen.queryByText('grid-skeleton')).not.toBeInTheDocument();
+    });
+
+    it('shows the server failure text, not the placeholders', async () => {
+      pendingBatch();
+      renderBrowser('Не загрузилось');
+      await act(async () => {});
+      expect(screen.getByRole('alert')).toHaveTextContent('Не загрузилось');
+      expect(screen.queryByText('grid-skeleton')).not.toBeInTheDocument();
+    });
+
+    it('shows the error of the browser request, not the placeholders', async () => {
+      fetchMock.mockImplementation((input: unknown) =>
+        Promise.resolve(side(input) ?? json({}, 500)),
+      );
+      renderBrowser();
+      expect(await screen.findByRole('alert')).toBeInTheDocument();
+      expect(screen.queryByText('grid-skeleton')).not.toBeInTheDocument();
+    });
+
+    it('marks the list column busy only while the placeholders show', async () => {
+      const answer = pendingBatch();
+      renderBrowser();
+      await act(async () => {});
+      expect(screen.getByText('grid-skeleton').parentElement).toHaveAttribute('aria-busy', 'true');
+
+      await act(async () => {
+        answer(json({ items: [productNamed(1)], total: 1, nextCursor: null }));
+      });
+      const name = await screen.findByText('Платье 1');
+      expect(name.parentElement?.parentElement).toHaveAttribute('aria-busy', 'false');
+    });
+
+    it('does not mark the column busy under the server failure text', async () => {
+      pendingBatch();
+      renderBrowser('Не загрузилось');
+      await act(async () => {});
+      expect(screen.getByRole('alert').parentElement).toHaveAttribute('aria-busy', 'false');
+    });
+
+    it('does not mark the column busy under the error of the browser request', async () => {
+      fetchMock.mockImplementation((input: unknown) =>
+        Promise.resolve(side(input) ?? json({}, 500)),
+      );
+      renderBrowser();
+      const alert = await screen.findByRole('alert');
+      expect(alert.parentElement).toHaveAttribute('aria-busy', 'false');
+    });
+
+    it("shows the browser request's error after the server failure text, not the text", async () => {
+      fetchMock.mockImplementation((input: unknown) =>
+        Promise.resolve(side(input) ?? json({}, 500)),
+      );
+      renderBrowser('Не загрузилось');
+      await vi.waitFor(() =>
+        expect(screen.getByRole('alert')).not.toHaveTextContent('Не загрузилось'),
+      );
+      expect(screen.getByRole('alert')).not.toBeEmptyDOMElement();
+    });
+  });
+
+  // The new RSC payload brings the new `query` together with its first batch, which the server's
+  // prefetch put into the cache (0020 plan §1, AC3).
+  it("shows the server's batch for the new selection without placeholders", async () => {
+    fetchMock.mockImplementation((input: unknown) =>
+      Promise.resolve(
+        side(input) ?? json({ items: [productNamed(1)], total: 1, nextCursor: null }),
+      ),
+    );
+    const client = createBrowserQueryClient();
+    const { rerender } = render(
+      <QueryClientProvider client={client}>
+        <CatalogBrowser title="Каталог" query={{}} />
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText('Платье 1')).toBeInTheDocument();
+
+    const next = { q: 'юбка' };
+    client.setQueryData(productInfiniteOptions(next, null).queryKey, {
+      pages: [{ items: [productNamed(2)], total: 1, nextCursor: null }],
+      pageParams: [null],
+    });
+    const requests = batchUrls().length;
+    rerender(
+      <QueryClientProvider client={client}>
+        <CatalogBrowser title="Каталог" query={next} />
+      </QueryClientProvider>,
+    );
+    expect(screen.queryByText('grid-skeleton')).not.toBeInTheDocument();
+    expect(screen.getByText('Платье 2')).toBeInTheDocument();
+    await act(async () => {});
+    expect(screen.queryByText('grid-skeleton')).not.toBeInTheDocument();
+    expect(screen.getByText('Платье 2')).toBeInTheDocument();
+    expect(batchUrls()).toHaveLength(requests);
+  });
+
   it('does not let the grid ask for a next batch during a refetch, and lets it once that ends', async () => {
     const client = createBrowserQueryClient();
     let answer: (response: Response) => void = () => {};

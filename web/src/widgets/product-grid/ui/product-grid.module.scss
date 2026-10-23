@@ -28,6 +28,24 @@
   }
 }
 
+// The placeholders' cards that only the wider grids' rows hold (`ProductGridSkeleton`).
+.fromThree,
+.fromFour {
+  display: none;
+}
+
+.fromThree {
+  @container (width >= 600px) {
+    display: block;
+  }
+}
+
+.fromFour {
+  @container (width >= 900px) {
+    display: block;
+  }
+}
+
 .more {
   display: block;
   margin-top: var(--space-6);

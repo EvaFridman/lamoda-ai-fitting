@@ -41,8 +41,8 @@ import { Breadcrumbs } from '@/shared/ui';
 
 import { CatalogBrowser, type CatalogBrowserProps } from './catalog-browser';
 import { CatalogJsonLd } from './catalog-json-ld';
-import { CatalogHeading } from './catalog-heading';
 import { CatalogPage, CategoryPage } from './catalog-page';
+import { CatalogSkeleton, type CatalogSkeletonProps } from './catalog-skeleton';
 
 const routerMock = { replace: vi.fn(), push: vi.fn() };
 const get = vi.mocked(getCategoryBySlug);
@@ -219,7 +219,9 @@ describe('CatalogPage', () => {
     const [crumbs, suspense] = childrenOf(CatalogPage({ searchParams: noSearch }));
     expect(crumbs?.type).toBe(Breadcrumbs);
     expect(suspense?.type).toBe(Suspense);
-    expect((suspense?.props as { fallback: ReactElement }).fallback.type).toBe(CatalogHeading);
+    const fallback = (suspense?.props as { fallback: ReactElement<CatalogSkeletonProps> }).fallback;
+    expect(fallback.type).toBe(CatalogSkeleton);
+    expect(fallback.props.title).toBe('Каталог');
   });
 
   it('hands the page title to the browser list', async () => {
@@ -521,8 +523,18 @@ describe('CategoryPage', () => {
     expect(crumbs?.type).toBe(Breadcrumbs);
     expect(suspense?.type).toBe(Suspense);
     expect(childrenOf(suspense as ReactElement)).toHaveLength(1);
-    expect((suspense?.props as { fallback: ReactElement }).fallback.type).toBe(CatalogHeading);
+    const fallback = (suspense?.props as { fallback: ReactElement<CatalogSkeletonProps> }).fallback;
+    expect(fallback.type).toBe(CatalogSkeleton);
+    expect(fallback.props.title).toBe('Платья');
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('draws the whole page as placeholders, with no title, until the category is read', () => {
+    const [suspense] = childrenOf(CategoryPage({ params, searchParams: noSearch }));
+    expect(suspense?.type).toBe(Suspense);
+    const fallback = (suspense?.props as { fallback: ReactElement<CatalogSkeletonProps> }).fallback;
+    expect(fallback.type).toBe(CatalogSkeleton);
+    expect(fallback.props.title).toBeUndefined();
   });
 
   it('hands the category name to the browser list as its title', async () => {

@@ -3,9 +3,12 @@
 // window the list goes, the grid takes the whole width and "Фильтры" opens the filters in a bottom
 // sheet (O6, O88).
 
+// At least the window's height besides its padding, loaded or not, so the footer starts below the
+// first screen (spec 0020 W22).
 .page {
   box-sizing: content-box;
   max-width: 1200px;
+  min-height: 100dvh;
   margin: 0 auto;
   padding: var(--space-6) var(--space-10) var(--space-12);
 
@@ -46,6 +49,41 @@
   font-size: var(--font-size-body-s);
   line-height: var(--line-height-body-s);
   color: var(--color-text-secondary);
+}
+
+// The count's placeholder, on the title's line.
+.countSkeleton {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+// The page's placeholders (`CatalogSkeleton`, spec 0020 plan §1): a window high whatever its rows.
+.skeleton {
+  min-height: 100dvh;
+}
+
+.skeletonCategories {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-1) var(--space-2);
+}
+
+// The chips from a 1024px window, the "Фильтры" button below it, as `CatalogFilters` shows them.
+.skeletonChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+
+  @media (width < 1024px) {
+    display: none;
+  }
+}
+
+.skeletonFiltersButton {
+  @media (width >= 1024px) {
+    display: none;
+  }
 }
 
 .layout {
