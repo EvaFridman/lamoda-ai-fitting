@@ -113,7 +113,14 @@ describe('fittings: ids and timestamps (AC3)', () => {
     const link = await db.generationProduct.create({
       data: { generationId: generation.id, productId: product.id },
     });
-    expect(Object.keys(link).sort()).toEqual(['generationId', 'productId']);
+    expect(Object.keys(link).sort()).toEqual([
+      'attributeValueId',
+      'generationId',
+      'productId',
+      'slot',
+    ]);
+    expect(link.attributeValueId).toBeNull();
+    expect(link.slot).toBeNull();
   });
 });
 

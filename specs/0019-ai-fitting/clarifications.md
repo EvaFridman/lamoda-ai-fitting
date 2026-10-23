@@ -637,6 +637,32 @@ recomputed together) merges the other's change. Both use the same widths: phones
 (`PHONE_QUERY`, `@/shared/config`, for the browser's `useMediaQuery`; 0020 writes it in CSS), the
 account shell and the filters sheet below 1024 px.
 
+**A65. The fittings migration's open details (T9).** Plan §2 leaves these to the migration; the
+owner confirmed them on 2026-10-23 and added the owner keys at T9's review: a generation's session,
+photo and parent reference `(id, user_id)` of their tables (a unique key on each), so the database
+refuses someone else's photo, result or session, and only `photo_id` or `parent_id` goes NULL when
+the photo or the parent is deleted (`ON DELETE SET NULL (column)`); a row without `user_id` (the
+previous release's) may have no photo and no parent (a CHECK), and its session keeps the plain key.
+The keys do not follow an update of an owner (`ON UPDATE NO ACTION`), and the code writes the
+four ids only as scalars, `userId` the principal's, never through Prisma's `connect`/`disconnect`
+of these relations (which copy or clear `user_id`). The release that makes `user_id` NOT NULL runs
+the same backfill from the session first.
+`counts_against_limit` is `NOT NULL DEFAULT true`
+(a try-on counts unless the start or `complete` says otherwise, A6, A20; the closed route's rows
+spend nothing either way, since the spend lives in `fitting_quota`); `user_id` cascades from
+`users`, as `session_id` already does through the session; `regeneration_reasons` defaults to an
+empty list with a CHECK against NULL (the outbox's `prefixes` rule); `fingerprint` is lower-case hex
+and `prompt_text` trimmed and not empty, by CHECKs; no trigger fills `user_id` on rows the previous
+release inserts during a deploy (only its closed route writes any), while this release's closed
+route writes its session's user, so the NOT NULL release needs no step in between; its rows keep
+`kind` NULL. The old routes'
+`AiGenerationResponseDto` lists its own fields only, so the new columns stay off
+`/ai-generations` and `/fitting-sessions`; its `userImageKey` becomes nullable, and the closed
+route's status check counts a stored failure code as `failed`'s reason. `constraint-fields.ts`
+names the running-duplicate index by the fingerprint's inputs (`photoId`, `items`, `promptText`),
+a colour's FK by `items` and the reasons' CHECK by `reasons` (`StartFittingDto` and the
+regeneration's body, plan §5).
+
 ## Canvas and decisions
 
 Where the canvas differs from the decisions above, the decision wins:

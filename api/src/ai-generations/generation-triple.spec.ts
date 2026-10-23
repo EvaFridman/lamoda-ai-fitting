@@ -90,4 +90,53 @@ describe('checkGenerationTriple', () => {
     expect(details).toHaveLength(1);
     expect(details[0]).toMatchObject({ field: 'errorMessage', code: 'MATCHES_STATUS' });
   });
+
+  describe('with a stored failure code', () => {
+    it.each([null, KEY])('accepts failed with only a code and result %s', (resultImageKey) => {
+      expect(
+        checkGenerationTriple({
+          status: 'failed',
+          resultImageKey,
+          errorMessage: null,
+          failureCode: 'photo_dark',
+        }),
+      ).toEqual([]);
+    });
+
+    it('accepts failed with a code and a message', () => {
+      expect(
+        checkGenerationTriple({
+          status: 'failed',
+          resultImageKey: null,
+          errorMessage: ERROR,
+          failureCode: 'provider_error',
+        }),
+      ).toEqual([]);
+    });
+
+    it.each([
+      ['completed', KEY],
+      ['pending', null],
+      ['processing', null],
+    ] as const)('refuses %s with a code, on status', (status, resultImageKey) => {
+      const details = checkGenerationTriple({
+        status,
+        resultImageKey,
+        errorMessage: null,
+        failureCode: 'moderation',
+      });
+
+      expect(details).toHaveLength(1);
+      expect(details[0]).toMatchObject({ field: 'status', code: 'MATCHES_STATUS' });
+    });
+
+    it('treats an omitted code as none', () => {
+      expect(fields({ status: 'failed', resultImageKey: null, errorMessage: null })).toEqual([
+        'errorMessage',
+      ]);
+      expect(
+        fields({ status: 'failed', resultImageKey: null, errorMessage: null, failureCode: null }),
+      ).toEqual(['errorMessage']);
+    });
+  });
 });

@@ -15,8 +15,9 @@ export class AiGenerationResponseDto {
   @ApiProperty({ type: [String], format: 'uuid' })
   productIds: string[];
 
-  @ApiProperty({ example: USER_IMAGE_KEY_EXAMPLE })
-  userImageKey: string;
+  // `null` for a fitting, which references its photo instead (spec 0019 A24).
+  @ApiProperty({ type: String, nullable: true, example: USER_IMAGE_KEY_EXAMPLE })
+  userImageKey: string | null;
 
   @ApiProperty({
     type: String,

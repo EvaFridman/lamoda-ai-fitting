@@ -10,7 +10,8 @@ export const generationSchema = z.object({
   id: z.uuid(),
   sessionId: z.uuid(),
   productIds: z.array(z.uuid()),
-  userImageKey: z.string(),
+  // Null for a fitting, which references its photo instead (spec 0019 A24).
+  userImageKey: z.string().nullable(),
   // Signed links that work for 15 minutes (spec 0011 M9); null for a key outside the owner's
   // folder (M25).
   userImageUrl: z.url().nullable(),

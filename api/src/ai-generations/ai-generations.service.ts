@@ -112,6 +112,8 @@ export class AiGenerationsService {
     const row = await this.prisma.aiGeneration.create({
       data: {
         ...fields,
+        // The session's user (spec 0019 A23), so the column can become NOT NULL a release later.
+        userId: session?.userId,
         resultImageKey,
         errorMessage,
         products: { createMany: { data: productIds.map((productId) => ({ productId })) } },
@@ -136,6 +138,7 @@ export class AiGenerationsService {
           status: true,
           resultImageKey: true,
           errorMessage: true,
+          failureCode: true,
           session: { select: { userId: true } },
         },
       });
@@ -149,6 +152,7 @@ export class AiGenerationsService {
             fields.resultImageKey === undefined ? stored.resultImageKey : fields.resultImageKey,
           errorMessage:
             fields.errorMessage === undefined ? stored.errorMessage : fields.errorMessage,
+          failureCode: stored.failureCode,
         },
         { userImageKey: fields.userImageKey, resultImageKey: fields.resultImageKey },
         stored.session.userId,
@@ -184,6 +188,7 @@ export class AiGenerationsService {
     await this.fileDeletion.start(queued);
   }
 
+  // The route's own fields only: the fitting's columns (spec 0019 plan §2) belong to `/fittings`.
   private async toResponse({
     products,
     session,
@@ -201,10 +206,19 @@ export class AiGenerationsService {
       link('resultImageKey'),
     ]);
     return {
-      ...generation,
+      id: generation.id,
+      sessionId: generation.sessionId,
       productIds: products.map((link) => link.productId),
+      userImageKey: generation.userImageKey,
       userImageUrl,
+      resultImageKey: generation.resultImageKey,
       resultImageUrl,
+      status: generation.status,
+      aiProvider: generation.aiProvider,
+      aiModel: generation.aiModel,
+      errorMessage: generation.errorMessage,
+      createdAt: generation.createdAt,
+      updatedAt: generation.updatedAt,
     };
   }
 }

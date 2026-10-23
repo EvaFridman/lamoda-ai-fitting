@@ -898,3 +898,90 @@ describe('ai generations: own data only (AC8)', () => {
     expect(crossed.body).toEqual({ items: [], total: 0 });
   });
 });
+
+describe('ai generations: rows of a fitting (spec 0019 plan §2)', () => {
+  async function fittingRow(data: Record<string, unknown>) {
+    const sessionId = await createSession();
+    return testApp.prisma.aiGeneration.create({
+      data: {
+        sessionId,
+        userId: signedIn.userId,
+        status: 'pending',
+        aiProvider: 'openai',
+        aiModel: 'gpt-image-1',
+        ...data,
+      },
+    });
+  }
+
+  it('stores the session user as user_id on a created generation, with no kind', async () => {
+    const sessionId = await createSession();
+    const created = await create(sessionId, await createProducts(1));
+
+    const stored = await testApp.prisma.aiGeneration.findUniqueOrThrow({
+      where: { id: created.id },
+    });
+
+    expect(stored.userId).toBe(owners.get(sessionId));
+    expect(stored.userId).toBe(signedIn.userId);
+    expect(stored.kind).toBeNull();
+  });
+
+  it('answers only the DTO fields, none of the fitting columns', async () => {
+    const row = await fittingRow({
+      userImageKey: null,
+      fingerprint: 'a'.repeat(64),
+      promptText: 'jacket',
+      kind: 'look',
+      countsAgainstLimit: false,
+      regenerationReasons: ['colour'],
+      providerRequestId: 'req_1',
+      startedAt: new Date(),
+    });
+
+    const response = await get(row.id);
+
+    expect(response.status).toBe(200);
+    expect(Object.keys(response.body as object).sort()).toEqual(RESPONSE_KEYS);
+  });
+
+  it('answers a null userImageKey with a null userImageUrl, in a list too', async () => {
+    const row = await fittingRow({ userImageKey: null });
+
+    const response = await get(row.id);
+    const list = await http().get(`/ai-generations?sessionId=${row.sessionId}`).set(session);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({ userImageKey: null, userImageUrl: null });
+    expect((list.body as { items: unknown[] }).items[0]).toMatchObject({
+      userImageKey: null,
+      userImageUrl: null,
+    });
+  });
+
+  it('accepts a PATCH that leaves a failed row with only a failure code failed', async () => {
+    const row = await fittingRow({ status: 'failed', failureCode: 'photo_dark' });
+
+    const response = await patch(row.id, { aiModel: 'other' });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({ status: 'failed', aiModel: 'other', errorMessage: null });
+    const stored = await testApp.prisma.aiGeneration.findUniqueOrThrow({ where: { id: row.id } });
+    expect(stored.failureCode).toBe('photo_dark');
+  });
+
+  it('refuses to change a row with a failure code to completed, on status', async () => {
+    const row = await fittingRow({ status: 'failed', failureCode: 'photo_dark' });
+    const stored = await testApp.prisma.aiGeneration.findUniqueOrThrow({ where: { id: row.id } });
+
+    const response = await patch(row.id, {
+      status: 'completed',
+      resultImageKey: resultKey(row.sessionId),
+    });
+
+    expectError(response, 400, 'VALIDATION_FAILED', 'status');
+    expect(await testApp.prisma.aiGeneration.findUniqueOrThrow({ where: { id: row.id } })).toEqual(
+      stored,
+    );
+  });
+});
