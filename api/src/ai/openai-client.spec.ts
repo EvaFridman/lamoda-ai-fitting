@@ -106,13 +106,35 @@ describe('OpenAiClient requests', () => {
     const form = new FormData();
     form.set('prompt', 'p');
 
-    const answer = await client.editImage(form, { signal: signal() });
+    const { answer } = await client.editImage(form, { signal: signal() });
 
     expect(answer.data[0]?.b64_json).toBe('QQ==');
     const [url, init] = fetch.mock.calls[0] as [string, RequestInit];
     expect(url).toBe('https://api.openai.com/v1/images/edits');
     expect(init.body).toBe(form);
     expect(init.headers).toEqual({ Authorization: `Bearer ${KEY}` });
+  });
+
+  it('returns the request id of the edits answer', async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValue(
+        jsonResponse({ data: [{ b64_json: 'QQ==' }] }, 200, { 'x-request-id': 'req_edit_1' }),
+      );
+    const { client } = setup(fetch);
+
+    const edited = await client.editImage(new FormData(), { signal: signal() });
+
+    expect(edited.requestId).toBe('req_edit_1');
+  });
+
+  it('returns a null request id when the edits answer has no header', async () => {
+    const fetch = vi.fn().mockResolvedValue(jsonResponse({ data: [] }));
+    const { client } = setup(fetch);
+
+    const edited = await client.editImage(new FormData(), { signal: signal() });
+
+    expect(edited).toEqual({ answer: { data: [] }, requestId: null });
   });
 
   it('passes the caller signal to fetch', async () => {
