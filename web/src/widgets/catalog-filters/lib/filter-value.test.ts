@@ -6,7 +6,9 @@ import {
   attributeChoice,
   clearFilters,
   hasAppliedFilters,
+  hasSheetChoice,
   priceChoice,
+  resetSheet,
   withAttributeChoice,
   withPriceChoice,
 } from './filter-value';
@@ -72,6 +74,50 @@ describe('clearFilters', () => {
     const cleared = clearFilters({ q: 'a' });
     expect(hasAppliedFilters(cleared)).toBe(false);
     expect(cleared.sort).toBeUndefined();
+  });
+});
+
+describe('hasSheetChoice', () => {
+  it('is false for an empty selection and for empty lists', () => {
+    expect(hasSheetChoice({})).toBe(false);
+    expect(hasSheetChoice({ brandId: [], size: [], attributeValueId: [] })).toBe(false);
+  });
+
+  it.each([
+    ['a sort alone', { sort: 'price_asc' as const }],
+    ['a search alone', { q: 'платье' }],
+    ['a brand', { brandId: [id(1)] }],
+    ['a discount', { hasDiscount: true }],
+    ['a maximum price', { maxPrice: 100 }],
+  ])('is true for %s', (_, value) => {
+    expect(hasSheetChoice(value)).toBe(true);
+  });
+});
+
+describe('resetSheet', () => {
+  it('keeps only the search', () => {
+    expect(
+      resetSheet({
+        q: 'a',
+        sort: 'price_desc',
+        brandId: [id(1)],
+        size: ['M'],
+        attributeValueId: [id(2)],
+        minPrice: 1,
+        maxPrice: 2,
+        hasDiscount: true,
+      }),
+    ).toEqual({ q: 'a' });
+  });
+
+  it('leaves nothing when there was no search', () => {
+    expect(resetSheet({ sort: 'price_asc', hasDiscount: true })).toEqual({});
+  });
+
+  it('does not change its input', () => {
+    const value = { q: 'a', sort: 'price_asc' as const };
+    resetSheet(value);
+    expect(value).toEqual({ q: 'a', sort: 'price_asc' });
   });
 });
 

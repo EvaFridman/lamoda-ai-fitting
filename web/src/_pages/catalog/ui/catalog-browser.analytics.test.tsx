@@ -509,9 +509,11 @@ describe('the drawer', () => {
     await user.click(screen.getByRole('button', { name: 'Фильтры' }));
     const drawer = await screen.findByRole('dialog');
     await user.click(within(drawer).getByRole('switch', { name: 'Только со скидкой' }));
-    await user.click(within(drawer).getByRole('button', { name: 'Сортировка' }));
+    await user.click(within(drawer).getByRole('button', { name: /^Сортировка/ }));
     await user.click(within(drawer).getByRole('radio', { name: 'По рейтингу' }));
-    expect(track).not.toHaveBeenCalled();
+    await user.click(within(drawer).getByRole('button', { name: 'Применить' }));
+    expect(sent('Catalog Filter Applied')).toEqual([]);
+    expect(sent('Catalog Sorted')).toEqual([]);
 
     await user.click(within(drawer).getByRole('button', { name: /^Показать/ }));
     expect(sent('Catalog Filter Applied')).toEqual([{ filter: 'discount', values: 1 }]);
@@ -519,25 +521,32 @@ describe('the drawer', () => {
     expect(nav.replace).toHaveBeenCalledTimes(1);
   });
 
-  it('sends each filter gone on "Очистить фильтры"', async () => {
+  it('sends each filter gone, and the sort back to the default, on "Сбросить" and "Показать"', async () => {
     mount({ brandId: [BRAND], hasDiscount: true, sort: 'rating' });
     await screen.findByRole('button', { name: 'Сбросить «Бренд»' });
     const user = userEvent.setup({ pointerEventsCheck: 0 });
     await user.click(screen.getByRole('button', { name: 'Фильтры' }));
     const drawer = await screen.findByRole('dialog');
-    await user.click(within(drawer).getByRole('button', { name: 'Очистить фильтры' }));
+    await user.click(within(drawer).getByRole('button', { name: 'Сбросить' }));
+    expect(sent('Catalog Filter Applied')).toEqual([]);
+    expect(sent('Catalog Sorted')).toEqual([]);
+
+    await user.click(within(drawer).getByRole('button', { name: /^Показать/ }));
     expect(sent('Catalog Filter Applied')).toEqual([
       { filter: 'brand', values: 0 },
       { filter: 'discount', values: 0 },
     ]);
-    expect(sent('Catalog Sorted')).toEqual([]);
+    expect(sent('Catalog Sorted')).toEqual([{ sort: 'new' }]);
   });
 
-  it('sends no click or hover for the drawer button', async () => {
-    mount();
-    await screen.findByRole('button', { name: 'Только со скидкой' });
+  it('sends Element Clicked catalog.sheet-open with active for the drawer button, and no hover', async () => {
+    mount({ brandId: [BRAND] });
+    await screen.findByRole('button', { name: 'Сбросить «Бренд»' });
     fireEvent.click(screen.getByRole('button', { name: 'Фильтры' }));
-    expect(track).not.toHaveBeenCalled();
+    expect(sent('Element Clicked')).toEqual([
+      { element: 'catalog.sheet-open', zone: 'catalog', type: 'interaction', active: true },
+    ]);
+    expect(sent('Element Hovered')).toEqual([]);
   });
 });
 

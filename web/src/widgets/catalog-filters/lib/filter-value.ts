@@ -23,6 +23,18 @@ export function clearFilters(value: CatalogFilterValue): CatalogFilterValue {
   return { sort: value.sort };
 }
 
+// The dot on "Фильтры" (spec 0020 W10): a filter, the search or a sort other than the default. The
+// default sort is never in the address, so any sort there is another one.
+export function hasSheetChoice(value: CatalogFilterValue): boolean {
+  return hasAppliedFilters(value) || value.sort !== undefined;
+}
+
+// The sheet's "Сбросить" (W11): every filter and the sort go, the search stays, since the sheet
+// does not show it.
+export function resetSheet(value: CatalogFilterValue): CatalogFilterValue {
+  return value.q === undefined ? {} : { q: value.q };
+}
+
 function nonEmpty(values: string[]): string[] | undefined {
   return values.length > 0 ? values : undefined;
 }

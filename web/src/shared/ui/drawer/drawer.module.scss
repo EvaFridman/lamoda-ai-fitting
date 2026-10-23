@@ -120,10 +120,13 @@
   overflow-wrap: anywhere;
 }
 
+// A text action ("Сбросить") ends where the content does, 24px from the edge, as the drawn "‹"
+// and × do inside their 32px buttons.
 .headerAction {
   display: flex;
   flex: none;
   align-items: center;
+  margin-right: var(--space-2);
 }
 
 .content {

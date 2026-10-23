@@ -212,8 +212,9 @@ describe('CatalogBrowser selection in the address (AC7)', () => {
     await show({ categoryId: DRESSES, start: 'c-1', query: { sort: 'price_asc' } });
     await user.click(screen.getByRole('button', { name: 'Фильтры' }));
     const dialog = within(await screen.findByRole('dialog', { name: 'Фильтры' }));
-    await user.click(dialog.getByRole('button', { name: 'Бренд' }));
+    await user.click(dialog.getByRole('button', { name: /^Бренд/ }));
     await user.click(dialog.getByRole('checkbox', { name: 'Nike 12' }));
+    await user.click(dialog.getByRole('button', { name: 'Применить' }));
     expect(nav.replace).not.toHaveBeenCalled();
     await user.click(dialog.getByRole('button', { name: /^Показать/ }));
     expect(nav.replace).toHaveBeenCalledTimes(1);
@@ -223,15 +224,20 @@ describe('CatalogBrowser selection in the address (AC7)', () => {
     ]);
   });
 
-  it('the phone drawer\'s "Очистить фильтры" drops the search and filters, keeps the sort', async () => {
+  it('the phone drawer\'s "Сбросить" drops the filters and the sort, keeps the search, and applies on "Показать"', async () => {
     stubApi(oneProduct);
     const user = userEvent.setup({ pointerEventsCheck: 0 });
     await show({ query: { q: 'платье', sort: 'price_asc', brandId: [NIKE] } });
     await user.click(screen.getByRole('button', { name: 'Фильтры' }));
     const dialog = within(await screen.findByRole('dialog', { name: 'Фильтры' }));
-    await user.click(dialog.getByRole('button', { name: 'Очистить фильтры' }));
+    await user.click(dialog.getByRole('button', { name: 'Сбросить' }));
+    expect(nav.replace).not.toHaveBeenCalled();
+    await user.click(dialog.getByRole('button', { name: /^Показать/ }));
     expect(nav.replace).toHaveBeenCalledTimes(1);
-    expect(lastAddress()).toEqual(['/catalog?sort=price_asc', { scroll: false }]);
+    expect(lastAddress()).toEqual([
+      `/catalog?q=${encodeURIComponent('платье')}`,
+      { scroll: false },
+    ]);
   });
 
   it('keeps the category path and drops the cursor', async () => {

@@ -13,13 +13,150 @@
   }
 }
 
-// "Только со скидкой" under the accordion, as high as a section's title row.
-.drawerDiscount {
-  padding: var(--space-4) 0;
+// "Фильтры" (spec 0020 plan §2): the funnel and the word, below 600px plain text in the phone bar,
+// from 600px the 48px outline button of before (the kit's `Button`'s look). The dot, while the
+// address holds a choice (W10), sits at the funnel's top right.
+.trigger {
+  cursor: pointer;
+
+  position: relative;
+
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border: var(--border-width) solid transparent;
+  border-radius: var(--radius-s);
+
+  font-family: inherit;
+  font-size: var(--font-size-body-m);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-body-m);
+  color: var(--color-text);
+  white-space: nowrap;
+
+  background: none;
+
+  transition:
+    color var(--duration-fast),
+    border-color var(--duration-fast);
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: 2px;
+  }
+
+  @media (width >= 600px) {
+    height: 48px;
+    padding: 0 var(--space-4);
+    border-color: var(--color-border-active);
+  }
+
+  @media (hover: hover) {
+    &:hover {
+      color: var(--color-text-secondary);
+
+      @media (width >= 600px) {
+        border-color: var(--color-border-control);
+      }
+    }
+  }
 }
 
-// On its own line over "Показать N товаров".
-.drawerClear {
-  align-self: center;
-  margin: 0 auto var(--space-2);
+.dot {
+  position: absolute;
+  top: 0;
+  left: 18px;
+
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+
+  background-color: var(--color-accent);
+
+  @media (width >= 600px) {
+    top: 10px;
+    left: calc(var(--space-4) + 18px);
+  }
+}
+
+// The sheet's list: 52px rows split by hairlines, the name and the choice in grey cut with an
+// ellipsis, a row's "Сбросить" beside it (not inside the row's button).
+.rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sheetRow {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+
+  & + & {
+    border-top: var(--border-width) solid var(--color-border);
+  }
+}
+
+.rowButton {
+  cursor: pointer;
+
+  display: flex;
+  flex: 1 1 auto;
+  gap: var(--space-2);
+  align-items: baseline;
+
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-4) 0;
+  border: 0;
+
+  font: inherit;
+  color: var(--color-text);
+  text-align: left;
+
+  background: none;
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: 2px;
+  }
+}
+
+.rowTitle {
+  flex: none;
+}
+
+.rowSummary {
+  overflow: hidden;
+  flex: 1 1 auto;
+
+  min-width: 0;
+
+  color: var(--color-text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowReset {
+  flex: none;
+}
+
+// "Только со скидкой" under the rows, as high as a row.
+.drawerDiscount {
+  padding: var(--space-4) 0;
+  border-top: var(--border-width) solid var(--color-border);
+}
+
+// The footer's pair: "Сбросить" or "По умолчанию" as wide as its text, the main button the rest.
+.footerSide {
+  flex: none;
+}
+
+.footerMain {
+  flex: 1 1 0;
+  min-width: 0;
 }

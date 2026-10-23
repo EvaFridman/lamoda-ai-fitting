@@ -75,6 +75,12 @@ type Checked<C extends Catalog> = {
   };
 };
 
+// Where a catalog filter was opened: its chip in the desktop row or its row in the phone sheet
+// (spec 0020 W15). Sends from before the sheet carry no `surface` and were all chips.
+const surface = { kind: 'enum', values: ['chips', 'sheet'] } as const;
+const surfaceNote =
+  '`surface` — `chips` или `sheet`. До спеки 0020 свойства не было и все отправки были чипами, так что отчёт по чипам фильтрует `surface != sheet`, а не `surface == chips`.';
+
 /** Checks a catalog and keeps its literal types. */
 export function defineCatalog<const C extends Catalog>(catalog: C & Checked<C>): C {
   return catalog;
@@ -346,53 +352,67 @@ export const catalog = defineCatalog({
     'catalog.filter-brand': {
       zone: 'catalog',
       type: 'interaction',
-      description: 'Чип «Бренд» в ряду фильтров: открывает список.',
-      clicksPerVisit: 0.25,
-      hoversPerVisit: 0.3,
+      description: `«Бренд»: чип в ряду фильтров (открывает список) или строка в шторке «Фильтры» (открывает экран). ${surfaceNote}`,
+      clicksPerVisit: 0.35,
+      hoversPerVisit: 0.305,
+      properties: { surface },
     },
     'catalog.filter-size': {
       zone: 'catalog',
       type: 'interaction',
-      description: 'Чип «Размер» в ряду фильтров.',
-      clicksPerVisit: 0.2,
-      hoversPerVisit: 0.25,
+      description: `«Размер»: чип в ряду фильтров или строка в шторке «Фильтры». ${surfaceNote}`,
+      clicksPerVisit: 0.3,
+      hoversPerVisit: 0.255,
+      properties: { surface },
     },
     'catalog.filter-color': {
       zone: 'catalog',
       type: 'interaction',
-      description: 'Чип атрибута-цвета в ряду фильтров; один на все такие чипы.',
-      clicksPerVisit: 0.2,
-      hoversPerVisit: 0.25,
+      description: `Атрибут-цвет: чип в ряду фильтров или строка в шторке «Фильтры»; один на все такие чипы и строки. ${surfaceNote}`,
+      clicksPerVisit: 0.3,
+      hoversPerVisit: 0.255,
+      properties: { surface },
     },
     'catalog.filter-attribute': {
       zone: 'catalog',
       type: 'interaction',
-      description:
-        'Чип любого другого атрибута (материал, сезон…) в ряду фильтров; один на все такие чипы, название атрибута не отправляется.',
-      clicksPerVisit: 0.1,
+      description: `Любой другой атрибут (материал, сезон…): чип в ряду фильтров или строка в шторке «Фильтры»; один на все такие чипы и строки, название атрибута не отправляется. ${surfaceNote}`,
+      clicksPerVisit: 0.15,
       hoversPerVisit: 0.2,
+      properties: { surface },
     },
     'catalog.filter-price': {
       zone: 'catalog',
       type: 'interaction',
-      description: 'Чип «Цена» в ряду фильтров.',
-      clicksPerVisit: 0.15,
+      description: `«Цена»: чип в ряду фильтров или строка в шторке «Фильтры». ${surfaceNote}`,
+      clicksPerVisit: 0.23,
       hoversPerVisit: 0.2,
+      properties: { surface },
     },
     'catalog.filter-discount': {
       zone: 'catalog',
       type: 'interaction',
-      description:
-        'Чип «Только со скидкой» в ряду фильтров: клик сразу включает или снимает фильтр.',
-      clicksPerVisit: 0.1,
+      description: `«Только со скидкой»: чип в ряду фильтров (клик сразу включает или снимает фильтр) или переключатель в шторке «Фильтры» (меняет только черновик шторки). ${surfaceNote}`,
+      clicksPerVisit: 0.15,
       hoversPerVisit: 0.15,
+      properties: { surface },
     },
     'catalog.sort': {
       zone: 'catalog',
       type: 'interaction',
-      description: 'Чип сортировки в ряду фильтров.',
-      clicksPerVisit: 0.2,
-      hoversPerVisit: 0.25,
+      description: `Сортировка: чип в ряду фильтров или строка «Сортировка» в шторке «Фильтры». ${surfaceNote}`,
+      clicksPerVisit: 0.35,
+      hoversPerVisit: 0.255,
+      properties: { surface },
+    },
+    'catalog.sheet-open': {
+      zone: 'catalog',
+      type: 'interaction',
+      description:
+        'Кнопка «Фильтры» на узком экране: открывает шторку фильтров. `active` — есть ли на ней точка (в адресе фильтр, сортировка не по умолчанию или поиск).',
+      clicksPerVisit: 0.3,
+      hoversPerVisit: 0.02,
+      properties: { active: { kind: 'boolean' } },
     },
     'photos.upload': {
       zone: 'fitting',

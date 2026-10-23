@@ -425,6 +425,7 @@ describe('analytics catalog', () => {
       'catalog.filter-price': ['catalog', 'interaction'],
       'catalog.filter-discount': ['catalog', 'interaction'],
       'catalog.sort': ['catalog', 'interaction'],
+      'catalog.sheet-open': ['catalog', 'interaction'],
       'photos.upload': ['fitting', 'interaction'],
       'photos.camera': ['fitting', 'interaction'],
       'photos.set-default': ['fitting', 'interaction'],

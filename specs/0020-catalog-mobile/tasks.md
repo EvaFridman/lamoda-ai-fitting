@@ -62,7 +62,7 @@ Status: accepted (2026-10-23); amended 2026-10-23 at the review of PR 1 (T4, T5,
       `filterSummary`.
       Check: Vitest of `filterSummary` (sizes' order, colours, price, sort).
       Commit: `feat(web): add the catalog filters' sheet panels and summaries`
-- [ ] **T8. The sheet with screens (W6, W8–W11, W15, W16, W19–W21; plan §3, §5).** `CatalogFiltersDrawer`
+- [x] **T8. The sheet with screens (W6, W8–W11, W15, W16, W19–W21; plan §3, §5).** `CatalogFiltersDrawer`
       rewritten; the trigger with `FilterIcon` and the dot; `resetSheet`, `hasSheetChoice`;
       `surface` on the chips and the rows, `catalog.sheet-open`; `catalog.ts`, `EVENTS.md`,
       `catalog.test.ts`.
