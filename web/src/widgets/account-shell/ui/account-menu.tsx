@@ -25,7 +25,7 @@ function MenuLink({ section, title, href, current }: AccountSection & { current:
   );
 }
 
-// The four sections in the header menu's order; the current one marked (AC4). Below 1024px it is
+// The five sections in the header menu's order; the current one marked (AC4). Below 1024px it is
 // the list of sections on `/customer` and hidden beside a section (U10).
 export function AccountMenu({ current }: { current?: AccountSection['section'] }) {
   return (

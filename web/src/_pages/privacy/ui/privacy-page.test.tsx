@@ -39,6 +39,14 @@ describe('PrivacyPage', () => {
     expect(screen.getByText(/Фотографию профиля мы не храним/)).toBeInTheDocument();
   });
 
+  it('says fitting photos go to OpenAI, are not used for training and can be deleted', () => {
+    render(<PrivacyPage />);
+    const paragraph = screen.getByText(/Для онлайн-примерки вы загружаете своё фото/);
+    expect(paragraph).toHaveTextContent('передаётся в OpenAI (США)');
+    expect(paragraph).toHaveTextContent('для обучения моделей фото не используются');
+    expect(paragraph).toHaveTextContent('при удалении аккаунта удаляются все фото');
+  });
+
   it('reopens the consent banner with "Настройки cookies" after an answer', async () => {
     const user = userEvent.setup();
     window.localStorage.setItem(

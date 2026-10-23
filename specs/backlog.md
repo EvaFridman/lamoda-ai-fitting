@@ -136,15 +136,6 @@ removes it from this list. Found by the agents' first security audit and trial r
 - **Footer links.** The footer copies Lamoda's items, but only the personal data policy has a page
   (0008 J22): each other item becomes a link when its page appears. The list is
   `widgets/footer/config/items.ts`.
-- **Signed links in reports.** A signed storage link carries `X-Amz-Credential=<S3_ACCESS_KEY_ID>/…`
-  and a user's id in its path (0011 M34). The spec that shows a user's photo through such a link
-  keeps its `src` out of Sentry (events, breadcrumbs) and Mixpanel (heatmap clicks, recordings),
-  and checks what `strip-attributes.ts` and the recordings' image blocking already cover.
-- **Signed links in the CSP.** web's policy allows images only from `'self'`, `data:` and `blob:`
-  (`web/src/shared/csp/policy.ts`, spec 0014 O112). A signed storage link is on
-  `S3_PUBLIC_ENDPOINT`'s origin, so the browser blocks it: the first page that shows a user's photo
-  through one (spec 0019) adds that origin to `img-src`, from the server env, with its test (0014
-  O113).
 - **Product card link.** The catalog's cards link to `/products/<id>` (spec 0014 O7) with
   `prefetch={false}` (`widgets/product-grid`) while that address is a 404 (O75). The product
   page's spec turns the prefetch back on and decides whether `CatalogProductCard` (0009 K15)

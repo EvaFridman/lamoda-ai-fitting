@@ -14,6 +14,11 @@ export interface PolicyInput {
   dev: boolean;
   // The browser's Sentry DSN; its origin is where the SDK sends events. Empty: Sentry is off.
   sentryDsn: string | undefined;
+  // The storage's address in the browser (`S3_PUBLIC_ENDPOINT`) and the app's bucket (`S3_BUCKET`):
+  // signed links of users' photos are `<origin>/<bucket>/keep/users/…` (path-style, spec 0011).
+  // Either empty: no image from the storage loads.
+  storageEndpoint: string | undefined;
+  storageBucket: string | undefined;
 }
 
 /** A fresh nonce for one request: 16 random bytes in base64. */
@@ -27,10 +32,25 @@ export function newNonce(): string {
  * nonce; the nonce, for what Next streams per request and the JSON-LD; and the hashes of React's
  * inline scripts in that shell (`check-web-shells.mjs` fails a build with any other). No
  * 'strict-dynamic': it would drop 'self' and the shell's scripts with it. Styles allow inline:
- * Next and Base UI set style attributes. The recorder runs in a `blob:` worker (O45).
+ * Next and Base UI set style attributes. The recorder runs in a `blob:` worker (O45). Images also
+ * load from the users' folders of our bucket, where a user's photo is a signed link (spec 0019): a
+ * path, not the whole origin, which the storage shares with every other bucket of its host.
  */
-export function contentSecurityPolicy({ nonce, dev, sentryDsn }: PolicyInput): string {
-  const sentry = sentryOrigin(sentryDsn);
+export function contentSecurityPolicy({
+  nonce,
+  dev,
+  sentryDsn,
+  storageEndpoint,
+  storageBucket,
+}: PolicyInput): string {
+  const sentry = httpOrigin(sentryDsn);
+  const storageOrigin = httpOrigin(storageEndpoint);
+  // A bucket name is lower-case letters, digits, dots and dashes (S3's rule, as the api checks it):
+  // nothing that could end the source or the directive.
+  const storage =
+    storageOrigin && storageBucket && /^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(storageBucket)
+      ? `${storageOrigin}/${storageBucket}/keep/users/`
+      : undefined;
   const directives = [
     "default-src 'self'",
     [
@@ -40,7 +60,7 @@ export function contentSecurityPolicy({ nonce, dev, sentryDsn }: PolicyInput): s
       ...(dev ? ["'unsafe-eval'"] : []),
     ].join(' '),
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob:",
+    ["img-src 'self' data: blob:", ...(storage ? [storage] : [])].join(' '),
     ["connect-src 'self'", MIXPANEL_ORIGIN, ...(sentry ? [sentry] : [])].join(' '),
     "font-src 'self'",
     "worker-src 'self' blob:",
@@ -52,11 +72,14 @@ export function contentSecurityPolicy({ nonce, dev, sentryDsn }: PolicyInput): s
   return directives.join('; ');
 }
 
-/** The origin of a Sentry DSN (`https://key@o1.ingest.de.sentry.io/2` → `https://o1.ingest.de.sentry.io`). */
-function sentryOrigin(dsn: string | undefined): string | undefined {
-  if (!dsn) return undefined;
+/**
+ * The origin of an http(s) address, without its key and path (a Sentry DSN
+ * `https://key@o1.ingest.de.sentry.io/2` → `https://o1.ingest.de.sentry.io`); none for anything else.
+ */
+function httpOrigin(address: string | undefined): string | undefined {
+  if (!address) return undefined;
   try {
-    const { protocol, origin } = new URL(dsn);
+    const { protocol, origin } = new URL(address);
     return protocol === 'https:' || protocol === 'http:' ? origin : undefined;
   } catch {
     return undefined;

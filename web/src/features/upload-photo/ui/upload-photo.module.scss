@@ -1,0 +1,117 @@
+// The pickers in a row (one under the other on a phone), the screens' tips, consents and notes in
+// the page's small text.
+
+.upload {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  align-items: flex-start;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+
+  @media (width < 600px) {
+    flex-direction: column;
+    align-self: stretch;
+  }
+}
+
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.tips {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4) var(--space-6);
+
+  @media (width < 600px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.tipsTitle {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-body-m);
+  font-weight: 500;
+  line-height: var(--line-height-body-m);
+}
+
+.tipList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+
+  margin: 0;
+  padding: 0;
+
+  list-style: none;
+}
+
+.tip {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+}
+
+.good,
+.bad {
+  flex: none;
+  margin-top: 2px;
+}
+
+.good {
+  color: var(--color-success);
+}
+
+.bad {
+  color: var(--color-error);
+}
+
+.format {
+  grid-column: 1 / -1;
+
+  margin: 0;
+
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  color: var(--color-text-secondary);
+}
+
+.consents {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.hint,
+.note,
+.privacy {
+  margin: 0;
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  color: var(--color-text-secondary);
+}
+
+.privacy {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+}
+
+.lock {
+  flex: none;
+  margin-top: 2px;
+}
+
+.tipsLink {
+  align-self: flex-start;
+}

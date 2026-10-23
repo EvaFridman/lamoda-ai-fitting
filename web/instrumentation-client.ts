@@ -1,6 +1,11 @@
 import * as Sentry from '@sentry/nextjs';
 
-import { beforeSend, dataCollection } from './sentry.options';
+import {
+  beforeBreadcrumb,
+  beforeSend,
+  beforeSendTransaction,
+  dataCollection,
+} from './sentry.options';
 
 // Browser-side Sentry. NEXT_PUBLIC_* values are inlined into the bundle at build time (one image per
 // environment); an empty DSN turns it off. The release name is injected by withSentryConfig.
@@ -10,6 +15,9 @@ Sentry.init({
   tracesSampleRate: 0.1,
   dataCollection,
   beforeSend,
+  // No signed link of a user's photo in a span or a breadcrumb (spec 0019 A37).
+  beforeSendTransaction,
+  beforeBreadcrumb,
 });
 
 // Page navigations as traces.
