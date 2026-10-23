@@ -7,7 +7,7 @@ import { createFittingActivities } from './fitting.activities.js';
 import { createHousekeepingActivities } from './housekeeping.activities.js';
 
 // Every activity the worker registers, with the services they need from its Nest context
-// (run-worker.ts) and the task queue the housekeeping and a fitting's end start workflows on.
+// (run-worker.ts) and the task queue the housekeeping starts workflows on.
 // Workflow code imports only their types, from the files that define them.
 export function createActivities(
   storage: StorageService,
@@ -19,6 +19,6 @@ export function createActivities(
     ...createFileActivities(storage, prisma),
     ...createAuthCleanupActivities(prisma),
     ...createHousekeepingActivities(prisma, taskQueue),
-    ...createFittingActivities(ai, storage, prisma, taskQueue),
+    ...createFittingActivities(ai, storage, prisma),
   };
 }

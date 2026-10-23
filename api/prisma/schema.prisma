@@ -404,7 +404,8 @@ model GenerationProduct {
 
 // A user's fitting photo (spec 0019 A24, A31): the server names the key (`keep/users/<userId>/…`),
 // `sharp` re-encodes the file and sets `width` and `height`. A transient photo is a one-time one
-// (A24): not among the five saved ones, deleted when its generation ends or after an hour unused.
+// (A24): not among the five saved ones, deleted when the try-on closes (T12), or by the
+// housekeeping an hour after its last generation ended or, unused, an hour after its upload (A69).
 model UserPhoto {
   id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
   userId    String   @map("user_id") @db.Uuid

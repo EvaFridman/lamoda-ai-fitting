@@ -20,6 +20,7 @@ import {
   userPhotoKey,
 } from '../../src/storage/keys.js';
 import type { StorageService } from '../../src/storage/storage.service.js';
+import { createHousekeepingActivities } from '../../src/temporal/activities/housekeeping.activities.js';
 import { createFittingActivities } from '../../src/temporal/activities/fitting.activities.js';
 import { fittingWorkflowId } from '../../src/temporal/fitting-workflow-id.js';
 import { goodPhoto, refusedPhoto } from '../support/photos.js';
@@ -435,111 +436,173 @@ describe('generateFitting with the real activities (spec 0019 T11)', () => {
   });
 
   describe('a transient photo (A24)', () => {
-    it('is deleted with its file after a completed fitting', async () => {
+    it.each([
+      ['a completed fitting', undefined],
+      ['a failed fitting', 'fail:provider_error'],
+    ])(
+      'stays with its file and no outbox row after %s (A69)',
+      async (_name, promptText) => {
+        const s = await seed({ transient: true, promptText });
+
+        await run(s.generationId);
+
+        expect((await rowOf(s.generationId)).status).not.toBe('pending');
+        expect(await prisma.userPhoto.findUnique({ where: { id: s.photoId } })).not.toBeNull();
+        expect((await rowOf(s.generationId)).photoId).toBe(s.photoId);
+        expect(await prisma.fileDeletion.findMany({ where: { rowId: s.photoId } })).toEqual([]);
+        expect(await keysUnder(s.photoKey)).toEqual([s.photoKey]);
+      },
+      60_000,
+    );
+
+    it('stays after a cancelled fitting too', async () => {
       const s = await seed({ transient: true });
-
-      await run(s.generationId);
-
-      expect(await prisma.userPhoto.findUnique({ where: { id: s.photoId } })).toBeNull();
-      expect(await rowOf(s.generationId)).toMatchObject({ status: 'completed', photoId: null });
-      await expectOutboxCleared(s.photoId);
-      await vi.waitFor(async () => expect(await keysUnder(s.photoKey)).toEqual([]), {
-        timeout: 30_000,
-        interval: 250,
+      await prisma.aiGeneration.update({
+        where: { id: s.generationId },
+        data: { status: 'processing' },
       });
-    }, 90_000);
+      const activities = createFittingActivities(fake, storage, prisma);
 
-    it('is deleted with an outbox row after a failed fitting too', async () => {
-      const s = await seed({ transient: true, promptText: 'fail:provider_error' });
-
-      await run(s.generationId);
-
-      expect(await prisma.userPhoto.findUnique({ where: { id: s.photoId } })).toBeNull();
-      await expectOutboxCleared(s.photoId);
-      await vi.waitFor(async () => expect(await keysUnder(s.photoKey)).toEqual([]), {
-        timeout: 30_000,
-        interval: 250,
+      await activities.complete(s.generationId, {
+        status: 'failed',
+        failureCode: 'provider_error',
+        errorMessage: 'cancelled',
+        providerRequestId: null,
+        keepUnit: true,
       });
-    }, 90_000);
-
-    it('stays while another running generation uses it, and goes with the last one', async () => {
-      const first = await seed({ transient: true });
-      const second = await prisma.aiGeneration.create({
-        data: {
-          sessionId: first.sessionId,
-          userId: first.userId,
-          photoId: first.photoId,
-          kind: 'single',
-          fingerprint: createHash('sha256').update(randomUUID()).digest('hex'),
-          status: 'pending',
-          aiProvider: 'fake',
-          aiModel: 'gpt-image-2',
-        },
-      });
-      await prisma.generationProduct.create({
-        data: { generationId: second.id, productId: first.productId },
-      });
-
-      await run(first.generationId);
-
-      expect(await prisma.userPhoto.findUnique({ where: { id: first.photoId } })).not.toBeNull();
-      expect(await prisma.fileDeletion.findMany({ where: { rowId: first.photoId } })).toEqual([]);
-      expect(await keysUnder(first.photoKey)).toEqual([first.photoKey]);
-
-      await run(second.id);
-
-      expect(await prisma.userPhoto.findUnique({ where: { id: first.photoId } })).toBeNull();
-      await expectOutboxCleared(first.photoId);
-    }, 120_000);
-
-    it('is not deleted at the end when it is a saved photo', async () => {
-      const s = await seed({ transient: false, promptText: 'fail:provider_error' });
-
-      await run(s.generationId);
 
       expect(await prisma.userPhoto.findUnique({ where: { id: s.photoId } })).not.toBeNull();
       expect(await prisma.fileDeletion.findMany({ where: { rowId: s.photoId } })).toEqual([]);
-    }, 60_000);
+    }, 30_000);
 
-    it("is kept past housekeeping's hour while a recent pending or processing generation uses it, and goes once that one is over a day old", async () => {
-      const busy = await seed({ transient: true, status: 'processing' });
-      const queued = await seed({ transient: true });
-      const idle = await seed({ transient: true, promptText: 'fail:provider_error' });
-      await prisma.aiGeneration.delete({ where: { id: idle.generationId } });
-      // Stuck for more than a day: no longer holds its photo.
-      const stale = await seed({
-        transient: true,
-        status: 'processing',
-        createdAt: new Date(Date.now() - 25 * HOUR),
-      });
-      const old = new Date(Date.now() - 2 * HOUR);
-      await prisma.userPhoto.updateMany({
-        where: { id: { in: [busy.photoId, queued.photoId, idle.photoId, stale.photoId] } },
-        data: { createdAt: old },
-      });
+    describe("housekeeping's expiry of a photo older than an hour (A69)", () => {
+      // An old transient photo with one generation in the given state.
+      async function oldPhoto(
+        state:
+          | { kind: 'none' }
+          | { kind: 'running'; ageMs: number }
+          | { kind: 'finished'; agoMs: number },
+      ): Promise<Seed> {
+        const s = await seed({
+          transient: true,
+          createdAt: state.kind === 'running' ? new Date(Date.now() - state.ageMs) : undefined,
+          status: 'processing',
+        });
+        if (state.kind === 'none') {
+          await prisma.aiGeneration.delete({ where: { id: s.generationId } });
+        } else if (state.kind === 'finished') {
+          await prisma.aiGeneration.update({
+            where: { id: s.generationId },
+            data: {
+              status: 'failed',
+              failureCode: 'provider_error',
+              finishedAt: new Date(Date.now() - state.agoMs),
+            },
+          });
+        }
+        await prisma.userPhoto.update({
+          where: { id: s.photoId },
+          data: { createdAt: new Date(Date.now() - 2 * HOUR) },
+        });
+        return s;
+      }
 
-      const result = await client.workflow.execute('housekeeping', {
-        taskQueue: settings.taskQueue,
-        workflowId: `housekeeping-test-${randomUUID()}`,
-        workflowExecutionTimeout: '60 seconds',
-      });
+      async function housekeep() {
+        return client.workflow.execute('housekeeping', {
+          taskQueue: settings.taskQueue,
+          workflowId: `housekeeping-test-${randomUUID()}`,
+          workflowExecutionTimeout: '60 seconds',
+        });
+      }
 
-      expect(result).toMatchObject({ photosExpired: 2 });
-      expect(await prisma.userPhoto.findUnique({ where: { id: busy.photoId } })).not.toBeNull();
-      expect(await prisma.userPhoto.findUnique({ where: { id: queued.photoId } })).not.toBeNull();
-      expect(await prisma.userPhoto.findUnique({ where: { id: idle.photoId } })).toBeNull();
-      expect(await prisma.userPhoto.findUnique({ where: { id: stale.photoId } })).toBeNull();
-    }, 90_000);
+      const exists = async (photoId: string) =>
+        (await prisma.userPhoto.findUnique({ where: { id: photoId } })) !== null;
+
+      it('deletes the unused photo and keeps or deletes the others by their generation', async () => {
+        const unused = await oldPhoto({ kind: 'none' });
+        const finishedRecently = await oldPhoto({ kind: 'finished', agoMs: 30 * 60_000 });
+        const finishedLongAgo = await oldPhoto({ kind: 'finished', agoMs: 2 * HOUR });
+        const runningRecent = await oldPhoto({ kind: 'running', ageMs: 2 * HOUR });
+        const runningStale = await oldPhoto({ kind: 'running', ageMs: 25 * HOUR });
+
+        const result = await housekeep();
+
+        expect(result).toMatchObject({ photosExpired: 3 });
+        expect(await exists(unused.photoId)).toBe(false);
+        expect(await exists(finishedLongAgo.photoId)).toBe(false);
+        expect(await exists(runningStale.photoId)).toBe(false);
+        expect(await exists(finishedRecently.photoId)).toBe(true);
+        expect(await exists(runningRecent.photoId)).toBe(true);
+        await vi.waitFor(async () => expect(await keysUnder(unused.photoKey)).toEqual([]), {
+          timeout: 30_000,
+          interval: 250,
+        });
+        await expectOutboxCleared(unused.photoId);
+        expect(await keysUnder(runningRecent.photoKey)).toEqual([runningRecent.photoKey]);
+      }, 90_000);
+
+      it('keeps a photo whose user starts a new fitting with it while the expiry waits for the lock', async () => {
+        const s = await oldPhoto({ kind: 'finished', agoMs: 2 * HOUR });
+        const housekeeping = createHousekeepingActivities(prisma, settings.taskQueue);
+        const newId = randomUUID();
+        let locked: () => void = () => {};
+        const hasLock = new Promise<void>((resolve) => {
+          locked = resolve;
+        });
+        let commit: () => void = () => {};
+        const gate = new Promise<void>((resolve) => {
+          commit = resolve;
+        });
+
+        // The start of a fitting (T12): locks the user's row, inserts a generation that uses the photo.
+        const start = prisma.$transaction(async (tx) => {
+          await tx.$queryRaw`SELECT id FROM users WHERE id = ${s.userId}::uuid FOR UPDATE`;
+          await tx.aiGeneration.create({
+            data: {
+              id: newId,
+              sessionId: s.sessionId,
+              userId: s.userId,
+              photoId: s.photoId,
+              kind: 'single',
+              fingerprint: createHash('sha256').update(randomUUID()).digest('hex'),
+              status: 'pending',
+              aiProvider: 'fake',
+              aiModel: 'gpt-image-2',
+            },
+          });
+          locked();
+          await gate;
+        });
+        await hasLock;
+        const expiry = housekeeping.expireTransientPhotos();
+        // The expiry is waiting for the user's row.
+        await vi.waitFor(
+          async () => {
+            const waiting = await prisma.$queryRaw<{ count: bigint }[]>`
+              SELECT count(*) AS count FROM pg_stat_activity
+              WHERE wait_event_type = 'Lock' AND query ILIKE '%FOR UPDATE%'`;
+            expect(Number(waiting[0]?.count)).toBeGreaterThan(0);
+          },
+          { timeout: 10_000, interval: 100 },
+        );
+        commit();
+        await start;
+
+        expect(await expiry).toEqual([]);
+        expect(await exists(s.photoId)).toBe(true);
+        expect((await rowOf(newId)).photoId).toBe(s.photoId);
+        expect(await prisma.fileDeletion.findMany({ where: { rowId: s.photoId } })).toEqual([]);
+      }, 60_000);
+    });
   });
 
   describe('complete, called by hand like a retry after a lost answer', () => {
-    // `complete` outside the worker: no transient photo, so it needs no activity context.
+    // `complete` outside the worker: it needs no activity context.
     const activities = () =>
       createFittingActivities(
         new FakeAiProvider({ model: 'gpt-image-2', checkTimeoutMs: 4000, timeoutSeconds: 180 }),
         storage,
         prisma,
-        settings.taskQueue,
       );
     const failedOutcome = {
       status: 'failed',

@@ -9,10 +9,17 @@ import { NativeConnection, Worker } from '@temporalio/worker';
 import { Logger } from 'nestjs-pino';
 
 import { AI_PROVIDER, type AiProvider } from '../ai/ai-provider.js';
-import { assertWorkerEnv, type Env, type WorkerEnv, workerEnvWarnings } from '../config/env.js';
+import {
+  assertWorkerEnv,
+  FITTING_TIMEOUT_SECONDS_MAX,
+  type Env,
+  type WorkerEnv,
+  workerEnvWarnings,
+} from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { StorageService } from '../storage/storage.service.js';
 import { createActivities } from './activities/index.js';
+import { generateTimeLimitSeconds } from './fitting-workflow-id.js';
 import { AUTH_CLEANUP_SCHEDULE_ID, ensureAuthCleanupSchedule } from './auth-cleanup-schedule.js';
 import { ensureHousekeepingSchedule, HOUSEKEEPING_SCHEDULE_ID } from './housekeeping-schedule.js';
 import { sentryActivityInterceptor } from './sentry-activity.interceptor.js';
@@ -46,8 +53,8 @@ async function bootstrap(): Promise<void> {
     taskQueue,
     // The compiled workflows next to this file (dist/temporal/workflows in the image).
     workflowsPath: fileURLToPath(new URL('./workflows/index.js', import.meta.url)),
-    // The housekeeping activity and a fitting's `complete` start `deleteFiles` on `taskQueue`
-    // through the worker's own client (spec 0019 A38, `Context.current().client`).
+    // The housekeeping activity starts `deleteFiles` on `taskQueue` through the worker's own
+    // client (spec 0019 A38, `Context.current().client`).
     activities: createActivities(
       app.get(StorageService),
       app.get(PrismaService),
@@ -55,6 +62,12 @@ async function bootstrap(): Promise<void> {
       app.get<AiProvider>(AI_PROVIDER),
     ),
     interceptors: { activity: [sentryActivityInterceptor] },
+    // A stop (a deploy replaces the worker in place) waits for the running activities as long as
+    // a generation may take, so a paid call ends instead of being cut (spec 0019 A69): the longest
+    // setting's, since a fitting started by a newer api may carry a longer limit than this
+    // worker's own; compose's `stop_grace_period` (worker.yml) is above it. A quiet worker exits
+    // at once. Polling stops at once: new tasks wait in Temporal's queue for the next worker.
+    shutdownGraceTime: `${generateTimeLimitSeconds(FITTING_TIMEOUT_SECONDS_MAX)} seconds`,
   });
 
   // The schedules of the daily cleanup (spec 0013 N50) and the fitting's housekeeping (spec 0019
@@ -67,8 +80,9 @@ async function bootstrap(): Promise<void> {
   logger.log(`Temporal schedule "${HOUSEKEEPING_SCHEDULE_ID}" ${housekeepingDone}`);
 
   logger.log(`Temporal worker polling task queue "${taskQueue}"`);
-  // Resolves after SIGTERM/SIGINT: the SDK stops polling and cancels the running activities (no
-  // grace time), whose next attempt runs on the next worker.
+  // Resolves after SIGTERM/SIGINT: the SDK stops polling, waits up to shutdownGraceTime for the
+  // running activities, then cancels the rest, whose next attempt runs on the next worker (but
+  // `generate`'s, which has none: that fitting ends `provider_error`, unspent, A67).
   await worker.run();
 
   await connection.close();

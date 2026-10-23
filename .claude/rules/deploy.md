@@ -25,7 +25,10 @@ Details and commands: `deploy/README.md`.
 - Blue-green: the new copy of api and web starts next to the running one, nginx switches only when
   it is healthy; the previous copy stays as the rollback. The Temporal worker and then the nightly
   backup job (`deploy/compose/backup.yml`, spec 0012) are replaced in place after the switch; a
-  failed start of either is a warning, not a failed deploy.
+  failed start of either is a warning, not a failed deploy. The worker's stop waits for running
+  generations (`shutdownGraceTime` = `FITTING_TIMEOUT_SECONDS` + 60 s, `stop_grace_period: 12m`
+  in `worker.yml`, spec 0019 A69, always the longest setting's 660 s), so that step may take
+  minutes.
   Before pulling (with a registry) and after the switch, `deploy.sh` removes the app images (api,
   web, backup) no container uses (they once filled the server's disk); a rollback to an older version pulls its
   images again.
@@ -68,8 +71,10 @@ Details and commands: `deploy/README.md`.
   warms up `/` only. `WARMUP_EXTRA_PATH` (a check's knob, never set by CD) reaches the script
   through `exec -e`, never the container's environment. A change to the step or the script is
   checked in `ci-deploy-check.sh` (the lines, a stopped deploy, the rollback run).
-- CD's `deploy` job has `timeout-minutes: 30` (spec 0018 V11): far above the slowest deploy seen
-  (12.5 min, a slow GHCR pull) plus the warm-up's 2. GitHub then cancels the job and the ssh
+- CD's `deploy` job has `timeout-minutes: 45` (spec 0018 V11, raised by spec 0019 A69): far above
+  the slowest deploy seen (12.5 min, a slow GHCR pull) plus the warm-up's 2 and the worker's stop
+  (up to 12 while generations run; a job cancelled during it would leave no worker until the next
+  deploy, since compose stops the old one before it creates the new). GitHub then cancels the job and the ssh
   session ends; it has no pty, so `deploy.sh` dies of SIGPIPE at its next log line, and bash's EXIT
   trap still removes `.deploy-lock` (a `trap … PIPE` of its own would stop that on bash 5.3). A
   command in progress runs on until it writes to the log; docker's client then dies too, and a
