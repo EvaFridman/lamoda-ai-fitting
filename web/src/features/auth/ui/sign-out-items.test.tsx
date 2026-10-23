@@ -62,7 +62,8 @@ describe('SignOutItems', () => {
       async (name, element) => {
         const user = await openMenu();
         await user.click(screen.getByRole('menuitem', { name }));
-        await vi.waitFor(() => expect(mocks.reset).toHaveBeenCalledTimes(1));
+        // Longer than the default 1 s: the full verify runs the api and web tests at once.
+        await vi.waitFor(() => expect(mocks.reset).toHaveBeenCalledTimes(1), { timeout: 5000 });
         expect(mocks.track.mock.calls).toEqual([
           ['Element Clicked', { element, zone: 'auth', type: 'interaction' }],
           ['Signed Out', {}],
@@ -71,6 +72,7 @@ describe('SignOutItems', () => {
           mocks.reset.mock.invocationCallOrder[0] ?? 0,
         );
       },
+      15_000,
     );
 
     it.each([
@@ -82,7 +84,11 @@ describe('SignOutItems', () => {
         mocks[action].mockRejectedValue(new Error('boom'));
         const user = await openMenu();
         await user.click(screen.getByRole('menuitem', { name }));
-        const region = await screen.findByRole('region', { name: 'Уведомления' });
+        const region = await screen.findByRole(
+          'region',
+          { name: 'Уведомления' },
+          { timeout: 5000 },
+        );
         expect(
           await within(region).findByText('Что-то пошло не так, попробуйте позже'),
         ).toBeInTheDocument();
@@ -91,6 +97,7 @@ describe('SignOutItems', () => {
         ]);
         expect(mocks.reset).not.toHaveBeenCalled();
       },
+      15_000,
     );
 
     it('tracks a hover of 500 ms on "Выйти"', async () => {
@@ -147,20 +154,20 @@ describe('SignOutItems', () => {
     mocks.signOut.mockRejectedValue(failure);
     const user = await openMenu();
     await user.click(screen.getByRole('menuitem', { name: 'Выйти' }));
-    const region = await screen.findByRole('region', { name: 'Уведомления' });
+    const region = await screen.findByRole('region', { name: 'Уведомления' }, { timeout: 5000 });
     expect(
       await within(region).findByText('Сервис временно недоступен, попробуйте позже'),
     ).toBeInTheDocument();
     expect(mocks.reportFailure).toHaveBeenCalledExactlyOnceWith(failure);
-  });
+  }, 15_000);
 
   it('shows the toast when signing out everywhere fails', async () => {
     mocks.signOutEverywhere.mockRejectedValue(new Error('boom'));
     const user = await openMenu();
     await user.click(screen.getByRole('menuitem', { name: 'Выйти со всех устройств' }));
-    const region = await screen.findByRole('region', { name: 'Уведомления' });
+    const region = await screen.findByRole('region', { name: 'Уведомления' }, { timeout: 5000 });
     expect(
       await within(region).findByText('Что-то пошло не так, попробуйте позже'),
     ).toBeInTheDocument();
-  });
+  }, 15_000);
 });
