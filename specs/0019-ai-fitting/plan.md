@@ -74,22 +74,24 @@ raw(...))` with the schema's preview feature `partialIndexes`, as the active ses
 - **`openai-client.ts`.** `OpenAiClient` over `fetch` with `AbortSignal.timeout`
   (`Authorization: Bearer …`): `editImage(form)` → multipart `POST
 https://api.openai.com/v1/images/edits` (`model`, `prompt`, `image[]`, `quality`, `size`,
-  `output_format: webp`, `moderation: auto`, `n: 1`), the answer's `data[0].b64_json`;
+  `output_format: webp`, `n: 1`; no `moderation`, which only `/v1/images/generations` takes, and
+  no `input_fidelity`, which `gpt-image-2` refuses, A67), the answer's `data[0].b64_json`;
   `respond(body)` → `POST /v1/responses` (the vision and the text classification, JSON output
   through a `json_schema` text format); `moderate(input)` → `POST /v1/moderations`
   (`omni-moderation-latest`, free). Errors become `AiProviderError { operation, status, code,
 requestId }` from the answer's `error.code` and the `x-request-id` header, never the input or
   the key; Sentry's outbound spans to `api.openai.com` are cut to method and origin like the
   bucket's (0011 M23). Three attempts with backoff for a network error, a 429 or a 5xx; none for
-  another 4xx. A 403 `unsupported_country_region_territory` is `provider_error` and logged once a
+  another 4xx. The edits call repeats only what surely never reached OpenAI (a connection that
+  did not open, a 429 other than `insufficient_quota`): one generation is one payment (A67). A 403 `unsupported_country_region_territory` is `provider_error` and logged once a
   minute (the risk of §12).
 - **`image-models/`.** `ImageModel { name, buildRequest(job), parseAnswer(answer) }` for
   `gpt-image-2` (`quality: medium`, `size: 1024x1536`); `FITTING_MODEL` may name
   `gpt-image-2.5-sunburst` with the same request. The model's short name is what `aiModel` stores
   and what the fitting answers (§9's `model`); `aiProvider` is `openai`. A content refusal of the
   model (an `error.code` of the policy kind, or an answer with no image) maps to `moderation`; a
-  timeout to `model_timeout`, a 5xx or a 403 to `provider_error`; the activity's retries (§4)
-  cover the technical ones, and there is no second provider (A17).
+  timeout to `model_timeout`, a 5xx or a 403 to `provider_error`; nothing that may have reached
+  OpenAI is sent again (A67), and there is no second provider (A17).
 - **`prompts.ts`.** One fixed prompt: the person of the first image wears the items of the next
   images (name, category, colour of each, in order), the face, body and pose unchanged, nothing
   retouched, the photo's background kept, a full-length picture; then, if present, «The user's
@@ -132,9 +134,12 @@ reason?: dark | not_full | many_people | child | no_person }` with «refuse only
   `generate` (the one call to the edits endpoint with `FITTING_TIMEOUT_SECONDS` as its timeout,
   heartbeating the elapsed time every 10 s on a timer while it waits, `heartbeatTimeout` 30 s,
   `startToCloseTimeout` = `FITTING_TIMEOUT_SECONDS` + 30 s; on cancellation aborts the request),
-  `moderate`, `storeResult`, `complete`, `notify`. Transient errors of `generate` (a network
-  error, a 429, a 5xx) retry twice more with backoff within the workflow's own limit; refusals and
-  the timeout are `ApplicationFailure.nonRetryable` with the failure code as `type`.
+  `moderate`, `storeResult`, `complete`, `notify`. `generate` runs once (`maximumAttempts: 1`,
+  A67): the client repeats only a request that never reached OpenAI, and anything else (a 5xx, a
+  timeout, a connection lost after the request was sent, a worker lost mid-call) ends the fitting
+  `provider_error` or `model_timeout`, not counted against the limit, since OpenAI may have billed
+  that picture and has no idempotency key; refusals and the timeout are
+  `ApplicationFailure.nonRetryable` with the failure code as `type`.
 - **Workflow.** Marks `processing`; runs the chain; on any end calls `complete`
   (status, `countsAgainstLimit` false unless completed and the quota's unit taken back then (A20),
   a transient photo's row and file deleted through the outbox (A24), `finishedAt`)
@@ -415,7 +420,8 @@ OPENAI_API_KEY --env production`, the model variables, the upload limit and the 
 ## 12. Risks
 
 - **GPT-Image-2 is slow and sometimes refuses.** Up to two minutes per picture; the timeout is
-  180 s, and a technical failure is retried on the same model (A17). A refusal of an honest photo
+  180 s, and only a request that never reached OpenAI is sent again (A67): a 5xx or a timeout
+  ends the fitting unspent, and the user starts it again. A refusal of an honest photo
   by the model's policy shows the moderation screen: measured with the owner on production, and
   `FITTING_MODEL` can switch to `gpt-image-2.5-sunburst` without a release.
 - **The vision check is probabilistic.** «Refuse only when sure» and a malformed answer counting

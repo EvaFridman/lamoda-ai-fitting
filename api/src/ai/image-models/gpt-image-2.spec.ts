@@ -50,13 +50,14 @@ describe('gptImage2 buildRequest', () => {
     const form = gptImage2('gpt-image-2').buildRequest(job);
 
     expect([...new Set(form.keys())].sort()).toEqual(
-      ['image[]', 'model', 'moderation', 'n', 'output_format', 'prompt', 'quality', 'size'].sort(),
+      ['image[]', 'model', 'n', 'output_format', 'prompt', 'quality', 'size'].sort(),
     );
     expect(form.get('quality')).toBe('medium');
     expect(form.get('size')).toBe('1024x1536');
     expect(form.get('output_format')).toBe('webp');
-    expect(form.get('moderation')).toBe('auto');
     expect(form.get('n')).toBe('1');
+    expect(form.has('moderation')).toBe(false);
+    expect(form.has('input_fidelity')).toBe(false);
   });
 
   it('sends the prompt of the job', () => {

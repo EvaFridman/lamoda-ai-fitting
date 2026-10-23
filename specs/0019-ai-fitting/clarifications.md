@@ -97,7 +97,8 @@ the start of phase 2, not before its merge.
 quality medium); `gpt-image-2.5-sunburst` (OpenAI's newer editing model) is the alternative the
 setting can name without a release. A technical failure (a timeout, a 5xx) is retried on the same
 model; there is no fallback to another provider. Amended 2026-10-21: the fallback to Nano Banana
-went with fal.ai (A4).
+went with fal.ai (A4). Amended 2026-10-23 by A67: a timeout or a 5xx of the generation is not
+retried, since OpenAI may have billed it.
 
 **A15. The photo check and the moderation go through OpenAI too.** The five refusal reasons of the
 canvas (too dark, not full length, more than one person, a child, no person) are the answer of a
@@ -664,15 +665,11 @@ a colour's FK by `items` and the reasons' CHECK by `reasons` (`StartFittingDto` 
 regeneration's body, plan §5).
 
 **A66. The image model's details (T10).** Plan §3 leaves these open. `AiProvider.generate(job)`
-always makes one attempt, `retry` ignored (A52, A61: the activity's retry policy repeats a
-transient failure, a repeat inside the client could pay again), and runs under
-`FITTING_TIMEOUT_SECONDS` unless the caller names its own `timeoutMs`; the model's refusal (a 400
-with `error.code` `moderation_blocked` or `content_policy_violation`, or an answer with no image)
-is a result `{ ok: false, reason: 'moderation' }`, not an error, and a timeout or any other failure
-is thrown as `AiProviderError` for the activity to map (`model_timeout`, `provider_error`). A
-network error or a 5xx may come after OpenAI made, and billed, the picture, so each of plan §4's
-two retries of a transient failure may pay once more: at most three paid calls per try-on, a
-risk the plan accepts and T11 bounds (`maximumAttempts`, the timeout non-retryable). The answer's
+sends again only what never reached OpenAI (A67), and runs under `FITTING_TIMEOUT_SECONDS`
+unless the caller names its own `timeoutMs`; the model's refusal (a 400 with `error.code`
+`moderation_blocked` or `content_policy_violation`, or an answer with no image) is a result
+`{ ok: false, reason: 'moderation' }`, not an error, and a timeout or any other failure is thrown
+as `AiProviderError` for the activity to map (`model_timeout`, `provider_error`). The answer's
 picture is checked only by `storeResult`'s sharp (T11): one it cannot read is `provider_error`.
 A job carries 1 to 5 items (A29; both providers throw a plain `Error` before the request
 otherwise, a caller's bug that T11's activity does not retry). A
@@ -686,8 +683,32 @@ own photo as the result. A marker `fail:moderation`, `fail:provider_error` or `f
 wishes or the comment gets that failure from the fake (the prompt check lets `fail:` through), so a check by hand
 reaches every failure screen. The regeneration reasons are `face`, `figure`, `item`, `background`,
 `other` (the chips «Лицо», «Фигура», «Вещь», «Фон», «Другое»; `REGENERATION_REASONS` in
-`ai/prompts.ts`). The prompt is English and quotes every catalog name, the wishes and the comment as a JSON
-string, so a text cannot close its quote. Assumption, owner to confirm at the phase summary.
+`ai/prompts.ts`). The prompt is English, follows the structure of OpenAI's try-on example in its
+image prompting guide (each image numbered with its role; the task; what stays unchanged: face,
+expression, hairstyle, skin tone, body, pose, background, angle and framing; the result's light
+matched to image 1, no accessories or text added). Plan §3's «a full-length picture» becomes «the
+framing of image 1»: the photo check already passed a full-length photo, and demanding head to
+feet would fight the kept framing on a photo it let through when unsure. A part of the body an
+item leaves uncovered keeps the original clothing (a T-shirt over a dress). The prompt quotes every catalog name, the wishes and the comment as a
+JSON string, so a text cannot close its quote. The owner confirmed the fake's picture and markers
+on 2026-10-23; the rest is an assumption, owner to confirm at the phase summary.
+
+**A67. One generation, one payment.** The owner decided on 2026-10-23 (T10's review): a try-on is
+never paid twice. OpenAI does not say whether a 5xx or a timed-out edits request is billed, and its
+Images API has no idempotency key, so a repeat cannot be told from a new picture. The edits call
+is therefore sent again only when it surely never reached OpenAI: a connection that did not open
+(DNS, refused, unreachable, the connect timeout) or a 429 of the rate limit (not
+`insufficient_quota`), up to three attempts within the generation's deadline; a 5xx, a timeout, a
+connection lost after the request was sent or a broken 200 body ends the fitting as
+`provider_error` or `model_timeout`, not counted against the limit, and the user starts it again.
+The activity `generate` runs once (`maximumAttempts: 1`), so a worker lost mid-call does not send
+it again either (T11). This amends A17 and plan §4's «retry twice more». The paid checks (the
+vision model) keep their three attempts on a 5xx: they cost a fraction of a cent (the owner's
+answer). Checked against OpenAI's documentation the same day: the edits endpoint has no
+`moderation` parameter (only `/v1/images/generations` does; plan §3 listed it, now removed, the
+default filtering applies) and `gpt-image-2` refuses `input_fidelity` (its inputs are always high
+fidelity), so neither is sent; `safety_identifier` (a hashed user id for OpenAI's abuse
+monitoring) is not sent for now (the owner).
 
 ## Canvas and decisions
 

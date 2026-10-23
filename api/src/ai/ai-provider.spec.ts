@@ -548,6 +548,72 @@ describe('OpenAiProvider generate', () => {
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
+  describe('repeating a failure that never reached OpenAI', () => {
+    const sequence = (...steps: (Response | Error)[]) => {
+      const fetch = vi.fn();
+      for (const step of steps) {
+        fetch.mockImplementationOnce(() =>
+          step instanceof Error ? Promise.reject(step) : Promise.resolve(step),
+        );
+      }
+      return fetch as unknown as ReturnType<typeof answering>;
+    };
+    const refused = (code: string) =>
+      new TypeError('fetch failed', { cause: Object.assign(new Error('connect'), { code }) });
+
+    it('tries a 429 rate limit again, then returns the picture', async () => {
+      const fetch = sequence(failure(429, 'rate_limit_exceeded'), picture());
+
+      expect(await generator(fetch).generate(job)).toEqual({
+        ok: true,
+        image: PICTURE,
+        requestId: 'req_gen_1',
+      });
+      expect(fetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('tries a refused connection again, then returns the picture', async () => {
+      const fetch = sequence(refused('ECONNREFUSED'), picture());
+
+      expect((await generator(fetch).generate(job)).ok).toBe(true);
+      expect(fetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('fails at once on a connection reset, as a network error', async () => {
+      const fetch = sequence(refused('ECONNRESET'), picture());
+
+      const error = await failureOf(generator(fetch).generate(job));
+
+      expect(error).toMatchObject({ operation: 'edit_image', reason: 'network' });
+      expect(fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not repeat a 429 of insufficient_quota', async () => {
+      const fetch = sequence(failure(429, 'insufficient_quota'), picture());
+
+      await failureOf(generator(fetch).generate(job));
+
+      expect(fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not repeat a 500 whatever retry the caller passes', async () => {
+      for (const retry of [undefined, false, true]) {
+        const fetch = sequence(failure(500, 'server_error'), picture());
+
+        await failureOf(generator(fetch).generate(job, { retry }));
+
+        expect(fetch).toHaveBeenCalledTimes(1);
+      }
+    });
+
+    it('repeats a 429 even when the caller passes retry false', async () => {
+      const fetch = sequence(failure(429, 'rate_limit_exceeded'), picture());
+
+      expect((await generator(fetch).generate(job, { retry: false })).ok).toBe(true);
+      expect(fetch).toHaveBeenCalledTimes(2);
+    });
+  });
+
   describe('deadline', () => {
     afterEach(() => {
       vi.restoreAllMocks();

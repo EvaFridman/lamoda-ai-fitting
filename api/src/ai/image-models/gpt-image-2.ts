@@ -40,7 +40,8 @@ export function gptImage2(name: string): ImageModel {
       form.set('quality', GPT_IMAGE_QUALITY);
       form.set('size', GPT_IMAGE_SIZE);
       form.set('output_format', 'webp');
-      form.set('moderation', 'auto');
+      // No `moderation` (only /v1/images/generations takes it; the edits endpoint filters by its
+      // default) and no `input_fidelity` (gpt-image-2 refuses it, always high), A67.
       form.set('n', '1');
       return form;
     },
