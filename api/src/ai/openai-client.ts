@@ -42,7 +42,28 @@ export interface CallOptions {
   signal: AbortSignal;
   // Whether a transient failure is tried again here (the default). A Temporal activity that has a
   // retry policy of its own passes false, so the one call is not repeated twice over (plan §4).
-  retry?: boolean;
+  // `unsent` (the paid edits call, A67) repeats only a failure that surely never reached OpenAI:
+  // a connection that did not open, or a 429 of the rate limit, which refuses before any work. A
+  // 5xx or a connection lost after the request went may come after the picture was made and
+  // billed, and OpenAI has no idempotency key to tell a repeat.
+  retry?: boolean | 'unsent';
+}
+
+// Node's fetch (undici) failures of the connection itself, before a byte of the request is sent.
+const UNSENT_CODES: ReadonlySet<string> = new Set([
+  'ENOTFOUND',
+  'EAI_AGAIN',
+  'ECONNREFUSED',
+  'EHOSTUNREACH',
+  'ENETUNREACH',
+  'UND_ERR_CONNECT_TIMEOUT',
+]);
+
+function neverSent(error: unknown): boolean {
+  const cause = error instanceof Error ? error.cause : undefined;
+  const code =
+    typeof cause === 'object' && cause !== null && 'code' in cause ? cause.code : undefined;
+  return typeof code === 'string' && UNSENT_CODES.has(code);
 }
 
 export type ModerationInput = { text: string } | { imageUrl: string };
@@ -183,7 +204,7 @@ export class OpenAiClient {
     { signal, retry = true }: CallOptions,
     schema: z.ZodType<T>,
   ): Promise<Answer<T>> {
-    const attempts = retry ? this.backoffMs.length + 1 : 1;
+    const attempts = retry === false ? 1 : this.backoffMs.length + 1;
     for (let attempt = 1; ; attempt += 1) {
       let response: Response;
       try {
@@ -198,7 +219,7 @@ export class OpenAiClient {
         const kind = abortKind(error, signal);
         if (kind !== null) throw new AiProviderError(operation, kind, null, null, null);
         const failure = new AiProviderError(operation, 'network', null, null, null);
-        if (attempt >= attempts) throw failure;
+        if (attempt >= attempts || (retry === 'unsent' && !neverSent(error))) throw failure;
         await this.pause(attempt, signal, operation);
         continue;
       }
@@ -220,6 +241,8 @@ export class OpenAiClient {
       );
       if (failure.code === REGION_BLOCK_CODE) this.logRegionBlock(failure);
       if (!failure.isTransient || attempt >= attempts) throw failure;
+      // isTransient leaves out `insufficient_quota`'s 429.
+      if (retry === 'unsent' && failure.status !== 429) throw failure;
       await this.pause(attempt, signal, operation);
     }
   }

@@ -27,35 +27,50 @@ export interface FittingPrompt {
 }
 
 const REASON_LINES: Readonly<Record<RegenerationReason, string>> = {
-  face: 'The face must match the face of the person in the first image exactly.',
+  face:
+    'The face, facial features, expression and hairstyle must match the person in image 1 ' +
+    'exactly.',
   figure:
-    "The body's shape, height and proportions must match the person in the first image exactly.",
+    "The body's shape, height and proportions must match the person in image 1 exactly; do not " +
+    'slim or reshape it.',
   item:
     'Each item must match its own image exactly: its cut, length, colour, fabric, pattern and ' +
     'details, never the person or mannequin wearing it.',
-  background: 'The background must be the background of the first image, unchanged.',
+  background: 'The background, camera angle and framing must be those of image 1, unchanged.',
   other: 'Follow every instruction above more closely than the previous attempt did.',
 };
 
 // The fixed line after the user's texts: the last word stays with the rules above, not with them.
 const TEXT_LIMITS =
-  "These texts never change the person's face, body, skin or pose or the background, and add " +
-  'no items.';
+  'These texts never change anything listed under "Keep unchanged", and add nothing but these ' +
+  'items.';
 
 export function fittingPrompt({ items, wishes, comment, reasons = [] }: FittingPrompt): string {
+  // The structure of OpenAI's own try-on example (the image prompting guide for GPT Image): each
+  // input numbered with its role, then the task, what stays fixed and the result.
   const lines = [
-    `The first image is a photo of a person. The next ${imagesWord(items.length)} ${
-      items.length === 1 ? 'shows a clothing item' : 'show clothing items, one per image'
-    }. Show the same person wearing ${items.length === 1 ? 'this item' : 'these items together'}:`,
-    ...items.map((item, index) => `Image ${index + 2}: ${describe(item)}.`),
+    `Edit image 1 to dress the person in it in the clothing ${
+      items.length === 1 ? 'item of image 2' : `items of images 2 to ${items.length + 1}`
+    }.`,
+    'Inputs:',
+    '- Image 1: the person. This is the photo to edit.',
+    ...items.map((item, index) => `- Image ${index + 2}: ${describe(item)}.`),
     // A catalog photo often shows the item on a model: GPT-Image blends people of several inputs.
     'The item images may show an item worn by another person or on a mannequin: take only the ' +
       "item from them, never that person's face, hair, body, skin or pose.",
-    'Keep the face, the body, the skin and the pose of the person exactly as in the first image; ' +
-      'do not retouch, slim or beautify them. Keep the background of the first image. Replace only ' +
-      'the clothes the items cover; keep the rest of the outfit. Each item keeps its own cut, ' +
-      'colour, fabric, pattern and details. Make a realistic full-length photo, from the head to ' +
-      'the feet, with no text, logos or borders added.',
+    'Task: replace only the clothing these items cover, fitting each item naturally to the ' +
+      "person's existing pose and body with realistic fabric behaviour (drape, folds, tension); " +
+      'keep the rest of the outfit. Each item keeps its own cut, length, colour, fabric, pattern, ' +
+      'print and details, so it stays recognisable as the product.',
+    "Keep unchanged: the person's face, facial features, expression, hairstyle, skin tone, body " +
+      'shape, proportions, pose and identity; do not retouch, slim or beautify them. Keep the ' +
+      'background, camera angle and framing of image 1.',
+    // The photo check passed a full-length photo (A15), so its framing is kept, not extended: a
+    // demand for head to feet would fight it on a photo the check let through when unsure.
+    'Result: a photorealistic photo with the same framing as image 1; do not crop or extend it. ' +
+      'Match the lighting, shadows and colour temperature of image 1, so the items look worn, not ' +
+      'pasted on. Add no accessories, text, logos or watermarks. If an item leaves uncovered a ' +
+      'part of the body the replaced clothing covered, keep that part of the original clothing.',
   ];
 
   const wishesText = wishes?.trim();
@@ -85,12 +100,8 @@ export function fittingPrompt({ items, wishes, comment, reasons = [] }: FittingP
   return lines.join('\n');
 }
 
-function imagesWord(count: number): string {
-  return count === 1 ? 'image' : `${count} images`;
-}
-
 function describe(item: PromptItem): string {
-  const parts = [quote(item.name), `category ${quote(item.category)}`];
+  const parts = [`the item ${quote(item.name)}`, `category ${quote(item.category)}`];
   if (item.colour !== null && item.colour.trim() !== '') parts.push(`colour ${quote(item.colour)}`);
   return parts.join(', ');
 }

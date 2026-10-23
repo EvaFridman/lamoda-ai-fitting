@@ -189,7 +189,8 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   at `OPENAI_ORIGIN`; `checks/` hold `PhotoChecker`, `PromptChecker` and `ModerationChecker`.
   `generate(job)` is the one paid call: `image-models/` builds the edits request (`gptImage2`
   behind `ImageModel`, the person's image first, 1 to 5 items) with `prompts.ts`'s one prompt,
-  makes one attempt (the activity retries), under the caller's `timeoutMs`, else
+  sends again only a request that never reached OpenAI (a connection that did not open, a rate
+  limit's 429: one generation, one payment, A67), under the caller's `timeoutMs`, else
   `FITTING_TIMEOUT_SECONDS`, and answers the model's refusal as `{ ok: false, reason: 'moderation' }`;
   the fake's picture is the person's photo at 1024×1536, and `fail:moderation|provider_error|timeout`
   in the wishes or the comment gets that failure (A66).

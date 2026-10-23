@@ -43,9 +43,10 @@ export interface AiCallOptions {
   // `startToCloseTimeout`, since the check deadline is the budget of an HTTP handler (A45), not of
   // the result's moderation (plan §4). Less than a millisecond, or not a number, falls back to it.
   timeoutMs?: number;
-  // Whether the client tries a transient failure again (three attempts, the default, for a route);
-  // an activity with a retry policy of its own passes false (plan §4), so one call is not repeated
-  // twice over and a paid generation runs once per attempt.
+  // Whether the client tries a transient failure of a check again (three attempts, the default,
+  // for a route); an activity with a retry policy of its own passes false (plan §4), so one call
+  // is not repeated twice over. `generate` ignores it: the paid call repeats only what never
+  // reached OpenAI (A67).
   retry?: boolean;
 }
 
@@ -62,10 +63,10 @@ export interface AiProvider {
   checkPhoto(image: ImageInput, options?: AiCallOptions): Promise<PhotoCheck>;
   checkPrompt(text: string, options?: AiCallOptions): Promise<PromptCheck>;
   moderateImage(image: ImageInput, options?: AiCallOptions): Promise<ModerationResult>;
-  // The one paid call (A28). Always one attempt, whatever `retry` says: the activity's retry policy
-  // repeats a transient failure (A52), and a repeat inside the client could pay for more pictures
-  // (A61, A66). The model's refusal is a result, not an error; a timeout is `model_timeout`,
-  // anything else thrown `provider_error` (plan §3).
+  // The one paid call (A28): one generation, one payment (A67). Whatever `retry` says, only a
+  // request that surely never reached OpenAI is sent again (the client's `unsent`), and the
+  // activity runs once. The model's refusal is a result, not an error; a timeout is
+  // `model_timeout`, anything else thrown `provider_error` (plan §3).
   generate(job: FittingJob, options?: AiCallOptions): Promise<GenerationResult>;
 }
 
@@ -99,7 +100,7 @@ export class OpenAiProvider implements AiProvider {
         deadlineMs(options, this.settings.timeoutSeconds * 1000),
         options.signal,
       ),
-      retry: false,
+      retry: 'unsent',
     };
     let edited: EditedImage;
     try {

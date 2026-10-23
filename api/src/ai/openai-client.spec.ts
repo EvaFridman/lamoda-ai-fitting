@@ -148,6 +148,167 @@ describe('OpenAiClient requests', () => {
   });
 });
 
+describe("OpenAiClient retry 'unsent'", () => {
+  const edit = (client: OpenAiClient, signalOf = signal()) =>
+    client.editImage(new FormData(), { signal: signalOf, retry: 'unsent' });
+  const connectionError = (code: string) =>
+    new TypeError('fetch failed', { cause: Object.assign(new Error('connect'), { code }) });
+  const picture = () => jsonResponse({ data: [{ b64_json: 'QQ==' }] }, 200);
+  const failure = (status: number, code: string | null) =>
+    jsonResponse({ error: { code, message: 'm' } }, status);
+
+  it.each([
+    'ENOTFOUND',
+    'EAI_AGAIN',
+    'ECONNREFUSED',
+    'EHOSTUNREACH',
+    'ENETUNREACH',
+    'UND_ERR_CONNECT_TIMEOUT',
+  ])('tries again after a connection that did not open (%s)', async (code) => {
+    const fetch = vi
+      .fn()
+      .mockRejectedValueOnce(connectionError(code))
+      .mockResolvedValueOnce(picture());
+    const { client } = setup(fetch);
+
+    const edited = await edit(client);
+
+    expect(edited.answer.data[0]?.b64_json).toBe('QQ==');
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('makes three attempts at most of a connection that does not open', async () => {
+    const fetch = vi.fn().mockRejectedValue(connectionError('ECONNREFUSED'));
+    const { client } = setup(fetch);
+
+    const error = await failureOf(edit(client));
+
+    expect(error).toMatchObject({ operation: 'edit_image', reason: 'network' });
+    expect(fetch).toHaveBeenCalledTimes(3);
+  });
+
+  it.each(['ECONNRESET', 'UND_ERR_SOCKET', 'ETIMEDOUT', 'EPIPE'])(
+    'fails at once on %s, a connection that may have carried the request',
+    async (code) => {
+      const fetch = vi.fn().mockRejectedValue(connectionError(code));
+      const { client } = setup(fetch);
+
+      const error = await failureOf(edit(client));
+
+      expect(error.reason).toBe('network');
+      expect(fetch).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it('fails at once on a TypeError without a cause', async () => {
+    const fetch = vi.fn().mockRejectedValue(new TypeError('fetch failed'));
+    const { client } = setup(fetch);
+
+    const error = await failureOf(edit(client));
+
+    expect(error.reason).toBe('network');
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('fails at once on a cause that is not an object with a code', async () => {
+    const fetch = vi
+      .fn()
+      .mockRejectedValue(new TypeError('fetch failed', { cause: 'ECONNREFUSED' }));
+    const { client } = setup(fetch);
+
+    await failureOf(edit(client));
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('tries a 429 again and returns the later answer', async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(failure(429, 'rate_limit_exceeded'))
+      .mockResolvedValueOnce(picture());
+    const { client } = setup(fetch);
+
+    const edited = await edit(client);
+
+    expect(edited.answer.data).toHaveLength(1);
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('makes three attempts at most of a 429', async () => {
+    const fetch = vi
+      .fn()
+      .mockImplementation(() => Promise.resolve(failure(429, 'rate_limit_exceeded')));
+    const { client } = setup(fetch);
+
+    const error = await failureOf(edit(client));
+
+    expect(error).toMatchObject({ status: 429, code: 'rate_limit_exceeded' });
+    expect(fetch).toHaveBeenCalledTimes(3);
+  });
+
+  it('does not repeat a 429 of insufficient_quota', async () => {
+    const fetch = vi.fn().mockResolvedValue(failure(429, 'insufficient_quota'));
+    const { client } = setup(fetch);
+
+    const error = await failureOf(edit(client));
+
+    expect(error.code).toBe('insufficient_quota');
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([500, 502, 503, 504])('does not repeat a %s', async (status) => {
+    const fetch = vi.fn().mockResolvedValue(failure(status, 'server_error'));
+    const { client } = setup(fetch);
+
+    const error = await failureOf(edit(client));
+
+    expect(error.status).toBe(status);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([400, 401, 403, 404])('does not repeat a %s', async (status) => {
+    const fetch = vi.fn().mockResolvedValue(failure(status, 'invalid_value'));
+    const { client } = setup(fetch);
+
+    await failureOf(edit(client));
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not repeat a 200 with a broken body', async () => {
+    const fetch = vi.fn().mockResolvedValue(jsonResponse({ nothing: true }, 200));
+    const { client } = setup(fetch);
+
+    const error = await failureOf(edit(client));
+
+    expect(error.code).toBe('malformed_answer');
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not repeat a timeout', async () => {
+    const controller = new AbortController();
+    const fetch = vi.fn().mockImplementation(() => {
+      controller.abort(new DOMException('slow', 'TimeoutError'));
+      return Promise.reject(new DOMException('slow', 'TimeoutError'));
+    });
+    const { client } = setup(fetch);
+
+    const error = await failureOf(edit(client, controller.signal));
+
+    expect(error.isTimeout).toBe(true);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('still repeats a 503 of respond with retry true', async () => {
+    const fetch = vi.fn().mockResolvedValue(failure(503, null));
+    const { client } = setup(fetch);
+
+    await failureOf(client.respond({}, { signal: signal(), retry: true }));
+
+    expect(fetch).toHaveBeenCalledTimes(3);
+  });
+});
+
 describe('OpenAiClient retries', () => {
   it('makes three attempts for a network error, then fails with reason network', async () => {
     const fetch = vi.fn().mockRejectedValue(new TypeError('fetch failed'));
