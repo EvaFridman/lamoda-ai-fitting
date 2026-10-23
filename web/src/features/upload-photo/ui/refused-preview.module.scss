@@ -1,0 +1,63 @@
+// Board 5's photo: 360×480 beside the text, the window's width and 300px high on a phone; the red
+// ✕ in its top left corner. «Фото скрыто» is a grey frame with a crossed picture.
+
+.frame {
+  position: relative;
+
+  overflow: hidden;
+
+  width: 360px;
+  height: 480px;
+
+  background-color: var(--color-background-secondary);
+
+  @media (width < 600px) {
+    width: 100%;
+    height: 300px;
+  }
+}
+
+.image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hidden {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: center;
+
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  color: var(--color-text-secondary);
+}
+
+.mark {
+  position: absolute;
+  top: var(--space-3);
+  left: var(--space-3);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+
+  color: var(--color-background);
+
+  background-color: var(--color-error);
+
+  svg path {
+    stroke-width: 2.6px;
+  }
+
+  @media (width < 600px) {
+    display: none;
+  }
+}

@@ -1,6 +1,6 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { type ComponentProps, createRef } from 'react';
+import { type ComponentProps, createRef, useRef } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { Button, Drawer, DrawerClose } from '@/shared/ui';
@@ -347,6 +347,123 @@ describe('Drawer', () => {
 
       expect((await screen.findByRole('dialog')).className).not.toMatch(/fullHeight/);
     });
+  });
+
+  it('reads its description as the dialog description', async () => {
+    render(
+      <Drawer open title="Удалить?" description="Фото удалится.">
+        <p>Текст</p>
+      </Drawer>,
+    );
+
+    const dialog = await screen.findByRole('dialog', { name: 'Удалить?' });
+    expect(dialog).toHaveAccessibleDescription('Фото удалится.');
+  });
+
+  it('renders media before the title and description', async () => {
+    render(
+      <Drawer
+        open
+        title="С картинкой"
+        description="Строка"
+        media={<span role="img" aria-label="Фото 2" />}
+      />,
+    );
+
+    const dialog = await screen.findByRole('dialog', { name: 'С картинкой' });
+    const image = within(dialog).getByRole('img', { name: 'Фото 2' });
+    const before = Node.DOCUMENT_POSITION_FOLLOWING;
+    expect(
+      image.compareDocumentPosition(within(dialog).getByText('С картинкой')) & before,
+    ).toBeTruthy();
+    expect(image.compareDocumentPosition(within(dialog).getByText('Строка')) & before).toBeTruthy();
+  });
+
+  it.each([
+    ['false', false],
+    ['null', null],
+    ['undefined', undefined],
+  ])(
+    'renders no media for media={%s}: the title stands in the header row of the dialog',
+    async (_l, media) => {
+      render(<Drawer open title="Без картинки" media={media} />);
+
+      const dialog = await screen.findByRole('dialog', { name: 'Без картинки' });
+      expect(within(dialog).getByText('Без картинки').parentElement!.parentElement).toBe(dialog);
+      expect(within(dialog).queryByRole('img')).not.toBeInTheDocument();
+    },
+  );
+
+  it('closable={false} has no × but still closes on Esc', async () => {
+    const user = setup();
+    const onOpenChange = vi.fn();
+    render(
+      <Drawer
+        trigger={<Button>Открыть</Button>}
+        title="Без крестика"
+        closable={false}
+        onOpenChange={onOpenChange}
+      >
+        <p>Текст</p>
+      </Drawer>,
+    );
+    await user.click(screen.getByRole('button', { name: 'Открыть' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Без крестика' });
+    expect(within(dialog).queryByRole('button', { name: 'Закрыть' })).not.toBeInTheDocument();
+
+    await user.keyboard('{Escape}');
+
+    await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(onOpenChange).toHaveBeenLastCalledWith(false, 'escape-key');
+  });
+
+  it('shows the grip only on the bottom side', async () => {
+    const { rerender } = render(<Drawer open side="bottom" grip title="Снизу" />);
+    const bottom = await screen.findByRole('dialog', { name: 'Снизу' });
+    expect(bottom.firstElementChild).toHaveAttribute('aria-hidden', 'true');
+    expect(bottom.firstElementChild!.tagName).toBe('SPAN');
+
+    rerender(<Drawer open side="bottom" title="Снизу" />);
+    expect(
+      screen.getByRole('dialog', { name: 'Снизу' }).querySelector(':scope > span[aria-hidden]'),
+    ).toBeNull();
+
+    rerender(<Drawer open side="right" grip title="Справа" />);
+    const right = await screen.findByRole('dialog', { name: 'Справа' });
+    expect(right.querySelector(':scope > span[aria-hidden]')).toBeNull();
+    expect(right.firstElementChild).toBe(within(right).getByText('Справа').parentElement);
+  });
+
+  it('focuses the element given as initialFocus when it opens', async () => {
+    const user = setup();
+    function Focused() {
+      const secondRef = useRef<HTMLButtonElement>(null);
+      return (
+        <Drawer trigger={<Button>Открыть</Button>} title="Фокус" initialFocus={secondRef}>
+          <Button>Первая</Button>
+          <Button ref={secondRef}>Вторая</Button>
+        </Drawer>
+      );
+    }
+    render(<Focused />);
+    await user.click(screen.getByRole('button', { name: 'Открыть' }));
+
+    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Вторая' })).toHaveFocus());
+  });
+
+  it('renders no content block without children, and one with them', async () => {
+    const { rerender } = render(<Drawer open title="Пустой" />);
+    const dialog = await screen.findByRole('dialog', { name: 'Пустой' });
+    const childless = dialog.children.length;
+
+    rerender(
+      <Drawer open title="Пустой">
+        <p>Текст</p>
+      </Drawer>,
+    );
+
+    expect(screen.getByRole('dialog', { name: 'Пустой' }).children.length).toBe(childless + 1);
+    expect(screen.getByText('Текст').parentElement).not.toBe(dialog);
   });
 
   it('can be controlled: open shows it and onOpenChange reports the close request', async () => {

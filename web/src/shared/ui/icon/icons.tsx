@@ -318,6 +318,9 @@ export const CompareIcon = createIcon(
   lineArt('M12 2v20M3.5 5.5h5v13h-5zM15.5 5.5h5v13h-5z'),
 );
 
+// A bin with its lid: delete (spec 0019 board 10).
+export const TrashIcon = createIcon('TrashIcon', lineArt('M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13'));
+
 // The 24px minus is the plus's horizontal bar at 24px.
 export const MinusIcon = createIcon('MinusIcon', {
   16: <path fillRule="evenodd" clipRule="evenodd" d="M15 8.5H1V7.5H15V8.5Z" fill="currentColor" />,

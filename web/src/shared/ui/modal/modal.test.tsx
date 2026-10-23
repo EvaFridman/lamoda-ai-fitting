@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useRef } from 'react';
 import { describe, expect, it, vi } from 'vitest';
@@ -117,6 +117,20 @@ describe('Modal', () => {
     expect(screen.getByRole('button', { name: 'Первая' })).not.toHaveFocus();
   });
 
+  it("focuses the dialog itself with initialFocus='popup', not its first button", async () => {
+    const user = setup();
+    render(
+      <Modal trigger={<Button>Удалить</Button>} title="Рамка" initialFocus="popup">
+        <Button>Первая</Button>
+      </Modal>,
+    );
+    await user.click(screen.getByRole('button', { name: 'Удалить' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Рамка' });
+    await vi.waitFor(() => expect(dialog).toHaveFocus());
+    expect(screen.getByRole('button', { name: 'Первая' })).not.toHaveFocus();
+  });
+
   it('hides the content outside from assistive technology while open', async () => {
     const user = setup();
     render(<Example />);
@@ -174,6 +188,50 @@ describe('Modal', () => {
 
     expect(onOpenChange).toHaveBeenCalledWith(false);
     expect(screen.getByRole('dialog', { name: 'Управляемое' })).toBeInTheDocument();
+  });
+
+  it('renders media before its heading, inside the dialog', async () => {
+    render(
+      <Modal
+        open
+        title="Фото не подходит"
+        media={<span role="img" aria-label="Загруженное фото" />}
+      >
+        <p>Текст</p>
+      </Modal>,
+    );
+
+    const dialog = await screen.findByRole('dialog', { name: 'Фото не подходит' });
+    const image = within(dialog).getByRole('img', { name: 'Загруженное фото' });
+    const heading = within(dialog).getByText('Фото не подходит');
+    expect(image.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it.each([
+    ['false', false],
+    ['null', null],
+  ])('renders no media column for media={%s}', async (_label, media) => {
+    render(
+      <Modal open title="Без картинки" media={media}>
+        <p>Текст</p>
+      </Modal>,
+    );
+
+    const dialog = await screen.findByRole('dialog', { name: 'Без картинки' });
+    expect(dialog.firstElementChild).toBe(within(dialog).getByText('Без картинки'));
+    expect(dialog).not.toHaveClass('withMedia');
+  });
+
+  it('renders no media without it, and still opens when wide', async () => {
+    render(
+      <Modal open wide title="Широкое">
+        <p>Текст</p>
+      </Modal>,
+    );
+
+    const dialog = await screen.findByRole('dialog', { name: 'Широкое' });
+    expect(within(dialog).queryByRole('img')).not.toBeInTheDocument();
+    expect(dialog).toHaveTextContent('Текст');
   });
 
   it('stays closed while controlled open is false', () => {

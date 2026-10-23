@@ -173,6 +173,12 @@ removes it from this list. Found by the agents' first security audit and trial r
 - **Popular searches.** Mixpanel has no query text (spec 0014 O104, `Catalog Searched` carries the
   length only). If the queries are wanted (what visitors look for and do not find), count them on
   the api, in aggregate and tied to no visitor.
+- **`/ui-kit`'s demo photos break the CSP.** The catalog examples take their photos from
+  `https://lamoda-ai-fitting.ru/media/seed/products` (`_pages/ui-kit/config/catalog.ts`), an origin
+  the page's `img-src` does not allow (only `'self'`, `data:`, `blob:` and the users' photos' path,
+  spec 0014 O112): locally and on any copy but the site itself the images are blocked and the
+  console shows 8–9 CSP errors (found by the QA of spec 0019 T9a, 2026-10-23). Serve them from the
+  page's own `/media/` (the seed's keys) or from inline pictures.
 
 ## Server
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { Dialog } from '@base-ui/react/dialog';
-import type { ReactElement, ReactNode, RefObject } from 'react';
+import { useRef, type ReactElement, type ReactNode, type RefObject } from 'react';
 
 import { CloseIcon } from '../icon/icons';
 
@@ -22,8 +22,16 @@ export interface ModalProps {
   defaultOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
   // The element focused when the modal opens, for a modal whose first button must not be: the
-  // safe "Отмена" before a destructive "Удалить". By default, the first focusable element.
-  initialFocus?: RefObject<HTMLElement | null>;
+  // safe "Отмена" before a destructive "Удалить". `popup`: the frame itself, for a long screen
+  // whose first control is far down, so nothing scrolls on opening (spec 0019's tips). By default,
+  // the first focusable element.
+  initialFocus?: RefObject<HTMLElement | null> | 'popup';
+  // Up to 1000px wide for a screen of its own (spec 0019 boards 4 and 5); below 600px it fills the
+  // window and its × moves inside, at the top right.
+  wide?: boolean;
+  // A picture in a column left of the heading, the content and the buttons (board 5's photo); on top
+  // of them below 600px.
+  media?: ReactNode;
   children?: ReactNode;
 }
 
@@ -40,8 +48,13 @@ export function Modal({
   defaultOpen,
   onOpenChange,
   initialFocus,
+  wide = false,
+  media,
   children,
 }: ModalProps) {
+  // `media={cond && picture}` with a false `cond` is no picture.
+  const hasMedia = media !== undefined && media !== null && media !== false;
+  const popupRef = useRef<HTMLDivElement>(null);
   return (
     <Dialog.Root
       open={open}
@@ -51,8 +64,17 @@ export function Modal({
       {trigger && <Dialog.Trigger render={trigger} />}
       <Dialog.Portal>
         <Dialog.Backdrop className={styles.backdrop} />
-        <Dialog.Viewport className={styles.viewport}>
-          <Dialog.Popup className={styles.popup} initialFocus={initialFocus}>
+        <Dialog.Viewport
+          className={[styles.viewport, wide && styles.wideViewport].filter(Boolean).join(' ')}
+        >
+          <Dialog.Popup
+            className={[styles.popup, wide && styles.wide, hasMedia && styles.withMedia]
+              .filter(Boolean)
+              .join(' ')}
+            ref={popupRef}
+            initialFocus={initialFocus === 'popup' ? popupRef : initialFocus}
+          >
+            {hasMedia && <div className={styles.media}>{media}</div>}
             <Dialog.Title className={styles.title}>{title}</Dialog.Title>
             <div className={styles.content}>
               {description && (

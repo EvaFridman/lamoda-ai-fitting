@@ -1,6 +1,12 @@
 'use client';
 
-import { useRef, type ButtonHTMLAttributes, type ChangeEvent, type ReactNode } from 'react';
+import {
+  useRef,
+  type ButtonHTMLAttributes,
+  type ChangeEvent,
+  type MouseEvent,
+  type ReactNode,
+} from 'react';
 
 import { Button, type ButtonSize, type ButtonVariant } from '../button/button';
 
@@ -26,7 +32,14 @@ export interface FileInputProps {
   variant?: ButtonVariant;
   size?: ButtonSize;
   fullWidth?: boolean;
+  // A plain <button> the page styles through `className` instead of the kit's Button (board 10's
+  // dashed card); `variant`, `size`, `fullWidth` and `loading`'s spinner do not apply.
+  bare?: boolean;
   className?: string;
+  // The button's name when its content says more than it (a hint inside the card), and the id of
+  // that hint.
+  'aria-label'?: string;
+  'aria-describedby'?: string;
   events?: FileInputEvents;
 }
 
@@ -43,9 +56,13 @@ export function FileInput({
   variant,
   size,
   fullWidth,
+  bare = false,
   className,
+  'aria-label': ariaLabel,
+  'aria-describedby': ariaDescribedBy,
   events,
 }: FileInputProps) {
+  const named = { 'aria-label': ariaLabel, 'aria-describedby': ariaDescribedBy };
   const inputRef = useRef<HTMLInputElement>(null);
 
   function handleChange(event: ChangeEvent<HTMLInputElement>) {
@@ -55,24 +72,41 @@ export function FileInput({
     if (file) onFileChange(file);
   }
 
+  const open = (event: MouseEvent<HTMLButtonElement>) => {
+    events?.onClick?.(event);
+    inputRef.current?.click();
+  };
+
   return (
     <>
-      <Button
-        type="button"
-        variant={variant}
-        size={size}
-        fullWidth={fullWidth}
-        className={className}
-        disabled={disabled}
-        loading={loading}
-        {...events}
-        onClick={(event) => {
-          events?.onClick?.(event);
-          inputRef.current?.click();
-        }}
-      >
-        {children}
-      </Button>
+      {bare ? (
+        <button
+          type="button"
+          className={className}
+          disabled={disabled || loading}
+          aria-busy={loading || undefined}
+          {...named}
+          {...events}
+          onClick={open}
+        >
+          {children}
+        </button>
+      ) : (
+        <Button
+          type="button"
+          variant={variant}
+          size={size}
+          fullWidth={fullWidth}
+          className={className}
+          disabled={disabled}
+          loading={loading}
+          {...named}
+          {...events}
+          onClick={open}
+        >
+          {children}
+        </Button>
+      )}
       <input
         ref={inputRef}
         type="file"

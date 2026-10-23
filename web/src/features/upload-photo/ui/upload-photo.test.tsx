@@ -104,18 +104,37 @@ function requestOf(index = 0) {
   return { path: new URL(String(url)).pathname, init };
 }
 
+// The refusal's preview is an object URL of the chosen file; jsdom has none.
+const createObjectURL = vi.fn<(file: File) => string>();
+const revokeObjectURL = vi.fn<(url: string) => void>();
+
+// A phone-wide window: the media query of the phone layout matches, nothing else does.
+function stubPhone() {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: query === '(width < 600px)',
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }));
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   fetchMock.mockReset();
   vi.stubGlobal('fetch', fetchMock);
   window.localStorage.clear();
   signInAs(ANNA);
+  createObjectURL.mockReturnValue('blob:preview-1');
+  URL.createObjectURL = createObjectURL;
+  URL.revokeObjectURL = revokeObjectURL;
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   window.localStorage.clear();
+  Reflect.deleteProperty(URL, 'createObjectURL');
+  Reflect.deleteProperty(URL, 'revokeObjectURL');
 });
 
 describe('UploadPhoto before the consents', () => {
@@ -173,6 +192,16 @@ describe('UploadPhoto before the consents', () => {
     });
     expect(link).toHaveAttribute('href', '/privacy');
     expect(link).toHaveAttribute('target', '_blank');
+  });
+
+  it('opens with the focus on the dialog itself, not on a checkbox', async () => {
+    const user = setup();
+    renderUpload();
+    await user.click(screen.getByRole('button', { name: 'Добавить фото' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Какое фото подойдёт' });
+    await vi.waitFor(() => expect(dialog).toHaveFocus());
+    expect(within(dialog).getByRole('checkbox', { name: 'На фото — я' })).not.toHaveFocus();
   });
 
   it('closes the tips with nothing sent and no consent stored', async () => {
@@ -613,5 +642,276 @@ describe('UploadPhoto with the consents given', () => {
       await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
       expect(fetchMock).toHaveBeenCalledTimes(2);
     });
+
+    it('shows the refused photo from an object URL, in a recorder-blocked frame, and revokes it on close', async () => {
+      fetchMock.mockImplementation(refusedWith('dark'));
+      const user = setup();
+      renderUpload();
+      const file = picture('refused.jpg');
+      await user.upload(fileInputs().file!, file);
+
+      const dialog = await screen.findByRole('dialog', { name: 'Фото слишком тёмное' });
+      const image = within(dialog).getByRole('img', { name: 'Загруженное фото' });
+      expect(createObjectURL).toHaveBeenCalledWith(file);
+      expect(image).toHaveAttribute('src', 'blob:preview-1');
+      expect(image.closest('.mp-block')).not.toBeNull();
+      for (const element of dialog.querySelectorAll('*')) {
+        for (const attribute of element.getAttributeNames()) {
+          if (element === image && attribute === 'src') continue;
+          expect(element.getAttribute(attribute)).not.toContain('blob:');
+        }
+      }
+      expect(revokeObjectURL).not.toHaveBeenCalled();
+
+      await user.keyboard('{Escape}');
+
+      await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      expect(revokeObjectURL).toHaveBeenCalledTimes(1);
+      expect(revokeObjectURL).toHaveBeenCalledWith('blob:preview-1');
+    });
+
+    it('revokes the URL when the page is left with the refusal open', async () => {
+      fetchMock.mockImplementation(refusedWith('not_full'));
+      const user = setup();
+      const { unmount } = renderUpload();
+      await user.upload(fileInputs().file!, picture());
+      await screen.findByRole('dialog', { name: 'Не видно фигуру целиком' });
+
+      unmount();
+
+      expect(revokeObjectURL).toHaveBeenCalledWith('blob:preview-1');
+    });
+
+    it('swaps the preview for the next refused photo and revokes the old URL', async () => {
+      fetchMock.mockImplementation(refusedWith('dark'));
+      const user = setup();
+      renderUpload();
+      await user.upload(fileInputs().file!, picture('first.jpg'));
+      const dialog = await screen.findByRole('dialog', { name: 'Фото слишком тёмное' });
+      await vi.waitFor(() =>
+        expect(within(dialog).getByRole('img', { name: 'Загруженное фото' })).toHaveAttribute(
+          'src',
+          'blob:preview-1',
+        ),
+      );
+      createObjectURL.mockReturnValue('blob:preview-2');
+      const second = picture('second.jpg');
+
+      await user.upload(
+        dialog.querySelector<HTMLInputElement>('input[type="file"]:not([capture])')!,
+        second,
+      );
+
+      await vi.waitFor(() =>
+        expect(
+          within(screen.getByRole('dialog')).getByRole('img', { name: 'Загруженное фото' }),
+        ).toHaveAttribute('src', 'blob:preview-2'),
+      );
+      expect(createObjectURL).toHaveBeenLastCalledWith(second);
+      expect(revokeObjectURL).toHaveBeenCalledWith('blob:preview-1');
+    });
+
+    it('for a child hides the photo: «Фото скрыто», no image, no object URL', async () => {
+      fetchMock.mockImplementation(refusedWith('child'));
+      const user = setup();
+      renderUpload();
+      await user.upload(fileInputs().file!, picture());
+
+      const dialog = await screen.findByRole('dialog', { name: 'Похоже, на фото ребёнок' });
+      expect(within(dialog).getByText('Фото скрыто')).toBeInTheDocument();
+      expect(within(dialog).queryByRole('img')).not.toBeInTheDocument();
+      expect(createObjectURL).not.toHaveBeenCalled();
+    });
+  });
+});
+
+describe('UploadPhoto on a phone', () => {
+  beforeEach(stubPhone);
+
+  it('opens the tips alone: «Понятно», no consents and no pickers', async () => {
+    const user = setup();
+    renderUpload();
+    await user.click(screen.getByRole('button', { name: 'Добавить фото' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Какое фото подойдёт' });
+    expect(within(dialog).getAllByRole('figure')).toHaveLength(7);
+    expect(within(dialog).getAllByRole('img', { name: 'Подойдёт' })).toHaveLength(2);
+    expect(within(dialog).queryByRole('heading', { name: 'Коротко' })).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole('list')).not.toBeInTheDocument();
+    expect(dialog).not.toHaveTextContent('JPG, PNG или WebP до 20 МБ');
+    expect(within(dialog).getByRole('button', { name: 'Понятно' })).toBeEnabled();
+    expect(within(dialog).queryByRole('checkbox')).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole('button', { name: 'Выбрать фото' })).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole('button', { name: 'Сделать фото' })).not.toBeInTheDocument();
+    expect(fileInputs().all).toHaveLength(0);
+  });
+
+  it('«Понятно» opens «Ваше фото» with its texts, and the consents gate the pickers', async () => {
+    const user = setup();
+    renderUpload();
+    await user.click(screen.getByRole('button', { name: 'Добавить фото' }));
+    await user.click(await screen.findByRole('button', { name: 'Понятно' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Ваше фото' });
+    expect(screen.queryByRole('dialog', { name: 'Какое фото подойдёт' })).not.toBeInTheDocument();
+    expect(dialog).toHaveTextContent('Загрузите фото в полный рост');
+    expect(dialog).toHaveTextContent(
+      'Мы сохраним его, чтобы в следующий раз примерка шла в два нажатия. Фото видите только вы.',
+    );
+    expect(dialog).toHaveTextContent('Фото не используются для обучения моделей');
+    expect(
+      within(dialog).getByRole('link', { name: 'политике по работе с персональными данными' }),
+    ).toHaveAttribute('href', '/privacy');
+    expect(within(dialog).queryByText('Подойдёт')).not.toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Выбрать фото' })).toBeDisabled();
+    expect(within(dialog).getByRole('button', { name: 'Сделать фото' })).toBeDisabled();
+
+    await user.click(within(dialog).getByRole('checkbox', { name: 'На фото — я' }));
+    expect(within(dialog).getByRole('button', { name: 'Выбрать фото' })).toBeDisabled();
+    await user.click(within(dialog).getByRole('checkbox', { name: /OpenAI/ }));
+
+    expect(within(dialog).getByRole('button', { name: 'Выбрать фото' })).toBeEnabled();
+    expect(within(dialog).getByRole('button', { name: 'Сделать фото' })).toBeEnabled();
+    expect(window.localStorage.getItem(keyOf(ANNA))).toBeNull();
+  });
+
+  it('records the consent when a file is chosen and closes on success', async () => {
+    // Its own user: a recorded consent outlives the test in the tab's memory.
+    const id = 'user-phone';
+    signInAs(id);
+    fetchMock.mockImplementation(ok);
+    const user = setup();
+    const { onUploaded } = renderUpload();
+    await user.click(screen.getByRole('button', { name: 'Добавить фото' }));
+    await user.click(await screen.findByRole('button', { name: 'Понятно' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Ваше фото' });
+    await user.click(within(dialog).getByRole('checkbox', { name: 'На фото — я' }));
+    await user.click(within(dialog).getByRole('checkbox', { name: /OpenAI/ }));
+    await user.upload(
+      dialog.querySelector<HTMLInputElement>('input[type="file"]:not([capture])')!,
+      picture(),
+    );
+
+    await vi.waitFor(() => expect(onUploaded).toHaveBeenCalledWith(PHOTO));
+    expect(window.localStorage.getItem(keyOf(id))).toBe('1');
+    expect(tracked('Photo Uploaded')).toEqual([
+      ['Photo Uploaded', { saved: true, source: 'file', place: 'photos', first: true }],
+    ]);
+    await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('closing the tips with Esc sends nothing and stores no consent', async () => {
+    const user = setup();
+    renderUpload();
+    await user.click(screen.getByRole('button', { name: 'Добавить фото' }));
+    await screen.findByRole('dialog', { name: 'Какое фото подойдёт' });
+    await user.keyboard('{Escape}');
+
+    await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(window.localStorage.getItem(keyOf(ANNA))).toBeNull();
+  });
+
+  it('with the consents given shows the two pickers at the screen width', () => {
+    window.localStorage.setItem(keyOf(ANNA), '1');
+    renderUpload();
+
+    expect(screen.getByRole('button', { name: 'Добавить фото' })).toHaveClass('fullWidth');
+    expect(screen.getByRole('button', { name: 'Сделать фото' })).toHaveClass('fullWidth');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('without the consents the «Добавить фото» button is the screen width too', () => {
+    renderUpload();
+
+    expect(screen.getByRole('button', { name: 'Добавить фото' })).toHaveClass('fullWidth');
+  });
+});
+
+describe('UploadPhoto as the card', () => {
+  it('before the consents is a button named «Добавить фото», described by its hint, that opens the tips', async () => {
+    const user = setup();
+    renderUpload({ appearance: 'card' });
+
+    const card = screen.getByRole('button', { name: 'Добавить фото' });
+    expect(card).toHaveAccessibleDescription('в полный рост, один человек');
+    expect(fileInputs().all).toHaveLength(0);
+
+    await user.click(card);
+
+    const dialog = await screen.findByRole('dialog', { name: 'Какое фото подойдёт' });
+    expect(within(dialog).getByRole('checkbox', { name: 'На фото — я' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Выбрать фото' })).toBeDisabled();
+    expect(
+      tracked('Element Clicked').map(([, props]) => (props as { element: string }).element),
+    ).toEqual(['photos.upload']);
+  });
+
+  it('after the consents opens the file picker at once, with one input and no camera', async () => {
+    window.localStorage.setItem(keyOf(ANNA), '1');
+    const user = setup();
+    renderUpload({ appearance: 'card' });
+
+    expect(screen.queryByRole('button', { name: 'Сделать фото' })).not.toBeInTheDocument();
+    const { all, file } = fileInputs();
+    expect(all).toHaveLength(1);
+    expect(file).not.toHaveAttribute('capture');
+    expect(file).toHaveAttribute('accept', 'image/jpeg,image/png,image/webp');
+    const open = vi.spyOn(file!, 'click');
+
+    const card = screen.getByRole('button', { name: 'Добавить фото' });
+    expect(card).toHaveAccessibleDescription('в полный рост, один человек');
+    await user.click(card);
+
+    expect(open).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(
+      tracked('Element Clicked').map(([, props]) => (props as { element: string }).element),
+    ).toEqual(['photos.upload']);
+  });
+
+  it('after the consents uploads the chosen file and is busy meanwhile', async () => {
+    window.localStorage.setItem(keyOf(ANNA), '1');
+    let answer: (response: Response) => void = () => undefined;
+    fetchMock.mockImplementation(
+      () =>
+        new Promise<Response>((resolve) => {
+          answer = resolve;
+        }),
+    );
+    const user = setup();
+    const { onUploaded } = renderUpload({ appearance: 'card' });
+    await user.upload(fileInputs().file!, picture('card.jpg'));
+
+    const card = screen.getByRole('button', { name: 'Добавить фото' });
+    await vi.waitFor(() => expect(card).toBeDisabled());
+    expect(card).toHaveAttribute('aria-busy', 'true');
+    expect(within(card).getByRole('progressbar', { name: 'Загрузка' })).toBeInTheDocument();
+    expect(((requestOf().init.body as FormData).get('photo') as File).name).toBe('card.jpg');
+
+    answer(await ok());
+
+    await vi.waitFor(() => expect(onUploaded).toHaveBeenCalledWith(PHOTO));
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+    expect(tracked('Photo Uploaded')).toEqual([
+      ['Photo Uploaded', { saved: true, source: 'file', place: 'photos', first: false }],
+    ]);
+  });
+
+  it.each([
+    ['before the consents', false],
+    ['after the consents', true],
+  ])('is off when disabled, %s', async (_when, consented) => {
+    if (consented) window.localStorage.setItem(keyOf(ANNA), '1');
+    const user = setup();
+    renderUpload({ appearance: 'card', disabled: true });
+
+    const card = screen.getByRole('button', { name: 'Добавить фото' });
+    expect(card).toBeDisabled();
+    await user.click(card);
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(tracked('Element Clicked')).toHaveLength(0);
+    if (consented) expect(fileInputs().file).toBeDisabled();
   });
 });

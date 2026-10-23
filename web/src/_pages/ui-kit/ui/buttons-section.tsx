@@ -1,4 +1,4 @@
-import { Button, type ButtonAsButtonProps, HeartIcon, IconButton } from '@/shared/ui';
+import { Button, type ButtonAsButtonProps, HeartIcon, IconButton, TrashIcon } from '@/shared/ui';
 
 import styles from './examples.module.scss';
 import { LoadingButtonDemo } from './loading-button-demo';
@@ -140,6 +140,12 @@ export function ButtonsSection() {
             <HeartIcon />
           </IconButton>
           <code className={styles.props}>disabled</code>
+        </li>
+        <li className={styles.example}>
+          <IconButton variant="plain" size={44} aria-label="Удалить фото 1">
+            <TrashIcon />
+          </IconButton>
+          <code className={styles.props}>variant=&quot;plain&quot; size 44</code>
         </li>
       </ul>
 

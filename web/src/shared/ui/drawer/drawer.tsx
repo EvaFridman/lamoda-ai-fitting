@@ -33,7 +33,15 @@ export interface DrawerProps {
   initialFocus?: RefObject<HTMLElement | null>;
   // A control on the right of the title, before the × (a screen's "Сбросить").
   headerAction?: ReactNode;
-  // The × at the top right; true by default. Esc, the overlay and a swipe close the drawer anyway.
+  // A line under the heading, read with the name by screen readers.
+  description?: string;
+  // A picture left of the heading and the line: the photo a confirmation is about (spec 0019
+  // board 10.2). Such a heading has no "‹" or header action.
+  media?: ReactNode;
+  // A grip on the top edge of the bottom sheet: the sign it can be swiped down. Only for `bottom`.
+  grip?: boolean;
+  // The × at the top right; true by default. Esc, the overlay and a swipe close the drawer anyway,
+  // and the footer's buttons may (spec 0019 A64).
   closable?: boolean;
   // Buttons pinned under the content. A button that only closes goes in DrawerClose.
   footer?: ReactNode;
@@ -46,6 +54,10 @@ export interface DrawerProps {
   // sheet does not change while it leaves.
   onOpenChangeComplete?: (open: boolean) => void;
   children?: ReactNode;
+}
+
+function present(node: ReactNode): boolean {
+  return node !== undefined && node !== null && node !== false;
 }
 
 // Lamoda's side modal (SideModal): a white sheet the height of the window that slides in from the
@@ -65,6 +77,9 @@ export function Drawer({
   backRef,
   initialFocus,
   headerAction,
+  description,
+  media,
+  grip = false,
   closable = true,
   footer,
   open,
@@ -74,6 +89,14 @@ export function Drawer({
   children,
 }: DrawerProps) {
   const titleId = useId();
+  const heading = (
+    <BaseDrawer.Title id={titleId} className={styles.title}>
+      {title}
+    </BaseDrawer.Title>
+  );
+  const line = description && (
+    <BaseDrawer.Description className={styles.description}>{description}</BaseDrawer.Description>
+  );
 
   return (
     <BaseDrawer.Root
@@ -103,28 +126,48 @@ export function Drawer({
               .filter(Boolean)
               .join(' ')}
           >
-            <div
-              className={[styles.header, onBack && styles.withBack, closable && styles.withClose]
-                .filter(Boolean)
-                .join(' ')}
-            >
-              {onBack && (
-                <BaseButton
-                  ref={backRef}
-                  className={styles.iconControl}
-                  aria-label={backLabel}
-                  aria-describedby={titleId}
-                  onClick={onBack}
+            {grip && side === 'bottom' && <span className={styles.grip} aria-hidden />}
+            {present(media) ? (
+              <div
+                className={[styles.head, closable && styles.withClose].filter(Boolean).join(' ')}
+              >
+                <div className={styles.media}>{media}</div>
+                <div className={styles.headText}>
+                  {heading}
+                  {line}
+                </div>
+              </div>
+            ) : (
+              <>
+                <div
+                  className={[
+                    styles.header,
+                    onBack && styles.withBack,
+                    closable && styles.withClose,
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
                 >
-                  <ChevronLeftIcon />
-                </BaseButton>
-              )}
-              <BaseDrawer.Title id={titleId} className={styles.title}>
-                {title}
-              </BaseDrawer.Title>
-              {headerAction && <div className={styles.headerAction}>{headerAction}</div>}
-            </div>
-            <BaseDrawer.Content className={styles.content}>{children}</BaseDrawer.Content>
+                  {onBack && (
+                    <BaseButton
+                      ref={backRef}
+                      className={styles.iconControl}
+                      aria-label={backLabel}
+                      aria-describedby={titleId}
+                      onClick={onBack}
+                    >
+                      <ChevronLeftIcon />
+                    </BaseButton>
+                  )}
+                  {heading}
+                  {headerAction && <div className={styles.headerAction}>{headerAction}</div>}
+                </div>
+                {line}
+              </>
+            )}
+            {present(children) && (
+              <BaseDrawer.Content className={styles.content}>{children}</BaseDrawer.Content>
+            )}
             {footer && <div className={styles.footer}>{footer}</div>}
             {/* Last, so that opening never focuses the ×. */}
             {closable && (
