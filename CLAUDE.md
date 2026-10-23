@@ -442,7 +442,8 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   Sentry's Redis spans see no arguments, stores none over 1 MB, and on a failed or slow Redis (200
   ms) answers a miss, logged at most once a minute, then skips Redis for 10 s (V5, V22).
 - `web` calls the api from the browser only through `clientFetch` (`@/shared/api`): the site's own
-  `/api` (no public api address, no cross-origin calls), no secret, a 15 s timeout, the same
+  `/api` (no public api address, no cross-origin calls), no secret, a 15 s timeout (an upload
+  passes its own `timeoutMs`: `uploadPhoto`'s 120 s, spec 0019 plan §7), the same
   response step and errors as `apiFetch`. In production nginx serves `/api/`; locally `next dev`
   forwards it to `API_URL` (`rewrites()` in `next.config.ts`, development only; the config is in
   the image, so rebuild web after changing it), and all browser calls share the web container's
@@ -525,11 +526,19 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   the modal open with its text.
 - The kit (`web/src/shared/ui`, its examples on `/ui-kit`) has, besides its controls,
   `MenuLinkItem` (Base UI's `Menu.LinkItem` rendering `next/link`; `MenuItem` has no link form),
-  `LinkButton` (a `<button>` styled as the kit's `Link`, for an action that is not navigation) and
+  `LinkButton` (a `<button>` styled as the kit's `Link`, for an action that is not navigation),
   `Modal`'s `initialFocus` (a ref of the element focused when it opens, else the first focusable
-  one). Tracking handlers reach the kit and entity components as props, from the widget or page
-  that calls `useTrackedElement`: `FilterDropdown`'s and the catalog filters' `chipEvents` (on the
-  chip's trigger, not its ×), `CatalogProductCard`'s and `CatalogCategoryList`'s `linkEvents`.
+  one) and `FileInput` (a kit `Button` that clicks a hidden `<input type="file">`, one file, with
+  `accept` and `capture`, spec 0019 A30). Tracking handlers reach the kit and entity components as
+  props, from the widget or page that calls `useTrackedElement`: `FilterDropdown`'s and the
+  catalog filters' `chipEvents` (on the chip's trigger, not its ×), `FileInput`'s `events`,
+  `CatalogProductCard`'s and `CatalogCategoryList`'s `linkEvents`.
+- `web` photos (spec 0019 plan §7): `entities/user-photo` reads `GET /me/photos` in the browser
+  (`useMyPhotos`) under `userPhotoKeys.all`, which starts with `userKeys.all`, so a session's end
+  drops it; `uploadPhoto` (multipart `photo` and `save`), `setDefaultPhoto` and `deletePhoto` are
+  plain requests for the feature's mutations. `PhotoThumb` shows a photo only as `next/image`'s
+  `src` (`unoptimized`, no `priority`) inside an `mp-block` container, never the link in another
+  attribute (A37).
 - An attribute value's `colorHex` is its swatch colour, `#RRGGBB` (either case) or `null` (an
   empty bordered circle); the DTOs and a CHECK in the migration refuse anything else. web draws it with
   `ColorSwatch`, and an attribute with at least one coloured value is a colour filter

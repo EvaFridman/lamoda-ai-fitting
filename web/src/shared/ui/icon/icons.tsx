@@ -244,6 +244,62 @@ export const PhoneIcon = createIcon('PhoneIcon', {
   ),
 });
 
+// The fitting's icons (spec 0019 plan §7): drawn at 24px only, in 1px lines that stay 1px at 16px.
+function lineArt(d: string) {
+  return {
+    24: <path d={d} stroke="currentColor" vectorEffect="non-scaling-stroke" />,
+  };
+}
+
+// A coat hanger: the fitting room.
+export const HangerIcon = createIcon(
+  'HangerIcon',
+  lineArt('M10 5.5a2 2 0 1 1 2 2v2l8.6 6.6c.6.5.3 1.4-.5 1.4H3.9c-.8 0-1.1-.9-.5-1.4L12 9.5'),
+);
+
+// A four-pointed star and a small one: a generated image.
+export const SparkleIcon = createIcon(
+  'SparkleIcon',
+  lineArt('M10 4.5l1.7 5.3 5.3 1.7-5.3 1.7L10 18.5l-1.7-5.3L3 11.5l5.3-1.7zM18 2.5v4M16 4.5h4'),
+);
+
+export const CameraIcon = createIcon(
+  'CameraIcon',
+  lineArt('M2.5 7.5h4.5l1.5-2.5h7l1.5 2.5h4.5v12h-19zM12 9.5a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7z'),
+);
+
+export const UploadIcon = createIcon(
+  'UploadIcon',
+  lineArt('M12 15.5v-12M7 8.5l5-5 5 5M3.5 15v5.5h17V15'),
+);
+
+export const DownloadIcon = createIcon(
+  'DownloadIcon',
+  lineArt('M12 3.5v12M7 10.5l5 5 5-5M3.5 15v5.5h17V15'),
+);
+
+export const FullscreenIcon = createIcon(
+  'FullscreenIcon',
+  lineArt('M3.5 9V3.5H9M15 3.5h5.5V9M20.5 15v5.5H15M9 20.5H3.5V15'),
+);
+
+// A circular arrow: generate again.
+export const RefreshIcon = createIcon(
+  'RefreshIcon',
+  lineArt('M20 12a8 8 0 1 1-2.3-5.7M20.5 3.5V8H16'),
+);
+
+export const LockIcon = createIcon(
+  'LockIcon',
+  lineArt('M5.5 10.5h13v10h-13zM8.5 10.5V7a3.5 3.5 0 0 1 7 0v3.5M12 14v3'),
+);
+
+// Two frames side by side with a line between them: compare two fittings.
+export const CompareIcon = createIcon(
+  'CompareIcon',
+  lineArt('M12 2v20M3.5 5.5h5v13h-5zM15.5 5.5h5v13h-5z'),
+);
+
 // The 24px minus is the plus's horizontal bar at 24px.
 export const MinusIcon = createIcon('MinusIcon', {
   16: <path fillRule="evenodd" clipRule="evenodd" d="M15 8.5H1V7.5H15V8.5Z" fill="currentColor" />,

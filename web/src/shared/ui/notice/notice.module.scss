@@ -1,0 +1,54 @@
+// The kit's notice: body-s text on the secondary background, a 3px bar of the tone's colour on the
+// left, the icon in that colour.
+
+.notice {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--tone);
+  border-radius: var(--radius-s);
+
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  color: var(--color-text);
+
+  background-color: var(--color-background-secondary);
+}
+
+.icon {
+  color: var(--tone);
+}
+
+.body {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+  padding-top: 2px;
+}
+
+.title {
+  margin: 0;
+  font-weight: var(--font-weight-medium);
+}
+
+.text > p {
+  margin: 0;
+}
+
+.info {
+  --tone: var(--color-text-secondary);
+}
+
+.success {
+  --tone: var(--color-success);
+}
+
+.warning {
+  --tone: var(--color-caution);
+}
+
+.error {
+  --tone: var(--color-error);
+}

@@ -85,6 +85,61 @@ describe('clientFetch request', () => {
     expect(timeout).toHaveBeenCalledWith(15_000);
     expect(options().signal).toBeInstanceOf(AbortSignal);
   });
+
+  it('uses timeoutMs in place of the 15 s', async () => {
+    const timeout = vi.spyOn(AbortSignal, 'timeout');
+    await clientFetch(THINGS, schema, undefined, { timeoutMs: 120_000 });
+    expect(timeout).toHaveBeenCalledTimes(1);
+    expect(timeout).toHaveBeenCalledWith(120_000);
+  });
+
+  it('keeps the 15 s when only expectedStatus is given', async () => {
+    const timeout = vi.spyOn(AbortSignal, 'timeout');
+    await clientFetch(THINGS, schema, undefined, { expectedStatus: 401 });
+    expect(timeout).toHaveBeenCalledWith(15_000);
+  });
+});
+
+describe('clientFetch with timeoutMs', () => {
+  function fetchUntilAborted(): void {
+    fetchMock.mockImplementation(
+      (_url: unknown, init: RequestInit) =>
+        new Promise((_resolve, reject) => {
+          const signal = init.signal as AbortSignal;
+          signal.addEventListener('abort', () => reject(signal.reason));
+        }),
+    );
+  }
+
+  it('is a reported timeout error when the custom timeout fires', async () => {
+    const controller = new AbortController();
+    const timeout = vi.spyOn(AbortSignal, 'timeout').mockReturnValue(controller.signal);
+    fetchUntilAborted();
+    const pending = clientFetch(THINGS, schema, undefined, { timeoutMs: 120_000 }).catch(
+      (e: unknown) => e,
+    );
+    controller.abort(new DOMException('timed out', 'TimeoutError'));
+    await expect(pending).resolves.toMatchObject({ kind: 'timeout' });
+    expect(timeout).toHaveBeenCalledWith(120_000);
+    expect(capture).toHaveBeenCalledTimes(1);
+  });
+
+  it('still lets the caller cancel, unreported', async () => {
+    vi.spyOn(AbortSignal, 'timeout').mockReturnValue(new AbortController().signal);
+    fetchUntilAborted();
+    const caller = new AbortController();
+    const pending = clientFetch(
+      THINGS,
+      schema,
+      { signal: caller.signal },
+      { timeoutMs: 120_000 },
+    ).catch((e: unknown) => e);
+    caller.abort();
+    const error = await pending;
+    expect(error).not.toBeInstanceOf(ApiError);
+    expect((error as Error).name).toBe('AbortError');
+    expect(capture).not.toHaveBeenCalled();
+  });
 });
 
 describe('clientFetch origin', () => {

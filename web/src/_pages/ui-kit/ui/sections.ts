@@ -6,11 +6,13 @@ import { CatalogFiltersSection } from './catalog-filters-section';
 import { ChoiceSection } from './choice-section';
 import { FeedbackSection } from './feedback-section';
 import { FieldsSection } from './fields-section';
+import { FileInputSection } from './file-input-section';
 import { FiltersSection } from './filters-section';
 import { IconsSection } from './icons-section';
 import { LinksSection } from './links-section';
 import { MenuSection } from './menu-section';
 import { NavigationSection } from './navigation-section';
+import { NoticesSection } from './notices-section';
 import { OverlaysSection } from './overlays-section';
 import { ProductSection } from './product-section';
 import { SelectSection } from './select-section';
@@ -46,4 +48,6 @@ export const sections: UiKitSection[] = [
   { id: 'navigation', title: 'Навигация', Content: NavigationSection },
   { id: 'overlays', title: 'Окна и подсказки', Content: OverlaysSection },
   { id: 'feedback', title: 'Уведомления и загрузка', Content: FeedbackSection },
+  { id: 'file-input', title: 'Выбор файла', Content: FileInputSection },
+  { id: 'notices', title: 'Сообщения и состояния', Content: NoticesSection },
 ];
