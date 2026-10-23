@@ -2,6 +2,7 @@
 
 import {
   CheckboxFilterPanel,
+  type CheckboxFilterPanelProps,
   PriceFilterPanel,
   priceLabel,
   type PriceRange,
@@ -25,17 +26,33 @@ import type { FacetAttribute, FacetBrand, FacetPrice, FacetSize } from '../model
 // `catalog-filters.tsx`, with no chip, no dropdown and no "Применить". Each reports every change
 // at once; whoever places them keeps the choice and applies it (the drawer's "Показать N
 // товаров"), as the dropdowns leave the applied value to whoever places them (0009 K7). A panel's
-// list is named after its filter, the title of the section it goes in.
+// list is named after its filter, the title of the section it goes in. `layout` is the kit's: `list`
+// by default, `sheet` for a screen of the filters' sheet (spec 0020).
 
-export interface AttributeFilterPanelProps {
+interface ListPanelProps {
+  layout?: CheckboxFilterPanelProps['layout'];
+}
+
+export interface AttributeFilterPanelProps extends ListPanelProps {
   attribute: FacetAttribute;
   // The chosen attribute value ids.
   value: string[];
   onValueChange: (value: string[]) => void;
 }
 
-// A colour attribute's swatches (AC6).
-export function ColorFilterPanel({ attribute, value, onValueChange }: AttributeFilterPanelProps) {
+export interface ColorFilterPanelProps extends AttributeFilterPanelProps {
+  // The kit's chip "Выбрать все" under the search (W24).
+  selectAll?: boolean;
+}
+
+// A colour attribute's swatches (AC6); the sheet's search says "Поиск", as on Lamoda.
+export function ColorFilterPanel({
+  attribute,
+  value,
+  onValueChange,
+  layout = 'list',
+  selectAll,
+}: ColorFilterPanelProps) {
   return (
     <CheckboxFilterPanel
       label={attribute.name}
@@ -43,8 +60,10 @@ export function ColorFilterPanel({ attribute, value, onValueChange }: AttributeF
       value={value}
       onValueChange={onValueChange}
       searchable
-      searchPlaceholder="Найдите цвет"
+      searchPlaceholder={layout === 'sheet' ? 'Поиск' : 'Найдите цвет'}
       swatches
+      layout={layout}
+      selectAll={selectAll}
     />
   );
 }
@@ -54,6 +73,7 @@ export function AttributeFilterPanel({
   attribute,
   value,
   onValueChange,
+  layout,
 }: AttributeFilterPanelProps) {
   const searchPlaceholder = attributeSearchPlaceholder(attribute);
   return (
@@ -64,18 +84,19 @@ export function AttributeFilterPanel({
       onValueChange={onValueChange}
       searchable={searchPlaceholder !== undefined}
       searchPlaceholder={searchPlaceholder}
+      layout={layout}
     />
   );
 }
 
-export interface BrandFilterPanelProps {
+export interface BrandFilterPanelProps extends ListPanelProps {
   brands: FacetBrand[];
   // The chosen brand ids.
   value: string[];
   onValueChange: (value: string[]) => void;
 }
 
-export function BrandFilterPanel({ brands, value, onValueChange }: BrandFilterPanelProps) {
+export function BrandFilterPanel({ brands, value, onValueChange, layout }: BrandFilterPanelProps) {
   return (
     <CheckboxFilterPanel
       label={productFilterTitles.brand}
@@ -84,11 +105,12 @@ export function BrandFilterPanel({ brands, value, onValueChange }: BrandFilterPa
       onValueChange={onValueChange}
       searchable
       searchPlaceholder="Найдите бренд"
+      layout={layout}
     />
   );
 }
 
-export interface SizeFilterPanelProps {
+export interface SizeFilterPanelProps extends ListPanelProps {
   sizes: FacetSize[];
   // The chosen sizes themselves.
   value: string[];
@@ -96,13 +118,14 @@ export interface SizeFilterPanelProps {
 }
 
 // Sizes in clothing order (K13).
-export function SizeFilterPanel({ sizes, value, onValueChange }: SizeFilterPanelProps) {
+export function SizeFilterPanel({ sizes, value, onValueChange, layout }: SizeFilterPanelProps) {
   return (
     <CheckboxFilterPanel
       label={productFilterTitles.size}
       options={sizeOptions(sizes)}
       value={value}
       onValueChange={onValueChange}
+      layout={layout}
     />
   );
 }
@@ -147,18 +170,23 @@ export function DiscountFilterPanel({ checked, onCheckedChange }: DiscountFilter
   );
 }
 
-export interface ProductSortFilterPanelProps {
+export interface ProductSortFilterPanelProps extends ListPanelProps {
   value: ProductSort;
   onValueChange: (value: ProductSort) => void;
 }
 
-export function ProductSortFilterPanel({ value, onValueChange }: ProductSortFilterPanelProps) {
+export function ProductSortFilterPanel({
+  value,
+  onValueChange,
+  layout,
+}: ProductSortFilterPanelProps) {
   return (
     <SortFilterPanel
       label={productFilterTitles.sort}
       options={productSortOptions}
       value={value}
       onValueChange={(next) => onValueChange(next as ProductSort)}
+      layout={layout}
     />
   );
 }

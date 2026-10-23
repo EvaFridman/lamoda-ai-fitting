@@ -17,6 +17,7 @@ export {
 export { isRefusedCursor } from './lib/cursor';
 export { chipValue, splitFacetAttributes } from './lib/facets';
 export { defaultProductSort, productFilterTitles } from './lib/filter-options';
+export { filterSummary } from './lib/filter-summary';
 export { compareSizes, sortSizes } from './lib/sizes';
 export { PRODUCT_SORT_ORDER, productSortLabels } from './lib/sorts';
 export {
@@ -80,6 +81,7 @@ export {
   BrandFilterPanel,
   type BrandFilterPanelProps,
   ColorFilterPanel,
+  type ColorFilterPanelProps,
   DiscountFilterPanel,
   type DiscountFilterPanelProps,
   PriceRangeFilterPanel,

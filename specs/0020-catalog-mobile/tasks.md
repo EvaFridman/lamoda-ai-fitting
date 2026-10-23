@@ -58,7 +58,7 @@ Status: accepted (2026-10-23); amended 2026-10-23 at the review of PR 1 (T4, T5,
       Check: Vitest of each prop (focus, names, ticking, "Выбрать все" with a search); `/ui-kit` at
       375 px.
       Commit: `feat(web): add the kit's sheet forms of the drawer and the filter panels`
-- [ ] **T7. Entity panels and summaries (W12; plan §3).** The panels' `layout` and `selectAll`;
+- [x] **T7. Entity panels and summaries (W12; plan §3).** The panels' `layout` and `selectAll`;
       `filterSummary`.
       Check: Vitest of `filterSummary` (sizes' order, colours, price, sort).
       Commit: `feat(web): add the catalog filters' sheet panels and summaries`
