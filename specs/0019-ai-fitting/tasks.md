@@ -89,7 +89,7 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       Check: web tests of the flow (consent gate, a refusal, a deletion), `qa-tester` on AC1–AC4;
       `npm run verify`.
       Commit: `feat(web): add photo upload and the my photos page`
-- [ ] **T8. Close phase 1.** `CLAUDE.md` (photos, the ai module, env, nginx), `README.md`; the
+- [x] **T8. Close phase 1.** `CLAUDE.md` (photos, the ai module, env, nginx), `README.md`; the
       clean install and `verify`; the summary for the owner.
       Check: `npm run verify` after `npm ci`; AC1–AC4 and AC27 have evidence; 👤 an upload from
       an iPhone by hand, if one is at hand (A31's HEIC).
