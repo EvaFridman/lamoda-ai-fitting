@@ -12,13 +12,83 @@
   margin: 0 auto;
   padding: var(--space-6) var(--space-10) var(--space-12);
 
+  // Edge to edge below 600px (spec 0020 plan §2): the grid takes the whole width, and every other
+  // block keeps its side padding of its own (`.inset`).
+  @media (width < 600px) {
+    padding-inline: 0;
+  }
+}
+
+.inset {
   @media (width < 600px) {
     padding-inline: var(--space-4);
   }
 }
 
-.heading {
+// "←", then the title (spec 0020 W4).
+.headingRow {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
   margin: var(--space-10) 0 var(--space-6);
+
+  @media (width < 600px) {
+    padding-inline: var(--space-4);
+  }
+}
+
+// The arrow's slot: below 600px only, as wide whether the arrow shows or not, as high as the
+// title's line.
+.back {
+  display: flex;
+  flex: none;
+  align-items: center;
+
+  width: 32px;
+  height: var(--line-height-headline-m);
+  margin-left: calc(-1 * var(--space-1));
+
+  @media (width >= 600px) {
+    display: none;
+  }
+}
+
+// Drawn as the sheet's "‹" (W25): no frame, 32px.
+.backControl {
+  cursor: pointer;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 32px;
+  height: 32px;
+  margin: 0;
+  padding: 0;
+  border: none;
+
+  color: var(--color-text);
+
+  background: none;
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: 2px;
+  }
+
+  @media (hover: hover) {
+    &:hover {
+      color: var(--color-text-secondary);
+    }
+  }
+}
+
+.heading {
+  flex: 1 1 auto;
+
+  min-width: 0;
+  margin: 0;
+
   font-size: var(--font-size-headline-m);
   font-weight: var(--font-weight-regular);
   line-height: var(--line-height-headline-m);
@@ -49,12 +119,22 @@
   font-size: var(--font-size-body-s);
   line-height: var(--line-height-body-s);
   color: var(--color-text-secondary);
+
+  // A line of its own under the title (spec 0020 AC4).
+  @media (width < 600px) {
+    display: block;
+  }
 }
 
-// The count's placeholder, on the title's line.
+// The count's placeholder, on the title's line; below 600px on a line of its own, the count's
+// height (W14).
 .countSkeleton {
   display: inline-block;
   vertical-align: middle;
+
+  @media (width < 600px) {
+    display: block;
+  }
 }
 
 // The page's placeholders (`CatalogSkeleton`, spec 0020 plan §1): a window high whatever its rows.
@@ -83,6 +163,10 @@
 .skeletonFiltersButton {
   @media (width >= 1024px) {
     display: none;
+  }
+
+  @media (width < 600px) {
+    padding-inline: var(--space-4);
   }
 }
 
@@ -118,6 +202,10 @@
   align-items: flex-start;
 
   padding: var(--space-10) 0;
+
+  @media (width < 600px) {
+    padding-inline: var(--space-4);
+  }
 }
 
 .emptyTitle {

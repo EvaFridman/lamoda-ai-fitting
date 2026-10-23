@@ -53,13 +53,19 @@ the grid none.
 **Heading row (AC4, W4, W14).** `CatalogHeading` becomes a row: `CatalogBack` (below 600 px only),
 then the `<h1>` with the title and the count span; below 600 px the count is a block under the
 title (`display: block`), from 600 px it stays inline (0014 O5). While the count loads, a
-`Skeleton` of its line keeps the row's height (phone only).
+`Skeleton` of its line keeps the row's height (on a line of its own below 600 px, inline from
+600 px as the page's placeholders show it, W26).
 
-- `_pages/catalog/ui/catalog-back.tsx` (client): an `IconButton`/link with `ArrowBackIcon`,
-  "Назад". The decision (`lib/back-target.ts`, pure, tested): `history` when the tab has made a
-  client-side step since the document loaded (a module flag set from the second distinct path seen
-  by `usePathname`, so `router.replace` of a filter does not count) or `document.referrer` is this
-  origin; else `catalog`, unless the path is `/catalog`, where the arrow is not rendered. The server
+- `_pages/catalog/ui/catalog-back.tsx` (client): a plain 32px button/link drawn as the sheet's "‹"
+  (W25, W26) with `ArrowBackIcon`,
+  "Назад". The decision (`lib/back-target.ts`, pure, tested): `history` when the Navigation API's
+  `navigation.currentEntry.index` is above 0 (the previous entry is this site's, W26); without
+  that API, when the tab has made a
+  client-side step since the document loaded (a module flag, kept till a reload, set once
+  `usePathname` shows a path other than the one the document was loaded at, its navigation
+  entry's: a step made before the catalog mounted counts, and `router.replace` of a filter keeps
+  the path, W26) or `document.referrer` is this origin and the tab has an earlier entry
+  (`history.length > 1`, W26); else `catalog`, unless the path is `/catalog`, where the arrow is not rendered. The server
   renders `<a href="/catalog">` on a category page and nothing on `/catalog`, so the arrow works
   without JavaScript; after mount `history` turns it into a button calling `router.back()`.
   The arrow reserves its width on `/catalog` too, so its appearance moves nothing.

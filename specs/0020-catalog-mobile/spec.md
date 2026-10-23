@@ -71,8 +71,9 @@ screenshots of a Lamoda category page, described in `clarifications.md`).
   card's price, brand and name are padded from its edges.
 - **AC8.** The breadcrumbs are under the list, not above the title.
 - **AC9.** At 700 px and at 1280 px the page is laid out as before this spec, apart from the
-  loading placeholders (AC1, AC2), the page's height (W22), the chips kept while the counts load
-  (AC15) and the sheet (AC10–AC14) at 700 px.
+  loading placeholders (AC1, AC2), the count's placeholder while the counts load (W14, W26), the
+  page's height (W22), the chips kept while the counts load (AC15) and the sheet (AC10–AC14) at
+  700 px.
 
 ### Filters sheet (below 1024 px)
 

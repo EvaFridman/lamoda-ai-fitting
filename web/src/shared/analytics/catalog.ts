@@ -414,6 +414,15 @@ export const catalog = defineCatalog({
       hoversPerVisit: 0.02,
       properties: { active: { kind: 'boolean' } },
     },
+    'catalog.back': {
+      zone: 'catalog',
+      type: 'navigation',
+      description:
+        'Стрелка «←» перед названием, на экране уже 600 px. `target` — куда она ведёт: `history` — назад по истории (предыдущая страница была этого сайта), `catalog` — на `/catalog`.',
+      clicksPerVisit: 0.1,
+      hoversPerVisit: 0.005,
+      properties: { target: { kind: 'enum', values: ['history', 'catalog'] } },
+    },
     'photos.upload': {
       zone: 'fitting',
       type: 'interaction',
