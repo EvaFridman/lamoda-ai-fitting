@@ -27,6 +27,10 @@ pages under `/customer`, the page "Мои данные" with `PATCH /me` and del
 from its page by `0017-account`; the caches' Redis and both Redis' memory limits, the page cache
 of the public catalog's reads, the deploy's warm-up and its route list, the first-request measurement after a deploy, the rule
 `.claude/rules/web-pages.md` and the deploy job's time limit by `0018-cache-warmup` (all closed).
+In progress: `0019-ai-fitting`, whose phase 1 brought the OpenAI module and its checks, the
+tables of the fitting (user photos, `fitting_quota`, the categories' `slot` in their answer), the
+fitting photos (`/me/photos`, nginx's 20 MB upload route, the page "Мои фото") and the file
+deletions' outbox with the schedule `fitting-housekeeping`.
 
 Keep this file true: update it in the same commit that changes what a section describes.
 
@@ -175,7 +179,10 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
 - `api/src/ai/`: OpenAI (spec 0019 plan §3): `AiModule` provides `AI_SETTINGS` (the
   `OPENAI_API_KEY` and `FITTING_*` env) and `AI_PROVIDER`: `OpenAiProvider` in production only,
   elsewhere always `FakeAiProvider` (A49), which answers without the network and refuses on the
-  marker `refuse:<reason>` in a photo's bytes or a text; a test sets its `delayMs`.
+  marker `refuse:<reason>` in a photo's bytes or a text, and on a photo of one solid colour
+  (`REFUSAL_COLOURS`, one per reason: an upload reaches the check as sharp's WebP, where no byte
+  of the marker survives, A53; `test/support/photos.ts` makes such images); a test sets its
+  `delayMs`.
   `OpenAiClient` (fetch, no SDK) calls `/v1/images/edits`, `/v1/responses` and `/v1/moderations`
   at `OPENAI_ORIGIN`; `checks/` hold `PhotoChecker`, `PromptChecker` and `ModerationChecker`.
 - `api/src/backup/`: the backup job (spec 0012), a plain Node process outside Nest, run as
@@ -539,7 +546,15 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   drops it; `uploadPhoto` (multipart `photo` and `save`), `setDefaultPhoto` and `deletePhoto` are
   plain requests for the feature's mutations. `PhotoThumb` shows a photo only as `next/image`'s
   `src` (`unoptimized`, no `priority`) inside an `mp-block` container, never the link in another
-  attribute (A37).
+  attribute (A37). web's Sentry (`web/sentry.options.ts`) drops the spans, breadcrumbs and root
+  span attributes (`lcp.url`) that hold `X-Amz-` or `/keep/users/`, since the browser's tracing
+  names a span after each image's whole link. `features/upload-photo` shows the tips and the two
+  consents before a user's first upload, kept in `localStorage` per user
+  (`fitting-photo-consent:<userId>`, not an `mp_`/`__mp` key; one the browser will not store
+  holds until the tab reloads, A60), refuses a file over `MAX_PHOTO_BYTES` before the upload (the
+  api's limit less 64 KB of multipart, `lib/upload-error.ts`; its texts say 20 МБ) and turns the
+  upload off at five saved photos. `/privacy` says the photos go to OpenAI and are not used for
+  training (A46).
 - An attribute value's `colorHex` is its swatch colour, `#RRGGBB` (either case) or `null` (an
   empty bordered circle); the DTOs and a CHECK in the migration refuse anything else. web draws it with
   `ColorSwatch`, and an attribute with at least one coloured value is a colour filter
@@ -753,7 +768,9 @@ the api's error format and nothing of the visitor's request passed on. nginx lim
 requests, sockets and requests in progress per client address above the api's own quotas, web's
 pages at 3× a measured catalog visit and `/media/` at 3× its rate with a burst of one batch
 (spec 0014 O109–O111; plain GETs of `/_next/static/` are not counted, `/healthz` and everything
-under it answer 404 from outside), slow clients to 10 s, and bodies to 1 MB, and
+under it answer 404 from outside), slow clients to 10 s, and bodies to 1 MB (20 MB on the
+photo upload's `location = /api/me/photos`, which moves with `FITTING_PHOTO_MAX_BYTES` and web's
+`MAX_PHOTO_BYTES` and texts, spec 0019 A31; `ci-deploy-check.sh` sends it 2 MB and 21 MB, A57), and
 answers 429, 413 and
 `/api/`'s 502/504 (as 503) in the api's error format (`deploy/README.md`, "Лимиты nginx"). How deploys, rollbacks and images work: `.claude/rules/deploy.md`, loaded when you work on
 deploy, CI, Docker or `scripts/` files, and `deploy/README.md`. Production secrets never pass through the chat;
