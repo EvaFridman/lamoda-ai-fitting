@@ -314,22 +314,26 @@ status }` to the room; the worker's `notify` publishes the same JSON with its ow
 ## 8. The product page and SEO (#69, A22, A36, A40)
 
 - `app/products/[id]/page.tsx` re-exports `ProductPage` and `generateProductMetadata` from
-  `_pages/product/server`. The catalog part (the product, its related products, its category for
-  the breadcrumbs) is read inside a cached function (`'use cache: remote'` with `cacheLife` from
-  `PAGE_CACHE_REVALIDATE_SECONDS`, 0018 V15) through `cachedApiFetch`: no visitor address, no
-  request id, no proxy secret; `await connection()` stays in the caller, inside `<Suspense>`.
+  `_pages/product/server`. The product itself is read once per render as the visitor (`apiFetch`,
+  shared by `generateMetadata` and the page, A81); its category is checked against the cached
+  active categories (A80), and only then are its related products read through the page cache
+  (`'use cache: remote'` through `cachedApiFetch`, which sets the lifetime: no visitor address, no
+  request id, no proxy secret); `await connection()` stays in the caller, inside `<Suspense>`.
   Everything about the visitor (the session, the quota, «Вы это примеряли», the fitting room's
   state of this product) is read in the browser (0017 U11, 0018 V2).
 - A missing product, or one whose category is inactive (products have no flag of their own, A36),
-  calls `notFound()`; the 404 page is the app's.
+  is a real 404 from `proxy.ts` (A81); the page checks again and calls `notFound()` when
+  `proxy.ts` was skipped; the 404 page is the app's.
 - `generateMetadata`: title «<Бренд> <название> — купить в Lamoda AI Fitting», description from
   the product's own description cut to 160 characters, `alternates.canonical`
   `/products/<id>`, Open Graph with the first photo; JSON-LD `Product` (name, image, brand,
   description, `offers` with the final price in RUB and availability from the variations'
   stock) and `BreadcrumbList`, rendered as `<script type="application/ld+json">` like 0014's.
-- `sitemap.ts` gains the products: read page by page from `GET /products` with the same cached
-  client, `lastModified` from `updatedAt`. The warm-up list (0018 V8) names the page's address
-  source: the first products of every active category.
+- `sitemap.ts` gains the products: read page by page from `GET /products` through the page cache,
+  up to 1000 (an exception to 0018 V15: the server builds these cursors, A81), `lastModified` from
+  the `updatedAt` that `ProductListItemDto` gains. The warm-up list (0018 V8) names the page's
+  address source `products`: the first product of every active category, at most 50 in all. The
+  catalog grid's cards get their prefetch back.
 - The page's analytics: zone `product` (§9).
 
 ## 9. Analytics (A13, A43)

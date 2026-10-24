@@ -213,8 +213,9 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       Check: database e2e; `npm run verify`.
       Commit: `feat(api): related products and the last fitting of a product`
 - [ ] **T19. web: the route, metadata and cache.** `app/products/[id]`, `_pages/product` with
-      `generateMetadata`, the JSON-LD, the breadcrumbs, the 404, the cached catalog reads and the
-      warm-up source (0018 V8), the sitemap's products (plan §8).
+      `generateMetadata`, the JSON-LD, the breadcrumbs, the 404 (`proxy.ts`, A81), the cached
+      catalog reads and the warm-up source `products` (0018 V8), the sitemap's products with the
+      api's `updatedAt`, the grid's prefetch back on (plan §8, A81).
       Check: web tests of the metadata and the 404; the warm-up list check; `npm run verify`.
       Commit: `feat(web): add the product page`
 - [ ] **T20. web: the gallery, the buy box and the try-on entry.** `widgets/product-gallery`,

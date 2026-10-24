@@ -983,6 +983,23 @@ becomes a page cache key or spends web's quota (0018 V24): a product's cached re
 `/related`) run only for a product first read as the visitor and found in an active category.
 `GET /products/:id/fittings/last` is the newest by `createdAt`, the history's order.
 
+**A81. The product page's 404, reads, sitemap and warm-up (T19's brief).** The owner decided on
+2026-10-24: (1) an unknown id, or a product of an inactive category, is a real 404 decided in
+`proxy.ts` (matcher `/products/:id`, read as the visitor, as `/catalog/<slug>` is, 0014 O65); the
+page checks again and calls `notFound()` (a soft 404) when `proxy.ts` was skipped (a `<Link>`
+prefetch, a failed api read); `proxy.ts` passes nothing to the page, so a view reads the product
+twice, both on the visitor's quota. (2) The product's detail is read once per render as the
+visitor (`apiFetch`, shared by `generateMetadata` and the page), never through the page cache:
+A80's gate is that very read, so a cached copy of it would save no api call. From the page cache
+come the active categories and, behind the gate, `/related`; this is AC23's «catalog part».
+(3) The sitemap's products are read page by page from `GET /products` through the page cache, up
+to 1000 products: an exception to 0018 V15, since the server builds these cursors, not the
+visitor, so their keys are bounded (`web-pages.md` names it); a product added between two pages'
+refreshes may show twice or be missing for up to a minute. `ProductListItemDto` gains `updatedAt`
+for the sitemap's `lastModified`. (4) The warm-up's new source `products` names the first product
+of each active category, at most 50 in all (V16's read bound kept). The catalog grid's cards get
+their prefetch back (backlog «Product card link»; the item itself is removed by T23).
+
 ## Canvas and decisions
 
 Where the canvas differs from the decisions above, the decision wins:
