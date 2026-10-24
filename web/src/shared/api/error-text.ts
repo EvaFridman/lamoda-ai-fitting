@@ -25,8 +25,13 @@ export const ERROR_TEXTS = {
   NOT_FOUND: 'Не найдено: возможно, запись удалили',
   ALREADY_EXISTS: 'Такая запись уже есть',
   IN_USE: 'Нельзя удалить: запись используется',
-  // A per-user limit (spec 0019 plan §5): a sixth saved fitting photo.
+  // A per-user limit (spec 0019 plan §5): a sixth saved fitting photo, the month's try-ons.
   LIMIT_REACHED: 'Достигнут лимит, больше добавить нельзя',
+  // A fitting's text the safety check refused (spec 0019 A16).
+  PROMPT_REFUSED: 'Текст не подходит для примерки: опишите посадку или стиль выбранных вещей',
+  // A regeneration whose photo was deleted, or of a result not ready (spec 0019 A70).
+  PHOTO_GONE: 'Фото этой примерки удалено — выберите фото и примерьте заново',
+  NOT_COMPLETED: 'Перегенерировать можно только готовый результат',
   PAYLOAD_TOO_LARGE: 'Слишком много данных в одном запросе',
   TOO_MANY_REQUESTS: TOO_MANY_REQUESTS_TEXT,
   SERVICE_UNAVAILABLE: 'Сервис временно недоступен, попробуйте позже',
@@ -102,7 +107,9 @@ export function errorText(error: unknown): string {
 // (ai-generations/generation-triple.ts), `IN_OWNER_FOLDER` of a file key outside the owner's
 // folder (storage/owner-check.ts, spec 0011 M8), `IS_IMAGE` and `PHOTO_REFUSED` of a fitting
 // photo (me/photos, spec 0019 plan §5: a file that is not a JPG, PNG or WebP, and a photo the
-// check refused, its reason in the message) and `TOO_MANY_ERRORS` of a cut list (spec 0006 F14).
+// check refused, its reason in the message), `HAS_SLOT` and `DISTINCT_SLOTS` of a fitting's items
+// (fittings, spec 0019 A70: an item outside the fitting room's slots, two items of a look in one
+// slot) and `TOO_MANY_ERRORS` of a cut list (spec 0006 F14).
 export const DETAIL_TEXTS = {
   IS_STRING: 'Должно быть текстом',
   IS_NUMBER: 'Должно быть числом',
@@ -122,6 +129,7 @@ export const DETAIL_TEXTS = {
   ARRAY_MIN_SIZE: 'Слишком мало значений',
   ARRAY_MAX_SIZE: 'Слишком много значений',
   ARRAY_UNIQUE: 'Значения повторяются',
+  NESTED_VALIDATION: 'Неверный формат значения',
   IS_USER_EMAIL: 'Неверный адрес почты',
   IS_PERSON_NAME: 'От 2 до 50 букв, между ними можно пробел, дефис или апостроф',
   IS_DATE_OF_BIRTH: 'Дата с 01.01.1900, возраст не меньше 14 лет',
@@ -136,6 +144,8 @@ export const DETAIL_TEXTS = {
   IN_OWNER_FOLDER: 'Файл принадлежит другому пользователю или ещё не загружен',
   IS_IMAGE: 'Нужно изображение JPG, PNG или WebP',
   PHOTO_REFUSED: 'Фото не подходит для примерки',
+  HAS_SLOT: 'Эту вещь пока нельзя примерить',
+  DISTINCT_SLOTS: 'В образе может быть только одна вещь каждого типа',
   TOO_MANY_ERRORS: 'И другие ошибки',
 } as const satisfies Record<string, string>;
 

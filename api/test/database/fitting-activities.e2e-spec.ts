@@ -196,6 +196,37 @@ describe('generateFitting with the real activities (spec 0019 T11)', () => {
     (await prisma.fittingQuota.findUniqueOrThrow({ where: { userId_month: { userId, month } } }))
       .used;
 
+  // A regeneration holds its own wishes (copied from its parent) and its own comment (A70): the
+  // markers `fail:<what>` reach the fake model through them, so the failure shows which text the
+  // activity read. A free one by default (`counts` false); `status` of a fitting a worker took.
+  async function regeneration(
+    original: Seed,
+    texts: { promptText?: string | null; comment?: string | null } = {},
+    options: { counts?: boolean; status?: 'pending' | 'processing' } = {},
+  ): Promise<string> {
+    const child = await prisma.aiGeneration.create({
+      data: {
+        sessionId: original.sessionId,
+        userId: original.userId,
+        photoId: original.photoId,
+        parentId: original.generationId,
+        kind: 'single',
+        promptText: texts.promptText ?? null,
+        comment: texts.comment ?? null,
+        regenerationReasons: ['face'],
+        countsAgainstLimit: options.counts ?? false,
+        fingerprint: createHash('sha256').update(randomUUID()).digest('hex'),
+        status: options.status ?? 'pending',
+        aiProvider: 'fake',
+        aiModel: 'gpt-image-2',
+      },
+    });
+    await prisma.generationProduct.create({
+      data: { generationId: child.id, productId: original.productId },
+    });
+    return child.id;
+  }
+
   // Runs the workflow and returns the arguments of every call the fake model got.
   async function modelCallsOf(generationId: string): Promise<unknown[][]> {
     const spy = vi.spyOn(fake, 'generate');
@@ -407,31 +438,45 @@ describe('generateFitting with the real activities (spec 0019 T11)', () => {
       expect(await usedOf(s.userId, s.month)).toBe(0);
     }, 60_000);
 
-    it("takes a regeneration's wishes from the original try-on, its comment from its own text", async () => {
+    it("takes a regeneration's wishes from its own promptText (A70)", async () => {
+      const original = await seed();
+      const child = await regeneration(original, { promptText: 'fail:moderation' });
+
+      await run(child);
+
+      expect(await rowOf(child)).toMatchObject({ status: 'failed', failureCode: 'moderation' });
+    }, 90_000);
+
+    it("takes a regeneration's comment from its own comment (A70)", async () => {
+      const original = await seed();
+      const child = await regeneration(original, { comment: 'fail:provider_error' });
+
+      await run(child);
+
+      expect(await rowOf(child)).toMatchObject({ status: 'failed', failureCode: 'provider_error' });
+    }, 90_000);
+
+    it("does not read the original's wishes: deleting or changing it changes nothing (A70)", async () => {
       const original = await seed({ promptText: 'fail:moderation' });
-      await run(original.generationId);
-      const child = await prisma.aiGeneration.create({
-        data: {
-          sessionId: original.sessionId,
-          userId: original.userId,
-          photoId: original.photoId,
-          parentId: original.generationId,
-          kind: 'single',
-          promptText: 'brighter please',
-          fingerprint: createHash('sha256').update(randomUUID()).digest('hex'),
-          status: 'pending',
-          aiProvider: 'fake',
-          aiModel: 'gpt-image-2',
-        },
-      });
-      await prisma.generationProduct.create({
-        data: { generationId: child.id, productId: original.productId },
-      });
+      const child = await regeneration(original, {});
 
-      await run(child.id);
+      await run(child);
 
-      // The marker sits in the original's text only: the fake saw it as the wishes.
-      expect(await rowOf(child.id)).toMatchObject({ status: 'failed', failureCode: 'moderation' });
+      expect(await rowOf(child)).toMatchObject({ status: 'completed', failureCode: null });
+    }, 90_000);
+
+    it('sends the regeneration’s wishes, comment and reasons to the model', async () => {
+      const original = await seed();
+      const child = await regeneration(original, { promptText: 'long dress', comment: 'brighter' });
+
+      const modelCalls = await modelCallsOf(child);
+
+      expect(modelCalls).toHaveLength(1);
+      expect(modelCalls[0]?.[0]).toMatchObject({
+        wishes: 'long dress',
+        comment: 'brighter',
+        reasons: ['face'],
+      });
     }, 90_000);
   });
 
@@ -518,27 +563,55 @@ describe('generateFitting with the real activities (spec 0019 T11)', () => {
       const exists = async (photoId: string) =>
         (await prisma.userPhoto.findUnique({ where: { id: photoId } })) !== null;
 
+      it('keeps or deletes the photo of a running generation by its age (A69)', async () => {
+        const housekeeping = createHousekeepingActivities(prisma, settings.taskQueue);
+        const runningRecent = await oldPhoto({ kind: 'running', ageMs: 2 * HOUR });
+        const runningStale = await oldPhoto({ kind: 'running', ageMs: 25 * HOUR });
+
+        // The expiry alone: the workflow ends a fitting this old first (A70), and an ended one
+        // holds its photo for another hour.
+        const expired = await housekeeping.expireTransientPhotos();
+
+        expect(expired.map((deletion) => deletion.rowId)).toContain(runningStale.photoId);
+        expect(expired.map((deletion) => deletion.rowId)).not.toContain(runningRecent.photoId);
+        expect(await exists(runningStale.photoId)).toBe(false);
+        expect(await exists(runningRecent.photoId)).toBe(true);
+        // Not left for the next test's workflow run to end.
+        await prisma.aiGeneration.deleteMany({
+          where: { id: { in: [runningRecent.generationId, runningStale.generationId] } },
+        });
+      }, 60_000);
+
+      it('ends a stuck fitting first, and its photo then stays for the hour after it ended (A70)', async () => {
+        const stuck = await oldPhoto({ kind: 'running', ageMs: 2 * HOUR });
+
+        const result = await housekeep();
+
+        expect(result).toMatchObject({ fittingsEnded: 1 });
+        expect(await rowOf(stuck.generationId)).toMatchObject({
+          status: 'failed',
+          errorMessage: 'stuck',
+        });
+        expect(await exists(stuck.photoId)).toBe(true);
+      }, 60_000);
+
       it('deletes the unused photo and keeps or deletes the others by their generation', async () => {
         const unused = await oldPhoto({ kind: 'none' });
         const finishedRecently = await oldPhoto({ kind: 'finished', agoMs: 30 * 60_000 });
         const finishedLongAgo = await oldPhoto({ kind: 'finished', agoMs: 2 * HOUR });
-        const runningRecent = await oldPhoto({ kind: 'running', ageMs: 2 * HOUR });
-        const runningStale = await oldPhoto({ kind: 'running', ageMs: 25 * HOUR });
 
         const result = await housekeep();
 
-        expect(result).toMatchObject({ photosExpired: 3 });
+        expect(result).toMatchObject({ photosExpired: 2 });
         expect(await exists(unused.photoId)).toBe(false);
         expect(await exists(finishedLongAgo.photoId)).toBe(false);
-        expect(await exists(runningStale.photoId)).toBe(false);
         expect(await exists(finishedRecently.photoId)).toBe(true);
-        expect(await exists(runningRecent.photoId)).toBe(true);
         await vi.waitFor(async () => expect(await keysUnder(unused.photoKey)).toEqual([]), {
           timeout: 30_000,
           interval: 250,
         });
         await expectOutboxCleared(unused.photoId);
-        expect(await keysUnder(runningRecent.photoKey)).toEqual([runningRecent.photoKey]);
+        expect(await keysUnder(finishedRecently.photoKey)).toEqual([finishedRecently.photoKey]);
       }, 90_000);
 
       it('keeps a photo whose user starts a new fitting with it while the expiry waits for the lock', async () => {
@@ -660,6 +733,80 @@ describe('generateFitting with the real activities (spec 0019 T11)', () => {
 
       expect(await usedOf(s.userId, s.month)).toBe(2);
     }, 30_000);
+
+    describe("a failed free regeneration gives its parent's free one back (A6, A70)", () => {
+      const flagOf = async (id: string) => (await rowOf(id)).freeRegenerationUsed;
+
+      async function parentWithFreeRegeneration(options: { counts?: boolean } = {}) {
+        const s = await seed({ quotaUsed: 2 });
+        await prisma.aiGeneration.update({
+          where: { id: s.generationId },
+          data: { freeRegenerationUsed: true },
+        });
+        const child = await regeneration(s, {}, { counts: options.counts, status: 'processing' });
+        return { s, child };
+      }
+
+      it('clears the parent’s flag and takes nothing from the quota', async () => {
+        const { s, child } = await parentWithFreeRegeneration();
+
+        await activities().complete(child, failedOutcome);
+
+        expect(await flagOf(s.generationId)).toBe(false);
+        expect(await rowOf(child)).toMatchObject({ status: 'failed', countsAgainstLimit: false });
+        expect(await usedOf(s.userId, s.month)).toBe(2);
+      });
+
+      it('clears it once: a later repeat of the same outcome leaves a new free one alone', async () => {
+        const { s, child } = await parentWithFreeRegeneration();
+        await activities().complete(child, failedOutcome);
+        await prisma.aiGeneration.update({
+          where: { id: s.generationId },
+          data: { freeRegenerationUsed: true },
+        });
+
+        await activities().complete(child, failedOutcome);
+
+        expect(await flagOf(s.generationId)).toBe(true);
+      });
+
+      it('keeps the flag of a cancelled one, which stays spent (A47)', async () => {
+        const { s, child } = await parentWithFreeRegeneration();
+
+        await activities().complete(child, { ...failedOutcome, keepUnit: true });
+
+        expect(await flagOf(s.generationId)).toBe(true);
+        expect(await rowOf(child)).toMatchObject({ status: 'failed' });
+      });
+
+      it('keeps the flag when the regeneration completed', async () => {
+        const { s, child } = await parentWithFreeRegeneration();
+
+        await activities().complete(child, { status: 'completed', providerRequestId: null });
+
+        expect(await flagOf(s.generationId)).toBe(true);
+        expect(await rowOf(child)).toMatchObject({ status: 'completed' });
+      });
+
+      it('keeps the flag when the regeneration was paid: it gives its unit back instead', async () => {
+        const { s, child } = await parentWithFreeRegeneration({ counts: true });
+
+        await activities().complete(child, failedOutcome);
+
+        expect(await flagOf(s.generationId)).toBe(true);
+        expect(await usedOf(s.userId, s.month)).toBe(1);
+      });
+
+      it('does nothing more when the parent was deleted meanwhile', async () => {
+        const { s, child } = await parentWithFreeRegeneration();
+        await prisma.aiGeneration.delete({ where: { id: s.generationId } });
+
+        await activities().complete(child, failedOutcome);
+
+        expect(await rowOf(child)).toMatchObject({ status: 'failed', parentId: null });
+        expect(await usedOf(s.userId, s.month)).toBe(2);
+      });
+    });
   });
 
   describe('a cancelled fitting (A47)', () => {

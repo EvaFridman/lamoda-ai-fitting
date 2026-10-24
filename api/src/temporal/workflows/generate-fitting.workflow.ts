@@ -36,17 +36,12 @@ const { moderate } = proxyActivities<FittingActivities>({
 });
 
 // One folder's deletion: three requests to the storage at most, each within its 45 s (as
-// deletePrefix in deleteFiles). A result left behind goes with the generation's folder when the
-// row is deleted.
+// deletePrefix in deleteFiles), retried until the storage answers (A39): a result written after
+// its row was deleted (a cancel that came late) has no outbox entry left to clear it.
 const { discardResult } = proxyActivities<FittingActivities>({
   startToCloseTimeout: '2 minutes',
   heartbeatTimeout: '1 minute',
-  retry: {
-    initialInterval: '1 second',
-    backoffCoefficient: 2,
-    maximumInterval: '10 seconds',
-    maximumAttempts: 5,
-  },
+  retry: { initialInterval: '1 second', backoffCoefficient: 2, maximumInterval: '1 minute' },
 });
 
 export interface GenerateFittingInput {
@@ -67,7 +62,7 @@ const FAILURE_TYPES: readonly string[] = [
 // the row in any case (a failure gives the unit back, A20; a transient photo stays for the open
 // try-on, A69). Only ids and codes go through the history (no image, no text of the user). The end runs outside any
 // cancellation, so a fitting always ends: a cancelled workflow (the row deleted, A47, or a cancel
-// by hand) discards a written result, ends a row still there as failed with its unit kept, and
+// by hand) ends a row still there as failed with its unit kept, discards a written result, and
 // then ends as cancelled. Only the workflow's own cancellation counts as one: an activity
 // cancelled by a worker's shutdown is a failure like any other (`provider_error`, unspent, A67).
 export async function generateFitting({
@@ -111,23 +106,16 @@ export async function generateFitting({
     outcome = { ...failed('provider_error', 'cancelled', requestId), keepUnit: true };
   }
   const end = outcome;
+  // The row first, so a storage outage keeps neither the unit nor the fingerprint (A32); a failed
+  // row never names its result, so the file can go after it.
   await CancellationScope.nonCancellable(async () => {
-    if (end.status === 'failed' && userId !== null) {
-      await discard(generationId, userId);
-    }
     await complete(generationId, end);
+    if (end.status === 'failed' && userId !== null) {
+      await discardResult(generationId, userId);
+    }
   });
   if (cancelled) {
     throw new CancelledFailure('The fitting was cancelled');
-  }
-}
-
-// A failed discard leaves the file to the generation's folder deletion; the fitting still ends.
-async function discard(generationId: string, userId: string): Promise<void> {
-  try {
-    await discardResult(generationId, userId);
-  } catch {
-    // Nothing more to do here.
   }
 }
 

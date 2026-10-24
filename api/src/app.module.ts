@@ -13,6 +13,7 @@ import { AccessGuard } from './common/auth/access.guard.js';
 import { AppExceptionFilter } from './common/filters/app-exception.filter.js';
 import { CoreModule } from './core/core.module.js';
 import { FittingSessionsModule } from './fitting-sessions/fitting-sessions.module.js';
+import { FittingsModule } from './fittings/fittings.module.js';
 import { HealthModule } from './health/health.module.js';
 import { MeModule } from './me/me.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
@@ -54,6 +55,7 @@ import { UsersModule } from './users/users.module.js';
     MeModule,
     FittingSessionsModule,
     AiGenerationsModule,
+    FittingsModule,
   ],
   providers: [
     // Every HTTP error answers one format with a code (spec 0004 E18–E22).

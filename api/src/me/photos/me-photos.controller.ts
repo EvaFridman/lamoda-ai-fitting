@@ -78,7 +78,7 @@ export class MePhotosController {
           type: 'boolean',
           default: true,
           description:
-            '`false` stores a one-time photo: not among the saved ones (at most 5), deleted with its generation or after an hour unused.',
+            '`false` stores a one-time photo: not among the saved ones (at most 5), deleted when the try-on closes or an hour after its last fitting (unused, after its upload).',
         },
       },
     },
@@ -95,6 +95,26 @@ export class MePhotosController {
       () => this.me.sessionCookies(),
       async () =>
         this.photos.upload(userId, await readPhotoUpload(req, this.settings.photoMaxBytes)),
+    );
+  }
+
+  // Closing the try-on (spec 0019 A69, A70): deletes a one-time photo; one a running fitting uses
+  // stays for the housekeeping. Saved photos and other users' are 404. Declared before `:id`.
+  @Delete('transient/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiNoContentResponse({
+    description:
+      'The one-time photo and its file are gone, or it stays while a running fitting uses it (deleted within an hour of its end).',
+  })
+  deleteTransient(
+    @CurrentUserId() userId: string,
+    @UuidParam('id') id: string,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
+    return signOutWhenGone(
+      res,
+      () => this.me.sessionCookies(),
+      () => this.photos.deleteTransient(userId, id),
     );
   }
 

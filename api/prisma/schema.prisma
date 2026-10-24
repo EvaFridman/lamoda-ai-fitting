@@ -319,37 +319,42 @@ model FittingSession {
 // failure; `failed` has `failureCode` or `errorMessage`; `pending` and `processing` have none of the
 // three. `fingerprint` is lower-case hex, `promptText` trimmed and not empty.
 model AiGeneration {
-  id                  String           @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  sessionId           String           @map("session_id") @db.Uuid
+  id                   String           @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  sessionId            String           @map("session_id") @db.Uuid
   // The session's user, so reads need no join (spec 0019 A23). Nullable while the previous release
   // inserts rows without it; NOT NULL comes in a later release (plan §2).
-  userId              String?          @map("user_id") @db.Uuid
+  userId               String?          @map("user_id") @db.Uuid
   // `null` on the previous release's rows: read as `single`.
-  kind                FittingKind?
+  kind                 FittingKind?
   // The photo the fitting used (A24); deleting it keeps the result.
-  photoId             String?          @map("photo_id") @db.Uuid
+  photoId              String?          @map("photo_id") @db.Uuid
   // The result this one regenerates; deleting that result keeps this one.
-  parentId            String?          @map("parent_id") @db.Uuid
-  promptText          String?          @map("prompt_text") @db.VarChar(300)
+  parentId             String?          @map("parent_id") @db.Uuid
+  // The wishes (A16); a regeneration copies its parent's (A70).
+  promptText           String?          @map("prompt_text") @db.VarChar(300)
+  // A regeneration's comment on its parent (A16, A70).
+  comment              String?          @db.VarChar(300)
   // Values of A16's chips, checked by the DTO.
-  regenerationReasons String[]         @default([]) @map("regeneration_reasons")
-  countsAgainstLimit  Boolean          @default(true) @map("counts_against_limit")
-  failureCode         FittingFailure?  @map("failure_code")
-  providerRequestId   String?          @map("provider_request_id") @db.VarChar(100)
+  regenerationReasons  String[]         @default([]) @map("regeneration_reasons")
+  countsAgainstLimit   Boolean          @default(true) @map("counts_against_limit")
+  // This result's free regeneration (A6) has started; a failed one clears it (A70).
+  freeRegenerationUsed Boolean          @default(false) @map("free_regeneration_used")
+  failureCode          FittingFailure?  @map("failure_code")
+  providerRequestId    String?          @map("provider_request_id") @db.VarChar(100)
   // sha256 hex of the photo, the items and the text (A7, A32).
-  fingerprint         String?          @db.Char(64)
+  fingerprint          String?          @db.Char(64)
   // A snapshot key of the closed route's rows (C14); the fittings reference `photoId` (A24).
-  userImageKey        String?          @map("user_image_key") @db.VarChar(255)
-  resultImageKey      String?          @map("result_image_key") @db.VarChar(255)
-  status              GenerationStatus
-  aiProvider          String           @map("ai_provider") @db.VarChar(50)
-  aiModel             String           @map("ai_model") @db.VarChar(50)
+  userImageKey         String?          @map("user_image_key") @db.VarChar(255)
+  resultImageKey       String?          @map("result_image_key") @db.VarChar(255)
+  status               GenerationStatus
+  aiProvider           String           @map("ai_provider") @db.VarChar(50)
+  aiModel              String           @map("ai_model") @db.VarChar(50)
   // A short message or code, not a provider's raw response (C23).
-  errorMessage        String?          @map("error_message") @db.VarChar(1000)
-  startedAt           DateTime?        @map("started_at") @db.Timestamptz(3)
-  finishedAt          DateTime?        @map("finished_at") @db.Timestamptz(3)
-  createdAt           DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt           DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  errorMessage         String?          @map("error_message") @db.VarChar(1000)
+  startedAt            DateTime?        @map("started_at") @db.Timestamptz(3)
+  finishedAt           DateTime?        @map("finished_at") @db.Timestamptz(3)
+  createdAt            DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   // The session, the photo and the parent belong to the row's user (A65): the three owner keys
   // reference `(id, user_id)`. The migration sets only `photo_id` or `parent_id` to NULL when the

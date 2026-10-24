@@ -1,5 +1,5 @@
 import type { Client, Connection } from '@temporalio/client';
-import { ServiceError } from '@temporalio/client';
+import { ServiceError, WorkflowNotFoundError } from '@temporalio/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { START_TIMEOUT_MS, WorkflowStarter } from './workflow-starter.js';
@@ -17,13 +17,15 @@ function serviceError(code: number): ServiceError {
 
 function setup() {
   const start = vi.fn<(type: string, options: Record<string, unknown>) => Promise<unknown>>();
+  const cancel = vi.fn<() => Promise<void>>();
+  const getHandle = vi.fn((_workflowId: string) => ({ cancel }));
   const withAbortSignal = vi.fn((_signal: AbortSignal, call: () => Promise<unknown>) => call());
   const starter = new WorkflowStarter(
-    { workflow: { start } } as unknown as Client,
+    { workflow: { start, getHandle } } as unknown as Client,
     { withAbortSignal } as unknown as Connection,
     { address: 'a:1', namespace: 'default', taskQueue: 'queue-1' },
   );
-  return { starter, start, withAbortSignal };
+  return { starter, start, withAbortSignal, cancel, getHandle };
 }
 
 afterEach(() => {
@@ -153,6 +155,90 @@ describe('WorkflowStarter.start', () => {
 
       expect(vi.getTimerCount()).toBe(0);
     });
+  });
+});
+
+describe('WorkflowStarter.cancel', () => {
+  it('asks the workflow of that id to cancel', async () => {
+    const { starter, cancel, getHandle } = setup();
+    cancel.mockResolvedValue();
+
+    await expect(starter.cancel('fitting-1')).resolves.toBeUndefined();
+
+    expect(getHandle).toHaveBeenCalledExactlyOnceWith('fitting-1');
+    expect(cancel).toHaveBeenCalledOnce();
+  });
+
+  it('runs the call under the abort signal', async () => {
+    const { starter, cancel, withAbortSignal } = setup();
+    cancel.mockResolvedValue();
+
+    await starter.cancel('fitting-1');
+
+    expect(withAbortSignal).toHaveBeenCalledOnce();
+    expect(withAbortSignal.mock.calls[0]?.[0]).toBeInstanceOf(AbortSignal);
+  });
+
+  it('is not an error when the workflow is gone or already ended', async () => {
+    const { starter, cancel } = setup();
+    cancel.mockRejectedValue(new WorkflowNotFoundError('not found', 'fitting-1', undefined));
+
+    await expect(starter.cancel('fitting-1')).resolves.toBeUndefined();
+
+    expect(cancel).toHaveBeenCalledOnce();
+  });
+
+  it('retries a retryable gRPC error and succeeds on a later attempt', async () => {
+    const { starter, cancel } = setup();
+    cancel
+      .mockRejectedValueOnce(serviceError(UNAVAILABLE))
+      .mockRejectedValueOnce(grpcError(UNAVAILABLE))
+      .mockResolvedValue();
+
+    await expect(starter.cancel('fitting-1')).resolves.toBeUndefined();
+
+    expect(cancel).toHaveBeenCalledTimes(3);
+  });
+
+  it('does not retry an error a retry cannot fix', async () => {
+    const { starter, cancel } = setup();
+    const failure = serviceError(INVALID_ARGUMENT);
+    cancel.mockRejectedValue(failure);
+
+    await expect(starter.cancel('fitting-1')).rejects.toBe(failure);
+
+    expect(cancel).toHaveBeenCalledOnce();
+  });
+
+  it('rejects at once once the starter is closing, without calling the client', async () => {
+    const { starter, cancel, getHandle } = setup();
+    await starter.drain();
+
+    await expect(starter.cancel('fitting-1')).rejects.toThrow(/closing/);
+
+    expect(getHandle).not.toHaveBeenCalled();
+    expect(cancel).not.toHaveBeenCalled();
+  });
+
+  it('is waited for by drain', async () => {
+    const { starter, cancel } = setup();
+    let finish: () => void = () => {};
+    cancel.mockReturnValueOnce(new Promise<void>((resolve) => (finish = resolve)));
+    const running = starter.cancel('fitting-1');
+
+    let drained = false;
+    const draining = starter.drain().then(() => {
+      drained = true;
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(drained).toBe(false);
+
+    finish();
+    await running;
+    await draining;
+
+    expect(drained).toBe(true);
   });
 });
 

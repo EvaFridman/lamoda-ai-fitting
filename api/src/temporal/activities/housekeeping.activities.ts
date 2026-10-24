@@ -3,7 +3,7 @@ import { Context } from '@temporalio/activity';
 import type { Prisma, PrismaClient } from '../../generated/prisma/client.js';
 import { deleteFilesWorkflowId, type QueuedFileDeletion } from '../file-deletion-id.js';
 import type { deleteFiles } from '../workflows/delete-files.workflow.js';
-import { RUNNING_STATUSES } from './fitting.activities.js';
+import { endFitting, RUNNING_STATUSES } from '../../fittings/end-fitting.js';
 
 export type HousekeepingActivities = ReturnType<typeof createHousekeepingActivities>;
 
@@ -21,12 +21,57 @@ export const TRANSIENT_PHOTO_AGE_MS = 60 * 60_000;
 // a photo the user did not save for ever.
 export const RUNNING_PHOTO_HOLD_MS = 24 * 60 * 60_000;
 
+// A fitting still running this long after its start is stuck (spec 0019 A70): the longest one
+// takes 11 minutes and a deploy holds the queue up to 12, so an hour means no workflow runs it
+// (the api lost between the commit and the start, a workflow terminated by hand).
+export const STUCK_FITTING_AGE_MS = 60 * 60_000;
+
 // The activities of the schedule `fitting-housekeeping` (spec 0019 A38, plan §4); `prisma` is the
 // worker's PrismaService. `deleteFiles` is started through the worker's own client
 // (`Context.current().client`, on its connection) on `taskQueue`, as the api's FileDeletion
 // starts it.
 export function createHousekeepingActivities(prisma: PrismaClient, taskQueue: string) {
   return {
+    // Ends the stuck fittings (A70), oldest first, one batch per run: `failed` `provider_error`,
+    // so the fingerprint is free again. One whose paid call was never claimed gives its try-on
+    // (or the free regeneration) back, as a failed start does; a workflow that runs it later finds
+    // the row ended and pays nothing (markProcessing, `generate`'s claim). One claimed is left
+    // while its call may still run (a worker back after a long outage may be paying for it right
+    // now, and its result would be lost), and ended spent, as a cancel is (A47), once claimed an
+    // hour ago. Returns how many it took; a repeat ends none twice.
+    async endStuckFittings(): Promise<number> {
+      const cutoff = new Date(Date.now() - STUCK_FITTING_AGE_MS);
+      const stuck = await prisma.aiGeneration.findMany({
+        where: {
+          kind: { not: null },
+          status: { in: [...RUNNING_STATUSES] },
+          createdAt: { lt: cutoff },
+          OR: [{ startedAt: null }, { startedAt: { lt: cutoff } }],
+        },
+        orderBy: { createdAt: 'asc' },
+        take: HOUSEKEEPING_BATCH_SIZE,
+        select: { id: true },
+      });
+      const outcome = {
+        status: 'failed',
+        failureCode: 'provider_error',
+        errorMessage: 'stuck',
+        providerRequestId: null,
+      } as const;
+      for (const { id } of stuck) {
+        // The second call is a no-op once the first ended the row; a claim made between the read
+        // and the first leaves the row to its workflow.
+        await endFitting(prisma, id, outcome, { claimed: 'never' });
+        await endFitting(
+          prisma,
+          id,
+          { ...outcome, keepUnit: true },
+          { claimed: { before: cutoff } },
+        );
+      }
+      return stuck.length;
+    },
+
     // Deletes the rows of transient photos older than an hour (A24) that no generation still
     // needs, oldest first, one batch per run, and writes their deletions into the outbox in the
     // same transaction; returns them for the workflow to start. An answer lost after the commit (a

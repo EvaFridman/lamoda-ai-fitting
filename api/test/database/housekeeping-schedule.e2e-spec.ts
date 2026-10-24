@@ -135,6 +135,7 @@ describe('housekeeping schedule (Temporal)', () => {
         .getHandle(workflow?.workflowId ?? '', workflow?.firstExecutionRunId)
         .result();
       expect(result).toEqual({
+        fittingsEnded: expect.any(Number),
         photosExpired: expect.any(Number),
         deletionsStarted: expect.any(Number),
       });

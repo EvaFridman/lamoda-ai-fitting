@@ -10,7 +10,9 @@ import { userPhotoKey } from '../../storage/keys.js';
 import { ownedLink } from '../../storage/owner-check.js';
 import { StorageError } from '../../storage/storage.error.js';
 import { StorageService } from '../../storage/storage.service.js';
+import { RUNNING_STATUSES } from '../../fittings/end-fitting.js';
 import { FileDeletion } from '../../temporal/file-deletion.js';
+import { lockUser } from '../lock-user.js';
 import { userGone } from '../me.service.js';
 import type { UserPhotoDto } from './dto/user-photo.dto.js';
 import { type FittingPhoto, NotAnImageError, toFittingPhoto } from './photo-image.js';
@@ -78,7 +80,7 @@ export class MePhotosService {
   // N8).
   async setDefault(userId: string, id: string): Promise<UserPhotoDto> {
     const row = await this.prisma.$transaction(async (tx) => {
-      await this.lockUser(tx, userId);
+      await lockUser(tx, userId);
       await tx.userPhoto.updateMany({
         where: { userId, isDefault: true, NOT: { id } },
         data: { isDefault: false },
@@ -96,7 +98,7 @@ export class MePhotosService {
   // Another user's, a transient or a missing photo is 404 (P2025).
   async delete(userId: string, id: string): Promise<void> {
     const queued = await this.prisma.$transaction(async (tx) => {
-      await this.lockUser(tx, userId);
+      await lockUser(tx, userId);
       const photo = await tx.userPhoto.delete({
         where: { id, userId, transient: false },
         select: { id: true, imageKey: true },
@@ -106,15 +108,28 @@ export class MePhotosService {
     await this.fileDeletion.start(queued);
   }
 
-  // A deleted user's cached session may still pass (spec 0013 N31): no row is 401, and the lock
-  // serialises the user's writes until the commit.
-  private async lockUser(tx: Prisma.TransactionClient, userId: string): Promise<void> {
-    const owner = await tx.$queryRaw<
-      { id: string }[]
-    >`SELECT id FROM users WHERE id = ${userId}::uuid FOR UPDATE`;
-    if (owner.length === 0) {
-      throw userGone();
-    }
+  // Closing the try-on (A69, A70): deletes a transient photo of the user, the row and its outbox
+  // entry in one transaction, the file after the commit. A photo a running generation uses stays
+  // for the housekeeping (a window closed during the wait loses nothing, AC10), and the answer is
+  // the same 204. A saved, someone else's or a missing photo is 404 (P2025).
+  async deleteTransient(userId: string, id: string): Promise<void> {
+    const queued = await this.prisma.$transaction(async (tx) => {
+      // As the housekeeping (A69): with the user locked, no start can begin to use it meanwhile.
+      await lockUser(tx, userId);
+      const photo = await tx.userPhoto.findUniqueOrThrow({
+        where: { id, userId, transient: true },
+        select: { id: true, imageKey: true },
+      });
+      const running = await tx.aiGeneration.count({
+        where: { photoId: photo.id, userId, status: { in: [...RUNNING_STATUSES] } },
+      });
+      if (running > 0) {
+        return null;
+      }
+      await tx.userPhoto.delete({ where: { id: photo.id } });
+      return this.fileDeletion.enqueue(tx, 'photo', photo.id, [photo.imageKey]);
+    });
+    await this.fileDeletion.start(queued);
   }
 
   // In this order, so a refused upload costs as little as it can (A54): the user's row and the
@@ -157,7 +172,7 @@ export class MePhotosService {
     const key = userPhotoKey(userId);
     const row = await this.prisma.$transaction(async (tx) => {
       // The lock holds the count below until the commit.
-      await this.lockUser(tx, userId);
+      await lockUser(tx, userId);
       let isDefault = false;
       if (upload.save) {
         if ((await this.savedCount(tx, userId)) >= MAX_SAVED_PHOTOS) {

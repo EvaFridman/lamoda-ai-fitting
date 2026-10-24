@@ -128,7 +128,7 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       failed, moderated, timed out, cancelled, retried, `complete` retried after a partial run).
       Check: the e2e; `temporal-reviewer`; `npm run verify`.
       Commit: `feat(api): generate a fitting in a temporal workflow`
-- [ ] **T12. Fittings routes, the limit and repeats.** `POST /fittings` (the quota row of A20,
+- [x] **T12. Fittings routes, the limit and repeats.** `POST /fittings` (the quota row of A20,
       the fingerprint with its second lookup inside the transaction, A32, the prompt check with
       its time limit, the start), `GET /fittings`
       (`CursorPaginated`), `GET /fittings/:id`, `POST /fittings/:id/regenerate`,

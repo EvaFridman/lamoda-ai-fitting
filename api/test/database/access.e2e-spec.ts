@@ -47,13 +47,15 @@ const closedRoutes: [Method, string][] = [
   ['delete', `/users/${id()}`],
   ['post', '/ai-generations'],
   ['patch', `/ai-generations/${id()}`],
+  // The fitting room opens through /fittings (spec 0019 T12): sessions are made by the first
+  // try-on, not by hand.
+  ['post', '/fitting-sessions'],
+  ['patch', `/fitting-sessions/${id()}`],
 ];
 
 const signedInRoutes: [Method, string][] = [
   ['get', '/fitting-sessions'],
   ['get', `/fitting-sessions/${id()}`],
-  ['post', '/fitting-sessions'],
-  ['patch', `/fitting-sessions/${id()}`],
   ['delete', `/fitting-sessions/${id()}`],
   ['get', '/ai-generations'],
   ['get', `/ai-generations/${id()}`],

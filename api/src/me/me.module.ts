@@ -15,5 +15,7 @@ import { MePhotosService } from './photos/me-photos.service.js';
   imports: [AuthModule, UsersModule, StorageModule, AiModule],
   controllers: [MeController, MePhotosController],
   providers: [MeService, MePhotosService],
+  // The session cookies of a gone user's sign-out, for the fittings' writes (spec 0019 plan §5).
+  exports: [MeService],
 })
 export class MeModule {}

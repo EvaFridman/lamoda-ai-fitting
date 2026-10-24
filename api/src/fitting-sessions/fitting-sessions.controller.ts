@@ -12,7 +12,7 @@ import {
 import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 
 import { ApiErrors } from '../common/errors/api-errors.decorator.js';
-import { SignedIn } from '../common/auth/access.decorators.js';
+import { Closed, SignedIn } from '../common/auth/access.decorators.js';
 import { CurrentUserId } from '../common/auth/current-principal.decorator.js';
 import { ApiPaginatedResponse, type Paginated } from '../common/pagination/paginated.js';
 import { PaginationQueryDto } from '../common/pagination/pagination-query.dto.js';
@@ -22,8 +22,8 @@ import { FittingSessionResponseDto } from './dto/fitting-session-response.dto.js
 import { UpdateFittingSessionDto } from './dto/update-fitting-session.dto.js';
 import { FittingSessionsService } from './fitting-sessions.service.js';
 
-// Every route, reads included, needs a signed-in user and serves only that user's sessions (spec
-// 0013 N8).
+// The reads and the delete need a signed-in user and serve only that user's sessions (spec 0013
+// N8); the writes are closed (spec 0019 A21).
 @ApiTags('fitting-sessions')
 @Controller('fitting-sessions')
 @SignedIn()
@@ -48,7 +48,9 @@ export class FittingSessionsController {
     return this.sessions.get(userId, id);
   }
 
+  // Closed (spec 0019 A21): the server creates the one active session at the first try-on.
   @Post()
+  @Closed()
   @ApiCreatedResponse({ type: FittingSessionResponseDto })
   @ApiErrors('ALREADY_EXISTS')
   create(
@@ -59,6 +61,7 @@ export class FittingSessionsController {
   }
 
   @Patch(':id')
+  @Closed()
   @ApiOkResponse({ type: FittingSessionResponseDto })
   @ApiErrors('ALREADY_EXISTS')
   update(

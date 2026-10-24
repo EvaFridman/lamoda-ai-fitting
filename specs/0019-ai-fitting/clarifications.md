@@ -769,6 +769,42 @@ its candidate photos (`FOR UPDATE`, as a start locks its user) and checks the ph
 it deletes them, so a regeneration started meanwhile keeps its photo; T12's start locks the
 user's row before it reads the photo (A20) and refuses a photo that is gone.
 
+**A70. The fittings routes' open details (T12).** The owner decided on 2026-10-24:
+(1) Closing the try-on calls `DELETE /me/photos/transient/:id` (204): it deletes only a transient
+photo of the user (the row and its outbox entry in one transaction, the user's row locked, as
+`DELETE /me/photos/:id`); a saved, someone else's or a missing photo is 404; a photo a running
+generation uses stays for the housekeeping and the route still answers 204, so a window closed
+during the wait loses nothing (AC10). (2) Each row is whole on its own: `prompt_text` is the
+wishes on every row (a regeneration copies its parent's), and a new nullable column `comment`
+(varchar(300), trimmed and not empty, a CHECK) holds a regeneration's comment; `generate` reads
+both from the row, not from the ancestors (amends A68). A regeneration's fingerprint is its
+parent's (the photo, the items, the wishes), so a repeat (A7) finds a regeneration too and two
+regenerations of one result at once start one (A32). (3) A regeneration of a fitting whose photo
+is gone answers 409 with a new code `PHOTO_GONE`; one of a result that is not completed (running or
+failed) answers 409 `NOT_COMPLETED`; both have their Russian texts in web. (4) `single` takes one
+item, `look` two to five; the wishes are at most 200 characters (A16; the column stays 300), the
+comment 300. The detail `HAS_SLOT`: an item's category has no slot; `DISTINCT_SLOTS`: two items of
+a look share a slot. (5) The free regeneration of A6 is a flag on the result, a new column
+`free_regeneration_used` (boolean, false): the start of a free one sets it in the start
+transaction, so deleting that regeneration gives nothing back; a free regeneration that fails, is
+refused or times out clears it in `complete` with the same conditional update that gives a paid
+one's unit back (A20); a cancelled one keeps it (A47). Only a try-on's own result has a free
+regeneration (decided at T12's security review: a regeneration is a result too, so «the first of
+each result» made a chain of free ones): a regeneration is created with the flag set, and its
+regenerations spend a try-on each (amends A6). At the code review (6) a fitting still running an
+hour after its start (an api lost between the commit and the workflow's start) is ended `failed`
+`provider_error` by the housekeeping with its try-on given back, since it would keep its unit and
+block its fingerprint; a workflow that comes back later finds it ended and pays nothing; (7) one
+generation of a try-on's family (the try-on and its regenerations share the fingerprint) runs at a
+time: a regeneration while another of the family runs answers the running one, its reasons and
+comment dropped; (8) the 409 `LIMIT_REACHED` names the renewal only in its message: web reads
+`renewsAt` from `GET /me/fitting-quota`. Assumptions, owner to confirm at the
+summary: `stage` is `queued` (pending), `generating` (processing) or `done` (ended);
+`estimatedSeconds` is the median of the user's last ten completed fittings' durations, 25 s before
+any (A27); a regeneration keeps its parent's `kind`; a failed start of the workflow ends the row
+`failed` `provider_error` with its unit (or flag) given back, logged and sent to Sentry with the
+id only (plan §4).
+
 ## Canvas and decisions
 
 Where the canvas differs from the decisions above, the decision wins:

@@ -13,8 +13,14 @@ export const ERROR_CODES = [
   'NOT_FOUND',
   'ALREADY_EXISTS',
   'IN_USE',
-  // A per-user limit is spent (spec 0019 plan §5): a sixth saved fitting photo.
+  // A per-user limit is spent (spec 0019 plan §5): a sixth saved fitting photo, the month's
+  // try-ons (A20).
   'LIMIT_REACHED',
+  // A fitting's wishes or comment the text check refused (spec 0019 A16).
+  'PROMPT_REFUSED',
+  // A regeneration of a fitting whose photo was deleted, or of a result not completed (A70).
+  'PHOTO_GONE',
+  'NOT_COMPLETED',
   'PAYLOAD_TOO_LARGE',
   'TOO_MANY_REQUESTS',
   'SERVICE_UNAVAILABLE',
@@ -37,6 +43,9 @@ export const ERROR_STATUS: Readonly<Record<ErrorCode, HttpStatus>> = {
   ALREADY_EXISTS: HttpStatus.CONFLICT,
   IN_USE: HttpStatus.CONFLICT,
   LIMIT_REACHED: HttpStatus.CONFLICT,
+  PROMPT_REFUSED: HttpStatus.BAD_REQUEST,
+  PHOTO_GONE: HttpStatus.CONFLICT,
+  NOT_COMPLETED: HttpStatus.CONFLICT,
   PAYLOAD_TOO_LARGE: HttpStatus.PAYLOAD_TOO_LARGE,
   TOO_MANY_REQUESTS: HttpStatus.TOO_MANY_REQUESTS,
   SERVICE_UNAVAILABLE: HttpStatus.SERVICE_UNAVAILABLE,

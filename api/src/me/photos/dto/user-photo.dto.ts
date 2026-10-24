@@ -20,7 +20,7 @@ export class UserPhotoDto {
 
   @ApiProperty({
     description:
-      'A one-time photo (uploaded with save=false): not among the saved ones, deleted with its generation or after an hour unused.',
+      'A one-time photo (uploaded with save=false): not among the saved ones, deleted when the try-on closes or an hour after its last fitting (unused, after its upload).',
   })
   transient: boolean;
 
