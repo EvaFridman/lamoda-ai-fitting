@@ -8,8 +8,8 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
 
 - One pull request per phase (A1), merged with "Rebase and merge" once CI is green; the next
   branch starts from a fresh `main`. The work is done in the worktree `../lamoda-ai-fitting-0019`,
-  which has no Docker stack of its own: a task that needs a running stack (`qa-tester`, a check by
-  hand) asks the owner which copy's stack to use.
+  which runs its own stack (compose project `ai-fitting-0019`, ports 9000/9001, A78); `qa-tester`
+  and checks by hand use it.
 - The owner reviews at phase boundaries (A2). Inside a phase each task is: a brief from
   `spec-finder`, a time estimate, the code, `finish-task` whole, one commit that ticks its box, then
   the next task in a fresh session (or after `/clear`). A task's check is `typecheck`, `lint` and
@@ -191,7 +191,7 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       Check: web tests of each screen, of the polling and of the toast; `typecheck`, `lint`
       (A58, A74: `qa-tester` on its ACs runs at T16).
       Commit: `feat(web): try an item on in the browser`
-- [ ] **T16. web: the history list.** `/customer/fittings` (board 9 without compare: the subtitle,
+- [x] **T16. web: the history list.** `/customer/fittings` (board 9 without compare: the subtitle,
       the tabs, the cards with their badges and thumbnails, open, delete, the empty state, the
       `LimitMeter` under `AccountShell`'s side menu; A62), the analytics zone `fitting` (its first
       entries).

@@ -7,7 +7,7 @@ import { renewalDate, useFittingQuota } from '@/entities/fitting';
 import { Button, SparkleIcon } from '@/shared/ui';
 import { TryOn } from '@/widgets/try-on';
 
-import styles from './account-stubs.module.scss';
+import styles from './fittings-page.module.scss';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

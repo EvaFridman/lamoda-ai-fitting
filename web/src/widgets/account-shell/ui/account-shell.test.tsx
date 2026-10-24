@@ -150,6 +150,39 @@ describe('AccountShell', () => {
     });
   });
 
+  describe('aside', () => {
+    const ASIDE = 'Лимит под меню';
+
+    it('shows the block under the menu when signed in', () => {
+      signedIn();
+      render(
+        <AccountShell section="fittings" aside={<p>{ASIDE}</p>}>
+          {CHILD}
+        </AccountShell>,
+      );
+      expect(screen.getByText(ASIDE)).toBeInTheDocument();
+    });
+
+    it('shows nothing while the session loads', () => {
+      render(
+        <AccountShell section="fittings" aside={<p>{ASIDE}</p>}>
+          {CHILD}
+        </AccountShell>,
+      );
+      expect(screen.queryByText(ASIDE)).not.toBeInTheDocument();
+    });
+
+    it.each([false, true])('shows nothing when signed out (failed: %s)', (failed) => {
+      mocks.session = { status: 'signed-out', failed };
+      render(
+        <AccountShell section="fittings" aside={<p>{ASIDE}</p>}>
+          {CHILD}
+        </AccountShell>,
+      );
+      expect(screen.queryByText(ASIDE)).not.toBeInTheDocument();
+    });
+  });
+
   describe('menu', () => {
     it('lists the five sections in order with their links', () => {
       signedIn();

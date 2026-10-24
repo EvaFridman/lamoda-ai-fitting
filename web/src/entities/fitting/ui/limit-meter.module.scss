@@ -33,3 +33,19 @@
 .few {
   color: var(--color-caution);
 }
+
+// Board 9: the text, a 160px bar and the caption, one under another.
+.stacked {
+  flex-direction: column;
+  align-items: flex-start;
+
+  .bar {
+    width: 160px;
+  }
+}
+
+.caption {
+  font-size: var(--font-size-caption);
+  line-height: var(--line-height-caption);
+  color: var(--color-text-secondary);
+}

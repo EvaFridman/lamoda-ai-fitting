@@ -1,0 +1,147 @@
+// Board 9's HistoryCard: a 3:4 picture on the secondary background, the «ИИ» badge in its top left
+// corner, the page's actions in its bottom right one, then the items, the kind and the date, 8px
+// apart. Below 600px (board 9.1) one item shows its name without the strip.
+
+.card {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+}
+
+.frame {
+  position: relative;
+
+  overflow: hidden;
+
+  aspect-ratio: 3 / 4;
+  border-radius: var(--radius-s);
+
+  background-color: var(--color-background-secondary);
+}
+
+// The result's `fill` image is placed against its parent, this button.
+.open {
+  cursor: pointer;
+
+  position: relative;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+
+  font: inherit;
+  color: var(--color-text-secondary);
+
+  background: none;
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: -2px;
+  }
+}
+
+.image {
+  object-fit: cover;
+}
+
+.state {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: center;
+
+  padding: var(--space-4);
+
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  text-align: center;
+}
+
+.ai {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+
+  height: 22px;
+  padding: 0 6px;
+  border-radius: var(--radius-xs);
+
+  font-size: var(--font-size-caption);
+  line-height: 22px;
+  color: var(--color-background);
+
+  background-color: rgb(0 0 0 / 72%);
+
+  @media (width < 600px) {
+    top: 6px;
+    left: 6px;
+    height: 20px;
+    line-height: 20px;
+  }
+}
+
+.actions {
+  position: absolute;
+  right: var(--space-2);
+  bottom: var(--space-2);
+}
+
+.caption {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.meta {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: space-between;
+
+  min-width: 0;
+}
+
+.label {
+  overflow: hidden;
+  flex: 1;
+
+  min-width: 0;
+
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kind {
+  flex: none;
+
+  padding: 0 6px;
+  border-radius: var(--radius-xs);
+
+  font-size: var(--font-size-caption);
+  line-height: var(--line-height-caption);
+
+  background-color: var(--color-background-secondary);
+}
+
+.date {
+  margin: 0;
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  color: var(--color-text-secondary);
+
+  @media (width < 600px) {
+    font-size: var(--font-size-caption);
+    line-height: var(--line-height-caption);
+  }
+}
+
+@media (width < 600px) {
+  .singleMeta .strip {
+    display: none;
+  }
+}

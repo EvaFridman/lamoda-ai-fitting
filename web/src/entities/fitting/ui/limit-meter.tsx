@@ -23,23 +23,65 @@ export interface LimitMeterProps {
   limit: number;
   // The text next to the bar; `triesLeftText(left)` by default.
   children?: ReactNode;
+  // `stacked`: board 9's meter under the account's side menu, the text, a longer bar and the
+  // caption one under another.
+  layout?: 'row' | 'stacked';
+  // A grey line under the bar, `stacked` only: «Обновится 1 ноября».
+  caption?: ReactNode;
   className?: string;
 }
 
 // Board 13's LimitMeter: a short bar of the try-ons left and its text, in the caution colour at
 // three or fewer (AC19).
-export function LimitMeter({ left, limit, children, className }: LimitMeterProps) {
+export function LimitMeter({
+  left,
+  limit,
+  children,
+  layout = 'row',
+  caption,
+  className,
+}: LimitMeterProps) {
   const share = limit > 0 ? Math.min(1, Math.max(0, left / limit)) : 0;
+  const stacked = layout === 'stacked';
+  const bar = (
+    <span className={styles.bar} aria-hidden>
+      <span className={styles.fill} style={{ width: `${share * 100}%` }} />
+    </span>
+  );
+  const text = <span>{children ?? triesLeftText(left)}</span>;
   return (
     <p
-      className={[styles.meter, left <= FEW_TRIES_LEFT && styles.few, className]
+      className={[
+        styles.meter,
+        stacked && styles.stacked,
+        left <= FEW_TRIES_LEFT && styles.few,
+        className,
+      ]
         .filter(Boolean)
         .join(' ')}
     >
-      <span className={styles.bar} aria-hidden>
-        <span className={styles.fill} style={{ width: `${share * 100}%` }} />
-      </span>
-      <span>{children ?? triesLeftText(left)}</span>
+      {stacked ? (
+        <>
+          {text}
+          {bar}
+          {caption && <span className={styles.caption}>{caption}</span>}
+        </>
+      ) : (
+        <>
+          {bar}
+          {text}
+        </>
+      )}
     </p>
   );
+}
+
+// After «из» the noun is genitive: «из 1 примерки», «из 40 примерок».
+const OF_TRIES = ['примерки', 'примерок', 'примерок'] as const;
+
+// «Осталось 11 из 40 примерок» (board 9's side menu).
+export function triesLeftOfText(left: number, limit: number): string {
+  if (left <= 0) return 'Примерки закончились';
+  const verb = plural(left, ['Осталась', 'Осталось', 'Осталось']);
+  return `${verb} ${left} из ${limit} ${plural(limit, OF_TRIES)}`;
 }

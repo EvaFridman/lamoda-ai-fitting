@@ -455,6 +455,12 @@ describe('analytics catalog', () => {
       'result.other-photo': ['fitting', 'interaction'],
       'fitting-toast.open': ['fitting', 'navigation'],
       'fitting-toast.retry': ['fitting', 'interaction'],
+      'history.tab': ['fitting', 'interaction'],
+      'history.open': ['fitting', 'navigation'],
+      'history.menu': ['fitting', 'interaction'],
+      'history.download': ['fitting', 'interaction'],
+      'history.delete': ['fitting', 'interaction'],
+      'history.choose-item': ['fitting', 'navigation'],
     });
   });
 

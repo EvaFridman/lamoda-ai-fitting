@@ -16,6 +16,9 @@ export interface AccountShellProps {
   section?: AccountSection['section'];
   // The section's content under its title, shown signed in only.
   children?: ReactNode;
+  // A block under the side menu, signed in only and on a wide screen, where the menu shows: the
+  // history's `LimitMeter` (spec 0019 board 9, A78).
+  aside?: ReactNode;
 }
 
 // The frame of every account page (spec 0017 U5–U7, U10): the side menu with the current section
@@ -23,13 +26,16 @@ export interface AccountShellProps {
 // a section is shown alone, with a way back to the list; one DOM, switched by CSS. The session is
 // read in the browser (U11): while it loads the content is a placeholder, signed out (a failed
 // read too) it is the invitation to sign in.
-export function AccountShell({ section, children }: AccountShellProps) {
+export function AccountShell({ section, children, aside }: AccountShellProps) {
   const current = accountSections.find((entry) => entry.section === section);
 
   return (
     <main className={`${styles.shell} ${current ? styles.inSection : styles.atMenu}`}>
       {!current && <h1 className={styles.menuTitle}>Личный кабинет</h1>}
-      <AccountMenu current={current?.section} />
+      <div className={styles.side}>
+        <AccountMenu current={current?.section} />
+        {aside && <SignedInAside>{aside}</SignedInAside>}
+      </div>
       {current && (
         <div className={styles.section}>
           <AccountBackLink />
@@ -53,5 +59,13 @@ function SectionContent({ children }: { children: ReactNode }) {
     );
   }
   if (session.status === 'signed-out') return <AccountInvite />;
+  return children;
+}
+
+// The block under the menu reads the user's data, so it renders only once the session is read
+// signed in.
+function SignedInAside({ children }: { children: ReactNode }) {
+  const session = useSession();
+  if (session.status !== 'signed-in') return null;
   return children;
 }

@@ -24,6 +24,7 @@ import {
   LockIcon,
   MapPinIcon,
   MinusIcon,
+  MoreIcon,
   PhoneIcon,
   PlusIcon,
   ProfileIcon,
@@ -71,6 +72,7 @@ const icons: { name: string; Icon: ComponentType<IconProps> }[] = [
   { name: 'LockIcon', Icon: LockIcon },
   { name: 'CompareIcon', Icon: CompareIcon },
   { name: 'TrashIcon', Icon: TrashIcon },
+  { name: 'MoreIcon', Icon: MoreIcon },
 ];
 
 // Every icon at both sizes. The icons take the colour of the text around them (currentColor).

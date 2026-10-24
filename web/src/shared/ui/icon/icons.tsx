@@ -318,6 +318,16 @@ export const CompareIcon = createIcon(
   lineArt('M12 2v20M3.5 5.5h5v13h-5zM15.5 5.5h5v13h-5z'),
 );
 
+// Three dots in a row: a card's actions menu (spec 0019 board 9).
+export const MoreIcon = createIcon('MoreIcon', {
+  24: (
+    <path
+      d="M5 10.7a1.3 1.3 0 1 1 0 2.6 1.3 1.3 0 0 1 0-2.6zM12 10.7a1.3 1.3 0 1 1 0 2.6 1.3 1.3 0 0 1 0-2.6zM19 10.7a1.3 1.3 0 1 1 0 2.6 1.3 1.3 0 0 1 0-2.6z"
+      fill="currentColor"
+    />
+  ),
+});
+
 // A bin with its lid: delete (spec 0019 board 10).
 export const TrashIcon = createIcon('TrashIcon', lineArt('M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13'));
 
