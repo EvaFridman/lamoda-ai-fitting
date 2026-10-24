@@ -47,9 +47,11 @@ export function sentryOptions(env: NodeJS.ProcessEnv): NodeOptions {
     traceLifecycle: 'static',
     dataCollection,
     // Console output of libraries would ride along with every later error of the process (the
-    // worker has no scope per activity), whatever data it holds.
+    // worker has no scope per activity), whatever data it holds. A `CONNECT` is the tunnel to the
+    // proxy abroad (A73), whose address is not for Sentry; the request to OpenAI inside it has its
+    // own breadcrumb.
     beforeBreadcrumb: (breadcrumb) =>
-      breadcrumb.category === 'console' ? null : cutToOrigin(breadcrumb),
+      breadcrumb.category === 'console' || isTunnel(breadcrumb) ? null : cutToOrigin(breadcrumb),
     // Sentry's default ("warn") only logs an unhandled rejection, so a failed start of the server
     // or the worker would leave a process that is alive but does nothing. "strict" reports it and
     // exits, as Node does without Sentry, and the container restarts.
@@ -69,6 +71,16 @@ export function sentryOptions(env: NodeJS.ProcessEnv): NodeOptions {
 }
 
 type Breadcrumb = Parameters<NonNullable<NodeOptions['beforeBreadcrumb']>>[0];
+
+// The breadcrumb of an outgoing `CONNECT` (Sentry's undici instrumentation makes no span of one).
+export function isTunnel(breadcrumb: Breadcrumb): boolean {
+  const method = breadcrumb.data?.['method'];
+  return (
+    breadcrumb.category === 'http' &&
+    typeof method === 'string' &&
+    method.toUpperCase() === 'CONNECT'
+  );
+}
 
 // The origin (`http://s3:8333`) of the storage's address; undefined when it is unset or invalid (a
 // process without storage settings, a unit test).

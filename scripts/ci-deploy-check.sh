@@ -43,6 +43,9 @@
 #      e. deploy <tag>-unwarmed (blue) with WARMUP_EXTRA_PATH, an address that answers 404: the
 #         warm-up stops it before the switch, blue is stopped, green keeps serving (spec 0018
 #         AC9), and the knob is not in blue's environment;
+#      f. deploy <tag>-unchecked (blue) with the check of OpenAI on: the placeholder proxy, a closed
+#         port, fails it before the warm-up and the switch, blue is stopped, green keeps serving
+#         (spec 0019 A73);
 #   4. with the serving api stopped, /api/ answers 503 in the api's format (F33);
 #   5. no request that reached the storage carried X-Proxy-Secret (spec 0011 plan §7).
 # nginx runs on its temporary self-signed certificate, SITE_DOMAIN is localhost, ports 80 and 443
@@ -65,6 +68,10 @@ second="$tag-next"
 broken="$tag-broken"
 migrating="${tag}abc"
 unwarmed="$tag-unwarmed"
+unchecked="$tag-unchecked"
+# deploy.sh's check of OpenAI (spec 0019 A73) needs the real key and proxy, which CI never has: off
+# for every deploy here but 3f's, which turns it on to see it stop a deploy.
+export SKIP_OPENAI_CHECK=1
 # deploy.sh removes the app images no container uses, the backup image after each deploy too: this
 # name, outside its prefix, keeps the image for the later deploys' tags.
 backup_source="deploy-check-backup:$tag"
@@ -627,10 +634,13 @@ BACKUP_WRITE_ACCESS_KEY_ID=$s3_key_id
 BACKUP_WRITE_SECRET_ACCESS_KEY=$s3_secret
 BACKUP_AGE_RECIPIENT=$backup_recipient
 OPENAI_API_KEY=deploy-check-openai-api-key
+OPENAI_PROXY_URL=http://deploycheck:deploycheck@127.0.0.1:9
 EOF
-# The placeholder key only lets the production api and worker start (they refuse an empty one,
-# spec 0019 AC27): with it the real provider is built, so this check must never call a route or a
-# workflow that reaches OpenAI (an upload, a fitting), or CI would send it a request.
+# The placeholder key and proxy only let the production api and worker start (they refuse empty
+# ones, spec 0019 AC27, A73): with them the real provider is built, so this check must never call a
+# route or a workflow that reaches OpenAI (an upload, a fitting). The proxy is a closed port inside
+# the container, so even a request that slipped through would never leave it. deploy.sh's check of
+# OpenAI is skipped (SKIP_OPENAI_CHECK, exported above) but in 3f, where it must fail.
 unset s3_key_id s3_secret
 # The emulator's admin user, from the same keys; in a file, so they stay off its command line.
 sed -n -e 's/^S3_ACCESS_KEY_ID=/AWS_ACCESS_KEY_ID=/p' -e 's/^S3_SECRET_ACCESS_KEY=/AWS_SECRET_ACCESS_KEY=/p' \
@@ -1096,7 +1106,7 @@ endgroup
 
 group "a failed warm-up stops the deploy of $unwarmed before the switch"
 # spec 0018 AC9: the images of <tag> under a new tag, so blue is started again as a new version,
-# and one more address that answers 404. Last before the api stops: it leaves blue stopped.
+# and one more address that answers 404. Late, with 3f: each leaves blue stopped.
 docker tag "ai-fitting-api:$tag" "ai-fitting-api:$unwarmed"
 docker tag "ai-fitting-web:$tag" "ai-fitting-web:$unwarmed"
 backup_image_for "$unwarmed"
@@ -1117,6 +1127,31 @@ blue_env="$(docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' ai-fit
   || { echo "ci-deploy-check: WARMUP_EXTRA_PATH is in blue's web environment" >&2; exit 1; }
 scripts/smoke-test.sh https://localhost "$second"
 echo "the 404 of /catalog/no-such stopped the deploy of $unwarmed before the switch; $second keeps serving"
+endgroup
+
+group "a failed check of OpenAI stops the deploy of $unchecked before the warm-up"
+# spec 0019 A73: the check on, against the placeholder proxy (a closed port inside the container),
+# so nothing leaves for OpenAI. The images of <tag> again, so blue starts as a new version.
+docker tag "ai-fitting-api:$tag" "ai-fitting-api:$unchecked"
+docker tag "ai-fitting-web:$tag" "ai-fitting-web:$unchecked"
+backup_image_for "$unchecked"
+if SKIP_OPENAI_CHECK="" ENV_FILE="$env_file" deploy/scripts/deploy.sh "$unchecked" 2>&1 \
+  | tee "$work/deploy-unchecked.log"; then
+  echo "ci-deploy-check: the deploy whose check of OpenAI meets a closed proxy was expected to fail" >&2
+  exit 1
+fi
+grep -qF 'OpenAI check failed: OpenAI list_models: network' "$work/deploy-unchecked.log" \
+  && grep -qF 'FAILED: OpenAI check failed; stopped blue, green keeps serving' "$work/deploy-unchecked.log" \
+  && ! grep -qF 'warming up' "$work/deploy-unchecked.log" \
+  && ! grep -qF 'switching nginx' "$work/deploy-unchecked.log" \
+  || { echo "ci-deploy-check: the deploy failed, but not at the check of OpenAI, or it warmed up or switched" >&2; exit 1; }
+# Neither the placeholder key nor the proxy's password reached the log.
+! grep -qE 'deploy-check-openai-api-key|deploycheck@' "$work/deploy-unchecked.log" \
+  || { echo "ci-deploy-check: the deploy's log holds the OpenAI key or the proxy's password" >&2; exit 1; }
+[ "$(docker inspect -f '{{.State.Running}}' ai-fitting-blue-api-1)" = false ] \
+  || { echo "ci-deploy-check: blue still runs after its failed check of OpenAI" >&2; exit 1; }
+scripts/smoke-test.sh https://localhost "$second"
+echo "the closed proxy stopped the deploy of $unchecked before the warm-up; $second keeps serving"
 endgroup
 
 # Last: it leaves the site without an api.

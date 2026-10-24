@@ -10,6 +10,9 @@
 #   IMAGE_REGISTRY  e.g. ghcr.io/evafridman/ (default: none, local images); with it, images are pulled
 #   WARMUP_EXTRA_PATH  one more address for the warm-up, a check's knob (default: none; CD never
 #                   sets it, ci-deploy-check.sh sets one that answers 404)
+#   SKIP_OPENAI_CHECK  1 skips the check of OpenAI (default: none; CD passes the Environment's
+#                   variable, the owner's way round an outage; ci-deploy-check.sh for its
+#                   placeholder key)
 #
 # Exit 0: <image-tag> serves the site. Exit 1: it does not, and whatever served before still does.
 set -euo pipefail
@@ -274,12 +277,15 @@ infra up -d --wait postgres redis redis-cache temporal || fail "infrastructure d
 infra exec -T temporal temporal operator namespace update -n default --retention 24h \
   --address 127.0.0.1:7233 >/dev/null || fail "could not set the retention of Temporal's namespace"
 
+# Set by 3a only; never taken from the caller's environment.
+still_running=""
 if [ "$(image_tag_of "$target")" = "$tag" ] && is_healthy "$target" api && is_healthy "$target" web; then
   # 3a. Rollback to the version that ran before: it is still running, only the switch is left.
   #     `up` is a no-op unless .env or app.yml changed since it started (a rotated PROXY_SECRET, a
   #     new variable): then compose recreates it, or nginx's new secret would
   #     not match its old one and every visitor of /api/ would share one quota (spec 0006 F18).
   log "$target already runs $tag and is healthy: switching only, recreated if its config changed"
+  still_running=1
   update_nginx
   if ! app "$target" "$tag" up -d --wait --remove-orphans; then
     app "$target" "$tag" stop >&2 || true
@@ -365,6 +371,34 @@ for _ in $(seq 1 10); do
 done
 [ -n "$ready" ] \
   || { app "$target" "$tag" stop >&2 || true; fail "$target is not ready; stopped it, ${active:-nothing} keeps serving"; }
+
+# OpenAI from inside the new api (spec 0019 A73): GET /v1/models with the key through the proxy,
+# by the client the checks and the generation use; anything but a 200 stops the copy before the
+# warm-up and the switch. Not on a rollback to the copy that still runs (3a): an outage of OpenAI or
+# of the proxy never blocks the way back. SKIP_OPENAI_CHECK=1 skips it (the owner's way round such an
+# outage; ci-deploy-check.sh, whose key is a placeholder), and so does an image from before it (exit
+# code 3, as for the seed: docker compose itself exits with 1 on many of its errors).
+if [ -n "${still_running:-}" ]; then
+  log "OpenAI check skipped: $target is the copy that still runs"
+elif [ "${SKIP_OPENAI_CHECK:-}" = 1 ]; then
+  log "OpenAI check skipped (SKIP_OPENAI_CHECK=1)"
+else
+  check_status=0
+  app "$target" "$tag" exec -T api sh -c 'test -f dist/ai/check-openai.js || exit 3' \
+    || check_status=$?
+  case "$check_status" in
+    0)
+      log "checking OpenAI from $target"
+      app "$target" "$tag" exec -T api node dist/ai/check-openai.js >&2 \
+        || { app "$target" "$tag" stop >&2 || true; fail "OpenAI check failed; stopped $target, ${active:-nothing} keeps serving"; }
+      ;;
+    3) log "OpenAI check skipped: $tag has no dist/ai/check-openai.js" ;;
+    *)
+      app "$target" "$tag" stop >&2 || true
+      fail "cannot look for the OpenAI check in $tag (exit $check_status); stopped $target, ${active:-nothing} keeps serving"
+      ;;
+  esac
+fi
 
 # Warm-up from inside web (spec 0018 V6–V8), for a new copy and a rollback alike: every address of
 # its /healthz/warmup twice, the caches filled before a visitor comes; anything but the expected

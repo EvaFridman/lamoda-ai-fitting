@@ -1,6 +1,7 @@
 import type { ConfigService } from '@nestjs/config';
 
 import type { Env } from '../config/env.js';
+import { type OpenAiProxy, parseOpenAiProxyUrl } from '../config/openai-proxy-url.js';
 
 // What the ai module reads from the environment (spec 0019 plan §3, §10). One provider, so a test
 // can replace it.
@@ -8,6 +9,8 @@ export interface AiSettings {
   nodeEnv: Env['NODE_ENV'];
   // Empty selects the fake provider (A4).
   apiKey: string;
+  // The proxy every request to OpenAI goes through (A73); null when unset (outside production).
+  proxy: OpenAiProxy | null;
   // The image model of the edits endpoint (A17): the short name `aiModel` stores.
   model: string;
   // The small vision model of the photo and text checks (A15).
@@ -28,6 +31,8 @@ export function aiSettings(config: ConfigService<Env, true>): AiSettings {
   return {
     nodeEnv: config.get('NODE_ENV', { infer: true }),
     apiKey: config.get('OPENAI_API_KEY', { infer: true }),
+    // Checked by the env schema; empty is null.
+    proxy: parseOpenAiProxyUrl(config.get('OPENAI_PROXY_URL', { infer: true })),
     model: config.get('FITTING_MODEL', { infer: true }),
     visionModel: config.get('FITTING_VISION_MODEL', { infer: true }),
     timeoutSeconds: config.get('FITTING_TIMEOUT_SECONDS', { infer: true }),

@@ -144,7 +144,7 @@ Pinned on purpose; each "not newer" has a reason and a condition to move on.
 `build`, `check:web-bundle` (`scripts/check-web-bundle.mjs`) fails when a file under
 `web/.next/static` (the browser bundle) contains `x-proxy-secret` (any case), `PROXY_SECRET`,
 `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_SECRET`,
-`OPENAI_API_KEY` or the
+`OPENAI_API_KEY`, `OPENAI_PROXY_URL` or the
 backup job's `BACKUP_{READ,WRITE}_{ACCESS_KEY_ID,SECRET_ACCESS_KEY}`, or when that directory is
 missing or empty; the one exception is Better Auth's env getter of `BETTER_AUTH_SECRET` in its
 browser client, cut out in exactly its shape (spec 0013 N53). Then `check:web-shells`
@@ -179,14 +179,16 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
 - `api/src/storage/`: the S3 bucket (`StorageService`: `put`, `get`, `exists`,
   `deletePrefix`, `signedUrl`) and `keys.ts`, the one place object keys are built and checked.
 - `api/src/ai/`: OpenAI (spec 0019 plan §3): `AiModule` provides `AI_SETTINGS` (the
-  `OPENAI_API_KEY` and `FITTING_*` env) and `AI_PROVIDER`: `OpenAiProvider` in production only,
+  `OPENAI_API_KEY`, `OPENAI_PROXY_URL` and `FITTING_*` env) and `AI_PROVIDER`: `OpenAiProvider` in production only,
   elsewhere always `FakeAiProvider` (A49), which answers without the network and refuses on the
   marker `refuse:<reason>` in a photo's bytes or a text, and on a photo of one solid colour
   (`REFUSAL_COLOURS`, one per reason: an upload reaches the check as sharp's WebP, where no byte
   of the marker survives, A53; `test/support/photos.ts` makes such images); a test sets its
   `delayMs`.
-  `OpenAiClient` (fetch, no SDK) calls `/v1/images/edits`, `/v1/responses` and `/v1/moderations`
-  at `OPENAI_ORIGIN`; `checks/` hold `PhotoChecker`, `PromptChecker` and `ModerationChecker`.
+  `OpenAiClient` (undici's own `fetch`, no SDK) calls `/v1/images/edits`, `/v1/responses` and
+  `/v1/moderations` at `OPENAI_ORIGIN`, with a proxy (`config/openai-proxy-url.ts`, which the env
+  schema shares) through its `ProxyAgent`
+  (spec 0019 A73), and `/v1/models` for `check-openai.ts`, the deploy's check; `checks/` hold `PhotoChecker`, `PromptChecker` and `ModerationChecker`.
   `generate(job)` is the one paid call: `image-models/` builds the edits request (`gptImage2`
   behind `ImageModel`, the person's image first, 1 to 5 items) with `prompts.ts`'s one prompt,
   sends again only a request that never reached OpenAI (a connection that did not open, a rate
@@ -213,7 +215,8 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   `getHref`); they keep no state beyond their own open dropdown, search or unapplied choice, read
   no URL and make no requests (spec 0009 K7). The page that places them owns the filter state, the
   URL and the requests.
-- `deploy/`: production compose files, nginx, deploy scripts, Ansible (server setup).
+- `deploy/`: production compose files, nginx, deploy scripts, Ansible (the server's setup,
+  `base.yml`, and the proxy to OpenAI's, `openai-proxy.yml`).
 
 ## Docker (local development)
 
@@ -767,11 +770,21 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   its own) for a network error, a 429 or a 5xx, none for another 4xx, `insufficient_quota` or a
   timeout; `AiProviderError` carries the operation, reason, status, OpenAI's `error.code` and
   request id, never the input or the key, and Sentry cuts requests to `api.openai.com` to method
-  and origin as the bucket's. `assertServerEnv` refuses production without `OPENAI_API_KEY` and,
-  everywhere, a `FITTING_CHECK_TIMEOUT_MS` above half of `REQUEST_TIMEOUT_MS`; the worker's
-  `assertWorkerEnv` refuses production without the key; outside production the fake provider
-  answers whatever the key says, and a key set there is a warning at start. Only the site reaches
-  OpenAI; tests and CI never set the key (AC27).
+  and origin as the bucket's. `assertServerEnv` refuses production without `OPENAI_API_KEY` or
+  `OPENAI_PROXY_URL` and, everywhere, a `FITTING_CHECK_TIMEOUT_MS` above half of
+  `REQUEST_TIMEOUT_MS`; the worker's `assertWorkerEnv` refuses production without the key or the
+  proxy; outside production the fake provider answers whatever they say, and either one set there
+  is a warning at start. Only the site reaches OpenAI; tests and CI never set the key (AC27).
+  OpenAI blocks the server's region, so every request to it goes through a Squid proxy on a VPS
+  abroad (A73, `deploy/ansible/openai-proxy.yml`): `OPENAI_PROXY_URL`
+  (`http://<user>:<password>@<host>:<port>`, letters and digits) is parsed once into the origin
+  and the `Proxy-Authorization` token, never logged or put into an error; only `OpenAiClient`
+  uses it (S3, Sentry and Google go directly), with `fetch` and `ProxyAgent` from the `undici`
+  package, since Node's bundled undici is another version (so the client copies the image
+  model's global `FormData` into undici's, which its `fetch` would otherwise send as the text
+  `[object FormData]`). A refusal of the proxy (its 407, 403 or 503 to `CONNECT`, or a connection
+  closed before it answers) counts as never sent (A67). Sentry drops the breadcrumb of a `CONNECT`
+  (the proxy's address) and makes no span of one.
 - `api` storage (spec 0011): one private bucket. The first segment of a key is its class, since
   Timeweb's lifecycle rules match prefixes only: `media/` (the catalog media, no expiry; the
   database keeps the key without `media/`, nginx and the seed add it), `keep/users/<userId>/…`
@@ -843,7 +856,11 @@ a throwaway container of the `ai-fitting-backup` image, `deploy/compose/backup.y
 before that image skips it, P24), runs the migrations, then the seed (the demo catalog
 and its photos, a no-op once loaded), then fetches one catalog photo from the bucket and through
 nginx; a failure of any stops it, the running copy keeps serving. After the new copy's readiness
-and before the switch, a rollback too, it warms the copy up from inside its web container
+it checks OpenAI from inside its api (`dist/ai/check-openai.js`: `GET /v1/models` with the key
+through the proxy, spec 0019 A73); anything but a 200 stops the copy and the deploy. A rollback to
+the copy that still runs, an image without the script and `SKIP_OPENAI_CHECK=1` (the variable
+of the Environment `production`, the owner's way round an outage of OpenAI or the proxy, every
+deploy warning while it is set; `ci-deploy-check.sh`) skip it. Then, before the switch, a rollback too, it warms the copy up from inside its web container
 (`deploy/scripts/warmup.mjs`, every address of `/healthz/warmup` twice, both times logged; spec
 0018 V6–V8): any status but the expected one, a 10 s answer or 120 s in all stops the copy and the
 deploy, the running copy keeps serving. nginx serves `/media/<key>` from

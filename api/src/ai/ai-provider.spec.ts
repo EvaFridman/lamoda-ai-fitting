@@ -25,6 +25,7 @@ const OPENAI_SETTINGS = { model: 'gpt-image-2', timeoutSeconds: 180 };
 const settings: AiSettings = {
   nodeEnv: 'production',
   apiKey: 'test-openai-key_1',
+  proxy: null,
   model: 'gpt-image-2',
   visionModel: 'vision',
   timeoutSeconds: 180,

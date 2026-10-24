@@ -22,6 +22,8 @@ const valid = {
   S3_SECRET_ACCESS_KEY: 'secret-access-key',
 };
 
+const PROXY_URL = 'http://proxyuser:Pw0rd9x@proxy.example.ru:3128';
+
 function thrownMessage(run: () => unknown): string {
   try {
     run();
@@ -469,6 +471,7 @@ describe('assertServerEnv', () => {
     AUTH_FAKE_OIDC_URL: '',
     AUTH_FAKE_OIDC_PUBLIC_URL: '',
     OPENAI_API_KEY: 'test-openai-key_1',
+    OPENAI_PROXY_URL: PROXY_URL,
     REQUEST_TIMEOUT_MS: 10_000,
     FITTING_CHECK_TIMEOUT_MS: 4000,
   };
@@ -526,6 +529,7 @@ describe('assertServerEnv', () => {
         AUTH_FAKE_OIDC_URL: 'http://oidc:4010',
         AUTH_FAKE_OIDC_PUBLIC_URL: 'http://localhost:4010',
         OPENAI_API_KEY: '',
+        OPENAI_PROXY_URL: '',
         REQUEST_TIMEOUT_MS: 10_000,
         FITTING_CHECK_TIMEOUT_MS: 4000,
       }),
@@ -537,6 +541,7 @@ describe('assertServerEnv', () => {
         'GOOGLE_CLIENT_ID: must be set in production; ' +
         'GOOGLE_CLIENT_SECRET: must be set in production; ' +
         'OPENAI_API_KEY: must be set in production; ' +
+        'OPENAI_PROXY_URL: must be set in production; ' +
         'AUTH_FAKE_OIDC_URL: must be empty in production; ' +
         'AUTH_FAKE_OIDC_PUBLIC_URL: must be empty in production',
     );
@@ -555,6 +560,7 @@ describe('assertServerEnv', () => {
           AUTH_FAKE_OIDC_URL: 'http://oidc:4010',
           AUTH_FAKE_OIDC_PUBLIC_URL: 'http://localhost:4010',
           OPENAI_API_KEY: '',
+          OPENAI_PROXY_URL: '',
           REQUEST_TIMEOUT_MS: 10_000,
           FITTING_CHECK_TIMEOUT_MS: 4000,
         }),
@@ -573,6 +579,7 @@ describe('serverEnvWarnings', () => {
     AUTH_FAKE_OIDC_URL: '',
     AUTH_FAKE_OIDC_PUBLIC_URL: '',
     OPENAI_API_KEY: '',
+    OPENAI_PROXY_URL: '',
     REQUEST_TIMEOUT_MS: 10_000,
     FITTING_CHECK_TIMEOUT_MS: 4000,
   };
@@ -647,6 +654,28 @@ describe('validateEnv OpenAI and fitting settings', () => {
     },
   );
 
+  it('defaults OPENAI_PROXY_URL to an empty string and accepts a valid one', () => {
+    expect(validateEnv(valid).OPENAI_PROXY_URL).toBe('');
+    expect(validateEnv({ ...valid, OPENAI_PROXY_URL: '' }).OPENAI_PROXY_URL).toBe('');
+    expect(validateEnv({ ...valid, OPENAI_PROXY_URL: PROXY_URL }).OPENAI_PROXY_URL).toBe(PROXY_URL);
+  });
+
+  it.each([
+    'not a url',
+    'https://proxyuser:Pw0rd9x@proxy.example.ru:3128',
+    'http://proxyuser:Pw0rd9x@proxy.example.ru',
+    'http://proxy.example.ru:3128',
+    'http://proxyuser:Pw0r-d9x@proxy.example.ru:3128',
+    'http://proxyuser:Pw0rd9x@proxy.example.ru:3128/path',
+    'http://proxyuser:Pw0rd9x@proxy.example.ru:3128?x=1',
+  ])('refuses OPENAI_PROXY_URL %j, naming the variable but not the password', (value) => {
+    const message = thrownMessage(() => validateEnv({ ...valid, OPENAI_PROXY_URL: value }));
+
+    expect(message).toMatch(/OPENAI_PROXY_URL/);
+    expect(message).not.toContain('Pw0rd9x');
+    expect(message).not.toContain('Pw0r-d9x');
+  });
+
   it.each(['FITTING_MODEL', 'FITTING_VISION_MODEL'])('accepts a model name in %s', (name) => {
     expect(validateEnv({ ...valid, [name]: 'gpt-image-2.5-sunburst' })).toMatchObject({
       [name]: 'gpt-image-2.5-sunburst',
@@ -691,14 +720,71 @@ describe('OpenAI key and check timeout in the server and worker checks', () => {
     AUTH_FAKE_OIDC_URL: '',
     AUTH_FAKE_OIDC_PUBLIC_URL: '',
     OPENAI_API_KEY: 'test-openai-key_1',
+    OPENAI_PROXY_URL: '',
     REQUEST_TIMEOUT_MS: 10_000,
     FITTING_CHECK_TIMEOUT_MS: 4000,
   };
+  const production = { ...server, OPENAI_PROXY_URL: PROXY_URL };
 
   it('refuses production with an empty OPENAI_API_KEY, naming the variable', () => {
-    expect(() => assertServerEnv({ ...server, OPENAI_API_KEY: '' })).toThrow(
+    expect(() => assertServerEnv({ ...production, OPENAI_API_KEY: '' })).toThrow(
       'Invalid environment: OPENAI_API_KEY: must be set in production',
     );
+  });
+
+  it('refuses production with an empty OPENAI_PROXY_URL, naming the variable', () => {
+    expect(() => assertServerEnv({ ...production, OPENAI_PROXY_URL: '' })).toThrow(
+      'Invalid environment: OPENAI_PROXY_URL: must be set in production',
+    );
+  });
+
+  it('names both missing OpenAI variables in the server and the worker, never a value', () => {
+    const empty = { NODE_ENV: 'production', OPENAI_API_KEY: '', OPENAI_PROXY_URL: '' } as const;
+    const expected =
+      'Invalid environment: OPENAI_API_KEY: must be set in production; ' +
+      'OPENAI_PROXY_URL: must be set in production';
+
+    expect(() => assertWorkerEnv(empty)).toThrow(expected);
+    expect(() => assertServerEnv({ ...production, ...empty })).toThrow(expected);
+  });
+
+  it('refuses a worker in production with only the key or only the proxy', () => {
+    expect(() =>
+      assertWorkerEnv({ NODE_ENV: 'production', OPENAI_API_KEY: 'k', OPENAI_PROXY_URL: '' }),
+    ).toThrow('Invalid environment: OPENAI_PROXY_URL: must be set in production');
+    expect(() =>
+      assertWorkerEnv({ NODE_ENV: 'production', OPENAI_API_KEY: '', OPENAI_PROXY_URL: PROXY_URL }),
+    ).toThrow('Invalid environment: OPENAI_API_KEY: must be set in production');
+  });
+
+  it('warns that a set proxy is ignored outside production, without its password', () => {
+    const only = {
+      NODE_ENV: 'development',
+      OPENAI_API_KEY: '',
+      OPENAI_PROXY_URL: PROXY_URL,
+    } as const;
+
+    const warnings = workerEnvWarnings(only);
+
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toMatch(/OPENAI_PROXY_URL/);
+    expect(warnings[0]).toMatch(/ignored/);
+    expect(warnings.join(' ')).not.toContain('Pw0rd9x');
+    expect(
+      serverEnvWarnings({ ...server, ...only }).filter((w) => /OPENAI_PROXY_URL/.test(w)),
+    ).toHaveLength(1);
+  });
+
+  it('warns for the key and the proxy separately when both are set', () => {
+    const warnings = workerEnvWarnings({
+      NODE_ENV: 'test',
+      OPENAI_API_KEY: 'test-openai-key_1',
+      OPENAI_PROXY_URL: PROXY_URL,
+    });
+
+    expect(warnings).toHaveLength(2);
+    expect(warnings[0]).toMatch(/OPENAI_API_KEY/);
+    expect(warnings[1]).toMatch(/OPENAI_PROXY_URL/);
   });
 
   it.each(['development', 'production', 'test'] as const)(
@@ -714,23 +800,25 @@ describe('OpenAI key and check timeout in the server and worker checks', () => {
     'accepts a check timeout of exactly half with NODE_ENV=%s',
     (nodeEnv) => {
       expect(() =>
-        assertServerEnv({ ...server, NODE_ENV: nodeEnv, FITTING_CHECK_TIMEOUT_MS: 5000 }),
+        assertServerEnv({ ...production, NODE_ENV: nodeEnv, FITTING_CHECK_TIMEOUT_MS: 5000 }),
       ).not.toThrow();
     },
   );
 
   it('throws in the worker in production with an empty key, naming the variable', () => {
-    expect(() => assertWorkerEnv({ NODE_ENV: 'production', OPENAI_API_KEY: '' })).toThrow(
-      /OPENAI_API_KEY/,
-    );
+    expect(() =>
+      assertWorkerEnv({ NODE_ENV: 'production', OPENAI_API_KEY: '', OPENAI_PROXY_URL: PROXY_URL }),
+    ).toThrow(/OPENAI_API_KEY/);
   });
 
   it.each([
-    ['production', 'test-openai-key_1'],
-    ['development', ''],
-    ['test', ''],
-  ] as const)('passes in the worker with NODE_ENV=%s and key %j', (nodeEnv, key) => {
-    expect(() => assertWorkerEnv({ NODE_ENV: nodeEnv, OPENAI_API_KEY: key })).not.toThrow();
+    ['production', 'test-openai-key_1', PROXY_URL],
+    ['development', '', ''],
+    ['test', '', ''],
+  ] as const)('passes in the worker with NODE_ENV=%s and key %j', (nodeEnv, key, proxy) => {
+    expect(() =>
+      assertWorkerEnv({ NODE_ENV: nodeEnv, OPENAI_API_KEY: key, OPENAI_PROXY_URL: proxy }),
+    ).not.toThrow();
   });
 
   it.each(['development', 'test'] as const)(
@@ -740,7 +828,11 @@ describe('OpenAI key and check timeout in the server and worker checks', () => {
       const key = 'test-openai-key_1';
 
       const serverWarnings = serverEnvWarnings(withKey);
-      const workerWarnings = workerEnvWarnings({ NODE_ENV: nodeEnv, OPENAI_API_KEY: key });
+      const workerWarnings = workerEnvWarnings({
+        NODE_ENV: nodeEnv,
+        OPENAI_API_KEY: key,
+        OPENAI_PROXY_URL: '',
+      });
 
       expect(serverWarnings).toHaveLength(1);
       expect(serverWarnings[0]).toMatch(/OPENAI_API_KEY/);
@@ -756,13 +848,21 @@ describe('OpenAI key and check timeout in the server and worker checks', () => {
     'does not warn about an empty key with NODE_ENV=%s',
     (nodeEnv) => {
       expect(serverEnvWarnings({ ...server, NODE_ENV: nodeEnv, OPENAI_API_KEY: '' })).toEqual([]);
-      expect(workerEnvWarnings({ NODE_ENV: nodeEnv, OPENAI_API_KEY: '' })).toEqual([]);
+      expect(
+        workerEnvWarnings({ NODE_ENV: nodeEnv, OPENAI_API_KEY: '', OPENAI_PROXY_URL: '' }),
+      ).toEqual([]);
     },
   );
 
   it('does not warn in production, with the key set or empty', () => {
     for (const key of ['', 'test-openai-key_1']) {
-      expect(workerEnvWarnings({ NODE_ENV: 'production', OPENAI_API_KEY: key })).toEqual([]);
+      expect(
+        workerEnvWarnings({
+          NODE_ENV: 'production',
+          OPENAI_API_KEY: key,
+          OPENAI_PROXY_URL: PROXY_URL,
+        }),
+      ).toEqual([]);
       expect(serverEnvWarnings({ ...server, OPENAI_API_KEY: key })).toEqual([]);
     }
   });

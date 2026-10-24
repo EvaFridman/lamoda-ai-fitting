@@ -89,6 +89,13 @@ describe('check-web-bundle', () => {
     assert.match(result.stderr, /fitting\.js: OPENAI_API_KEY/);
   });
 
+  it('fails on the env name OPENAI_PROXY_URL (spec 0019 A73)', () => {
+    put('chunks/fitting.js', 'process.env.OPENAI_PROXY_URL');
+    const result = check();
+    assert.equal(result.status, 1, result.stderr);
+    assert.match(result.stderr, /fitting\.js: OPENAI_PROXY_URL/);
+  });
+
   it('passes the other fitting settings', () => {
     put('chunks/fitting.js', 'process.env.FITTING_MODEL+process.env.FITTING_MONTHLY_LIMIT');
     const result = check();

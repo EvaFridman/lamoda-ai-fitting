@@ -5,17 +5,18 @@ merge в `main` → CI собирает и проверяет образы, пу
 скриптом `deploy/scripts/deploy.sh` (blue-green, без простоя для api и web; инфраструктура — см. «Как идёт деплой»). Как устроены
 файлы:
 
-| Что                     | Где                                                                   |
-| ----------------------- | --------------------------------------------------------------------- |
-| инфраструктура          | `compose/infra.yml` — PostgreSQL, два Redis, Temporal, nginx, certbot |
-| копия приложения (цвет) | `compose/app.yml` — api + web, blue или green                         |
-| воркер Temporal         | `compose/worker.yml`                                                  |
-| бэкапы                  | `compose/backup.yml` — ночная копия базы и бакета («Бэкапы»)          |
-| nginx                   | `nginx/` — шаблон конфига, временный сертификат, автоперезагрузка     |
-| деплой                  | `scripts/deploy.sh`                                                   |
-| подготовка сервера      | `ansible/base.yml`                                                    |
-| образы в CI             | `.github/workflows/images.yml`, вызывается из `ci.yml`                |
-| CD                      | `.github/workflows/cd.yml`, вызывается из `ci.yml`                    |
+| Что                     | Где                                                                      |
+| ----------------------- | ------------------------------------------------------------------------ |
+| инфраструктура          | `compose/infra.yml` — PostgreSQL, два Redis, Temporal, nginx, certbot    |
+| копия приложения (цвет) | `compose/app.yml` — api + web, blue или green                            |
+| воркер Temporal         | `compose/worker.yml`                                                     |
+| бэкапы                  | `compose/backup.yml` — ночная копия базы и бакета («Бэкапы»)             |
+| nginx                   | `nginx/` — шаблон конфига, временный сертификат, автоперезагрузка        |
+| деплой                  | `scripts/deploy.sh`                                                      |
+| подготовка сервера      | `ansible/base.yml`                                                       |
+| прокси к OpenAI         | `ansible/openai-proxy.yml` — Squid на VPS за рубежом («Прокси к OpenAI») |
+| образы в CI             | `.github/workflows/images.yml`, вызывается из `ci.yml`                   |
+| CD                      | `.github/workflows/cd.yml`, вызывается из `ci.yml`                       |
 
 ## Как идёт деплой
 
@@ -36,7 +37,7 @@ GHCR; публикует только job `images-main`, который запу
 5. `deploy.sh <тег>`: базы и Temporal (ничего не делает, если `infra.yml` не менялся) → срок
    хранения истории Temporal → копия базы перед миграциями → миграции → сид демо-каталога → проверка фото из бакета → nginx
    (пересоздаётся, если менялся его сервис в `infra.yml`, и получает новый конфиг) → проверка фото
-   через nginx → новая копия рядом со старой → проверка → прогрев → переключение nginx. Срок хранения истории namespace `default`
+   через nginx → новая копия рядом со старой → проверка → проверка OpenAI → прогрев → переключение nginx. Срок хранения истории namespace `default`
    каждый деплой ставит 24 часа (спека 0013 N45): id удалённого пользователя остаётся в истории
    `deleteFiles` не дольше суток, и ни новый образ Temporal, ни новый том этого не меняют. Сид
    добавляет только недостающие строки и не меняет существующие, а в бакет загружает только
@@ -49,7 +50,13 @@ GHCR; публикует только job `images-main`, который запу
    версия с ним, чей образ бэкапа не найден или не скачался, останавливает деплой. Упавшая копия,
    миграция, сид или проверка из бакета останавливают деплой до nginx: nginx, его конфиг и `/media/`
    остаются прежними, а сайт продолжает обслуживать старая копия (спека 0011 M38). Откат на копию,
-   которая ещё работает, применяет nginx сразу, без копии, миграций, сида и проверок фото. Прогрев
+   которая ещё работает, применяет nginx сразу, без копии, миграций, сида и проверок фото. Проверка
+   OpenAI (спека 0019 A73) идёт сразу после готовности: изнутри api новой копии
+   `node dist/ai/check-openai.js` запрашивает `GET /v1/models` с ключом через прокси тем же
+   клиентом, что проверки фото и генерация; всё, кроме 200, останавливает новую копию и деплой
+   («OpenAI check failed», в логе операция, статус и код OpenAI, без ключа и адреса прокси), сайт
+   остаётся на работающей. Её пропускают откат на копию, которая ещё работает, образ без скрипта
+   и `SKIP_OPENAI_CHECK=1` («Прокси к OpenAI», обход). Прогрев
    (спека 0018 V6–V8, `deploy/scripts/warmup.mjs`) идёт и при откате: скрипт запускается внутри
    контейнера web новой копии (`docker compose exec`, адрес `127.0.0.1`, мимо nginx и квот
    посетителей), берёт список адресов из её `/healthz/warmup` (`/`, `/catalog`, страницы до 50
@@ -798,24 +805,19 @@ api): упавший или не начавшийся запуск — пись�
 
 ### AI-примерка (OpenAI)
 
-Проверки фото и текста (api) и генерация (воркер Temporal) идут напрямую в OpenAI (спека 0019 A4):
-модель картинок `gpt-image-2`, маленькая vision-модель `gpt-6-luna` и бесплатный endpoint
-модерации. Один ключ — секрет `OPENAI_API_KEY` (ниже); без него api и воркер в production не
+Проверки фото и текста (api) и генерация (воркер Temporal) идут в OpenAI (спека 0019 A4) через
+прокси за рубежом (A73, «Прокси к OpenAI» ниже): модель картинок `gpt-image-2`, маленькая
+vision-модель `gpt-6-luna` и бесплатный endpoint модерации. Один ключ — секрет `OPENAI_API_KEY`,
+адрес прокси — секрет `OPENAI_PROXY_URL` (ниже); без любого из них api и воркер в production не
 стартуют, а CD останавливается до сервера. В OpenAI ходит только production: локально, в тестах и
-CI работает поддельный провайдер, а ключ, если он задан в `.env`, игнорируется (A49).
+CI работает поддельный провайдер, а ключ и прокси, если они заданы в `.env`, игнорируются (A49).
 
 1. **Ключ:** platform.openai.com → API keys → Create new secret key, отдельный ключ для этого
    проекта (чтобы его можно было отозвать). Показывается один раз — сразу в GitHub (блок ниже).
    Ключ без пробелов и символов ``$`"'\;&|<>()#~`` (у OpenAI их нет).
-2. **Доступность с сервера** (до начала фазы 2 спеки 0019, A4): сервер в России, которой нет в
-   списке стран OpenAI. На сервере без ключа:
-
-   ```bash
-   curl -sS -o /dev/null -w '%{http_code}\n' https://api.openai.com/v1/models
-   ```
-
-   `401` — api.openai.com доступен; `403` (в теле `unsupported_country_region_territory`) —
-   региональная блокировка, маршрут решает владелец, работа над генерацией не продолжается.
+2. **Доступность** проверяет каждый деплой (шаг «проверка OpenAI», «Как идёт деплой»): запрос с
+   ключом через прокси. Проверка без ключа ничего не доказывает: регион OpenAI смотрит только у
+   запросов с ключом (A73).
 
 3. **Настройки моделей и лимитов** — не секреты и не переменные GitHub: `FITTING_MODEL`
    (`gpt-image-2`; `gpt-image-2.5-sunburst` — альтернатива без релиза), `FITTING_VISION_MODEL`
@@ -824,6 +826,94 @@ CI работает поддельный провайдер, а ключ, есл
    `FITTING_PHOTO_MAX_BYTES` (20 МБ, вместе с лимитом nginx маршрута загрузки). В production
    действуют значения по умолчанию из `deploy/compose/app.yml` и `worker.yml`; меняются коммитом в
    эти файлы (`.env` сервера CD переписывает).
+
+### Прокси к OpenAI
+
+OpenAI не принимает запросы из России (403 `unsupported_country_region_territory`), поэтому api и
+воркер ходят в него через Squid на отдельном VPS за рубежом (спека 0019 A73): Timeweb Cloud,
+Амстердам, 1 CPU, 1 ГБ, Ubuntu 26.04, вход только по SSH-ключу. Через прокси идут только запросы в
+OpenAI; S3, Sentry, Google и остальное — напрямую. Squid пропускает только `CONNECT
+api.openai.com:443` клиента с логином и паролем (остальное — 403, без пароля — 407), не передаёт
+`Via` и `X-Forwarded-For`, ничего не кэширует; в логе только соединения (время, адрес, `CONNECT`,
+статус, байты), содержимое закрыто TLS. Firewall пускает к SSH и порту 3128 только адрес
+production-сервера. Пароль идёт между серверами открытым текстом (CONNECT по HTTP): главная защита —
+firewall, пароль — вторая.
+
+1. **SSH.** Напрямую с Mac SSH к VPS зависает (провайдер режет SSH к зарубежным адресам), поэтому
+   вход через production-сервер. В `~/.ssh/config`:
+
+   ```
+   Host openai-proxy
+     HostName <IP VPS>
+     User root
+     IdentityFile <тот же ключ, что у ai-fitting>
+     IdentitiesOnly yes
+     ProxyJump ai-fitting
+   ```
+
+   Если SSH сломан (например, firewall отрезал доступ), вход — веб-консоль в панели Timeweb.
+   Плейбук сам проверяет, что сессия пришла с `PRODUCTION_IP`, и без этого ничего не меняет в
+   firewall.
+
+2. **Пароль** — 24+ латинских букв и цифр, только в менеджере паролей и в секрете ниже:
+
+   ```bash
+   openssl rand -hex 16
+   ```
+
+3. **Плейбук** (идемпотентный, повторный запуск безопасен). Первая строка тихо спрашивает пароль;
+   `<IP прода>` — адрес `ai-fitting`:
+
+   ```bash
+   cd deploy/ansible
+   read -rs OPENAI_PROXY_PASSWORD; export OPENAI_PROXY_PASSWORD
+   OPENAI_PROXY_USER=aifitting PRODUCTION_IP=<IP прода> ansible-playbook openai-proxy.yml --check --diff
+   OPENAI_PROXY_USER=aifitting PRODUCTION_IP=<IP прода> ansible-playbook openai-proxy.yml
+   unset OPENAI_PROXY_PASSWORD
+   ```
+
+   `--check` на чистом VPS ругается на шаги, которым нужен Squid: пакет ещё не поставлен, это
+   нормально.
+
+4. **Проверка с production-сервера** (`ssh ai-fitting`). Первая команда тихо спрашивает ключ
+   OpenAI, вторая — адрес прокси целиком (`http://aifitting:<пароль>@<IP VPS>:3128`). Оба значения
+   идут в curl через stdin (`-K -`), а не аргументами: аргументы видны в `ps` любому пользователю
+   сервера:
+
+   ```bash
+   read -rs OPENAI_API_KEY
+   read -rs OPENAI_PROXY_URL
+   printf 'proxy = "%s"\nheader = "Authorization: Bearer %s"\n' "$OPENAI_PROXY_URL" "$OPENAI_API_KEY" | curl -K - -sS -o /dev/null -w '%{http_code}\n' https://api.openai.com/v1/models
+   printf 'proxy = "%s"\n' "$OPENAI_PROXY_URL" | curl -K - -sS -o /dev/null -w '%{http_code}\n' https://example.com/
+   unset OPENAI_API_KEY OPENAI_PROXY_URL
+   ```
+
+   Первая — `200`; вторая — ошибка `CONNECT tunnel failed, response 403`. `403` у первой с
+   `unsupported_country_region_territory` — OpenAI не пускает адрес VPS: другой провайдер или
+   страна.
+
+5. **Секрет** `OPENAI_PROXY_URL` — блок в «Environment `production`» ниже.
+
+**Новый адрес production-сервера.** Плейбук только добавляет разрешения, старые остаются. Запустить
+его с новым `PRODUCTION_IP` (сессия уже через новый сервер), затем на VPS убрать старый адрес:
+`ufw status numbered`, `ufw delete <номер>` для каждой строки со старым адресом (22 и 3128).
+
+**Обход при сбое.** Если OpenAI или VPS лежит, проверка OpenAI останавливает каждый деплой, в том
+числе срочный фикс, не связанный с примеркой. Тогда — переменная окружения, которая отключает
+проверку для всех деплоев, пока она задана:
+
+```bash
+gh variable set SKIP_OPENAI_CHECK --env production --body 1
+```
+
+Затем упавший CD перезапускают в прогоне CI (**Re-run failed jobs**); ручной запуск CD годится
+только для отката на тег, который уже был на сайте («Откат»). Лог каждого такого деплоя пишет
+«OpenAI check skipped», а GitHub — предупреждение. Примерка при этом не
+работает, пока прокси или OpenAI не вернутся. Как только они ответили, переменную убирают:
+
+```bash
+gh variable delete SKIP_OPENAI_CHECK --env production
+```
 
 ### Environment `production` (GitHub)
 
@@ -922,6 +1012,15 @@ gh secret set GOOGLE_CLIENT_SECRET --env production
 
 ```bash
 gh secret set OPENAI_API_KEY --env production
+```
+
+Адрес прокси к OpenAI («Прокси к OpenAI» выше; спека 0019 A73):
+`http://aifitting:<пароль>@<IP VPS>:3128`, логин и пароль только из латинских букв и цифр. api и
+воркер в production без него не стартуют, CD проверяет его вид до сервера. Значение не попадает ни
+в логи, ни в Sentry:
+
+```bash
+gh secret set OPENAI_PROXY_URL --env production
 ```
 
 Общий секрет nginx, web и api (заголовок `X-Proxy-Secret`): только с ним api верит адресу клиента и
@@ -1030,9 +1129,10 @@ gh variable list
    `SENTRY_AUTH_TOKEN`, `PROXY_SECRET` (и `PROXY_SECRET_NEXT`, только во время смены),
    `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_SECRET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`,
    `BACKUP_READ_ACCESS_KEY_ID`, `BACKUP_READ_SECRET_ACCESS_KEY`, `BACKUP_WRITE_ACCESS_KEY_ID`,
-   `BACKUP_WRITE_SECRET_ACCESS_KEY`, `OPENAI_API_KEY`.
+   `BACKUP_WRITE_SECRET_ACCESS_KEY`, `OPENAI_API_KEY`, `OPENAI_PROXY_URL`.
 2. `DEPLOY_HOST`, `DEPLOY_USER`, `SITE_DOMAIN`, `POSTGRES_USER`, `POSTGRES_DB`, `MEDIA_BASE_URL`,
-   `S3_ENDPOINT`, `S3_BUCKET`, `GOOGLE_CLIENT_ID`, `BACKUP_BUCKET`, `BACKUP_AGE_RECIPIENT`.
+   `S3_ENDPOINT`, `S3_BUCKET`, `GOOGLE_CLIENT_ID`, `BACKUP_BUCKET`, `BACKUP_AGE_RECIPIENT`
+   (и `SKIP_OPENAI_CHECK`, только во время сбоя OpenAI или прокси, «Прокси к OpenAI»).
 3. Пусто.
 4. `SENTRY_ORG`, `SENTRY_PROJECT`, `SENTRY_PROJECT_API`, `NEXT_PUBLIC_SENTRY_DSN`,
    `NEXT_PUBLIC_MIXPANEL_TOKEN`.

@@ -287,7 +287,7 @@ export function createAiProvider(settings: AiSettings, logger: AiLogger): AiProv
     return new FakeAiProvider(settings);
   }
   return new OpenAiProvider(
-    new OpenAiClient({ apiKey: settings.apiKey, logger }),
+    new OpenAiClient({ apiKey: settings.apiKey, proxy: settings.proxy, logger }),
     settings,
     logger,
   );

@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { parseOpenAiProxyUrl } from './openai-proxy-url.js';
+
 // The proxy secret: empty, or long enough not to be guessed; letters and digits only, as nginx's
 // config and the server's sourced .env would break on `$`, `"` or `;`.
 const proxySecret = () =>
@@ -126,6 +128,18 @@ export const envSchema = z
     // start without it (assertServerEnv, assertWorkerEnv). No spaces: it goes into the sourced
     // .env.
     OPENAI_API_KEY: z.string().regex(/^\S*$/, 'must have no spaces').default(''),
+    // The proxy abroad every request to OpenAI goes through (A73: OpenAI blocks the server's
+    // region), http://<user>:<password>@<host>:<port>, both letters and digits only. Ignored
+    // outside production, where nothing reaches OpenAI; production refuses to start without it
+    // (assertServerEnv, assertWorkerEnv). The message never repeats the value: it holds the
+    // password.
+    OPENAI_PROXY_URL: z
+      .string()
+      .refine((value) => value === '' || parseOpenAiProxyUrl(value) !== null, {
+        message:
+          'must be http://<user>:<password>@<host>:<port>, user and password letters and digits',
+      })
+      .default(''),
     // The image model of the edits endpoint (A17; `gpt-image-2.5-sunburst` is the alternative) and
     // the small vision model of the photo and text checks (A15).
     FITTING_MODEL: z
@@ -210,7 +224,8 @@ export function validateEnv(raw: Record<string, unknown>): Env {
 // Without the proxy secret production would count every visitor as nginx's or web's address;
 // without the auth secret and Google's client nobody could sign in, and the fake provider would let
 // anyone sign in as anyone (spec 0013 AC14); without the OpenAI key no check and no generation
-// could run (spec 0019 AC27). Every problem is named at once; never a value.
+// could run (spec 0019 AC27), and without the proxy every one would meet OpenAI's region block
+// (A73). Every problem is named at once; never a value.
 export type ServerEnv = Pick<
   Env,
   | 'NODE_ENV'
@@ -221,13 +236,17 @@ export type ServerEnv = Pick<
   | 'AUTH_FAKE_OIDC_URL'
   | 'AUTH_FAKE_OIDC_PUBLIC_URL'
   | 'OPENAI_API_KEY'
+  | 'OPENAI_PROXY_URL'
   | 'REQUEST_TIMEOUT_MS'
   | 'FITTING_CHECK_TIMEOUT_MS'
 >;
 
 // What the worker process needs on top of the schema (spec 0019 plan §3): it runs the generation
-// and the result's moderation, so production refuses an empty key there too.
-export type WorkerEnv = Pick<Env, 'NODE_ENV' | 'OPENAI_API_KEY'>;
+// and the result's moderation, so production refuses an empty key or proxy there too.
+export type WorkerEnv = Pick<Env, 'NODE_ENV' | 'OPENAI_API_KEY' | 'OPENAI_PROXY_URL'>;
+
+// What production needs to reach OpenAI, in the api and the worker alike (AC27, A73).
+const OPENAI_REQUIRED = ['OPENAI_API_KEY', 'OPENAI_PROXY_URL'] as const;
 
 export function assertServerEnv(env: ServerEnv): void {
   const problems: string[] = [];
@@ -242,7 +261,7 @@ export function assertServerEnv(env: ServerEnv): void {
       'BETTER_AUTH_SECRET',
       'GOOGLE_CLIENT_ID',
       'GOOGLE_CLIENT_SECRET',
-      'OPENAI_API_KEY',
+      ...OPENAI_REQUIRED,
     ] as const;
     const forbidden = ['AUTH_FAKE_OIDC_URL', 'AUTH_FAKE_OIDC_PUBLIC_URL'] as const;
     problems.push(
@@ -258,8 +277,11 @@ export function assertServerEnv(env: ServerEnv): void {
 }
 
 export function assertWorkerEnv(env: WorkerEnv): void {
-  if (env.NODE_ENV !== 'production' || env.OPENAI_API_KEY !== '') return;
-  throw new Error('Invalid environment: OPENAI_API_KEY: must be set in production');
+  if (env.NODE_ENV !== 'production') return;
+  const problems = OPENAI_REQUIRED.filter((name) => env[name] === '').map(
+    (name) => `${name}: must be set in production`,
+  );
+  if (problems.length > 0) throw new Error(`Invalid environment: ${problems.join('; ')}`);
 }
 
 // What the server logs as a warning at start outside production, where assertServerEnv lets it
@@ -281,9 +303,10 @@ export function serverEnvWarnings(env: ServerEnv): string[] {
 // The same for the worker: outside production the fake provider answers every check and
 // generation whatever the key says (A49), so a key set there is a mistake worth a line.
 export function workerEnvWarnings(env: WorkerEnv): string[] {
-  if (env.NODE_ENV === 'production' || env.OPENAI_API_KEY === '') return [];
-  return [
-    'OPENAI_API_KEY is set but ignored outside production: the fake AI provider answers the photo ' +
+  if (env.NODE_ENV === 'production') return [];
+  return OPENAI_REQUIRED.filter((name) => env[name] !== '').map(
+    (name) =>
+      `${name} is set but ignored outside production: the fake AI provider answers the photo ` +
       'and text checks and the generations; nothing reaches OpenAI',
-  ];
+  );
 }

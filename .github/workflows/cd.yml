@@ -65,6 +65,7 @@ jobs:
           BACKUP_WRITE_ACCESS_KEY_ID: ${{ secrets.BACKUP_WRITE_ACCESS_KEY_ID }}
           BACKUP_WRITE_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_WRITE_SECRET_ACCESS_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_PROXY_URL: ${{ secrets.OPENAI_PROXY_URL }}
         # Before anything reaches the server: the synced nginx template needs the secret too, and an
         # nginx restarted without it would not start (spec 0006 F18).
         run: |
@@ -129,6 +130,14 @@ jobs:
               exit 1
             fi
           done
+          # The proxy to OpenAI (spec 0019 A73), in the one shape the api accepts; its password is
+          # letters and digits, so it needs no quoting in the .env. A port from 1 to 65535 but 80,
+          # which the URL parser drops as http's default. The message never shows it.
+          if ! [[ "$OPENAI_PROXY_URL" =~ ^http://[A-Za-z0-9]+:[A-Za-z0-9]+@[A-Za-z0-9.-]+:([1-9][0-9]{0,4})/?$ ]] \
+            || [ "${BASH_REMATCH[1]}" -gt 65535 ] || [ "${BASH_REMATCH[1]}" -eq 80 ]; then
+            echo "::error::OPENAI_PROXY_URL in GitHub Environment production is missing or not http://<user>:<password>@<host>:<port> with a user and password of letters and digits (deploy/README.md)"
+            exit 1
+          fi
           # Three users, three keys (spec 0012 P11): the app's key in a backup variable would let a
           # leaked .env delete the copies.
           if [ "$BACKUP_READ_ACCESS_KEY_ID" = "$BACKUP_WRITE_ACCESS_KEY_ID" ] \
@@ -226,6 +235,7 @@ jobs:
           BACKUP_WRITE_ACCESS_KEY_ID: ${{ secrets.BACKUP_WRITE_ACCESS_KEY_ID }}
           BACKUP_WRITE_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_WRITE_SECRET_ACCESS_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_PROXY_URL: ${{ secrets.OPENAI_PROXY_URL }}
           IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}/
         run: |
           {
@@ -252,6 +262,7 @@ jobs:
             echo "BACKUP_WRITE_ACCESS_KEY_ID=$BACKUP_WRITE_ACCESS_KEY_ID"
             echo "BACKUP_WRITE_SECRET_ACCESS_KEY=$BACKUP_WRITE_SECRET_ACCESS_KEY"
             echo "OPENAI_API_KEY=$OPENAI_API_KEY"
+            echo "OPENAI_PROXY_URL=$OPENAI_PROXY_URL"
             echo "SENTRY_ENVIRONMENT=production"
             echo "IMAGE_REGISTRY=${IMAGE_REGISTRY,,}"
             echo "LOG_LEVEL=info"
@@ -266,10 +277,17 @@ jobs:
           echo "$REGISTRY_TOKEN" | ssh server "docker login ghcr.io -u '$GITHUB_ACTOR' --password-stdin"
 
       - name: Deploy ${{ inputs.image_tag }}
-        # $IMAGE_TAG expands on the runner on purpose (SC2029); the first step allows only a hash.
+        # $IMAGE_TAG and $SKIP_OPENAI_CHECK expand on the runner on purpose (SC2029); the first step
+        # allows only a hash, and the second is 1 or empty. The variable SKIP_OPENAI_CHECK of the
+        # Environment is the owner's way round an outage of OpenAI or of its proxy (spec 0019 A73):
+        # set to 1, every deploy skips deploy.sh's check of OpenAI until it is removed.
+        env:
+          SKIP_OPENAI_CHECK: ${{ vars.SKIP_OPENAI_CHECK == '1' && '1' || '' }}
         run: |
+          [ -z "$SKIP_OPENAI_CHECK" ] \
+            || echo "::warning::SKIP_OPENAI_CHECK=1 in GitHub Environment production: this deploy does not check OpenAI; remove it once OpenAI and the proxy answer (deploy/README.md, «Прокси к OpenAI»)"
           # shellcheck disable=SC2029
-          ssh server "DEPLOY_PROFILE=server /opt/ai-fitting/deploy/scripts/deploy.sh '$IMAGE_TAG'"
+          ssh server "DEPLOY_PROFILE=server SKIP_OPENAI_CHECK='$SKIP_OPENAI_CHECK' /opt/ai-fitting/deploy/scripts/deploy.sh '$IMAGE_TAG'"
 
       - name: Measure the first request
         # The first visitor after the switch, before the smoke test warms these pages (spec 0018

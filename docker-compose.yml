@@ -60,6 +60,7 @@ x-api-env: &api-env
 # the defaults are the api's own.
 x-ai-env: &ai-env
   OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+  OPENAI_PROXY_URL: ${OPENAI_PROXY_URL:-}
   FITTING_MODEL: ${FITTING_MODEL:-gpt-image-2}
   FITTING_VISION_MODEL: ${FITTING_VISION_MODEL:-gpt-6-luna}
   FITTING_MONTHLY_LIMIT: ${FITTING_MONTHLY_LIMIT:-10}

@@ -30,6 +30,7 @@ async function bootstrap(): Promise<void> {
     AUTH_FAKE_OIDC_URL: config.get('AUTH_FAKE_OIDC_URL', { infer: true }),
     AUTH_FAKE_OIDC_PUBLIC_URL: config.get('AUTH_FAKE_OIDC_PUBLIC_URL', { infer: true }),
     OPENAI_API_KEY: config.get('OPENAI_API_KEY', { infer: true }),
+    OPENAI_PROXY_URL: config.get('OPENAI_PROXY_URL', { infer: true }),
     REQUEST_TIMEOUT_MS: config.get('REQUEST_TIMEOUT_MS', { infer: true }),
     FITTING_CHECK_TIMEOUT_MS: config.get('FITTING_CHECK_TIMEOUT_MS', { infer: true }),
   };
