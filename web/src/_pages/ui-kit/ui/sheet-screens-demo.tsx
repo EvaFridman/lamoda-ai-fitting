@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 
 import { Button, CheckboxFilterPanel, Drawer, DrawerClose, LinkButton } from '@/shared/ui';
 
@@ -8,62 +8,48 @@ import { colorOptions } from '../config/filters';
 
 import styles from './examples.module.scss';
 
-// A bottom sheet of the full height with two screens, as the phone filters' sheet: the list with
-// its ×, and a screen with "‹", "Сбросить" on the right and no ×. Closing drops the screen.
+// A bottom sheet of the full height with a screen nested in it, as the phone filters' sheet (spec
+// 0020 W30): the list with its ×, and over it a second sheet with "‹", "Сбросить" on the right and
+// no ×, while the list steps back behind it. Escape or "‹" closes the screen alone; the focus goes
+// to "‹" and back to the row.
 export function SheetScreensDemo() {
-  const [screen, setScreen] = useState<'list' | 'color'>('list');
+  const [screenOpen, setScreenOpen] = useState(false);
   const [colors, setColors] = useState<string[]>([]);
   const backRef = useRef<HTMLButtonElement>(null);
-  const rowRef = useRef<HTMLButtonElement>(null);
-  const switchedRef = useRef(false);
-
-  // The control that opened the screen is gone: the focus goes to "‹", and back to the row.
-  useEffect(() => {
-    if (!switchedRef.current) return;
-    switchedRef.current = false;
-    (screen === 'color' ? backRef : rowRef).current?.focus();
-  }, [screen]);
-
-  function show(next: 'list' | 'color') {
-    switchedRef.current = true;
-    setScreen(next);
-  }
 
   return (
     <Drawer
       trigger={<Button variant="outline">Шторка с экранами</Button>}
       side="bottom"
       fullHeight
-      title={screen === 'list' ? 'Фильтры' : 'Цвет'}
+      title="Фильтры"
       onOpenChangeComplete={(open) => {
-        if (!open) setScreen('list');
+        if (!open) setScreenOpen(false);
       }}
-      {...(screen === 'color'
-        ? {
-            onBack: () => show('list'),
-            backLabel: 'Назад к фильтрам',
-            backRef,
-            closable: false,
-            headerAction: <LinkButton onClick={() => setColors([])}>Сбросить</LinkButton>,
-            footer: (
-              <Button fullWidth onClick={() => show('list')}>
-                Применить
-              </Button>
-            ),
-          }
-        : {
-            footer: (
-              <DrawerClose>
-                <Button fullWidth>Показать 128 товаров</Button>
-              </DrawerClose>
-            ),
-          })}
+      footer={
+        <DrawerClose>
+          <Button fullWidth>Показать 128 товаров</Button>
+        </DrawerClose>
+      }
     >
-      {screen === 'list' ? (
-        <Button ref={rowRef} variant="outline" fullWidth onClick={() => show('color')}>
-          Цвет{colors.length > 0 ? `: ${colors.length}` : ''}
-        </Button>
-      ) : (
+      <Drawer
+        side="bottom"
+        fullHeight
+        title="Цвет"
+        open={screenOpen}
+        onOpenChange={setScreenOpen}
+        onBack={() => setScreenOpen(false)}
+        backLabel="Назад к фильтрам"
+        backRef={backRef}
+        initialFocus={backRef}
+        closable={false}
+        headerAction={<LinkButton onClick={() => setColors([])}>Сбросить</LinkButton>}
+        footer={
+          <Button fullWidth onClick={() => setScreenOpen(false)}>
+            Применить
+          </Button>
+        }
+      >
         <CheckboxFilterPanel
           label="Цвет"
           layout="sheet"
@@ -74,8 +60,11 @@ export function SheetScreensDemo() {
           searchable
           selectAll
         />
-      )}
-      <p className={styles.props}>{JSON.stringify({ screen, colors })}</p>
+      </Drawer>
+      <Button variant="outline" fullWidth onClick={() => setScreenOpen(true)}>
+        Цвет{colors.length > 0 ? `: ${colors.length}` : ''}
+      </Button>
+      <p className={styles.props}>{JSON.stringify({ screenOpen, colors })}</p>
     </Drawer>
   );
 }

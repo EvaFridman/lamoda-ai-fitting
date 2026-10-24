@@ -62,10 +62,11 @@ export interface CatalogFiltersDrawerProps {
 
 // The phone form of the filters (spec 0020 plan §3, W6–W11): "Фильтры", with a dot while the
 // address holds a choice, opens a bottom sheet of rows, one per filter with its chosen values in
-// grey, then "Только со скидкой". A row opens its filter's screen in the same sheet. Choices are a
-// draft: a screen edits a copy of it, "Применить" keeps the copy and "‹" drops it (W9); "Показать N
-// товаров" applies the draft and closes the sheet, N being the draft's count of the filter counts;
-// closing it otherwise drops the draft (AC13).
+// grey, then "Только со скидкой". A row opens its filter's screen as a second sheet over the list
+// (W30), which stays behind it. Choices are a draft: a screen edits a copy of it, "Применить" keeps
+// the copy and "‹" (or a swipe or Escape on the screen) drops it (W9); "Показать N товаров"
+// applies the draft and closes the sheet, N being the draft's count of the filter counts; closing
+// it otherwise drops the draft (AC13).
 export function CatalogFiltersDrawer({
   facets,
   value,
@@ -76,17 +77,16 @@ export function CatalogFiltersDrawer({
   const [draft, setDraft] = useState(value);
   // The draft the count was last asked for; it catches up after `countDelayMs`.
   const [counted, setCounted] = useState(value);
+  // The screen the second sheet shows; it stays while that sheet slides out, and goes back to
+  // `list` once it has left.
   const [screen, setScreen] = useState<Screen>('list');
+  const [screenOpen, setScreenOpen] = useState(false);
   // The draft the open screen edits.
   const [screenDraft, setScreenDraft] = useState(value);
   const showRef = useRef<HTMLButtonElement>(null);
   const applyRef = useRef<HTMLButtonElement>(null);
   const backRef = useRef<HTMLButtonElement>(null);
-  const topRef = useRef<HTMLDivElement>(null);
   const rowsRef = useRef(new Map<Screen, HTMLButtonElement>());
-  // The row a screen was opened from, for the focus on return; set only by a switch of screens.
-  const returnRef = useRef<Screen | undefined>(undefined);
-  const switchedRef = useRef(false);
   const active = hasSheetChoice(value);
   const trigger = useTrackedElement('catalog.sheet-open', { active });
   const rowEvents = {
@@ -120,28 +120,11 @@ export function CatalogFiltersDrawer({
     if (!open) return;
     const desktop = window.matchMedia(desktopQuery);
     const close = (event: MediaQueryListEvent) => {
-      if (event.matches) setOpen(false);
+      if (event.matches) closeSheet();
     };
     desktop.addEventListener('change', close);
     return () => desktop.removeEventListener('change', close);
   }, [open]);
-
-  // The control that switched the screen is gone: a screen starts at its top with the focus on "‹"
-  // (whose description is the title, so a screen reader hears the screen's name, AC14), and the
-  // list gets it back on the row the screen was opened from.
-  useEffect(() => {
-    if (!switchedRef.current) return;
-    switchedRef.current = false;
-    if (screen === 'list') {
-      const row =
-        returnRef.current === undefined ? undefined : rowsRef.current.get(returnRef.current);
-      row?.focus();
-    } else {
-      // The sheet's scrolling content is the parent of its first child.
-      topRef.current?.parentElement?.scrollTo?.({ top: 0 });
-      backRef.current?.focus();
-    }
-  }, [screen]);
 
   const count = useQuery({ ...countOptions(counted), enabled: open });
   const total = settled ? count.data?.total : undefined;
@@ -153,13 +136,21 @@ export function CatalogFiltersDrawer({
       setDraft(value);
       setCounted(value);
       setScreen('list');
-    }
-    setOpen(next);
+      setScreenOpen(false);
+      setOpen(true);
+    } else closeSheet();
+  }
+
+  // Any close of the sheet takes an open screen with it at once, so the two slide out together
+  // and the focus goes back to "Фильтры" (W20), not to a row that leaves too.
+  function closeSheet() {
+    setScreenOpen(false);
+    setOpen(false);
   }
 
   function show() {
     onChange(draft);
-    setOpen(false);
+    closeSheet();
   }
 
   // The footer's "Сбросить" (W11): the filters and the sort go from the draft, the search stays.
@@ -173,22 +164,25 @@ export function CatalogFiltersDrawer({
 
   function openScreen(next: Screen) {
     setScreenDraft(draft);
-    returnRef.current = next;
-    switchedRef.current = true;
     setScreen(next);
+    setScreenOpen(true);
   }
 
+  // "Применить" keeps the screen's choice; "‹", a swipe and Escape drop it (W9).
   function closeScreen(apply: boolean) {
     if (apply) setDraft(screenDraft);
-    switchedRef.current = true;
-    setScreen('list');
+    setScreenOpen(false);
   }
 
   const rows = filterRows(facets, draft);
   const shown = screen === 'list' ? undefined : rows.find((row) => row.screen === screen);
-  // The open screen's filter left the counts (a refetch dropped the attribute): the list shows, and
-  // the sheet goes back to it as by "‹", so it does not jump back to the screen when they return.
-  if (screen !== 'list' && shown === undefined) setScreen('list');
+  // The open screen's filter left the counts (a refetch dropped the attribute): its sheet goes,
+  // dropping its changes as "‹" does (empty while it slides out, as its filter is gone), so it
+  // does not come back when they return.
+  if (screen !== 'list' && shown === undefined) {
+    setScreen('list');
+    setScreenOpen(false);
+  }
   const sortScreen = shown?.screen === 'sort';
   // A sheet whose draft holds neither a filter nor a sort has nothing to reset; the search is not
   // the sheet's.
@@ -198,7 +192,7 @@ export function CatalogFiltersDrawer({
     <Drawer
       side="bottom"
       fullHeight
-      title={shown?.title ?? 'Фильтры'}
+      title="Фильтры"
       trigger={
         <button type="button" className={styles.trigger} {...trigger}>
           <FilterIcon />
@@ -209,129 +203,139 @@ export function CatalogFiltersDrawer({
       open={open}
       onOpenChange={openChange}
       onOpenChangeComplete={(isOpen) => {
-        if (!isOpen) setScreen('list');
+        if (isOpen) return;
+        setScreen('list');
+        setScreenOpen(false);
       }}
-      {...(shown === undefined
-        ? {
-            footer: (
-              <>
-                <Button
-                  variant="outline"
-                  className={styles.footerSide}
-                  disabled={!resettable}
-                  onClick={reset}
-                >
-                  Сбросить
-                </Button>
-                <Button ref={showRef} className={styles.footerMain} onClick={show}>
-                  {total === undefined
-                    ? 'Показать товары'
-                    : `Показать ${formatAmount(total)} ${plural(total, productForms)}`}
-                </Button>
-              </>
-            ),
-          }
-        : {
-            onBack: () => closeScreen(false),
-            backLabel: 'Назад к фильтрам',
-            backRef,
-            closable: false,
-            headerAction: shown.clearsOnScreen ? (
-              <LinkButton onClick={() => setScreenDraft((current) => shown.clear(current))}>
+      footer={
+        <>
+          <Button
+            variant="outline"
+            className={styles.footerSide}
+            disabled={!resettable}
+            onClick={reset}
+          >
+            Сбросить
+          </Button>
+          <Button ref={showRef} className={styles.footerMain} onClick={show}>
+            {total === undefined
+              ? 'Показать товары'
+              : `Показать ${formatAmount(total)} ${plural(total, productForms)}`}
+          </Button>
+        </>
+      }
+    >
+      {/* A filter's screen: a sheet nested in this one (Base UI stacks it over the list, W30), so
+          Escape and a swipe close the screen alone; a tap on the dark area, which reaches the
+          screen's sheet first, closes both (AC13). */}
+      <Drawer
+        side="bottom"
+        fullHeight
+        title={shown?.title ?? ''}
+        open={screenOpen && shown !== undefined}
+        onOpenChange={(next, reason) => {
+          if (next) return;
+          if (reason === 'outside-press') closeSheet();
+          else closeScreen(false);
+        }}
+        onOpenChangeComplete={(isOpen) => {
+          if (!isOpen) setScreen('list');
+        }}
+        onBack={() => closeScreen(false)}
+        backLabel="Назад к фильтрам"
+        backRef={backRef}
+        // On "‹", whose description is the title, so a screen reader hears the screen's name
+        // (AC14); closing gives the focus back to the row it was opened from (Base UI's own).
+        initialFocus={backRef}
+        closable={false}
+        headerAction={
+          shown?.clearsOnScreen ? (
+            <LinkButton onClick={() => setScreenDraft((current) => shown.clear(current))}>
+              Сбросить
+            </LinkButton>
+          ) : undefined
+        }
+        footer={
+          <>
+            {sortScreen ? (
+              <Button
+                variant="outline"
+                className={styles.footerSide}
+                disabled={screenDraft.sort === undefined}
+                // It goes inactive with its choice, so the focus moves to "Применить".
+                onClick={() => {
+                  setScreenDraft((current) => ({ ...current, sort: undefined }));
+                  applyRef.current?.focus();
+                }}
+              >
+                По умолчанию
+              </Button>
+            ) : null}
+            <Button ref={applyRef} className={styles.footerMain} onClick={() => closeScreen(true)}>
+              Применить
+            </Button>
+          </>
+        }
+      >
+        {shown?.panel(screenDraft, setScreenDraft)}
+      </Drawer>
+      <ul className={styles.rows}>
+        {rows.map((row) => (
+          <li key={row.screen} className={styles.sheetRow}>
+            <button
+              type="button"
+              ref={(element) => {
+                if (element) rowsRef.current.set(row.screen, element);
+                else rowsRef.current.delete(row.screen);
+              }}
+              className={styles.rowButton}
+              {...rowEvents[row.events]}
+              onClick={() => {
+                rowEvents[row.events].onClick();
+                // The screen's sheet covers the row, so the pointer leaves it only at its next
+                // move: a hover started on it ends here.
+                rowEvents[row.events].onPointerLeave();
+                openScreen(row.screen);
+              }}
+            >
+              <span className={styles.rowTitle}>{row.title}</span>
+              {row.summary === undefined ? null : (
+                <span className={styles.rowSummary}>{row.summary}</span>
+              )}
+            </button>
+            {row.chosen ? (
+              <LinkButton
+                className={styles.rowReset}
+                aria-label={`Сбросить: ${row.title}`}
+                // It goes with the choice, so the focus stays on its row.
+                onClick={() => {
+                  setDraft((current) => row.clear(current));
+                  rowsRef.current.get(row.screen)?.focus();
+                }}
+              >
                 Сбросить
               </LinkButton>
-            ) : undefined,
-            footer: (
-              <>
-                {sortScreen ? (
-                  <Button
-                    variant="outline"
-                    className={styles.footerSide}
-                    disabled={screenDraft.sort === undefined}
-                    // It goes inactive with its choice, so the focus moves to "Применить".
-                    onClick={() => {
-                      setScreenDraft((current) => ({ ...current, sort: undefined }));
-                      applyRef.current?.focus();
-                    }}
-                  >
-                    По умолчанию
-                  </Button>
-                ) : null}
-                <Button
-                  ref={applyRef}
-                  className={styles.footerMain}
-                  onClick={() => closeScreen(true)}
-                >
-                  Применить
-                </Button>
-              </>
-            ),
-          })}
-    >
-      <div ref={topRef} />
-      {shown === undefined ? (
-        <>
-          <ul className={styles.rows}>
-            {rows.map((row) => (
-              <li key={row.screen} className={styles.sheetRow}>
-                <button
-                  type="button"
-                  ref={(element) => {
-                    if (element) rowsRef.current.set(row.screen, element);
-                    else rowsRef.current.delete(row.screen);
-                  }}
-                  className={styles.rowButton}
-                  {...rowEvents[row.events]}
-                  onClick={() => {
-                    rowEvents[row.events].onClick();
-                    // The row goes with the screen, so no pointer will leave it: a hover started on
-                    // it ends here.
-                    rowEvents[row.events].onPointerLeave();
-                    openScreen(row.screen);
-                  }}
-                >
-                  <span className={styles.rowTitle}>{row.title}</span>
-                  {row.summary === undefined ? null : (
-                    <span className={styles.rowSummary}>{row.summary}</span>
-                  )}
-                </button>
-                {row.chosen ? (
-                  <LinkButton
-                    className={styles.rowReset}
-                    aria-label={`Сбросить: ${row.title}`}
-                    // It goes with the choice, so the focus stays on its row.
-                    onClick={() => {
-                      setDraft((current) => row.clear(current));
-                      rowsRef.current.get(row.screen)?.focus();
-                    }}
-                  >
-                    Сбросить
-                  </LinkButton>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-          {facets === undefined ? null : (
-            // The hover is the whole row's, as the other rows'; a click on the label reaches the
-            // switch's hidden input, not the switch, so the change, wherever it came from, is the
-            // click.
-            <div
-              className={styles.drawerDiscount}
-              onPointerEnter={rowEvents.discount.onPointerEnter}
-              onPointerLeave={rowEvents.discount.onPointerLeave}
-            >
-              <DiscountFilterPanel
-                checked={draft.hasDiscount === true}
-                onCheckedChange={(checked) => {
-                  rowEvents.discount.onClick();
-                  setDraft((current) => ({ ...current, hasDiscount: checked ? true : undefined }));
-                }}
-              />
-            </div>
-          )}
-        </>
-      ) : (
-        shown.panel(screenDraft, setScreenDraft)
+            ) : null}
+          </li>
+        ))}
+      </ul>
+      {facets === undefined ? null : (
+        // The hover is the whole row's, as the other rows'; a click on the label reaches the
+        // switch's hidden input, not the switch, so the change, wherever it came from, is the
+        // click.
+        <div
+          className={styles.drawerDiscount}
+          onPointerEnter={rowEvents.discount.onPointerEnter}
+          onPointerLeave={rowEvents.discount.onPointerLeave}
+        >
+          <DiscountFilterPanel
+            checked={draft.hasDiscount === true}
+            onCheckedChange={(checked) => {
+              rowEvents.discount.onClick();
+              setDraft((current) => ({ ...current, hasDiscount: checked ? true : undefined }));
+            }}
+          />
+        </div>
       )}
     </Drawer>
   );

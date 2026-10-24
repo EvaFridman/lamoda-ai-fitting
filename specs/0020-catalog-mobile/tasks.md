@@ -1,6 +1,6 @@
 # 0020 catalog: loading and the phone layout: tasks
 
-Status: accepted (2026-10-23); amended 2026-10-23 at the review of PR 1 (T4, T5, T8, T9); amended 2026-10-23 at T10 (T10: W27–W29).
+Status: accepted (2026-10-23); amended 2026-10-23 at the review of PR 1 (T4, T5, T8, T9); amended 2026-10-23 at T10 (T10: W27–W29); amended 2026-10-24 at T10a (T10a added: W30).
 
 ## How the work flows
 
@@ -83,6 +83,11 @@ Status: accepted (2026-10-23); amended 2026-10-23 at the review of PR 1 (T4, T5,
       `catalog.category-toggle`, `catalog.category`'s description.
       Check: Vitest (toggle, rows' links keep the query, scroll target); qa-tester AC5, AC6.
       Commit: `feat(web): add the catalog's phone bar with the category list`
+- [x] **T10a. A filter's screen as a second sheet (W30; plan §3).** The screen's nested `Drawer`
+      in `CatalogFiltersDrawer`; the kit's bottom sheet steps back while one is nested.
+      Check: Vitest of the drawer (AC11–AC14 with two sheets, Escape on a screen then on the list);
+      qa-tester at 375 and 700 px against the owner's screenshots, with the keyboard.
+      Commit: `feat(web): open a catalog filter's screen as a sheet over the filters`
 - [ ] **T11. Cards and breadcrumbs (W1, W5; plan §2).** The grid's phone gaps, the card's phone
       padding, the breadcrumbs' two places.
       Check: qa-tester AC7–AC9 at 375, 700 and 1280 px; Vitest: one breadcrumb landmark visible.

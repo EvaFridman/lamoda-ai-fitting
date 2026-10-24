@@ -193,3 +193,18 @@ on the screenshots":
   answer for the page's category while new ones load or after they fail, so a list does not
   vanish while its toggle shows it open. A page whose counts never loaded still has no list, as
   before (0014).
+
+## Added at T10a (2026-10-24)
+
+From the owner's screenshots of Lamoda's sort screen:
+
+- **W30. A filter's screen is a second sheet over the list (amends W8, AC11–AC14, plan §3).** A row
+  opens its screen as a bottom sheet of its own, as high as the list's sheet, over it: "‹", the
+  name and, for a list of values, "Сбросить" at the top, no ×, the screen's footer at the bottom.
+  The list's sheet stays open behind it, 8px higher and 8 % narrower from its top edge, which peeks
+  above the screen's, and dimmed; it has the page's one backdrop (the screen's sheet has none, Base
+  UI's nested drawer). On a screen, "‹", a swipe down and Escape close the screen alone and drop
+  its changes (W9); "Применить" closes it keeping them; the focus goes back to the row. A tap on
+  the dark area closes both sheets and drops the draft (AC13). The list's ×, swipe, Escape and
+  "Показать N товаров" close the whole sheet as before. Still one form of the sheet below 1024 px
+  (W8).

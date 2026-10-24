@@ -1,9 +1,10 @@
 # 0020 catalog: loading and the phone layout: plan
 
 Status: accepted (2026-10-23); amended 2026-10-23 at the review of PR 1 (§1, §2, §3, §4, risks,
-verification: W19–W22); amended 2026-10-23 at T10 (§1, §2, risks: W27–W29).
+verification: W19–W22); amended 2026-10-23 at T10 (§1, §2, risks: W27–W29); amended 2026-10-24 at T10a (§3, risks:
+W30).
 
-How `spec.md` (AC1–AC17) is built, with the decisions of `clarifications.md` (W0–W29). No new
+How `spec.md` (AC1–AC17) is built, with the decisions of `clarifications.md` (W0–W30). No new
 package, no api change, no migration. Paths are under `web/src/` unless they start otherwise.
 
 ## 1. Loading placeholders (W2; AC1–AC3)
@@ -142,7 +143,11 @@ Below 1024 px, as the accordion sheet today; it replaces it (W8).
 
 **Widget (`widgets/catalog-filters/ui/catalog-filters-drawer.tsx`), rewritten around a screen
 stack.** State: `draft` (as today), `screen` (`list` | `sort` | `size` | `brand` | `price` |
-`attribute:<id>`), `screenDraft` (the draft the open screen edits) and the row to focus on return.
+`attribute:<id>`), `screenOpen` and `screenDraft` (the draft the open screen edits). The list is
+the sheet's content; a screen is a second `Drawer` nested in it (W30, Base UI stacks a drawer
+rendered inside another), open while `screenOpen`, its `screen` kept until it has slid out
+(`onOpenChangeComplete`). The kit's bottom sheet with `[data-nested-drawer-open]` steps back
+(`translateY` −8px, `scale` 0.92 from its top, dimmed by an `::after`).
 
 - `list`: rows in Lamoda's order — Сортировка, Размер, colour attributes, Цена, Бренд, the other
   attributes — then "Только со скидкой" (`DiscountFilterPanel`). A row is a `<button>` with the
@@ -155,9 +160,10 @@ stack.** State: `draft` (as today), `screen` (`list` | `sort` | `size` | `brand`
   `screenDraft` into `draft` and returns; `headerAction` "Сбросить" (lists of values) clears the
   screen's filter in `screenDraft`. Sort: footer "По умолчанию" (disabled at the default; sets
   the default in `screenDraft` only, W19) and "Применить". Price: `PriceRangeFilterPanel` and "Применить". On entering, the focus goes to "‹"
-  and the content scrolls to the top; on return, to the row it came from.
-- Closing (×, swipe, Escape, backdrop) drops everything (AC13); opening starts at `list` from the
-  address's selection. The window crossing 1024 px still closes it.
+  (the nested drawer's first control); on return, to the row it came from (Base UI gives it back
+  to the control focused before it opened). A swipe or Escape on a screen is its `onBack` (W30).
+- Closing (the list's ×, swipe or Escape, the backdrop) drops everything (AC13); opening starts at
+  `list` from the address's selection. The window crossing 1024 px still closes it.
 - "Показать N товаров" calls `onChange(draft)` once; the page sends `Catalog Filter Applied` and
   `Catalog Sorted` as today (0014 O101, W18). The sheet closes and the `Drawer` returns the focus
   to its trigger, "Фильтры" (W20).
@@ -204,9 +210,9 @@ focus item removed (§4).
 
 ## Risks
 
-- **Base UI Drawer and a swipe on a screen.** A downward swipe closes the whole sheet, the draft
-  with it (AC13 accepts that). A screen's list scrolls inside the content; check the swipe does not
-  fight the scroll on a real phone (owner action).
+- **Base UI Drawer and a swipe on a screen.** A downward swipe on a screen closes that screen
+  alone (W30); on the list, the whole sheet with the draft (AC13). A screen's list scrolls inside
+  the content; check the swipe does not fight the scroll on a real phone (owner action).
 - **Hydration of the back arrow.** The server cannot know the history; the arrow's slot keeps its
   width so its switch from link to button moves nothing.
 - **Two copies of the category list and the breadcrumbs.** Hidden ones are `display: none`;
