@@ -13,6 +13,7 @@ import { type ProductDetail, sortSizes } from '@/entities/product';
 import { useSession } from '@/entities/session';
 import { LoginModal } from '@/features/auth';
 import { CartStubButton, FavoriteStub } from '@/features/product-stubs';
+import { useTrackedElement } from '@/shared/analytics';
 import { fittingHref } from '@/shared/config';
 import {
   Badges,
@@ -72,9 +73,34 @@ export function ProductBuyBox({ product, hasSlot, onTryOn }: ProductBuyBoxProps)
   const spent = quota.data !== undefined && quota.data.left <= 0;
   const loading = session.status === 'pending' || (signedIn && quota.isPending);
   const lastFitting = last.data;
+  const triedOn = signedIn && lastFitting?.status === 'completed';
+
+  // Their clicks and hovers (A84): the stubs with whether «Вы это примеряли» is shown, «Примерить»
+  // with whether the visitor is signed in. A disabled or loading button sends nothing.
+  const cartEvents = useTrackedElement('buy-box.add-to-cart', { tried_on: triedOn });
+  const favouriteEvents = useTrackedElement('buy-box.favourite', { tried_on: triedOn });
+  const tryOnEvents = useTrackedElement('buy-box.try-on', { signed_in: signedIn });
+  const triedOnEvents = useTrackedElement('buy-box.tried-on');
+  // A loading button stays focusable (`aria-disabled`): the kit stops its click, not its pointer
+  // events, so no hover starts while it loads or is spent. The leave stays, so one started before
+  // the button turned off is still cancelled.
+  const tryOnHover = {
+    onPointerEnter: loading || spent ? undefined : tryOnEvents.onPointerEnter,
+    onPointerLeave: tryOnEvents.onPointerLeave,
+  };
 
   const tryOn = signedIn ? (
-    <Button size={56} className={styles.tryOn} loading={loading} disabled={spent} onClick={onTryOn}>
+    <Button
+      size={56}
+      className={styles.tryOn}
+      loading={loading}
+      disabled={spent}
+      {...tryOnHover}
+      onClick={() => {
+        tryOnEvents.onClick();
+        onTryOn();
+      }}
+    >
       <SparkleIcon />
       Примерить
     </Button>
@@ -90,7 +116,14 @@ export function ProductBuyBox({ product, hasSlot, onTryOn }: ProductBuyBoxProps)
       <LoginModal
         handlesReturnedError={false}
         trigger={
-          <Button size={56} className={styles.tryOn} loading={loading}>
+          // Base UI's trigger merges these with its own opening of the window.
+          <Button
+            size={56}
+            className={styles.tryOn}
+            loading={loading}
+            {...tryOnHover}
+            onClick={tryOnEvents.onClick}
+          >
             <SparkleIcon />
             Примерить
           </Button>
@@ -115,11 +148,12 @@ export function ProductBuyBox({ product, hasSlot, onTryOn }: ProductBuyBoxProps)
         )}
       </div>
 
-      {signedIn && lastFitting && lastFitting.status === 'completed' && (
+      {triedOn && (
         <TriedOnNote
           fitting={lastFitting}
           productId={product.id}
           href={fittingHref(lastFitting.id)}
+          events={triedOnEvents}
           className={styles.note}
         />
       )}
@@ -137,10 +171,10 @@ export function ProductBuyBox({ product, hasSlot, onTryOn }: ProductBuyBoxProps)
           height it measures of itself. */}
       <div ref={barRef} className={styles.actions} data-fixed-bar="">
         <div className={styles.cart}>
-          <CartStubButton size={48} className={styles.grow}>
+          <CartStubButton size={48} className={styles.grow} events={cartEvents}>
             Добавить в корзину
           </CartStubButton>
-          <FavoriteStub size={48} />
+          <FavoriteStub size={48} events={favouriteEvents} />
         </div>
         <div className={styles.fitting}>
           {tryOn}

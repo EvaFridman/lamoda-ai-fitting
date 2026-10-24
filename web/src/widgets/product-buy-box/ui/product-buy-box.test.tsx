@@ -1,9 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { ProductDetail } from '@/entities/product';
+import { track } from '@/shared/analytics/client';
+import { HOVER_MS } from '@/shared/analytics/use-tracked-element';
 import { fittingHref } from '@/shared/config';
 
 import { ProductBuyBox } from './product-buy-box';
@@ -165,6 +167,7 @@ function setup(props: { hasSlot?: boolean; product?: ProductDetail; onTryOn?: ()
 beforeEach(() => {
   mocks.session = { status: 'signed-in', user: { id: 'u1', email: 'a@example.com', name: null } };
   mocks.showToast.mockReset();
+  vi.mocked(track).mockClear();
   fetchMock.mockReset();
   api();
   vi.stubGlobal('fetch', fetchMock);
@@ -360,6 +363,199 @@ describe('ProductBuyBox: «Примерить» signed out (AC16)', () => {
     await user.click(screen.getByRole('button', { name: 'Примерить' }));
 
     expect(await screen.findByRole('dialog', { name: 'Вход' })).toBeInTheDocument();
+  });
+});
+
+describe('ProductBuyBox: tracked elements (A84)', () => {
+  const clicked = (
+    element: string,
+    properties: Record<string, boolean> = {},
+    type = 'interaction',
+  ) => ({
+    element,
+    zone: 'product',
+    type,
+    ...properties,
+  });
+  const clicks = () => vi.mocked(track).mock.calls.filter(([name]) => name === 'Element Clicked');
+
+  it('sends the cart and the heart with tried_on false when nothing was tried on', async () => {
+    const { user } = setup();
+
+    await user.click(screen.getByRole('button', { name: 'Добавить в корзину' }));
+    await user.click(screen.getByRole('button', { name: 'В избранное' }));
+
+    expect(track).toHaveBeenNthCalledWith(
+      1,
+      'Element Clicked',
+      clicked('buy-box.add-to-cart', { tried_on: false }),
+    );
+    expect(track).toHaveBeenNthCalledWith(
+      2,
+      'Element Clicked',
+      clicked('buy-box.favourite', { tried_on: false }),
+    );
+    expect(mocks.showToast).toHaveBeenCalledTimes(2);
+  });
+
+  it('sends tried_on true once «Вы это примеряли» is shown', async () => {
+    api({ last: completed });
+    const { user } = setup();
+    await screen.findByRole('link', { name: /Вы это примеряли/ });
+
+    await user.click(screen.getByRole('button', { name: 'Добавить в корзину' }));
+    await user.click(screen.getByRole('button', { name: 'В избранное' }));
+
+    expect(clicks().map(([, event]) => event)).toEqual([
+      clicked('buy-box.add-to-cart', { tried_on: true }),
+      clicked('buy-box.favourite', { tried_on: true }),
+    ]);
+  });
+
+  it('sends tried_on false for a fitting that is not completed', async () => {
+    api({ last: { ...completed, status: 'failed' } });
+    const { user } = setup();
+    await screen.findByText('Осталось 5 примерок в этом месяце');
+
+    await user.click(screen.getByRole('button', { name: 'Добавить в корзину' }));
+
+    expect(clicks().map(([, event]) => event)).toEqual([
+      clicked('buy-box.add-to-cart', { tried_on: false }),
+    ]);
+  });
+
+  it('sends tried_on false signed out', async () => {
+    mocks.session = { status: 'signed-out', failed: false };
+    api({ last: completed });
+    const { user } = setup();
+
+    await user.click(screen.getByRole('button', { name: 'Добавить в корзину' }));
+
+    expect(clicks().map(([, event]) => event)).toEqual([
+      clicked('buy-box.add-to-cart', { tried_on: false }),
+    ]);
+  });
+
+  it('sends «Примерить» with signed_in true, then opens the try-on', async () => {
+    const { user, onTryOn } = setup();
+    const button = await screen.findByRole('button', { name: 'Примерить' });
+    await vi.waitFor(() => expect(button).toBeEnabled());
+
+    await user.click(button);
+
+    expect(clicks().map(([, event]) => event)).toEqual([
+      clicked('buy-box.try-on', { signed_in: true }),
+    ]);
+    expect(onTryOn).toHaveBeenCalledOnce();
+  });
+
+  it('sends «Примерить» with signed_in false and opens the sign-in window', async () => {
+    mocks.session = { status: 'signed-out', failed: false };
+    const { user, onTryOn } = setup();
+
+    await user.click(screen.getByRole('button', { name: 'Примерить' }));
+
+    expect(await screen.findByRole('dialog', { name: 'Вход' })).toBeInTheDocument();
+    expect(clicks().map(([, event]) => event)).toEqual([
+      clicked('buy-box.try-on', { signed_in: false }),
+    ]);
+    expect(onTryOn).not.toHaveBeenCalled();
+  });
+
+  it('sends nothing from «Примерить» at no tries left', async () => {
+    api({ left: 0 });
+    const { user, onTryOn } = setup();
+    await screen.findByText('Закончились · снова с 1 ноября');
+
+    await user.click(screen.getByRole('button', { name: 'Примерить' }));
+
+    expect(clicks()).toEqual([]);
+    expect(onTryOn).not.toHaveBeenCalled();
+  });
+
+  it('sends nothing from «Примерить» while it loads', async () => {
+    api({ quotaPending: true });
+    const { user, onTryOn } = setup();
+
+    await user.click(screen.getByRole('button', { name: 'Примерить' }));
+
+    expect(clicks()).toEqual([]);
+    expect(onTryOn).not.toHaveBeenCalled();
+  });
+
+  describe('the hover of «Примерить»', () => {
+    const hovers = () => vi.mocked(track).mock.calls.filter(([name]) => name === 'Element Hovered');
+    const hoverFor500 = () => {
+      fireEvent.pointerEnter(screen.getByRole('button', { name: 'Примерить' }), {
+        pointerType: 'mouse',
+      });
+      act(() => vi.advanceTimersByTime(HOVER_MS + 1));
+    };
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('sends Element Hovered when it is ready (positive control)', async () => {
+      setup();
+      await screen.findByText('Осталось 5 примерок в этом месяце');
+      expect(screen.getByRole('button', { name: 'Примерить' })).not.toHaveAttribute('aria-busy');
+      vi.useFakeTimers();
+
+      hoverFor500();
+
+      expect(hovers().map(([, event]) => event)).toEqual([
+        { element: 'buy-box.try-on', zone: 'product', type: 'interaction', signed_in: true },
+      ]);
+    });
+
+    it('sends nothing while the quota loads', () => {
+      api({ quotaPending: true });
+      setup();
+      vi.useFakeTimers();
+
+      hoverFor500();
+
+      expect(hovers()).toEqual([]);
+    });
+
+    it('sends nothing at no tries left', async () => {
+      api({ left: 0 });
+      setup();
+      await screen.findByText('Закончились · снова с 1 ноября');
+      vi.useFakeTimers();
+
+      hoverFor500();
+
+      expect(hovers()).toEqual([]);
+    });
+
+    it('sends nothing while the session loads, and a click opens nothing', async () => {
+      mocks.session = { status: 'pending' };
+      const { user, onTryOn } = setup();
+
+      await user.click(screen.getByRole('button', { name: 'Примерить' }));
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(onTryOn).not.toHaveBeenCalled();
+
+      vi.useFakeTimers();
+      hoverFor500();
+
+      expect(vi.mocked(track)).not.toHaveBeenCalled();
+    });
+  });
+
+  it('sends the link of «Вы это примеряли» with no properties', async () => {
+    api({ last: completed });
+    const { user } = setup();
+    const link = await screen.findByRole('link', { name: /Вы это примеряли/ });
+    link.addEventListener('click', (event) => event.preventDefault());
+
+    await user.click(link);
+
+    expect(clicks().map(([, event]) => event)).toEqual([
+      clicked('buy-box.tried-on', {}, 'navigation'),
+    ]);
   });
 });
 

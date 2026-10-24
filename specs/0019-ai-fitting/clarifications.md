@@ -1048,6 +1048,22 @@ six related products show as many as there are, none hides the block, a failed r
 The hearts on the catalog's and the related cards get no tracked element of their own (no
 `catalog.favourite`, no `related.favourite`): only plan §9's elements are counted.
 
+**A84. The product page's analytics (T22's brief).** The owner decided on 2026-10-25, on the
+`analytics` agent's proposal: (1) the zone `product` («Страница товара», areas `buy-box` and
+`related`) gets six of plan §9's elements: `buy-box.add-to-cart` and `buy-box.favourite`
+(`tried_on`: «Вы это примеряли» is shown), `buy-box.try-on` (`signed_in`; signed out it is
+`LoginModal`'s trigger, so `Login Opened` comes with it; disabled while loading or at the limit, it
+sends nothing), `buy-box.tried-on` (the note's «Смотреть»), `related.card` (`position`, from 1)
+and `related.add-to-cart` (no property, so its hover goes once per page view); no new event (A43);
+(2) `buy-box.to-look` and `related.to-look` are not declared now: their buttons are disabled and
+send nothing until the room (A82.2, A83.6), and they enter the catalog with T25/T26 together with
+the values of `slot` and `action` (a departure from plan §9's «in PR 4»); (3) `sdkPerVisit` goes
+from 14 to 15 for the product page's views and heatmap clicks; (4) `FavoriteStub` takes `events`
+as `CartStubButton` does, in place of `onPress`, and the kit's `FavoriteToggle` passes the pointer
+handlers on, so the buy box's heart sends its hover too; (5) the gallery («Показать ещё фото») is
+not tracked, it is not in plan §9. The budget: about 103 000 events a month, 10.3 % of the free
+plan's 1 M.
+
 ## Canvas and decisions
 
 Where the canvas differs from the decisions above, the decision wins:

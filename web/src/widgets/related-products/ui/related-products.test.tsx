@@ -17,7 +17,18 @@ vi.mock('@/shared/ui', async (importOriginal) => ({
   showToast: toast.showToast,
 }));
 
+vi.mock('@/shared/analytics/client', () => ({
+  identify: vi.fn(),
+  track: vi.fn(),
+  reset: vi.fn(),
+}));
+vi.mock('next/navigation', () => ({
+  usePathname: () => '/products/p1',
+  useSearchParams: () => new URLSearchParams(),
+}));
+
 import { type ProductListItem, relatedProductsOptions } from '@/entities/product';
+import { track } from '@/shared/analytics/client';
 import { ApiError, errorText } from '@/shared/api';
 
 import { RelatedProducts } from './related-products';
@@ -63,6 +74,7 @@ beforeEach(() => {
   api.clientFetch.mockReset();
   api.reportFailure.mockReset();
   toast.showToast.mockReset();
+  vi.mocked(track).mockClear();
 });
 
 describe('RelatedProducts', () => {
@@ -133,6 +145,60 @@ describe('RelatedProducts', () => {
 
     expect(toast.showToast).toHaveBeenCalledOnce();
     expect(heart).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  describe('tracked elements (A84)', () => {
+    it('sends related.card with the position from 1 for each card link', async () => {
+      const user = userEvent.setup();
+      renderWith(hydrated(productsOf(3)));
+      const cards = screen.getAllByRole('article');
+      for (const card of cards) {
+        within(card)
+          .getByRole('link')
+          .addEventListener('click', (event) => event.preventDefault());
+      }
+
+      await user.click(within(cards[2]!).getByRole('link'));
+      await user.click(within(cards[0]!).getByRole('link'));
+
+      expect(vi.mocked(track).mock.calls).toEqual([
+        [
+          'Element Clicked',
+          { element: 'related.card', zone: 'product', type: 'navigation', position: 3 },
+        ],
+        [
+          'Element Clicked',
+          { element: 'related.card', zone: 'product', type: 'navigation', position: 1 },
+        ],
+      ]);
+    });
+
+    it('sends related.add-to-cart with no properties, whichever card, and shows the toast', async () => {
+      const user = userEvent.setup();
+      renderWith(hydrated(productsOf(2)));
+      const cards = screen.getAllByRole('article');
+
+      await user.click(within(cards[1]!).getByRole('button', { name: 'В корзину' }));
+
+      expect(vi.mocked(track).mock.calls).toEqual([
+        [
+          'Element Clicked',
+          { element: 'related.add-to-cart', zone: 'product', type: 'interaction' },
+        ],
+      ]);
+      expect(toast.showToast).toHaveBeenCalledOnce();
+    });
+
+    it('sends nothing from the heart and the disabled hanger', async () => {
+      const user = userEvent.setup();
+      renderWith(hydrated(productsOf(1)));
+      const card = screen.getByRole('article');
+
+      await user.click(within(card).getByRole('button', { name: 'В избранное' }));
+      await user.click(within(card).getByRole('button', { name: 'Добавить к образу' }));
+
+      expect(track).not.toHaveBeenCalled();
+    });
   });
 
   it('renders nothing for an empty list (A83.8)', () => {
