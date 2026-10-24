@@ -172,6 +172,13 @@
   padding: var(--space-4) var(--space-6);
 }
 
+// A modal opened over this one (Base UI's nested dialog, spec 0019's tips over the try-on) has its
+// own ×: this one hides under its overlay, which is see-through, so the page shows one ×. A bottom
+// sheet over it counts too (Base UI nests a Drawer the same way); its overlay covers the window.
+.popup[data-nested-dialog-open] > .close {
+  visibility: hidden;
+}
+
 .close {
   cursor: pointer;
 
