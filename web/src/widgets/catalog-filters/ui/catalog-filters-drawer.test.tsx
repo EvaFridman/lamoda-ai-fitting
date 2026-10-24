@@ -110,9 +110,15 @@ const row = (dialog: Dialog, title: string) =>
 const showButton = (dialog: Dialog, name: string | RegExp = /^Показать/) =>
   dialog.getByRole('button', { name });
 
-const back = (dialog: Dialog) => dialog.getByRole('button', { name: 'Назад к фильтрам' });
+// A filter's screen is a sheet of its own over the list, named by the filter.
+const screenOf = (title: string) => within(screen.getByRole('dialog', { name: title }));
 
-const apply = (dialog: Dialog) => dialog.getByRole('button', { name: 'Применить' });
+const back = (sheet: Dialog) => sheet.getByRole('button', { name: 'Назад к фильтрам' });
+
+const apply = (sheet: Dialog) => sheet.getByRole('button', { name: 'Применить' });
+
+const goneScreen = (title: string) =>
+  vi.waitFor(() => expect(screen.queryByRole('dialog', { name: title })).not.toBeInTheDocument());
 
 const closed = () => vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
 
@@ -244,10 +250,11 @@ describe('CatalogFiltersDrawer', () => {
       const dialog = await open(user);
 
       await user.click(row(dialog, 'Сортировка'));
-      await user.click(dialog.getByRole('button', { name: 'По умолчанию' }));
+      const sheet = screenOf('Сортировка');
+      await user.click(sheet.getByRole('button', { name: 'По умолчанию' }));
 
-      expect(dialog.getByRole('button', { name: 'По умолчанию' })).toBeDisabled();
-      expect(apply(dialog)).toHaveFocus();
+      expect(sheet.getByRole('button', { name: 'По умолчанию' })).toBeDisabled();
+      expect(apply(sheet)).toHaveFocus();
     });
   });
 
@@ -283,18 +290,20 @@ describe('CatalogFiltersDrawer', () => {
       const { user, rerender } = showRerenderable();
       const dialog = await open(user);
       await user.click(row(dialog, 'Цвет'));
-      await user.click(dialog.getByRole('checkbox', { name: /Черный/ }));
+      await user.click(screenOf('Цвет').getByRole('checkbox', { name: /Черный/ }));
       expect(screen.getByRole('dialog', { name: 'Цвет' })).toBeInTheDocument();
 
       rerender(lacking);
 
+      await goneScreen('Цвет');
       expect(screen.getByRole('dialog', { name: 'Фильтры' })).toBeInTheDocument();
       expect(dialog.getByRole('button', { name: 'Закрыть' })).toBeInTheDocument();
-      expect(dialog.queryByRole('button', { name: 'Назад к фильтрам' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Назад к фильтрам' })).not.toBeInTheDocument();
 
       rerender(facets);
 
       expect(screen.getByRole('dialog', { name: 'Фильтры' })).toBeInTheDocument();
+      expect(screen.queryByRole('dialog', { name: 'Цвет' })).not.toBeInTheDocument();
       expect(dialog.getByRole('button', { name: 'Закрыть' })).toBeInTheDocument();
       expect(row(dialog, 'Цвет')).not.toHaveTextContent('черный');
     });
@@ -342,11 +351,12 @@ describe('CatalogFiltersDrawer', () => {
 
       await user.click(row(dialog, 'Бренд'));
 
-      const sheet = screen.getByRole('dialog', { name: 'Бренд' });
-      expect(back(dialog)).toHaveAccessibleDescription('Бренд');
-      expect(dialog.queryByRole('button', { name: 'Закрыть' })).not.toBeInTheDocument();
-      expect(sheet).toBeInTheDocument();
-      await vi.waitFor(() => expect(back(dialog)).toHaveFocus());
+      const sheet = screenOf('Бренд');
+      expect(back(sheet)).toHaveAccessibleDescription('Бренд');
+      expect(sheet.queryByRole('button', { name: 'Закрыть' })).not.toBeInTheDocument();
+      // The list stays mounted behind the screen, out of the accessibility tree.
+      expect(screen.getByRole('dialog', { name: 'Фильтры', hidden: true })).toBeInTheDocument();
+      await vi.waitFor(() => expect(back(sheet)).toHaveFocus());
     });
 
     it('has the right header action and footer on each kind of screen', async () => {
@@ -355,30 +365,37 @@ describe('CatalogFiltersDrawer', () => {
 
       for (const title of ['Размер', 'Бренд', 'Материал']) {
         await user.click(row(dialog, title));
-        expect(dialog.getByRole('button', { name: 'Сбросить' })).toBeInTheDocument();
-        expect(apply(dialog)).toBeInTheDocument();
-        await user.click(back(dialog));
+        const sheet = screenOf(title);
+        expect(sheet.getByRole('button', { name: 'Сбросить' })).toBeInTheDocument();
+        expect(apply(sheet)).toBeInTheDocument();
+        await user.click(back(sheet));
+        await goneScreen(title);
       }
 
       await user.click(row(dialog, 'Цена'));
-      expect(dialog.getByRole('slider', { name: 'Мин. цена' })).toBeInTheDocument();
-      expect(dialog.queryByRole('button', { name: 'Сбросить' })).not.toBeInTheDocument();
-      expect(apply(dialog)).toBeInTheDocument();
-      await user.click(back(dialog));
+      const price = screenOf('Цена');
+      expect(price.getByRole('slider', { name: 'Мин. цена' })).toBeInTheDocument();
+      expect(price.queryByRole('button', { name: 'Сбросить' })).not.toBeInTheDocument();
+      expect(apply(price)).toBeInTheDocument();
+      await user.click(back(price));
+      await goneScreen('Цена');
 
       await user.click(row(dialog, 'Цвет'));
-      expect(dialog.getByPlaceholderText('Поиск')).toBeInTheDocument();
-      expect(dialog.getByRole('button', { name: 'Выбрать все' })).toBeInTheDocument();
-      expect(dialog.getByRole('checkbox', { name: /Черный/ })).toBeInTheDocument();
-      expect(dialog.getByRole('button', { name: 'Сбросить' })).toBeInTheDocument();
-      expect(apply(dialog)).toBeInTheDocument();
-      await user.click(back(dialog));
+      const colour = screenOf('Цвет');
+      expect(colour.getByPlaceholderText('Поиск')).toBeInTheDocument();
+      expect(colour.getByRole('button', { name: 'Выбрать все' })).toBeInTheDocument();
+      expect(colour.getByRole('checkbox', { name: /Черный/ })).toBeInTheDocument();
+      expect(colour.getByRole('button', { name: 'Сбросить' })).toBeInTheDocument();
+      expect(apply(colour)).toBeInTheDocument();
+      await user.click(back(colour));
+      await goneScreen('Цвет');
 
       await user.click(row(dialog, 'Сортировка'));
-      expect(dialog.getAllByRole('radio')).toHaveLength(5);
-      expect(dialog.queryByRole('button', { name: 'Сбросить' })).not.toBeInTheDocument();
-      expect(dialog.getByRole('button', { name: 'По умолчанию' })).toBeDisabled();
-      expect(apply(dialog)).toBeInTheDocument();
+      const sort = screenOf('Сортировка');
+      expect(sort.getAllByRole('radio')).toHaveLength(5);
+      expect(sort.queryByRole('button', { name: 'Сбросить' })).not.toBeInTheDocument();
+      expect(sort.getByRole('button', { name: 'По умолчанию' })).toBeDisabled();
+      expect(apply(sort)).toBeInTheDocument();
     });
 
     it('keeps the choice with "Применить" and returns the focus to the row it came from', async () => {
@@ -386,16 +403,18 @@ describe('CatalogFiltersDrawer', () => {
       const dialog = await open(user);
 
       await user.click(row(dialog, 'Бренд'));
-      await user.click(dialog.getByRole('checkbox', { name: 'Puma 5' }));
-      await user.click(apply(dialog));
+      const sheet = screenOf('Бренд');
+      await user.click(sheet.getByRole('checkbox', { name: 'Puma 5' }));
+      await user.click(apply(sheet));
 
+      await goneScreen('Бренд');
       expect(screen.getByRole('dialog', { name: 'Фильтры' })).toBeInTheDocument();
       expect(row(dialog, 'Бренд')).toHaveTextContent('Puma');
       await vi.waitFor(() => expect(row(dialog, 'Бренд')).toHaveFocus());
       expect(onChange).not.toHaveBeenCalled();
 
       await user.click(row(dialog, 'Бренд'));
-      expect(dialog.getByRole('checkbox', { name: 'Puma 5' })).toBeChecked();
+      expect(screenOf('Бренд').getByRole('checkbox', { name: 'Puma 5' })).toBeChecked();
     });
 
     it('drops the screen’s changes with "Назад к фильтрам"', async () => {
@@ -403,14 +422,76 @@ describe('CatalogFiltersDrawer', () => {
       const dialog = await open(user);
 
       await user.click(row(dialog, 'Бренд'));
-      await user.click(dialog.getByRole('checkbox', { name: 'Puma 5' }));
-      await user.click(dialog.getByRole('button', { name: 'Сбросить' }));
-      await user.click(back(dialog));
+      const sheet = screenOf('Бренд');
+      await user.click(sheet.getByRole('checkbox', { name: 'Puma 5' }));
+      await user.click(sheet.getByRole('button', { name: 'Сбросить' }));
+      await user.click(back(sheet));
 
+      await goneScreen('Бренд');
       expect(row(dialog, 'Бренд')).toHaveTextContent('Nike');
       expect(row(dialog, 'Бренд')).not.toHaveTextContent('Puma');
       await vi.waitFor(() => expect(row(dialog, 'Бренд')).toHaveFocus());
       expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it('marks the list’s sheet as having a screen over it only while the screen is open', async () => {
+      const { user } = show();
+      const dialog = await open(user);
+      const list = screen.getByRole('dialog', { name: 'Фильтры' });
+      expect(list).not.toHaveAttribute('data-nested-drawer-open');
+
+      await user.click(row(dialog, 'Бренд'));
+      expect(list).toHaveAttribute('data-nested-drawer-open');
+
+      await user.click(back(screenOf('Бренд')));
+      await goneScreen('Бренд');
+      expect(list).not.toHaveAttribute('data-nested-drawer-open');
+    });
+
+    it('closes only the screen on Escape: the list stays, the changes go, the focus returns to the row', async () => {
+      const { onChange, user } = show({ value: { brandId: [BRAND_NIKE] } });
+      const dialog = await open(user);
+
+      await user.click(row(dialog, 'Бренд'));
+      await user.click(screenOf('Бренд').getByRole('checkbox', { name: 'Puma 5' }));
+      await user.keyboard('{Escape}');
+
+      await goneScreen('Бренд');
+      expect(screen.getByRole('dialog', { name: 'Фильтры' })).toBeInTheDocument();
+      expect(row(dialog, 'Бренд')).toHaveTextContent('Nike');
+      expect(row(dialog, 'Бренд')).not.toHaveTextContent('Puma');
+      await vi.waitFor(() => expect(row(dialog, 'Бренд')).toHaveFocus());
+      expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it('closes the list on a second Escape, drops the draft and focuses "Фильтры"', async () => {
+      const { onChange, user } = show({ value: { brandId: [BRAND_NIKE] } });
+      const dialog = await open(user);
+
+      await user.click(row(dialog, 'Бренд'));
+      await user.click(screenOf('Бренд').getByRole('checkbox', { name: 'Puma 5' }));
+      await user.keyboard('{Escape}');
+      await goneScreen('Бренд');
+      await user.click(dialog.getByRole('switch', { name: 'Только со скидкой' }));
+      await user.keyboard('{Escape}');
+
+      await closed();
+      expect(onChange).not.toHaveBeenCalled();
+      await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Фильтры' })).toHaveFocus());
+    });
+
+    it('leaves the screen after "Применить" and shows the choice as the row’s summary', async () => {
+      const { user } = show();
+      const dialog = await open(user);
+
+      await user.click(row(dialog, 'Размер'));
+      const sheet = screenOf('Размер');
+      await user.click(sheet.getByRole('checkbox', { name: 'L 2' }));
+      await user.click(apply(sheet));
+
+      await goneScreen('Размер');
+      expect(screen.getByRole('dialog', { name: 'Фильтры' })).toBeInTheDocument();
+      expect(row(dialog, 'Размер')).toHaveTextContent('L');
     });
 
     it('clears a list of values with the header "Сбросить", kept only on "Применить"', async () => {
@@ -418,10 +499,12 @@ describe('CatalogFiltersDrawer', () => {
       const dialog = await open(user);
 
       await user.click(row(dialog, 'Размер'));
-      await user.click(dialog.getByRole('button', { name: 'Сбросить' }));
-      expect(dialog.getByRole('checkbox', { name: 'M 3' })).not.toBeChecked();
-      await user.click(apply(dialog));
+      const sheet = screenOf('Размер');
+      await user.click(sheet.getByRole('button', { name: 'Сбросить' }));
+      expect(sheet.getByRole('checkbox', { name: 'M 3' })).not.toBeChecked();
+      await user.click(apply(sheet));
 
+      await goneScreen('Размер');
       expect(row(dialog, 'Размер')).not.toHaveTextContent('M');
       expect(dialog.queryByRole('button', { name: 'Сбросить: Размер' })).not.toBeInTheDocument();
     });
@@ -431,8 +514,10 @@ describe('CatalogFiltersDrawer', () => {
       const dialog = await open(user);
 
       await user.click(row(dialog, 'Цвет'));
-      await user.click(dialog.getByRole('button', { name: 'Выбрать все' }));
-      await user.click(apply(dialog));
+      const sheet = screenOf('Цвет');
+      await user.click(sheet.getByRole('button', { name: 'Выбрать все' }));
+      await user.click(apply(sheet));
+      await goneScreen('Цвет');
       await user.click(showButton(dialog));
 
       expect(onChange).toHaveBeenCalledWith({ attributeValueId: [COTTON, BLACK, BLUE] });
@@ -443,16 +528,18 @@ describe('CatalogFiltersDrawer', () => {
       const dialog = await open(user);
 
       await user.click(row(dialog, 'Цена'));
-      dialog.getByRole('slider', { name: 'Мин. цена' }).focus();
+      const sheet = screenOf('Цена');
+      sheet.getByRole('slider', { name: 'Мин. цена' }).focus();
       await user.keyboard('{ArrowRight}');
 
-      expect(dialog.getByRole('slider', { name: 'Мин. цена' })).toHaveAttribute(
+      expect(sheet.getByRole('slider', { name: 'Мин. цена' })).toHaveAttribute(
         'aria-valuenow',
         '1001',
       );
       expect(onChange).not.toHaveBeenCalled();
 
-      await user.click(apply(dialog));
+      await user.click(apply(sheet));
+      await goneScreen('Цена');
       await user.click(showButton(dialog));
       expect(onChange).toHaveBeenCalledWith({ minPrice: 1001 });
     });
@@ -462,20 +549,24 @@ describe('CatalogFiltersDrawer', () => {
       const dialog = await open(user);
 
       await user.click(row(dialog, 'Сортировка'));
-      expect(dialog.getByRole('radio', { name: 'Сначала дешевле' })).toBeChecked();
-      await user.click(dialog.getByRole('radio', { name: 'Сначала дороже' }));
-      expect(dialog.getByRole('button', { name: 'По умолчанию' })).toBeEnabled();
-      await user.click(dialog.getByRole('button', { name: 'По умолчанию' }));
+      const sheet = screenOf('Сортировка');
+      expect(sheet.getByRole('radio', { name: 'Сначала дешевле' })).toBeChecked();
+      await user.click(sheet.getByRole('radio', { name: 'Сначала дороже' }));
+      expect(sheet.getByRole('button', { name: 'По умолчанию' })).toBeEnabled();
+      await user.click(sheet.getByRole('button', { name: 'По умолчанию' }));
 
-      expect(dialog.getByRole('radio', { name: 'Новинки' })).toBeChecked();
-      expect(dialog.getByRole('button', { name: 'По умолчанию' })).toBeDisabled();
+      expect(sheet.getByRole('radio', { name: 'Новинки' })).toBeChecked();
+      expect(sheet.getByRole('button', { name: 'По умолчанию' })).toBeDisabled();
       expect(onChange).not.toHaveBeenCalled();
-      await user.click(back(dialog));
+      await user.click(back(sheet));
+      await goneScreen('Сортировка');
       expect(row(dialog, 'Сортировка')).toHaveTextContent('Сначала дешевле');
 
       await user.click(row(dialog, 'Сортировка'));
-      await user.click(dialog.getByRole('button', { name: 'По умолчанию' }));
-      await user.click(apply(dialog));
+      const again = screenOf('Сортировка');
+      await user.click(again.getByRole('button', { name: 'По умолчанию' }));
+      await user.click(apply(again));
+      await goneScreen('Сортировка');
       await user.click(showButton(dialog));
 
       const applied = onChange.mock.calls[0]?.[0] as CatalogFilterValue;
@@ -489,8 +580,10 @@ describe('CatalogFiltersDrawer', () => {
       const dialog = await open(user);
 
       await user.click(row(dialog, 'Бренд'));
-      await user.click(dialog.getByRole('checkbox', { name: 'Puma 5' }));
-      await user.click(apply(dialog));
+      const sheet = screenOf('Бренд');
+      await user.click(sheet.getByRole('checkbox', { name: 'Puma 5' }));
+      await user.click(apply(sheet));
+      await goneScreen('Бренд');
       await user.click(dialog.getByRole('switch', { name: 'Только со скидкой' }));
       expect(onChange).not.toHaveBeenCalled();
       await user.click(showButton(dialog));
@@ -504,6 +597,21 @@ describe('CatalogFiltersDrawer', () => {
       });
       await closed();
       await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Фильтры' })).toHaveFocus());
+    });
+
+    it('from the list after a screen closed, applies the draft and closes every sheet', async () => {
+      const { onChange, user } = show();
+      const dialog = await open(user);
+
+      await user.click(row(dialog, 'Размер'));
+      const sheet = screenOf('Размер');
+      await user.click(sheet.getByRole('checkbox', { name: 'L 2' }));
+      await user.click(apply(sheet));
+      await goneScreen('Размер');
+      await user.click(showButton(dialog));
+
+      expect(onChange).toHaveBeenCalledWith({ size: ['L'] });
+      await closed();
     });
 
     it('applies the selection untouched when nothing was chosen', async () => {
@@ -579,8 +687,10 @@ describe('CatalogFiltersDrawer', () => {
       );
 
       await user.click(row(dialog, 'Бренд'));
-      await user.click(dialog.getByRole('checkbox', { name: 'Puma 5' }));
-      await user.click(apply(dialog));
+      const sheet = screenOf('Бренд');
+      await user.click(sheet.getByRole('checkbox', { name: 'Puma 5' }));
+      await user.click(apply(sheet));
+      await goneScreen('Бренд');
       expect(showButton(dialog)).toHaveAccessibleName('Показать товары');
 
       await vi.waitFor(() => expect(showButton(dialog)).toHaveAccessibleName('Показать 7 товаров'));
@@ -597,8 +707,10 @@ describe('CatalogFiltersDrawer', () => {
       const asked = fetchMock.mock.calls.length;
 
       await user.click(row(dialog, 'Сортировка'));
-      await user.click(dialog.getByRole('radio', { name: 'Сначала дешевле' }));
-      await user.click(apply(dialog));
+      const sheet = screenOf('Сортировка');
+      await user.click(sheet.getByRole('radio', { name: 'Сначала дешевле' }));
+      await user.click(apply(sheet));
+      await goneScreen('Сортировка');
 
       expect(row(dialog, 'Сортировка')).toHaveTextContent('Сначала дешевле');
       expect(showButton(dialog)).toHaveAccessibleName('Показать 21 товар');
@@ -616,15 +728,19 @@ describe('CatalogFiltersDrawer', () => {
   });
 
   describe('closing without "Показать"', () => {
-    it('drops every unapplied choice on Escape, from a screen too; reopening starts at the list', async () => {
+    it('drops every unapplied choice on Escape (twice from a screen); reopening starts at the list', async () => {
       const { onChange, user } = show({ value: { brandId: [BRAND_NIKE] } });
       const first = await open(user);
 
       await user.click(row(first, 'Размер'));
-      await user.click(first.getByRole('checkbox', { name: 'L 2' }));
-      await user.click(apply(first));
+      const sizes = screenOf('Размер');
+      await user.click(sizes.getByRole('checkbox', { name: 'L 2' }));
+      await user.click(apply(sizes));
+      await goneScreen('Размер');
       await user.click(row(first, 'Бренд'));
-      await user.click(first.getByRole('checkbox', { name: 'Puma 5' }));
+      await user.click(screenOf('Бренд').getByRole('checkbox', { name: 'Puma 5' }));
+      await user.keyboard('{Escape}');
+      await goneScreen('Бренд');
       await user.keyboard('{Escape}');
       await closed();
       expect(onChange).not.toHaveBeenCalled();
@@ -634,6 +750,26 @@ describe('CatalogFiltersDrawer', () => {
       expect(row(second, 'Бренд')).not.toHaveTextContent('Puma');
       expect(row(second, 'Размер')).not.toHaveTextContent('L');
       expect(second.queryByRole('button', { name: 'Назад к фильтрам' })).not.toBeInTheDocument();
+    });
+
+    it('closes both sheets on a press outside while a screen is open, drops the draft and focuses "Фильтры"', async () => {
+      const { onChange, user } = show({ value: { brandId: [BRAND_NIKE] } });
+      const first = await open(user);
+
+      await user.click(row(first, 'Бренд'));
+      await user.click(screenOf('Бренд').getByRole('checkbox', { name: 'Puma 5' }));
+      // The tap on the dark area lands on the screen's own viewport (the only backdrop is the list's).
+      const viewports = document.querySelectorAll('.viewport');
+      expect(viewports).toHaveLength(2);
+      await user.click(viewports[1] as Element);
+
+      await closed();
+      expect(onChange).not.toHaveBeenCalled();
+      await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Фильтры' })).toHaveFocus());
+
+      const second = await open(user);
+      expect(row(second, 'Бренд')).toHaveTextContent('Nike');
+      expect(row(second, 'Бренд')).not.toHaveTextContent('Puma');
     });
 
     it('closes on the ×, drops the draft and focuses "Фильтры"', async () => {
@@ -687,11 +823,12 @@ describe('CatalogFiltersDrawer', () => {
       const { onChange, user } = show({ value: { brandId: [BRAND_NIKE] } });
       const first = await open(user);
       await user.click(row(first, 'Бренд'));
-      await user.click(first.getByRole('checkbox', { name: 'Puma 5' }));
+      await user.click(screenOf('Бренд').getByRole('checkbox', { name: 'Puma 5' }));
 
       media.resize(true);
 
       await closed();
+      await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Фильтры' })).toHaveFocus());
       expect(media.queries).toContain('(width >= 1024px)');
       expect(onChange).not.toHaveBeenCalled();
 

@@ -510,8 +510,12 @@ describe('the drawer', () => {
     const drawer = await screen.findByRole('dialog');
     await user.click(within(drawer).getByRole('switch', { name: 'Только со скидкой' }));
     await user.click(within(drawer).getByRole('button', { name: /^Сортировка/ }));
-    await user.click(within(drawer).getByRole('radio', { name: 'По рейтингу' }));
-    await user.click(within(drawer).getByRole('button', { name: 'Применить' }));
+    const sortScreen = within(await screen.findByRole('dialog', { name: 'Сортировка' }));
+    await user.click(sortScreen.getByRole('radio', { name: 'По рейтингу' }));
+    await user.click(sortScreen.getByRole('button', { name: 'Применить' }));
+    await vi.waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Сортировка' })).not.toBeInTheDocument(),
+    );
     expect(sent('Catalog Filter Applied')).toEqual([]);
     expect(sent('Catalog Sorted')).toEqual([]);
 

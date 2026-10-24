@@ -213,8 +213,12 @@ describe('CatalogBrowser selection in the address (AC7)', () => {
     await user.click(screen.getByRole('button', { name: 'Фильтры' }));
     const dialog = within(await screen.findByRole('dialog', { name: 'Фильтры' }));
     await user.click(dialog.getByRole('button', { name: /^Бренд/ }));
-    await user.click(dialog.getByRole('checkbox', { name: 'Nike 12' }));
-    await user.click(dialog.getByRole('button', { name: 'Применить' }));
+    const brandScreen = within(await screen.findByRole('dialog', { name: 'Бренд' }));
+    await user.click(brandScreen.getByRole('checkbox', { name: 'Nike 12' }));
+    await user.click(brandScreen.getByRole('button', { name: 'Применить' }));
+    await vi.waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Бренд' })).not.toBeInTheDocument(),
+    );
     expect(nav.replace).not.toHaveBeenCalled();
     await user.click(dialog.getByRole('button', { name: /^Показать/ }));
     expect(nav.replace).toHaveBeenCalledTimes(1);

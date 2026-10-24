@@ -2,7 +2,7 @@
 
 import { Button as BaseButton } from '@base-ui/react/button';
 import { Drawer as BaseDrawer } from '@base-ui/react/drawer';
-import { type ReactElement, type ReactNode, type Ref, useId } from 'react';
+import { type ReactElement, type ReactNode, type Ref, type RefObject, useId } from 'react';
 
 import { ChevronLeftIcon, CloseIcon } from '../icon/icons';
 
@@ -19,8 +19,9 @@ export interface DrawerProps {
   side?: 'right' | 'bottom';
   // 432px by default, 636px wide; never wider than the window. Only for `right`.
   wide?: boolean;
-  // Only for `bottom`: the sheet is always as high as it can be, so a change of its content (a
-  // screen of the filters' sheet, spec 0020) does not resize it.
+  // Only for `bottom`: the sheet is always as high as it can be, whatever its content, so a sheet
+  // nested in it (a filter's screen over the filters, spec 0020 W30) is as high as it is. A
+  // `Drawer` rendered inside another is nested (Base UI): the outer one steps back behind it.
   fullHeight?: boolean;
   // A "‹" before the title that calls this: the way back from a screen of the sheet. Its name is
   // `backLabel`, and it is described by the title ("Назад, Цвет").
@@ -28,6 +29,8 @@ export interface DrawerProps {
   backLabel?: string;
   // The "‹" itself, for whoever switches screens to move the focus onto it.
   backRef?: Ref<HTMLButtonElement>;
+  // The element focused when the drawer opens, as Modal's; else the sheet itself (Base UI).
+  initialFocus?: RefObject<HTMLElement | null>;
   // A control on the right of the title, before the × (a screen's "Сбросить").
   headerAction?: ReactNode;
   // The × at the top right; true by default. Esc, the overlay and a swipe close the drawer anyway.
@@ -36,7 +39,9 @@ export interface DrawerProps {
   footer?: ReactNode;
   open?: boolean;
   defaultOpen?: boolean;
-  onOpenChange?: (open: boolean) => void;
+  // `reason` is Base UI's: `outside-press` for a tap outside the sheet (the backdrop), which a
+  // sheet nested in another may pass on to close both.
+  onOpenChange?: (open: boolean, reason: string) => void;
   // Called once the drawer has slid in or out: a screen reset on closing waits for it, so the
   // sheet does not change while it leaves.
   onOpenChangeComplete?: (open: boolean) => void;
@@ -47,8 +52,8 @@ export interface DrawerProps {
 // right over a dark overlay, a 24/28 heading and a × inside it at the top right (D7ab). Base UI's
 // Drawer behaves as Modal does (focus trapped, no page scroll, Esc or a click on the overlay
 // close it, the focus returns to the trigger); on a touch screen a swipe to the right (down for
-// the bottom sheet) closes it. Opening focuses the first control: the "‹" if any, else the
-// header action if any, else the content's; the × comes last.
+// the bottom sheet) closes it. Opening focuses the sheet itself, or `initialFocus`; in the tab
+// order the "‹" comes first, then the header action, the content, the footer and the × last.
 export function Drawer({
   trigger,
   title,
@@ -58,6 +63,7 @@ export function Drawer({
   onBack,
   backLabel = 'Назад',
   backRef,
+  initialFocus,
   headerAction,
   closable = true,
   footer,
@@ -74,7 +80,9 @@ export function Drawer({
       swipeDirection={side === 'bottom' ? 'down' : 'right'}
       open={open}
       defaultOpen={defaultOpen}
-      onOpenChange={onOpenChange ? (next) => onOpenChange(next) : undefined}
+      onOpenChange={
+        onOpenChange ? (next, details) => onOpenChange(next, details.reason) : undefined
+      }
       onOpenChangeComplete={onOpenChangeComplete}
     >
       {trigger && <BaseDrawer.Trigger render={trigger} />}
@@ -86,6 +94,7 @@ export function Drawer({
             .join(' ')}
         >
           <BaseDrawer.Popup
+            initialFocus={initialFocus}
             className={[
               styles.popup,
               side === 'bottom' ? styles.bottom : wide && styles.wide,

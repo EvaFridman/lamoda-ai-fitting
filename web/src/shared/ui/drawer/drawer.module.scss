@@ -69,7 +69,10 @@
   align-items: flex-end;
 }
 
+// Its top edge stays put while it steps back and forth (below): the origin is there always, or the
+// scale's way back would start from the centre.
 .bottom {
+  transform-origin: top center;
   transform: translateY(var(--drawer-swipe-movement-y, 0));
 
   width: 100%;
@@ -86,6 +89,34 @@
 // The bottom sheet that keeps its height whatever its content (`fullHeight`).
 .bottom.fullHeight {
   height: calc(100dvh - 48px);
+}
+
+// A bottom sheet with another opened inside it (Base UI's nested drawer: a filter's screen over
+// the filters, spec 0020 W30) steps back: 8px up and narrower, from its top edge, so that edge
+// peeks above the front sheet, and dimmed. The nested one has no backdrop of its own.
+.bottom[data-nested-drawer-open] {
+  transform: translateY(calc(-1 * var(--space-2) * var(--nested-drawers)))
+    scale(calc(1 - 0.08 * var(--nested-drawers)));
+  overflow: hidden;
+}
+
+.bottom::after {
+  pointer-events: none;
+  content: '';
+
+  position: absolute;
+  inset: 0;
+
+  border-radius: inherit;
+
+  opacity: 0;
+  background-color: var(--color-overlay);
+
+  transition: opacity var(--duration-fast) ease-in;
+}
+
+.bottom[data-nested-drawer-open]::after {
+  opacity: 0.2;
 }
 
 // A row as high as the 32px controls, centred on the ×: the "‹", the title and the header action.

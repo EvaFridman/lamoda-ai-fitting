@@ -1,9 +1,9 @@
 # 0020 catalog: loading and the phone layout
 
 Status: accepted (2026-10-23); amended 2026-10-23 at the review of PR 1 (AC1, AC9, AC11, AC14,
-AC16); amended 2026-10-23 at T10 (AC5: W28).
+AC16); amended 2026-10-23 at T10 (AC5: W28); amended 2026-10-24 at T10a (AC11–AC14: W30).
 
-Decisions: `clarifications.md` (W0–W29).
+Decisions: `clarifications.md` (W0–W30).
 
 ## Goal
 
@@ -82,20 +82,21 @@ screenshots of a Lamoda category page, described in `clarifications.md`).
   the current counts ("Размер", "Цвет", "Цена", "Бренд", the other attributes) and "Только со
   скидкой" as a switch. A row with a choice shows it in grey and "Сбросить" on the right. The
   footer has "Сбросить" (inactive while nothing is chosen) and "Показать N товаров".
-- **AC11.** A row opens its screen in the same sheet: "‹" and the filter's name at the top, and
+- **AC11.** A row opens its screen as a second sheet over the list, which stays behind it, raised,
+  narrower and dimmed (W30): "‹" and the filter's name at the top, and
   "Сбросить" on the right for a list of values. "Сортировка": radio buttons on the right of each
   order, the footer "По умолчанию" (chooses the default order on the screen, kept by "Применить",
   W19) and "Применить". A list of values: the value, its count and a
   checkbox on the right; "Цвет" also has a search field, "Выбрать все" and a swatch before each
   colour. "Цена": the price fields. Each screen's footer has "Применить".
-- **AC12.** "Применить" or "‹" on a screen returns to the list; "Применить" keeps the choice, "‹"
-  drops what was changed on that screen. Nothing changes in the address or the products until
+- **AC12.** "Применить", "‹", a swipe down or Escape on a screen returns to the list; "Применить"
+  keeps the choice, the others drop what was changed on that screen. Nothing changes in the address or the products until
   "Показать N товаров", which applies every choice at once, updates the address and closes the
   sheet. N follows the choices as today (0014).
-- **AC13.** Closing the sheet (×, swipe, Escape, the backdrop) drops every unapplied choice; it
-  opens again with the address's selection.
+- **AC13.** Closing the sheet (the list's ×, a swipe or Escape on the list, the backdrop from the
+  list or a screen) drops every unapplied choice; it opens again with the address's selection.
 - **AC14.** Keyboard: Tab reaches every row and control; opening a screen moves the focus to its
-  "‹", returning moves it to the row it came from; Escape closes the sheet. A screen reader hears
+  "‹", returning moves it to the row it came from; Escape closes a screen, then the sheet. A screen reader hears
   the screen's name when it opens. Any close of the sheet, "Показать N товаров" too, returns the
   focus to "Фильтры" (W20).
 

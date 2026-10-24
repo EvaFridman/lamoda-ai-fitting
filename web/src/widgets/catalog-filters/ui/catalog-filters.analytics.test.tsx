@@ -159,7 +159,14 @@ describe('the sheet analytics', () => {
       expect(clicks()).toEqual([
         ['Element Clicked', { element, zone: 'catalog', type: 'interaction', surface: 'sheet' }],
       ]);
-      await user.click(dialog.getByRole('button', { name: 'Назад к фильтрам' }));
+      await user.click(
+        within(screen.getByRole('dialog', { name })).getByRole('button', {
+          name: 'Назад к фильтрам',
+        }),
+      );
+      await vi.waitFor(() =>
+        expect(screen.queryByRole('dialog', { name })).not.toBeInTheDocument(),
+      );
     }
 
     vi.mocked(track).mockClear();
@@ -240,16 +247,22 @@ describe('the sheet analytics', () => {
     vi.mocked(track).mockClear();
 
     await user.click(dialog.getByRole('button', { name: 'Сбросить' }));
+    const gone = (name: string) =>
+      vi.waitFor(() => expect(screen.queryByRole('dialog', { name })).not.toBeInTheDocument());
     await user.click(dialog.getByRole('button', { name: /^Сортировка/ }));
+    const sort = within(screen.getByRole('dialog', { name: 'Сортировка' }));
     vi.mocked(track).mockClear();
-    await user.click(dialog.getByRole('radio', { name: 'Сначала дороже' }));
-    await user.click(dialog.getByRole('button', { name: 'По умолчанию' }));
-    await user.click(dialog.getByRole('button', { name: 'Применить' }));
+    await user.click(sort.getByRole('radio', { name: 'Сначала дороже' }));
+    await user.click(sort.getByRole('button', { name: 'По умолчанию' }));
+    await user.click(sort.getByRole('button', { name: 'Применить' }));
+    await gone('Сортировка');
     await user.click(dialog.getByRole('button', { name: /^Размер/ }));
+    const size = within(screen.getByRole('dialog', { name: 'Размер' }));
     vi.mocked(track).mockClear();
-    await user.click(dialog.getByRole('checkbox', { name: 'M 3' }));
-    await user.click(dialog.getByRole('button', { name: 'Сбросить' }));
-    await user.click(dialog.getByRole('button', { name: 'Назад к фильтрам' }));
+    await user.click(size.getByRole('checkbox', { name: 'M 3' }));
+    await user.click(size.getByRole('button', { name: 'Сбросить' }));
+    await user.click(size.getByRole('button', { name: 'Назад к фильтрам' }));
+    await gone('Размер');
     await user.click(dialog.getByRole('button', { name: /^Показать/ }));
 
     expect(track).not.toHaveBeenCalled();

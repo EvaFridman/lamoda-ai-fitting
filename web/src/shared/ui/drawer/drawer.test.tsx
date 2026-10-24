@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { ComponentProps } from 'react';
+import { type ComponentProps, createRef } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { Button, Drawer, DrawerClose } from '@/shared/ui';
@@ -72,6 +72,22 @@ describe('Drawer', () => {
     expect(trigger).not.toHaveFocus();
   });
 
+  it('focuses the element given as initialFocus when it opens', async () => {
+    const user = setup();
+    const target = createRef<HTMLInputElement>();
+    render(
+      <Drawer trigger={<Button>Корзина</Button>} title="Ваша корзина" initialFocus={target}>
+        <button type="button">Первая</button>
+        <input ref={target} aria-label="Цель" />
+      </Drawer>,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Корзина' }));
+    await screen.findByRole('dialog');
+
+    await vi.waitFor(() => expect(screen.getByRole('textbox', { name: 'Цель' })).toHaveFocus());
+  });
+
   it('hides the content outside from assistive technology while open', async () => {
     const user = setup();
     render(<Example />);
@@ -90,7 +106,21 @@ describe('Drawer', () => {
 
     await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(trigger).toHaveFocus();
-    expect(onOpenChange).toHaveBeenLastCalledWith(false);
+    expect(onOpenChange).toHaveBeenLastCalledWith(false, 'escape-key');
+  });
+
+  it('reports a press on the backdrop as an "outside-press"', async () => {
+    const user = setup();
+    const onOpenChange = vi.fn();
+    render(<Example onOpenChange={onOpenChange} />);
+    await open(user, 'click');
+    onOpenChange.mockClear();
+
+    const backdrop = document.querySelector('.backdrop');
+    expect(backdrop).not.toBeNull();
+    await user.click(backdrop as Element);
+
+    expect(onOpenChange).toHaveBeenCalledWith(false, 'outside-press');
   });
 
   it('calls onOpenChangeComplete with true after opening and false after closing', async () => {
@@ -160,7 +190,7 @@ describe('Drawer', () => {
     await user.keyboard('{Escape}');
 
     await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect(onOpenChange).toHaveBeenLastCalledWith(false);
+    expect(onOpenChange).toHaveBeenLastCalledWith(false, 'escape-key');
   });
 
   describe('onBack', () => {
@@ -251,7 +281,7 @@ describe('Drawer', () => {
 
       await user.keyboard('{Escape}');
 
-      expect(onOpenChange).toHaveBeenCalledWith(false);
+      expect(onOpenChange).toHaveBeenCalledWith(false, 'escape-key');
     });
 
     it('has the × by default', async () => {
@@ -332,7 +362,7 @@ describe('Drawer', () => {
 
     await user.keyboard('{Escape}');
 
-    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(onOpenChange).toHaveBeenCalledWith(false, 'escape-key');
     expect(screen.getByRole('dialog', { name: 'Управляемый' })).toBeInTheDocument();
   });
 });
