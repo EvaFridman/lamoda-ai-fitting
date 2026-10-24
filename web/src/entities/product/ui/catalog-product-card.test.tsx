@@ -7,6 +7,7 @@ import { FavoriteToggle } from '@/shared/ui';
 import type { ProductListItem } from '../model/schemas';
 
 import { CatalogProductCard, CatalogProductCardSkeleton } from './catalog-product-card';
+import { LookToggle } from './look-toggle';
 
 const product: ProductListItem = {
   id: '3f0c1c6e-5f0e-4b7c-9d55-0c1d5a1b2c3d',
@@ -97,14 +98,14 @@ describe('CatalogProductCard', () => {
     expect(plain(link.textContent)).toContain('10 000 ₽');
   });
 
-  it('puts the action outside the link and a click on it does not reach the link', async () => {
+  it('puts the favorite outside the link and a click on it does not reach the link', async () => {
     const user = userEvent.setup();
     const onPressedChange = vi.fn();
     render(
       <CatalogProductCard
         product={product}
         href="/p/1"
-        action={<FavoriteToggle size={32} onPressedChange={onPressedChange} />}
+        favorite={<FavoriteToggle size={32} onPressedChange={onPressedChange} />}
       />,
     );
 
@@ -123,24 +124,74 @@ describe('CatalogProductCard', () => {
     expect(linkClick).not.toHaveBeenCalled();
   });
 
-  it('renders nothing extra without an action', () => {
+  it('puts the look toggle and the footer outside the link too (AC5)', async () => {
+    const user = userEvent.setup();
+    const onLook = vi.fn();
+    const onFooter = vi.fn();
+    render(
+      <CatalogProductCard
+        product={product}
+        href="/p/1"
+        lookToggle={<LookToggle onPressedChange={onLook} />}
+        favorite={<FavoriteToggle size={32} />}
+        footer={
+          <button type="button" onClick={onFooter}>
+            В корзину
+          </button>
+        }
+      />,
+    );
+
+    const link = screen.getByRole('link');
+    const linkClick = vi.fn();
+    link.addEventListener('click', linkClick);
+    const look = screen.getByRole('button', { name: 'Добавить к образу' });
+    const footer = screen.getByRole('button', { name: 'В корзину' });
+    expect(screen.getAllByRole('button')).toHaveLength(3);
+    expect(link).not.toContainElement(look);
+    expect(link).not.toContainElement(footer);
+
+    await user.click(look);
+    await user.click(footer);
+
+    expect(onLook).toHaveBeenCalledExactlyOnceWith(true);
+    expect(onFooter).toHaveBeenCalledOnce();
+    expect(linkClick).not.toHaveBeenCalled();
+  });
+
+  it('renders nothing extra without the slots', () => {
     render(<CatalogProductCard product={product} href="/p/1" />);
 
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
     expect(screen.getByRole('article').children).toHaveLength(1);
   });
 
-  it('renders no action wrapper for a false action', () => {
-    const show = false as boolean;
+  it.each([undefined, null, false, ''])('renders no wrapper for an empty slot %j', (empty) => {
     render(
       <CatalogProductCard
         product={product}
         href="/p/1"
-        action={show && <FavoriteToggle size={32} />}
+        lookToggle={empty}
+        favorite={empty}
+        footer={empty}
       />,
     );
 
     expect(screen.getByRole('article').children).toHaveLength(1);
+  });
+
+  it('keeps the rating row in the catalog variant and drops it in the compact one', () => {
+    const { container, rerender } = render(
+      <CatalogProductCard product={product} href="/p/1" variant="catalog" />,
+    );
+    expect(container.querySelector('.ratingRow')).not.toBeNull();
+
+    rerender(
+      <CatalogProductCard product={{ ...product, rating: 4.7 }} href="/p/1" variant="compact" />,
+    );
+    expect(container.querySelector('.ratingRow')).toBeNull();
+    expect(screen.queryByRole('img', { name: /Рейтинг/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('article')).toHaveClass('compact');
   });
 
   it('keeps "Нет фото" out of the link name, which keeps the brand and the name', () => {
@@ -191,5 +242,13 @@ describe('CatalogProductCardSkeleton', () => {
     expect(rows[2]?.firstElementChild).toHaveAttribute('aria-hidden', 'true');
     expect(rows[3]).toHaveClass('ratingRow');
     expect(rows[3]).toBeEmptyDOMElement();
+  });
+
+  it('has no rating row in the compact variant', () => {
+    const { container } = render(<CatalogProductCardSkeleton variant="compact" />);
+
+    const rows = Array.from(container.querySelector('.description')?.children ?? []);
+    expect(rows).toHaveLength(3);
+    expect(container.firstElementChild).toHaveClass('compact');
   });
 });

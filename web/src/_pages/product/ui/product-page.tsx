@@ -4,12 +4,14 @@ import { dehydrate, HydrationBoundary, QueryClient } from '@tanstack/react-query
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 
+import { ProductAbout } from '@/entities/product';
 import { productOptions, relatedProductsOptions } from '@/entities/product/server';
 import { errorText, reportFailure } from '@/shared/api';
 import { prefetch } from '@/shared/api/server';
 import { requestNonce } from '@/shared/csp/server';
 import { Breadcrumbs } from '@/shared/ui';
 import { ProductGallery } from '@/widgets/product-gallery';
+import { RelatedProducts } from '@/widgets/related-products';
 
 import { loadProductWithSlot } from '../model/load-product';
 import { ProductJsonLd } from './product-json-ld';
@@ -84,6 +86,8 @@ async function ProductContent({ params }: ProductPageProps) {
           <ProductPurchase product={product} hasSlot={slot !== null} />
         </div>
       </div>
+      <ProductAbout product={product} className={styles.about} />
+      <RelatedProducts productId={product.id} className={styles.related} />
     </HydrationBoundary>
   );
 }

@@ -37,7 +37,10 @@ model and its prompt, the workflow `generateFitting`, `/fittings` with the month
 push `fitting:finished`, OpenAI through the proxy abroad), the try-on of one item in a window
 (`widgets/try-on`) and the history "Мои примерки"; phase 3 so far the product page
 `/products/<id>` (its metadata, JSON-LD, 404 and sitemap, the gallery, the buy box with the
-try-on's «Примерить», the limit meter and «Вы это примеряли»).
+try-on's «Примерить», the limit meter and «Вы это примеряли», «О товаре» and «С этим товаром
+выбирают» with the card's `compact` variant) and the catalog card's two corners (the hanger
+`LookToggle`, disabled until the fitting room, and the heart stub, in place of its one `action`)
+and its hover (spec 0019 A63.1, A83).
 
 Keep this file true: update it in the same commit that changes what a section describes.
 

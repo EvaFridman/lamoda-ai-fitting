@@ -26,6 +26,8 @@ import { CatalogBrowser, type CatalogBrowserProps } from './catalog-browser';
 const fetchMock = vi.fn();
 // When set, answers the filter counts of a selection with the discount filter.
 let discountedFacets: (() => Promise<Response>) | undefined;
+// What the category list answers.
+let categoryItems: unknown[] = [];
 
 const ID = '3f2b8c1e-5a4d-4e6f-8a9b-0c1d2e3f4a5b';
 const DATE = '2026-10-01T12:00:00.000Z';
@@ -73,7 +75,8 @@ function side(input: unknown): Promise<Response> | undefined {
     if (discounted && discountedFacets) return discountedFacets();
     return json(discounted ? { ...facets, total: 7 } : facets);
   }
-  if (path.endsWith('/categories')) return json({ items: [], total: 0 });
+  if (path.endsWith('/categories'))
+    return json({ items: categoryItems, total: categoryItems.length });
   return undefined;
 }
 
@@ -110,6 +113,7 @@ beforeEach(() => {
   fetchMock.mockReset();
   replace.mockReset();
   discountedFacets = undefined;
+  categoryItems = [];
   vi.mocked(reportFailure).mockClear();
   vi.stubGlobal('fetch', fetchMock);
 });
@@ -128,6 +132,63 @@ describe('CatalogBrowser', () => {
       `?q=${encodeURIComponent('платье')}&sort=price_asc&cursor=next%201`,
     );
     expect(link).toHaveAttribute('rel', 'next');
+  });
+
+  describe('the fitting room corners (AC16)', () => {
+    const SLOTTED = '11111111-1111-4111-8111-111111111111';
+    const PLAIN = '22222222-2222-4222-8222-222222222222';
+    const category = (id: string, slug: string, slot: string | null) => ({
+      id,
+      name: slug,
+      slug,
+      isActive: true,
+      description: null,
+      sortOrder: 0,
+      slot,
+      createdAt: DATE,
+      updatedAt: DATE,
+    });
+    const inCategory = (n: number, id: string) => ({
+      ...productNamed(n),
+      category: { id, name: 'Категория', slug: 'c' },
+    });
+    const cardOf = (name: RegExp) => screen.getByRole('link', { name }).closest('article')!;
+
+    it('shows the hanger only on the cards of a slotted category, the heart on all', async () => {
+      categoryItems = [category(SLOTTED, 'tops', 'top'), category(PLAIN, 'bags', null)];
+      stubApi({
+        items: [inCategory(1, SLOTTED), inCategory(2, PLAIN)],
+        total: 2,
+        nextCursor: null,
+      });
+      await show({ query: {} });
+      const slotted = cardOf(/Платье 1/);
+      const plain = cardOf(/Платье 2/);
+
+      await vi.waitFor(() =>
+        expect(within(slotted).getByRole('button', { name: 'Добавить к образу' })).toBeDisabled(),
+      );
+      expect(within(plain).queryByRole('button', { name: 'Добавить к образу' })).toBeNull();
+      expect(within(slotted).getByRole('button', { name: 'В избранное' })).toBeInTheDocument();
+      expect(within(plain).getByRole('button', { name: 'В избранное' })).toBeInTheDocument();
+    });
+
+    it('shows no hanger when no category has a slot', async () => {
+      categoryItems = [category(SLOTTED, 'tops', null)];
+      stubApi({ items: [inCategory(1, SLOTTED)], total: 1, nextCursor: null });
+      await show({ query: {} });
+      await vi.waitFor(() =>
+        expect(fetchMock.mock.calls.some(([input]) => pathOf(input).endsWith('/categories'))).toBe(
+          true,
+        ),
+      );
+      await act(async () => {});
+
+      expect(screen.queryByRole('button', { name: 'Добавить к образу' })).toBeNull();
+      expect(
+        within(cardOf(/Платье 1/)).getByRole('button', { name: 'В избранное' }),
+      ).toBeInTheDocument();
+    });
   });
 
   it('has no "Дальше" on the last batch', async () => {

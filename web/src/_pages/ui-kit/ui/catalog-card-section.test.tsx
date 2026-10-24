@@ -27,11 +27,30 @@ describe('catalog card section', () => {
     expect(renderRegion()).toBeInTheDocument();
   });
 
-  it('shows five cards and the skeleton', () => {
+  it('shows five cards, two compact ones and two skeletons', () => {
     const { region } = renderCards();
 
-    expect(within(region).getAllByRole('article')).toHaveLength(5);
-    expect(region.querySelectorAll('[aria-busy="true"]')).toHaveLength(1);
+    expect(within(region).getAllByRole('article')).toHaveLength(7);
+    expect(region.querySelectorAll('[aria-busy="true"]')).toHaveLength(2);
+  });
+
+  it('shows a compact card with «В корзину» under it, outside its link, and no rating', () => {
+    const { region } = renderCards();
+    const compact = within(region).getAllByRole('article')[5] as HTMLElement;
+
+    const cart = within(compact).getByRole('button', { name: 'В корзину' });
+    expect(within(compact).getByRole('link')).not.toContainElement(cart);
+    expect(within(compact).queryByRole('img', { name: /Рейтинг/ })).not.toBeInTheDocument();
+    expect(compact).toHaveClass('compact');
+  });
+
+  it('shows the hanger in the first three cards, the last one disabled', () => {
+    const { discounted, fullPrice, noPhoto, noRating } = renderCards();
+
+    expect(within(discounted).getByRole('button', { name: 'Добавить к образу' })).toBeEnabled();
+    expect(within(fullPrice).getByRole('button', { name: 'В примерочной — убрать' })).toBeEnabled();
+    expect(within(noPhoto).getByRole('button', { name: 'Добавить к образу' })).toBeDisabled();
+    expect(within(noRating).queryByRole('button')).not.toBeInTheDocument();
   });
 
   it('shows the discount badge with the old and the new price', () => {
@@ -64,11 +83,11 @@ describe('catalog card section', () => {
     expect(within(longName).getByText(/^Пальто-тренч двубортное с поясом/)).toBeInTheDocument();
   });
 
-  it('puts the favourite toggle in the discounted card only, outside the link', () => {
+  it('puts the favourite toggle in three cards only, outside the link', () => {
     const { region, discounted } = renderCards();
 
     const toggle = within(discounted).getByRole('button', { name: 'В избранное' });
-    expect(within(region).getAllByRole('button', { name: 'В избранное' })).toHaveLength(1);
+    expect(within(region).getAllByRole('button', { name: 'В избранное' })).toHaveLength(3);
     expect(within(discounted).getByRole('link')).not.toContainElement(toggle);
   });
 

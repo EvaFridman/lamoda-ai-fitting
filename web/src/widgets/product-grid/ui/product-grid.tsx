@@ -4,7 +4,8 @@ import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { type CSSProperties, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
-import { CatalogProductCard, type ProductListItem } from '@/entities/product';
+import { CatalogProductCard, LookToggle, type ProductListItem } from '@/entities/product';
+import { FavoriteStub } from '@/features/product-stubs';
 import { useTrackedElement } from '@/shared/analytics';
 import { Link } from '@/shared/ui';
 
@@ -44,6 +45,9 @@ export interface ProductGridProps {
   moreHref?: string;
   // "Дальше" stays visible with JavaScript too (a batch failed to load: the visitor goes on by it).
   showMore?: boolean;
+  // The ids of the categories with a slot of the fitting room: only their cards show the hanger
+  // (AC16, A83.7). None while the categories load.
+  slottedCategoryIds?: ReadonlySet<string>;
 }
 
 interface Layout {
@@ -101,10 +105,12 @@ interface GridItemProps {
   setSize: number;
   measureRef?: (element: HTMLLIElement | null) => void;
   row?: number;
+  hasSlot: boolean;
 }
 
-// A card of the list; its clicks and hovers are tracked by position, never by product (O35).
-function GridItem({ product, position, setSize, measureRef, row }: GridItemProps) {
+// A card of the list; its clicks and hovers are tracked by position, never by product (O35). Its
+// corners (A63.1): the hanger, disabled until the fitting room (T26), and the heart stub (A33).
+function GridItem({ product, position, setSize, measureRef, row, hasSlot }: GridItemProps) {
   const tracked = useTrackedElement('catalog.card', { position });
   return (
     <li ref={measureRef} data-index={row} aria-setsize={setSize} aria-posinset={position}>
@@ -115,6 +121,8 @@ function GridItem({ product, position, setSize, measureRef, row }: GridItemProps
         // backlog "Catalog card prefetch").
         prefetch={false}
         linkEvents={tracked}
+        lookToggle={hasSlot ? <LookToggle disabled /> : null}
+        favorite={<FavoriteStub size={32} />}
       />
     </li>
   );
@@ -131,6 +139,7 @@ export function ProductGrid({
   onLoadMore,
   moreHref,
   showMore = false,
+  slottedCategoryIds,
 }: ProductGridProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
@@ -331,6 +340,7 @@ export function ProductGrid({
               // The first card of a row measures the row: a grid row is as high as its tallest.
               measureRef={firstInRow ? virtualizer.measureElement : undefined}
               row={firstInRow ? index / columns : undefined}
+              hasSlot={slottedCategoryIds?.has(product.category.id) ?? false}
             />
           );
         })}

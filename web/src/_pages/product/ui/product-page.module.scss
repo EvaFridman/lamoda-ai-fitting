@@ -55,6 +55,25 @@
   }
 }
 
+// «О товаре» under the gallery, as wide as its column, and «С этим товаром выбирают» across the
+// page, 56px below what is above (board 1); on a phone with the page's 16px sides.
+.about {
+  max-width: 888px;
+  padding-top: 56px;
+}
+
+.related {
+  padding-top: 56px;
+}
+
+.about,
+.related {
+  @media (width < 600px) {
+    padding-top: var(--space-10);
+    padding-inline: var(--space-4);
+  }
+}
+
 // The buy box itself pads its phone layout, whose bar runs edge to edge.
 .purchase {
   flex: 1;

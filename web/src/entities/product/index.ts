@@ -6,6 +6,7 @@ export {
   productListOptions,
   productOptions,
   productVariationListOptions,
+  relatedProductsOptions,
   useProduct,
   useProductAttributeValues,
   useProductBatches,
@@ -13,6 +14,7 @@ export {
   useProductImages,
   useProducts,
   useProductVariations,
+  useRelatedProducts,
 } from './api/queries';
 export { isRefusedCursor } from './lib/cursor';
 export { chipValue, splitFacetAttributes } from './lib/facets';
@@ -61,7 +63,10 @@ export {
   CatalogProductCardSkeleton,
   type CatalogProductCardProps,
   type CatalogProductCardSkeletonProps,
+  type CatalogProductCardVariant,
 } from './ui/catalog-product-card';
+export { LookToggle, type LookToggleProps } from './ui/look-toggle';
+export { ProductAbout, type ProductAboutProps } from './ui/product-about';
 export {
   AttributeFilter,
   type AttributeFilterProps,

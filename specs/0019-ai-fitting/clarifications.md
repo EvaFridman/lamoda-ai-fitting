@@ -1028,6 +1028,26 @@ full `verify`) besides A58's run at the phase's end. (5) At the limit the buy bo
 meter's «Закончились · снова с <date>» under the disabled «Примерить», not board 11's caption
 «Примерки снова будут доступны <date>» too: one date, not two (owner, 2026-10-25).
 
+**A83. «О товаре», «С этим товаром выбирают» and the card's corners (T21's brief).** Board 1
+draws both blocks on the desktop only; the owner decided on 2026-10-25: (1) «О товаре» is one
+heading styled as the board's active tab, without «О бренде», «Отзывы» and «Вопросы» (A9); (2)
+the description is shown whole, with no «Подробнее»; (3) the attributes are every attribute of
+the product as the api answers them, the values joined by «, », then «Артикул» last (no «Размер
+на модели», A33); (4) the related cards are a `compact` variant of `CatalogProductCard` as the
+board draws them (a photo of fixed height, the price, the brand, the name in the secondary
+colour, no rating) with a slot under the link for «В корзину»; (5) below 600 px «О товаре» takes
+the whole width and the attribute's value loses its fixed 260 px, and the related cards are a
+grid of two columns as the catalog's on board 1.3, «В корзину» across the card; below 1024 px
+three columns; (6) until T26 the hanger is a disabled button (the kit's disabled opacity, as the
+heart's) with no tooltip, as the buy box's «К образу» (A82.2); (7) the catalog grid shows the
+hanger only for a product whose category has a slot, taken from the cached list of active
+categories by the category's id (AC16; the related products always have one, A36); (8) fewer than
+six related products show as many as there are, none hides the block, a failed read shows
+`errorText` and goes to `reportFailure`; (9) T21 ends with `typecheck`, `lint` and its own tests
+(A58), not the full `verify`. Their cards keep `prefetch={false}` as the grid's (A82.1). (10)
+The hearts on the catalog's and the related cards get no tracked element of their own (no
+`catalog.favourite`, no `related.favourite`): only plan §9's elements are counted.
+
 ## Canvas and decisions
 
 Where the canvas differs from the decisions above, the decision wins:

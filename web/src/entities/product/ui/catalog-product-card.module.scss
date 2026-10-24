@@ -1,9 +1,12 @@
 // Lamoda's x-product-card: it stretches to its column (0009 K16); the photo keeps the catalog
 // image's 236:341; under it the price, the brand in black, the name in grey (two lines, then an
 // ellipsis) and the rating, 13px text, 4px apart. The name and rating rows keep their height when
-// empty, so the cards of a row and the skeleton are one size (0009 K11).
+// empty, so the cards of a row and the skeleton are one size (0009 K11). The compact card of
+// «С этим товаром выбирают» (board 1, A83.4) has a photo 240px high (200px on a phone), no rating
+// and «В корзину» under the text.
 
-.card {
+.card,
+.skeleton {
   position: relative;
 
   display: flex;
@@ -11,6 +14,26 @@
   gap: var(--space-3);
 
   min-width: 0;
+}
+
+// A63.1: on a pointer device the card is lifted by the kit's box shadow and its photo grows inside
+// its frame; the duration tokens are 0 under prefers-reduced-motion.
+.card {
+  transition: box-shadow var(--duration-slow);
+
+  @media (hover: hover) {
+    &:hover {
+      box-shadow: var(--shadow-box);
+    }
+
+    &:hover .image {
+      transform: scale(1.03);
+    }
+  }
+}
+
+.compact {
+  gap: var(--space-2);
 }
 
 .link {
@@ -39,10 +62,20 @@
   width: 100%;
 
   background-color: var(--color-background-secondary);
+
+  .compact & {
+    aspect-ratio: auto;
+    height: 240px;
+
+    @media (width < 600px) {
+      height: 200px;
+    }
+  }
 }
 
 .image {
   object-fit: cover;
+  transition: transform var(--duration-slow);
 }
 
 .noPhoto {
@@ -102,8 +135,28 @@
   margin-top: var(--space-1);
 }
 
-.action {
+// Board 13: both corners 4px from the photo's edges, over it by their place after the link (no
+// z-index: the catalog's sticky bar and the buy box's fixed bar stay above them).
+.lookToggle,
+.favorite {
   position: absolute;
-  top: var(--space-2);
-  right: var(--space-2);
+  top: var(--space-1);
+  display: flex;
+}
+
+.lookToggle {
+  left: var(--space-1);
+}
+
+.favorite {
+  right: var(--space-1);
+}
+
+// Content width on the desktop, across the card on a phone (board 1.3).
+.footer {
+  display: flex;
+
+  @media (width < 600px) {
+    flex-direction: column;
+  }
 }
