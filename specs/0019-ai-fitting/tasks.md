@@ -1,6 +1,6 @@
 # 0019 AI fitting v1: tasks
 
-Status: accepted (2026-10-21).
+Status: accepted (2026-10-21); amended 2026-10-24 (T14a added: A73).
 
 Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
 
@@ -25,12 +25,11 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
   confirm» (A3); a fork about users' data, money or access stops the work.
 - A task that closes a backlog item removes it from `specs/backlog.md` in its commit (A42), and
   brings `CLAUDE.md` and `README.md` in line with what it changes.
-- Before phase 2 starts the owner checks that `api.openai.com` answers from the server (A4:
-  `GET /v1/models` without a key, a 401 is reachable, a 403 the region block); a 403 stops the
-  work for the owner's decision on the route. Phase 2 ends with the owner's real check: the main
-  session asks whether `OPENAI_API_KEY` is set in GitHub (and locally, if the owner wants a check
-  by hand), then the first generation runs on production after the merge. Tests and CI never
-  reach OpenAI.
+- OpenAI is reached through a proxy on a VPS abroad (A73, replacing A4's check without a key):
+  T14a sets it up, and every deploy checks `GET /v1/models` with the key through it. Phase 2 ends
+  with the owner's real check: the main session asks whether `OPENAI_API_KEY` and
+  `OPENAI_PROXY_URL` are set in GitHub, then the first generation runs on production after the
+  merge. Tests and CI never reach OpenAI.
 - Phase 3 starts after spec 0014 is merged and spec 0018's page cache is on `main` (A1, A22); if
   either is not by the end of phase 2, the work stops and the owner is told.
 - The pull request of phase 3 carries `Closes #69` under "Что сделано".
@@ -159,6 +158,27 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       Check: web tests of the hooks, of the connection opening and closing with the session (and
       again on another user), and of the components; `npm run verify`.
       Commit: `feat(web): add the fitting entity, the realtime client and the kit's additions`
+- 👤 rents the proxy VPS (1 CPU, 1 GB, Germany or the Netherlands) and checks from it by hand that
+  `GET /v1/models` with the key answers 200 (A73).
+- [ ] **T14a. api, deploy: OpenAI through the proxy** (runs before T15, A73). The playbook
+      `deploy/ansible/openai-proxy.yml` and the inventory group `openai_proxy` (Squid: only
+      `CONNECT api.openai.com:443`, basic auth, no `Via` or `X-Forwarded-For`, no cache, a log of
+      the connection only; ufw: SSH and the proxy's port from the production server only);
+      `OPENAI_PROXY_URL` (`config/env.ts`, `assertServerEnv`, `assertWorkerEnv`, `.env.example`,
+      `docker-compose.yml`'s `x-api-env`, `deploy/compose/app.yml` and `worker.yml`, `cd.yml`'s
+      writer and format check, `check-web-bundle`'s list); `undici` 8.12.2 or later as a direct
+      dependency, its `fetch` and `ProxyAgent` in `OpenAiClient`, OpenAI only; the proxy's
+      refusals unsent (A67) and `provider_error`; `ai/check-openai.ts` run by `deploy.sh` before
+      the warm-up, skipped on a rollback and by `SKIP_OPENAI_CHECK=1` (`cd.yml`'s input
+      `skip_openai_check`, `ci-deploy-check.sh`); `CLAUDE.md` and `deploy/README.md` (the VPS,
+      the playbook, the secret, the check in place of A4's `curl`, the way round).
+      Check: unit specs of the env (required in production, ignored elsewhere, the address in no
+      error), of the client (the dispatcher on OpenAI's requests only; a 407 unsent and
+      `provider_error`; no password in an error or a log line) and of the check script;
+      `check-web-bundle`'s test case; `ansible-playbook openai-proxy.yml --syntax-check`;
+      `security-reviewer`; 👤 runs the playbook, sets `OPENAI_PROXY_URL` in GitHub and checks
+      `curl -x` from the production server (200 with the key; another host refused).
+      Commit: `feat(api): reach openai through a proxy abroad`
 - [ ] **T15. web: the try-on of one item.** The features `start-fitting`, `regenerate-fitting`,
       `try-colour` and `fitting-events` (the toast of A11, A34), the widget `try-on` (boards 3,
       5, 6, 7, 11, 12 for one item: the picker, the wait with its estimate, the result with the
@@ -178,10 +198,10 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       Commit: `feat(web): list the fitting history`
 - [ ] **T17. Close phase 2.** `CLAUDE.md`, `README.md` (the fitting, the models, the push); the
       clean install and `verify`; the summary; 👤 the first generation on production after the
-      merge (A4; the reachability check was done before the phase).
+      merge (A4; the deploy's check through the proxy passed, A73).
       Check: `npm run verify` after `npm ci`; one real generation on production.
       Commit: `docs(docs): describe fitting generation`
-- 👤 reviews and merges PR 3; sets the secret `OPENAI_API_KEY` before it.
+- 👤 reviews and merges PR 3; sets the secrets `OPENAI_API_KEY` and `OPENAI_PROXY_URL` before it.
 
 ## PR 4 · `feat/0019-product-page` · the product page (after 0014 and 0018's page cache)
 

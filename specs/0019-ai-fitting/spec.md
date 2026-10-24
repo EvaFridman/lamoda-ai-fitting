@@ -170,9 +170,8 @@ the next spec (A8).
 
 - Create an OpenAI API key; set `OPENAI_API_KEY` as the GitHub secret of the Environment
   `production` and, for a check by hand before the merge, in the working copy's `.env` (A4).
-- Run the reachability check of `api.openai.com` from the server (`ssh ai-fitting`) before phase
-  2 starts: OpenAI does not list Russia among its supported countries, and a 403 there means the
-  route to the model is the owner's decision before any generation code is written; after phase
+- Rent the proxy VPS in a country OpenAI supports, run its playbook and set `OPENAI_PROXY_URL` as
+  a secret of the Environment `production` (A73: OpenAI blocks the server's region); after phase
   2's merge, check the first generation on production with the main session (A4).
 - Merge spec 0014's and spec 0018's pull requests before phase 3 starts (A1, A22).
 - Approve the analytics entries of `plan.md` §9 with this spec (A13).

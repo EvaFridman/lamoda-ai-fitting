@@ -1,11 +1,13 @@
 # 0019 AI fitting v1: plan
 
-Status: accepted (2026-10-21).
+Status: accepted (2026-10-21); amended 2026-10-24 (§3, §10, §12: A73).
 
 How [spec.md](spec.md) is built. Decisions: [clarifications.md](clarifications.md) (A1–A47).
 New dependencies, checked on npm on 2026-10-21: api `sharp` 0.35.5 (lovell/sharp, prebuilt
 binaries, no install script) and `busboy` 1.6.0 (mscdex/busboy); web `socket.io-client` 4.8.4
-(the api's socket.io is 4.8.x; the same minor). OpenAI is called with Node's `fetch`, no SDK.
+(the api's socket.io is 4.8.x; the same minor). OpenAI is called with `fetch`, no SDK: undici's
+own, through its `ProxyAgent` (api `undici` 8.12.2 or later, nodejs/undici, no install script;
+amended 2026-10-24 by A73).
 
 ## 1. Pull requests and release order
 
@@ -70,7 +72,14 @@ raw(...))` with the schema's preview feature `partialIndexes`, as the active ses
   (A45), `FITTING_MONTHLY_LIMIT`, `FITTING_PHOTO_MAX_BYTES`. `assertServerEnv` (api) and the
   worker's start refuse an empty
   `OPENAI_API_KEY` in production; elsewhere an empty key selects the fake provider and logs a
-  warning at start (`serverEnvWarnings`). Tests never set the key.
+  warning at start (`serverEnvWarnings`). Tests never set the key. `OPENAI_PROXY_URL` (A73):
+  `http://<user>:<password>@<host>:<port>`, required in production by both, ignored elsewhere;
+  parsed once into the proxy's origin and its credentials, neither ever logged or put in an error.
+- **The proxy (A73).** `OpenAiClient` takes `fetch` and a `ProxyAgent` from the `undici` package
+  (not Node's bundled `fetch`, whose undici is another version) and passes the agent as every
+  OpenAI request's `dispatcher`; nothing else in the api uses it, so S3, Sentry and Google go
+  directly. The proxy's own refusals (407, 403, a 503 on `CONNECT`) are unsent for the edits
+  call's rule below and end as `provider_error`.
 - **`openai-client.ts`.** `OpenAiClient` over `fetch` with `AbortSignal.timeout`
   (`Authorization: Bearer …`): `editImage(form)` → multipart `POST
 https://api.openai.com/v1/images/edits` (`model`, `prompt`, `image[]`, `quality`, `size`,
@@ -84,7 +93,11 @@ requestId }` from the answer's `error.code` and the `x-request-id` header, never
   bucket's (0011 M23). Three attempts with backoff for a network error, a 429 or a 5xx; none for
   another 4xx. The edits call repeats only what surely never reached OpenAI (a connection that
   did not open, a 429 other than `insufficient_quota`): one generation is one payment (A67). A 403 `unsupported_country_region_territory` is `provider_error` and logged once a
-  minute (the risk of §12).
+  minute (the risk of §12: the proxy's exit has left the supported countries).
+- **`ai/check-openai.ts`** (A73). The deploy's check: run with plain Node in the api container
+  (`dist/ai/check-openai.js`), it builds the client from the env as the api does and calls
+  `GET /v1/models` with the key through the proxy; it prints only the status and OpenAI's
+  `error.code`, and exits non-zero on anything but 200.
 - **`image-models/`.** `ImageModel { name, buildRequest(job), parseAnswer(answer) }` for
   `gpt-image-2` (`quality: medium`, `size: 1024x1536`); `FITTING_MODEL` may name
   `gpt-image-2.5-sunburst` with the same request. The model's short name is what `aiModel` stores
@@ -365,19 +378,33 @@ in PR 5), each commit regenerating `EVENTS.md`.
   worker), `FITTING_MODEL` (`gpt-image-2`), `FITTING_VISION_MODEL` (`gpt-6-luna`),
   `FITTING_MONTHLY_LIMIT` (10, 1–1000), `FITTING_TIMEOUT_SECONDS` (180, 30–600),
   `FITTING_CHECK_TIMEOUT_MS` (4000, 1000–10 000; at most half of `REQUEST_TIMEOUT_MS`, checked at
-  start, A45), `FITTING_PHOTO_MAX_BYTES` (20 971 520, at most 50 MB).
+  start, A45), `FITTING_PHOTO_MAX_BYTES` (20 971 520, at most 50 MB), `OPENAI_PROXY_URL`
+  (secret, A73; required in production by the api and the worker, ignored elsewhere).
   `REQUEST_TIMEOUT_MS` is untouched: no route waits for the image model, only for the checks, and
   nginx buffers a request body before the api sees it (`proxy_request_buffering` is on by
   default), so a slow upload is not under it. Locally the `next dev` rewrite streams the body
   without that guarantee: a slow upload of a large file there may answer 503, which is accepted
   for development and will not surprise a local check.
-- **`cd.yml`.** `OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}` in the `.env` writer and in the
-  format check list (no spaces or shell characters); `deploy/README.md` gets `gh secret set
-OPENAI_API_KEY --env production`, the model variables, the upload limit and the reachability
-  check of `api.openai.com` from the server (a 403 with `unsupported_country_region_territory`
-  means the route is the owner's decision, §12).
-- **`scripts/check-web-bundle.mjs`.** The pattern `OPENAI_API_KEY` joins the list, with a test
-  case.
+- **`cd.yml`.** `OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}` and `OPENAI_PROXY_URL: ${{
+secrets.OPENAI_PROXY_URL }}` (A73) in the `.env` writer and in the format check list (no spaces
+  or shell characters); the manual run's input `skip_openai_check` (A73). `deploy/README.md` gets
+  `gh secret set OPENAI_API_KEY --env production`, the same for `OPENAI_PROXY_URL`, the model
+  variables, the upload limit, the proxy VPS and the deploy's check with its way round.
+- **The proxy VPS (A73).** `deploy/ansible/openai-proxy.yml` beside `base.yml`, the inventory
+  group `openai_proxy`, run by the owner from the Mac as `base.yml` is: Squid from Ubuntu's
+  packages with `basic_ncsa_auth` (the password file from a value the owner passes, never in the
+  repository), `http_access` that allows only `CONNECT` to `api.openai.com:443` of an
+  authenticated client and denies all else, `via off`, `forwarded_for delete`, no cache, a log of
+  the connection only; ufw denying everything in but SSH and the proxy's port from the production
+  server's address (a playbook variable). `deploy/README.md` says how to rent it (1 CPU, 1 GB, a
+  supported country, a provider that takes the owner's payment) and to check it by hand from the
+  server with the key before the first deploy that needs it.
+- **`deploy/scripts/deploy.sh`** (A73). After the new copy's readiness and before its warm-up,
+  `node dist/ai/check-openai.js` in the new api container; a failure stops the copy and the
+  deploy as the warm-up's does, the running copy keeps serving. Skipped on a rollback and when
+  `SKIP_OPENAI_CHECK=1` (`cd.yml`'s input; `ci-deploy-check.sh`, whose key is a placeholder, A51).
+- **`scripts/check-web-bundle.mjs`.** The patterns `OPENAI_API_KEY` and `OPENAI_PROXY_URL` join
+  the list, each with a test case.
 - **nginx** (`deploy/nginx/templates/default.conf.template`): `location = /api/me/photos` with
   `client_max_body_size 20m` (`FITTING_PHOTO_MAX_BYTES` and this value move together), the same
   proxy settings and the api's 413 format; `client_body_timeout` stays 10 s (a 20 MB upload on a
@@ -388,7 +415,8 @@ OPENAI_API_KEY --env production`, the model variables, the upload limit and the 
   today, so nothing changes; `README.md` says a Mac with Apple silicon runs the api in Docker
   (linux/arm64 binaries), as now.
 - **Sentry** (api): the ai client's spans are cut to method and origin; a failed generation sends
-  the kind and the failure code, never the prompt or an image.
+  the kind and the failure code, never the prompt or an image; nothing carries the proxy's
+  address or credentials (A73).
 
 ## 11. How each criterion is checked
 
@@ -439,10 +467,10 @@ OPENAI_API_KEY --env production`, the model variables, the upload limit and the 
   is the moderation of the photo and of the result (A15).
 - **OpenAI from Russia.** OpenAI does not list Russia among its supported countries and has
   blocked API traffic from unsupported regions since July 2024 (a 403
-  `unsupported_country_region_territory`). The owner checks `api.openai.com` from the server
-  before phase 2 starts (A4), so no generation code is written for a provider the server cannot
-  reach; a 403 there stops the work until the owner decides on a route (0016 S7's risk: an
-  intermediary, a server elsewhere), which is outside this spec.
+  `unsupported_country_region_territory`). It came true on production (2026-10-24): the route is
+  a proxy on a VPS abroad (A73), checked with the key by every deploy. What stays: the VPS is a
+  single point of failure for the fitting (a failed check blocks a deploy until the owner runs it
+  with `skip_openai_check`), and OpenAI may refuse the proxy's address or its country later.
 - **Order of 0014 and 0018.** Phase 3 waits for both (A1, A22); phases 1 and 2 touch `CLAUDE.md`,
   `catalog.ts`, `account-sections.ts` and the access-markers lists, which 0014's branch touches
   too: the rebase is expected, and for `catalog.ts` (41 new elements) and the markers' lists it
