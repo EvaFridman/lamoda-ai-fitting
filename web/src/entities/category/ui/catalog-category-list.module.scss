@@ -66,3 +66,84 @@
     color: inherit;
   }
 }
+
+// The phone list under the bar (spec 0020 W27): a full-width hairline on top, then rows in the body
+// size split by hairlines that start 16px off the left edge, the last row too; no count.
+.rows {
+  margin: 0;
+  padding: 0;
+  border-top: var(--border-width) solid var(--color-border);
+
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+  list-style: none;
+}
+
+.row {
+  padding-left: var(--space-4);
+}
+
+.rowLink {
+  display: block;
+
+  padding: var(--space-3) var(--space-4) var(--space-3) 0;
+  border-bottom: var(--border-width) solid var(--color-border);
+
+  color: var(--color-text);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: -2px;
+  }
+
+  @media (hover: hover) {
+    &:hover {
+      color: var(--color-text-secondary);
+    }
+  }
+}
+
+.rowChosen {
+  font-weight: var(--font-weight-bold);
+}
+
+// The phone bar's category: the chevron, then the name, plain text as high as the bar.
+.toggle {
+  cursor: pointer;
+
+  display: inline-flex;
+  gap: var(--space-3);
+  align-items: center;
+
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+
+  font-family: inherit;
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+  color: var(--color-text);
+
+  background: none;
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: 2px;
+  }
+
+  @media (hover: hover) {
+    &:hover {
+      color: var(--color-text-secondary);
+    }
+  }
+}
+
+.toggleLabel {
+  overflow: hidden;
+  min-width: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

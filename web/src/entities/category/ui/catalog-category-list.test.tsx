@@ -89,6 +89,53 @@ describe('CatalogCategoryList', () => {
     expect(screen.queryByRole('navigation', { name: 'Категории' })).not.toBeInTheDocument();
   });
 
+  describe('layout "rows"', () => {
+    it('shows no count and keeps the links', () => {
+      render(
+        <CatalogCategoryList
+          categories={categories}
+          value={null}
+          getHref={getHref}
+          layout="rows"
+        />,
+      );
+      expect(screen.getByRole('link', { name: 'Куртки' })).toHaveAttribute('href', getHref('c1'));
+      expect(screen.queryByText('12')).not.toBeInTheDocument();
+      expect(screen.queryByText('0')).not.toBeInTheDocument();
+    });
+
+    it('marks only the chosen row with aria-current="page"', () => {
+      render(
+        <CatalogCategoryList categories={categories} value="c3" getHref={getHref} layout="rows" />,
+      );
+      expect(screen.getByRole('link', { name: 'Платья' })).toHaveAttribute('aria-current', 'page');
+      expect(screen.getByRole('link', { name: 'Куртки' })).not.toHaveAttribute('aria-current');
+    });
+
+    it('takes the id and hides the list', () => {
+      render(
+        <CatalogCategoryList
+          categories={categories}
+          value={null}
+          getHref={getHref}
+          layout="rows"
+          id="phone"
+          hidden
+        />,
+      );
+      // A hidden element has no accessible name for the query.
+      const nav = screen.getByRole('navigation', { hidden: true });
+      expect(nav).toHaveAttribute('id', 'phone');
+      expect(nav).toHaveAttribute('hidden');
+      expect(screen.queryByRole('navigation', { name: 'Категории' })).not.toBeInTheDocument();
+    });
+
+    it('is not hidden by default', () => {
+      render(<CatalogCategoryList categories={categories} value={null} getHref={getHref} />);
+      expect(screen.getByRole('navigation')).not.toHaveAttribute('hidden');
+    });
+  });
+
   it('renders nothing for an empty list', () => {
     const { container } = render(
       <CatalogCategoryList categories={[]} value={null} getHref={getHref} />,

@@ -13,3 +13,7 @@ export {
   type CatalogCategory,
   type CatalogCategoryListProps,
 } from './ui/catalog-category-list';
+export {
+  CatalogCategoryToggle,
+  type CatalogCategoryToggleProps,
+} from './ui/catalog-category-toggle';

@@ -163,3 +163,33 @@ The review bot's open questions, answered by the owner.
   the count's placeholder among its exceptions. The arrow is drawn as the sheet's "‹" (W25): a plain 32px control, not the
   outlined `IconButton`. The count's placeholder shows while the counts load on every width, as
   the page's placeholders do (W2): a line of its own below 600 px, inline from 600 px.
+
+## Added at T10 (2026-10-23)
+
+From the owner's new screenshots of Lamoda's category page at a phone's width (about 412 px), "as
+on the screenshots":
+
+- **W27. The phone bar's lines and its place (amends plan §2).** One full-width hairline under the
+  heading row, which is also the bar's top line; the bar (about 48 px: the chevron and the
+  category on the left, the funnel and "Фильтры" on the right, 16 px from the edges) has no line
+  under it while the list is closed, and the grid starts right under it. The open list starts with
+  a full-width hairline; its rows (about 44 px, the name in the body size, no count) are split by
+  hairlines that start 16 px from the left edge and run to the right one, the last row too. The
+  bar sits right after the heading row, outside the layout's grid: no grid areas and no
+  `display: contents`. So the filters' sheet (its trigger) renders in the bar and the chips' row in
+  the list's column (`CatalogFilters`' `part`); from 600 to 1023 px the bar holds only today's
+  outline "Фильтры", at the same place and spacing as before, and from 1024 px it is not shown.
+  The phone list renders under the bar, outside the layout.
+- **W28. The heading row and the bar stick to the top below 600 px.** While the page scrolls, the
+  heading row and the bar stay at the window's top on the page's background; the site header
+  scrolls away (it is not sticky, 0010). The open list does not stick: it scrolls with the page.
+  From 600 px nothing sticks. The scroll-up after a change (0014 O82) goes below 600 px to where
+  the list starts under the stuck block (the column's top less the block's height), from 600 to
+  1023 px to the bar (the "Фильтры" button, as before), from 1024 px to the column's top. The list
+  opened on a page scrolled past it would open above the window: the page then goes up so the
+  list starts right under the stuck block (found at T10's review).
+- **W29. The category lists keep the last counts (amends plan §2).** Both lists (the desktop
+  column and the phone rows) are built from the counts the filters keep (plan §4, W23): the last
+  answer for the page's category while new ones load or after they fail, so a list does not
+  vanish while its toggle shows it open. A page whose counts never loaded still has no list, as
+  before (0014).

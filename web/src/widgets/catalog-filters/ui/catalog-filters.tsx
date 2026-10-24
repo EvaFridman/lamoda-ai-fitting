@@ -43,18 +43,28 @@ export interface CatalogFiltersProps {
   // Moves the focus after the row's "Очистить фильтры" (the page's heading, plan §3.4); the drawer
   // keeps its own on "Показать" (O90).
   focusAfterClear?: () => void;
+  // One of the two forms, for a page that places them apart (spec 0020 W27): `row`, the chips;
+  // `sheet`, the "Фильтры" button and its sheet. Both when omitted.
+  part?: 'row' | 'sheet';
   className?: string;
 }
 
 // The filters above the list: the desktop row of chips and, below a 1024px window, the phone
-// drawer in its place (O6, O88).
-export function CatalogFilters({ className, focusAfterClear, ...filters }: CatalogFiltersProps) {
+// drawer (O6, O88); a page may place the two apart (`part`, spec 0020 W27).
+export function CatalogFilters({
+  className,
+  focusAfterClear,
+  part,
+  ...filters
+}: CatalogFiltersProps) {
   return (
     <div className={className}>
-      <FilterRow {...filters} focusAfterClear={focusAfterClear} />
-      <div className={styles.phone}>
-        <CatalogFiltersDrawer {...filters} />
-      </div>
+      {part === 'sheet' ? null : <FilterRow {...filters} focusAfterClear={focusAfterClear} />}
+      {part === 'row' ? null : (
+        <div className={styles.phone}>
+          <CatalogFiltersDrawer {...filters} />
+        </div>
+      )}
     </div>
   );
 }
@@ -69,7 +79,7 @@ function FilterRow({
   value,
   onChange,
   focusAfterClear,
-}: Omit<CatalogFiltersProps, 'className'>) {
+}: Omit<CatalogFiltersProps, 'className' | 'part'>) {
   const change = (patch: Partial<CatalogFilterValue>) => onChange({ ...value, ...patch });
   const sortChip = useTrackedElement('catalog.sort', chips);
 
@@ -96,7 +106,7 @@ function FacetFilters({
   facets,
   value,
   onChange,
-}: Required<Omit<CatalogFiltersProps, 'className' | 'categoryId' | 'focusAfterClear'>>) {
+}: Required<Omit<CatalogFiltersProps, 'className' | 'categoryId' | 'focusAfterClear' | 'part'>>) {
   const { colours, others } = splitFacetAttributes(facets.attributes);
   const change = (patch: Partial<CatalogFilterValue>) => onChange({ ...value, ...patch });
   const colorChip = useTrackedElement('catalog.filter-color', chips);

@@ -25,15 +25,70 @@
   }
 }
 
-// "←", then the title (spec 0020 W4).
+// The heading row, then the bar (spec 0020 W27): from 600px the bar holds only "Фильтры" (to
+// 1023px), where the column's top held it before. Below 600px both stick to the window's top on
+// the page's background (W28), the grid right under them.
+.top {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  margin: var(--space-10) 0 var(--space-6);
+
+  @media (width < 600px) {
+    position: sticky;
+    z-index: var(--z-sticky);
+    top: 0;
+
+    gap: 0;
+
+    margin-bottom: 0;
+
+    background-color: var(--color-background);
+  }
+}
+
+// "←", then the title (spec 0020 W4); below 600px a full-width hairline under it, the bar's top
+// line (W27).
 .headingRow {
   display: flex;
   gap: var(--space-2);
   align-items: flex-start;
-  margin: var(--space-10) 0 var(--space-6);
 
   @media (width < 600px) {
+    padding: var(--space-2) var(--space-4);
+    border-bottom: var(--border-width) solid var(--color-border);
+  }
+}
+
+// Below 600px the category's toggle on the left and "Фильтры" on the right, 48px high; no line
+// under it (the open list draws its own).
+.bar {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+  justify-content: space-between;
+
+  @media (width < 600px) {
+    min-height: 48px;
     padding-inline: var(--space-4);
+  }
+
+  @media (width >= 1024px) {
+    display: none;
+  }
+}
+
+// The bar's category toggle and the list it opens: below 600px only.
+.barPhone {
+  @media (width >= 600px) {
+    display: none;
+  }
+}
+
+// The column's chips: from 1024px only, where "Фильтры" leaves the bar.
+.chips {
+  @media (width < 1024px) {
+    display: none;
   }
 }
 
@@ -149,7 +204,7 @@
   padding: var(--space-1) var(--space-2);
 }
 
-// The chips from a 1024px window, the "Фильтры" button below it, as `CatalogFilters` shows them.
+// The chips from a 1024px window, the "Фильтры" button in the bar below it, as the page shows them.
 .skeletonChips {
   display: flex;
   flex-wrap: wrap;
@@ -160,13 +215,10 @@
   }
 }
 
+// The outline button from 600 to 1023px; below 600px the bar's text-sized lines (`.barPhone`).
 .skeletonFiltersButton {
-  @media (width >= 1024px) {
-    display: none;
-  }
-
   @media (width < 600px) {
-    padding-inline: var(--space-4);
+    display: none;
   }
 }
 
