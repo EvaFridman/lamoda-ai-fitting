@@ -467,8 +467,12 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
 - `web` page cache (spec 0018): the public catalog's reads with no filter (V15) are cached in the
   caches' Redis through `'use cache: remote'`, in the entity slices' `server-queries.ts`: the first
   page of `getCategories`, and `getProductBatch` and `getProductFacets` when the query holds nothing
-  but at most one `categoryId` (no filter, sort, `limit` or cursor); anything else goes through
-  `apiFetch` as the visitor. `getCategoryBySlug` (the page's) takes an active category from the
+  but at most one `categoryId` (no filter, sort, `limit` or cursor), a product's
+  `getRelatedProducts` once the product page has read it as the visitor (`getProductById`, never
+  cached) and found it in an active category, and the sitemap's batches of products
+  (`getSitemapProducts`, cursors the api answered, at most 10 keys, one batch every 200 ms so their background refreshes
+  stay under web's per-second quota of `GET /products`; spec 0019 A80, A81); anything
+  else goes through `apiFetch` as the visitor. `getCategoryBySlug` (the page's) takes an active category from the
   cached list of active ones and reads any other slug as the visitor, as `proxy.ts`'s
   `findCategoryBySlug` does, so no slug a visitor types becomes a key or spends web's quota (V24);
   the header and that lookup share `getActiveCategories`, once per render. While the handler skips
@@ -710,7 +714,9 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   no api, Redis or database running. So a page has sent its static shell with 200 before it reads
   anything, and a `notFound()` there is a soft 404 (the not-found page with `noindex`). A real 404
   is decided in `web/proxy.ts` before routing: `/catalog/<slug>` of an unknown or inactive category
-  is rewritten to a path no route matches (spec 0014 O65); an api failure lets the request through.
+  is rewritten to a path no route matches (spec 0014 O65), and so is `/products/<id>` of an unknown
+  product or one of an inactive category (`productProxy`, two reads as the visitor, spec 0019
+  A81); an api failure lets the request through.
   A `<Link>` prefetch skips that check. A client component of the root layout that reads the URL
   (`usePathname`, `useSearchParams`) sits inside its own `<Suspense>`, or every route with a dynamic
   segment fails the build.
@@ -749,10 +755,15 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   default `htmlLimitedBots` (Yandex, `Chrome-Lighthouse`, link previews); widening that list makes
   every page skip its prerendered shell, so Lighthouse is run with a `Chrome-Lighthouse` user agent
   (O93). Each catalog page renders JSON-LD with the
-  first batch (`CatalogJsonLd`, every `<` escaped). `/sitemap.xml` (the catalog and the active
-  categories, only the catalog when the api fails) and `/robots.txt` (`/customer`, `/ui-kit`,
+  first batch (`CatalogJsonLd`, every `<` escaped; `jsonLdText`, `@/shared/lib`). `/sitemap.xml`
+  (the catalog, the active categories and, of the 1000 newest products, those of active categories,
+  with the api's `updatedAt`, spec 0019 A81; only the catalog when the categories fail) and `/robots.txt` (`/customer`, `/ui-kit`,
   `/healthz` disallowed, the sitemap named) render per request; `app/` re-exports both from
-  `_pages/catalog`.
+  `_pages/catalog`. The product page `/products/<id>` (spec 0019 plan §8, `_pages/product`) sets
+  its own full title as `absolute` («<бренд> <название> — купить в Lamoda AI Fitting»), the
+  description cut to 160, `metadataBase`, the canonical `/products/<id>` and Open Graph and Twitter
+  with the first photo (else the cover); an unknown or inactive product gets only `noindex`. It
+  renders JSON-LD `Product` and `BreadcrumbList` (`ProductJsonLd`, `jsonLdText`).
 - `web` warm-up list (spec 0018 plan §4): every route of `web/app` (a page, a route handler, a
   metadata file such as `sitemap.ts` or `opengraph-image.tsx`) is in `WARMUP` or in `EXCLUDED`
   with its reason (`web/src/_app/warmup/routes.ts`); `routes.test.ts` fails on a route in neither
@@ -760,7 +771,8 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   `redirects()` in `next.config.ts`), so a new page route is added there in the same commit.
   Warm up what a visitor reaches without signing in; exclude what reads the user's data or is not
   for visitors (`/customer/*`, `/ui-kit`). A dynamic route names its source (`/catalog/[slug]`:
-  the first 50 active categories, V16). `/healthz/warmup` (re-exported from `@/_app/server`)
+  the first 50 active categories, V16; `/products/[id]`: the newest product of each of the first
+  25, read one at a time at most 5 a second, spec 0019 A81). `/healthz/warmup` (re-exported from `@/_app/server`)
   answers `{ paths, skipped }`, resolved at request time, the categories read past the page cache
   (`readActiveCategories`, V28); nginx answers 404 for `/healthz` and everything under it, so only
   the container reaches it.

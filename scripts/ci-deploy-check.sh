@@ -114,15 +114,22 @@ counts() {
 count_of() { sed -n "s/^$1=//p" <<< "$2"; }
 
 # spec 0018 AC8, AC11: the deploy's log <file> shows the warm-up of <color> before nginx switched to
-# it, with both times for every address of the list (V28) and the page of every active category,
-# none skipped (the demo catalog has fewer than 50).
+# it, with both times for every address of the list (V28), the page of every active category and
+# one product page of every active category with a product (spec 0019 A81), none skipped (the
+# demo catalog has fewer than 25).
 check_warmup_log() {
-  local file="$1" color="$2" slugs path status warmed switched
+  local file="$1" color="$2" slugs products path status warmed switched
   slugs="$(docker compose -f deploy/compose/infra.yml --env-file "$env_file" exec -T postgres \
     psql -U ai_fitting -d ai_fitting -tA -c 'SELECT slug FROM categories WHERE is_active ORDER BY slug')"
   [ -n "$slugs" ] || { echo "ci-deploy-check: no active category to look for in $file" >&2; return 1; }
-  grep -qE '^warm-up: [0-9]+ addresses, 0 categories over the bound skipped$' "$file" \
+  products="$(docker compose -f deploy/compose/infra.yml --env-file "$env_file" exec -T postgres \
+    psql -U ai_fitting -d ai_fitting -tA -c 'SELECT count(*) FROM categories c WHERE c.is_active
+      AND EXISTS (SELECT 1 FROM products p WHERE p.category_id = c.id)')"
+  grep -qE '^warm-up: [0-9]+ addresses, 0 over the bounds skipped$' "$file" \
     || { echo "ci-deploy-check: $file has no warm-up count with none skipped" >&2; return 1; }
+  [ "$(grep -cE '^warm-up: /products/[0-9a-f-]+ 200, first [0-9]+ ms, repeated [0-9]+ ms$' "$file")" \
+    = "$products" ] \
+    || { echo "ci-deploy-check: $file has no warm-up line for each of $products product pages" >&2; return 1; }
   for path in / /catalog $(sed 's|^|/catalog/|' <<< "$slugs") /catalog/opengraph-image \
     /catalog/twitter-image /privacy /sitemap.xml /robots.txt; do
     # `/` is Next's redirect, not followed.
@@ -134,7 +141,7 @@ check_warmup_log() {
   switched="$(grep -n "switching nginx to $color" "$file" | head -n 1 | cut -d: -f1)"
   [ -n "$switched" ] && [ "$warmed" -lt "$switched" ] \
     || { echo "ci-deploy-check: in $file the warm-up does not come before the switch to $color (lines '$warmed', '$switched')" >&2; return 1; }
-  echo "$file: $color warmed up /catalog and $(wc -l <<< "$slugs") category pages before the switch"
+  echo "$file: $color warmed up /catalog, $(wc -l <<< "$slugs") category pages and $products product pages before the switch"
 }
 
 # AC14 (spec 0006 F10): a request to <path> that sends its own X-Request-Id gets exactly one back,

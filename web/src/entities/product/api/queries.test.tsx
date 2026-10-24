@@ -34,6 +34,7 @@ const listItem = {
   finalPrice: 4500,
   rating: null,
   createdAt: DATE,
+  updatedAt: DATE,
 };
 const facets = {
   total: 10,

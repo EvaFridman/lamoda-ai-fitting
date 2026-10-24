@@ -108,6 +108,7 @@ const product = {
   finalPrice: 4500,
   rating: null,
   createdAt: DATE,
+  updatedAt: DATE,
   description: null,
   images: [],
   variations: [{ id: PRODUCT, size: 'M', stock: 3 }],

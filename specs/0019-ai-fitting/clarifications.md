@@ -997,8 +997,20 @@ to 1000 products: an exception to 0018 V15, since the server builds these cursor
 visitor, so their keys are bounded (`web-pages.md` names it); a product added between two pages'
 refreshes may show twice or be missing for up to a minute. `ProductListItemDto` gains `updatedAt`
 for the sitemap's `lastModified`. (4) The warm-up's new source `products` names the first product
-of each active category, at most 50 in all (V16's read bound kept). The catalog grid's cards get
-their prefetch back (backlog «Product card link»; the item itself is removed by T23).
+of each of the first 25 active categories (`WARMUP_PRODUCT_MAX`), read past the page cache one
+category at a time, at most 5 reads a second (about 5 s for the list). With the 50 category pages
+that is about 82 pages at one a second; with the list and the repeated pass's pauses and renders
+the step takes about 100 s of V16's 120. A product page makes about four api reads cold (two of
+`/products/:id`, `/categories/:id`, `/related`), so at the full bounds the cold pass's last minute
+comes to about 205 reads, a little over V16's 200 (an estimate; each route's 300 a minute is far);
+the demo catalog has 7 categories. The categories over the bound count in
+`skipped` (the owner weighed 50 with a longer step, and one read of the newest 100 products).
+The repeated pass of the warm-up waits 250 ms before each product page, whose two reads of
+`/products/:id` are never cached (the api's 10 a second per route; about 6 s more). (5) The
+catalog grid's cards keep `prefetch={false}` for now (T19's review): nginx's `edge_pages` limit
+was measured with it off, and a scrolled grid would prefetch every card; the prefetch comes back
+in T20 or T23 after the requests of one card's prefetch are measured in a browser (backlog
+«Product card link»; the item itself is removed by T23).
 
 ## Canvas and decisions
 

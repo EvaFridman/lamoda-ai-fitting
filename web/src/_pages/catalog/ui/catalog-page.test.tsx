@@ -76,6 +76,7 @@ const product = {
   finalPrice: 5000,
   rating: null,
   createdAt: DATE,
+  updatedAt: DATE,
 };
 
 const params = Promise.resolve({ slug: 'dresses' });

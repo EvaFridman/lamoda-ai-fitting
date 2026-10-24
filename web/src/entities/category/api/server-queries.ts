@@ -61,9 +61,9 @@ export async function getCategory(id: string): Promise<Category> {
   return apiFetch(buildPath('/categories/:id', { id }), categorySchema);
 }
 
-// A slug no category can have: refused before the request (empty, `.`, `..`) or by the api's slug
-// rule (400), or one that names none (404).
-function isNoSuchSlug(error: unknown): boolean {
+// A slug or id no category can have: refused before the request (empty, `.`, `..`) or by the api's
+// slug or uuid rule (400), or one that names none (404).
+function isNoSuchCategory(error: unknown): boolean {
   return (
     error instanceof ApiError &&
     (error.kind === 'path' ||
@@ -85,7 +85,23 @@ export async function findCategoryBySlug(
       incoming,
     );
   } catch (error) {
-    if (isNoSuchSlug(error)) return null;
+    if (isNoSuchCategory(error)) return null;
+    throw error;
+  }
+}
+
+// GET /categories/:id on the visitor's behalf; `null` when there is no such category. For
+// `proxy.ts`'s check of a product's category (spec 0019 A81), with the request's headers.
+export async function findCategoryById(id: string, incoming?: Headers): Promise<Category | null> {
+  try {
+    return await apiFetch(
+      buildPath('/categories/:id', { id }),
+      categorySchema,
+      undefined,
+      incoming,
+    );
+  } catch (error) {
+    if (isNoSuchCategory(error)) return null;
     throw error;
   }
 }

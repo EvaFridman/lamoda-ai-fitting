@@ -23,12 +23,12 @@ Why: spec 0018 (V8, V15, V16, V24, V30). The list and its check: `web/src/_app/w
   user's data or is not for visitors: the account (`/customer/*`), `/ui-kit`, `/healthz` and each
   route under it (one entry each), a sign-in or development page (`/dev/*`) once a file backs it.
 - A dynamic route names where its addresses come from, as `/catalog/[slug]` takes the active
-  categories (`source: 'categories'`, at most `WARMUP_CATEGORY_MAX`, 50). A new source is a new
-  `source` kind in `WARMUP`'s type and in `warmupList()`, read from the api at request time past the
-  page cache, bounded, with its count over the bound in `skipped` (and `warmup.mjs`'s log line,
-  which says "categories", reworded). A product page, for example, names the first products of
-  each category; a source that would give thousands of addresses (the whole sitemap) is not one
-  (V8).
+  categories (`source: 'categories'`, at most `WARMUP_CATEGORY_MAX`, 50) and `/products/[id]` the
+  newest product of each of the first 25 (`source: 'products'`, `WARMUP_PRODUCT_MAX`, read one at a
+  time at most 5 a second, spec 0019 A81). A new source is a new `source` kind in `WARMUP`'s type
+  and in `warmupList()`, read from the api at request time past the page cache, bounded, with its
+  count over the bound in `skipped` (`warmup.mjs` logs it as "over the bounds"); a source that
+  would give thousands of addresses (the whole sitemap) is not one (V8).
 - Every warmed address must answer 200 within 10 s to a plain GET with no cookie, or the deploy
   stops (V6). The one other status is `/`'s 307: `expectedStatus` in `deploy/scripts/warmup.mjs`
   knows only that address, so a new `redirect` entry changes it (and its test) too.
@@ -42,8 +42,12 @@ Why: spec 0018 (V8, V15, V16, V24, V30). The list and its check: `web/src/_app/w
   nothing and the image builds with no api, Redis or database.
 - Only the public catalog's reads with no filter are cached (V2, V15): products and filter counts
   with no filter but the one `categoryId` of a category's page (taken from the category, never from
-  the address), no sort, `q`, `limit` or cursor; categories, a first page only. Any other read goes
-  through `apiFetch` as the visitor. The user's data is read only in the browser (`clientFetch`),
+  the address), no sort, `q`, `limit` or cursor; categories, a first page only. Two exceptions
+  (spec 0019 A80, A81): a product's related products, only after the product was read as the
+  visitor and found in an active category (`getRelatedProducts`), and the sitemap's batches of
+  products, whose cursors the api answered, never the visitor (`getSitemapProducts`, at most 10
+  keys, one batch every `SITEMAP_BATCH_INTERVAL_MS`, 200 ms, so their background refreshes stay
+  under web's per-second quota of `GET /products`). Any other read goes through `apiFetch` as the visitor. The user's data is read only in the browser (`clientFetch`),
   never on the server (`CLAUDE.md`, "`web` sign-in"). Page markup is not cached (V14).
 - No other form of cache: not `'use cache'` (the in-memory default handler) or
   `'use cache: private'`, not `unstable_cache`, not `fetch`'s `cache` or `next.revalidate`. They
@@ -60,4 +64,4 @@ Why: spec 0018 (V8, V15, V16, V24, V30). The list and its check: `web/src/_app/w
   under web's one quota (V24).
 - A read whose argument the visitor chooses (a slug, an id from the address) is never cached on its
   own key, for the same reason. Take it from a cached list, as `getCategoryBySlug` does, or read it
-  as the visitor.
+  as the visitor, as the product page reads its product (`getProductById`).

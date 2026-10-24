@@ -7,13 +7,25 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('server-only', () => ({}));
 vi.mock('next/server', () => ({ connection: vi.fn(() => Promise.resolve()) }));
+vi.mock('node:timers/promises', () => ({ setTimeout: vi.fn(() => Promise.resolve()) }));
 vi.mock('@/entities/category/server', () => ({ readActiveCategories: vi.fn() }));
+vi.mock('@/entities/product/server', () => ({ readFirstProduct: vi.fn() }));
 
 import { connection } from 'next/server';
+import { setTimeout as sleep } from 'node:timers/promises';
 
 import { readActiveCategories } from '@/entities/category/server';
+import { readFirstProduct } from '@/entities/product/server';
 
-import { EXCLUDED, WARMUP, WARMUP_CATEGORY_MAX, warmupList, warmupRoute } from './routes';
+import {
+  EXCLUDED,
+  PRODUCT_READ_INTERVAL_MS,
+  WARMUP,
+  WARMUP_CATEGORY_MAX,
+  WARMUP_PRODUCT_MAX,
+  warmupList,
+  warmupRoute,
+} from './routes';
 
 // A file of `web/app` that Next serves at an address of its own, and the route it answers
 // (spec 0018 plan §4, AC12): pages, route handlers and the metadata files.
@@ -112,10 +124,15 @@ describe('the warm-up list', () => {
         '/catalog',
         '/catalog/[slug]',
         '/privacy',
+        '/products/[id]',
         '/sitemap.xml',
         '/robots.txt',
       ]),
     );
+  });
+
+  it('names the product pages by their own source', () => {
+    expect(WARMUP).toContainEqual({ route: '/products/[id]', source: 'products' });
   });
 
   it('backs each redirect entry by a redirect of next.config.ts', async () => {
@@ -270,8 +287,13 @@ describe('warmupList', () => {
     } as unknown as Awaited<ReturnType<typeof readActiveCategories>>;
   }
 
+  const readProduct = vi.mocked(readFirstProduct);
+
   beforeEach(() => {
     read.mockReset();
+    readProduct.mockReset();
+    readProduct.mockResolvedValue(undefined);
+    vi.mocked(sleep).mockClear();
     vi.mocked(connection).mockClear();
   });
 
@@ -300,7 +322,8 @@ describe('warmupList', () => {
     const { paths, skipped } = await warmupList();
     const pages = paths.filter((path) => /^\/catalog\/c\d+$/.test(path));
     expect(pages).toEqual(slugs.slice(0, WARMUP_CATEGORY_MAX).map((slug) => `/catalog/${slug}`));
-    expect(skipped).toBe(80);
+    // 80 category pages and 105 categories without a product page.
+    expect(skipped).toBe(185);
   });
 
   it('fails when the categories cannot be read', async () => {
@@ -342,18 +365,30 @@ describe('warmupList', () => {
     );
   });
 
-  it('skips nothing at exactly the bound', async () => {
+  it('skips no category page at exactly the bound, only the products over theirs', async () => {
     const slugs = Array.from({ length: WARMUP_CATEGORY_MAX }, (_, index) => `c${index}`);
     read.mockResolvedValue(categories(slugs));
     const { paths, skipped } = await warmupList();
     expect(paths.filter((path) => /^\/catalog\/c\d+$/.test(path))).toHaveLength(
       WARMUP_CATEGORY_MAX,
     );
-    expect(skipped).toBe(0);
+    expect(skipped).toBe(WARMUP_CATEGORY_MAX - WARMUP_PRODUCT_MAX);
   });
 
-  it('counts one skipped category just over the bound', async () => {
+  it('skips nothing at exactly the product bound', async () => {
+    const slugs = Array.from({ length: WARMUP_PRODUCT_MAX }, (_, index) => `c${index}`);
+    read.mockResolvedValue(categories(slugs));
+    expect((await warmupList()).skipped).toBe(0);
+  });
+
+  it('counts one skipped category page and 26 product categories just over the category bound', async () => {
     const slugs = Array.from({ length: WARMUP_CATEGORY_MAX + 1 }, (_, index) => `c${index}`);
+    read.mockResolvedValue(categories(slugs));
+    expect((await warmupList()).skipped).toBe(1 + (WARMUP_CATEGORY_MAX + 1 - WARMUP_PRODUCT_MAX));
+  });
+
+  it('counts one skipped product category just over the product bound', async () => {
+    const slugs = Array.from({ length: WARMUP_PRODUCT_MAX + 1 }, (_, index) => `c${index}`);
     read.mockResolvedValue(categories(slugs));
     expect((await warmupList()).skipped).toBe(1);
   });
@@ -361,7 +396,138 @@ describe('warmupList', () => {
   it('trusts the items when the api reports a smaller total', async () => {
     const slugs = Array.from({ length: 60 }, (_, index) => `c${index}`);
     read.mockResolvedValue(categories(slugs, 10));
-    expect((await warmupList()).skipped).toBe(10);
+    expect((await warmupList()).skipped).toBe(10 + 35);
+  });
+
+  describe('the product pages (spec 0019 A81)', () => {
+    const ID = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+
+    function slugsOf(count: number): string[] {
+      return Array.from({ length: count }, (_, index) => `c${index}`);
+    }
+
+    function newestIs(byCategory: Record<string, string | undefined>) {
+      readProduct.mockImplementation((categoryId) => {
+        const id = byCategory[categoryId];
+        return Promise.resolve(
+          id === undefined ? undefined : ({ id } as unknown as { id: string } as never),
+        );
+      });
+    }
+
+    it('asks for the newest product of each of the first categories, in order', async () => {
+      read.mockResolvedValue(categories(slugsOf(3)));
+      newestIs({ c0: ID(0), c1: ID(1), c2: ID(2) });
+      const { paths } = await warmupList();
+      expect(readProduct.mock.calls.map(([categoryId]) => categoryId)).toEqual(['c0', 'c1', 'c2']);
+      expect(paths.filter((path) => path.startsWith('/products/'))).toEqual([
+        `/products/${ID(0)}`,
+        `/products/${ID(1)}`,
+        `/products/${ID(2)}`,
+      ]);
+    });
+
+    it('puts the product pages where /products/[id] sits in the list', async () => {
+      read.mockResolvedValue(categories(slugsOf(2)));
+      newestIs({ c0: ID(0), c1: ID(1) });
+      const { paths } = await warmupList();
+      const at = paths.indexOf(`/products/${ID(0)}`);
+      expect(paths[at - 1]).toBe('/privacy');
+      expect(paths[at + 1]).toBe(`/products/${ID(1)}`);
+      expect(paths[at + 2]).toBe('/sitemap.xml');
+    });
+
+    it('reads at most the first 25 categories', async () => {
+      read.mockResolvedValue(categories(slugsOf(WARMUP_PRODUCT_MAX + 5)));
+      await warmupList();
+      expect(readProduct).toHaveBeenCalledTimes(WARMUP_PRODUCT_MAX);
+      expect(readProduct).toHaveBeenLastCalledWith(`c${WARMUP_PRODUCT_MAX - 1}`);
+    });
+
+    it('adds no address for a category without a product', async () => {
+      read.mockResolvedValue(categories(slugsOf(3)));
+      newestIs({ c0: ID(0), c1: undefined, c2: ID(2) });
+      const { paths, skipped } = await warmupList();
+      expect(paths.filter((path) => path.startsWith('/products/'))).toEqual([
+        `/products/${ID(0)}`,
+        `/products/${ID(2)}`,
+      ]);
+      expect(skipped).toBe(0);
+    });
+
+    it('adds no product page when there is no category', async () => {
+      read.mockResolvedValue(categories([]));
+      await warmupList();
+      expect(readProduct).not.toHaveBeenCalled();
+    });
+
+    it('waits between the reads, not before the first and not after the last', async () => {
+      read.mockResolvedValue(categories(slugsOf(3)));
+      await warmupList();
+      expect(sleep).toHaveBeenCalledTimes(2);
+      expect(sleep).toHaveBeenNthCalledWith(1, PRODUCT_READ_INTERVAL_MS);
+      expect(sleep).toHaveBeenNthCalledWith(2, PRODUCT_READ_INTERVAL_MS);
+      expect(PRODUCT_READ_INTERVAL_MS).toBe(200);
+    });
+
+    it('does not wait for a single category', async () => {
+      read.mockResolvedValue(categories(slugsOf(1)));
+      await warmupList();
+      expect(sleep).not.toHaveBeenCalled();
+    });
+
+    it('reads one at a time: the next read starts only after the wait', async () => {
+      read.mockResolvedValue(categories(slugsOf(2)));
+      let release: () => void = () => {};
+      vi.mocked(sleep).mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            release = resolve;
+          }) as never,
+      );
+      const pending = warmupList();
+      await vi.waitFor(() => expect(sleep).toHaveBeenCalledTimes(1));
+      for (let tick = 0; tick < 5; tick += 1) await Promise.resolve();
+      expect(readProduct).toHaveBeenCalledTimes(1);
+      release();
+      await pending;
+      expect(readProduct).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not start the next read before the previous one answers', async () => {
+      read.mockResolvedValue(categories(slugsOf(2)));
+      let answer: (value: undefined) => void = () => {};
+      readProduct.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            answer = resolve;
+          }),
+      );
+      const pending = warmupList();
+      await vi.waitFor(() => expect(readProduct).toHaveBeenCalledTimes(1));
+      for (let tick = 0; tick < 5; tick += 1) await Promise.resolve();
+      expect(sleep).not.toHaveBeenCalled();
+      expect(readProduct).toHaveBeenCalledTimes(1);
+      answer(undefined);
+      await pending;
+      expect(readProduct).toHaveBeenCalledTimes(2);
+    });
+
+    it('encodes each id into one path segment', async () => {
+      read.mockResolvedValue(categories(slugsOf(1)));
+      newestIs({ c0: 'a b/c' });
+      const { paths } = await warmupList();
+      expect(paths).toContain('/products/a%20b%2Fc');
+    });
+
+    it('fails, and warms nothing partial, when a product read fails', async () => {
+      read.mockResolvedValue(categories(slugsOf(3)));
+      readProduct
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValueOnce(new Error('products down'));
+      await expect(warmupList()).rejects.toThrow('products down');
+      expect(readProduct).toHaveBeenCalledTimes(2);
+    });
   });
 
   it('lists only the other pages when there is no category', async () => {

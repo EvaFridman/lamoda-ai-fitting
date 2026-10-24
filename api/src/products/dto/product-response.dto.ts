@@ -62,6 +62,10 @@ export class ProductListItemDto {
 
   @ApiProperty()
   createdAt: Date;
+
+  // The sitemap's `lastModified` (spec 0019 A81).
+  @ApiProperty()
+  updatedAt: Date;
 }
 
 export class ProductImageDto {

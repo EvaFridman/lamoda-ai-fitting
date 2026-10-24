@@ -332,8 +332,9 @@ status }` to the room; the worker's `notify` publishes the same JSON with its ow
 - `sitemap.ts` gains the products: read page by page from `GET /products` through the page cache,
   up to 1000 (an exception to 0018 V15: the server builds these cursors, A81), `lastModified` from
   the `updatedAt` that `ProductListItemDto` gains. The warm-up list (0018 V8) names the page's
-  address source `products`: the first product of every active category, at most 50 in all. The
-  catalog grid's cards get their prefetch back.
+  address source `products`: the first product of each of the first 25 active categories (A81), with
+  250 ms before each product page of the repeated pass. The catalog grid's cards get their
+  prefetch back once one card's prefetch is measured (A81.5, T20 or T23).
 - The page's analytics: zone `product` (§9).
 
 ## 9. Analytics (A13, A43)

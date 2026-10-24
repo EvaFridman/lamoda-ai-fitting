@@ -1,8 +1,9 @@
 import 'server-only';
 
 import { getServerEnv } from '@/shared/config/server';
+import { jsonLdText } from '@/shared/lib';
 
-import { type CatalogJsonLdInput, catalogJsonLd, jsonLdText } from '../model/json-ld';
+import { type CatalogJsonLdInput, catalogJsonLd } from '../model/json-ld';
 
 export type CatalogJsonLdProps = Omit<CatalogJsonLdInput, 'siteUrl'> & {
   // The request's CSP nonce (plan §5, `requestNonce`).

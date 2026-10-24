@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { catalogJsonLd, jsonLdText } from './json-ld';
+import { catalogJsonLd } from './json-ld';
 
 const siteUrl = 'https://site.test';
 const breadcrumbs = [
@@ -112,19 +112,5 @@ describe('catalogJsonLd', () => {
       url: 'https://site.test/',
     });
     expect(build({ isCatalogRoot: false })['@graph']).toHaveLength(1);
-  });
-});
-
-describe('jsonLdText', () => {
-  it('escapes every less-than sign, so a name cannot end the script', () => {
-    const name = '</script><script>alert(1)</script> <b>';
-    const text = jsonLdText(build({ products: [product('p1', name)] }));
-    expect(text).not.toContain('<');
-    expect(text).toContain('\\' + 'u003c/script>');
-    const parsed = JSON.parse(text) as ReturnType<typeof build>;
-    expect(JSON.stringify(parsed['@graph'][1])).toContain(JSON.stringify(name).slice(1, -1));
-    expect(parsed['@graph'][1]).toMatchObject({
-      itemListElement: [{ item: { name } }],
-    });
   });
 });
