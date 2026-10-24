@@ -1,0 +1,32 @@
+// Board 11's card: centred, at most 480px wide.
+
+.card {
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.text,
+.muted {
+  margin: 0;
+}
+
+.text {
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+
+  b {
+    font-weight: var(--font-weight-medium);
+  }
+}
+
+.muted {
+  margin-top: var(--space-2);
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  color: var(--color-text-secondary);
+}
+
+.meter {
+  justify-content: center;
+  margin-top: var(--space-3);
+}

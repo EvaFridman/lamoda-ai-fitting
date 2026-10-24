@@ -828,6 +828,136 @@ describe('UploadPhoto on a phone', () => {
   });
 });
 
+describe('UploadPhoto in the try-on', () => {
+  beforeEach(() => {
+    window.localStorage.setItem(keyOf(ANNA), '1');
+  });
+
+  it('uploads a one-time photo with save=false and tracks it as not saved in the try-on', async () => {
+    fetchMock.mockImplementation(ok);
+    const user = setup();
+    const { onUploaded } = renderUpload({ place: 'try-on', save: false });
+    await user.upload(fileInputs().file!, picture());
+
+    await vi.waitFor(() => expect(onUploaded).toHaveBeenCalledWith(PHOTO));
+    expect((requestOf().init.body as FormData).get('save')).toBe('false');
+    expect(tracked('Photo Uploaded')).toEqual([
+      ['Photo Uploaded', { saved: false, source: 'file', place: 'try-on', first: false }],
+    ]);
+  });
+
+  it('tracks a refusal with the try-on as its place and shows the note under its text', async () => {
+    fetchMock.mockImplementation(refusedWith('dark'));
+    const user = setup();
+    renderUpload({ place: 'try-on', refusalNote: <p>Примерка не списана · осталось 7</p> });
+    await user.upload(fileInputs().file!, picture());
+
+    const dialog = await screen.findByRole('dialog', { name: 'Фото слишком тёмное' });
+    expect(within(dialog).getByText('Примерка не списана · осталось 7')).toBeInTheDocument();
+    expect(tracked('Photo Refused')[0]).toEqual([
+      'Photo Refused',
+      { reason: 'dark', source: 'file', place: 'try-on', first: false },
+    ]);
+  });
+
+  it('tells the file on its way, then null once it is stored', async () => {
+    let answer: (response: Response) => void = () => undefined;
+    fetchMock.mockImplementation(
+      () =>
+        new Promise<Response>((resolve) => {
+          answer = resolve;
+        }),
+    );
+    const onPendingChange = vi.fn();
+    const user = setup();
+    renderUpload({ place: 'try-on', onPendingChange });
+    const file = picture('pending.jpg');
+    await user.upload(fileInputs().file!, file);
+
+    await vi.waitFor(() => expect(onPendingChange).toHaveBeenLastCalledWith(file));
+    answer(await ok());
+    await vi.waitFor(() => expect(onPendingChange).toHaveBeenLastCalledWith(null));
+  });
+
+  it('tells null again when the upload is refused', async () => {
+    let answer: (response: Response) => void = () => undefined;
+    fetchMock.mockImplementation(
+      () =>
+        new Promise<Response>((resolve) => {
+          answer = resolve;
+        }),
+    );
+    const onPendingChange = vi.fn();
+    const user = setup();
+    renderUpload({ place: 'try-on', onPendingChange });
+    const file = picture();
+    await user.upload(fileInputs().file!, file);
+    await vi.waitFor(() => expect(onPendingChange).toHaveBeenLastCalledWith(file));
+    answer(await refusedWith('dark')());
+
+    await screen.findByRole('dialog', { name: 'Фото слишком тёмное' });
+    expect(onPendingChange).toHaveBeenCalledWith(file);
+    expect(onPendingChange).toHaveBeenLastCalledWith(null);
+  });
+
+  describe('as the strip', () => {
+    it('shows the thumbs before the «Новое» tile and the two buttons under them', () => {
+      renderUpload({
+        place: 'try-on',
+        appearance: 'strip',
+        thumbs: <span>Мини-фото</span>,
+      });
+
+      expect(screen.getByText('Мини-фото')).toBeInTheDocument();
+      expect(screen.getByText('Новое')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Сделать фото' })).toBeEnabled();
+      expect(screen.getAllByRole('button', { name: 'Загрузить фото' })).toHaveLength(2);
+    });
+
+    it('uploads the file of its tile', async () => {
+      fetchMock.mockImplementation(ok);
+      const user = setup();
+      const { onUploaded } = renderUpload({ place: 'try-on', appearance: 'strip', save: false });
+      await user.upload(fileInputs().file!, picture());
+
+      await vi.waitFor(() => expect(onUploaded).toHaveBeenCalledWith(PHOTO));
+      expect((requestOf().init.body as FormData).get('save')).toBe('false');
+    });
+
+    it('before the consents opens the tips from its tile and sends no request', async () => {
+      window.localStorage.clear();
+      const user = setup();
+      renderUpload({ place: 'try-on', appearance: 'strip' });
+      expect(fileInputs().all).toHaveLength(0);
+
+      await user.click(screen.getAllByRole('button', { name: 'Загрузить фото' })[0]!);
+
+      expect(
+        await screen.findByRole('dialog', { name: 'Какое фото подойдёт' }),
+      ).toBeInTheDocument();
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('is off when disabled', () => {
+      renderUpload({ place: 'try-on', appearance: 'strip', disabled: true });
+
+      for (const button of screen.getAllByRole('button', { name: 'Загрузить фото' })) {
+        expect(button).toBeDisabled();
+      }
+    });
+
+    it('on a phone has the tiles «Загрузить» and «Снять» only', () => {
+      stubPhone();
+      renderUpload({ place: 'try-on', appearance: 'strip' });
+
+      expect(screen.getByText('Загрузить')).toBeInTheDocument();
+      expect(screen.getByText('Снять')).toBeInTheDocument();
+      expect(screen.getAllByRole('button', { name: 'Загрузить фото' })).toHaveLength(1);
+      expect(screen.getAllByRole('button', { name: 'Сделать фото' })).toHaveLength(1);
+    });
+  });
+});
+
 describe('UploadPhoto as the card', () => {
   it('before the consents is a button named «Добавить фото», described by its hint, that opens the tips', async () => {
     const user = setup();

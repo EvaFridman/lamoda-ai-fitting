@@ -26,7 +26,7 @@ export { CheckboxFilter, CheckboxFilterPanel } from './checkbox-filter/checkbox-
 export type { CheckboxGroupProps } from './checkbox-group/checkbox-group';
 export { CheckboxGroup } from './checkbox-group/checkbox-group';
 export type { ColorSwatchProps, HexColor, SwatchColor } from './color-swatch/color-swatch';
-export { ColorSwatch, swatchColors } from './color-swatch/color-swatch';
+export { ColorSwatch, SwatchDot, swatchColors } from './color-swatch/color-swatch';
 export type { CountBadgeProps } from './count-badge/count-badge';
 export { CountBadge } from './count-badge/count-badge';
 export type { DrawerProps } from './drawer/drawer';

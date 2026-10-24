@@ -119,9 +119,9 @@ export const catalog = defineCatalog({
     },
     fitting: {
       title: 'Примерка',
-      areas: ['photos'],
+      areas: ['photos', 'try-on', 'result', 'fitting-toast'],
       description:
-        'Онлайн-примерка (спека 0019). `photos` — фото для примерки: загрузка (подсказки и согласия первой загрузки, экран отказа) и страница «Мои фото» (`/customer/photos`).',
+        'Онлайн-примерка (спека 0019). `photos` — фото для примерки: загрузка (подсказки и согласия первой загрузки, экран отказа) и страница «Мои фото» (`/customer/photos`). `try-on` — окно примерки до результата: выбор фото, ожидание, экраны лимита и ошибок. `result` — результат примерки и шторка «Что поменять?». `fitting-toast` — уведомления «Примерка готова» и «Примерка … не удалась» на любой странице сайта.',
     },
   },
   commonEvents: {
@@ -223,12 +223,12 @@ export const catalog = defineCatalog({
       zone: 'fitting',
       type: 'interaction',
       description:
-        'Фото для примерки загружено и прошло проверку: после ответа api. `saved` — сохранено в «Мои фото» (не одноразовое), `source` — выбрано из файлов или снято камерой, `place` — где загружено, `first` — первая загрузка в этом браузере (с подсказками и согласиями). Само фото и ссылка на него не отправляются.',
+        'Фото для примерки загружено и прошло проверку: после ответа api. `saved` — сохранено в «Мои фото» (не одноразовое), `source` — выбрано из файлов или снято камерой, `place` — где загружено: `photos` — страница «Мои фото», `try-on` — выбор фото в окне примерки, `first` — первая загрузка в этом браузере (с подсказками и согласиями). Само фото и ссылка на него не отправляются.',
       perVisit: 0.01,
       properties: {
         saved: { kind: 'boolean' },
         source: { kind: 'enum', values: ['file', 'camera'] },
-        place: { kind: 'enum', values: ['photos'] },
+        place: { kind: 'enum', values: ['photos', 'try-on'] },
         first: { kind: 'boolean' },
       },
     },
@@ -244,8 +244,73 @@ export const catalog = defineCatalog({
           values: ['dark', 'not_full', 'many_people', 'child', 'no_person', 'moderation', 'other'],
         },
         source: { kind: 'enum', values: ['file', 'camera'] },
-        place: { kind: 'enum', values: ['photos'] },
+        place: { kind: 'enum', values: ['photos', 'try-on'] },
         first: { kind: 'boolean' },
+      },
+    },
+    'Fitting Started': {
+      zone: 'fitting',
+      type: 'interaction',
+      description:
+        'Примерка запущена: после ответа api (новая, идущая или уже готовая с тем же фото, вещами и цветами). `kind` — одна вещь или образ, `source` — каким действием: `picker` — «Примерить» на выборе фото, `retry` — «Попробовать ещё раз» на экране ошибки или «Повторить» в уведомлении, `colour` — другой цвет на результате, `regenerate` — «Перегенерировать». `items` — сколько вещей, `repeated` — api открыл готовый результат без списания, `with_prompt` — есть пожелания или комментарий перегенерации (сам текст не отправляется).',
+      perVisit: 0.03,
+      properties: {
+        kind: { kind: 'enum', values: ['single', 'look'] },
+        source: { kind: 'enum', values: ['picker', 'retry', 'colour', 'regenerate'] },
+        items: { kind: 'number' },
+        repeated: { kind: 'boolean' },
+        with_prompt: { kind: 'boolean' },
+      },
+    },
+    'Fitting Completed': {
+      zone: 'fitting',
+      type: 'conversion',
+      description:
+        'Результат примерки готов: вкладка, которая её запустила или видела идущей, узнала статус `completed`; один раз на генерацию. `model` — модель (неизвестная — `other`), `duration` — секунды от создания до результата (у готового результата, открытого повтором, 0), `counts_against_limit` — списана ли примерка месяца, `repeated` — открыт готовый результат.',
+      perVisit: 0.025,
+      properties: {
+        kind: { kind: 'enum', values: ['single', 'look'] },
+        model: { kind: 'enum', values: ['gpt-image-2', 'gpt-image-2-5-sunburst', 'other'] },
+        duration: { kind: 'number' },
+        counts_against_limit: { kind: 'boolean' },
+        repeated: { kind: 'boolean' },
+      },
+    },
+    'Fitting Failed': {
+      zone: 'fitting',
+      type: 'interaction',
+      description:
+        'Примерка не удалась: вкладка, которая её запустила или видела идущей, узнала статус `failed`; один раз на генерацию. `reason` — код api, `model` и `duration` — как у `Fitting Completed`. Примерка месяца возвращается.',
+      perVisit: 0.004,
+      properties: {
+        kind: { kind: 'enum', values: ['single', 'look'] },
+        reason: {
+          kind: 'enum',
+          values: [
+            'photo_dark',
+            'photo_not_full',
+            'photo_many_people',
+            'photo_child',
+            'photo_no_person',
+            'prompt_refused',
+            'model_timeout',
+            'moderation',
+            'provider_error',
+          ],
+        },
+        model: { kind: 'enum', values: ['gpt-image-2', 'gpt-image-2-5-sunburst', 'other'] },
+        duration: { kind: 'number' },
+      },
+    },
+    'Fitting Refused': {
+      zone: 'fitting',
+      type: 'interaction',
+      description:
+        'Api не запустил примерку или перегенерацию: `limit_reached` — примерки месяца закончились, `prompt_refused` — пожелания или комментарий не прошли проверку. Генерации не было, примерка не списана.',
+      perVisit: 0.003,
+      properties: {
+        kind: { kind: 'enum', values: ['single', 'look'] },
+        reason: { kind: 'enum', values: ['limit_reached', 'prompt_refused'] },
       },
     },
   },
@@ -436,7 +501,7 @@ export const catalog = defineCatalog({
       zone: 'fitting',
       type: 'interaction',
       description:
-        '«Добавить фото» или «Выбрать фото»: открывает выбор файла, а при первой загрузке — подсказки и согласия.',
+        '«Добавить фото» или «Выбрать фото» (на странице «Мои фото»), «Загрузить фото» или «+ Новое» (на выборе фото в окне примерки): открывает выбор файла, а при первой загрузке — подсказки и согласия.',
       clicksPerVisit: 0.02,
       hoversPerVisit: 0.02,
     },
@@ -461,6 +526,134 @@ export const catalog = defineCatalog({
         '«Удалить» в подтверждении удаления фото. Текстовая кнопка «Удалить» у фото, которая открывает подтверждение, не отслеживается.',
       clicksPerVisit: 0.002,
       hoversPerVisit: 0.002,
+    },
+    'try-on.photo': {
+      zone: 'fitting',
+      type: 'interaction',
+      description:
+        'Сохранённое фото в ленте на выборе фото: выбирает его для примерки. `is_default` — фото по умолчанию.',
+      clicksPerVisit: 0.01,
+      hoversPerVisit: 0.01,
+      properties: { is_default: { kind: 'boolean' } },
+    },
+    'try-on.start': {
+      zone: 'fitting',
+      type: 'interaction',
+      description: '«Примерить» на выборе фото.',
+      clicksPerVisit: 0.025,
+      hoversPerVisit: 0.02,
+    },
+    'try-on.retry': {
+      zone: 'fitting',
+      type: 'interaction',
+      description: '«Попробовать ещё раз» на экране ошибки примерки.',
+      clicksPerVisit: 0.002,
+      hoversPerVisit: 0.002,
+    },
+    'try-on.close': {
+      zone: 'fitting',
+      type: 'interaction',
+      description:
+        'Закрытие окна примерки кнопкой: `wait` — «Закрыть и продолжить покупки» (на телефоне «Свернуть») во время ожидания, `error` — «Закрыть» на экране ошибки. Крестик и Esc не отслеживаются.',
+      clicksPerVisit: 0.01,
+      hoversPerVisit: 0.005,
+      properties: { screen: { kind: 'enum', values: ['wait', 'error'] } },
+    },
+    'try-on.other-photo': {
+      zone: 'fitting',
+      type: 'interaction',
+      description:
+        '«Другое фото» («Выбрать другое фото» на телефоне) на экране «Не можем показать результат»: назад к выбору фото.',
+      clicksPerVisit: 0.001,
+      hoversPerVisit: 0.001,
+    },
+    'result.download': {
+      zone: 'fitting',
+      type: 'interaction',
+      description: 'Плитка «Скачать» под результатом.',
+      clicksPerVisit: 0.008,
+      hoversPerVisit: 0.01,
+    },
+    'result.fullscreen': {
+      zone: 'fitting',
+      type: 'interaction',
+      description: 'Плитка «Во весь экран» под результатом.',
+      clicksPerVisit: 0.008,
+      hoversPerVisit: 0.01,
+    },
+    'result.try-colour': {
+      zone: 'fitting',
+      type: 'interaction',
+      description:
+        'Цвет в «Примерить другой цвет». `tried` — этот цвет уже примерен на этом фото: результат откроется сразу и бесплатно. Текущий цвет не нажимается.',
+      clicksPerVisit: 0.008,
+      hoversPerVisit: 0.01,
+      properties: { tried: { kind: 'boolean' } },
+    },
+    'result.regenerate-open': {
+      zone: 'fitting',
+      type: 'interaction',
+      description: '«Хотите что-то поменять в образе?»: открывает шторку «Что поменять?».',
+      clicksPerVisit: 0.006,
+      hoversPerVisit: 0.006,
+    },
+    'result.reason': {
+      zone: 'fitting',
+      type: 'interaction',
+      description:
+        'Причина в шторке «Что поменять?». `reason` — какая: лицо, фигура, вещь, фон, другое; `checked` — отмечена ли после нажатия.',
+      clicksPerVisit: 0.008,
+      hoversPerVisit: 0.006,
+      properties: {
+        reason: { kind: 'enum', values: ['face', 'figure', 'item', 'background', 'other'] },
+        checked: { kind: 'boolean' },
+      },
+    },
+    'result.regenerate': {
+      zone: 'fitting',
+      type: 'interaction',
+      description:
+        '«Перегенерировать» в шторке «Что поменять?». `reasons` — сколько причин отмечено, `with_comment` — есть ли комментарий (сам текст не отправляется), `free` — бесплатна ли эта перегенерация.',
+      clicksPerVisit: 0.004,
+      hoversPerVisit: 0.003,
+      properties: {
+        reasons: { kind: 'number' },
+        with_comment: { kind: 'boolean' },
+        free: { kind: 'boolean' },
+      },
+    },
+    'result.add-to-cart': {
+      zone: 'fitting',
+      type: 'interaction',
+      description:
+        '«Добавить в корзину» («В корзину» на телефоне) у вещи результата: заглушка, показывает уведомление, что в прототипе нет корзины.',
+      clicksPerVisit: 0.004,
+      hoversPerVisit: 0.006,
+    },
+    'result.other-photo': {
+      zone: 'fitting',
+      type: 'interaction',
+      description: '«Примерить на другом фото»: назад к выбору фото в том же окне.',
+      clicksPerVisit: 0.002,
+      hoversPerVisit: 0.002,
+    },
+    'fitting-toast.open': {
+      zone: 'fitting',
+      type: 'navigation',
+      description:
+        '«Открыть» в уведомлении «Примерка готова»: открывает результат. `kind` — одна вещь или образ.',
+      clicksPerVisit: 0.008,
+      hoversPerVisit: 0.003,
+      properties: { kind: { kind: 'enum', values: ['single', 'look'] } },
+    },
+    'fitting-toast.retry': {
+      zone: 'fitting',
+      type: 'interaction',
+      description:
+        '«Повторить» в уведомлении «Примерка … не удалась». `kind` — одна вещь или образ.',
+      clicksPerVisit: 0.001,
+      hoversPerVisit: 0.001,
+      properties: { kind: { kind: 'enum', values: ['single', 'look'] } },
     },
   },
 });

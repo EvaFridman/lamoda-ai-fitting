@@ -1,0 +1,208 @@
+// Board 7: on a wide screen the picture 540×720 with the caption and the tiles left of the item,
+// the colours and the footer; on a phone (7.1) all of it in one column.
+
+.result {
+  display: grid;
+  grid-template-areas:
+    'saved saved'
+    'left right';
+  grid-template-columns: 540px minmax(0, 1fr);
+  gap: var(--space-4) var(--space-10);
+
+  @media (width < 1024px) {
+    grid-template-columns: 360px minmax(0, 1fr);
+    column-gap: var(--space-6);
+  }
+
+  @media (width < 600px) {
+    grid-template-areas:
+      'saved'
+      'left'
+      'right';
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.saved {
+  grid-area: saved;
+
+  margin: 0;
+
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  color: var(--color-text-secondary);
+}
+
+.link {
+  color: inherit;
+}
+
+.left {
+  display: flex;
+  grid-area: left;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.picture {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 3 / 4;
+  background-color: var(--color-background-secondary);
+
+  @media (width < 600px) {
+    max-height: 60vh;
+  }
+}
+
+.image {
+  object-fit: cover;
+}
+
+.note,
+.muted {
+  margin: 0;
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+}
+
+.note {
+  color: #5e5e5e;
+}
+
+.muted {
+  color: var(--color-text-secondary);
+}
+
+// Board 7.2: the colour's progress on a white plate at the picture's bottom.
+.runningBox {
+  position: absolute;
+  right: var(--space-4);
+  bottom: var(--space-4);
+  left: var(--space-4);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+
+  padding: var(--space-3);
+
+  background-color: var(--color-background);
+}
+
+.runningHead {
+  display: flex;
+  justify-content: space-between;
+
+  margin: 0;
+
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+}
+
+// Board 13's ResultActions: four equal tiles on the kit's fill, an icon over the label; the
+// hover darkens one to the tertiary background (A62).
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.tile {
+  cursor: pointer;
+
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+
+  height: 68px;
+  padding: 0 var(--space-1);
+  border: 0;
+  border-radius: var(--radius-s);
+
+  font: inherit;
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  color: var(--color-text);
+  white-space: nowrap;
+
+  background-color: var(--color-background-secondary);
+
+  transition: background-color var(--duration-fast);
+
+  svg {
+    flex: none;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    cursor: default;
+    color: var(--color-text-disabled);
+  }
+
+  @media (hover: hover) {
+    &:hover:not(:disabled) {
+      background-color: var(--color-background-tertiary);
+    }
+  }
+
+  @media (width < 600px) {
+    gap: var(--space-1);
+    height: 60px;
+    font-size: var(--font-size-caption);
+    line-height: 14px;
+  }
+}
+
+.right {
+  display: flex;
+  grid-area: right;
+  flex-direction: column;
+  gap: var(--space-6);
+
+  min-width: 0;
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+
+  padding-bottom: var(--space-6);
+  border-bottom: var(--border-width) solid var(--color-border);
+}
+
+.buy {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.cart {
+  flex: 1;
+}
+
+.footer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+
+  margin-top: auto;
+  padding-top: var(--space-6);
+  border-top: var(--border-width) solid var(--color-border);
+}
+
+.footerRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: space-between;
+
+  font-size: var(--font-size-body-s);
+}

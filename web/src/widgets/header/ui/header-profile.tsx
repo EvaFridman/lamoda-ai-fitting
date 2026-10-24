@@ -11,6 +11,7 @@ import {
   useSessionRealtime,
   useSignInAnalytics,
 } from '@/features/auth';
+import { useFittingEvents } from '@/features/fitting-events';
 import { useTrackedElement } from '@/shared/analytics';
 import { type AccountSection, accountSections } from '@/shared/config';
 import {
@@ -48,6 +49,7 @@ export function HeaderProfile() {
   useSignInAnalytics(session);
   useDropUserQueries(session);
   useSessionRealtime(session);
+  useFittingEvents();
   const iconRef = useRef<HTMLButtonElement>(null);
   const wasSignedInRef = useRef(false);
 

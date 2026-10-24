@@ -370,6 +370,10 @@ describe('analytics catalog', () => {
       'Catalog Filter Applied',
       'Catalog Searched',
       'Catalog Sorted',
+      'Fitting Completed',
+      'Fitting Failed',
+      'Fitting Refused',
+      'Fitting Started',
       'Login Opened',
       'Photo Refused',
       'Photo Uploaded',
@@ -398,6 +402,10 @@ describe('analytics catalog', () => {
       'Catalog Batch Loaded': ['catalog', 'interaction'],
       'Photo Uploaded': ['fitting', 'interaction'],
       'Photo Refused': ['fitting', 'interaction'],
+      'Fitting Started': ['fitting', 'interaction'],
+      'Fitting Completed': ['fitting', 'conversion'],
+      'Fitting Failed': ['fitting', 'interaction'],
+      'Fitting Refused': ['fitting', 'interaction'],
     });
   });
 
@@ -432,6 +440,21 @@ describe('analytics catalog', () => {
       'photos.camera': ['fitting', 'interaction'],
       'photos.set-default': ['fitting', 'interaction'],
       'photos.delete': ['fitting', 'interaction'],
+      'try-on.start': ['fitting', 'interaction'],
+      'try-on.photo': ['fitting', 'interaction'],
+      'try-on.retry': ['fitting', 'interaction'],
+      'try-on.close': ['fitting', 'interaction'],
+      'try-on.other-photo': ['fitting', 'interaction'],
+      'result.try-colour': ['fitting', 'interaction'],
+      'result.reason': ['fitting', 'interaction'],
+      'result.regenerate': ['fitting', 'interaction'],
+      'result.regenerate-open': ['fitting', 'interaction'],
+      'result.download': ['fitting', 'interaction'],
+      'result.fullscreen': ['fitting', 'interaction'],
+      'result.add-to-cart': ['fitting', 'interaction'],
+      'result.other-photo': ['fitting', 'interaction'],
+      'fitting-toast.open': ['fitting', 'navigation'],
+      'fitting-toast.retry': ['fitting', 'interaction'],
     });
   });
 

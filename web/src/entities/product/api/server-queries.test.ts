@@ -88,7 +88,12 @@ const detail = {
   description: null,
   images: [{ id: ID, url: 'https://cdn.example/a.jpg', sortOrder: 0 }],
   variations: [{ id: ID, size: 'M', stock: 3 }],
-  attributes: [{ attribute: { id: ID, name: 'Color' }, values: [{ id: ID2, value: 'Red' }] }],
+  attributes: [
+    {
+      attribute: { id: ID, name: 'Color' },
+      values: [{ id: ID2, value: 'Red', colorHex: '#FF0000' }],
+    },
+  ],
 };
 
 const facets = {
@@ -130,7 +135,7 @@ const attributeValue = {
   productId: ID,
   attributeValueId: ID2,
   attribute: { id: ID, name: 'Color' },
-  value: { id: ID2, value: 'Red' },
+  value: { id: ID2, value: 'Red', colorHex: '#FF0000' },
   createdAt: DATE,
 };
 

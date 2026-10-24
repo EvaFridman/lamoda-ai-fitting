@@ -1,0 +1,207 @@
+// Board 3: on a wide screen the photo 480×640 left of a column (the item, the photos, the switch,
+// then the meter and «Примерить» at the bottom); on a phone (3.1) the item, the photo, the strip,
+// the switch and the button at the bottom, one under the other.
+
+.picker {
+  display: grid;
+  grid-template:
+    'photo item' auto
+    'photo photos' auto
+    'photo save' auto
+    'photo footer' 1fr / 480px minmax(0, 1fr);
+  gap: var(--space-6) var(--space-8);
+
+  @media (width < 1024px) {
+    grid-template-columns: 320px minmax(0, 1fr);
+  }
+
+  @media (width < 600px) {
+    grid-template:
+      'item' auto
+      'photo' auto
+      'photos' auto
+      'save' auto
+      'footer' auto / minmax(0, 1fr);
+    gap: var(--space-4);
+  }
+}
+
+.photo {
+  position: relative;
+
+  overflow: hidden;
+  grid-area: photo;
+
+  aspect-ratio: 3 / 4;
+
+  background-color: var(--color-background-secondary);
+
+  @media (width < 600px) {
+    aspect-ratio: auto;
+    height: 340px;
+  }
+}
+
+.image {
+  object-fit: cover;
+}
+
+.dimmed {
+  position: absolute;
+  inset: 0;
+
+  width: 100%;
+  height: 100%;
+
+  opacity: 0.5;
+  object-fit: cover;
+}
+
+.uploading {
+  position: absolute;
+  inset: 0;
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: center;
+
+  font-size: var(--font-size-body-s);
+}
+
+.empty {
+  position: absolute;
+  inset: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: var(--space-6);
+
+  font-size: var(--font-size-body-s);
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+// «Видите только вы»: a white plate in the photo's top left corner.
+.private {
+  position: absolute;
+  top: var(--space-3);
+  left: var(--space-3);
+
+  display: flex;
+  gap: 6px;
+  align-items: center;
+
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-s);
+
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+
+  background-color: var(--color-background);
+}
+
+.item {
+  grid-area: item;
+  padding-bottom: var(--space-4);
+  border-bottom: var(--border-width) solid var(--color-border);
+
+  @media (width < 600px) {
+    padding-bottom: var(--space-3);
+  }
+}
+
+.photos {
+  display: flex;
+  grid-area: photos;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.photosHead {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+}
+
+// A saved photo of the strip, 64×86 (56×75 on a phone), outlined when chosen.
+.thumb {
+  cursor: pointer;
+
+  flex: none;
+
+  width: 64px;
+  height: 86px;
+  padding: 0;
+  border: 0;
+
+  background: none;
+
+  &[aria-pressed='true'] {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: 2px;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: 2px;
+  }
+
+  @media (width < 600px) {
+    width: 56px;
+    height: 75px;
+  }
+}
+
+// The thumbnail fills its button; its «По умолчанию» runs along the bottom in 10px.
+.thumbImage {
+  aspect-ratio: auto;
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+
+  figcaption {
+    inset: auto 0 0;
+
+    padding: 1px 0;
+    border-radius: 0;
+
+    font-size: 10px;
+    line-height: 14px;
+    text-align: center;
+
+    background-color: rgb(0 0 0 / 72%);
+  }
+}
+
+.save {
+  display: flex;
+  grid-area: save;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.caption {
+  margin: 0;
+  font-size: var(--font-size-caption);
+  line-height: var(--line-height-caption);
+  color: var(--color-text-secondary);
+}
+
+.footer {
+  display: flex;
+  grid-area: footer;
+  flex-direction: column;
+  gap: var(--space-3);
+  justify-content: flex-end;
+}
+
+.meter {
+  @media (width < 600px) {
+    justify-content: center;
+  }
+}

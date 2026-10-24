@@ -1,5 +1,9 @@
+import { Suspense } from 'react';
+
 import type { AccountSection } from '@/shared/config';
 import { AccountShell } from '@/widgets/account-shell';
+
+import { TryOnEntry } from './try-on-entry';
 
 import styles from './account-stubs.module.scss';
 
@@ -20,6 +24,14 @@ export function StoresPage() {
   return <AccountStub section="stores" />;
 }
 
+// The history comes with T16; until the product page (T20) it holds the try-on's temporary entry.
 export function FittingsPage() {
-  return <AccountStub section="fittings" />;
+  return (
+    <AccountShell section="fittings">
+      <p className={styles.text}>Раздел скоро появится</p>
+      <Suspense>
+        <TryOnEntry />
+      </Suspense>
+    </AccountShell>
+  );
 }

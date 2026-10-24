@@ -8,7 +8,13 @@ import { userKeys } from '@/entities/user';
 import { ApiError } from '@/shared/api';
 
 import { userPhotoKeys } from './keys';
-import { deletePhoto, setDefaultPhoto, UPLOAD_TIMEOUT_MS, uploadPhoto } from './photo-requests';
+import {
+  deletePhoto,
+  deleteTransientPhoto,
+  setDefaultPhoto,
+  UPLOAD_TIMEOUT_MS,
+  uploadPhoto,
+} from './photo-requests';
 import { myPhotosQueryOptions } from './queries';
 
 const ID = '3f2b8c1e-5a4d-4e6f-8a9b-0c1d2e3f4a5b';
@@ -218,5 +224,27 @@ describe('deletePhoto', () => {
     fetchMock.mockRejectedValue(new TypeError('Failed to fetch'));
     await expect(deletePhoto(ID)).rejects.toMatchObject({ kind: 'network' });
     expect(Sentry.captureException).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('deleteTransientPhoto', () => {
+  it('sends DELETE /api/me/photos/transient/<id> with no body and resolves undefined on 204', async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+    await expect(deleteTransientPhoto(ID)).resolves.toBeUndefined();
+    const { url, init } = call();
+    expect(url.pathname).toBe(`/api/me/photos/transient/${ID}`);
+    expect(init.method).toBe('DELETE');
+    expect(init.body).toBeUndefined();
+  });
+
+  it('fails with 404 for a saved or a missing photo, unreported', async () => {
+    fetchMock.mockResolvedValue(errorResponse(404, 'NOT_FOUND'));
+    await expect(deleteTransientPhoto(ID)).rejects.toMatchObject({ kind: 'http', status: 404 });
+    expect(Sentry.captureException).not.toHaveBeenCalled();
+  });
+
+  it('refuses an id that is not one path segment, before any request', () => {
+    expect(() => deleteTransientPhoto('..')).toThrow(ApiError);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

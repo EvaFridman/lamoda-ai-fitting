@@ -879,6 +879,68 @@ the script); (2) the worker, replaced in place, is not checked on its own: it re
 variables, and the api's check proves them; (3) the proxy VPS is one more single point of
 failure for the fitting, accepted for the pilot.
 
+**A74. The try-on of one item (T15).** The owner decided on 2026-10-24: (1) T15 adds the
+analytics of its screens (plan §9's events and the areas `try-on`, `result`, `fitting-toast` of
+the zone `fitting`, the entries a single item uses; a look's come with T26), proposed by the
+`analytics` agent; only the temporary mount `/customer/fittings?product=<id>` stays untracked.
+(2) T15's checks follow A58: `typecheck`, `lint` and its own tests; `qa-tester` runs once in
+phase 2, at T16, on AC5–AC12, AC17, AC19 and AC20, and the full `verify` at T17. (3) The colour
+tiles of `ColorTryOn` (board 7) are the product's colours as `ColorSwatch` circles with their
+names, not a picture per colour: the catalog's photos belong to the product, not to a colour; the
+states current, tried (✓) and generating stay as the board draws them.
+
+**A75. The try-on's analytics (T15).** The owner decided on 2026-10-24, on the `analytics` agent's
+proposal: the zone `fitting` gains the areas `try-on`, `result` and `fitting-toast`; the events
+`Fitting Started` (`kind`, `source`, `items`, `repeated`, `with_prompt`), `Fitting Completed`
+(`conversion`; `kind`, `model`, `duration`, `counts_against_limit`, `repeated`), `Fitting Failed`
+(`kind`, `reason`, `model`, `duration`) and `Fitting Refused` (`kind`, `reason`:
+`limit_reached | prompt_refused`); the elements of plan §9 a single item uses (`try-on.photo`,
+`.start`, `.retry`, `.close`; `result.download`, `.fullscreen`, `.try-colour`, `.regenerate-open`,
+`.reason`, `.regenerate`, `.add-to-cart`; `fitting-toast.open`, `.retry`) plus `result.other-photo`
+(«Примерить на другом фото») and `try-on.other-photo` («Другое фото» on the moderation card).
+`source` is the action that started it (`picker`, `retry`, `colour`, `regenerate`; T16 adds
+`history`), not the page, which `$current_url`carries, so the temporary mount needs no value of
+its own.`Fitting Completed`and`Fitting Failed`are sent only by the tab that started the
+generation or saw it running, once per generation, so two open tabs do not count it twice.
+«+ Новое» and «Сделать фото» on the picker are`photos.upload`and`photos.camera`, and
+`Photo Uploaded`/`Photo Refused`gain the`place` `try-on`. `with_prompt`is true for a
+regeneration's comment too;`duration`counts from`createdAt`(the user's wait); a colour already
+tried opens through`POST /fittings` (`repeated: true`, `duration: 0`, A43); a regeneration is
+`Fitting Started`with`source: 'regenerate'`; `model`is mapped to a closed list, anything else`other`. Not tracked: the save switch, «Управлять», the history link, the size, the limit card's
+buttons, «В избранное», the disabled «Поделиться». «Перейти в примерочную» on the limit card and
+the tile «К образу» are shown disabled until the room exists (T24), and send nothing.
+
+**A76. A product's colours (T15).** The specs did not say where `ColorTryOn`'s colours come from,
+and the demo catalog links one colour to each product. The owner decided on 2026-10-24: the
+colours are the product's own values of a colour attribute (one with a `colorHex`, as
+`splitFacetAttributes` tells a colour filter), as the api's rule already says (plan §5:
+`RELATED_NOT_FOUND` otherwise); `GET /products/:id` and `/products/:id/attribute-values` gain
+`colorHex` on each value so web draws the swatches; the seed is not changed, so with the demo
+catalog the block «Примерить другой цвет» does not show and AC7 is checked by tests. A product
+with one colour (or none) shows no such block.
+
+**A77. T15's assumptions, owner to confirm at the phase summary.** (1) The try-on is a `Modal`
+`wide` on every width (full window below 600px), the picker, the wait, the result and the cards
+inside it; the regeneration's «Что поменять?» is a `Sheet` on a phone and a `Modal` elsewhere. (2)
+The wait's four stages follow the share of the estimate: pose from 0, dressing from 35 %, details
+from 75 %; the percent stops at 95; past the estimate it says «Почти готово». (3) The picker tries
+on the product's first colour (the result's colour after «Примерить на другом фото»); the size
+select of the result is a stub kept only on the screen (A33). (4) At five saved photos the save
+switch is off and disabled, so a new photo is a one-time one. (5) «Попробовать ещё раз» starts the
+failed try-on again with its photo, item and colour; a failed regeneration is regenerated again
+with the reason «Другое» and no comment, since `FittingDto` does not carry them; with the photo
+gone it goes back to the picker. The toast's «Повторить» does the same for a try-on and opens the
+fitting otherwise. (6) The toast «Открыть» and «Повторить» open `/customer/fittings?fitting=<id>`
+(the temporary entry); the analytics drop `fitting` from the addresses they send, as they drop `q`
+(`strip-attributes.ts`), since the id names a user's photo. (7) The toasts have no thumbnail (the
+kit's `Toast` has none): «Примерка готова: <вещь>», «Примерка не удалась: <вещь>. Лимит не
+списан.». (8) The mutations of a start and a regeneration live in `entities/fitting`
+(`useStartSingleFitting`, `useRegenerateFitting`, with the events of A75), since the picker, the
+colours, the toast and the widget's retry share them and a feature imports no feature. (9)
+«Скачать» opens the picture in a new tab (the storage is another origin, where `download` does not
+apply). (10) A colour started from a result runs over it (board 7.2) and «Примерить на другом фото»
+is off meanwhile; a regeneration shows the wait of board 6.
+
 ## Canvas and decisions
 
 Where the canvas differs from the decisions above, the decision wins:

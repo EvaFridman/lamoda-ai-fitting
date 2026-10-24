@@ -2,7 +2,7 @@
 // the attributes of the clicked element and its ancestors (`title`, `aria-label`, `href`, `name`,
 // `id`), which recording masks do not touch. They are dropped before sending; tag, classes and
 // position are what heatmaps need (spec 0008 J28). The page's address in every event loses the
-// search text (`q`, spec 0014 O104).
+// search text (`q`, spec 0014 O104) and the id of a user's fitting (`fitting`, spec 0019 A77).
 
 type Properties = Record<string, unknown>;
 
@@ -15,24 +15,28 @@ const DROPPED = /^(\$el_(attr__|id$|text$)|mp_keyword$)/;
 // The addresses the SDK adds to an event, and the query of the page view's address.
 const URL_KEYS = new Set(['$current_url', '$referrer', '$initial_referrer']);
 const SEARCH_KEY = 'current_url_search';
-// The catalog's search parameter.
-const SEARCH_PARAM = 'q';
+// The catalog's search parameter, and the fitting a link opens (its id names a user's photo).
+const STRIPPED_PARAMS = ['q', 'fitting'] as const;
+
+function hasStripped(params: URLSearchParams): boolean {
+  return STRIPPED_PARAMS.some((name) => params.has(name));
+}
 
 function stripElement(element: unknown): unknown {
   if (typeof element !== 'object' || element === null) return element;
   return Object.fromEntries(Object.entries(element).filter(([key]) => ELEMENT_KEYS.has(key)));
 }
 
-// The query without `q`, with its `?` when anything is left.
+// The query without `q` and `fitting`, with its `?` when anything is left.
 function stripSearch(search: string): string {
   const params = new URLSearchParams(search);
-  if (!params.has(SEARCH_PARAM)) return search;
-  params.delete(SEARCH_PARAM);
+  if (!hasStripped(params)) return search;
+  for (const name of STRIPPED_PARAMS) params.delete(name);
   const rest = params.toString();
   return rest === '' ? '' : `?${rest}`;
 }
 
-// An address without `q` and without its fragment (the site uses none, a link sent by someone else
+// An address without `q`, `fitting` and its fragment (the site uses none, a link sent by someone else
 // may carry text there); anything that is not an absolute address (`$direct`) stays as it is.
 function stripUrl(value: unknown): unknown {
   if (typeof value !== 'string') return value;
@@ -42,7 +46,7 @@ function stripUrl(value: unknown): unknown {
   } catch {
     return value;
   }
-  if (!url.searchParams.has(SEARCH_PARAM) && url.hash === '') return value;
+  if (!hasStripped(url.searchParams) && url.hash === '') return value;
   url.search = stripSearch(url.search);
   url.hash = '';
   return url.toString();

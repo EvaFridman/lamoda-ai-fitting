@@ -1,0 +1,70 @@
+// Board 7.3: the chips, the comment (the canvas's kit.css `.n-area`, 88px high) with its counter
+// on the right, then «Перегенерировать» and its caption.
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.label,
+.counter,
+.caption {
+  margin: 0;
+  font-size: var(--font-size-caption);
+  line-height: var(--line-height-caption);
+  color: var(--color-text-secondary);
+}
+
+.counter {
+  text-align: right;
+}
+
+.area {
+  resize: none;
+
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 88px;
+  padding: var(--space-3);
+  border: var(--border-width) solid var(--color-border-control);
+  border-radius: var(--radius-s);
+
+  font: inherit;
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+  color: var(--color-text);
+
+  &:focus-visible {
+    border-color: var(--color-border-active);
+    outline: none;
+  }
+}
+
+.invalid {
+  border-color: var(--color-error);
+}
+
+.error {
+  margin: 0;
+  font-size: var(--font-size-caption);
+  line-height: var(--line-height-caption);
+  color: var(--color-error);
+}
+
+.footer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.caption {
+  text-align: center;
+}

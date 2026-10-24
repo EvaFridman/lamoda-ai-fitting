@@ -43,7 +43,12 @@ export const productVariationSchema = z.object({
 export const productAttributeRefSchema = z.object({ id: z.uuid(), name: z.string() });
 
 // ProductAttributeValueRefDto.
-export const productAttributeValueRefSchema = z.object({ id: z.uuid(), value: z.string() });
+export const productAttributeValueRefSchema = z.object({
+  id: z.uuid(),
+  value: z.string(),
+  // The swatch colour of a colour attribute's value (spec 0009), null for any other.
+  colorHex: colorHexSchema.nullable(),
+});
 
 // ProductAttributeDto.
 export const productAttributeSchema = z.object({

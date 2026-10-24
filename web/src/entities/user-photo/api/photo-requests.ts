@@ -44,3 +44,9 @@ export function setDefaultPhoto(id: string): Promise<UserPhoto> {
 export function deletePhoto(id: string): Promise<undefined> {
   return clientFetch(buildPath('/me/photos/:id', { id }), null, { method: 'DELETE' });
 }
+
+// DELETE /me/photos/transient/:id: a 204. The try-on calls it when it closes; a photo a running
+// fitting uses stays for the housekeeping, and a saved one is a 404 (spec 0019 A70).
+export function deleteTransientPhoto(id: string): Promise<undefined> {
+  return clientFetch(buildPath('/me/photos/transient/:id', { id }), null, { method: 'DELETE' });
+}

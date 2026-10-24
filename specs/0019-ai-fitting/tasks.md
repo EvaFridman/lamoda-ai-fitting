@@ -180,22 +180,23 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       `security-reviewer`; 👤 runs the playbook, sets `OPENAI_PROXY_URL` in GitHub and checks
       `curl -x` from the production server (200 with the key; another host refused).
       Commit: `feat(api): reach openai through a proxy abroad`
-- [ ] **T15. web: the try-on of one item.** The features `start-fitting`, `regenerate-fitting`,
+- [x] **T15. web: the try-on of one item.** The features `start-fitting`, `regenerate-fitting`,
       `try-colour` and `fitting-events` (the toast of A11, A34), the widget `try-on` (boards 3,
       5, 6, 7, 11, 12 for one item: the picker, the wait with its estimate, the result with the
       colours, the regeneration sheet, the limit and error screens, each with the texts and states
       A62 lists for its board, the default photo preselected, A63.4, the tiles' hover); mounted
       from `/customer/fittings?product=<id>` until the product page exists (not tracked, removed
       in T20).
-      Check: web tests of each screen, of the polling and of the toast; `qa-tester` on AC5–AC12,
-      AC19, AC20;
-      `npm run verify`.
+      Its screens' analytics (plan §9, A74).
+      Check: web tests of each screen, of the polling and of the toast; `typecheck`, `lint`
+      (A58, A74: `qa-tester` on its ACs runs at T16).
       Commit: `feat(web): try an item on in the browser`
 - [ ] **T16. web: the history list.** `/customer/fittings` (board 9 without compare: the subtitle,
       the tabs, the cards with their badges and thumbnails, open, delete, the empty state, the
       `LimitMeter` under `AccountShell`'s side menu; A62), the analytics zone `fitting` (its first
       entries).
-      Check: web tests; `qa-tester` on AC17's list and deletion; `npm run verify`.
+      Check: web tests; `typecheck`, `lint`; `qa-tester` on AC5–AC12, AC19, AC20 (T15's try-on)
+      and AC17's list and deletion (A74).
       Commit: `feat(web): list the fitting history`
 - [ ] **T17. Close phase 2.** `CLAUDE.md`, `README.md` (the fitting, the models, the push); the
       clean install and `verify`; the summary; 👤 the first generation on production after the

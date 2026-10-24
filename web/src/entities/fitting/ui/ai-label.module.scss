@@ -1,0 +1,22 @@
+// Board 13's AILabel: a white label on 72 % black, 28px high, in the picture's top left corner.
+
+.label {
+  position: absolute;
+  z-index: 1;
+  top: var(--space-3);
+  left: var(--space-3);
+
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+
+  height: 28px;
+  padding: 0 10px;
+  border-radius: var(--radius-s);
+
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  color: var(--color-background);
+
+  background-color: rgb(0 0 0 / 72%);
+}

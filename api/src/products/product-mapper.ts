@@ -40,7 +40,12 @@ export const DETAIL_INCLUDE = {
   attributeValues: {
     select: {
       attributeValue: {
-        select: { id: true, value: true, attribute: { select: { id: true, name: true } } },
+        select: {
+          id: true,
+          value: true,
+          colorHex: true,
+          attribute: { select: { id: true, name: true } },
+        },
       },
     },
     orderBy: ATTRIBUTE_LINK_ORDER,
@@ -86,13 +91,13 @@ export function toDetail(row: DetailRow, mediaBaseUrl: string): ProductDetailDto
 function groupByAttribute(links: DetailRow['attributeValues']): ProductAttributeDto[] {
   const groups = new Map<string, ProductAttributeDto>();
   for (const { attributeValue } of links) {
-    const { attribute, id, value } = attributeValue;
+    const { attribute, id, value, colorHex } = attributeValue;
     let group = groups.get(attribute.id);
     if (group === undefined) {
       group = { attribute, values: [] };
       groups.set(attribute.id, group);
     }
-    group.values.push({ id, value });
+    group.values.push({ id, value, colorHex });
   }
   return [...groups.values()];
 }

@@ -100,6 +100,9 @@ export class ProductAttributeValueRefDto {
 
   @ApiProperty({ example: 'чёрный' })
   value: string;
+
+  @ApiProperty({ type: String, nullable: true, example: '#000000' })
+  colorHex: string | null;
 }
 
 export class ProductAttributeDto {

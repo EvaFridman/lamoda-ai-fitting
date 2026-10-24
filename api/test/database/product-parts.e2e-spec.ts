@@ -642,7 +642,7 @@ describe('product attribute values', () => {
       'value',
     ]);
     expect(keys((response.body as Link).attribute)).toEqual(['id', 'name']);
-    expect(keys((response.body as Link).value)).toEqual(['id', 'value']);
+    expect(keys((response.body as Link).value)).toEqual(['colorHex', 'id', 'value']);
     expect(response.body).toMatchObject({
       productId: product.id,
       attributeValueId: value.id,
@@ -826,7 +826,7 @@ describe('product attribute values', () => {
     expect((await detail(product.id)).attributes).toEqual([
       {
         attribute: { id: attribute.id, name: attribute.name },
-        values: [{ id: value.id, value: value.value }],
+        values: [{ id: value.id, value: value.value, colorHex: null }],
       },
     ]);
     await http().delete(`/products/${product.id}/attribute-values/${value.id}`).set(userCookie);
