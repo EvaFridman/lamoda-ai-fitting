@@ -198,7 +198,7 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       Check: web tests; `typecheck`, `lint`; `qa-tester` on AC5–AC12, AC19, AC20 (T15's try-on)
       and AC17's list and deletion (A74).
       Commit: `feat(web): list the fitting history`
-- [ ] **T17. Close phase 2.** `CLAUDE.md`, `README.md` (the fitting, the models, the push); the
+- [x] **T17. Close phase 2.** `CLAUDE.md`, `README.md` (the fitting, the models, the push); the
       clean install and `verify`; the summary; 👤 the first generation on production after the
       merge (A4; the deploy's check through the proxy passed, A73).
       Check: `npm run verify` after `npm ci`; one real generation on production.
