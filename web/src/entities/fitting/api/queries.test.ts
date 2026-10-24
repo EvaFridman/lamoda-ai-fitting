@@ -127,12 +127,19 @@ describe('fittingRefetchInterval', () => {
     expect(fittingRefetchInterval(state('failed'))).toBe(RESULT_LINKS_FRESH_MS);
   });
 
-  it('does not poll with no data, with or without an error', () => {
+  it('does not poll with no data and no error', () => {
     expect(fittingRefetchInterval({ data: undefined, error: null })).toBe(false);
-    expect(fittingRefetchInterval({ data: undefined, error: apiError('network') })).toBe(false);
   });
 
-  it.each(refusedErrors)('stops the timer for %s', (_name, error) => {
+  it.each(transientErrors)(
+    'reads a failed first read again at the running pace after %s',
+    (_n, error) => {
+      expect(fittingRefetchInterval({ data: undefined, error })).toBe(RUNNING_POLL_MS);
+    },
+  );
+
+  it.each(refusedErrors)('stops the timer for %s, with no data too', (_name, error) => {
+    expect(fittingRefetchInterval({ data: undefined, error })).toBe(false);
     expect(fittingRefetchInterval({ data: withStatus('processing'), error })).toBe(false);
     expect(fittingRefetchInterval({ data: fitting, error })).toBe(false);
   });
@@ -165,11 +172,19 @@ describe('fittingsRefetchInterval', () => {
     expect(fittingsRefetchInterval(state([]))).toBe(RESULT_LINKS_FRESH_MS);
   });
 
-  it('does not poll with no data', () => {
+  it('does not poll with no data and no error', () => {
     expect(fittingsRefetchInterval({ data: undefined, error: null })).toBe(false);
   });
 
-  it.each(refusedErrors)('stops the timer for %s', (_name, error) => {
+  it.each(transientErrors)(
+    'reads a failed first read again at the list pace after %s',
+    (_n, error) => {
+      expect(fittingsRefetchInterval({ data: undefined, error })).toBe(RUNNING_LIST_POLL_MS);
+    },
+  );
+
+  it.each(refusedErrors)('stops the timer for %s, with no data too', (_name, error) => {
+    expect(fittingsRefetchInterval({ data: undefined, error })).toBe(false);
     expect(fittingsRefetchInterval(state([[withStatus('pending')]], error))).toBe(false);
   });
 

@@ -521,7 +521,12 @@ describe('TryOn with a fitting', () => {
   it('shows the error card of a failed fitting and retries it with the same photo and colour (AC11)', async () => {
     api.fittings.set(
       RUNNING,
-      fitting({ status: 'failed', stage: 'done', failureCode: 'model_timeout' }),
+      fitting({
+        status: 'failed',
+        stage: 'done',
+        failureCode: 'model_timeout',
+        countsAgainstLimit: false,
+      }),
     );
     const user = setup();
     renderTryOn({ fittingId: RUNNING });
@@ -544,6 +549,22 @@ describe('TryOn with a fitting', () => {
       'Fitting Started',
       expect.objectContaining({ source: 'retry' }),
     );
+  });
+
+  it('does not say a failed fitting that stays spent was not spent', async () => {
+    api.fittings.set(
+      RUNNING,
+      fitting({
+        status: 'failed',
+        stage: 'done',
+        failureCode: 'model_timeout',
+        countsAgainstLimit: true,
+      }),
+    );
+    renderTryOn({ fittingId: RUNNING });
+
+    await screen.findByRole('heading', { name: 'Не получилось примерить' });
+    expect(screen.queryByText(/Примерка не списана/)).not.toBeInTheDocument();
   });
 
   it('retries a failed regeneration by regenerating its parent again', async () => {

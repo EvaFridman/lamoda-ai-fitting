@@ -12,7 +12,10 @@ import styles from './fitting-error-card.module.scss';
 
 export interface FittingErrorCardProps {
   failure: FittingFailure;
-  // The try-ons of the month left; a failed fitting spends none (A20).
+  // A failed fitting spends none (A20), but a cancelled or stuck one stays spent (A47, A68): then
+  // the card does not say «Примерка не списана» (A79.3).
+  spent: boolean;
+  // The try-ons of the month left.
   left: number | undefined;
   // The photo the fitting used (a signed link), dimmed; null: a grey frame.
   photoUrl: string | null;
@@ -27,9 +30,10 @@ export interface FittingErrorCardProps {
 }
 
 // Board 12 (spec 0019 AC11): card А when the model did not answer (or failed), card Б when the
-// result did not pass the moderation; both say the try-on was not spent.
+// result did not pass the moderation; both say the try-on was not spent, unless it was.
 export function FittingErrorCard({
   failure,
+  spent,
   left,
   photoUrl,
   onRetry,
@@ -68,9 +72,11 @@ export function FittingErrorCard({
             ? 'Изображение не прошло автоматическую проверку. Чаще всего помогает другое фото — в полный рост и в простой одежде.'
             : 'Сервис примерки не ответил вовремя. Так бывает при большой нагрузке — попробуйте ещё раз через минуту.'}
         </p>
-        <Notice tone="success">
-          Примерка не списана{left === undefined ? '' : ` · осталось ${left}`}
-        </Notice>
+        {!spent && (
+          <Notice tone="success">
+            Примерка не списана{left === undefined ? '' : ` · осталось ${left}`}
+          </Notice>
+        )}
         {error && (
           <Notice tone="error" role="alert">
             {error}

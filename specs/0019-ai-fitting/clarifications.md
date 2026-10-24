@@ -965,6 +965,15 @@ below 1024px where the menu hides, is not shown (board 9.1 has none). (7) Assump
 confirm: board 9.4's empty state shows only on «Все»; an empty «Одна вещь» or «Образы» tab says
 «Примерок одной вещи пока нет» or «Образов пока нет».
 
+**A79. PR 3's review and the phase summary.** The owner decided on 2026-10-24: (1) «Мои фото» writes
+a photo's date in Moscow time, as the history does (A26), so one moment never shows two days; (2)
+the proxy playbook's firewall check skips the `ALLOW OUT` lines `ufw status` prints: an outgoing
+rule lets no one in; the check also counts `LIMIT` rules, drops a rule's comment and compares the
+whole «From» column, so a comment or a longer address that contains the server's never passes;
+(3) a failed fitting's toast says «Лимит не списан» and the try-on's error card «Примерка не
+списана» only when it does not count against the limit (a fitting cancelled by hand in Temporal or
+a stuck one stays spent, A47, A68).
+
 ## Canvas and decisions
 
 Where the canvas differs from the decisions above, the decision wins:

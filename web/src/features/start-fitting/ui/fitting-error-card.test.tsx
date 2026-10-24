@@ -15,6 +15,7 @@ function renderCard(props: Partial<FittingErrorCardProps> = {}) {
     <FittingErrorCard
       failure="model_timeout"
       left={7}
+      spent={false}
       photoUrl="https://s3.test/keep/users/u/p.webp?X-Amz-Signature=a"
       {...handlers}
       {...props}
@@ -81,6 +82,16 @@ describe('FittingErrorCard for a timeout', () => {
 
     expect(screen.getByText('Примерка не списана')).toBeInTheDocument();
   });
+
+  it.each(['model_timeout', 'moderation'] as const)(
+    'does not say the try-on was not spent when it was spent (%s)',
+    (failure) => {
+      renderCard({ failure, spent: true });
+
+      expect(screen.queryByText(/Примерка не списана/)).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Попробовать ещё раз' })).toBeEnabled();
+    },
+  );
 
   it('shows the failure of the retry itself', () => {
     renderCard({ error: 'Нет связи с сервером' });

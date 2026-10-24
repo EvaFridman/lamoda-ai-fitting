@@ -29,17 +29,21 @@ export interface SavedPhotoCardProps {
   makeDefaultEvents?: SavedPhotoEvents;
 }
 
-const DAY = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long' });
+// In Moscow time, as the history's dates (spec 0019 A79.1).
+const ZONE = 'Europe/Moscow';
+const DAY = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', timeZone: ZONE });
 const DAY_OF_YEAR = new Intl.DateTimeFormat('ru-RU', {
   day: 'numeric',
   month: 'long',
   year: 'numeric',
+  timeZone: ZONE,
 });
+const YEAR = new Intl.DateTimeFormat('en-CA', { year: 'numeric', timeZone: ZONE });
 
 /** "12 октября", with the year when it is not this one. */
 export function uploadedOn(iso: string, now = new Date()): string {
   const date = new Date(iso);
-  return (date.getFullYear() === now.getFullYear() ? DAY : DAY_OF_YEAR).format(date);
+  return (YEAR.format(date) === YEAR.format(now) ? DAY : DAY_OF_YEAR).format(date);
 }
 
 // A saved photo of «Мои фото» (spec 0019 board 10, A63.8). The card: the photo with the badge
