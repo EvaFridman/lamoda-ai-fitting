@@ -14,6 +14,8 @@ export type {
 } from './button/button';
 export { Button } from './button/button';
 export type { CheckboxProps } from './checkbox/checkbox';
+export type { ChipEvents, ChipGroupProps, ChipProps } from './chip/chip';
+export { Chip, ChipGroup } from './chip/chip';
 export { Checkbox } from './checkbox/checkbox';
 export type {
   CheckboxFilterOption,
@@ -25,6 +27,8 @@ export type { CheckboxGroupProps } from './checkbox-group/checkbox-group';
 export { CheckboxGroup } from './checkbox-group/checkbox-group';
 export type { ColorSwatchProps, HexColor, SwatchColor } from './color-swatch/color-swatch';
 export { ColorSwatch, swatchColors } from './color-swatch/color-swatch';
+export type { CountBadgeProps } from './count-badge/count-badge';
+export { CountBadge } from './count-badge/count-badge';
 export type { DrawerProps } from './drawer/drawer';
 export { Drawer, DrawerClose } from './drawer/drawer';
 export type { FavoriteToggleProps, FavoriteToggleSize } from './favorite-toggle/favorite-toggle';
@@ -105,6 +109,8 @@ export type {
 } from './price-filter/price-filter';
 export { PriceFilter, PriceFilterPanel } from './price-filter/price-filter';
 export { priceLabel } from './price-filter/price-label';
+export type { ProgressBarProps } from './progress-bar/progress-bar';
+export { ProgressBar } from './progress-bar/progress-bar';
 export type { RadioProps } from './radio/radio';
 export { Radio } from './radio/radio';
 export type { RadioGroupProps } from './radio-group/radio-group';

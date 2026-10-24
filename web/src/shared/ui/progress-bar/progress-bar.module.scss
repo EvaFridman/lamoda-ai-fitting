@@ -1,0 +1,23 @@
+// Board 13's ProgressBar: a 4px track of #e5e5e5 with a 2px radius, the fill black. Base UI sets the
+// indicator's width from the value.
+
+.root {
+  display: block;
+  width: 100%;
+}
+
+.track {
+  overflow: hidden;
+  height: 4px;
+  border-radius: 2px;
+  background-color: var(--color-background-tertiary);
+}
+
+.indicator {
+  display: block;
+  height: 100%;
+  background-color: var(--color-text);
+
+  // The token is 0s under prefers-reduced-motion.
+  transition: width var(--duration-fast);
+}

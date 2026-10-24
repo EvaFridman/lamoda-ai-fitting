@@ -3,6 +3,7 @@ import type { ComponentType } from 'react';
 import { ButtonsSection } from './buttons-section';
 import { CatalogCardSection } from './catalog-card-section';
 import { CatalogFiltersSection } from './catalog-filters-section';
+import { ChipsSection } from './chips-section';
 import { ChoiceSection } from './choice-section';
 import { FeedbackSection } from './feedback-section';
 import { FieldsSection } from './fields-section';
@@ -15,6 +16,7 @@ import { NavigationSection } from './navigation-section';
 import { NoticesSection } from './notices-section';
 import { OverlaysSection } from './overlays-section';
 import { ProductSection } from './product-section';
+import { ProgressSection } from './progress-section';
 import { SelectSection } from './select-section';
 import { SizesColorsSection } from './sizes-colors-section';
 import { SpinnerSection } from './spinner-section';
@@ -38,6 +40,7 @@ export const sections: UiKitSection[] = [
   { id: 'spinner', title: 'Спиннер', Content: SpinnerSection },
   { id: 'fields', title: 'Поля ввода', Content: FieldsSection },
   { id: 'choice', title: 'Чекбоксы, радиокнопки, переключатели', Content: ChoiceSection },
+  { id: 'chips', title: 'Чипы', Content: ChipsSection },
   { id: 'filters', title: 'Фильтры', Content: FiltersSection },
   { id: 'sizes-colors', title: 'Размеры и цвета', Content: SizesColorsSection },
   { id: 'select', title: 'Выпадающий список', Content: SelectSection },
@@ -48,6 +51,7 @@ export const sections: UiKitSection[] = [
   { id: 'navigation', title: 'Навигация', Content: NavigationSection },
   { id: 'overlays', title: 'Окна и подсказки', Content: OverlaysSection },
   { id: 'feedback', title: 'Уведомления и загрузка', Content: FeedbackSection },
+  { id: 'progress', title: 'Прогресс и счётчик', Content: ProgressSection },
   { id: 'file-input', title: 'Выбор файла', Content: FileInputSection },
   { id: 'notices', title: 'Сообщения и состояния', Content: NoticesSection },
 ];

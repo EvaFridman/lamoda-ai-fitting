@@ -23,13 +23,14 @@ describe('buttons section', () => {
     const busy = within(region)
       .getAllByRole('button')
       .filter((button) => button.getAttribute('aria-busy') === 'true');
-    expect(busy).toHaveLength(3);
+    // three variants and the TryOnButton
+    expect(busy).toHaveLength(4);
 
     const disabled = within(region)
       .getAllByRole('button')
       .filter((button) => (button as HTMLButtonElement).disabled);
-    // three disabled Buttons and one disabled IconButton
-    expect(disabled).toHaveLength(4);
+    // three disabled Buttons, the TryOnButton and one disabled IconButton
+    expect(disabled).toHaveLength(5);
     expect(within(region).getByRole('button', { name: 'Нет в наличии' })).toBeDisabled();
   });
 

@@ -813,6 +813,25 @@ polling and in the history; A34's «Лимит не списан» would also be
 stays spent. `notify` is best effort: a few short attempts, and its failure never fails the
 fitting, since a lost push costs nothing (A44). Decided by the owner on 2026-10-24 at T13.
 
+**A72. The web side of the fitting and the push (T14).** Assumptions, owner to confirm at the
+summary: (1) a running fitting (`pending`, `processing`) is read again every 3 s, the history
+every 15 s while a loaded one runs (its timer reads every loaded batch again); an ended one
+every 10 minutes and on the tab's focus, before its 15-minute links expire (as «Мои фото»); a
+read the api refused (a 4xx but 429: deleted, signed out) or could not be read stops the timer,
+a network error, a 429 or a 5xx keeps it. (2) The connection opens for a signed-in user, again for
+another user, closes on a seen end of the session and stays as it is while the session loads or
+its read fails (`useSessionRealtime`, beside `useDropUserQueries`). (3) `@/shared/realtime` is a
+transport only: a slice's `RealtimeEvent` names the event, parses it and gives its key;
+`fittingFinishedEvent` (`entities/fitting`) is delivered once per `generationId` per connection
+(the last 200), and a push it cannot parse is dropped; `socket.io-client` loads with the first
+connection, so a visitor who never signs in never downloads it. (4) Under `next dev` the client
+stays on long-polling and asks for `/socket.io` without the slash, since Next answers
+`/socket.io/` with a 308; the rewrite adds the slash. `proxy.ts` skips `/socket.io/` (nginx's in
+production) and keeps the policy on `/socket.io`, which renders web's not-found page there; web's
+Sentry drops the polling requests' spans and breadcrumbs, whose `sid` is the socket's session. (5) `TryOnButton` is size 56 as A63.2 says (board 13 draws 48).
+(6) The unused `entities/generation` goes, as plan §7 says; `AiLabel`, `LimitMeter`,
+`ItemsStrip` and `HistoryCard` come with the screens that show them (T15, T16).
+
 ## Canvas and decisions
 
 Where the canvas differs from the decisions above, the decision wins:

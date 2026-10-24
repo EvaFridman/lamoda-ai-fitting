@@ -146,7 +146,7 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       Check: the socket e2e (own room, another user receives nothing, anonymous receives nothing);
       `npm run verify`.
       Commit: `feat(api): push a finished fitting to its user`
-- [ ] **T14. web: the fitting entity, the realtime client and the kit's additions.**
+- [x] **T14. web: the fitting entity, the realtime client and the kit's additions.**
       `entities/fitting` (schemas, keys, the hooks with the polling, the contract test),
       `@/shared/realtime` (`socket.io-client`, the dev rewrite, plan §6), the kit's
       `ProgressBar`, `CountBadge`, `Chip`/`ChipGroup` with their `/ui-kit` sections (`Sheet` came

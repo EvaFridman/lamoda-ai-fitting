@@ -223,3 +223,16 @@
   color: var(--color-text-secondary);
   overflow-wrap: anywhere;
 }
+
+// An icon with a CountBadge on its top right corner, as the fitting room's hanger has it (board 13).
+.badgeAnchor {
+  position: relative;
+  display: inline-flex;
+  padding-right: var(--space-2);
+}
+
+.badgeCorner {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+}

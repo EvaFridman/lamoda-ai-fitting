@@ -26,8 +26,11 @@ export const beforeSend: NonNullable<BrowserOptions['beforeSend']> = (event, hin
 // A user's photo is a signed storage link: its query carries `X-Amz-Credential` (the storage key's
 // id) and its path the user's id under `keep/users/` (spec 0011 M34, spec 0019 A37). The browser's
 // tracing names a span after each image it loads, with the whole link of another origin, so such
-// spans and breadcrumbs are dropped, whatever field holds the link.
-const SIGNED_LINK = /X-Amz-|\/keep\/users\//i;
+// spans and breadcrumbs are dropped, whatever field holds the link. So are the live connection's
+// long-polling requests (spec 0019 plan §6): their `sid` is the socket's session, which reads its
+// user's pushes without the cookie while it lasts, whether the field holds the whole link or only
+// its query (`EIO=4&transport=polling&sid=…`).
+const SIGNED_LINK = /X-Amz-|\/keep\/users\/|\/socket\.io\/?\?[^#]*\bsid=|\bEIO=\d[^#]*\bsid=/i;
 
 function holdsSignedLink(values: readonly unknown[]): boolean {
   return values.some((value) => typeof value === 'string' && SIGNED_LINK.test(value));

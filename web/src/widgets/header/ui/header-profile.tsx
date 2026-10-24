@@ -8,6 +8,7 @@ import {
   LoginModal,
   SignOutItems,
   useDropUserQueries,
+  useSessionRealtime,
   useSignInAnalytics,
 } from '@/features/auth';
 import { useTrackedElement } from '@/shared/analytics';
@@ -46,6 +47,7 @@ export function HeaderProfile() {
   const session = useSession();
   useSignInAnalytics(session);
   useDropUserQueries(session);
+  useSessionRealtime(session);
   const iconRef = useRef<HTMLButtonElement>(null);
   const wasSignedInRef = useRef(false);
 
