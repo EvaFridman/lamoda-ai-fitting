@@ -39,6 +39,7 @@ export {
   productListItemSchema,
   productListSchema,
   productVariationListSchema,
+  relatedProductsSchema,
   type FacetAttribute,
   type FacetBrand,
   type FacetPrice,
@@ -53,6 +54,7 @@ export {
   type ProductListItem,
   type ProductVariationList,
   type ProductVariationRecord,
+  type RelatedProducts,
 } from './model/schemas';
 export {
   CatalogProductCard,

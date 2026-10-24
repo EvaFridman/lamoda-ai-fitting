@@ -40,6 +40,7 @@ export const catalogProducts = {
     finalPrice: 4792,
     rating: 4.7,
     createdAt: '2026-10-07T22:27:33.272Z',
+    updatedAt: '2026-10-07T22:27:33.272Z',
   },
   fullPrice: {
     id: '01a1187a-a54d-7c88-a425-8e1c6ffe7e79',
@@ -53,6 +54,7 @@ export const catalogProducts = {
     finalPrice: 4990,
     rating: 4.6,
     createdAt: '2026-10-07T22:27:33.325Z',
+    updatedAt: '2026-10-07T22:27:33.325Z',
   },
   noPhoto: {
     id: '01a1187a-a584-7d90-a01b-fe2f608564b7',
@@ -66,6 +68,7 @@ export const catalogProducts = {
     finalPrice: 13490,
     rating: 4.6,
     createdAt: '2026-10-07T22:27:33.380Z',
+    updatedAt: '2026-10-07T22:27:33.380Z',
   },
   noRating: {
     id: '01a1187a-a52b-7fae-8e5c-2357779b9b95',
@@ -79,6 +82,7 @@ export const catalogProducts = {
     finalPrice: 2793,
     rating: null,
     createdAt: '2026-10-07T22:27:33.291Z',
+    updatedAt: '2026-10-07T22:27:33.291Z',
   },
   longName: {
     id: '01a1187a-a57c-7ff9-b9bb-a38063e7ac7a',
@@ -92,6 +96,7 @@ export const catalogProducts = {
     finalPrice: 12792,
     rating: 4.9,
     createdAt: '2026-10-07T22:27:33.372Z',
+    updatedAt: '2026-10-07T22:27:33.372Z',
   },
 } satisfies Record<string, ProductListItem>;
 

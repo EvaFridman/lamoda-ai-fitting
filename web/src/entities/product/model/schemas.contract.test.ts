@@ -28,6 +28,7 @@ import {
   productVariationListSchema,
   productVariationRecordSchema,
   productVariationSchema,
+  relatedProductsSchema,
 } from './schemas';
 
 const checks: ContractCheck[] = [
@@ -105,6 +106,11 @@ const checks: ContractCheck[] = [
     name: 'productDetailSchema (route)',
     schema: productDetailSchema,
     response: { method: 'get', path: '/products/{id}', status: '200' },
+  },
+  {
+    name: 'relatedProductsSchema',
+    schema: relatedProductsSchema,
+    response: { method: 'get', path: '/products/{id}/related', status: '200' },
   },
   {
     name: 'productImageListSchema',

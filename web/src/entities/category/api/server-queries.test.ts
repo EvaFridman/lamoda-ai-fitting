@@ -20,6 +20,7 @@ import {
   getActiveCategories,
   categoryListOptions,
   categoryOptions,
+  findCategoryById,
   findCategoryBySlug,
   getCategories,
   getCategory,
@@ -321,6 +322,55 @@ describe('findCategoryBySlug', () => {
     await findCategoryBySlug('x', new Headers({ 'x-real-ip': '203.0.113.7' }));
     const sent = (fetchMock.mock.calls[0]?.[1] as RequestInit).headers as Headers;
     expect(sent.get('x-forwarded-for')).toBe('203.0.113.7');
+  });
+});
+
+describe('findCategoryById', () => {
+  it('requests /categories/:id on behalf of the visitor and returns the category', async () => {
+    respondWith({ ...category, extra: 1 });
+    await expect(findCategoryById(category.id)).resolves.toEqual(category);
+    expect(requested().pathname).toBe(`/categories/${category.id}`);
+    expect(sentHeaders().get('x-proxy-secret')).toBe('s'.repeat(32));
+  });
+
+  it('returns an inactive category too, the caller decides', async () => {
+    respondWith({ ...category, isActive: false });
+    await expect(findCategoryById(category.id)).resolves.toMatchObject({ isActive: false });
+  });
+
+  it('keeps an id taken from input in one segment', async () => {
+    respondWith(category);
+    await findCategoryById('a/b');
+    expect(requested().pathname).toBe('/categories/a%2Fb');
+  });
+
+  it.each(['', '.', '..'])('answers null for %j without a request', async (id) => {
+    await expect(findCategoryById(id)).resolves.toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it.each([400, 404])('answers null for an http %i', async (status) => {
+    respondWith({}, status);
+    await expect(findCategoryById('x')).resolves.toBeNull();
+  });
+
+  it.each([500, 503])('rethrows a %i', async (status) => {
+    respondWith({}, status);
+    await expect(findCategoryById('x')).rejects.toMatchObject({ kind: 'http', status });
+  });
+
+  it('rethrows a network error and a schema error', async () => {
+    fetchMock.mockRejectedValue(new TypeError('fetch failed'));
+    await expect(findCategoryById('x')).rejects.toMatchObject({ kind: 'network' });
+    respondWith({ ...category, isActive: 'yes' });
+    await expect(findCategoryById('x')).rejects.toMatchObject({ kind: 'schema' });
+  });
+
+  it('takes the address from the given headers', async () => {
+    respondWith(category);
+    await findCategoryById('x', new Headers({ 'x-real-ip': '198.51.100.9' }));
+    const sent = (fetchMock.mock.calls[0]?.[1] as RequestInit).headers as Headers;
+    expect(sent.get('x-forwarded-for')).toBe('198.51.100.9');
   });
 });
 

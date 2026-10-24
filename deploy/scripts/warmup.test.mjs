@@ -80,6 +80,7 @@ describe('warmup', () => {
     const code = await warmup({
       base,
       pauseMs: 0,
+      productPauseMs: 0,
       out: (line) => out.push(line),
       err: (line) => err.push(line),
       ...options,
@@ -100,7 +101,7 @@ describe('warmup', () => {
       '/catalog',
       '/catalog/dresses',
     ]);
-    assert.equal(out[0], 'warm-up: 3 addresses, 0 categories over the bound skipped');
+    assert.equal(out[0], 'warm-up: 3 addresses, 0 over the bounds skipped');
     assert.match(out[1], /^warm-up: \/ 307, first \d+ ms, repeated \d+ ms$/);
     assert.match(out[2], /^warm-up: \/catalog 200, first \d+ ms, repeated \d+ ms$/);
     assert.match(out[3], /^warm-up: \/catalog\/dresses 200, first \d+ ms, repeated \d+ ms$/);
@@ -132,6 +133,28 @@ describe('warmup', () => {
     // Arrival times at the server, not the client's starts: room for delivery and a busy runner.
     for (const gap of gaps.slice(0, 2)) assert.ok(gap >= 450, `cold gap ${gap}`);
     for (const gap of gaps.slice(2)) assert.ok(gap < 250, `repeated gap ${gap}`);
+  });
+
+  it('pauses before each product page of the repeated pass only', async () => {
+    list = { paths: ['/a', '/products/p1', '/products/p2', '/b'], skipped: 0 };
+    const { code } = await run({ productPauseMs: 300 });
+    assert.equal(code, 0);
+    const starts = log.filter((entry) => entry.url !== '/healthz/warmup').map((entry) => entry.at);
+    const gaps = starts.slice(1).map((at, i) => at - starts[i]);
+    // Cold: no pause at all. Repeated: /a after the cold /b, then a pause before each product page,
+    // none before /b.
+    for (const gap of gaps.slice(0, 3)) assert.ok(gap < 250, `cold gap ${gap}`);
+    assert.ok(gaps[3] < 250, `repeated /a gap ${gaps[3]}`);
+    assert.ok(gaps[4] >= 250, `repeated product gap ${gaps[4]}`);
+    assert.ok(gaps[5] >= 250, `repeated product gap ${gaps[5]}`);
+    assert.ok(gaps[6] < 250, `repeated /b gap ${gaps[6]}`);
+  });
+
+  it('stops when a product pause would pass the budget', async () => {
+    list = { paths: ['/products/p1'], skipped: 0 };
+    const { code, err } = await run({ productPauseMs: 1000, budgetMs: 500 });
+    assert.equal(code, 1);
+    assert.deepEqual(err, ["warm-up failed: /products/p1 (the step's 500 ms ran out)"]);
   });
 
   it('stops at a 500 and names the address', async () => {
@@ -197,7 +220,7 @@ describe('warmup', () => {
       out[0],
       'warm-up: /healthz/warmup answered 404, the image predates the list: requesting / only',
     );
-    assert.equal(out[1], 'warm-up: 1 addresses, 0 categories over the bound skipped');
+    assert.equal(out[1], 'warm-up: 1 addresses, 0 over the bounds skipped');
   });
 
   it('fails on a list that answers neither 200 nor 404', async () => {
@@ -231,7 +254,7 @@ describe('warmup', () => {
     list = { paths: ['/', '/catalog', ...categories, '/privacy'], skipped: 3 };
     const { code, out } = await run();
     assert.equal(code, 0);
-    assert.equal(out[0], 'warm-up: 53 addresses, 3 categories over the bound skipped');
+    assert.equal(out[0], 'warm-up: 53 addresses, 3 over the bounds skipped');
     assert.equal(out.length, 54);
     for (const category of categories) {
       assert.equal(pages().filter((url) => url === category).length, 2, category);
@@ -248,7 +271,7 @@ describe('warmup', () => {
   it('does not add a WARMUP_EXTRA_PATH the list already holds', async () => {
     const { code, out } = await run({ extraPath: '/catalog' });
     assert.equal(code, 0);
-    assert.equal(out[0], 'warm-up: 3 addresses, 0 categories over the bound skipped');
+    assert.equal(out[0], 'warm-up: 3 addresses, 0 over the bounds skipped');
     assert.equal(pages().filter((url) => url === '/catalog').length, 2);
   });
 
@@ -289,7 +312,7 @@ describe('warmup', () => {
     child.stdin.end(source);
     const status = await new Promise((resolve) => child.on('close', resolve));
     assert.equal(status, 1);
-    assert.match(stdout, /^warm-up: 4 addresses, 0 categories over the bound skipped\n/);
+    assert.match(stdout, /^warm-up: 4 addresses, 0 over the bounds skipped\n/);
     assert.equal(stderr, 'warm-up failed: /missing (answered 404)\n');
   });
 });

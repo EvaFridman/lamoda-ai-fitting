@@ -50,6 +50,7 @@ const listItem = {
   finalPrice: 4500,
   rating: null,
   createdAt: DATE,
+  updatedAt: DATE,
 };
 const detail = {
   ...listItem,

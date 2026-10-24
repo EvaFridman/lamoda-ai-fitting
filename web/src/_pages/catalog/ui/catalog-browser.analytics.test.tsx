@@ -63,6 +63,7 @@ function product(n: number) {
     finalPrice: 5000,
     rating: null,
     createdAt: DATE,
+    updatedAt: DATE,
   };
 }
 

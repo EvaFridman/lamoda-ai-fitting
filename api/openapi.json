@@ -8106,6 +8106,10 @@
           "createdAt": {
             "format": "date-time",
             "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
           }
         },
         "required": [
@@ -8119,7 +8123,8 @@
           "discount",
           "finalPrice",
           "rating",
-          "createdAt"
+          "createdAt",
+          "updatedAt"
         ]
       },
       "FacetPriceDto": {
@@ -8467,6 +8472,10 @@
             "format": "date-time",
             "type": "string"
           },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
           "description": {
             "type": "string",
             "nullable": true
@@ -8502,6 +8511,7 @@
           "finalPrice",
           "rating",
           "createdAt",
+          "updatedAt",
           "description",
           "images",
           "variations",

@@ -1,0 +1,93 @@
+// The product page on the desktop (board 1): the header's 1200px column; the breadcrumbs, then the
+// gallery (888px) and the buy box side by side, 32px apart. Below 600px the breadcrumbs go (board
+// 1.1 has none) and the blocks stack edge to edge.
+
+.page {
+  box-sizing: content-box;
+  max-width: 1200px;
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: 0 var(--space-10) var(--space-12);
+
+  @media (width < 600px) {
+    padding-inline: 0;
+  }
+}
+
+.crumbs {
+  padding: var(--space-6) 0 20px;
+
+  @media (width < 600px) {
+    display: none;
+  }
+}
+
+.main {
+  display: flex;
+  gap: var(--space-8);
+
+  @media (width < 1024px) {
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+}
+
+.gallery {
+  flex: 0 1 888px;
+  min-width: 0;
+}
+
+.buyBox {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-2);
+
+  min-width: 0;
+
+  @media (width < 600px) {
+    padding: var(--space-3) var(--space-4);
+  }
+}
+
+// The brand, the heading (board 1: «Annen»), the product's name under it in the secondary colour.
+.brand {
+  margin: var(--space-4) 0 0;
+  font-size: var(--font-size-headline-m);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-headline-m);
+}
+
+.name {
+  margin: 2px 0 0;
+  color: var(--color-text-secondary);
+}
+
+.alert {
+  padding: var(--space-6) 0;
+
+  @media (width < 600px) {
+    padding-inline: var(--space-4);
+  }
+}
+
+.skeleton {
+  min-height: 100dvh;
+}
+
+// The skeleton's text for screen readers only.
+.status {
+  position: absolute;
+
+  overflow: hidden;
+
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+
+  white-space: nowrap;
+
+  clip-path: inset(50%);
+}

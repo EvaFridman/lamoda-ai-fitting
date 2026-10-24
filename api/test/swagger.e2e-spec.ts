@@ -419,6 +419,8 @@ describe('OpenAPI document (e2e)', () => {
     '/fitting-sessions',
     '/fittings',
     '/me',
+    // The signed-in user's last fitting of a product (spec 0019 AC24), under a public prefix.
+    '/products/{id}/fittings',
   ];
   const isHealth = (op: Op): boolean => op.path.startsWith('/health/');
   const isPublic = (op: Op): boolean =>

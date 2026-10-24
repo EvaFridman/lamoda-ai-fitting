@@ -6,6 +6,7 @@ export {
   getActiveCategories,
   getCategories,
   readActiveCategories,
+  findCategoryById,
   findCategoryBySlug,
   getCategory,
   getCategoryBySlug,

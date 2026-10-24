@@ -22,6 +22,7 @@ interface ListItem {
   finalPrice: number;
   rating: number | null;
   createdAt: string;
+  updatedAt: string;
 }
 
 interface Detail extends ListItem {
@@ -207,7 +208,7 @@ describe('products: list', () => {
     expectError(await http().get('/products?limit=101'), 400, 'VALIDATION_FAILED', 'limit');
   });
 
-  it('gives each item exactly the list keys, without updatedAt and description', async () => {
+  it('gives each item exactly the list keys: updatedAt in, description out (spec 0019 A81)', async () => {
     const product = await createProduct({ description: 'Long text', rating: 4.5 });
     const item = (await listAll()).find((candidate) => candidate.id === product.id);
 
@@ -223,9 +224,11 @@ describe('products: list', () => {
       'name',
       'price',
       'rating',
+      'updatedAt',
     ]);
     expect(item).toMatchObject({
       id: product.id,
+      updatedAt: product.updatedAt,
       article: product.article,
       brand: { id: brand.id, name: brand.name },
       category: { id: category.id, name: category.name, slug: category.slug },
@@ -265,7 +268,8 @@ describe('products: detail', () => {
       attributes: [],
     });
     expect(product.createdAt).toEqual(expect.any(String));
-    expect('updatedAt' in product).toBe(false);
+    expect(product.updatedAt).toEqual(expect.any(String));
+    expect(Number.isNaN(Date.parse(product.updatedAt))).toBe(false);
   });
 
   it('returns the same body from GET as from POST', async () => {
@@ -585,7 +589,20 @@ describe('products: update', () => {
       price: 500,
       discount: 20,
       finalPrice: 400,
+      updatedAt: expect.any(String),
     });
+  });
+
+  it('moves updatedAt forward when the product changes, which the sitemap dates it by', async () => {
+    const product = await createProduct();
+    const response = await http()
+      .patch(`/products/${product.id}`)
+      .set(userCookie)
+      .send({ name: 'Touched' });
+
+    expect(response.status).toBe(200);
+    expect(Date.parse(response.body.updatedAt)).toBeGreaterThan(Date.parse(product.updatedAt));
+    expect(response.body.createdAt).toBe(product.createdAt);
   });
 
   it('clears rating and description with null', async () => {

@@ -57,6 +57,7 @@ function productsOf(count: number): ProductListItem[] {
     finalPrice: 5000,
     rating: null,
     createdAt: DATE,
+    updatedAt: DATE,
   }));
 }
 

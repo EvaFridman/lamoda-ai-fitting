@@ -70,6 +70,7 @@ export function toListItem(row: ListItemRow | DetailRow, mediaBaseUrl: string): 
     finalPrice: finalPrice(row.price, row.discount),
     rating: decimalToNumber(row.rating),
     createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
   };
 }
 

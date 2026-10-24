@@ -7,7 +7,7 @@
 // `_app/warmup/routes.ts`), then requests each twice: a cold pass, one at a time and at most one a
 // second (about three api reads a category page, all under web's own `read` quota, V16), then a
 // repeated pass, one at a time with no pause (the warm cache; its time is the page's render time,
-// V14). Requests come from `127.0.0.1`, so no visitor's quota is touched (AC13).
+// V14) but 250 ms before a product page, whose own reads are never cached (spec 0019 A81). Requests come from `127.0.0.1`, so no visitor's quota is touched (AC13).
 //
 // Every address answers 200, but `/`, whose redirect is not followed and answers 307. Anything
 // else (a 429 too), no full answer in 10 s or the step past 120 s exits 1 and names the address.
@@ -16,7 +16,7 @@
 // sets an address that answers 404), adds one address to the list; `deploy.sh` passes it to this
 // process only (`exec -e`), never into the container's environment.
 //
-// Output: one line per address and the count of categories over the bound on stdout (on a
+// Output: one line per address and the count of addresses over the bounds on stdout (on a
 // failure, the cold pass's times so far); a failure as the last line on stderr,
 // `warm-up failed: <address> (<reason>)`. Exit 0, or 1 on a failure.
 
@@ -27,6 +27,10 @@ const LIST_PATH = '/healthz/warmup';
 const TIMEOUT_MS = 10_000;
 const BUDGET_MS = 120_000;
 const PAUSE_MS = 1000;
+// Before a product page in the repeated pass (spec 0019 A81): its two reads of `/products/:id` on
+// the visitor's behalf are never cached, and the api's `read` tier allows 10 a second per route.
+const PRODUCT_PAUSE_MS = 250;
+const isProductPage = (path) => path.startsWith('/products/');
 
 class WarmupFailure extends Error {
   constructor(address, reason) {
@@ -123,6 +127,7 @@ export async function warmup({
   timeoutMs = TIMEOUT_MS,
   budgetMs = BUDGET_MS,
   pauseMs = PAUSE_MS,
+  productPauseMs = PRODUCT_PAUSE_MS,
   out = (line) => process.stdout.write(`${line}\n`),
   err = (line) => process.stderr.write(`${line}\n`),
 } = {}) {
@@ -139,7 +144,7 @@ export async function warmup({
     if (list.predates) {
       out(`warm-up: ${LIST_PATH} answered 404, the image predates the list: requesting / only`);
     }
-    out(`warm-up: ${paths.length} addresses, ${list.skipped} categories over the bound skipped`);
+    out(`warm-up: ${paths.length} addresses, ${list.skipped} over the bounds skipped`);
 
     const check = (path, result) => {
       if (result.status !== expectedStatus(path)) {
@@ -162,6 +167,12 @@ export async function warmup({
     }
     while (first.length > 0) {
       const { path, ms: firstMs } = first[0];
+      if (isProductPage(path) && productPauseMs > 0) {
+        if (productPauseMs >= clock.left()) {
+          throw new WarmupFailure(path, `the step's ${budgetMs} ms ran out`);
+        }
+        await sleep(productPauseMs);
+      }
       const result = await clock.get(base, path);
       check(path, result);
       first.shift();

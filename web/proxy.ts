@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
 import { categoryProxy, isCategoryPath } from '@/_pages/catalog/server';
+import { isProductPath, productProxy } from '@/_pages/product/server';
 import { sentryDsn } from '@/shared/config';
 import { getServerEnv } from '@/shared/config/server';
 import { contentSecurityPolicy, newNonce, NONCE_HEADER } from '@/shared/csp/server';
@@ -9,7 +10,7 @@ import { contentSecurityPolicy, newNonce, NONCE_HEADER } from '@/shared/csp/serv
 // (spec 0014 plan §5): Next reads the nonce from the request's copy of the header and puts it on
 // the scripts it renders per request; server components read it from NONCE_HEADER. nginx adds no
 // policy of its own to an answer that carries this one. A category's unknown or inactive slug
-// answers 404 (O65).
+// answers 404 (O65), and so does an unknown product or one of an inactive category (spec 0019 A81).
 export async function proxy(request: NextRequest) {
   const nonce = newNonce();
   const storage = storageImages();
@@ -22,9 +23,12 @@ export async function proxy(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set(NONCE_HEADER, nonce);
   requestHeaders.set('content-security-policy', policy);
-  const response = isCategoryPath(request.nextUrl.pathname)
+  const { pathname } = request.nextUrl;
+  const response = isCategoryPath(pathname)
     ? await categoryProxy(request, requestHeaders)
-    : NextResponse.next({ request: { headers: requestHeaders } });
+    : isProductPath(pathname)
+      ? await productProxy(request, requestHeaders)
+      : NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set('content-security-policy', policy);
   return response;
 }

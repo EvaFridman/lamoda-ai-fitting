@@ -26,6 +26,7 @@ function product(attributes: ProductDetail['attributes']): ProductDetail {
     finalPrice: 1,
     rating: null,
     createdAt: '2026-10-01T12:00:00.000Z',
+    updatedAt: '2026-10-01T12:00:00.000Z',
     description: null,
     images: [],
     variations: [],

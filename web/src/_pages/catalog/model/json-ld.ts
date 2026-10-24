@@ -71,7 +71,7 @@ export interface CatalogJsonLdInput {
 }
 
 function product(siteUrl: string, item: CatalogJsonLdInput['products'][number]): Product {
-  // The product page's address (O7), a 404 until its spec (backlog, "Product card link").
+  // The product page's address (O7, spec 0019 plan §8).
   const url = new URL(`/products/${encodeURIComponent(item.id)}`, siteUrl).href;
   return {
     '@type': 'Product',
@@ -129,13 +129,4 @@ export function catalogJsonLd({
     );
   }
   return { '@context': 'https://schema.org', '@graph': graph };
-}
-
-// JSON's escape of `<`: a backslash, then u003c.
-const ESCAPED_LESS_THAN = '\\' + 'u003c';
-
-// JSON for a `<script type="application/ld+json">`: every `<` escaped, so no text from the api
-// ("</script>") can end the script early (plan §3.5).
-export function jsonLdText(data: CatalogJsonLd): string {
-  return JSON.stringify(data).replaceAll('<', ESCAPED_LESS_THAN);
 }

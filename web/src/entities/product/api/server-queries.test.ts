@@ -16,6 +16,7 @@ vi.mock('react', async (importOriginal) => ({
     },
 }));
 vi.mock('server-only', () => ({}));
+vi.mock('node:timers/promises', () => ({ setTimeout: vi.fn(() => Promise.resolve()) }));
 vi.mock('next/headers', () => ({
   headers: () => Promise.resolve(new Headers({ 'x-real-ip': '203.0.113.7' })),
 }));
@@ -27,11 +28,15 @@ vi.mock('@/shared/config/server', () => ({
   }),
 }));
 
+import { setTimeout as sleep } from 'node:timers/promises';
+
 import { ApiError } from '@/shared/api';
 
 import { productKeys } from './keys';
 import {
   getProduct,
+  getSitemapProducts,
+  SITEMAP_BATCH_INTERVAL_MS,
   getProductAttributeValues,
   getProductBatch,
   getProductFacets,
@@ -79,6 +84,7 @@ function listItem(extra: Record<string, unknown> = {}) {
     finalPrice: 4500,
     rating: null,
     createdAt: DATE,
+    updatedAt: DATE,
     ...extra,
   };
 }
@@ -676,6 +682,60 @@ describe('empty filters', () => {
 
   it('gives a trimmed q the key of the same q', () => {
     expect(productKeys.list({ q: ' a ' })).toEqual(productKeys.list({ q: 'a' }));
+  });
+});
+
+describe('getSitemapProducts', () => {
+  const sleeps = vi.mocked(sleep);
+
+  beforeEach(() => {
+    sleeps.mockClear();
+  });
+
+  function pages(...cursors: (string | null)[]) {
+    let call = 0;
+    fetchMock.mockImplementation(() => {
+      const nextCursor = cursors[call++] ?? null;
+      return Promise.resolve(jsonResponse({ items: [listItem()], total: null, nextCursor }));
+    });
+  }
+
+  it('waits the interval before every batch after the first, not before it or after the last', async () => {
+    pages('c1', 'c2', null);
+    const items = await getSitemapProducts(1000);
+    expect(items).toHaveLength(3);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(sleeps).toHaveBeenCalledTimes(2);
+    expect(sleeps).toHaveBeenNthCalledWith(1, SITEMAP_BATCH_INTERVAL_MS);
+    expect(SITEMAP_BATCH_INTERVAL_MS).toBe(200);
+  });
+
+  it('does not wait for a single batch', async () => {
+    pages(null);
+    await getSitemapProducts(1000);
+    expect(sleeps).not.toHaveBeenCalled();
+  });
+
+  it('waits before a batch, not after the one that reaches the maximum', async () => {
+    pages('c1', 'c2', 'c3');
+    const items = await getSitemapProducts(2);
+    expect(items).toHaveLength(2);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(sleeps).toHaveBeenCalledTimes(1);
+  });
+
+  it('asks each batch with the previous cursor and the api maximum, as the page cache', async () => {
+    pages('c1', null);
+    await getSitemapProducts(1000);
+    const urls = fetchMock.mock.calls.map((call) => new URL(String(call[0])));
+    expect(urls.map((url) => url.searchParams.get('cursor'))).toEqual([null, 'c1']);
+    expect(urls.every((url) => url.searchParams.get('limit') === '100')).toBe(true);
+    expect(sentHeaders().has('x-proxy-secret')).toBe(false);
+  });
+
+  it('throws a failed batch', async () => {
+    respondWith({}, 503);
+    await expect(getSitemapProducts(10)).rejects.toMatchObject({ kind: 'http', status: 503 });
   });
 });
 

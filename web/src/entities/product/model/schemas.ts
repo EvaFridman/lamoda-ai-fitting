@@ -27,6 +27,7 @@ export const productListItemSchema = z.object({
   finalPrice: z.number(),
   rating: z.number().nullable(),
   createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
 });
 
 // ProductImageDto.
@@ -136,6 +137,9 @@ export const productAttributeValueRecordSchema = z.object({
 
 // GET /products.
 export const productListSchema = cursorPaginatedSchema(productListItemSchema);
+
+// GET /products/:id/related: «С этим товаром выбирают» (spec 0019 A36).
+export const relatedProductsSchema = z.array(productListItemSchema);
 // GET /products/:id/images.
 export const productImageListSchema = paginatedSchema(productImageRecordSchema);
 // GET /products/:id/variations.
@@ -154,6 +158,7 @@ export type ProductImageRecord = z.infer<typeof productImageRecordSchema>;
 export type ProductVariationRecord = z.infer<typeof productVariationRecordSchema>;
 export type ProductAttributeValueRecord = z.infer<typeof productAttributeValueRecordSchema>;
 export type ProductList = z.infer<typeof productListSchema>;
+export type RelatedProducts = z.infer<typeof relatedProductsSchema>;
 export type ProductImageList = z.infer<typeof productImageListSchema>;
 export type ProductVariationList = z.infer<typeof productVariationListSchema>;
 export type ProductAttributeValueList = z.infer<typeof productAttributeValueListSchema>;

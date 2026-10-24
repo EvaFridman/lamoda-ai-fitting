@@ -48,7 +48,7 @@ function link(
 }
 
 describe('toListItem', () => {
-  it('returns exactly the list fields, without updatedAt and description', () => {
+  it('returns exactly the list fields: updatedAt in, description out (spec 0019 A81)', () => {
     const item = toListItem(row(), BASE);
 
     expect(Object.keys(item).sort()).toEqual([
@@ -63,7 +63,14 @@ describe('toListItem', () => {
       'name',
       'price',
       'rating',
+      'updatedAt',
     ]);
+    expect(item.updatedAt).toBe(createdAt);
+  });
+
+  it('gives the detail the same updatedAt', () => {
+    const updatedAt = new Date('2026-03-04T05:06:07.000Z');
+    expect(toDetail(row({ updatedAt }), BASE).updatedAt).toBe(updatedAt);
   });
 
   it('turns Decimal price and rating into numbers and computes finalPrice (AC5)', () => {

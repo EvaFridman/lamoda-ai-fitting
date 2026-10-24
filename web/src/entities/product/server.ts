@@ -1,7 +1,12 @@
 import 'server-only';
 
 export {
+  findProduct,
   getProduct,
+  getProductById,
+  getRelatedProducts,
+  getSitemapProducts,
+  readFirstProduct,
   getProductAttributeValues,
   getProductFacets,
   getProductBatch,
@@ -15,4 +20,5 @@ export {
   productListOptions,
   productOptions,
   productVariationListOptions,
+  relatedProductsOptions,
 } from './api/server-queries';

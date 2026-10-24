@@ -7,6 +7,10 @@ vi.mock('@/_pages/catalog/server', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/_pages/catalog/server')>()),
   categoryProxy: vi.fn(),
 }));
+vi.mock('@/_pages/product/server', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/_pages/product/server')>()),
+  productProxy: vi.fn(),
+}));
 // The storage's browser address of the local stack (spec 0019): its origin goes into img-src.
 vi.mock('@/shared/config/server', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/shared/config/server')>()),
@@ -14,10 +18,12 @@ vi.mock('@/shared/config/server', async (importOriginal) => ({
 }));
 
 import { categoryProxy } from '@/_pages/catalog/server';
+import { productProxy } from '@/_pages/product/server';
 
 import { config, proxy } from './proxy';
 
 const category = vi.mocked(categoryProxy);
+const product = vi.mocked(productProxy);
 
 function request(path: string, headers?: Record<string, string>): NextRequest {
   return new NextRequest(`https://site.test${path}`, { headers });
@@ -34,6 +40,10 @@ function nonceOf(policy: string | null): string {
 beforeEach(() => {
   category.mockReset();
   category.mockImplementation((_request, requestHeaders) =>
+    Promise.resolve(NextResponse.next({ request: { headers: requestHeaders } })),
+  );
+  product.mockReset();
+  product.mockImplementation((_request, requestHeaders) =>
     Promise.resolve(NextResponse.next({ request: { headers: requestHeaders } })),
   );
 });
@@ -108,6 +118,40 @@ describe('proxy', () => {
     expect(forwarded(response, 'x-nonce')).toBe(nonceOf(policy));
   });
 
+  it.each(['/privacy', '/products', '/products/a/b', '/catalog/dresses'])(
+    'does not run the product check for %s',
+    async (path) => {
+      await proxy(request(path));
+      expect(product).not.toHaveBeenCalled();
+    },
+  );
+
+  it('runs the product check for /products/<id> with the forwarded headers', async () => {
+    const response = await proxy(request('/products/0b1c2d3e-0000-4000-8000-000000000001'));
+    expect(product).toHaveBeenCalledTimes(1);
+    expect(category).not.toHaveBeenCalled();
+    const passed = product.mock.calls[0]?.[1];
+    expect(passed?.get('x-nonce')).toBe(nonceOf(response.headers.get('content-security-policy')));
+    expect(passed?.get('content-security-policy')).toBe(
+      response.headers.get('content-security-policy'),
+    );
+  });
+
+  it("adds the policy to a product's not-found rewrite", async () => {
+    product.mockImplementation((incoming, requestHeaders) =>
+      Promise.resolve(
+        NextResponse.rewrite(new URL('/_product-not-found', incoming.url), {
+          request: { headers: requestHeaders },
+        }),
+      ),
+    );
+    const response = await proxy(request('/products/none'));
+    const policy = response.headers.get('content-security-policy');
+    expect(response.headers.get('x-middleware-rewrite')).toContain('/_product-not-found');
+    expect(policy).toContain("object-src 'none'");
+    expect(forwarded(response, 'x-nonce')).toBe(nonceOf(policy));
+  });
+
   it('gives the development policy eval and the production one not', async () => {
     vi.stubEnv('NODE_ENV', 'development');
     const dev = await proxy(request('/privacy'));
@@ -129,6 +173,7 @@ describe('config.matcher', () => {
     '/privacy',
     '/catalog',
     '/catalog/dresses',
+    '/products/0b1c2d3e-0000-4000-8000-000000000001',
     '/customer/account',
     '/ui-kit',
     '/_next/foo',

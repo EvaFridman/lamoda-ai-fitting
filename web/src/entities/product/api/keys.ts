@@ -31,4 +31,5 @@ export const productKeys = {
     [...productKeys.detail(id), 'variations', productPageQuery(query)] as const,
   attributeValues: (id: string, query: PageQuery = {}) =>
     [...productKeys.detail(id), 'attribute-values', productPageQuery(query)] as const,
+  related: (id: string) => [...productKeys.detail(id), 'related'] as const,
 };

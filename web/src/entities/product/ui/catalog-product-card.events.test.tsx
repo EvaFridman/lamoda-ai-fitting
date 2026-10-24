@@ -18,6 +18,7 @@ const product: ProductListItem = {
   finalPrice: 5000,
   rating: null,
   createdAt: '2026-10-01T12:00:00.000Z',
+  updatedAt: '2026-10-01T12:00:00.000Z',
 };
 
 describe('CatalogProductCard linkEvents', () => {
