@@ -1,9 +1,11 @@
 # 0020 catalog: loading and the phone layout
 
-Status: accepted (2026-10-23); amended 2026-10-23 at the review of PR 1 (AC1, AC9, AC11, AC14,
-AC16); amended 2026-10-23 at T10 (AC5: W28); amended 2026-10-24 at T10a (AC11–AC14: W30); amended 2026-10-24 at T11 (scope, AC7: W31).
+Status: done (2026-10-24): all 17 criteria pass ([tasks.md](tasks.md), acceptance record). History,
+not instructions. Accepted 2026-10-23; amended 2026-10-23 at the review of PR 1 (AC1, AC9, AC11,
+AC14, AC16); amended 2026-10-23 at T10 (AC5: W28); amended 2026-10-24 at T10a (AC11–AC14: W30);
+amended 2026-10-24 at T11 (scope, AC7: W31); amended 2026-10-24 at T12 (AC16's check: W32).
 
-Decisions: `clarifications.md` (W0–W31).
+Decisions: `clarifications.md` (W0–W32).
 
 ## Goal
 
@@ -108,8 +110,8 @@ screenshots of a Lamoda category page, described in `clarifications.md`).
 ### Analytics and build
 
 - **AC16.** The events and tracked elements of `clarifications.md` («Analytics») are sent as listed
-  there, checked by the browser's requests to Mixpanel's EU endpoint on a local stack with a token
-  (the element, its zone and properties in each, W21).
+  there, checked by the analytics tests (the element, its zone and properties in each; W32 in
+  place of W21's requests to Mixpanel, for want of a local token).
 - **AC17.** `npm run verify` passes, the static shells add no inline script, and the CI deploy
   serves the new pages.
 

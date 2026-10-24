@@ -26,7 +26,9 @@ analytics events' catalog, its document `EVENTS.md`, their checks, the rule
 pages under `/customer`, the page "Мои данные" with `PATCH /me` and deleting the account
 from its page by `0017-account`; the caches' Redis and both Redis' memory limits, the page cache
 of the public catalog's reads, the deploy's warm-up and its route list, the first-request measurement after a deploy, the rule
-`.claude/rules/web-pages.md` and the deploy job's time limit by `0018-cache-warmup` (all closed).
+`.claude/rules/web-pages.md` and the deploy job's time limit by `0018-cache-warmup`; the catalog's
+loading placeholders, its phone layout below 600 px and the filters' sheet with a screen per
+filter below 1024 px by `0020-catalog-mobile` (all closed).
 In progress: `0019-ai-fitting`, whose phase 1 brought the OpenAI module and its checks, the
 tables of the fitting (user photos, `fitting_quota`, the categories' `slot` in their answer), the
 fitting photos (`/me/photos`, nginx's 20 MB upload route, the page "Мои фото") and the file
@@ -537,7 +539,13 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   `LinkButton` (a `<button>` styled as the kit's `Link`, for an action that is not navigation),
   `Modal`'s `initialFocus` (a ref of the element focused when it opens, else the first focusable
   one) and `FileInput` (a kit `Button` that clicks a hidden `<input type="file">`, one file, with
-  `accept` and `capture`, spec 0019 A30). Tracking handlers reach the kit and entity components as
+  `accept` and `capture`, spec 0019 A30). For the catalog's sheet (spec 0020) `Drawer` takes
+  `fullHeight` (a bottom sheet as high as it can be, so a `Drawer` nested in it, Base UI's nested
+  drawer, is as high and the outer one steps back behind it), `onBack` (a "‹" before the title,
+  `backLabel`, `backRef`), `headerAction` (a control before the ×), `initialFocus`, and passes
+  Base UI's close `reason` to `onOpenChange`; `CheckboxFilterPanel` and `SortFilterPanel` take
+  `layout: 'sheet'` (rows split by hairlines, the box or circle on the right), the checkbox panel
+  `selectAll` ("Выбрать все", W24); the icons include `FilterIcon`. Tracking handlers reach the kit and entity components as
   props, from the widget or page that calls `useTrackedElement`: `FilterDropdown`'s and the
   catalog filters' `chipEvents` (on the chip's trigger, not its ×), `FileInput`'s `events`,
   `CatalogProductCard`'s and `CatalogCategoryList`'s `linkEvents`.
@@ -616,6 +624,21 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   parameters dropped, `q` cut to 100); a filter change replaces the address and drops `cursor`.
   The first batch is prefetched on the server, the next ones load by cursor in
   `widgets/product-grid`'s virtual grid; with no JavaScript, "Дальше" opens `?cursor=`.
+  Loading and the phone layout (spec 0020): a category change, the first load and Back show
+  `CatalogSkeleton` (`_pages/catalog`) and `ProductGridSkeleton` (`widgets/product-grid`) at once,
+  the footer kept below the window; a filter or sort change keeps the current list until the new
+  one arrives, and the filter chips and both category lists keep the last counts while new ones
+  load. Below 600 px the heading is a row of "←" (back when the previous entry is this site's,
+  else `/catalog`; none on `/catalog` opened from elsewhere, `lib/back-target.ts`), the title and
+  "N товаров"; it and a bar with the category toggle (the list opens in place, each row keeping
+  the query) and "Фильтры" (a dot while a filter, a sort other than the default or `q` is applied)
+  stick to the window's top; the grid keeps 16 px from the sides and 8 px between the cards, and
+  the breadcrumbs render under the list (both copies in the DOM, one hidden). Below 1024 px the
+  filters are a bottom sheet (`widgets/catalog-filters`) of rows, each opening its filter's
+  screen as a second sheet nested over the list; a screen's "Применить" keeps its choice in the
+  draft, "‹", Escape and a swipe drop it, nothing reaches the address until "Показать N товаров",
+  and any close of the sheet drops the draft and returns the focus to "Фильтры". Its chips and
+  rows send their elements with `surface`.
 - `web` data from the api renders at request time inside `<Suspense>`: the web image must build with
   no api, Redis or database running. So a page has sent its static shell with 200 before it reads
   anything, and a `notFound()` there is a soft 404 (the not-found page with `noindex`). A real 404

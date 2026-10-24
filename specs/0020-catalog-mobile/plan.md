@@ -1,10 +1,11 @@
 # 0020 catalog: loading and the phone layout: plan
 
-Status: accepted (2026-10-23); amended 2026-10-23 at the review of PR 1 (§1, §2, §3, §4, risks,
-verification: W19–W22); amended 2026-10-23 at T10 (§1, §2, risks: W27–W29); amended 2026-10-24 at T10a (§3, risks:
-W30); amended 2026-10-24 at T11 (§2: W31).
+Status: done (2026-10-24). History, not instructions. Accepted 2026-10-23; amended 2026-10-23 at
+the review of PR 1 (§1, §2, §3, §4, risks, verification: W19–W22); amended 2026-10-23 at T10 (§1,
+§2, risks: W27–W29); amended 2026-10-24 at T10a (§3, risks: W30); amended 2026-10-24 at T11 (§2:
+W31); amended 2026-10-24 at T12 (verification of AC16: W32).
 
-How `spec.md` (AC1–AC17) is built, with the decisions of `clarifications.md` (W0–W31). No new
+How `spec.md` (AC1–AC17) is built, with the decisions of `clarifications.md` (W0–W32). No new
 package, no api change, no migration. Paths are under `web/src/` unless they start otherwise.
 
 ## 1. Loading placeholders (W2; AC1–AC3)
@@ -236,5 +237,5 @@ focus item removed (§4).
 | AC5–AC9   | qa-tester at 375, 700 and 1280 px (screenshots against W0); Vitest: toggle `aria-expanded`, rows keep the query, the dot's rule                                                                                                                                                                                                        |
 | AC10–AC14 | Vitest of the drawer: rows, summaries, screens, "Применить"/"‹"/"По умолчанию"/"Сбросить", "Показать" applies once and returns the focus to "Фильтры", close drops the draft, focus moves; qa-tester with the keyboard and at 375 px                                                                                                   |
 | AC15      | Vitest: a failing facets refetch keeps the chip focused                                                                                                                                                                                                                                                                                |
-| AC16      | analytics tests (`surface`, new elements' properties); qa-tester reads the browser's requests to Mixpanel's EU endpoint on a local stack with a token (W21)                                                                                                                                                                            |
+| AC16      | analytics tests (`surface`, new elements' properties) and `catalog.test.ts`; no reading of the requests to Mixpanel, for want of a local token (W32 in place of W21)                                                                                                                                                                   |
 | AC17      | `npm run verify`; the CI deploy                                                                                                                                                                                                                                                                                                        |
