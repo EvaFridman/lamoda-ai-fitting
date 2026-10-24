@@ -6,7 +6,8 @@ import { type UIEvent, useState } from 'react';
 import styles from './gallery.module.scss';
 
 export interface GalleryImage {
-  // Each photo's own address: it is the item's key.
+  // The item's key (a product image's id): two images may share an address (spec 0019 A85).
+  id: string;
   src: string;
   // What the photo shows; the first one names the product, the rest may be empty.
   alt: string;
@@ -50,7 +51,7 @@ export function Gallery({ images, 'aria-label': label, className }: GalleryProps
           const last = collapsible && index === LARGE + SMALL - 1;
           return (
             <li
-              key={image.src}
+              key={image.id}
               className={[styles.item, small && styles.small, hidden && styles.extra]
                 .filter(Boolean)
                 .join(' ')}
@@ -77,7 +78,7 @@ export function Gallery({ images, 'aria-label': label, className }: GalleryProps
         <span className={styles.dots} aria-hidden>
           {images.map((image, index) => (
             <span
-              key={image.src}
+              key={image.id}
               className={[styles.dot, index === current && styles.on].filter(Boolean).join(' ')}
             />
           ))}

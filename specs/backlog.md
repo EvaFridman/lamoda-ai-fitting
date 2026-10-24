@@ -139,6 +139,14 @@ removes it from this list. Found by the agents' first security audit and trial r
   click; the data comes as late. To do: find what the prefetch render reads, make the shell render
   with no api read, turn the prefetch on, measure again (0 api reads, at most 2 web requests per
   card) and decide; if the reads cannot go without losing the metadata, keep it off.
+- **Category list past 100.** web reads the categories in one page of `CATEGORY_LIST_MAX` (100,
+  `entities/category`). Past 100 the catalog's lists (`catalogCategoriesQuery`), the header's menu
+  and the sitemap (its categories and, since it takes products only from those, their products;
+  0019 A85) drop the rest without a sign; a category page and a product page
+  (`getCategoryBySlug`, `loadProductWithSlot`) still find such a category, by a read as the
+  visitor in place of the cached list of active ones. The demo catalog has 6. To do when catalog
+  writes open: read the categories page by page (or raise the api's limit for this list) and keep
+  the cached keys bounded.
 - **Mobile tab bar.** The design of spec 0019 has a bottom tab bar on phones («Главная», «Каталог»,
   «Примерочная», «Корзина», «Профиль»); 0019 shows only the fitting room's icon in the header
   (0019 A10). Build the bar when the site has a cart and a home worth a tab.

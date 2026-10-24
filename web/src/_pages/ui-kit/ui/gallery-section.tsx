@@ -4,6 +4,7 @@ import styles from './examples.module.scss';
 
 // The seed's photos, served at /media/ (nginx in production, `next dev`'s rewrite locally).
 const photo = (article: string, n: number): GalleryImage => ({
+  id: `${article}-${n}`,
   src: `/media/seed/products/${article}/${n}.webp`,
   alt: n === 1 ? 'Худи, спереди' : '',
 });

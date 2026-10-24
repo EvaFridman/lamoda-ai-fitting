@@ -1,11 +1,12 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { Gallery, type GalleryImage } from './gallery';
 
 function photos(count: number): GalleryImage[] {
   return Array.from({ length: count }, (_, index) => ({
+    id: `photo-${index + 1}`,
     src: `/media/p/${index + 1}.webp`,
     alt: index === 0 ? 'Худи, спереди' : '',
   }));
@@ -142,6 +143,24 @@ describe('Gallery', () => {
     fireEvent.scroll(strip, { target: { scrollLeft: 500 } });
 
     expect(dots(container)[0]).toHaveClass('on');
+  });
+
+  it('keeps two photos with one address as two items and two dots, with no duplicate key', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const { container } = render(
+      <Gallery
+        images={[
+          { id: 'a', src: '/media/p/same.webp', alt: 'Худи' },
+          { id: 'b', src: '/media/p/same.webp', alt: '' },
+        ]}
+        aria-label="Фото товара"
+      />,
+    );
+
+    expect(items()).toHaveLength(2);
+    expect(dots(container)).toHaveLength(2);
+    expect(error).not.toHaveBeenCalled();
+    error.mockRestore();
   });
 
   it('passes the class name to the root', () => {

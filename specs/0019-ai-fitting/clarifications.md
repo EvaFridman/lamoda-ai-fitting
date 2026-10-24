@@ -1064,6 +1064,13 @@ handlers on, so the buy box's heart sends its hover too; (5) the gallery («По
 not tracked, it is not in plan §9. The budget: about 103 000 events a month, 10.3 % of the free
 plan's 1 M.
 
+**A85. PR 4's review.** The owner decided on 2026-10-25: the sitemap's products are those of the
+categories `getCategories(catalogCategoriesQuery)` answers, at most `CATEGORY_LIST_MAX` (100), so
+past that the tail's categories and products leave the sitemap (and the catalog's lists) without
+a sign; the demo catalog has 6. It is not fixed here: the backlog item «Category list past 100»
+records it. The kit's `Gallery` keys its items by a `GalleryImage.id` (the product image's id),
+since nothing makes two images of one product differ in key.
+
 ## Canvas and decisions
 
 Where the canvas differs from the decisions above, the decision wins:
