@@ -62,6 +62,23 @@ describe('progress section', () => {
   });
 });
 
+describe('gallery section', () => {
+  it('is in the sections list with its title', () => {
+    expect(sections.find((section) => section.id === 'gallery')?.title).toBe('Галерея товара');
+  });
+
+  it('shows a gallery of two photos and one of seven with «Показать ещё фото»', () => {
+    render(<UiKitPage />);
+    const region = screen.getByRole('region', { name: 'Галерея товара' });
+
+    const first = within(region).getByRole('list', { name: 'Фото товара, пример 1' });
+    expect(within(first).getAllByRole('listitem')).toHaveLength(2);
+    const second = within(region).getByRole('list', { name: 'Фото товара, пример 2' });
+    expect(within(second).getAllByRole('listitem')).toHaveLength(7);
+    expect(within(region).getAllByRole('button', { name: 'Показать ещё фото' })).toHaveLength(1);
+  });
+});
+
 describe('buttons section: Примерить', () => {
   it('shows a plain, a busy and a disabled button', () => {
     render(<UiKitPage />);

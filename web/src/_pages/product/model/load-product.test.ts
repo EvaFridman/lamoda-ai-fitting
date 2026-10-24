@@ -16,7 +16,7 @@ import { findCategoryById, getActiveCategories } from '@/entities/category/serve
 import type { ProductDetail } from '@/entities/product';
 import { getProductById } from '@/entities/product/server';
 
-import { loadProduct } from './load-product';
+import { loadProduct, loadProductWithSlot } from './load-product';
 
 const read = vi.mocked(getProductById);
 const categories = vi.mocked(getActiveCategories);
@@ -39,6 +39,71 @@ beforeEach(() => {
   read.mockReset();
   categories.mockReset();
   lookup.mockReset();
+});
+
+describe('loadProductWithSlot', () => {
+  function listed(...entries: { id: string; slot: string | null }[]) {
+    return {
+      items: entries,
+      total: entries.length,
+    } as unknown as Awaited<ReturnType<typeof getActiveCategories>>;
+  }
+
+  it('gives the slot of the category in the cached list, without a lookup (A18)', async () => {
+    read.mockResolvedValue(product);
+    categories.mockResolvedValue(
+      listed({ id: OTHER, slot: 'shoes' }, { id: CATEGORY, slot: 'top' }),
+    );
+    await expect(loadProductWithSlot(ID)).resolves.toEqual({ product, slot: 'top' });
+    expect(lookup).not.toHaveBeenCalled();
+  });
+
+  it('gives a null slot for a category outside the fitting room', async () => {
+    read.mockResolvedValue(product);
+    categories.mockResolvedValue(listed({ id: CATEGORY, slot: null }));
+    await expect(loadProductWithSlot(ID)).resolves.toEqual({ product, slot: null });
+  });
+
+  it('takes the slot from the lookup when the list lacks the category', async () => {
+    read.mockResolvedValue(product);
+    categories.mockResolvedValue(listed({ id: OTHER, slot: 'shoes' }));
+    lookup.mockResolvedValue({ id: CATEGORY, isActive: true, slot: 'bottom' } as never);
+    await expect(loadProductWithSlot(ID)).resolves.toEqual({ product, slot: 'bottom' });
+    expect(lookup).toHaveBeenCalledWith(CATEGORY);
+  });
+
+  it('takes the slot from the lookup when the list fails', async () => {
+    read.mockResolvedValue(product);
+    categories.mockRejectedValue(new Error('categories down'));
+    lookup.mockResolvedValue({ id: CATEGORY, isActive: true, slot: 'outerwear' } as never);
+    await expect(loadProductWithSlot(ID)).resolves.toEqual({ product, slot: 'outerwear' });
+  });
+
+  it('is null for an inactive looked-up category, whatever its slot', async () => {
+    read.mockResolvedValue(product);
+    categories.mockResolvedValue(listed());
+    lookup.mockResolvedValue({ id: CATEGORY, isActive: false, slot: 'top' } as never);
+    await expect(loadProductWithSlot(ID)).resolves.toBeNull();
+  });
+
+  it('is null for a missing product and reads no category', async () => {
+    read.mockResolvedValue(null);
+    await expect(loadProductWithSlot(ID)).resolves.toBeNull();
+    expect(categories).not.toHaveBeenCalled();
+    expect(lookup).not.toHaveBeenCalled();
+  });
+
+  it('throws when the product read fails', async () => {
+    read.mockRejectedValue(new Error('down'));
+    await expect(loadProductWithSlot(ID)).rejects.toThrow('down');
+  });
+
+  it('throws when the list and the lookup both fail', async () => {
+    read.mockResolvedValue(product);
+    categories.mockRejectedValue(new Error('categories down'));
+    lookup.mockRejectedValue(new Error('lookup down'));
+    await expect(loadProductWithSlot(ID)).rejects.toThrow('lookup down');
+  });
 });
 
 describe('loadProduct', () => {

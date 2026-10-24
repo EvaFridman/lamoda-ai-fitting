@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { LimitMeter, type FittingQuota, type StartedFitting } from '@/entities/fitting';
 import type { ProductDetail } from '@/entities/product';
 import { PhotoThumb, type UserPhoto } from '@/entities/user-photo';
+import { showStubToast } from '@/features/product-stubs';
 import { StartFittingButton } from '@/features/start-fitting';
 import type { TryColour } from '@/features/try-colour';
 import { UploadPhoto } from '@/features/upload-photo';
@@ -13,7 +14,6 @@ import { useTrackedElement } from '@/shared/analytics';
 import { Button, Link, LockIcon, Notice, Skeleton, Spinner, Switch } from '@/shared/ui';
 
 import { ItemRow } from './item-row';
-import { showStubToast } from './stub-toast';
 
 import styles from './photo-picker.module.scss';
 

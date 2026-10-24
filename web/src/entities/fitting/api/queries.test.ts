@@ -16,6 +16,7 @@ import {
   fittingRefetchInterval,
   fittingsInfiniteQueryOptions,
   fittingsRefetchInterval,
+  lastFittingQueryOptions,
   RESULT_LINKS_FRESH_MS,
   RUNNING_LIST_POLL_MS,
   RUNNING_POLL_MS,
@@ -305,6 +306,57 @@ describe('fittingsInfiniteQueryOptions', () => {
     expect(interval({ state: { data: { pages }, error: apiError('http', 503) } })).toBe(
       RUNNING_LIST_POLL_MS,
     );
+  });
+});
+
+describe('lastFittingQueryOptions', () => {
+  const PRODUCT = '7c9e6679-7425-40de-944b-e07fc1f90ae7';
+  const failure = (status: number) =>
+    new Response(JSON.stringify({ error: { code: 'NOT_FOUND', message: 'm', details: [] } }), {
+      status,
+    });
+
+  it('lives under the user fittings, so a signed-out tab drops it', () => {
+    const key = lastFittingQueryOptions(PRODUCT).queryKey;
+    expect(key.slice(0, fittingKeys.all.length)).toEqual(fittingKeys.all);
+    expect(key).toEqual(fittingKeys.last(PRODUCT));
+    expect(fittingKeys.last(PRODUCT)).not.toEqual(fittingKeys.last(ID));
+  });
+
+  it('reads GET /api/products/<id>/fittings/last with a signal', async () => {
+    fetchMock.mockResolvedValue(new Response(JSON.stringify(fitting)));
+    await expect(new QueryClient().query(lastFittingQueryOptions(PRODUCT))).resolves.toEqual(
+      fitting,
+    );
+    expect(lastUrl().pathname).toBe(`/api/products/${PRODUCT}/fittings/last`);
+    const [, init] = fetchMock.mock.calls[0] as [unknown, RequestInit];
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it('answers null when the api has none (404)', async () => {
+    fetchMock.mockResolvedValue(failure(404));
+    await expect(new QueryClient().query(lastFittingQueryOptions(PRODUCT))).resolves.toBeNull();
+  });
+
+  it.each([401, 500])('does not hide a %s', async (status) => {
+    fetchMock.mockResolvedValue(failure(status));
+    const error = await new QueryClient()
+      .query(lastFittingQueryOptions(PRODUCT))
+      .catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({ kind: 'http', status });
+  });
+
+  it('does not hide a body that is not a fitting', async () => {
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ id: 1 })));
+    const error = await new QueryClient()
+      .query(lastFittingQueryOptions(PRODUCT))
+      .catch((e: unknown) => e);
+    expect(error).toMatchObject({ kind: 'schema' });
+  });
+
+  it('is fresh for as long as the result links are', () => {
+    expect(lastFittingQueryOptions(PRODUCT).staleTime).toBe(RESULT_LINKS_FRESH_MS);
   });
 });
 

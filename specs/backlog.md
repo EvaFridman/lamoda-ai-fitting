@@ -128,10 +128,17 @@ removes it from this list. Found by the agents' first security audit and trial r
 - **Footer links.** The footer copies Lamoda's items, but only the personal data policy has a page
   (0008 J22): each other item becomes a link when its page appears. The list is
   `widgets/footer/config/items.ts`.
-- **Product card link.** The catalog's cards link to `/products/<id>` (spec 0014 O7) with
-  `prefetch={false}` (`widgets/product-grid`) while that address is a 404 (O75). The product
-  page's spec turns the prefetch back on and decides whether `CatalogProductCard` (0009 K15)
-  builds the address itself.
+- **Catalog card prefetch.** The catalog grid's cards link to `/products/<id>` with
+  `prefetch={false}` (`widgets/product-grid`; the card keeps its `href`, 0019 A40). Measured on a
+  production build (0019 A82): one card's prefetch is 2 requests to web (`_tree` and the page's
+  `__PAGE__` shell, about 2 KB) and about 4 api reads on the visitor's quota (2 of
+  `GET /products/:id`, about 2 of `GET /categories/:id`, though `proxy.ts` skips prefetches,
+  likely the page's metadata); only the cards in view at load were prefetched (4 on 1440×900 and
+  390×844). nginx's `edge_pages` holds it, the api's 10 reads a second per route does not: a
+  screen of two rows plus a click answers 429. It would only show the page's skeleton at once on a
+  click; the data comes as late. To do: find what the prefetch render reads, make the shell render
+  with no api read, turn the prefetch on, measure again (0 api reads, at most 2 web requests per
+  card) and decide; if the reads cannot go without losing the metadata, keep it off.
 - **Mobile tab bar.** The design of spec 0019 has a bottom tab bar on phones («Главная», «Каталог»,
   «Примерочная», «Корзина», «Профиль»); 0019 shows only the fitting room's icon in the header
   (0019 A10). Build the bar when the site has a cart and a home worth a tab.

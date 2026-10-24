@@ -114,6 +114,31 @@ export function useFittings(kind?: FittingKind) {
   return useInfiniteQuery(fittingsInfiniteQueryOptions(kind));
 }
 
+// GET /products/:id/fittings/last: the user's newest completed fitting that holds the product
+// (spec 0019 AC24), `null` when there is none (the api's 404). Read only in the browser.
+export function lastFittingQueryOptions(productId: string) {
+  return queryOptions({
+    queryKey: fittingKeys.last(productId),
+    queryFn: async ({ signal }): Promise<Fitting | null> => {
+      try {
+        return await clientFetch(
+          buildPath('/products/:id/fittings/last', { id: productId }),
+          fittingSchema,
+          { signal },
+        );
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 404) return null;
+        throw error;
+      }
+    },
+    staleTime: RESULT_LINKS_FRESH_MS,
+  });
+}
+
+export function useLastFitting(productId: string, enabled = true) {
+  return useQuery({ ...lastFittingQueryOptions(productId), enabled });
+}
+
 // GET /me/fitting-quota.
 export function fittingQuotaQueryOptions() {
   return queryOptions({
@@ -123,6 +148,7 @@ export function fittingQuotaQueryOptions() {
   });
 }
 
-export function useFittingQuota() {
-  return useQuery(fittingQuotaQueryOptions());
+// `enabled` false while nobody is signed in: the quota is a user's.
+export function useFittingQuota(enabled = true) {
+  return useQuery({ ...fittingQuotaQueryOptions(), enabled });
 }

@@ -1012,6 +1012,22 @@ was measured with it off, and a scrolled grid would prefetch every card; the pre
 in T20 or T23 after the requests of one card's prefetch are measured in a browser (backlog
 «Product card link»; the item itself is removed by T23).
 
+**A82. The buy box's entry points and T20's checks (T20's brief).** The owner decided on
+2026-10-24: (1) the grid's prefetch (A81.5) was measured in T20 on a production build of web run
+locally: one card's prefetch is 2 requests to web and about 4 api reads on the visitor's quota
+(the page's render, not `proxy.ts`), only the cards in view at load are prefetched (4), so
+`edge_pages` (33 a second) holds it but the api's 10 reads a second per route does not. The
+prefetch stays off; finding and removing the prefetch render's api reads, then deciding, is the
+backlog item «Catalog card prefetch», which replaces «Product card link». (2) Until the fitting room exists (T24) the buy box's «К образу» is shown disabled and
+sends nothing, as the try-on's tile is (A75); «В образе» and the toast «<Вещь> в примерочной:
+<слот>» come with the room. (3) T20 removes only `?product=<id>` of T15's temporary entry;
+`/customer/fittings?fitting=<id>` stays the address that opens a result in the try-on window (the
+toast's «Открыть», the history's cards, A77.6, A78), and `TriedOnNote`'s «Смотреть» links there.
+(4) T20 runs the checks its own text names (`qa-tester` on AC21, AC24 and AC5 from the page, the
+full `verify`) besides A58's run at the phase's end. (5) At the limit the buy box shows only the
+meter's «Закончились · снова с <date>» under the disabled «Примерить», not board 11's caption
+«Примерки снова будут доступны <date>» too: one date, not two (owner, 2026-10-25).
+
 ## Canvas and decisions
 
 Where the canvas differs from the decisions above, the decision wins:

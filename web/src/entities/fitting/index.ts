@@ -13,6 +13,7 @@ export {
   fittingRefetchInterval,
   fittingsInfiniteQueryOptions,
   fittingsRefetchInterval,
+  lastFittingQueryOptions,
   type PolledState,
   RESULT_LINKS_FRESH_MS,
   RUNNING_LIST_POLL_MS,
@@ -20,6 +21,7 @@ export {
   useFitting,
   useFittingQuota,
   useFittings,
+  useLastFitting,
 } from './api/queries';
 export { fittingDate, historyDate, renewalDate } from './lib/dates';
 export { itemWord } from './lib/item-word';
@@ -81,3 +83,4 @@ export {
   triesLeftOfText,
   triesLeftText,
 } from './ui/limit-meter';
+export { TriedOnNote, type TriedOnNoteEvents, type TriedOnNoteProps } from './ui/tried-on-note';

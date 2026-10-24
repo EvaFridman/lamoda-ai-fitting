@@ -10,4 +10,6 @@ export const fittingKeys = {
   list: (kind?: FittingKind) => ['users', 'fittings', 'list', kind ?? 'all'] as const,
   detail: (id: string) => ['users', 'fittings', 'detail', id] as const,
   quota: ['users', 'fittings', 'quota'] as const,
+  // A product's last fitting («Вы это примеряли»): a new result of it changes it too.
+  last: (productId: string) => ['users', 'fittings', 'last', productId] as const,
 };

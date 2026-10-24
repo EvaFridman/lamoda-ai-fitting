@@ -10,10 +10,10 @@ import styles from './catalog-product-card.module.scss';
 
 export interface CatalogProductCardProps {
   product: ProductListItem;
-  // Where the card leads. No product page exists yet, so whoever places the card gives the
-  // address (0009 K15; backlog "Product card link").
+  // Where the card leads; whoever places the card gives the address (0009 K15, 0019 A40).
   href: string;
-  // Next's prefetch of `href` (its default when left out); off while the address has no page.
+  // Next's prefetch of `href` (its default when left out); the grid turns it off (backlog
+  // "Catalog card prefetch").
   prefetch?: boolean;
   // The link's own click and pointer handlers (the page's analytics); not the action's.
   linkEvents?: Pick<

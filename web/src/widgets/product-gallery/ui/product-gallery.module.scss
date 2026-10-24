@@ -1,0 +1,11 @@
+// A product with no photo: the gallery's first frame, empty.
+.empty {
+  aspect-ratio: 432 / 624;
+  max-width: 432px;
+  background-color: var(--color-background-secondary);
+
+  @media (width < 600px) {
+    aspect-ratio: 3 / 4;
+    max-width: none;
+  }
+}

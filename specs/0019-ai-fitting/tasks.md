@@ -219,7 +219,7 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       prefetch stays off, A81.5).
       Check: web tests of the metadata and the 404; the warm-up list check; `npm run verify`.
       Commit: `feat(web): add the product page`
-- [ ] **T20. web: the gallery, the buy box and the try-on entry.** `widgets/product-gallery`,
+- [x] **T20. web: the gallery, the buy box and the try-on entry.** `widgets/product-gallery`,
       `widgets/product-buy-box` (rating, price, colour and size, the stubs of A33, the primary
       `TryOnButton` with «К образу» beside it (A63.2) and its «В образе» state, the limit meter
       with its three texts, «Вы это примеряли»; A62), the kit's `Gallery` with its `/ui-kit`
@@ -238,7 +238,8 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       Check: `catalog.test.ts`, the budget; `npm run verify`.
       Commit: `feat(web): count the product page's clicks`
 - [ ] **T23. Close phase 3.** `CLAUDE.md`, `README.md`; the clean install and `verify`; the
-      summary; the pull request carries `Closes #69`; backlog «Product card link» removed.
+      summary; the pull request carries `Closes #69`; backlog «Product card link» became
+      «Catalog card prefetch» in T20 (A82.1).
       Check: `npm run verify` after `npm ci`; AC21–AC24 have evidence.
       Commit: `docs(docs): describe the product page`
 - 👤 reviews and merges PR 4.

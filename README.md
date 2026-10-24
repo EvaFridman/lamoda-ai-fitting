@@ -80,9 +80,8 @@ docker compose run --rm api npx prisma migrate deploy
 эмулятора S3 (http://localhost:8333). На Mac с Apple silicon api работает в Docker, где `sharp`
 берёт свои сборки linux/arm64.
 
-AI-примерка одной вещи (спека 0019) пока открывается со страницы
-http://localhost:3001/customer/fittings?product=<id товара> (кнопка «Примерить»; страница товара
-появится в фазе 3): выбор фото (сохранённое или разовое), цвет и пожелания до 200 символов
+AI-примерка одной вещи (спека 0019) открывается кнопкой «Примерить» на странице товара
+http://localhost:3001/products/<id товара>: выбор фото (сохранённое или разовое), цвет и пожелания до 200 символов
 (`POST /fittings`). Генерацию ведёт Temporal-воркфлоу `generateFitting` (http://localhost:8233):
 модель картинок (`FITTING_MODEL`, по умолчанию `gpt-image-2`) один раз, проверка результата,
 затем пуш `fitting:finished` в socket.io вошедшего пользователя; экран ожидания и без пуша
