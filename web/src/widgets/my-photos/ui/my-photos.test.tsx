@@ -15,6 +15,13 @@ vi.mock('@/shared/analytics/client', () => ({
   track: mocks.track,
 }));
 
+// Better Auth's session atom stops a second after its last listener leaves, on a timer that could
+// outlive this file's jsdom ("window is not defined"); the session these tests saw is a failed read.
+vi.mock('@/entities/session', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/entities/session')>()),
+  useSession: () => ({ status: 'signed-out', failed: true }),
+}));
+
 const fetchMock = vi.fn();
 
 // Base UI turns pointer events off on the page while a modal is open; the styles that give them
