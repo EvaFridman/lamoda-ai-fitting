@@ -119,6 +119,7 @@ const PUBLIC_HANDLERS = [
   'ProductsController.facets',
   'ProductsController.get',
   'ProductsController.list',
+  'ProductsController.related',
   'RealtimeGateway.ping',
 ];
 
@@ -181,6 +182,7 @@ const SIGNED_IN_HANDLERS = [
   'MePhotosController.list',
   'MePhotosController.setDefault',
   'MePhotosController.upload',
+  'ProductFittingsController.last',
 ];
 
 // Access is closed by default (spec 0006 F3, AC1): a route with no marker answers 401 to

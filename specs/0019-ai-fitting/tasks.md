@@ -207,7 +207,7 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
 
 ## PR 4 · `feat/0019-product-page` · the product page (after 0014 and 0018's page cache)
 
-- [ ] **T18. api: related products and the last fitting.** `GET /products/:id/related` (A36,
+- [x] **T18. api: related products and the last fitting.** `GET /products/:id/related` (A36,
       `@Public()`) and `GET /products/:id/fittings/last` (`@SignedIn()`); the lists and the
       snapshot.
       Check: database e2e; `npm run verify`.

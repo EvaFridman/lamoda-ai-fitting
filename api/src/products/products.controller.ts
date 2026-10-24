@@ -65,6 +65,19 @@ export class ProductsController {
     return this.products.get(id);
   }
 
+  // «С этим товаром выбирают» of the product page (spec 0019 A36).
+  @Get(':id/related')
+  @Public()
+  @ApiOperation({
+    description:
+      'The six newest products of other active categories that have a slot, the product itself ' +
+      'left out. An unknown product, or one of an inactive category, answers 404.',
+  })
+  @ApiOkResponse({ type: ProductListItemDto, isArray: true })
+  related(@UuidParam('id') id: string): Promise<ProductListItemDto[]> {
+    return this.products.related(id);
+  }
+
   @Post()
   @Closed()
   @ApiCreatedResponse({ type: ProductDetailDto })

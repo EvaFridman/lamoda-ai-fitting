@@ -25,6 +25,9 @@ import {
 import { inIdOrder, productCountSql, productPageSql } from './listing/product-list.js';
 import { DETAIL_INCLUDE, LIST_ITEM_INCLUDE, toDetail, toListItem } from './product-mapper.js';
 
+// «С этим товаром выбирают» (spec 0019 A36).
+const RELATED_COUNT = 6;
+
 // A duplicate article, a missing brand or category, a product used in a generation and a missing
 // id reach AppExceptionFilter as Prisma errors: 409 ALREADY_EXISTS, 400 RELATED_NOT_FOUND,
 // 409 IN_USE, 404 NOT_FOUND. Deleting a product removes its images, sizes and attribute links
@@ -106,6 +109,27 @@ export class ProductsService {
       throw new NotFoundError('Product not found');
     }
     return toDetail(row, this.mediaBaseUrl);
+  }
+
+  // A36: a product of an inactive category is inactive, so it has no related products either.
+  async related(id: string): Promise<ProductListItemDto[]> {
+    const product = await this.prisma.product.findFirst({
+      where: { id, category: { isActive: true } },
+      select: { categoryId: true },
+    });
+    if (product === null) {
+      throw new NotFoundError('Product not found');
+    }
+    const rows = await this.prisma.product.findMany({
+      where: {
+        categoryId: { not: product.categoryId },
+        category: { isActive: true, slot: { not: null } },
+      },
+      include: LIST_ITEM_INCLUDE,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: RELATED_COUNT,
+    });
+    return rows.map((row) => toListItem(row, this.mediaBaseUrl));
   }
 
   async create(dto: CreateProductDto): Promise<ProductDetailDto> {
