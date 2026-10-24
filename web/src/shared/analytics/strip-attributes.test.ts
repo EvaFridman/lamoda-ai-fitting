@@ -23,6 +23,16 @@ describe('stripStoredReferrer', () => {
       'https://lamoda-ai-fitting.ru/catalog#secret',
       'https://lamoda-ai-fitting.ru/catalog',
     ],
+    [
+      'fitting',
+      'https://lamoda-ai-fitting.ru/customer/fittings?fitting=3f2b8c1e&product=p',
+      'https://lamoda-ai-fitting.ru/customer/fittings?product=p',
+    ],
+    [
+      'fitting alone',
+      'https://lamoda-ai-fitting.ru/customer/fittings?fitting=3f2b8c1e',
+      'https://lamoda-ai-fitting.ru/customer/fittings',
+    ],
   ])('registers the referrer without %s', (_, stored, stripped) => {
     const mixpanel = sdk(stored);
     stripStoredReferrer(mixpanel);
@@ -71,7 +81,43 @@ describe('stripAttributes without URL.canParse', () => {
   });
 });
 
+describe('stripAttributes drops the fitting parameter from every address', () => {
+  const withFitting = 'https://lamoda-ai-fitting.ru/customer/fittings?fitting=3f2b8c1e&a=1';
+  const without = 'https://lamoda-ai-fitting.ru/customer/fittings?a=1';
+
+  it.each(['$current_url', '$referrer', '$initial_referrer'])('in %s', (key) => {
+    const [, props] = stripAttributes('$mp_web_page_view', { [key]: withFitting });
+    expect(props).toEqual({ [key]: without });
+  });
+
+  it('in current_url_search, a bare query', () => {
+    expect(
+      stripAttributes('$mp_web_page_view', { current_url_search: '?fitting=3f2b8c1e&a=1' })[1],
+    ).toEqual({ current_url_search: '?a=1' });
+    expect(
+      stripAttributes('$mp_web_page_view', { current_url_search: '?fitting=3f2b8c1e' })[1],
+    ).toEqual({ current_url_search: '' });
+  });
+
+  it('keeps an address with no fitting as it is', () => {
+    expect(stripAttributes('$mp_web_page_view', { $current_url: without })[1]).toEqual({
+      $current_url: without,
+    });
+  });
+});
+
 describe('stripPeopleAddresses', () => {
+  it('strips the fitting parameter from the addresses of $set_once and $set', () => {
+    const dirty = 'https://lamoda-ai-fitting.ru/customer/fittings?fitting=3f2b8c1e';
+    const clean = 'https://lamoda-ai-fitting.ru/customer/fittings';
+    expect(
+      stripPeopleAddresses({
+        $set_once: { $initial_referrer: dirty },
+        $set: { $current_url: dirty },
+      }),
+    ).toEqual({ $set_once: { $initial_referrer: clean }, $set: { $current_url: clean } });
+  });
+
   const full = 'https://lamoda-ai-fitting.ru/catalog?q=secret&sort=new#top';
   const clean = 'https://lamoda-ai-fitting.ru/catalog?sort=new';
 

@@ -12,7 +12,12 @@ import { createPart, findProduct, productNotFound } from './product-parts.js';
 
 const INCLUDE = {
   attributeValue: {
-    select: { id: true, value: true, attribute: { select: { id: true, name: true } } },
+    select: {
+      id: true,
+      value: true,
+      colorHex: true,
+      attribute: { select: { id: true, name: true } },
+    },
   },
 } satisfies Prisma.ProductAttributeValueInclude;
 
@@ -84,12 +89,12 @@ export class ProductAttributeValuesService {
 }
 
 function toResponse(row: LinkRow): ProductAttributeValueResponseDto {
-  const { attribute, id, value } = row.attributeValue;
+  const { attribute, id, value, colorHex } = row.attributeValue;
   return {
     productId: row.productId,
     attributeValueId: row.attributeValueId,
     attribute,
-    value: { id, value },
+    value: { id, value, colorHex },
     createdAt: row.createdAt,
   };
 }

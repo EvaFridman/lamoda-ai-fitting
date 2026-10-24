@@ -30,11 +30,18 @@ function row(overrides: Partial<DetailRow> = {}): DetailRow {
   };
 }
 
-function link(attributeId: string, attributeName: string, valueId: string, value: string) {
+function link(
+  attributeId: string,
+  attributeName: string,
+  valueId: string,
+  value: string,
+  colorHex: string | null = null,
+) {
   return {
     attributeValue: {
       id: valueId,
       value,
+      colorHex,
       attribute: { id: attributeId, name: attributeName },
     },
   };
@@ -138,8 +145,8 @@ describe('toDetail', () => {
     const detail = toDetail(
       row({
         attributeValues: [
-          link('a1', 'Color', 'v1', 'black'),
-          link('a1', 'Color', 'v2', 'white'),
+          link('a1', 'Color', 'v1', 'black', '#000000'),
+          link('a1', 'Color', 'v2', 'white', '#FFFFFF'),
           link('a2', 'Material', 'v3', 'cotton'),
         ],
       }),
@@ -150,11 +157,14 @@ describe('toDetail', () => {
       {
         attribute: { id: 'a1', name: 'Color' },
         values: [
-          { id: 'v1', value: 'black' },
-          { id: 'v2', value: 'white' },
+          { id: 'v1', value: 'black', colorHex: '#000000' },
+          { id: 'v2', value: 'white', colorHex: '#FFFFFF' },
         ],
       },
-      { attribute: { id: 'a2', name: 'Material' }, values: [{ id: 'v3', value: 'cotton' }] },
+      {
+        attribute: { id: 'a2', name: 'Material' },
+        values: [{ id: 'v3', value: 'cotton', colorHex: null }],
+      },
     ]);
   });
 

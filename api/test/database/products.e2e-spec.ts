@@ -336,19 +336,19 @@ describe('products: detail', () => {
     expect(body.attributes).toEqual([
       {
         attribute: { id: seasonAttr.id, name: seasonAttr.name },
-        values: [{ id: summer.id, value: 'summer' }],
+        values: [{ id: summer.id, value: 'summer', colorHex: null }],
       },
       {
         attribute: { id: colorAttr.id, name: colorAttr.name },
         values: [
-          { id: black.id, value: 'black' },
-          { id: white.id, value: 'white' },
+          { id: black.id, value: 'black', colorHex: null },
+          { id: white.id, value: 'white', colorHex: null },
         ],
       },
     ]);
   });
 
-  it('does not carry colorHex on the attribute values, even when a value has one (spec 0009)', async () => {
+  it('carries the swatch colour of an attribute value, null when it has none (spec 0019 A76)', async () => {
     const product = await createProduct();
     const attribute = await testApp.prisma.attribute.create({
       data: { name: `Color ${randomUUID()}` },
@@ -364,8 +364,12 @@ describe('products: detail', () => {
 
     expect(response.status).toBe(200);
     const body = response.body as Detail;
-    expect(body.attributes[0]?.values).toEqual([{ id: red.id, value: 'red' }]);
-    expect(Object.keys(body.attributes[0]?.values[0] ?? {}).sort()).toEqual(['id', 'value']);
+    expect(body.attributes[0]?.values).toEqual([{ id: red.id, value: 'red', colorHex: '#ff0000' }]);
+    expect(Object.keys(body.attributes[0]?.values[0] ?? {}).sort()).toEqual([
+      'colorHex',
+      'id',
+      'value',
+    ]);
   });
 
   it('orders several values of one attribute by value, whatever the insert order', async () => {

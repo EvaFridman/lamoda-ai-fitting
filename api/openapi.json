@@ -8199,11 +8199,17 @@
           "value": {
             "type": "string",
             "example": "чёрный"
+          },
+          "colorHex": {
+            "type": "string",
+            "nullable": true,
+            "example": "#000000"
           }
         },
         "required": [
           "id",
-          "value"
+          "value",
+          "colorHex"
         ]
       },
       "ProductAttributeDto": {

@@ -8,9 +8,71 @@
   align-items: flex-start;
 }
 
-// In the grid of saved photos the card is the cell's width.
+// In the grid of saved photos the card is the cell's width; the picker's strip is its column's.
 .inCard {
   align-items: stretch;
+}
+
+// Board 3: the saved photos and the dashed tiles in one row, 64×86 (56×75 on a phone).
+.strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.tile {
+  cursor: pointer;
+
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: var(--space-1);
+  align-items: center;
+  justify-content: center;
+
+  box-sizing: border-box;
+  width: 64px;
+  height: 86px;
+  margin: 0;
+  padding: 0;
+  border: var(--border-width) dashed var(--color-border-control);
+
+  font: inherit;
+  font-size: var(--font-size-caption);
+  line-height: 14px;
+  color: var(--color-text);
+
+  background-color: var(--color-background);
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.4;
+  }
+
+  @media (hover: hover) {
+    &:hover:not(:disabled) {
+      border-color: var(--color-border-active);
+    }
+  }
+
+  @media (width < 600px) {
+    width: 56px;
+    height: 75px;
+  }
+}
+
+.stripActions {
+  display: flex;
+  gap: var(--space-2);
+
+  > * {
+    flex: 1;
+  }
 }
 
 .actions {

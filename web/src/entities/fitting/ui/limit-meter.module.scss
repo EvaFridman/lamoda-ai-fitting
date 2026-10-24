@@ -1,0 +1,35 @@
+// Board 13's LimitMeter: a 64px bar of 4px and its text, 13px; both caution-coloured when few
+// try-ons are left.
+
+.meter {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+
+  margin: 0;
+
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  color: var(--color-text);
+}
+
+.bar {
+  overflow: hidden;
+  flex: none;
+
+  width: 64px;
+  height: 4px;
+  border-radius: 2px;
+
+  background-color: var(--color-background-tertiary);
+}
+
+.fill {
+  display: block;
+  height: 100%;
+  background-color: currentcolor;
+}
+
+.few {
+  color: var(--color-caution);
+}
