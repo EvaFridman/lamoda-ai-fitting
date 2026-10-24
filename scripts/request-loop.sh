@@ -41,7 +41,8 @@ while :; do
     code="${result% *}"
     echo "${result#* }s$path@$started" >> "$timings"
     if [ "$code" = 200 ] && [ "$path" = "$page" ]; then
-      if ! grep -q '>Платья</h1>' "$body"; then
+      # The heading's start, as smoke-test.sh checks it (spec 0020 W26).
+      if ! grep -qE '<h1[^>]*>Платья' "$body"; then
         code=200-without-heading
       elif ! grep -q '<article' "$body"; then
         code=200-without-products

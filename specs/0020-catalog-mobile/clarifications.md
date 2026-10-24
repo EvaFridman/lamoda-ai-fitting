@@ -159,7 +159,12 @@ The review bot's open questions, answered by the owner.
   browser's "Back" to the document's first entry (which the flag and `history.length` cannot
   tell); the flag, the referrer and `history.length` decide only without it. Accepted difference:
   the header's search pushes `/catalog?q=…` on the same path, so with the API its page has the
-  arrow back to the catalog without `q`, without it none (only a path counts as a step). AC9 names
+  arrow back to the catalog without `q`, without it none (only a path counts as a step). Accepted
+  difference (the review of PR 2): without the API the flag is set only while the catalog is
+  mounted, so a document loaded at a category with no referrer of this site, a client-side step
+  off the catalog (`/customer`)
+  and the header's link back to the same category leave the arrow a link to `/catalog`, not
+  "back". AC9 names
   the count's placeholder among its exceptions. The arrow is drawn as the sheet's "‹" (W25): a plain 32px control, not the
   outlined `IconButton`. The count's placeholder shows while the counts load on every width, as
   the page's placeholders do (W2): a line of its own below 600 px, inline from 600 px.

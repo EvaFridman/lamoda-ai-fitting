@@ -22,9 +22,10 @@ grep -q '<h1' <<<"$page" || { echo "smoke: the page at $base/catalog has no head
 grep -q '<article' <<<"$page" ||
   { echo "smoke: the page at $base/catalog shows no product from the api" >&2; exit 1; }
 # A category's heading comes from the api through web too: the seed's "Платья", which the seed
-# never renames (spec 0014 O69).
+# never renames (spec 0014 O69). The `<h1>` starts with it; the count or its placeholder follows
+# inside (spec 0020 W26), and the breadcrumbs hold the name too, so only the heading's start counts.
 page="$(curl -sk --max-time 10 "$base/catalog/dresses")"
-grep -q '>Платья</h1>' <<<"$page" ||
+grep -qE '<h1[^>]*>Платья' <<<"$page" ||
   { echo "smoke: the page at $base/catalog/dresses has no heading from the api" >&2; exit 1; }
 
 live="$(curl -sk --max-time 10 --fail "$base/api/health/live")" ||
