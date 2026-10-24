@@ -215,6 +215,43 @@ describe('ProductGrid measured', () => {
     render(<ProductGrid {...props({ products: [] })} />);
     expect(screen.queryAllByRole('listitem')).toHaveLength(0);
   });
+
+  describe('the row height estimate (spec 0020 W31)', () => {
+    const PHOTO_RATIO = 341 / 236;
+    const TEXT_HEIGHT = 130;
+    const rowHeight = (cardWidth: number) => cardWidth * PHOTO_RATIO + TEXT_HEIGHT;
+    const estimate = () => (virtual.options?.estimateSize as () => number)();
+
+    function styleOf(values: Record<string, string>) {
+      const original = window.getComputedStyle.bind(window);
+      vi.spyOn(window, 'getComputedStyle').mockImplementation(
+        (element, pseudo) =>
+          ({ ...values, getPropertyValue: original(element, pseudo).getPropertyValue }) as never,
+      );
+    }
+
+    it('takes the list side padding off the width before it splits it into cards', () => {
+      width = 500;
+      styleOf({ columnGap: '8px', rowGap: '0px', paddingLeft: '16px', paddingRight: '16px' });
+      render(<ProductGrid {...props()} />);
+      // Two columns: (500 - 32 - 8) / 2 = 230 per card.
+      expect(estimate()).toBeCloseTo(rowHeight(230), 5);
+    });
+
+    it('counts the whole width when the list has no padding', () => {
+      width = 500;
+      styleOf({ columnGap: '8px', rowGap: '0px', paddingLeft: '0px', paddingRight: '0px' });
+      render(<ProductGrid {...props()} />);
+      expect(estimate()).toBeCloseTo(rowHeight(246), 5);
+    });
+
+    it('treats an unreadable padding as none', () => {
+      width = 500;
+      styleOf({ columnGap: '8px', rowGap: '0px', paddingLeft: '', paddingRight: '' });
+      render(<ProductGrid {...props()} />);
+      expect(estimate()).toBeCloseTo(rowHeight(246), 5);
+    });
+  });
 });
 
 describe('ProductGrid "Дальше"', () => {

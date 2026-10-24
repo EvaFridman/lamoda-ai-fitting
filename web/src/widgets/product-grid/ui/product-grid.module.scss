@@ -19,6 +19,13 @@
 
   list-style: none;
 
+  // Phones (spec 0020 W31, the owner's choice over W5's edge to edge): 16px from the window's
+  // sides, the cards 8px apart.
+  @media (width < 600px) {
+    column-gap: var(--space-2);
+    padding-inline: var(--space-4);
+  }
+
   @container (width >= 600px) {
     --columns: 3;
   }

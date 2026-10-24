@@ -93,14 +93,24 @@ function childrenOf(element: ReactElement): ReactElement[] {
 // The page's parts under its Suspense (its last child) are async server components, which a jsdom
 // render cannot run: take each out of the tree and await it the way Next does.
 async function resolveContent(page: ReactElement): Promise<ReactElement> {
-  const suspense = childrenOf(page).at(-1) as ReactElement;
+  const suspense = childrenOf(page).find((child) => child.type === Suspense) as ReactElement;
   const content = childrenOf(suspense)[0] as ReactElement;
   return (content.type as Server)(content.props);
 }
 
-// The breadcrumbs CategoryContent puts ahead of the products.
+// The breadcrumbs CategoryContent puts ahead of the products (the copy for windows from 600px).
 function breadcrumbsOf(fragment: ReactElement): ReactElement {
   return childrenOf(fragment)[0] as ReactElement;
+}
+
+// The copy under the products (the one for phones).
+function bottomBreadcrumbsOf(fragment: ReactElement): ReactElement {
+  return childrenOf(fragment)[2] as ReactElement;
+}
+
+interface CrumbsProps {
+  items: { label: string; href?: string }[];
+  className?: string;
 }
 
 // What the visitor sees before the products: the breadcrumbs and the Suspense's fallback.
@@ -209,19 +219,41 @@ describe('CatalogPage', () => {
     render(<CatalogPage searchParams={noSearch} />);
     const heading = screen.getByRole('heading', { level: 1, name: 'Каталог' });
     expect(heading).toHaveTextContent(/^Каталог$/);
-    const crumbs = screen.getByRole('navigation', { name: /./ });
-    expect(within(crumbs).getByText('Каталог')).toHaveAttribute('aria-current', 'page');
-    expect(within(crumbs).queryByRole('link')).not.toBeInTheDocument();
+    // One copy above the title and one under the list; CSS shows one per width.
+    const copies = screen.getAllByRole('navigation', { name: /./ });
+    expect(copies).toHaveLength(2);
+    for (const crumbs of copies) {
+      expect(within(crumbs).getByText('Каталог')).toHaveAttribute('aria-current', 'page');
+      expect(within(crumbs).queryByRole('link')).not.toBeInTheDocument();
+    }
     expect(get).not.toHaveBeenCalled();
   });
 
-  it('keeps the breadcrumbs outside the Suspense of the products', () => {
-    const [crumbs, suspense] = childrenOf(CatalogPage({ searchParams: noSearch }));
-    expect(crumbs?.type).toBe(Breadcrumbs);
+  it('keeps the breadcrumbs outside the Suspense of the products, once above it and once under it', () => {
+    const [top, suspense, bottom] = childrenOf(CatalogPage({ searchParams: noSearch }));
+    expect(top?.type).toBe(Breadcrumbs);
     expect(suspense?.type).toBe(Suspense);
+    expect(bottom?.type).toBe(Breadcrumbs);
     const fallback = (suspense?.props as { fallback: ReactElement<CatalogSkeletonProps> }).fallback;
     expect(fallback.type).toBe(CatalogSkeleton);
     expect(fallback.props.title).toBe('Каталог');
+  });
+
+  it('gives the two copies the same items and the classes that hide one per width', () => {
+    const [top, , bottom] = childrenOf(CatalogPage({ searchParams: noSearch }));
+    const topProps = top?.props as CrumbsProps;
+    const bottomProps = bottom?.props as CrumbsProps;
+    expect(topProps.items).toEqual([{ label: 'Каталог' }]);
+    expect(bottomProps.items).toEqual(topProps.items);
+    expect(topProps.className).toBe('crumbsTop');
+    expect(bottomProps.className).toBe('crumbsBottom');
+  });
+
+  it('puts the breadcrumbs list into the structured data once, not once per copy', async () => {
+    const page = CatalogPage({ searchParams: noSearch });
+    const content = await resolveContent(page);
+    const data = jsonLdOf(await (content.type as Server)(content.props));
+    expect(data['@graph'].filter((node) => node['@type'] === 'BreadcrumbList')).toHaveLength(1);
   });
 
   it('hands the page title to the browser list', async () => {
@@ -519,14 +551,40 @@ describe('CategoryPage', () => {
   it('puts the breadcrumbs outside the Suspense that holds the products, with the heading as its fallback', async () => {
     get.mockResolvedValue(category);
     const fragment = await resolveContent(CategoryPage({ params, searchParams: noSearch }));
-    const [crumbs, suspense] = childrenOf(fragment);
+    const [crumbs, suspense, bottom] = childrenOf(fragment);
     expect(crumbs?.type).toBe(Breadcrumbs);
     expect(suspense?.type).toBe(Suspense);
+    expect(bottom?.type).toBe(Breadcrumbs);
     expect(childrenOf(suspense as ReactElement)).toHaveLength(1);
     const fallback = (suspense?.props as { fallback: ReactElement<CatalogSkeletonProps> }).fallback;
     expect(fallback.type).toBe(CatalogSkeleton);
     expect(fallback.props.title).toBe('Платья');
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('renders the category breadcrumbs twice with the same items, above and under the products', async () => {
+    get.mockResolvedValue(category);
+    const fragment = await resolveContent(CategoryPage({ params, searchParams: noSearch }));
+    const topProps = breadcrumbsOf(fragment).props as CrumbsProps;
+    const bottomProps = bottomBreadcrumbsOf(fragment).props as CrumbsProps;
+    expect(topProps.items).toEqual([{ label: 'Каталог', href: '/catalog' }, { label: 'Платья' }]);
+    expect(bottomProps.items).toEqual(topProps.items);
+    expect(topProps.className).toBe('crumbsTop');
+    expect(bottomProps.className).toBe('crumbsBottom');
+
+    render(bottomBreadcrumbsOf(fragment));
+    const crumbs = screen.getByRole('navigation', { name: /./ });
+    expect(within(crumbs).getByRole('link', { name: 'Каталог' })).toHaveAttribute(
+      'href',
+      '/catalog',
+    );
+  });
+
+  it('puts the category trail into the structured data once', async () => {
+    get.mockResolvedValue(category);
+    const content = await resolveContent(CategoryPage({ params, searchParams: noSearch }));
+    const data = jsonLdOf(await resolveProducts(content));
+    expect(data['@graph'].filter((node) => node['@type'] === 'BreadcrumbList')).toHaveLength(1);
   });
 
   it('draws the whole page as placeholders, with no title, until the category is read', () => {

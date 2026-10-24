@@ -2,9 +2,9 @@
 
 Status: accepted (2026-10-23); amended 2026-10-23 at the review of PR 1 (§1, §2, §3, §4, risks,
 verification: W19–W22); amended 2026-10-23 at T10 (§1, §2, risks: W27–W29); amended 2026-10-24 at T10a (§3, risks:
-W30).
+W30); amended 2026-10-24 at T11 (§2: W31).
 
-How `spec.md` (AC1–AC17) is built, with the decisions of `clarifications.md` (W0–W30). No new
+How `spec.md` (AC1–AC17) is built, with the decisions of `clarifications.md` (W0–W31). No new
 package, no api change, no migration. Paths are under `web/src/` unless they start otherwise.
 
 ## 1. Loading placeholders (W2; AC1–AC3)
@@ -42,14 +42,14 @@ The fallbacks are part of the prerendered shells (`cacheComponents`): they add m
 script, so `shell-script-hashes.json` and `check:web-shells` stay as they are (AC17). Next shows the
 prefetched shell of the new category at once on a click, which is the placeholder.
 
-## 2. The phone page (W3–W5, W7, W10, W14; AC4–AC9)
+## 2. The phone page (W3–W5, W7, W10, W14, W31; AC4–AC9)
 
 All of it below a 600 px window (`@media (width < 600px)`), one DOM switched by CSS, as the account
 shell does. From 600 px the page renders as today.
 
 **Edge to edge.** `.page` loses its side padding below 600 px; the heading, the phone bar, the
-breadcrumbs, the empty state and the alerts get `padding-inline: var(--space-4)` of their own, and
-the grid none.
+breadcrumbs, the empty state, the alerts and the grid (W31) get `padding-inline: var(--space-4)`
+of their own.
 
 **Heading row (AC4, W4, W14).** `CatalogHeading` becomes a row: `CatalogBack` (below 600 px only),
 then the `<h1>` with the title and the count span; below 600 px the count is a block under the
@@ -106,14 +106,16 @@ new kit icon `FilterIcon` (a funnel, `shared/ui/icon/icons.tsx`), "Фильтр�
 Below 600 px it is plain text with the icon (the bar); from 600 to 1023 px it keeps today's outline
 button's look. It carries `catalog.sheet-open` with `active` (W16).
 
-**Cards (AC7, W5).** `widgets/product-grid` below a 600 px window: column gap 2 px, row gap as
-today. `catalog-product-card.module.scss` below 600 px pads the text under the photo with
-`--space-4` (the card's phone form). Image `sizes` stays `50vw` there.
+**Cards (AC7, W31).** `widgets/product-grid` below a 600 px window: the list's own
+`padding-inline: var(--space-4)`, column gap `--space-2`, row gap as today; `measureLayout`
+takes the list's side padding off the width before it splits it into cards, so the measured rows
+match the drawn ones. The card is unchanged. Image `sizes` stays `50vw` there.
 
 **Breadcrumbs (AC8, W1).** Rendered twice, one shown per breakpoint: above the title from 600 px,
 under the list below it. Not moved by CSS `order`, which would part the focus order from the
 visual one. A hidden copy is `display: none`, so out of the accessibility tree: one breadcrumb
-landmark at a time. The JSON-LD (0014 O27) is unchanged.
+landmark at a time. The JSON-LD (0014 O27) is unchanged. The placeholders' breadcrumbs line (§1)
+shows from 600 px only: below it the breadcrumbs sit under the list, out of the first screen.
 
 ## 3. The filters sheet with screens (W6, W8, W9, W11, W12; AC10–AC14)
 
