@@ -27,7 +27,8 @@ function itemName(fitting: Fitting): string {
 // The push of a finished fitting (spec 0019 A11, A34, A71): the fittings and the quota are read
 // again, and the fitting itself, since the push is only a signal (A72). Unless an open try-on window
 // shows it, a toast says so on whatever page is open: «Примерка готова: <вещь>» with «Открыть», or
-// «Примерка не удалась: <вещь>. Лимит не списан.» with «Повторить», which starts the same try-on
+// «Примерка не удалась: <вещь>.» (and «Лимит не списан.» unless it counts against the limit,
+// A79.3) with «Повторить», which starts the same try-on
 // again (a regeneration, or one whose photo is gone, opens its screen instead). The tab that
 // started the fitting or saw it running sends its end's event (A75). Mounted once, by the header.
 export function useFittingEvents(): void {
@@ -91,11 +92,13 @@ export function useFittingEvents(): void {
         },
       });
     } else if (fitting.status === 'failed') {
+      // A cancelled or a stuck fitting stays spent (A47, A68, A79.3).
+      const kept = fitting.countsAgainstLimit ? '' : ' Лимит не списан.';
       showToast({
         title:
           kind === 'look'
-            ? 'Примерка образа не удалась. Лимит не списан.'
-            : `Примерка не удалась: ${name}. Лимит не списан.`,
+            ? `Примерка образа не удалась.${kept}`
+            : `Примерка не удалась: ${name}.${kept}`,
         tone: 'error',
         actionLabel: 'Повторить',
         onAction: () => {

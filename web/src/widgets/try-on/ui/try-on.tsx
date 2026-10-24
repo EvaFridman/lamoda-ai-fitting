@@ -275,6 +275,7 @@ export function TryOn({
     content = (
       <FittingErrorCard
         failure={fitting.failureCode ?? 'provider_error'}
+        spent={fitting.countsAgainstLimit}
         left={quota.data?.left}
         photoUrl={photoUrl(fitting.photoId)}
         onRetry={() => retry(fitting)}

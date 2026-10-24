@@ -10,6 +10,7 @@ import { REGENERATION_REASONS, type RegenerationReason } from '../../ai/prompts.
 import { endFitting, type FittingOutcome, RUNNING_STATUSES } from '../../fittings/end-fitting.js';
 import type { PrismaClient } from '../../generated/prisma/client.js';
 import type { FittingFailure, GenerationStatus } from '../../generated/prisma/enums.js';
+import { IMAGE_ORDER } from '../../products/product-mapper.js';
 import {
   FITTING_EVENTS_CHANNEL,
   type FittingFinishedMessage,
@@ -266,7 +267,7 @@ async function loadJob(
               name: true,
               category: { select: { name: true } },
               images: {
-                orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+                orderBy: IMAGE_ORDER,
                 take: 1,
                 select: { imageKey: true },
               },

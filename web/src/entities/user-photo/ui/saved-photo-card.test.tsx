@@ -43,6 +43,19 @@ describe('uploadedOn', () => {
     expect(uploadedOn(new Date(2026, 9, 12, 12).toISOString(), now)).toBe('12 октября');
   });
 
+  it('reads the day in Moscow time, not the local one', () => {
+    expect(uploadedOn('2026-03-31T21:30:00Z', new Date('2026-06-01T12:00:00Z'))).toBe('1 апреля');
+  });
+
+  it('compares the years in Moscow time', () => {
+    // 2025-12-31 22:00 UTC is already 2026-01-01 in Moscow: the same year as now.
+    expect(uploadedOn('2025-12-31T22:00:00Z', new Date('2026-01-01T09:00:00Z'))).toBe('1 января');
+    // 2025-12-31 20:00 UTC is still 2025 in Moscow: another year than now.
+    expect(uploadedOn('2025-12-31T20:00:00Z', new Date('2026-01-01T09:00:00Z'))).toMatch(
+      /^31 декабря 2025( г\.)?$/,
+    );
+  });
+
   it('adds the year for another year', () => {
     expect(uploadedOn(new Date(2025, 9, 12, 12).toISOString(), now)).toMatch(
       /^12 октября 2025( г\.)?$/,

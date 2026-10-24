@@ -58,7 +58,9 @@ function interval(
   running: boolean | undefined,
   runningMs: number,
 ): number | false {
-  if (running === undefined || refused(state.error)) return false;
+  if (refused(state.error)) return false;
+  // No data yet: the first read failed and is read again as a running one would be.
+  if (running === undefined) return state.error ? runningMs : false;
   return running ? runningMs : RESULT_LINKS_FRESH_MS;
 }
 

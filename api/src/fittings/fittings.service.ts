@@ -194,7 +194,7 @@ export class FittingsService {
       where: { ...fittingsOf(userId), id },
       select: { status: true, photoId: true, fingerprint: true, freeRegenerationUsed: true },
     });
-    const fingerprint = checkParent(parent);
+    const { fingerprint } = checkParent(parent);
     const running = await this.findRunning(this.prisma, userId, fingerprint);
     if (running !== null) {
       return { fitting: await this.toStarted(running, false), created: false };
@@ -224,10 +224,7 @@ export class FittingsService {
           products: { select: { productId: true, attributeValueId: true, slot: true } },
         },
       });
-      const storedFingerprint = checkParent(stored);
-      if (stored === null || stored.photoId === null) {
-        throw photoGone();
-      }
+      const kept = checkParent(stored);
       const free = await tx.aiGeneration.updateMany({
         where: { id, userId, freeRegenerationUsed: false },
         data: { freeRegenerationUsed: true },
@@ -239,17 +236,17 @@ export class FittingsService {
       const row = await tx.aiGeneration.create({
         data: {
           ...(await this.newRow(tx, userId, createdAt)),
-          kind: stored.kind,
-          photoId: stored.photoId,
+          kind: kept.kind,
+          photoId: kept.photoId,
           parentId: id,
-          promptText: stored.promptText,
+          promptText: kept.promptText,
           comment,
           regenerationReasons: dto.reasons,
-          fingerprint: storedFingerprint,
+          fingerprint: kept.fingerprint,
           countsAgainstLimit: free.count === 0,
           // Only a try-on's own result has a free regeneration (A70): this one's spend a try-on.
           freeRegenerationUsed: true,
-          products: { createMany: { data: stored.products } },
+          products: { createMany: { data: kept.products } },
         },
         include: FOR_RESPONSE,
       });
@@ -619,20 +616,22 @@ function stageOf(status: Row['status']): FittingStage {
 }
 
 // A result to regenerate (A70): missing is 404, not completed 409 NOT_COMPLETED, its photo gone
-// 409 PHOTO_GONE. Returns its fingerprint, which a completed fitting always has.
-function checkParent(
-  parent: { status: Row['status']; photoId: string | null; fingerprint: string | null } | null,
-): string {
+// 409 PHOTO_GONE. Returns it with its photo and its fingerprint, which a completed fitting always
+// has.
+function checkParent<
+  Parent extends { status: Row['status']; photoId: string | null; fingerprint: string | null },
+>(parent: Parent | null): Parent & { photoId: string; fingerprint: string } {
   if (parent === null) {
     throw new NotFoundError('Fitting not found');
   }
   if (parent.status !== 'completed') {
     throw new AppException('NOT_COMPLETED', 'Only a completed fitting can be regenerated');
   }
-  if (parent.photoId === null || parent.fingerprint === null) {
+  const { photoId, fingerprint } = parent;
+  if (photoId === null || fingerprint === null) {
     throw photoGone();
   }
-  return parent.fingerprint;
+  return { ...parent, photoId, fingerprint };
 }
 
 function photoGone(): AppException {

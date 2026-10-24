@@ -135,10 +135,13 @@
       changed_when: false
       check_mode: false
 
+    # Each line without its comment; the rules that let in (ALLOW, LIMIT, IN or FWD, not OUT) whose
+    # whole «From» is not the production server's address. A comment or a longer address that
+    # contains it never passes (spec 0019 A79.2).
     - name: No rule lets in anyone but the production server
       ansible.builtin.assert:
         that:
-          - ufw_status.stdout_lines | select('search', 'ALLOW') | reject('search', production_ip | regex_escape) | list | length == 0
+          - ufw_status.stdout_lines | map('regex_replace', '\s+#.*$', '') | select('search', '\s(ALLOW|LIMIT)(\s+(IN|FWD))?(\s|$)') | reject('search', '\s(ALLOW|LIMIT) OUT(\s|$)') | reject('search', '\s' ~ (production_ip | regex_escape) ~ '(/32)?\s*$') | list | length == 0
         fail_msg: >-
           ufw allows an address other than PRODUCTION_IP; remove that rule by hand (ufw status
           numbered, ufw delete <number>)

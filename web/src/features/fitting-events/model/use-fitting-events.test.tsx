@@ -196,7 +196,12 @@ describe('useFittingEvents on a finished push', () => {
   });
 
   it('says a failed try-on spent nothing, as an error with «Повторить» (AC10)', async () => {
-    const failed = fitting({ status: 'failed', failureCode: 'model_timeout', resultUrl: null });
+    const failed = fitting({
+      status: 'failed',
+      failureCode: 'model_timeout',
+      resultUrl: null,
+      countsAgainstLimit: false,
+    });
     serve(failed);
     mount();
 
@@ -211,7 +216,12 @@ describe('useFittingEvents on a finished push', () => {
   });
 
   it('says a failed look spent nothing', async () => {
-    const failed = fitting({ kind: 'look', status: 'failed', failureCode: 'moderation' });
+    const failed = fitting({
+      kind: 'look',
+      status: 'failed',
+      failureCode: 'moderation',
+      countsAgainstLimit: false,
+    });
     serve(failed);
     mount();
 
@@ -219,6 +229,37 @@ describe('useFittingEvents on a finished push', () => {
 
     await vi.waitFor(() => expect(mocks.showToast).toHaveBeenCalledTimes(1));
     expect(toast().title).toBe('Примерка образа не удалась. Лимит не списан.');
+  });
+
+  it('does not claim the limit was kept for a failed try-on that stays spent', async () => {
+    const failed = fitting({
+      status: 'failed',
+      failureCode: 'model_timeout',
+      countsAgainstLimit: true,
+    });
+    serve(failed);
+    mount();
+
+    await push(failed);
+
+    await vi.waitFor(() => expect(mocks.showToast).toHaveBeenCalledTimes(1));
+    expect(toast().title).toBe('Примерка не удалась: сарафан на бретелях.');
+  });
+
+  it('does not claim the limit was kept for a failed look that stays spent', async () => {
+    const failed = fitting({
+      kind: 'look',
+      status: 'failed',
+      failureCode: 'moderation',
+      countsAgainstLimit: true,
+    });
+    serve(failed);
+    mount();
+
+    await push(failed);
+
+    await vi.waitFor(() => expect(mocks.showToast).toHaveBeenCalledTimes(1));
+    expect(toast().title).toBe('Примерка образа не удалась.');
   });
 
   it('starts the same try-on again from «Повторить» and opens the new fitting', async () => {
