@@ -1,4 +1,11 @@
-import { Button, type ButtonAsButtonProps, HeartIcon, IconButton, TrashIcon } from '@/shared/ui';
+import {
+  Button,
+  type ButtonAsButtonProps,
+  HeartIcon,
+  IconButton,
+  SparkleIcon,
+  TrashIcon,
+} from '@/shared/ui';
 
 import styles from './examples.module.scss';
 import { LoadingButtonDemo } from './loading-button-demo';
@@ -61,6 +68,14 @@ const states: Example[] = [
   },
 ];
 
+// «Примерить» of the product page's buy box (spec 0019 A63.2, board 13's TryOnButton): primary 56
+// with the sparkle icon, never over the photo; disabled once the month's try-ons are spent.
+const tryOn: { props: string; button: Omit<ButtonAsButtonProps, 'children'> }[] = [
+  { props: 'TryOnButton · default', button: {} },
+  { props: 'TryOnButton · loading', button: { loading: true } },
+  { props: 'TryOnButton · disabled (лимит)', button: { disabled: true } },
+];
+
 function ExampleRow({ examples }: { examples: Example[] }) {
   return (
     <ul className={styles.row}>
@@ -96,6 +111,19 @@ export function ButtonsSection() {
       <ExampleRow examples={sizes} />
       <h4 className={styles.groupTitle}>Состояния</h4>
       <ExampleRow examples={states} />
+
+      <h4 className={styles.groupTitle}>Примерить</h4>
+      <ul className={styles.row}>
+        {tryOn.map(({ props, button }) => (
+          <li key={props} className={styles.example}>
+            <Button size={56} {...button}>
+              <SparkleIcon />
+              Примерить
+            </Button>
+            <code className={styles.props}>{props}</code>
+          </li>
+        ))}
+      </ul>
 
       <h4 className={styles.groupTitle}>Во всю ширину и ссылкой</h4>
       <ul className={styles.row}>

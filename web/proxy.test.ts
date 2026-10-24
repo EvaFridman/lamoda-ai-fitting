@@ -143,6 +143,7 @@ describe('config.matcher', () => {
     '/api/x',
     '/api/auth/get-session',
     '/media/x',
+    '/socket.io/',
     '/healthz',
     '/healthz/',
     '/healthz/warmup',
@@ -150,7 +151,12 @@ describe('config.matcher', () => {
     expect(matcher.test(path)).toBe(false);
   });
 
-  it.each(['/healthzx', '/apix', '/mediax'])('still matches %s', (path) => {
-    expect(matcher.test(path)).toBe(true);
-  });
+  // `/socket.io` without the slash reaches web in production (nginx forwards only `/socket.io/`):
+  // its not-found page gets the policy.
+  it.each(['/healthzx', '/apix', '/mediax', '/socket.io', '/socket.iox', '/socketxio'])(
+    'still matches %s',
+    (path) => {
+      expect(matcher.test(path)).toBe(true);
+    },
+  );
 });

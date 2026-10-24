@@ -117,15 +117,15 @@ What each agent may do, how the guard hooks work, the owner's decisions and the 
 
 Pinned on purpose; each "not newer" has a reason and a condition to move on.
 
-| What       | Version                                                                                                                                                                    | Why                                                                                                                                                          |
-| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Node / npm | 26 / 12                                                                                                                                                                    | Node 26 is LTS from 2026-10-28. npm 12 runs install scripts only from `allowScripts` in `package.json`; Node images ship npm 11, so images and CI install 12 |
-| TypeScript | 6.0                                                                                                                                                                        | 7.0 has no JS API (typescript-eslint, Nest Swagger plugin, Next need it). Move when they support 7                                                           |
-| ESLint     | 10                                                                                                                                                                         | React/a11y rules from `@eslint-react/eslint-plugin` and `eslint-plugin-jsx-a11y-x`; the classic plugins do not run on 10                                     |
-| Prisma     | 7.10                                                                                                                                                                       | install as `prisma@7`: npm's `latest` tag points at an 8.0 release candidate                                                                                 |
-| api        | NestJS 12, PostgreSQL 18, Redis 8 (ioredis), Temporal (SDK 1.x), Better Auth 1.7, pino, socket.io, Sentry, Vitest                                                          |                                                                                                                                                              |
-| web        | Next 16, React 19, TanStack Query 5, TanStack Virtual 3, Zustand 5, zod, SCSS, Base UI, Better Auth (client, the api's version), Sentry, Mixpanel, Vitest, Testing Library |                                                                                                                                                              |
-| Server     | Docker Compose, nginx + certbot, blue-green deploys                                                                                                                        | `deploy/README.md`                                                                                                                                           |
+| What       | Version                                                                                                                                                                                      | Why                                                                                                                                                          |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Node / npm | 26 / 12                                                                                                                                                                                      | Node 26 is LTS from 2026-10-28. npm 12 runs install scripts only from `allowScripts` in `package.json`; Node images ship npm 11, so images and CI install 12 |
+| TypeScript | 6.0                                                                                                                                                                                          | 7.0 has no JS API (typescript-eslint, Nest Swagger plugin, Next need it). Move when they support 7                                                           |
+| ESLint     | 10                                                                                                                                                                                           | React/a11y rules from `@eslint-react/eslint-plugin` and `eslint-plugin-jsx-a11y-x`; the classic plugins do not run on 10                                     |
+| Prisma     | 7.10                                                                                                                                                                                         | install as `prisma@7`: npm's `latest` tag points at an 8.0 release candidate                                                                                 |
+| api        | NestJS 12, PostgreSQL 18, Redis 8 (ioredis), Temporal (SDK 1.x), Better Auth 1.7, pino, socket.io, Sentry, Vitest                                                                            |                                                                                                                                                              |
+| web        | Next 16, React 19, TanStack Query 5, TanStack Virtual 3, Zustand 5, zod, SCSS, Base UI, Better Auth (client, the api's version), socket.io-client, Sentry, Mixpanel, Vitest, Testing Library |                                                                                                                                                              |
+| Server     | Docker Compose, nginx + certbot, blue-green deploys                                                                                                                                          | `deploy/README.md`                                                                                                                                           |
 
 ## Commands (from the root)
 
@@ -501,7 +501,16 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   instead of a new read. `DeleteAccount` calls `deleteMe()` directly, since it ends in a full load. The
   one other browser client is Better Auth's (`@/shared/auth`, the site's own `/api/auth`, spec
   0013): its calls go through `callAuth`, and `useSession` (`@/entities/session`) turns a failed
-  read into one with `authFailure`, so their failures are `ApiError`s too.
+  read into one with `authFailure`, so their failures are `ApiError`s too. Besides them the
+  browser holds one live connection, `@/shared/realtime` (spec 0019 plan §6, A72): `socket.io-client`
+  (in socket.io's minor line, as `socket.io-parser`), loaded by `import()` with the first
+  connection, to the site's own `/socket.io` with the session cookie, long-polling then WebSocket;
+  `useSessionRealtime` (`features/auth`, mounted by the header's profile icon) opens it signed in,
+  again for another user, and closes it on a seen end of the session. A slice listens for a push
+  through a `RealtimeEvent` of its own (a name, a parser, a key it is delivered once by per
+  connection: `fittingFinishedEvent` of `entities/fitting`); a push is only a signal to read again
+  through the api. Locally `next dev` rewrites `/socket.io` to the api's `/socket.io/`, long-polling
+  only: Next answers `/socket.io/` with a 308, so there the client asks without the slash.
 - `web` reads every api answer through a zod schema of its entity slice (an extra field is dropped,
   an unknown enum value is an `ApiError` of kind `schema`). Errors show Russian text only through
   `errorText` / `detailText` (`@/shared/api`, `error-text.ts`: one text per api code, a general one
@@ -576,7 +585,9 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   `accept` and `capture`, spec 0019 A30; `bare` is a plain button the page styles), `IconButton`'s
   `plain` and `Sheet` (spec 0019 A64: the kit's one bottom sheet is `Drawer side="bottom"`, which
   takes `description`, `media` (a picture left of the heading, which then has no "‹" or header
-  action), `grip`, `closable` and `initialFocus`; `Sheet` is it with a grip and no ×). For the
+  action), `grip`, `closable` and `initialFocus`; `Sheet` is it with a grip and no ×),
+  `ProgressBar`, `CountBadge` (nothing at 0; its parent places it and names the count) and
+  `Chip`/`ChipGroup` (Base UI's Toggle and ToggleGroup; spec 0019 plan §7). For the
   catalog's sheet (spec 0020) `Drawer` takes `fullHeight` (a bottom sheet as high as it can be, so
   a `Drawer` nested in it, Base UI's nested drawer, is as high and the outer one steps back behind
   it), `onBack` (a "‹" before the title, `backLabel`, `backRef`), `headerAction` (a control before
@@ -585,11 +596,11 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   right), the checkbox panel `selectAll` ("Выбрать все", W24); the icons include `FilterIcon`.
   Phones are below 600px: `PHONE_QUERY` (`@/shared/config`) with `useMediaQuery` (`@/shared/lib`,
   a client module) where the DOM must differ, else CSS. Tracking handlers reach the kit and entity
-  components as
-  props, from the widget or page that calls `useTrackedElement`: `FilterDropdown`'s and the
-  catalog filters' `chipEvents` (on the chip's trigger, not its ×), `FileInput`'s `events`,
-  `CatalogProductCard`'s and `CatalogCategoryList`'s `linkEvents`, `SavedPhotoCard`'s
-  `makeDefaultEvents`.
+  components as props, from the widget or page that calls `useTrackedElement`: `FilterDropdown`'s
+  and the catalog filters' `chipEvents` (on the chip's trigger, not its ×), `FileInput`'s and
+  `Chip`'s `events`, `CatalogProductCard`'s and `CatalogCategoryList`'s `linkEvents`,
+  `SavedPhotoCard`'s `makeDefaultEvents`.
+
 - `web` photos (spec 0019 plan §7): `entities/user-photo` reads `GET /me/photos` in the browser
   (`useMyPhotos`) under `userPhotoKeys.all`, which starts with `userKeys.all`, so a session's end
   drops it; `uploadPhoto` (multipart `photo` and `save`), `setDefaultPhoto` and `deletePhoto` are
@@ -695,8 +706,9 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   segment fails the build.
 - `web` Content Security Policy (spec 0014 plan §5, O112): `web/proxy.ts` (its test
   `web/proxy.test.ts` next to it) runs on every path that may render a page (not
-  `/_next/static/`, `/_next/image`, `next dev`'s HMR socket, `/api/`, `/media/`, `/healthz` and
-  everything under it),
+  `/_next/static/`, `/_next/image`, `next dev`'s HMR socket, `/api/`, `/media/`, `/socket.io/`,
+  `/healthz` and everything under it; `/socket.io` without the slash gets it, since in production
+  it renders web's not-found page),
   makes a nonce per request and sets the policy of
   `contentSecurityPolicy` (`@/shared/csp/server`) on the answer and on the request, where Next
   reads the nonce for the scripts it renders per request; a server component that renders a

@@ -33,6 +33,9 @@ const nextConfig: NextConfig = {
   // production image has no rewrite: outside `next dev` this returns none, so it proxies nothing.
   // Sign-in keeps its prefix, as nginx's /api/auth/ does: Better Auth in the api answers at
   // /api/auth (spec 0013 plan §9). The first rule that matches wins, so it comes first.
+  // The live connection (spec 0019 plan §6) goes to the api's /socket.io/ over long-polling only:
+  // a rewrite carries no WebSocket upgrade, and Next redirects `/socket.io/` to `/socket.io`, so
+  // in development the client asks for `/socket.io` and the slash is added here.
   async rewrites() {
     if (process.env.NODE_ENV !== 'development') return [];
     const { API_URL: apiUrl, S3_ENDPOINT: s3Endpoint, S3_BUCKET: s3Bucket } = process.env;
@@ -41,6 +44,7 @@ const nextConfig: NextConfig = {
         ? [
             { source: '/api/auth/:path*', destination: `${apiUrl}/api/auth/:path*` },
             { source: '/api/:path*', destination: `${apiUrl}/:path*` },
+            { source: '/socket.io', destination: `${apiUrl}/socket.io/` },
           ]
         : []),
       ...(s3Endpoint && s3Bucket
