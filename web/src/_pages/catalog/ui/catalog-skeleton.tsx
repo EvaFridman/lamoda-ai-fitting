@@ -26,20 +26,35 @@ export function CatalogSkeleton({ title }: CatalogSkeletonProps) {
         Загружаем товары
       </p>
       {title === undefined ? (
-        <>
-          <div className={styles.inset}>
-            <Skeleton width={160} height={16} />
-          </div>
+        <div className={styles.inset}>
+          <Skeleton width={160} height={16} />
+        </div>
+      ) : null}
+      <div className={styles.top}>
+        {title === undefined ? (
           <div className={styles.headingRow}>
             <CatalogBackSlot />
             <div className={styles.heading}>
               <Skeleton width={200} height={28} />
             </div>
           </div>
-        </>
-      ) : (
-        <CatalogHeading title={title} countPending back={false} />
-      )}
+        ) : (
+          <CatalogHeading title={title} countPending back={false} />
+        )}
+        {/* The bar (W27): the category and "Фильтры" as lines below 600px, the outline button
+            to 1023px. */}
+        <div className={styles.bar}>
+          <div className={styles.barPhone}>
+            <Skeleton width={120} height={20} />
+          </div>
+          <div className={styles.barPhone}>
+            <Skeleton width={96} height={20} />
+          </div>
+          <div className={styles.skeletonFiltersButton}>
+            <Skeleton width={112} height={48} radius="var(--radius-s)" />
+          </div>
+        </div>
+      </div>
       {/* Busy itself (D7af); the status stays outside, so it is read at once. */}
       <div className={styles.layout} aria-busy>
         <div className={styles.aside}>
@@ -54,9 +69,6 @@ export function CatalogSkeleton({ title }: CatalogSkeletonProps) {
             {CHIP_WIDTHS.map((width) => (
               <Skeleton key={width} width={width} height={36} radius="var(--radius-s)" />
             ))}
-          </div>
-          <div className={styles.skeletonFiltersButton}>
-            <Skeleton width={112} height={48} radius="var(--radius-s)" />
           </div>
           <ProductGridSkeleton />
         </div>

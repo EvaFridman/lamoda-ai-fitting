@@ -1,6 +1,6 @@
 # 0020 catalog: loading and the phone layout: tasks
 
-Status: accepted (2026-10-23); amended 2026-10-23 at the review of PR 1 (T4, T5, T8, T9).
+Status: accepted (2026-10-23); amended 2026-10-23 at the review of PR 1 (T4, T5, T8, T9); amended 2026-10-23 at T10 (T10: W27–W29).
 
 ## How the work flows
 
@@ -77,9 +77,10 @@ Status: accepted (2026-10-23); amended 2026-10-23 at the review of PR 1 (T4, T5,
       Check: Vitest of `back-target` and `CatalogBack` (a reload, a direct link in a new tab, an
       entry from another site, the redirect from `/`, a client-side step); qa-tester AC4.
       Commit: `feat(web): add the catalog's phone heading with a back arrow`
-- [ ] **T10. Phone bar and categories (W3, W10, W17; plan §2).** `CatalogCategoryToggle`,
-      `CatalogCategoryList`'s `layout="rows"`, the bar's grid areas, the trigger in the bar, the
-      scroll-up target below 600 px; `catalog.category-toggle`, `catalog.category`'s description.
+- [x] **T10. Phone bar and categories (W3, W10, W17, W27–W29; plan §2).** `CatalogCategoryToggle`,
+      `CatalogCategoryList`'s `layout="rows"`, the bar after the heading row with the sheet's
+      trigger (`CatalogFilters`' `part`), the sticky block below 600 px, `lib/scroll-target.ts`;
+      `catalog.category-toggle`, `catalog.category`'s description.
       Check: Vitest (toggle, rows' links keep the query, scroll target); qa-tester AC5, AC6.
       Commit: `feat(web): add the catalog's phone bar with the category list`
 - [ ] **T11. Cards and breadcrumbs (W1, W5; plan §2).** The grid's phone gaps, the card's phone

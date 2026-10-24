@@ -64,6 +64,29 @@ function setup(value: CatalogFilterValue = {}, withFacets: ProductFacets = facet
   return { onChange, user: userEvent.setup() };
 }
 
+describe('CatalogFilters part', () => {
+  const props = { facets, value: {}, onChange: vi.fn() };
+
+  it('renders only the chips for "row"', () => {
+    render(wrap(<CatalogFilters part="row" {...props} />));
+    expect(screen.getByRole('button', { name: 'Только со скидкой' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Фильтры' })).not.toBeInTheDocument();
+  });
+
+  it('renders only the "Фильтры" button for "sheet"', () => {
+    render(wrap(<CatalogFilters part="sheet" {...props} />));
+    expect(screen.getByRole('button', { name: 'Фильтры' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Только со скидкой' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Новинки' })).not.toBeInTheDocument();
+  });
+
+  it('renders both when omitted', () => {
+    render(wrap(<CatalogFilters {...props} />));
+    expect(screen.getByRole('button', { name: 'Фильтры' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Только со скидкой' })).toBeInTheDocument();
+  });
+});
+
 describe('CatalogFilters', () => {
   it('shows the sort, every filter of the counts and the discount chip', () => {
     setup();

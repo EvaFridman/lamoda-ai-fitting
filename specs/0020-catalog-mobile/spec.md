@@ -1,9 +1,9 @@
 # 0020 catalog: loading and the phone layout
 
 Status: accepted (2026-10-23); amended 2026-10-23 at the review of PR 1 (AC1, AC9, AC11, AC14,
-AC16).
+AC16); amended 2026-10-23 at T10 (AC5: W28).
 
-Decisions: `clarifications.md` (W0–W22).
+Decisions: `clarifications.md` (W0–W29).
 
 ## Goal
 
@@ -64,7 +64,8 @@ screenshots of a Lamoda category page, described in `clarifications.md`).
 - **AC5.** The next row has the current category ("Все товары" on `/catalog`) with a chevron and,
   on the right, a funnel with "Фильтры". A tap on the category expands the list of categories in
   place (the chevron turns up), pushing the grid down; a category there opens its page with the
-  current filters and search kept; a second tap collapses it.
+  current filters and search kept; a second tap collapses it. Below 600 px the heading row and this
+  row stay at the window's top while the page scrolls; the open list scrolls with the page (W28).
 - **AC6.** The funnel has a dot while a filter, a sort other than the default or a search is
   applied, and none otherwise.
 - **AC7.** The grid has two cards per row with no side margins and a thin line between cards; the

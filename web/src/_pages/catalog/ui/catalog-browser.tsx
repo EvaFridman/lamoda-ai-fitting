@@ -1,9 +1,9 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 
-import { CatalogCategoryList, useCategories } from '@/entities/category';
+import { CatalogCategoryList, CatalogCategoryToggle, useCategories } from '@/entities/category';
 import {
   isRefusedCursor,
   type ProductFacets,
@@ -20,6 +20,7 @@ import { filterChanges, sortChange } from '../model/analytics';
 import { catalogCategoriesQuery, categoryRows } from '../model/categories';
 import { isDocumentEntry } from '../lib/document-entry';
 import { productCount } from '../lib/product-count';
+import { scrollTarget, underStuck } from '../lib/scroll-target';
 import { type CatalogQuery, catalogSearch, parseCatalogUrl } from '../model/url-state';
 import { CatalogEmpty } from './catalog-empty';
 import { CatalogHeading } from './catalog-heading';
@@ -68,7 +69,23 @@ export function CatalogBrowser({
   const router = useRouter();
   const pathname = usePathname();
   const columnRef = useRef<HTMLDivElement>(null);
+  const topRef = useRef<HTMLDivElement>(null);
+  const barRef = useRef<HTMLDivElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
+  // The phone list under the bar (spec 0020 plan §2): closed on every new page, since each
+  // category's page mounts anew.
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
+  const phoneCategoriesId = useId();
+  // Opened on a page scrolled past it, the list would open above the window, under the stuck
+  // block: the page goes up so it starts right under the block (W28).
+  useEffect(() => {
+    const top = topRef.current;
+    const list = document.getElementById(phoneCategoriesId);
+    if (!categoriesOpen || top === null || list === null) return;
+    if (getComputedStyle(top).position !== 'sticky') return;
+    const target = underStuck(list.getBoundingClientRect().top + window.scrollY, top.offsetHeight);
+    if (window.scrollY > target) window.scrollTo({ top: target });
+  }, [categoriesOpen, phoneCategoriesId]);
   const batchQuery = categoryId === undefined ? query : { ...query, categoryId: [categoryId] };
   const [from, setFrom] = useState(start ?? null);
   // Another start (a selection made on a batch page leaves its cursor) is another list, from that
@@ -149,15 +166,28 @@ export function CatalogBrowser({
   });
 
   const categoryLink = useTrackedElement('catalog.category');
+  // `expanded`: the state a click opens to (W16).
+  const categoryToggle = useTrackedElement('catalog.category-toggle', {
+    expanded: !categoriesOpen,
+  });
 
   // A new selection replaces the address from its first batch: no history entry, so Back leaves
-  // the catalog (O82). Next keeps the scroll; the page goes up to the list's column only when the
-  // visitor is below its top.
+  // the catalog (O82). Next keeps the scroll; the page goes up to the list's top only when the
+  // visitor is below it (`scrollTarget`: under the stuck heading and bar on phones, W28).
   const select = (next: CatalogQuery) => {
     const column = columnRef.current;
-    if (column !== null) {
-      const top = column.getBoundingClientRect().top + window.scrollY;
-      if (window.scrollY > top) window.scrollTo({ top });
+    const top = topRef.current;
+    const bar = barRef.current;
+    if (column !== null && top !== null) {
+      const target = scrollTarget({
+        stuckHeight: getComputedStyle(top).position === 'sticky' ? top.offsetHeight : null,
+        barTop:
+          bar !== null && bar.getClientRects().length > 0
+            ? bar.getBoundingClientRect().top + window.scrollY
+            : null,
+        columnTop: column.getBoundingClientRect().top + window.scrollY,
+      });
+      if (window.scrollY > target) window.scrollTo({ top: target });
     }
     const search = catalogSearch({ query: next });
     // As the address will read back: the page's `query` is parsed from it, which drops what the
@@ -195,19 +225,57 @@ export function CatalogBrowser({
   // without scrolling past the list's column (O82).
   const focusHeading = () => headingRef.current?.focus({ preventScroll: true });
 
+  // From the counts the filters keep too (plan §4), so both lists stay while new counts load or
+  // after they fail, and the phone list's toggle never opens nothing (W29).
   const { rows, slugs } = categoryRows(
-    facets.data ?? { categories: [] },
+    filterFacets ?? { categories: [] },
     categories.data?.items ?? [],
   );
+  // A category is a page (O73); its row keeps the selection, whose counts it shows.
+  const categoryHref = (id: string) =>
+    `/catalog/${encodeURIComponent(slugs.get(id) ?? '')}${catalogSearch({ query })}`;
 
   return (
     <>
-      <CatalogHeading
-        ref={headingRef}
-        title={title}
-        total={facets.data?.total}
-        // A placeholder while the counts load, none after they fail (W14).
-        countPending={facets.isPending}
+      {/* The heading row and the phone bar: one block, stuck to the window's top below 600px
+          (W28). A child of `<main>`, whose height bounds where it sticks. */}
+      <div ref={topRef} className={styles.top}>
+        <CatalogHeading
+          ref={headingRef}
+          title={title}
+          total={facets.data?.total}
+          // A placeholder while the counts load, none after they fail (W14).
+          countPending={facets.isPending}
+        />
+        {/* The category's toggle below 600px, "Фильтры" below 1024px (W27). */}
+        <div ref={barRef} className={styles.bar}>
+          <CatalogCategoryToggle
+            className={styles.barPhone}
+            label={categoryId === undefined ? 'Все товары' : title}
+            open={categoriesOpen}
+            onOpenChange={setCategoriesOpen}
+            controls={phoneCategoriesId}
+            toggleEvents={categoryToggle}
+          />
+          <CatalogFilters
+            part="sheet"
+            facets={filterFacets}
+            value={query}
+            onChange={select}
+            categoryId={categoryId}
+          />
+        </div>
+      </div>
+      <CatalogCategoryList
+        layout="rows"
+        id={phoneCategoriesId}
+        hidden={!categoriesOpen}
+        className={styles.barPhone}
+        aria-label="Список категорий"
+        categories={rows}
+        value={categoryId ?? null}
+        getHref={categoryHref}
+        linkEvents={categoryLink}
       />
       {/* Two live regions, so a batch loading right after a change cannot replace the count
           before it is read. */}
@@ -223,10 +291,7 @@ export function CatalogBrowser({
             aria-label="Список категорий"
             categories={rows}
             value={categoryId ?? null}
-            // A category is a page (O73); its row keeps the selection, whose counts it shows.
-            getHref={(id) =>
-              `/catalog/${encodeURIComponent(slugs.get(id) ?? '')}${catalogSearch({ query })}`
-            }
+            getHref={categoryHref}
             linkEvents={categoryLink}
           />
         </aside>
@@ -237,7 +302,8 @@ export function CatalogBrowser({
           aria-busy={firstBatchPending()}
         >
           <CatalogFilters
-            className={styles.inset}
+            part="row"
+            className={styles.chips}
             facets={filterFacets}
             value={query}
             onChange={select}

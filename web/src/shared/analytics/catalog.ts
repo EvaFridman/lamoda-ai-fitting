@@ -345,8 +345,8 @@ export const catalog = defineCatalog({
       zone: 'catalog',
       type: 'navigation',
       description:
-        'Категория в списке слева: ссылка на `/catalog/<slug>`. Одна на все строки: наведение уходит раз за просмотр страницы. Категории в шапке не отслеживаются.',
-      clicksPerVisit: 0.4,
+        'Категория в списке слева или в списке под строкой категории на экране уже 600 px: ссылка на `/catalog/<slug>`. Одна на все строки обоих списков: наведение уходит раз за просмотр страницы. Категории в шапке не отслеживаются.',
+      clicksPerVisit: 0.5,
       hoversPerVisit: 1,
     },
     'catalog.filter-brand': {
@@ -413,6 +413,15 @@ export const catalog = defineCatalog({
       clicksPerVisit: 0.3,
       hoversPerVisit: 0.02,
       properties: { active: { kind: 'boolean' } },
+    },
+    'catalog.category-toggle': {
+      zone: 'catalog',
+      type: 'interaction',
+      description:
+        'Строка с текущей категорией («⌄ Одежда», «Все товары» на `/catalog`) на экране уже 600 px: открывает и закрывает список категорий под ней. `expanded` — состояние, в которое переводит клик (`true` — список открывается).',
+      clicksPerVisit: 0.25,
+      hoversPerVisit: 0.005,
+      properties: { expanded: { kind: 'boolean' } },
     },
     'catalog.back': {
       zone: 'catalog',

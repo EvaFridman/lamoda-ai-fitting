@@ -1,9 +1,9 @@
 # 0020 catalog: loading and the phone layout: plan
 
 Status: accepted (2026-10-23); amended 2026-10-23 at the review of PR 1 (§1, §2, §3, §4, risks,
-verification: W19–W22).
+verification: W19–W22); amended 2026-10-23 at T10 (§1, §2, risks: W27–W29).
 
-How `spec.md` (AC1–AC17) is built, with the decisions of `clarifications.md` (W0–W18). No new
+How `spec.md` (AC1–AC17) is built, with the decisions of `clarifications.md` (W0–W29). No new
 package, no api change, no migration. Paths are under `web/src/` unless they start otherwise.
 
 ## 1. Loading placeholders (W2; AC1–AC3)
@@ -23,8 +23,8 @@ no data.
 - `_pages/catalog/ui/catalog-skeleton.tsx` (server-safe, no state): `CatalogSkeleton({ title? })`
   draws the page's shape with the same classes as the page: the breadcrumbs' line, the title (a
   `Skeleton` line when no title is known yet, else `CatalogHeading` with the title and a count
-  placeholder), the phone bar (§2), the filters row (chip-sized `Skeleton`s from 1024 px, the
-  "Фильтры" button's size below), the category column (eight `Skeleton` lines, from 1024 px) and
+  placeholder), the phone bar (§2: two text-sized lines below 600 px, the "Фильтры" button's
+  size from 600 to 1023 px), the chips (chip-sized `Skeleton`s from 1024 px), the category column (eight `Skeleton` lines, from 1024 px) and
   `ProductGridSkeleton`. Its block has `min-height: 100dvh`, so the footer stays out of the window
   whatever the rows' height. A visually hidden `role="status"` says "Загружаем товары".
 - Fallbacks: `CategoryPage`'s outer `Suspense` → `<CatalogSkeleton />`; `CategoryContent`'s inner
@@ -74,21 +74,30 @@ title (`display: block`), from 600 px it stays inline (0014 O5). While the count
   back to the previous document, which AC4 allows). The tests cover a reload, a direct link in a
   new tab, an entry from another site, the redirect from `/` and a client-side step.
 
-**Phone bar (AC5, AC6).** A row with a hairline above and below: on the left the category toggle,
-on the right the filters' trigger. `.layout` below 600 px is a grid with the areas
-`toggle filters` / `categories categories` / `list list`; `.column` becomes `display: contents` so
-the filters and the list are its items. From 600 px the bar's toggle and phone list are
-`display: none`.
+**Phone bar (AC5, AC6, W27, W28).** A row right after the heading row, outside `.layout`: on the
+left the category toggle, on the right the filters' trigger. The heading row's full-width hairline
+is its top line; it has none under it while the list is closed. The heading row and the bar are one
+block (`.top`), `position: sticky; top: 0` on the page's background below 600 px. `CatalogFilters`
+takes `part?: 'row' | 'sheet'` (both when omitted): the page renders `part="sheet"` in the bar and
+`part="row"` (the chips) in the column. From 600 px the bar's toggle and phone list are
+`display: none`; from 600 to 1023 px the bar holds the outline "Фильтры" with today's spacing,
+from 1024 px the bar is `display: none`. The scroll-up after a change (0014 O82) reads its target
+by `lib/scroll-target.ts` (pure, tested): below 600 px (the block is sticky) the column's top less
+the block's height, else the bar's top while it shows, else the column's top.
 
 - `entities/category/ui/catalog-category-toggle.tsx`: `CatalogCategoryToggle({ label, open,
 onOpenChange, controls, toggleEvents })` — a `<button aria-expanded aria-controls>` with the label
   and `ChevronDownIcon`/`ChevronUpIcon`. Display-only (0009 K7): the page owns `open`, since its
   analytics property `expanded` needs it (W16). The label is the category's name or "Все товары".
-- `CatalogCategoryList` gains `layout?: 'column' | 'rows'`: `rows` is the phone list (full-width
-  rows, hairlines, no count, the chosen row bold with `aria-current`). The page renders it a second
-  time inside the bar's `categories` area with `id` for `aria-controls`, `hidden` while closed. The
-  same `getHref` (the query kept, 0014 O86) and `linkEvents` (`catalog.category`, W17).
-- A new page (another category) mounts closed.
+- `CatalogCategoryList` gains `layout?: 'column' | 'rows'`: `rows` is the phone list (a full-width
+  hairline on top, rows split by hairlines from 16 px off the left edge, the last too, no count,
+  the chosen row bold with `aria-current`, W27). The page renders it a second time under the bar
+  with `id` for `aria-controls`, `hidden` while closed. The same `getHref` (the query kept, 0014
+  O86) and `linkEvents` (`catalog.category`, W17).
+- A new page (another category) mounts closed. Opened on a page scrolled past it, the page goes
+  up so the list starts right under the stuck block (`underStuck`, W28). Both lists are built
+  from the counts the filters keep (§4), so they stay while new counts load or after they fail
+  (W29).
 
 **Filters' trigger (AC6, W10).** `CatalogFiltersDrawer`'s trigger becomes a widget button: the
 new kit icon `FilterIcon` (a funnel, `shared/ui/icon/icons.tsx`), "Фильтры", and a dot while
@@ -202,10 +211,10 @@ focus item removed (§4).
   width so its switch from link to button moves nothing.
 - **Two copies of the category list and the breadcrumbs.** Hidden ones are `display: none`;
   tests query by role, so they see one. Tracked links: the hidden list cannot be clicked.
-- **`display: contents`** on `.column`: it drops the element's box; its `ref` (the scroll-up of
-  0014 O82) reads `getBoundingClientRect()` of a box-less element, which is all zeros. Below 600 px
-  the scroll target becomes the bar (a ref on it); tested. `.column` stays a bare `div` with no
-  role or landmark: older Safari drops the semantics of an element with `display: contents`.
+- **The sticky block (W28).** It covers the top of whatever scrolls under it: the scroll-up goes
+  to the column's top less the block's height, and the block stays a child of `<main>` (no
+  wrapper), whose height bounds where it sticks. A control the keyboard focuses under it may sit
+  hidden behind it (no `scroll-padding-top`, since the block's height varies with the title).
 - **Placeholders vs the virtual grid's restore (0014 O77).** The skeleton is a fallback of the
   server parts only; the grid's own restore after Back is unchanged.
 
