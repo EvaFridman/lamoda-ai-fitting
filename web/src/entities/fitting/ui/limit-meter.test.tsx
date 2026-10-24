@@ -1,8 +1,20 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { LimitMeter, triesLeftText } from './limit-meter';
+import { LimitMeter, triesLeftOfText, triesLeftText } from './limit-meter';
 
+describe('triesLeftOfText', () => {
+  it.each([
+    [11, 40, 'Осталось 11 из 40 примерок'],
+    [1, 1, 'Осталась 1 из 1 примерки'],
+    [21, 21, 'Осталась 21 из 21 примерки'],
+    [5, 22, 'Осталось 5 из 22 примерок'],
+    [0, 40, 'Примерки закончились'],
+    [-1, 40, 'Примерки закончились'],
+  ])('%i left of %i reads «%s»', (left, limit, text) => {
+    expect(triesLeftOfText(left, limit)).toBe(text);
+  });
+});
 describe('triesLeftText', () => {
   it.each([
     [12, 'Осталось 12 примерок в этом месяце'],
@@ -41,6 +53,30 @@ describe('LimitMeter', () => {
     expect(container.firstElementChild).toHaveClass('few');
     rerender(<LimitMeter left={0} limit={20} />);
     expect(container.firstElementChild).toHaveClass('few');
+  });
+
+  it('puts the text, the bar and the caption one under another when stacked', () => {
+    const { container } = render(
+      <LimitMeter left={10} limit={40} layout="stacked" caption="Обновится 1 ноября">
+        Осталось 10 из 40 примерок
+      </LimitMeter>,
+    );
+    const meter = container.firstElementChild as HTMLElement;
+    expect(meter).toHaveClass('stacked');
+    expect(Array.from(meter.children).map((child) => child.className)).toEqual([
+      '',
+      'bar',
+      'caption',
+    ]);
+    expect(screen.getByText('Обновится 1 ноября')).toBeInTheDocument();
+    expect(container.querySelector('.fill')).toHaveStyle({ width: '25%' });
+  });
+
+  it('keeps the bar first and shows no caption in the row layout', () => {
+    const { container } = render(<LimitMeter left={11} limit={40} caption="Обновится 1 ноября" />);
+    expect(container.firstElementChild).not.toHaveClass('stacked');
+    expect(container.firstElementChild?.firstElementChild).toHaveClass('bar');
+    expect(screen.queryByText('Обновится 1 ноября')).not.toBeInTheDocument();
   });
 
   it('fills the bar by the share left, within 0 and 100 %', () => {

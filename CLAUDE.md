@@ -561,13 +561,16 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   `account` ("Мои данные"), `fittings` and `photos` ("Мои фото", spec 0019 A19: `_pages/photos`,
   `widgets/my-photos`, `features/upload-photo`) (`web/app/customer/`, whose layout holds only the
   metadata: `noindex`, the titles; `robots.ts` disallows `/customer`). Every page is
-  `AccountShell({ section })` (`widgets/account-shell`): the side menu of
+  `AccountShell({ section, aside })` (`widgets/account-shell`; `aside`, a block under the menu
+  shown signed in on a wide screen, is the history's `LimitMeter`): the side menu of
   `shared/config/account-sections.ts` (the header reads the same list, since a widget imports no
   widget), `Skeleton`s while the session loads, signed out (a failed read too) an invitation whose
   button is a second `LoginModal` (no redirect), signed in the section. Below 1024 px `/customer`
   is the list of sections and a section shows "‹ Личный кабинет" in place of the menu, one DOM
-  switched by CSS. `_pages/customer` has no section, `_pages/account-stubs` holds the three
-  stubs, and `_pages/account-data` shows the user's data from `entities/user` (`useMe`,
+  switched by CSS. `_pages/customer` has no section, `_pages/account-stubs` holds the two
+  stubs, `_pages/fittings` the history («Мои примерки», spec 0019 T16: `widgets/fitting-history`,
+  `features/delete-fitting`, `entities/fitting`'s `HistoryCard`; a card opens its fitting through
+  `?fitting=<id>` in T15's try-on window), and `_pages/account-data` shows the user's data from `entities/user` (`useMe`,
   `updateMe`, `deleteMe`, `userKeys`, `UserInitials`, `profileInitials`), read only in the
   browser (U11), with `ProfileForm` (`features/edit-profile`: the date mask `ДД.ММ.ГГГГ`, only
   changed fields sent, the api's `details` under their fields, the whole form `mp-block`) and
@@ -602,7 +605,7 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   components as props, from the widget or page that calls `useTrackedElement`: `FilterDropdown`'s
   and the catalog filters' `chipEvents` (on the chip's trigger, not its ×), `FileInput`'s and
   `Chip`'s `events`, `CatalogProductCard`'s and `CatalogCategoryList`'s `linkEvents`,
-  `SavedPhotoCard`'s `makeDefaultEvents`.
+  `SavedPhotoCard`'s `makeDefaultEvents`, `HistoryCard`'s `openEvents`.
 
 - `web` photos (spec 0019 plan §7): `entities/user-photo` reads `GET /me/photos` in the browser
   (`useMyPhotos`) under `userPhotoKeys.all`, which starts with `userKeys.all`, so a session's end

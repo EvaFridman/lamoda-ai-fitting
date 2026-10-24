@@ -941,6 +941,30 @@ colours, the toast and the widget's retry share them and a feature imports no fe
 apply). (10) A colour started from a result runs over it (board 7.2) and «Примерить на другом фото»
 is off meanwhile; a regeneration shows the wait of board 6.
 
+**A78. The history list (T16).** Board 9 draws «Открыть» and «Удалить» only in a card's actions
+menu, which T27 owned whole, and draws no running or failed entry and no delete confirmation. The
+owner decided on 2026-10-24: (1) T16 builds the actions menu «⋯» (desktop) and the phones'
+actions sheet with «Открыть», «Скачать» (as A77.9) and «Удалить»; T27 adds «Примерить ещё раз»,
+«Поделиться» (disabled) and «Сравнить с другой»; a click on the card's picture opens it too. (2)
+A running fitting shows in the list with a placeholder «Готовим примерку…», opens the wait screen
+and offers no «Удалить» (A47); a failed one shows «Не получилось», opens the error screen with
+«Попробовать ещё раз» and can be deleted. (3) Deleting asks first in a `Modal` as «Мои фото» does:
+the result's thumbnail, «Удалить примерку?», «Результат и его фото удалятся. Потраченная примерка
+не вернётся.», «Удалить» and «Отмена», the focus on «Отмена». (4) The worktree runs its own stack
+(compose project `ai-fitting-0019`, ports 9000/9001), which `qa-tester` uses. (5) The analytics,
+on the `analytics` agent's proposal: the zone `fitting` gains the area `history` with
+`history.tab` (`tab`), `history.open` (`from`: `picture | menu`, `status`, `kind`),
+`history.delete` (on the confirming button; `status`, `kind`), `history.choose-item`, and, beyond
+plan §9, `history.menu` (the «⋯» or the sheet opened) and `history.download`; no card position;
+«Отмена» is not tracked; `sdkPerVisit` goes from 13 to 14 for the new page. The `source` value
+`history` of A75 moves to T27 with «Примерить ещё раз»: in T16 a failed card's retry is the error
+screen's `retry`. (6) The section's title stays «Мои примерки» (A19); the subtitle counts the
+shown tab's entries (the first batch's `total`); the `LimitMeter` («Осталось N из M примерок»,
+«Обновится <date>») sits under the side menu on the history page only (board 10 has none) and,
+below 1024px where the menu hides, is not shown (board 9.1 has none). (7) Assumption, owner to
+confirm: board 9.4's empty state shows only on «Все»; an empty «Одна вещь» or «Образы» tab says
+«Примерок одной вещи пока нет» or «Образов пока нет».
+
 ## Canvas and decisions
 
 Where the canvas differs from the decisions above, the decision wins:

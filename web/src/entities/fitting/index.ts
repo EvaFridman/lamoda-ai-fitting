@@ -21,7 +21,7 @@ export {
   useFittingQuota,
   useFittings,
 } from './api/queries';
-export { fittingDate, renewalDate } from './lib/dates';
+export { fittingDate, historyDate, renewalDate } from './lib/dates';
 export { itemWord } from './lib/item-word';
 export {
   FITTING_STEPS,
@@ -66,4 +66,18 @@ export {
 } from './model/schemas';
 export { isFittingShown, showFitting } from './model/shown';
 export { AiLabel, type AiLabelProps } from './ui/ai-label';
-export { FEW_TRIES_LEFT, LimitMeter, type LimitMeterProps, triesLeftText } from './ui/limit-meter';
+export {
+  HistoryCard,
+  type HistoryCardEvents,
+  type HistoryCardProps,
+  itemLabel,
+  kindBadge,
+} from './ui/history-card';
+export { ItemsStrip, type ItemsStripProps, STRIP_MAX } from './ui/items-strip';
+export {
+  FEW_TRIES_LEFT,
+  LimitMeter,
+  type LimitMeterProps,
+  triesLeftOfText,
+  triesLeftText,
+} from './ui/limit-meter';

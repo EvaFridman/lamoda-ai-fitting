@@ -89,9 +89,10 @@ export function defineCatalog<const C extends Catalog>(catalog: C & Checked<C>):
 export const catalog = defineCatalog({
   // The owner's estimates (R15, R17), set without traffic data: a demo site. The SDK sends about
   // 5 page views and 7 heatmap clicks a visit (`autocapture` is off; the catalog's categories are
-  // paths of their own, spec 0014 O102); «Мои фото» adds about one more (spec 0019 plan §9).
+  // paths of their own, spec 0014 O102); «Мои фото» adds about one more, «Мои примерки» another
+  // (spec 0019 plan §9, A78).
   visitsPerMonth: 3_000,
-  sdkPerVisit: 13,
+  sdkPerVisit: 14,
   zones: {
     service: {
       title: 'Служебное',
@@ -119,9 +120,9 @@ export const catalog = defineCatalog({
     },
     fitting: {
       title: 'Примерка',
-      areas: ['photos', 'try-on', 'result', 'fitting-toast'],
+      areas: ['photos', 'try-on', 'result', 'fitting-toast', 'history'],
       description:
-        'Онлайн-примерка (спека 0019). `photos` — фото для примерки: загрузка (подсказки и согласия первой загрузки, экран отказа) и страница «Мои фото» (`/customer/photos`). `try-on` — окно примерки до результата: выбор фото, ожидание, экраны лимита и ошибок. `result` — результат примерки и шторка «Что поменять?». `fitting-toast` — уведомления «Примерка готова» и «Примерка … не удалась» на любой странице сайта.',
+        'Онлайн-примерка (спека 0019). `photos` — фото для примерки: загрузка (подсказки и согласия первой загрузки, экран отказа) и страница «Мои фото» (`/customer/photos`). `try-on` — окно примерки до результата: выбор фото, ожидание, экраны лимита и ошибок. `result` — результат примерки и шторка «Что поменять?». `fitting-toast` — уведомления «Примерка готова» и «Примерка … не удалась» на любой странице сайта. `history` — «Мои примерки» (`/customer/fittings`): вкладки, карточки, меню и шторка действий карточки, подтверждение удаления, пустой список.',
     },
   },
   commonEvents: {
@@ -654,6 +655,64 @@ export const catalog = defineCatalog({
       clicksPerVisit: 0.001,
       hoversPerVisit: 0.001,
       properties: { kind: { kind: 'enum', values: ['single', 'look'] } },
+    },
+    'history.tab': {
+      zone: 'fitting',
+      type: 'interaction',
+      description:
+        'Переход на вкладку «Все», «Одна вещь» или «Образы» в «Моих примерках» (клик или стрелки). `tab` — выбранная вкладка. Нажатие на текущую вкладку и вкладка при открытии страницы не отправляются, наведение тоже.',
+      clicksPerVisit: 0.02,
+      hoversPerVisit: 0,
+      properties: { tab: { kind: 'enum', values: ['all', 'single', 'look'] } },
+    },
+    'history.open': {
+      zone: 'fitting',
+      type: 'navigation',
+      description:
+        'Открыть примерку из «Моих примерок». `from` — как: `picture` — клик по картинке карточки, `menu` — «Открыть» в меню «⋯» или в шторке действий на телефоне. `status` — состояние: `completed` открывает результат, `running` — ожидание, `failed` — экран ошибки. `kind` — одна вещь или образ. Id примерки и место карточки в списке не отправляются.',
+      clicksPerVisit: 0.03,
+      hoversPerVisit: 0.04,
+      properties: {
+        from: { kind: 'enum', values: ['picture', 'menu'] },
+        status: { kind: 'enum', values: ['completed', 'running', 'failed'] },
+        kind: { kind: 'enum', values: ['single', 'look'] },
+      },
+    },
+    'history.menu': {
+      zone: 'fitting',
+      type: 'interaction',
+      description:
+        'Кнопка «⋯» карточки в «Моих примерках»: открывает меню действий, на телефоне — шторку действий.',
+      clicksPerVisit: 0.01,
+      hoversPerVisit: 0.005,
+    },
+    'history.download': {
+      zone: 'fitting',
+      type: 'interaction',
+      description:
+        '«Скачать» в меню или шторке действий карточки: открывает картинку результата в новой вкладке. Есть только у готовой примерки.',
+      clicksPerVisit: 0.004,
+      hoversPerVisit: 0.002,
+    },
+    'history.delete': {
+      zone: 'fitting',
+      type: 'interaction',
+      description:
+        '«Удалить» в подтверждении удаления примерки. «Удалить» в меню или шторке действий, которое открывает подтверждение, и «Отмена» не отслеживаются. `status` — состояние удалённой примерки (идущую удалить нельзя), `kind` — одна вещь или образ.',
+      clicksPerVisit: 0.002,
+      hoversPerVisit: 0.002,
+      properties: {
+        status: { kind: 'enum', values: ['completed', 'failed'] },
+        kind: { kind: 'enum', values: ['single', 'look'] },
+      },
+    },
+    'history.choose-item': {
+      zone: 'fitting',
+      type: 'navigation',
+      description:
+        '«Выбрать вещь для примерки» в пустом списке «Моих примерок»: ведёт в `/catalog`.',
+      clicksPerVisit: 0.005,
+      hoversPerVisit: 0.005,
     },
   },
 });

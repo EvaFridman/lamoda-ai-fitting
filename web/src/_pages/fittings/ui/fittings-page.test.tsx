@@ -1,0 +1,272 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { FittingsPage } from './fittings-page';
+
+const mocks = vi.hoisted(() => ({
+  session: { status: 'signed-in', user: { id: 'u1', email: 'a@example.com', name: null } } as
+    | { status: 'signed-in'; user: { id: string; email: string; name: string | null } }
+    | { status: 'signed-out'; failed: boolean },
+  search: { value: '' },
+  router: { replace: vi.fn(), push: vi.fn() },
+}));
+
+vi.mock('@/entities/session', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/entities/session')>()),
+  useSession: () => mocks.session,
+}));
+
+vi.mock('@/shared/analytics/client', () => ({
+  identify: vi.fn(),
+  track: vi.fn(),
+  reset: vi.fn(),
+}));
+
+vi.mock('next/navigation', () => ({
+  usePathname: () => '/customer/fittings',
+  useSearchParams: () => new URLSearchParams(mocks.search.value),
+  useRouter: () => mocks.router,
+}));
+
+const PRODUCT = '3f2b8c1e-5a4d-4e6f-8a9b-0c1d2e3f4a5b';
+const FITTING_ID = '7a1c2d3e-4b5f-4a6b-8c7d-9e0f1a2b3c4d';
+const fetchMock = vi.fn();
+
+const json = (body: unknown) =>
+  Promise.resolve(
+    new Response(JSON.stringify(body), { headers: { 'Content-Type': 'application/json' } }),
+  );
+
+function quota(left: number) {
+  return json({ limit: 20, used: 20 - left, left, renewsAt: '2026-10-31T21:00:00.000Z' });
+}
+
+const listed = {
+  id: FITTING_ID,
+  kind: 'single',
+  parentId: null,
+  status: 'completed',
+  stage: 'done',
+  failureCode: null,
+  countsAgainstLimit: true,
+  regenerationFree: true,
+  model: 'gpt-image-2',
+  items: [
+    {
+      productId: PRODUCT,
+      name: 'Рубашка Annen',
+      brand: 'Annen',
+      imageUrl: null,
+      price: 1000,
+      finalPrice: 900,
+      attributeValueId: null,
+      colour: 'белый',
+    },
+  ],
+  photoId: null,
+  resultUrl: null,
+  createdAt: '2026-10-23T11:06:00.000Z',
+  startedAt: null,
+  finishedAt: null,
+  estimatedSeconds: null,
+};
+
+// Answers the quota and the list; anything else (the try-on window's reads) gets the quota too.
+function api(left: number, items: unknown[] = []) {
+  fetchMock.mockImplementation((url: unknown) => {
+    const { pathname } = new URL(String(url));
+    if (pathname === '/api/fittings') {
+      return json({ items, total: items.length, nextCursor: null });
+    }
+    return quota(left);
+  });
+}
+
+function renderPage() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const tree = () => (
+    <QueryClientProvider client={queryClient}>
+      <FittingsPage />
+    </QueryClientProvider>
+  );
+  const view = render(tree());
+  // The address changed: a new element (the same one would bail out) reads the new search.
+  return { ...view, navigate: () => view.rerender(tree()) };
+}
+
+beforeEach(() => {
+  mocks.search.value = '';
+  mocks.session = { status: 'signed-in', user: { id: 'u1', email: 'a@example.com', name: null } };
+  mocks.router.replace.mockReset();
+  mocks.router.push.mockReset();
+  fetchMock.mockReset();
+  api(5);
+  vi.stubGlobal('fetch', fetchMock);
+});
+
+afterEach(() => {
+  window.history.replaceState(null, '', '/');
+  vi.unstubAllGlobals();
+});
+
+describe('the fittings page', () => {
+  it('is no stub: it shows its title and the history', async () => {
+    renderPage();
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Мои примерки' })).toBeInTheDocument();
+    expect(await screen.findByText('Здесь появятся ваши примерки')).toBeInTheDocument();
+    expect(screen.queryByText('Раздел скоро появится')).not.toBeInTheDocument();
+  });
+
+  it('shows the limit under the menu with the renewal date', async () => {
+    renderPage();
+
+    expect(await screen.findByText('Осталось 5 из 20 примерок')).toBeInTheDocument();
+    expect(screen.getByText('Обновится 1 ноября')).toBeInTheDocument();
+  });
+
+  it('says that the tries are over at none left', async () => {
+    api(0);
+    renderPage();
+
+    expect(await screen.findByText('Примерки закончились')).toBeInTheDocument();
+  });
+
+  it('reads neither the history nor the limit when signed out', () => {
+    mocks.session = { status: 'signed-out', failed: false };
+    renderPage();
+
+    expect(screen.getByText('Войдите, чтобы открыть личный кабинет')).toBeInTheDocument();
+    expect(screen.queryByText(/Осталось/)).not.toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('opens a fitting of the list in the try-on window through the address', async () => {
+    api(5, [listed]);
+    renderPage();
+
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Открыть примерку' }));
+
+    expect(mocks.router.replace).toHaveBeenCalledExactlyOnceWith(
+      `/customer/fittings?fitting=${FITTING_ID}`,
+      { scroll: false },
+    );
+  });
+
+  it('keeps the other parameters of the address when it opens a fitting', async () => {
+    window.history.replaceState(null, '', `/customer/fittings?product=${PRODUCT}`);
+    api(5, [listed]);
+    renderPage();
+
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Открыть примерку' }));
+
+    expect(mocks.router.replace).toHaveBeenCalledExactlyOnceWith(
+      `/customer/fittings?product=${PRODUCT}&fitting=${FITTING_ID}`,
+      { scroll: false },
+    );
+  });
+});
+
+describe('the try-on entry on the fittings page', () => {
+  it('shows nothing extra without a product or a fitting in the address', () => {
+    renderPage();
+
+    expect(screen.queryByRole('button', { name: 'Примерить' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('shows «Примерить» for a product in the address', async () => {
+    mocks.search.value = `product=${PRODUCT}`;
+    renderPage();
+
+    expect(await screen.findByRole('button', { name: 'Примерить' })).toBeEnabled();
+  });
+
+  it('ignores a product that is not an id', () => {
+    mocks.search.value = 'product=not-an-id';
+    renderPage();
+
+    expect(screen.queryByRole('button', { name: 'Примерить' })).not.toBeInTheDocument();
+  });
+
+  it('turns the button off at no tries left and says when they come back (AC19)', async () => {
+    mocks.search.value = `product=${PRODUCT}`;
+    api(0);
+    renderPage();
+
+    expect(await screen.findByText('Примерки снова будут доступны 1 ноября')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Примерить' })).toBeDisabled();
+  });
+
+  it('opens the try-on window at once for a fitting in the address', async () => {
+    mocks.search.value = `fitting=${FITTING_ID}`;
+    renderPage();
+
+    expect(await screen.findByRole('dialog', { name: 'Онлайн-примерка' })).toBeInTheDocument();
+  });
+
+  it('opens the window from the button', async () => {
+    mocks.search.value = `product=${PRODUCT}`;
+    renderPage();
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Примерить' }));
+
+    expect(await screen.findByRole('dialog', { name: 'Онлайн-примерка' })).toBeInTheDocument();
+  });
+
+  it('on closing a fitting window replaces the address without `fitting`, keeping `product`', async () => {
+    mocks.search.value = `fitting=${PRODUCT}&product=${PRODUCT}`;
+    renderPage();
+    await screen.findByRole('dialog', { name: 'Онлайн-примерка' });
+
+    await userEvent.setup().keyboard('{Escape}');
+
+    await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(mocks.router.replace).toHaveBeenCalledExactlyOnceWith(
+      `/customer/fittings?product=${PRODUCT}`,
+      { scroll: false },
+    );
+  });
+
+  it('on closing a fitting window with no other parameter replaces the address with the bare path', async () => {
+    mocks.search.value = `fitting=${PRODUCT}`;
+    renderPage();
+    await screen.findByRole('dialog', { name: 'Онлайн-примерка' });
+
+    await userEvent.setup().keyboard('{Escape}');
+
+    await vi.waitFor(() => expect(mocks.router.replace).toHaveBeenCalledTimes(1));
+    expect(mocks.router.replace).toHaveBeenCalledWith('/customer/fittings', { scroll: false });
+  });
+
+  it('does not touch the address when a window opened by the button closes', async () => {
+    mocks.search.value = `product=${PRODUCT}`;
+    renderPage();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Примерить' }));
+    await screen.findByRole('dialog', { name: 'Онлайн-примерка' });
+
+    await user.keyboard('{Escape}');
+
+    await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(mocks.router.replace).not.toHaveBeenCalled();
+  });
+
+  it('opens the window again when a link to the same fitting follows its close', async () => {
+    mocks.search.value = `fitting=${PRODUCT}`;
+    const page = renderPage();
+    await screen.findByRole('dialog', { name: 'Онлайн-примерка' });
+    await userEvent.setup().keyboard('{Escape}');
+    await vi.waitFor(() => expect(mocks.router.replace).toHaveBeenCalledTimes(1));
+
+    mocks.search.value = '';
+    page.navigate();
+    await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+    mocks.search.value = `fitting=${PRODUCT}`;
+    page.navigate();
+
+    expect(await screen.findByRole('dialog', { name: 'Онлайн-примерка' })).toBeInTheDocument();
+  });
+});

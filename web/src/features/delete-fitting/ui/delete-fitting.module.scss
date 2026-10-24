@@ -1,0 +1,47 @@
+// The confirmation as «Мои фото»'s (board 10): the result's 72×96 thumbnail beside the text (60×80
+// in the sheet).
+
+.confirm {
+  display: flex;
+  gap: var(--space-4);
+  align-items: flex-start;
+  max-width: 392px;
+}
+
+.modalThumb,
+.sheetThumb {
+  position: relative;
+
+  overflow: hidden;
+  display: block;
+  flex: none;
+
+  border-radius: var(--radius-s);
+
+  background-color: var(--color-background-secondary);
+}
+
+.modalThumb {
+  width: 72px;
+  height: 96px;
+}
+
+.sheetThumb {
+  width: 60px;
+  height: 80px;
+}
+
+.image {
+  object-fit: cover;
+}
+
+.text {
+  margin: 0;
+}
+
+.error {
+  margin: var(--space-4) 0 0;
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  color: var(--color-error);
+}
