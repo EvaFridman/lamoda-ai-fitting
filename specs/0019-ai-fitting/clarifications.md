@@ -975,6 +975,14 @@ whole «From» column, so a comment or a longer address that contains the server
 a stuck one stays spent, A47, A68). (4) The assumptions of A66, A70, A72, A77 and A78.7 are
 confirmed as written.
 
+**A80. The product page's reads (T18's review, for T19).** The owner decided on 2026-10-24: (1)
+`GET /products/:id` keeps answering a product of an inactive category; the page tells it by
+comparing `category.id` with the cached list of active categories (`getActiveCategories`, as
+`getCategoryBySlug` does), with no `isActive` in the api's answer; (2) no id a visitor types
+becomes a page cache key or spends web's quota (0018 V24): a product's cached reads (its detail,
+`/related`) run only for a product first read as the visitor and found in an active category.
+`GET /products/:id/fittings/last` is the newest by `createdAt`, the history's order.
+
 ## Canvas and decisions
 
 Where the canvas differs from the decisions above, the decision wins:

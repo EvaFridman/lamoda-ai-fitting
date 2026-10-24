@@ -307,6 +307,20 @@ export class FittingsService {
     return this.toResponse(row, isRunning(row.status) ? await this.estimateSeconds(userId) : null);
   }
 
+  // «Вы это примеряли» (AC24): the newest completed fitting that holds the product, regenerations
+  // included (A7). A product never tried on, or a missing one, is 404.
+  async lastOfProduct(userId: string, productId: string): Promise<FittingDto> {
+    const row = await this.prisma.aiGeneration.findFirst({
+      where: { ...fittingsOf(userId), status: 'completed', products: { some: { productId } } },
+      include: FOR_RESPONSE,
+      orderBy: ORDER,
+    });
+    if (row === null) {
+      throw new NotFoundError('Fitting not found');
+    }
+    return this.toResponse(row, null);
+  }
+
   // A hard delete (A25): the row and its outbox entry in one transaction, the files after the
   // commit; the spent try-on stays spent (A20). A running one is cancelled after its row is gone
   // (A47, A68): its workflow then discards a written result and changes nothing, so it stays
