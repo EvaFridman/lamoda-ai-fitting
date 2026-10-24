@@ -805,6 +805,14 @@ any (A27); a regeneration keeps its parent's `kind`; a failed start of the workf
 `failed` `provider_error` with its unit (or flag) given back, logged and sent to Sentry with the
 id only (plan §4).
 
+**A71. Only the workflow pushes.** `fitting:finished` is published by the workflow's `notify`
+after `complete`, from the row as it then is (a row deleted meanwhile pushes nothing). The two
+other ends of a fitting send none: a failed start answers `POST /fittings` with the failed
+fitting itself, and a stuck one ended by the housekeeping (A70) is seen by the waiting screen's
+polling and in the history; A34's «Лимит не списан» would also be wrong for a stuck fitting that
+stays spent. `notify` is best effort: a few short attempts, and its failure never fails the
+fitting, since a lost push costs nothing (A44). Decided by the owner on 2026-10-24 at T13.
+
 ## Canvas and decisions
 
 Where the canvas differs from the decisions above, the decision wins:

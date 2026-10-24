@@ -13,13 +13,21 @@ import type { ActivityInterceptorsFactory } from '@temporalio/worker';
 // the plan's 5k errors a month in days: only the first attempt and the last one are reported.
 // Workflow code never imports Sentry (it must stay deterministic); a failing workflow shows up as an
 // activity or client error.
+// Not reported at all: the fitting's push (A71), whose loss costs nothing; while Redis is down every
+// fitting would send its first and last attempts. The last attempt's failure stays in the
+// workflow's history, every attempt's in the worker's log.
+const UNREPORTED_ACTIVITIES: ReadonlySet<string> = new Set(['notify']);
+
 export const sentryActivityInterceptor: ActivityInterceptorsFactory = (ctx: Context) => ({
   inbound: {
     async execute(input, next) {
       try {
         return await next(input);
       } catch (error) {
-        if (isReported(error, ctx.info, ctx.cancellationSignal.aborted)) {
+        if (
+          !UNREPORTED_ACTIVITIES.has(ctx.info.activityType) &&
+          isReported(error, ctx.info, ctx.cancellationSignal.aborted)
+        ) {
           Sentry.captureException(error, {
             tags: {
               'temporal.activity': ctx.info.activityType,

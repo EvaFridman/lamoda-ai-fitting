@@ -141,7 +141,7 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       timed-out text check, a regeneration free then paid, a running one deleted, someone else's
       row; `npm run verify`.
       Commit: `feat(api): start, read and delete fittings within the monthly limit`
-- [ ] **T13. api: the push.** `FittingNotifier` on the counters' Redis (A44), the gateway's room
+- [x] **T13. api: the push.** `FittingNotifier` on the counters' Redis (A44), the gateway's room
       `user:<id>` and `fitting:finished`, the worker's `notify` (plan §6).
       Check: the socket e2e (own room, another user receives nothing, anonymous receives nothing);
       `npm run verify`.
@@ -150,9 +150,14 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       `entities/fitting` (schemas, keys, the hooks with the polling, the contract test),
       `@/shared/realtime` (`socket.io-client`, the dev rewrite, plan §6), the kit's
       `ProgressBar`, `CountBadge`, `Chip`/`ChipGroup` with their `/ui-kit` sections (`Sheet` came
-      with T9a); `TryOnButton`'s three states (A63.2) as a `Button` example.
-      Check: web tests of the hooks, of the connection opening and closing with the session, and
-      of the components; `npm run verify`.
+      with T9a); `TryOnButton`'s three states (A63.2) as a `Button` example. From T13's review
+      (A71): the connection opens again when another user signs in without an end seen in
+      between (where `useDropUserQueries` resets), since the socket keeps its room until it
+      closes (A35); a push is only a signal to read the fitting again through the api, never a
+      result or a status shown as it came; a second push of the same `generationId` shows no
+      second toast (`notify` may publish twice).
+      Check: web tests of the hooks, of the connection opening and closing with the session (and
+      again on another user), and of the components; `npm run verify`.
       Commit: `feat(web): add the fitting entity, the realtime client and the kit's additions`
 - [ ] **T15. web: the try-on of one item.** The features `start-fitting`, `regenerate-fitting`,
       `try-colour` and `fitting-events` (the toast of A11, A34), the widget `try-on` (boards 3,

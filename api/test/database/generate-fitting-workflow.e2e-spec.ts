@@ -33,6 +33,7 @@ interface Script {
   moderate?: () => { flagged: boolean };
   discardResult?: () => void;
   complete?: () => void;
+  notify?: () => void;
 }
 
 interface Call {
@@ -92,6 +93,9 @@ describe('generateFitting workflow (spec 0019 plan §4, A67, A68)', () => {
       async complete(generationId: string, outcome: FittingOutcome) {
         record('complete', generationId, outcome).complete?.();
       },
+      async notify(generationId: string) {
+        record('notify', generationId).notify?.();
+      },
     });
     connection = await Connection.connect({ address: settings.address });
     client = new Client({ connection, namespace: settings.namespace });
@@ -136,8 +140,9 @@ describe('generateFitting workflow (spec 0019 plan §4, A67, A68)', () => {
     async () => {
       const id = await run();
 
-      expect(stepsOf(id)).toEqual(['markProcessing', 'generate', 'moderate', 'complete']);
+      expect(stepsOf(id)).toEqual(['markProcessing', 'generate', 'moderate', 'complete', 'notify']);
       expect(outcomeOf(id)).toEqual({ status: 'completed', providerRequestId: 'req_ok' });
+      expect(callsOf(id, 'notify')[0]?.args).toEqual([]);
       expect(callsOf(id, 'moderate')[0]?.args).toEqual([]);
       expect(callsOf(id, 'generate')[0]?.args).toEqual([30]);
     },
@@ -153,7 +158,13 @@ describe('generateFitting workflow (spec 0019 plan §4, A67, A68)', () => {
         },
       });
 
-      expect(stepsOf(id)).toEqual(['markProcessing', 'generate', 'complete', 'discardResult']);
+      expect(stepsOf(id)).toEqual([
+        'markProcessing',
+        'generate',
+        'complete',
+        'notify',
+        'discardResult',
+      ]);
       expect(callsOf(id, 'discardResult')[0]?.args).toEqual([USER]);
       expect(outcomeOf(id)).toEqual({
         status: 'failed',
@@ -192,7 +203,13 @@ describe('generateFitting workflow (spec 0019 plan §4, A67, A68)', () => {
         generate: () => ({ ok: false, failureCode: 'moderation', requestId: 'req_r' }),
       });
 
-      expect(stepsOf(id)).toEqual(['markProcessing', 'generate', 'complete', 'discardResult']);
+      expect(stepsOf(id)).toEqual([
+        'markProcessing',
+        'generate',
+        'complete',
+        'notify',
+        'discardResult',
+      ]);
       expect(outcomeOf(id)).toEqual({
         status: 'failed',
         failureCode: 'moderation',
@@ -213,6 +230,7 @@ describe('generateFitting workflow (spec 0019 plan §4, A67, A68)', () => {
         'generate',
         'moderate',
         'complete',
+        'notify',
         'discardResult',
       ]);
       expect(outcomeOf(id)).toEqual({
@@ -346,6 +364,7 @@ describe('generateFitting workflow (spec 0019 plan §4, A67, A68)', () => {
         'generate',
         'moderate',
         'complete',
+        'notify',
         'discardResult',
         'discardResult',
         'discardResult',
@@ -489,7 +508,7 @@ describe('generateFitting workflow (spec 0019 plan §4, A67, A68)', () => {
 
       expect((error as WorkflowFailedError).cause).toBeInstanceOf(CancelledFailure);
       expect((await handle.describe()).status.name).toBe('CANCELLED');
-      expect(stepsOf(id)).toEqual(['markProcessing', 'complete']);
+      expect(stepsOf(id)).toEqual(['markProcessing', 'complete', 'notify']);
       expect(outcomeOf(id)).toEqual({
         status: 'failed',
         failureCode: 'provider_error',
@@ -536,7 +555,13 @@ describe('generateFitting workflow (spec 0019 plan §4, A67, A68)', () => {
       expect(error).toBeInstanceOf(WorkflowFailedError);
       expect((error as WorkflowFailedError).cause).toBeInstanceOf(CancelledFailure);
       expect((await handle.describe()).status.name).toBe('CANCELLED');
-      expect(stepsOf(id)).toEqual(['markProcessing', 'generate', 'complete', 'discardResult']);
+      expect(stepsOf(id)).toEqual([
+        'markProcessing',
+        'generate',
+        'complete',
+        'notify',
+        'discardResult',
+      ]);
       expect(callsOf(id, 'discardResult')[0]?.args).toEqual([USER]);
       expect(outcomeOf(id)).toEqual({
         status: 'failed',
@@ -548,4 +573,109 @@ describe('generateFitting workflow (spec 0019 plan §4, A67, A68)', () => {
     },
     CANCEL_TIMEOUT,
   );
+
+  describe('the push of the end (A71)', () => {
+    it(
+      'does not notify a fitting that stopped at once because its row is gone or ended',
+      async () => {
+        const stopped = await run({ markProcessing: () => null });
+
+        expect(stepsOf(stopped)).toEqual(['markProcessing']);
+      },
+      TIMEOUT,
+    );
+
+    it(
+      'ends a completed fitting as before when notify fails every time, after three attempts',
+      async () => {
+        const id = await run({
+          notify: () => {
+            throw new Error('redis down');
+          },
+        });
+
+        expect(callsOf(id, 'notify')).toHaveLength(3);
+        expect(outcomeOf(id)).toEqual({ status: 'completed', providerRequestId: 'req_ok' });
+        expect(stepsOf(id)).not.toContain('discardResult');
+      },
+      TIMEOUT,
+    );
+
+    it(
+      'still discards the result of a failed fitting when notify fails every time',
+      async () => {
+        const id = await run({
+          moderate: () => ({ flagged: true }),
+          notify: () => {
+            throw new Error('redis down');
+          },
+        });
+
+        expect(callsOf(id, 'notify')).toHaveLength(3);
+        expect(callsOf(id, 'discardResult')).toHaveLength(1);
+        expect(outcomeOf(id)).toMatchObject({ status: 'failed', failureCode: 'moderation' });
+      },
+      TIMEOUT,
+    );
+
+    it(
+      'retries a notify that fails once and stops after it succeeds',
+      async () => {
+        let attempts = 0;
+        const id = await run({
+          notify: () => {
+            attempts += 1;
+            if (attempts === 1) throw new Error('redis down');
+          },
+        });
+
+        expect(callsOf(id, 'notify')).toHaveLength(2);
+      },
+      TIMEOUT,
+    );
+
+    it(
+      'still ends as cancelled, discarding the result, when notify fails every time',
+      async () => {
+        const id = randomUUID();
+        const handle = await start(id, {
+          generate: async () => {
+            const context = Context.current();
+            const beat = setInterval(() => {
+              context.heartbeat();
+            }, 500);
+            try {
+              await new Promise<void>((resolve) => {
+                context.cancellationSignal.addEventListener('abort', () => {
+                  resolve();
+                });
+                void released.then(resolve);
+              });
+            } finally {
+              clearInterval(beat);
+            }
+            throw context.cancellationSignal.reason;
+          },
+          notify: () => {
+            throw new Error('redis down');
+          },
+        });
+        await vi.waitFor(() => expect(callsOf(id, 'generate')).toHaveLength(1), {
+          timeout: 20_000,
+        });
+
+        await handle.cancel();
+        const error = await handle.result().then(
+          () => undefined,
+          (caught: unknown) => caught,
+        );
+
+        expect((error as WorkflowFailedError).cause).toBeInstanceOf(CancelledFailure);
+        expect((await handle.describe()).status.name).toBe('CANCELLED');
+        expect(callsOf(id, 'notify')).toHaveLength(3);
+        expect(stepsOf(id).at(-1)).toBe('discardResult');
+      },
+      CANCEL_TIMEOUT,
+    );
+  });
 });

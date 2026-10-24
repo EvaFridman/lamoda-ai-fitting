@@ -7,6 +7,7 @@ import { inject } from 'vitest';
 import { type AiProvider, FakeAiProvider } from '../../src/ai/ai-provider.js';
 import type { PrismaClient } from '../../src/generated/prisma/client.js';
 import type { StorageService } from '../../src/storage/storage.service.js';
+import type { FittingEventPublisher } from '../../src/temporal/activities/fitting.activities.js';
 import { createActivities } from '../../src/temporal/activities/index.js';
 import type { TemporalSettings } from '../../src/temporal/temporal-settings.js';
 
@@ -29,7 +30,8 @@ let runtimeInstalled = false;
 // client of the throwaway database, such as a TestApp's `prisma`); the housekeeping activity
 // starts workflows through the worker's own client. Bundling the workflows takes seconds: start it
 // in `beforeAll` with a long timeout, `stop()` in `afterAll`.
-// The fitting's activities get the fake AI provider (A49) unless the test passes its own.
+// The fitting's activities get the fake AI provider (A49) unless the test passes its own, and
+// `notify` publishes nowhere unless the test passes a publisher (a test Redis client).
 export function startTestWorker(
   settings: TemporalSettings,
   storage: StorageService,
@@ -39,9 +41,16 @@ export function startTestWorker(
     checkTimeoutMs: 4000,
     timeoutSeconds: 180,
   }),
+  publisher: FittingEventPublisher = NO_PUBLISHER,
 ): Promise<TestWorker> {
-  return startTestWorkerWith(settings, createActivities(storage, prisma, settings.taskQueue, ai));
+  return startTestWorkerWith(
+    settings,
+    createActivities(storage, prisma, settings.taskQueue, ai, publisher),
+  );
 }
+
+// A publisher with no subscribers, for tests that do not look at the push.
+export const NO_PUBLISHER: FittingEventPublisher = { publish: () => Promise.resolve(0) };
 
 // The same worker with activities of the test, e.g. stubs, to check a workflow's own logic apart
 // from the storage.

@@ -11,6 +11,10 @@ import { endFitting, type FittingOutcome, RUNNING_STATUSES } from '../../fitting
 import type { PrismaClient } from '../../generated/prisma/client.js';
 import type { FittingFailure, GenerationStatus } from '../../generated/prisma/enums.js';
 import {
+  FITTING_EVENTS_CHANNEL,
+  type FittingFinishedMessage,
+} from '../../realtime/fitting-events.js';
+import {
   generationFolder,
   generationResultKey,
   isInUserFolder,
@@ -48,15 +52,21 @@ export type GenerateOutcome =
 // workflow writes it as the row's `failure_code`. Any other failure is `provider_error`.
 export type FittingFailureType = Extract<FittingFailure, 'model_timeout' | 'provider_error'>;
 
+// Where `notify` publishes: the worker's client of the counters' Redis (REDIS, A44).
+export interface FittingEventPublisher {
+  publish: (channel: string, message: string) => Promise<number>;
+}
+
 // The activities of the workflow `generateFitting` (spec 0019 plan §4, A68). The workflow passes
 // only the generation's id (and its user's, to discard a result after a cancellation): every
 // image is read from the bucket here and the result written there, so no photo goes into
-// Temporal's history and no payload nears its limit. `ai` is the worker's AI_PROVIDER, the rest
-// its Nest context.
+// Temporal's history and no payload nears its limit. `ai` is the worker's AI_PROVIDER,
+// `publisher` its REDIS client, the rest its Nest context.
 export function createFittingActivities(
   ai: AiProvider,
   storage: StorageService,
   prisma: PrismaClient,
+  publisher: FittingEventPublisher,
 ) {
   return {
     // Moves a `pending` row to `processing` and returns its user; a repeat finds it there and
@@ -167,6 +177,32 @@ export function createFittingActivities(
     // Ends the fitting, once (endFitting): a repeat or a row that is gone changes nothing.
     async complete(generationId: string, outcome: FittingOutcome): Promise<void> {
       await endFitting(prisma, generationId, outcome);
+    },
+
+    // Publishes the fitting's end for its user's sockets (plan §6, A71), from the row as it is
+    // now: a row deleted meanwhile (A47) or still running pushes nothing. Only ids and the
+    // status (A35); FittingNotifier of every api sends it to the user's room. A retry after a
+    // publish whose answer was lost publishes again: the client takes a second push of one
+    // fitting as the first (it reads the fitting again).
+    async notify(generationId: string): Promise<void> {
+      const row = await prisma.aiGeneration.findUnique({
+        where: { id: generationId },
+        select: { userId: true, kind: true, status: true },
+      });
+      if (
+        row?.userId == null ||
+        row.kind === null ||
+        (row.status !== 'completed' && row.status !== 'failed')
+      ) {
+        return;
+      }
+      const message: FittingFinishedMessage = {
+        userId: row.userId,
+        generationId,
+        kind: row.kind,
+        status: row.status,
+      };
+      await publisher.publish(FITTING_EVENTS_CHANNEL, JSON.stringify(message));
     },
   };
 }

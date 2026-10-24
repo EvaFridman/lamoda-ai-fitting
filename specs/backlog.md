@@ -182,6 +182,16 @@ removes it from this list. Found by the agents' first security audit and trial r
   cache entry, which web then serves to every visitor (spec 0018 T6's security review, V22). Give
   web a user limited to `~page-cache:*` and api one limited to `~facets:*`, with `default` off; a
   change to `infra.yml` that recreates `redis-cache` (no outage, 0018 V5).
+- **Separate networks for web.** Every production container shares the network `ai-fitting`, so
+  web, which renders requests from the internet but needs only `redis-cache` and the api, also
+  reaches `redis`, Postgres and Temporal. From a compromised web an attacker can wipe or fill the
+  rate-limit counters (`FLUSHALL`, `noeviction`: the api then counts in memory, 0006 F28) and
+  publish fake `fitting:finished` pushes on `fitting-events` (spec 0019 T13's security review;
+  harmless once web reads the fitting again on a push, T14). Put web on a network with only
+  nginx, the api and `redis-cache`: compose files only, no new secrets. An ACL on `redis` (an api
+  user, a worker user allowed only `PUBLISH fitting-events`, `default` off) is the finer and
+  dearer option: passwords in `REDIS_URL`, their rotation, auth in the health checks, the local
+  stack and the tests.
 
 ## Temporal
 

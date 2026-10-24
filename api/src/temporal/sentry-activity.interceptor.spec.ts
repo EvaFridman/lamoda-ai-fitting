@@ -96,9 +96,14 @@ describe('sentryActivityInterceptor', () => {
     vi.mocked(Sentry.captureException).mockReset();
   });
 
-  function interceptorFor(attempt: number, retryPolicy?: Info['retryPolicy'], aborted = false) {
+  function interceptorFor(
+    attempt: number,
+    retryPolicy?: Info['retryPolicy'],
+    aborted = false,
+    activityType = 'generate',
+  ) {
     const ctx = {
-      info: { activityType: 'generate', workflowType: 'fitting', attempt, retryPolicy },
+      info: { activityType, workflowType: 'fitting', attempt, retryPolicy },
       cancellationSignal: { aborted },
     } as unknown as Context;
     const execute = sentryActivityInterceptor(ctx).inbound?.execute;
@@ -166,6 +171,29 @@ describe('sentryActivityInterceptor', () => {
     await expect(execute(input, () => Promise.reject(abort))).rejects.toBe(abort);
 
     expect(Sentry.captureException).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['the first attempt', 1],
+    ['the last attempt', 3],
+  ])('never reports a failing notify, %s, and rethrows it', async (_name, attempt) => {
+    const failure = new Error('redis down');
+    const execute = interceptorFor(attempt, { maximumAttempts: 3 }, false, 'notify');
+
+    await expect(execute(input, () => Promise.reject(failure))).rejects.toBe(failure);
+
+    expect(Sentry.captureException).not.toHaveBeenCalled();
+  });
+
+  it('still reports another activity at the same attempts', async () => {
+    const failure = new Error('boom');
+
+    for (const attempt of [1, 3]) {
+      const execute = interceptorFor(attempt, { maximumAttempts: 3 }, false, 'moderate');
+      await expect(execute(input, () => Promise.reject(failure))).rejects.toBe(failure);
+    }
+
+    expect(Sentry.captureException).toHaveBeenCalledTimes(2);
   });
 
   it('reports an AbortError of an activity that was not cancelled', async () => {

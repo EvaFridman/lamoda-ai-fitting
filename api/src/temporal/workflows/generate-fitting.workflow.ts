@@ -44,6 +44,17 @@ const { discardResult } = proxyActivities<FittingActivities>({
   retry: { initialInterval: '1 second', backoffCoefficient: 2, maximumInterval: '1 minute' },
 });
 
+// The push of the end (A71): one read and one publish, a few short attempts, best effort.
+const { notify } = proxyActivities<FittingActivities>({
+  startToCloseTimeout: '10 seconds',
+  retry: {
+    initialInterval: '1 second',
+    backoffCoefficient: 2,
+    maximumInterval: '5 seconds',
+    maximumAttempts: 3,
+  },
+});
+
 export interface GenerateFittingInput {
   generationId: string;
   // FITTING_TIMEOUT_SECONDS of the api that started it: `generate`'s time limit is this plus the
@@ -60,7 +71,7 @@ const FAILURE_TYPES: readonly string[] = [
 // started by the api after the row's commit. Marks the row `processing`; `generate` makes the one
 // paid call and writes the result to the bucket (once: A67); `moderate` checks it; `complete` ends
 // the row in any case (a failure gives the unit back, A20; a transient photo stays for the open
-// try-on, A69). Only ids and codes go through the history (no image, no text of the user). The end runs outside any
+// try-on, A69); `notify` pushes the end to the user's sockets (plan §6, A71). Only ids and codes go through the history (no image, no text of the user). The end runs outside any
 // cancellation, so a fitting always ends: a cancelled workflow (the row deleted, A47, or a cancel
 // by hand) ends a row still there as failed with its unit kept, discards a written result, and
 // then ends as cancelled. Only the workflow's own cancellation counts as one: an activity
@@ -106,10 +117,17 @@ export async function generateFitting({
     outcome = { ...failed('provider_error', 'cancelled', requestId), keepUnit: true };
   }
   const end = outcome;
-  // The row first, so a storage outage keeps neither the unit nor the fingerprint (A32); a failed
-  // row never names its result, so the file can go after it.
+  // The row first, so a storage outage keeps neither the unit nor the fingerprint (A32); then the
+  // push, which a storage outage must not hold back; a failed row never names its result, so the
+  // file can go after both.
   await CancellationScope.nonCancellable(async () => {
     await complete(generationId, end);
+    try {
+      await notify(generationId);
+    } catch {
+      // A lost push costs nothing (A44, A71): the waiting screen polls. The last attempt's failure
+      // stays in the history; sentryActivityInterceptor does not report them.
+    }
     if (end.status === 'failed' && userId !== null) {
       await discardResult(generationId, userId);
     }

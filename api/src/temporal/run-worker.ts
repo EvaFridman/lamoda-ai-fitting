@@ -6,6 +6,7 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { ScheduleClient } from '@temporalio/client';
 import { NativeConnection, Worker } from '@temporalio/worker';
+import type { Redis } from 'ioredis';
 import { Logger } from 'nestjs-pino';
 
 import { AI_PROVIDER, type AiProvider } from '../ai/ai-provider.js';
@@ -17,6 +18,7 @@ import {
   workerEnvWarnings,
 } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { REDIS } from '../redis/redis.module.js';
 import { StorageService } from '../storage/storage.service.js';
 import { createActivities } from './activities/index.js';
 import { generateTimeLimitSeconds } from './fitting-workflow-id.js';
@@ -60,6 +62,8 @@ async function bootstrap(): Promise<void> {
       app.get(PrismaService),
       taskQueue,
       app.get<AiProvider>(AI_PROVIDER),
+      // `notify` publishes a finished fitting on the counters' Redis (A44).
+      app.get<Redis>(REDIS),
     ),
     interceptors: { activity: [sentryActivityInterceptor] },
     // A stop (a deploy replaces the worker in place) waits for the running activities as long as
