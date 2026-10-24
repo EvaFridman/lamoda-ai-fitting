@@ -732,8 +732,9 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   ones (`loadProductWithSlot`; `proxy.ts` gives the real 404 first, the page a soft one when it was
   skipped, A81); «С этим товаром выбирают» is prefetched through the page cache only after that.
   The page joins `widgets/product-gallery` (the kit's `Gallery`), `widgets/product-buy-box`
-  (rating, price, colour and size, `features/product-stubs`, the primary «Примерить» of
-  `features/start-fitting`, which opens `widgets/try-on` in place, signed out the second
+  (rating, price, colour and size, `features/product-stubs`, the primary «Примерить», its own
+  button, through which `ProductPurchase` opens `widgets/try-on` in place (the window's start is
+  `features/start-fitting`), signed out the second
   `LoginModal`; «К образу», disabled until the fitting room, A82.2; `entities/fitting`'s
   `LimitMeter`, at the limit only «Закончились · снова с <date>» under the disabled «Примерить»,
   A82.5; its `TriedOnNote` from `/products/:id/fittings/last`, whose «Смотреть» opens
@@ -793,7 +794,8 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   every page skip its prerendered shell, so Lighthouse is run with a `Chrome-Lighthouse` user agent
   (O93). Each catalog page renders JSON-LD with the
   first batch (`CatalogJsonLd`, every `<` escaped; `jsonLdText`, `@/shared/lib`). `/sitemap.xml`
-  (the catalog, the active categories and, of the 1000 newest products, those of active categories,
+  (the catalog, the active categories, the first `CATEGORY_LIST_MAX` of them (100, backlog
+  «Category list past 100»), and, of the 1000 newest products, those of these categories,
   with the api's `updatedAt`, spec 0019 A81; only the catalog when the categories fail) and `/robots.txt` (`/customer`, `/ui-kit`,
   `/healthz` disallowed, the sitemap named) render per request; `app/` re-exports both from
   `_pages/catalog`. The product page `/products/<id>` (spec 0019 plan §8, `_pages/product`) sets

@@ -1,5 +1,5 @@
 import { render, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { ProductGallery } from './product-gallery';
 
@@ -36,6 +36,24 @@ describe('ProductGallery', () => {
       'https://lamoda.test/media/p3.webp',
       'https://lamoda.test/media/p1.webp',
     ]);
+  });
+
+  it('shows two photos that share one address as two photos, with no duplicate key', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const twin = { ...image(2, 1), url: image(1, 0).url };
+    const { container } = render(
+      <ProductGallery product={{ ...base, images: [image(1, 0), twin] }} />,
+    );
+
+    expect(sources(container)).toEqual([
+      'https://lamoda.test/media/p1.webp',
+      'https://lamoda.test/media/p1.webp',
+    ]);
+    expect(
+      within(screen.getByRole('list', { name: 'Фото товара' })).getAllByRole('listitem'),
+    ).toHaveLength(2);
+    expect(error).not.toHaveBeenCalled();
+    error.mockRestore();
   });
 
   it('names the first photo after the brand and the product, the rest have no text', () => {
