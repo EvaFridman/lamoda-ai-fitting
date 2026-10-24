@@ -227,7 +227,7 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       try-on widget opens from the page and its temporary entry of T15 is removed.
       Check: web tests; `qa-tester` on AC21, AC24, AC5 from the page; `npm run verify`.
       Commit: `feat(web): the product page's gallery and buy box`
-- [ ] **T21. web: «О товаре» and «С этим товаром выбирают».** The description and attributes
+- [x] **T21. web: «О товаре» and «С этим товаром выбирают».** The description and attributes
       block, `widgets/related-products` with the «В корзину» stubs; `CatalogProductCard`'s two
       corners (the hanger, inert until T26, and the heart stub) and its hover (A63.1), which the
       catalog's cards get at the same time.

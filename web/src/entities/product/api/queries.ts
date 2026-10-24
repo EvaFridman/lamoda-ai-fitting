@@ -22,6 +22,7 @@ import {
   productImageListSchema,
   productListSchema,
   productVariationListSchema,
+  relatedProductsSchema,
 } from '../model/schemas';
 import { productKeys, productPageQuery } from './keys';
 
@@ -75,6 +76,16 @@ export function productOptions(id: string) {
   });
 }
 
+// «С этим товаром выбирают» (A36): the page prefetches it through the page cache; the browser asks
+// as the visitor only when that failed.
+export function relatedProductsOptions(id: string) {
+  return queryOptions({
+    queryKey: productKeys.related(id),
+    queryFn: ({ signal }) =>
+      clientFetch(buildPath('/products/:id/related', { id }), relatedProductsSchema, { signal }),
+  });
+}
+
 export function productImageListOptions(id: string, query: PageQuery = {}) {
   return queryOptions({
     queryKey: productKeys.images(id, query),
@@ -125,6 +136,10 @@ export function useProductFacets(filters: ProductFilters = {}) {
 
 export function useProduct(id: string) {
   return useQuery(productOptions(id));
+}
+
+export function useRelatedProducts(id: string) {
+  return useQuery(relatedProductsOptions(id));
 }
 
 export function useProductImages(id: string, query: PageQuery = {}) {

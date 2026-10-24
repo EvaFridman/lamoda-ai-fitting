@@ -194,6 +194,37 @@ describe('ProductPage', () => {
     expect(screen.queryByRole('button', { name: 'К образу' })).not.toBeInTheDocument();
   });
 
+  it('shows «О товаре» with the description and the article (AC21)', async () => {
+    load.mockResolvedValue(loaded());
+    renderBoundary(await resolveContent());
+    const about = screen.getByRole('region', { name: 'О товаре' });
+    expect(within(about).getByText('Лёгкая рубашка.')).toBeInTheDocument();
+    expect(within(about).getByText('A-1')).toBeInTheDocument();
+  });
+
+  it('shows «С этим товаром выбирают» with the six related products (AC21)', async () => {
+    load.mockResolvedValue(loaded());
+    const items = Array.from({ length: 6 }, (_, n) => ({
+      ...product,
+      id: `7c9e6679-7425-40de-944b-e07fc1f9${String(n + 1).padStart(4, '0')}`,
+      name: `Платье ${n + 1}`,
+    }));
+    related.read.mockResolvedValue(items);
+    renderBoundary(await resolveContent());
+    const section = screen.getByRole('region', { name: 'С этим товаром выбирают' });
+    expect(within(section).getAllByRole('article')).toHaveLength(6);
+    expect(within(section).getByRole('link', { name: /Платье 1/ })).toHaveAttribute(
+      'href',
+      `/products/${items[0]?.id}`,
+    );
+  });
+
+  it('hides «С этим товаром выбирают» when there are no related products', async () => {
+    load.mockResolvedValue(loaded());
+    renderBoundary(await resolveContent());
+    expect(screen.queryByText('С этим товаром выбирают')).not.toBeInTheDocument();
+  });
+
   it('renders the structured data with the request nonce', async () => {
     load.mockResolvedValue(loaded());
     const { container } = renderBoundary(await resolveContent());

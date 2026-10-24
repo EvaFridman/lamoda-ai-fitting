@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import { StrictMode } from 'react';
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -146,6 +146,46 @@ describe('ProductGrid before it is measured (the server render)', () => {
     expect(page).toMatch(/<a[^>]*href="\?q=a&amp;cursor=c-1"[^>]*>Дальше<\/a>/);
     expect(page).toMatch(/rel="next"/);
     expect(page).not.toContain('class="hidden"');
+  });
+});
+
+describe('ProductGrid corners (A63.1, AC16)', () => {
+  const SLOTTED = '9b2e3a4f-5c6d-4e7f-9081-2b3c4d5e6f70';
+
+  function mixed() {
+    const products = productsOf(4);
+    return products.map((product, index) =>
+      index % 2 === 0 ? { ...product, category: { ...product.category, id: SLOTTED } } : product,
+    );
+  }
+
+  it('gives every card the heart', () => {
+    render(<ProductGrid {...props({ products: productsOf(4) })} />);
+    expect(screen.getAllByRole('button', { name: 'В избранное' })).toHaveLength(4);
+  });
+
+  it('shows the disabled hanger only on cards of a slotted category', () => {
+    render(
+      <ProductGrid {...props({ products: mixed(), slottedCategoryIds: new Set([SLOTTED]) })} />,
+    );
+    const hangers = screen.getAllByRole('button', { name: 'Добавить к образу' });
+    expect(hangers).toHaveLength(2);
+    for (const hanger of hangers) expect(hanger).toBeDisabled();
+    const cards = screen.getAllByRole('article');
+    expect(
+      within(cards[0] as HTMLElement).getByRole('button', { name: 'Добавить к образу' }),
+    ).toBeInTheDocument();
+    expect(
+      within(cards[1] as HTMLElement).queryByRole('button', { name: 'Добавить к образу' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows no hanger while the categories are unknown or none has a slot', () => {
+    const { rerender } = render(<ProductGrid {...props({ products: mixed() })} />);
+    expect(screen.queryByRole('button', { name: 'Добавить к образу' })).not.toBeInTheDocument();
+
+    rerender(<ProductGrid {...props({ products: mixed(), slottedCategoryIds: new Set() })} />);
+    expect(screen.queryByRole('button', { name: 'Добавить к образу' })).not.toBeInTheDocument();
   });
 });
 

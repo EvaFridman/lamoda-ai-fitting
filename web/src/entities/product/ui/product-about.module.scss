@@ -1,0 +1,78 @@
+// Board 1's «О товаре»: the heading as the kit's large active tab (24/28, a 2px black line under
+// it), the description and the attributes 600px wide at most, 16/20; a row is the grey label, a
+// dotted leader and the value 260px wide. Below 600px the value takes what the label leaves (A83.5).
+
+.about {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.heading {
+  margin: 0 0 var(--space-4);
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--color-border-active);
+
+  font-size: var(--font-size-headline-m);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-headline-m);
+}
+
+.description {
+  max-width: 600px;
+  margin: var(--space-2) 0 0;
+
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+  overflow-wrap: anywhere;
+}
+
+.attributes {
+  align-self: stretch;
+  max-width: 600px;
+  margin: 20px 0 0;
+}
+
+.row {
+  display: flex;
+  gap: var(--space-2);
+
+  padding: var(--space-1) 0;
+
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+}
+
+// The leader is the label's own line: a `<dl>` row holds only its `<dt>` and `<dd>`.
+.label {
+  display: flex;
+  flex: 1;
+  gap: var(--space-2);
+
+  min-width: 0;
+
+  color: var(--color-text-secondary);
+
+  &::after {
+    content: '';
+
+    flex: 1;
+
+    min-width: var(--space-4);
+    margin-bottom: 5px;
+    border-bottom: 1px dotted var(--color-border-neutral);
+  }
+}
+
+.value {
+  flex: none;
+  width: 260px;
+  margin: 0;
+  overflow-wrap: anywhere;
+
+  @media (width < 600px) {
+    flex: 0 1 auto;
+    width: auto;
+    text-align: right;
+  }
+}
