@@ -32,7 +32,11 @@ filter below 1024 px by `0020-catalog-mobile` (all closed).
 In progress: `0019-ai-fitting`, whose phase 1 brought the OpenAI module and its checks, the
 tables of the fitting (user photos, `fitting_quota`, the categories' `slot` in their answer), the
 fitting photos (`/me/photos`, nginx's 20 MB upload route, the page "Мои фото") and the file
-deletions' outbox with the schedule `fitting-housekeeping`.
+deletions' outbox with the schedule `fitting-housekeeping`; phase 2 the generation (the image
+model and its prompt, the workflow `generateFitting`, `/fittings` with the monthly limit, the
+push `fitting:finished`, OpenAI through the proxy abroad), the try-on of one item in a window
+(`widgets/try-on`, opened for now from `/customer/fittings?product=<id>`) and the history "Мои
+примерки".
 
 Keep this file true: update it in the same commit that changes what a section describes.
 
@@ -813,7 +817,13 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   running generation of the last day uses or whose last generation ended within the hour (a
   regeneration from the open try-on, spec 0019 A69). The workflow `generateFitting`
   (`temporal/workflows/generate-fitting.workflow.ts`, plan §4, A68) passes its images through the
-  bucket, never Temporal's history.
+  bucket, never Temporal's history: `markProcessing`, `generate` (the one paid call, one attempt),
+  `moderate` of the result, `complete` (a failure gives the try-on back, a cancelled one keeps it
+  spent), then `notify` publishes
+  `{ userId, generationId, kind, status }` on the counters' Redis channel `fitting-events`, which
+  every api's `FittingNotifier` (`realtime/`) pushes as `fitting:finished` to the room
+  `user:<userId>` its sockets join at the handshake (A71: only the workflow pushes; a lost push
+  costs nothing, the waiting screen polls).
   `StorageError` carries the operation, S3 code, status and request id, never a key; Sentry keeps no
   storage paths (requests to `S3_ENDPOINT` are cut to method and origin, a failed deletion sends
   only the kind and the id). `REQUEST_TIMEOUT_MS` stays at 6000 or more: a delete may wait up to
