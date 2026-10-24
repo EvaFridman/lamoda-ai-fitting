@@ -35,13 +35,18 @@ export interface CategoryPageProps extends CatalogPageProps {
 
 // `/catalog`: every active product. The breadcrumbs and the heading stay static; the products, and
 // the heading's count with them, render per request, the page's placeholders till then (0020 W2).
+// The breadcrumbs render twice, one shown per width (spec 0020 plan §2, W1): above the title from
+// 600px, under the list below it. Not one copy moved by `order`, which would part the focus order
+// from the visual one; the hidden copy is `display: none`, so one landmark at a time.
 export function CatalogPage({ searchParams }: CatalogPageProps) {
+  const crumbs = [{ label: catalogTitle }];
   return (
     <main className={styles.page}>
-      <Breadcrumbs items={[{ label: catalogTitle }]} className={styles.inset} />
+      <Breadcrumbs items={crumbs} className={styles.crumbsTop} />
       <Suspense fallback={<CatalogSkeleton title={catalogTitle} />}>
         <CatalogContent searchParams={searchParams} />
       </Suspense>
+      <Breadcrumbs items={crumbs} className={styles.crumbsBottom} />
     </main>
   );
 }
@@ -86,13 +91,12 @@ async function CategoryContent({ params, searchParams }: CategoryPageProps) {
   // category deactivated since, a prefetch (not checked) and a request whose check failed.
   if (!category?.isActive) notFound();
   const state = parseCatalogUrl(await searchParams);
-  // The breadcrumbs and the heading go out without waiting for the products.
+  const crumbs = [{ label: catalogTitle, href: '/catalog' }, { label: category.name }];
+  // The breadcrumbs (both places, as CatalogPage's) and the heading go out without waiting for the
+  // products.
   return (
     <>
-      <Breadcrumbs
-        items={[{ label: catalogTitle, href: '/catalog' }, { label: category.name }]}
-        className={styles.inset}
-      />
+      <Breadcrumbs items={crumbs} className={styles.crumbsTop} />
       <Suspense fallback={<CatalogSkeleton title={category.name} />}>
         <CatalogProducts
           title={category.name}
@@ -104,6 +108,7 @@ async function CategoryContent({ params, searchParams }: CategoryPageProps) {
           ]}
         />
       </Suspense>
+      <Breadcrumbs items={crumbs} className={styles.crumbsBottom} />
     </>
   );
 }

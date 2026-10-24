@@ -1,6 +1,6 @@
 # 0020 catalog: loading and the phone layout: tasks
 
-Status: accepted (2026-10-23); amended 2026-10-23 at the review of PR 1 (T4, T5, T8, T9); amended 2026-10-23 at T10 (T10: W27–W29); amended 2026-10-24 at T10a (T10a added: W30).
+Status: accepted (2026-10-23); amended 2026-10-23 at the review of PR 1 (T4, T5, T8, T9); amended 2026-10-23 at T10 (T10: W27–W29); amended 2026-10-24 at T10a (T10a added: W30); amended 2026-10-24 at T11 (T11: W31).
 
 ## How the work flows
 
@@ -88,10 +88,10 @@ Status: accepted (2026-10-23); amended 2026-10-23 at the review of PR 1 (T4, T5,
       Check: Vitest of the drawer (AC11–AC14 with two sheets, Escape on a screen then on the list);
       qa-tester at 375 and 700 px against the owner's screenshots, with the keyboard.
       Commit: `feat(web): open a catalog filter's screen as a sheet over the filters`
-- [ ] **T11. Cards and breadcrumbs (W1, W5; plan §2).** The grid's phone gaps, the card's phone
-      padding, the breadcrumbs' two places.
+- [x] **T11. Cards and breadcrumbs (W1, W31; plan §2).** The grid's phone margins and gaps, the
+      breadcrumbs' two places.
       Check: qa-tester AC7–AC9 at 375, 700 and 1280 px; Vitest: one breadcrumb landmark visible.
-      Commit: `feat(web): lay the catalog's grid edge to edge on phones`
+      Commit: `feat(web): add the catalog's phone grid margins and breadcrumbs below the list`
 - 👤 merges PR 2; checks the phone layout on a real phone (owner action).
 
 ## PR 3 · `docs/0020-close` · closing

@@ -208,3 +208,10 @@ From the owner's screenshots of Lamoda's sort screen:
   the dark area closes both sheets and drops the draft (AC13). The list's ×, swipe, Escape and
   "Показать N товаров" close the whole sheet as before. Still one form of the sheet below 1024 px
   (W8).
+
+## Added at T11 (2026-10-24)
+
+- **W31. The phone grid has margins, not edge to edge (amends W5, W7, AC7, plan §2).** Below a
+  600 px window the grid keeps 16 px from the window's sides and 8 px between the cards, rows as
+  far apart as today; no line between the cards, and the card stays as it is (no padding of its
+  own on phones). The owner's choice over Lamoda's edge-to-edge grid.

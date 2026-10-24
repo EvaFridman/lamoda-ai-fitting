@@ -25,8 +25,10 @@ export function CatalogSkeleton({ title }: CatalogSkeletonProps) {
       <p className={styles.status} role="status">
         Загружаем товары
       </p>
+      {/* The breadcrumbs' line above the title from 600px only: below it they sit under the list
+          (W1), out of the first screen. */}
       {title === undefined ? (
-        <div className={styles.inset}>
+        <div className={styles.crumbsTop}>
           <Skeleton width={160} height={16} />
         </div>
       ) : null}

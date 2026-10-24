@@ -59,7 +59,10 @@ function measureLayout(container: HTMLElement, list: HTMLElement): Layout {
   const columns = columnsFor(width);
   const style = getComputedStyle(list);
   const columnGap = Number.parseFloat(style.columnGap) || 0;
-  const cardWidth = (width - columnGap * (columns - 1)) / columns;
+  // The list's own side padding (phones, spec 0020 W31) is not the cards'.
+  const padding =
+    (Number.parseFloat(style.paddingLeft) || 0) + (Number.parseFloat(style.paddingRight) || 0);
+  const cardWidth = (width - padding - columnGap * (columns - 1)) / columns;
   return {
     columns,
     rowHeight: cardWidth * PHOTO_RATIO + TEXT_HEIGHT,

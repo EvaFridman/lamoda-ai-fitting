@@ -1,9 +1,9 @@
 # 0020 catalog: loading and the phone layout
 
 Status: accepted (2026-10-23); amended 2026-10-23 at the review of PR 1 (AC1, AC9, AC11, AC14,
-AC16); amended 2026-10-23 at T10 (AC5: W28); amended 2026-10-24 at T10a (AC11–AC14: W30).
+AC16); amended 2026-10-23 at T10 (AC5: W28); amended 2026-10-24 at T10a (AC11–AC14: W30); amended 2026-10-24 at T11 (scope, AC7: W31).
 
-Decisions: `clarifications.md` (W0–W30).
+Decisions: `clarifications.md` (W0–W31).
 
 ## Goal
 
@@ -27,7 +27,7 @@ screenshots of a Lamoda category page, described in `clarifications.md`).
   - a row with a back arrow, the title and the number of products under it;
   - a row with the current category, which expands the category list in place, and a "Фильтры"
     button with a dot while anything is applied;
-  - a grid of two cards per row from edge to edge, the text padded inside the card;
+  - a grid of two cards per row, 16 px from the window's sides (W31);
   - the breadcrumbs under the list.
 - The filters sheet below 1024 px: a list of filters, each opening its own screen in the sheet
   (sort, size, colour, price, brand, the other attributes), the chosen values shown in the list,
@@ -68,8 +68,8 @@ screenshots of a Lamoda category page, described in `clarifications.md`).
   row stay at the window's top while the page scrolls; the open list scrolls with the page (W28).
 - **AC6.** The funnel has a dot while a filter, a sort other than the default or a search is
   applied, and none otherwise.
-- **AC7.** The grid has two cards per row with no side margins and a thin line between cards; the
-  card's price, brand and name are padded from its edges.
+- **AC7.** The grid has two cards per row, 16 px from the window's sides and 8 px apart, with no
+  line between them (W31).
 - **AC8.** The breadcrumbs are under the list, not above the title.
 - **AC9.** At 700 px and at 1280 px the page is laid out as before this spec, apart from the
   loading placeholders (AC1, AC2), the count's placeholder while the counts load (W14, W26), the
