@@ -35,12 +35,13 @@ fitting photos (`/me/photos`, nginx's 20 MB upload route, the page "Мои фо�
 deletions' outbox with the schedule `fitting-housekeeping`; phase 2 the generation (the image
 model and its prompt, the workflow `generateFitting`, `/fittings` with the monthly limit, the
 push `fitting:finished`, OpenAI through the proxy abroad), the try-on of one item in a window
-(`widgets/try-on`) and the history "Мои примерки"; phase 3 so far the product page
-`/products/<id>` (its metadata, JSON-LD, 404 and sitemap, the gallery, the buy box with the
-try-on's «Примерить», the limit meter and «Вы это примеряли», «О товаре» and «С этим товаром
-выбирают» with the card's `compact` variant) and the catalog card's two corners (the hanger
+(`widgets/try-on`) and the history "Мои примерки"; phase 3 the product page `/products/<id>`
+(`GET /products/:id/related` and `/products/:id/fittings/last`, its metadata, JSON-LD, 404 and
+sitemap, the gallery, the buy box with the try-on's «Примерить», the cart and favourite stubs,
+the limit meter and «Вы это примеряли», «О товаре» and «С этим товаром выбирают» with the card's
+`compact` variant, the analytics zone `product`), the catalog card's two corners (the hanger
 `LookToggle`, disabled until the fitting room, and the heart stub, in place of its one `action`)
-and its hover (spec 0019 A63.1, A83).
+and its hover (spec 0019 A63.1, A83). Next: phase 4, the fitting room and looks.
 
 Keep this file true: update it in the same commit that changes what a section describes.
 
@@ -387,6 +388,13 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   running an hour after its start is ended `failed` with its try-on given back by the
   housekeeping's first step (`endStuckFittings`, behind the patch `end-stuck-fittings`). `POST`
   and `PATCH /fitting-sessions` are `@Closed()` (A21).
+- `api` the product page's reads (spec 0019 A36, A80): `GET /products/:id` still answers a product
+  of an inactive category (web compares its `category.id` with the active categories);
+  `GET /products/:id/related` (`@Public()`) answers the six newest products of other active
+  categories that have a slot, the product left out, and 404 for an unknown product or one of an
+  inactive category; `GET /products/:id/fittings/last` (`@SignedIn()`,
+  `ProductFittingsController`) the user's newest completed fitting that holds the product,
+  regenerations included, else 404. `ProductListItemDto` carries `updatedAt` (the sitemap's).
 - `api` sign-in (spec 0013): Better Auth (`auth/`) with Google only (locally the fake provider of
   the compose service `oidc`), mounted by `mountAuth()` (from `createHttpApp()`) at `/api/auth`
   as an Express route ahead of Nest's; only the routes in `AUTH_ROUTES` (`auth-routes.ts`) answer,
@@ -688,7 +696,8 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   and tracked elements are the catalog's zone `auth` (`Signed Out` goes before `reset`); the
   account's are the zone `account` (spec 0017 U14), the catalog page's the zone `catalog` (spec
   0014 plan §3.6, O97–O103), the fitting photos' the zone `fitting`, area `photos` (spec 0019
-  plan §9, A60).
+  plan §9, A60), the product page's the zone `product` (areas `buy-box` and `related`, six
+  elements; `buy-box.to-look` and `related.to-look` come with the fitting room, A84).
   `Signed In` is sent once, on the page a sign-in of this tab came back to: `markSignInStarted()`
   (`features/auth`) puts the time in `sessionStorage` (`sign-in-started`, not an `mp_`/`__mp` key
   the SDK clearing removes) before leaving for Google, and a flag older than 10 minutes counts as
@@ -715,7 +724,29 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   screen as a second sheet nested over the list; a screen's "Применить" keeps its choice in the
   draft, "‹", Escape and a swipe drop it, nothing reaches the address until "Показать N товаров",
   and any close of the sheet drops the draft and returns the focus to "Фильтры". Its chips and
-  rows send their elements with `surface`.
+  rows send their elements with `surface`. The grid's cards link to `/products/<id>` with
+  `prefetch={false}`: one card's prefetch reads the api about 4 times on the visitor's quota
+  (spec 0019 A82.1, backlog «Catalog card prefetch»).
+- `web` product page (spec 0019 plan §8, `_pages/product`): the product is read once per render
+  as the visitor (`getProductById`, never cached) and its category compared with the cached active
+  ones (`loadProductWithSlot`; `proxy.ts` gives the real 404 first, the page a soft one when it was
+  skipped, A81); «С этим товаром выбирают» is prefetched through the page cache only after that.
+  The page joins `widgets/product-gallery` (the kit's `Gallery`), `widgets/product-buy-box`
+  (rating, price, colour and size, `features/product-stubs`, the primary «Примерить» of
+  `features/start-fitting`, which opens `widgets/try-on` in place, signed out the second
+  `LoginModal`; «К образу», disabled until the fitting room, A82.2; `entities/fitting`'s
+  `LimitMeter`, at the limit only «Закончились · снова с <date>» under the disabled «Примерить»,
+  A82.5; its `TriedOnNote` from `/products/:id/fittings/last`, whose «Смотреть» opens
+  `/customer/fittings?fitting=<id>`; on phones a bar fixed to the bottom that writes its height
+  into `--fixed-bar-height`), `ProductAbout` (`entities/product`: the description whole, every
+  attribute, then «Артикул», A83) and `widgets/related-products` (`CatalogProductCard`'s `compact`
+  variant with «В корзину»; fewer than six shows as many, none hides the block). The stubs
+  «Добавить в корзину», «В корзину» and «В избранное» (`CartStubButton`, `FavoriteStub`, taking
+  `events`) are enabled, send their click and show the toast «В прототипе нет корзины и
+  избранного» (`showStubToast`, A33). The catalog card has two corners (A63.1): the hanger
+  `LookToggle` top left, only for a product whose category has a slot and disabled until the
+  room, and the heart stub top right (untracked, A83.10); on `@media (hover: hover)` it lifts with
+  `--shadow-box` and the photo grows to 1.03.
 - `web` data from the api renders at request time inside `<Suspense>`: the web image must build with
   no api, Redis or database running. So a page has sent its static shell with 200 before it reads
   anything, and a `notFound()` there is a soft 404 (the not-found page with `noindex`). A real 404

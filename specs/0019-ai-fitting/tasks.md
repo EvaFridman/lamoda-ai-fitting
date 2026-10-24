@@ -237,7 +237,7 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       the tracked elements of the stubs and the try-on entry (plan §9).
       Check: `catalog.test.ts`, the budget; `npm run verify`.
       Commit: `feat(web): count the product page's clicks`
-- [ ] **T23. Close phase 3.** `CLAUDE.md`, `README.md`; the clean install and `verify`; the
+- [x] **T23. Close phase 3.** `CLAUDE.md`, `README.md`; the clean install and `verify`; the
       summary; the pull request carries `Closes #69`; backlog «Product card link» became
       «Catalog card prefetch» in T20 (A82.1).
       Check: `npm run verify` after `npm ci`; AC21–AC24 have evidence.
