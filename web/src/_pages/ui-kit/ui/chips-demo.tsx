@@ -38,3 +38,32 @@ export function ChipsDemo() {
     </div>
   );
 }
+
+const keep = () => {};
+
+// The fixed states. Here, not in the server section: a server component cannot pass a ChipGroup
+// its `onValueChange`.
+export function ChipStates() {
+  return (
+    <ul className={styles.row}>
+      <li className={styles.example}>
+        <ChipGroup aria-label="Обычный" value={[]} onValueChange={keep}>
+          <Chip value="face">Лицо</Chip>
+        </ChipGroup>
+        <code className={styles.props}>обычный</code>
+      </li>
+      <li className={styles.example}>
+        <ChipGroup aria-label="Нажатый" value={['item']} onValueChange={keep}>
+          <Chip value="item">Вещь</Chip>
+        </ChipGroup>
+        <code className={styles.props}>нажатый</code>
+      </li>
+      <li className={styles.example}>
+        <ChipGroup aria-label="Недоступный" value={[]} onValueChange={keep} disabled>
+          <Chip value="background">Фон</Chip>
+        </ChipGroup>
+        <code className={styles.props}>disabled</code>
+      </li>
+    </ul>
+  );
+}
