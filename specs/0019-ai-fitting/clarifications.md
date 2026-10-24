@@ -91,7 +91,8 @@ reachable, a 403 the region block), so no generation code is written for a provi
 cannot reach; a 403 stops the work for the owner's decision on the route. Amended 2026-10-21 at
 the review of the documents: OpenAI instead of fal.ai (the owner's choice; fal.ai's queue and
 models are dropped from the plan); amended at the review of PR 1: the reachability check before
-the start of phase 2, not before its merge.
+the start of phase 2, not before its merge. The check without a key and the direct route are
+replaced by A73 (2026-10-24).
 
 **A17. Model: GPT-Image-2, no second provider.** `FITTING_MODEL=gpt-image-2` (the edits endpoint,
 quality medium); `gpt-image-2.5-sunburst` (OpenAI's newer editing model) is the alternative the
@@ -831,6 +832,47 @@ production) and keeps the policy on `/socket.io`, which renders web's not-found 
 Sentry drops the polling requests' spans and breadcrumbs, whose `sid` is the socket's session. (5) `TryOnButton` is size 56 as A63.2 says (board 13 draws 48).
 (6) The unused `entities/generation` goes, as plan §7 says; `AiLabel`, `LimitMeter`,
 `ItemsStrip` and `HistoryCard` come with the screens that show them (T15, T16).
+
+**A73. OpenAI through a proxy abroad; the deploy checks it with the key.** A4's check without a
+key proved nothing: OpenAI checks the region only of a request with a key, and production's
+requests with it answer 403 `unsupported_country_region_territory`. The route: an HTTP proxy on a
+small VPS of its own (1 CPU, 1 GB) in a country OpenAI supports (Germany or the Netherlands), set
+up by the playbook `deploy/ansible/openai-proxy.yml` beside `base.yml` (its own inventory group
+`openai_proxy`; the host's address and root key in the owner's `~/.ssh/config`, as
+`ai-fitting`'s, with `ProxyJump ai-fitting`: SSH from the owner's network straight to the VPS
+never gets the server's banner, and through the production server it does, 2026-10-24). The VPS
+is Timeweb Cloud's in Amsterdam (Frankfurt had none free); from it `GET /v1/models` with the key
+answered 200 on 2026-10-24. Squid
+lets through only `CONNECT api.openai.com:443` and refuses everything else,
+so it is no open proxy; it asks for a login and a password (basic auth), sends no `Via` or
+`X-Forwarded-For`, and its log holds only the time, the client address, the `CONNECT` line, the
+status and the byte counts (TLS keeps the content out of it). ufw lets only the production
+server's address reach its port and SSH. The password crosses between the two servers in clear
+(`CONNECT` over plain HTTP), so the firewall is the line and the password the second one; it is
+letters and digits only. The api and the worker read `OPENAI_PROXY_URL`
+(`http://<user>:<password>@<address>:3128`): a secret of the Environment `production`, in
+`.env.example` with a comment, `cd.yml`'s `.env` writer and format check, `deploy/compose/app.yml`
+and `worker.yml`, and `check-web-bundle`'s list; required in production by `assertServerEnv` and
+`assertWorkerEnv`, ignored outside production as the key is (A49). `OpenAiClient` sends through
+`undici`'s `ProxyAgent` with `fetch` from the same package (Node 26 bundles undici 8.7, and a
+dispatcher of another version is not guaranteed to fit its `fetch`): `undici` becomes a direct
+dependency of the api at 8.12.2 or later (8.11, today only under `testcontainers`, has npm audit
+advisories). Only OpenAI's requests use the proxy; S3, Sentry, Google and the rest go directly.
+The address is parsed once into the proxy's origin and its credentials, and neither reaches a log
+line, an error, `AiProviderError` or Sentry (the start logs only that a proxy is set). A refusal by
+the proxy (a 407, a 403, its 503 on `CONNECT`) never reached OpenAI: it counts as unsent (A67) and
+ends as `provider_error`. The check that replaces A4's: `deploy.sh`, after the new copy's
+readiness and before its warm-up, runs a script in the new api container that calls
+`GET /v1/models` with the key through the same client and proxy (free, no model runs); anything
+but 200 stops the new copy and the deploy, and the running copy keeps serving. The way round an
+outage of OpenAI or of the VPS is the owner's manual run of `cd.yml` with the input
+`skip_openai_check`; `ci-deploy-check.sh` passes the same knob, since its key is a placeholder and
+it never reaches OpenAI (A51). Decided by the owner on 2026-10-24 (the proxy required in
+production, the check in `deploy.sh` through the api's own client, a failed check fails the deploy
+with a way round by hand). Assumptions, owner to confirm at the summary: (1) a rollback skips the
+check, so an outage of OpenAI never blocks a way back; (2) the worker, replaced in place, is not
+checked on its own: it reads the same two variables, and the api's check proves them; (3) the
+proxy VPS is one more single point of failure for the fitting, accepted for the pilot.
 
 ## Canvas and decisions
 
