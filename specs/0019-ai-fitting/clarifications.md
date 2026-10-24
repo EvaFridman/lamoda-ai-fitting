@@ -1101,4 +1101,6 @@ U11), «Deletions after a restored copy» (the outbox of A38 gives the restore i
 deletions; removing files no row refers to stays a restore-time step of 0012, not a feature of
 this spec), «Deleted users in backups», «Guests». Added: «Share link of a result» (A14), «Mobile tab bar»
 (A10), «Photo crop», «Report a wrong photo check», «Compare as an overlay», «Avatar teaser» (A41),
-«Old fitting routes» (A21), «The other models of 0016 S7» (A4).
+«Old fitting routes» (A21), «The other models of 0016 S7» (A4). «Product card link» closed in
+part: the card's address stays as A40 says; the prefetch is not back, A82.1 moved it into
+«Catalog card prefetch», which stays in the backlog.
