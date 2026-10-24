@@ -3,7 +3,7 @@ import type { PrismaClient } from '../../generated/prisma/client.js';
 import type { StorageService } from '../../storage/storage.service.js';
 import { createAuthCleanupActivities } from './auth-cleanup.activities.js';
 import { createFileActivities } from './files.activities.js';
-import { createFittingActivities } from './fitting.activities.js';
+import { createFittingActivities, type FittingEventPublisher } from './fitting.activities.js';
 import { createHousekeepingActivities } from './housekeeping.activities.js';
 
 // Every activity the worker registers, with the services they need from its Nest context
@@ -14,11 +14,12 @@ export function createActivities(
   prisma: PrismaClient,
   taskQueue: string,
   ai: AiProvider,
+  publisher: FittingEventPublisher,
 ) {
   return {
     ...createFileActivities(storage, prisma),
     ...createAuthCleanupActivities(prisma),
     ...createHousekeepingActivities(prisma, taskQueue),
-    ...createFittingActivities(ai, storage, prisma),
+    ...createFittingActivities(ai, storage, prisma, publisher),
   };
 }

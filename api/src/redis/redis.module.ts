@@ -29,15 +29,17 @@ function createClient(url: string, name: string): Redis {
   return client;
 }
 
+const countersClient = {
+  provide: REDIS,
+  inject: [ConfigService],
+  useFactory: (config: ConfigService<Env, true>): Redis =>
+    createClient(config.get('REDIS_URL', { infer: true }), 'Redis'),
+};
+
 @Global()
 @Module({
   providers: [
-    {
-      provide: REDIS,
-      inject: [ConfigService],
-      useFactory: (config: ConfigService<Env, true>): Redis =>
-        createClient(config.get('REDIS_URL', { infer: true }), 'Redis'),
-    },
+    countersClient,
     {
       provide: REDIS_CACHE,
       inject: [ConfigService],
@@ -55,5 +57,22 @@ export class RedisModule implements OnModuleDestroy {
 
   async onModuleDestroy(): Promise<void> {
     await Promise.all([this.redis.quit(), this.redisCache.quit()]);
+  }
+}
+
+// The counters' client alone, for the Temporal worker: its `notify` publishes a finished fitting
+// there (spec 0019 A44), and it uses no cache. A Redis down at the stop does not fail it: the
+// client is dropped instead of closed.
+@Module({
+  providers: [countersClient],
+  exports: [REDIS],
+})
+export class CountersRedisModule implements OnModuleDestroy {
+  constructor(@Inject(REDIS) private readonly redis: Redis) {}
+
+  async onModuleDestroy(): Promise<void> {
+    await this.redis.quit().catch(() => {
+      this.redis.disconnect();
+    });
   }
 }

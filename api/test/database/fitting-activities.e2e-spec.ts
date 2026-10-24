@@ -32,6 +32,7 @@ import {
   testStorageSettings,
 } from '../support/test-storage.js';
 import {
+  NO_PUBLISHER,
   startTestWorker,
   testTemporalSettings,
   type TestWorker,
@@ -506,7 +507,7 @@ describe('generateFitting with the real activities (spec 0019 T11)', () => {
         where: { id: s.generationId },
         data: { status: 'processing' },
       });
-      const activities = createFittingActivities(fake, storage, prisma);
+      const activities = createFittingActivities(fake, storage, prisma, NO_PUBLISHER);
 
       await activities.complete(s.generationId, {
         status: 'failed',
@@ -676,6 +677,7 @@ describe('generateFitting with the real activities (spec 0019 T11)', () => {
         new FakeAiProvider({ model: 'gpt-image-2', checkTimeoutMs: 4000, timeoutSeconds: 180 }),
         storage,
         prisma,
+        NO_PUBLISHER,
       );
     const failedOutcome = {
       status: 'failed',
@@ -806,6 +808,101 @@ describe('generateFitting with the real activities (spec 0019 T11)', () => {
         expect(await rowOf(child)).toMatchObject({ status: 'failed', parentId: null });
         expect(await usedOf(s.userId, s.month)).toBe(2);
       });
+    });
+  });
+
+  describe('notify publishes the end of a fitting (A71)', () => {
+    const published: [string, string][] = [];
+    const notifier = () =>
+      createFittingActivities(fake, storage, prisma, {
+        publish: (channel, message) => {
+          published.push([channel, message]);
+          return Promise.resolve(1);
+        },
+      });
+
+    // Ends the row the way the workflow's `complete` does, which the status' CHECKs require.
+    const end = (generationId: string, status: 'completed' | 'failed') =>
+      notifier().complete(
+        generationId,
+        status === 'completed'
+          ? { status, providerRequestId: null }
+          : { status, failureCode: 'provider_error', errorMessage: 'x', providerRequestId: null },
+      );
+
+    it.each(['completed', 'failed'] as const)(
+      'publishes the ids, kind and status of a %s row on the channel',
+      async (status) => {
+        const s = await seed({ status: 'processing' });
+        await end(s.generationId, status);
+        published.length = 0;
+
+        await notifier().notify(s.generationId);
+
+        expect(published).toHaveLength(1);
+        expect(published[0]?.[0]).toBe('fitting-events');
+        expect(JSON.parse(published[0]?.[1] ?? '')).toEqual({
+          userId: s.userId,
+          generationId: s.generationId,
+          kind: 'single',
+          status,
+        });
+      },
+    );
+
+    it('publishes the kind of a look', async () => {
+      const s = await seed({ status: 'processing' });
+      await end(s.generationId, 'completed');
+      await prisma.aiGeneration.update({ where: { id: s.generationId }, data: { kind: 'look' } });
+      published.length = 0;
+
+      await notifier().notify(s.generationId);
+
+      expect(JSON.parse(published[0]?.[1] ?? '')).toMatchObject({ kind: 'look' });
+    });
+
+    it('publishes nothing for a row that is gone', async () => {
+      const s = await seed({ status: 'processing' });
+      await prisma.aiGeneration.delete({ where: { id: s.generationId } });
+      published.length = 0;
+
+      await notifier().notify(s.generationId);
+      await notifier().notify(randomUUID());
+
+      expect(published).toEqual([]);
+    });
+
+    it.each(['pending', 'processing'] as const)(
+      'publishes nothing for a %s row',
+      async (status) => {
+        const s = await seed({ status });
+        published.length = 0;
+
+        await notifier().notify(s.generationId);
+
+        expect(published).toEqual([]);
+      },
+    );
+
+    it('publishes nothing for a completed row without a kind', async () => {
+      const s = await seed({ status: 'processing' });
+      await end(s.generationId, 'completed');
+      await prisma.aiGeneration.update({ where: { id: s.generationId }, data: { kind: null } });
+      published.length = 0;
+
+      await notifier().notify(s.generationId);
+
+      expect(published).toEqual([]);
+    });
+
+    it('lets the failure of the publisher through, for the workflow to retry', async () => {
+      const s = await seed({ status: 'processing' });
+      await end(s.generationId, 'failed');
+      const failing = createFittingActivities(fake, storage, prisma, {
+        publish: () => Promise.reject(new Error('redis down')),
+      });
+
+      await expect(failing.notify(s.generationId)).rejects.toThrow('redis down');
     });
   });
 
