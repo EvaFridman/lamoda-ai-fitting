@@ -89,10 +89,10 @@ export function defineCatalog<const C extends Catalog>(catalog: C & Checked<C>):
 export const catalog = defineCatalog({
   // The owner's estimates (R15, R17), set without traffic data: a demo site. The SDK sends about
   // 5 page views and 7 heatmap clicks a visit (`autocapture` is off; the catalog's categories are
-  // paths of their own, spec 0014 O102); «Мои фото» adds about one more, «Мои примерки» another
-  // (spec 0019 plan §9, A78).
+  // paths of their own, spec 0014 O102); «Мои фото» adds about one more, «Мои примерки» another,
+  // the product page another (spec 0019 plan §9, A78, A84).
   visitsPerMonth: 3_000,
-  sdkPerVisit: 14,
+  sdkPerVisit: 15,
   zones: {
     service: {
       title: 'Служебное',
@@ -117,6 +117,12 @@ export const catalog = defineCatalog({
       areas: ['catalog'],
       description:
         'Страницы `/catalog` и `/catalog/<slug>`: список категорий слева, ряд фильтров над сеткой (на узком экране — шторка «Фильтры»), сетка карточек.',
+    },
+    product: {
+      title: 'Страница товара',
+      areas: ['buy-box', 'related'],
+      description:
+        'Страница `/products/<id>` (спека 0019). `buy-box` — блок покупки справа от галереи (на телефоне его кнопки прижаты к низу экрана): «Добавить в корзину», «В избранное», «Примерить», «Вы это примеряли». `related` — «С этим товаром выбирают» под ним: компактные карточки и их «В корзину». Галерея, «О товаре» и хлебные крошки не отслеживаются; окно примерки, открытое отсюда, шлёт элементы и события зоны `fitting`.',
     },
     fitting: {
       title: 'Примерка',
@@ -497,6 +503,58 @@ export const catalog = defineCatalog({
       clicksPerVisit: 0.1,
       hoversPerVisit: 0.005,
       properties: { target: { kind: 'enum', values: ['history', 'catalog'] } },
+    },
+    'buy-box.add-to-cart': {
+      zone: 'product',
+      type: 'interaction',
+      description:
+        '«Добавить в корзину» в блоке покупки: заглушка, показывает уведомление, что в прототипе нет корзины. `tried_on` — показано ли «Вы это примеряли» (у посетителя есть готовая примерка этого товара); у не вошедшего — `false`.',
+      clicksPerVisit: 0.03,
+      hoversPerVisit: 0.06,
+      properties: { tried_on: { kind: 'boolean' } },
+    },
+    'buy-box.favourite': {
+      zone: 'product',
+      type: 'interaction',
+      description:
+        'Сердце «В избранное» в блоке покупки: заглушка, не остаётся нажатым, показывает уведомление. `tried_on` — как у `buy-box.add-to-cart`. Сердца на карточках похожих товаров и каталога не отслеживаются.',
+      clicksPerVisit: 0.02,
+      hoversPerVisit: 0.03,
+      properties: { tried_on: { kind: 'boolean' } },
+    },
+    'buy-box.try-on': {
+      zone: 'product',
+      type: 'interaction',
+      description:
+        '«Примерить» в блоке покупки. `signed_in` — вошёл ли посетитель: `true` открывает окно примерки, `false` — окно входа (тогда приходит и `Login Opened`). Пока загружаются сессия и лимит и когда примерки месяца закончились, кнопка отключена и ничего не шлёт.',
+      clicksPerVisit: 0.06,
+      hoversPerVisit: 0.1,
+      properties: { signed_in: { kind: 'boolean' } },
+    },
+    'buy-box.tried-on': {
+      zone: 'product',
+      type: 'navigation',
+      description:
+        '«Вы это примеряли · Смотреть» в блоке покупки: открывает последний результат этого товара в окне примерки. Id примерки, дата и цвет не отправляются.',
+      clicksPerVisit: 0.005,
+      hoversPerVisit: 0.008,
+    },
+    'related.card': {
+      zone: 'product',
+      type: 'navigation',
+      description:
+        'Карточка в «С этим товаром выбирают»: ссылка на страницу товара. `position` — её место в блоке, с 1 (не больше 6); id товара не отправляется. Вешалка, сердце и «В корзину» карточки — не ссылка и этот элемент не шлют.',
+      clicksPerVisit: 0.08,
+      hoversPerVisit: 0.4,
+      properties: { position: { kind: 'number' } },
+    },
+    'related.add-to-cart': {
+      zone: 'product',
+      type: 'interaction',
+      description:
+        '«В корзину» под карточкой в «С этим товаром выбирают»: заглушка, показывает уведомление. Один элемент на все карточки: наведение уходит раз за просмотр страницы.',
+      clicksPerVisit: 0.01,
+      hoversPerVisit: 0.03,
     },
     'photos.upload': {
       zone: 'fitting',

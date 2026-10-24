@@ -11,7 +11,12 @@ export type FavoriteToggleSize = 24 | 32 | 48 | 56;
 
 export interface FavoriteToggleProps extends Pick<
   Toggle.Props,
-  'pressed' | 'defaultPressed' | 'onPressedChange' | 'disabled'
+  | 'pressed'
+  | 'defaultPressed'
+  | 'onPressedChange'
+  | 'disabled'
+  | 'onPointerEnter'
+  | 'onPointerLeave'
 > {
   // 24: the bare heart. 32: on a product photo, white with a grey outline. 48 and 56: a square
   // with a border, next to "Добавить в корзину".

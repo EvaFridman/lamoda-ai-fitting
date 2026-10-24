@@ -73,9 +73,9 @@ describe('FavoriteStub', () => {
     );
   });
 
-  it('never stays pressed: a press calls onPress, shows the toast and the heart is still off', async () => {
-    const onPress = vi.fn();
-    render(<FavoriteStub onPress={onPress} />);
+  it('never stays pressed: a press calls events.onClick, shows the toast and the heart is still off', async () => {
+    const onClick = vi.fn();
+    render(<FavoriteStub events={{ onClick }} />);
     const heart = screen.getByRole('button', { name: 'В избранное' });
     const user = userEvent.setup();
 
@@ -83,12 +83,39 @@ describe('FavoriteStub', () => {
     await user.click(heart);
 
     expect(heart).toHaveAttribute('aria-pressed', 'false');
-    expect(onPress).toHaveBeenCalledTimes(2);
+    expect(onClick).toHaveBeenCalledTimes(2);
+    expect(onClick).toHaveBeenCalledWith();
     expect(toast.showToast).toHaveBeenCalledTimes(2);
     expect(toast.showToast).toHaveBeenCalledWith({ title: TEXT });
   });
 
-  it('shows the toast with no onPress given', async () => {
+  it('reports the tracked click before the toast', async () => {
+    const order: string[] = [];
+    const onClick = vi.fn(() => order.push('click'));
+    toast.showToast.mockImplementation(() => order.push('toast'));
+    render(<FavoriteStub events={{ onClick }} />);
+
+    await userEvent.setup().click(screen.getByRole('button', { name: 'В избранное' }));
+
+    expect(order).toEqual(['click', 'toast']);
+  });
+
+  it('hands the hover handlers to the heart without a toast', async () => {
+    const onPointerEnter = vi.fn();
+    const onPointerLeave = vi.fn();
+    render(<FavoriteStub events={{ onPointerEnter, onPointerLeave }} />);
+    const heart = screen.getByRole('button', { name: 'В избранное' });
+    const user = userEvent.setup();
+
+    await user.hover(heart);
+    await user.unhover(heart);
+
+    expect(onPointerEnter).toHaveBeenCalled();
+    expect(onPointerLeave).toHaveBeenCalled();
+    expect(toast.showToast).not.toHaveBeenCalled();
+  });
+
+  it('shows the toast with no events given', async () => {
     render(<FavoriteStub />);
 
     await userEvent.setup().click(screen.getByRole('button', { name: 'В избранное' }));

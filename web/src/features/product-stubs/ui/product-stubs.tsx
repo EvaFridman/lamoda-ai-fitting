@@ -18,8 +18,8 @@ export function showStubToast(): void {
 // A tracked element's handlers, from the widget's `useTrackedElement`.
 export type StubEvents = Pick<
   ButtonHTMLAttributes<HTMLButtonElement>,
-  'onClick' | 'onPointerEnter' | 'onPointerLeave'
->;
+  'onPointerEnter' | 'onPointerLeave'
+> & { onClick?: () => void };
 
 export interface CartStubButtonProps {
   // «Добавить в корзину», «В корзину».
@@ -45,8 +45,8 @@ export function CartStubButton({
       className={className}
       onPointerEnter={events?.onPointerEnter}
       onPointerLeave={events?.onPointerLeave}
-      onClick={(event) => {
-        events?.onClick?.(event);
+      onClick={() => {
+        events?.onClick?.();
         showStubToast();
       }}
     >
@@ -58,19 +58,21 @@ export function CartStubButton({
 export interface FavoriteStubProps {
   size?: FavoriteToggleSize;
   className?: string;
-  // Called on a press, before the toast: the widget's tracked click.
-  onPress?: () => void;
+  // The click is called on a press, before the toast (A84.4).
+  events?: StubEvents;
 }
 
 // «В избранное»: the kit's heart that never stays pressed (A33).
-export function FavoriteStub({ size, className, onPress }: FavoriteStubProps) {
+export function FavoriteStub({ size, className, events }: FavoriteStubProps) {
   return (
     <FavoriteToggle
       size={size}
       className={className}
       pressed={false}
+      onPointerEnter={events?.onPointerEnter}
+      onPointerLeave={events?.onPointerLeave}
       onPressedChange={() => {
-        onPress?.();
+        events?.onClick?.();
         showStubToast();
       }}
       aria-label="В избранное"

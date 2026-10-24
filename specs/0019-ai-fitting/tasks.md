@@ -233,7 +233,7 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       catalog's cards get at the same time.
       Check: web tests; `npm run verify`.
       Commit: `feat(web): the product page's details and related products`
-- [ ] **T22. Analytics of the product page.** The zone `product` in `catalog.ts`, `EVENTS.md`,
+- [x] **T22. Analytics of the product page.** The zone `product` in `catalog.ts`, `EVENTS.md`,
       the tracked elements of the stubs and the try-on entry (plan §9).
       Check: `catalog.test.ts`, the budget; `npm run verify`.
       Commit: `feat(web): count the product page's clicks`
