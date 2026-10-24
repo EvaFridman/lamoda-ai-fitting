@@ -689,6 +689,120 @@ describe('TryOn with a fitting', () => {
   });
 });
 
+describe('TryOn focus', () => {
+  // Lets the window's own timer (set from a mutation or a focus change) run.
+  async function settle() {
+    await act(async () => {
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    });
+  }
+
+  it('keeps the focus inside the window when the focused button goes with a screen change', async () => {
+    api.fittings.set(
+      RUNNING,
+      fitting({ status: 'failed', stage: 'done', failureCode: 'model_timeout' }),
+    );
+    const user = setup();
+    renderTryOn({ fittingId: RUNNING });
+    const retry = await screen.findByRole('button', { name: 'Попробовать ещё раз' });
+    await user.click(retry);
+
+    await screen.findByText('Примеряем…');
+    expect(retry).not.toBeInTheDocument();
+
+    await vi.waitFor(() => {
+      expect(document.activeElement).not.toBe(document.body);
+      expect(screen.getByRole('dialog')).toContainElement(document.activeElement as HTMLElement);
+    });
+  });
+
+  it('keeps the focus inside the window when the regeneration sheet closes into the wait', async () => {
+    api.fittings.set(RUNNING, fitting(COMPLETED_RESULT));
+    api.started = () => startedResponse({ parentId: RUNNING });
+    const user = setup();
+    renderTryOn({ fittingId: RUNNING });
+    await user.click(
+      await screen.findByRole('button', { name: 'Хотите что-то поменять в образе?' }),
+    );
+    await user.click(await screen.findByRole('button', { name: 'Лицо' }));
+    await user.click(screen.getByRole('button', { name: /Перегенерировать/ }));
+
+    await screen.findByText('Примеряем…');
+
+    await vi.waitFor(() => {
+      expect(document.activeElement).not.toBe(document.body);
+      expect(screen.getByRole('dialog')).toContainElement(document.activeElement as HTMLElement);
+    });
+  });
+
+  const outerPopup = () => screen.getByRole('dialog', { name: 'Онлайн-примерка', hidden: true });
+
+  it('gives a focus lost to the page body back to the try-on window itself', async () => {
+    renderTryOn({ productId: PRODUCT });
+    const other = await screen.findByRole('button', { name: 'Фото 1' });
+    other.focus();
+
+    other.blur();
+    expect(document.body).toHaveFocus();
+    await settle();
+
+    expect(outerPopup()).toHaveFocus();
+  });
+
+  it('does not pull the focus to the try-on window while the first-upload tips are open over it', async () => {
+    window.localStorage.clear();
+    const user = setup();
+    renderTryOn({ productId: PRODUCT });
+    await user.click((await screen.findAllByRole('button', { name: 'Загрузить фото' }))[1]!);
+    const tips = await screen.findByRole('dialog', { name: 'Какое фото подойдёт' });
+    expect(outerPopup()).toHaveAttribute('data-nested-dialog-open');
+
+    (document.activeElement as HTMLElement).blur();
+    expect(document.body).toHaveFocus();
+    await settle();
+
+    expect(outerPopup()).not.toHaveFocus();
+    expect(tips).toBeInTheDocument();
+  });
+
+  it('does not pull the focus to the try-on window while «Что поменять?» is open over it', async () => {
+    api.fittings.set(RUNNING, fitting(COMPLETED_RESULT));
+    const user = setup();
+    renderTryOn({ fittingId: RUNNING });
+    await user.click(
+      await screen.findByRole('button', { name: 'Хотите что-то поменять в образе?' }),
+    );
+    await screen.findByRole('button', { name: 'Лицо' });
+    await vi.waitFor(() => expect(outerPopup()).toHaveAttribute('data-nested-dialog-open'));
+
+    (document.activeElement as HTMLElement).blur();
+    expect(document.body).toHaveFocus();
+    await settle();
+
+    expect(outerPopup()).not.toHaveFocus();
+  });
+
+  it('does not take the focus from another control when the page changes', async () => {
+    renderTryOn({ productId: PRODUCT });
+    const other = await screen.findByRole('button', { name: 'Фото 1' });
+    other.focus();
+    expect(other).toHaveFocus();
+
+    document.body.append(document.createElement('div'));
+    await settle();
+
+    expect(other).toHaveFocus();
+  });
+});
+
+const COMPLETED_RESULT = {
+  status: 'completed' as const,
+  stage: 'done' as const,
+  resultUrl: 'https://s3.test/keep/users/u/result.webp?X-Amz-Signature=abc',
+  finishedAt: DATE,
+};
+
 describe('TryOn picker details', () => {
   it('deletes every one-time photo uploaded in the window, not only the last', async () => {
     let count = 0;

@@ -234,6 +234,28 @@ describe('Modal', () => {
     expect(dialog).toHaveTextContent('Текст');
   });
 
+  it('marks the outer dialog while a nested one is open, so its × can be hidden', async () => {
+    const user = setup();
+    render(
+      <Modal open title="Внешнее">
+        <Modal trigger={<Button>Вложенное</Button>} title="Внутреннее">
+          <p>Текст</p>
+        </Modal>
+      </Modal>,
+    );
+    const outer = await screen.findByRole('dialog', { name: 'Внешнее' });
+    expect(outer).not.toHaveAttribute('data-nested-dialog-open');
+
+    await user.click(screen.getByRole('button', { name: 'Вложенное' }));
+
+    await screen.findByRole('dialog', { name: 'Внутреннее' });
+    expect(outer).toHaveAttribute('data-nested-dialog-open');
+    // The rule `.popup[data-nested-dialog-open] > .close` needs the × to be a direct child.
+    const close = outer.querySelector('button[aria-label="Закрыть"]');
+    expect(close).toHaveClass('close');
+    expect(close?.parentElement).toBe(outer);
+  });
+
   it('stays closed while controlled open is false', () => {
     render(<Modal open={false} title="Закрытое" />);
 

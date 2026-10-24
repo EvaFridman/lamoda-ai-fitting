@@ -1,7 +1,7 @@
 'use client';
 
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 
 import {
   type Fitting,
@@ -287,6 +287,49 @@ export function TryOn({
   }
 
   return (
+    <TryOnModal description={description} onClose={onClose}>
+      {content}
+    </TryOnModal>
+  );
+}
+
+interface TryOnModalProps {
+  description?: string;
+  onClose: () => void;
+  children: ReactNode;
+}
+
+// The window. A new screen unmounts the control that had the focus (the regeneration's «Что
+// поменять?» as its sheet closes, «Попробовать ещё раз»), and the browser drops the focus on the
+// page's body, out of the window: then it moves to the window, so the keyboard and a screen reader
+// stay inside. Checked a moment after the focus leaves or the page's nodes change (a browser may
+// drop the focus of a removed node without a `focusout`), once the browser has settled it.
+function TryOnModal({ description, onClose, children }: TryOnModalProps) {
+  const bodyRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const regain = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        if (document.activeElement !== null && document.activeElement !== document.body) return;
+        // The window itself, named «Онлайн-примерка», as Base UI's own restore does; never while a
+        // window over it (the tips, «Что поменять?») holds the focus, which Base UI keeps there.
+        const popup = bodyRef.current?.closest<HTMLElement>('[role="dialog"]');
+        if (!popup || popup.hasAttribute('data-nested-dialog-open')) return;
+        popup.focus({ preventScroll: true });
+      });
+    };
+    const observer = new MutationObserver(regain);
+    observer.observe(document.body, { childList: true, subtree: true });
+    document.addEventListener('focusout', regain);
+    return () => {
+      observer.disconnect();
+      document.removeEventListener('focusout', regain);
+      clearTimeout(timer);
+    };
+  }, []);
+
+  return (
     <Modal
       open
       wide
@@ -296,7 +339,9 @@ export function TryOn({
         if (!next) onClose();
       }}
     >
-      <div className={styles.body}>{content}</div>
+      <div ref={bodyRef} className={styles.body}>
+        {children}
+      </div>
     </Modal>
   );
 }
