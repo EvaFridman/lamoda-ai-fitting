@@ -972,7 +972,8 @@ rule lets no one in; the check also counts `LIMIT` rules, drops a rule's comment
 whole «From» column, so a comment or a longer address that contains the server's never passes;
 (3) a failed fitting's toast says «Лимит не списан» and the try-on's error card «Примерка не
 списана» only when it does not count against the limit (a fitting cancelled by hand in Temporal or
-a stuck one stays spent, A47, A68).
+a stuck one stays spent, A47, A68). (4) The assumptions of A66, A70, A72, A77 and A78.7 are
+confirmed as written.
 
 ## Canvas and decisions
 
