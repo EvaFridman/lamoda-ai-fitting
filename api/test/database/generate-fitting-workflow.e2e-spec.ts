@@ -153,7 +153,7 @@ describe('generateFitting workflow (spec 0019 plan §4, A67, A68)', () => {
         },
       });
 
-      expect(stepsOf(id)).toEqual(['markProcessing', 'generate', 'discardResult', 'complete']);
+      expect(stepsOf(id)).toEqual(['markProcessing', 'generate', 'complete', 'discardResult']);
       expect(callsOf(id, 'discardResult')[0]?.args).toEqual([USER]);
       expect(outcomeOf(id)).toEqual({
         status: 'failed',
@@ -192,7 +192,7 @@ describe('generateFitting workflow (spec 0019 plan §4, A67, A68)', () => {
         generate: () => ({ ok: false, failureCode: 'moderation', requestId: 'req_r' }),
       });
 
-      expect(stepsOf(id)).toEqual(['markProcessing', 'generate', 'discardResult', 'complete']);
+      expect(stepsOf(id)).toEqual(['markProcessing', 'generate', 'complete', 'discardResult']);
       expect(outcomeOf(id)).toEqual({
         status: 'failed',
         failureCode: 'moderation',
@@ -212,8 +212,8 @@ describe('generateFitting workflow (spec 0019 plan §4, A67, A68)', () => {
         'markProcessing',
         'generate',
         'moderate',
-        'discardResult',
         'complete',
+        'discardResult',
       ]);
       expect(outcomeOf(id)).toEqual({
         status: 'failed',
@@ -330,17 +330,55 @@ describe('generateFitting workflow (spec 0019 plan §4, A67, A68)', () => {
   );
 
   it(
-    'still ends the fitting when the discard of a result fails',
+    'ends the row first and retries the discard of a result until the storage answers',
     async () => {
+      let discards = 0;
       const id = await run({
         moderate: () => ({ flagged: true }),
         discardResult: () => {
-          throw ApplicationFailure.nonRetryable('storage down', 'StorageDown');
+          discards += 1;
+          if (discards <= 2) throw new Error('storage down');
         },
       });
 
-      expect(callsOf(id, 'discardResult')).toHaveLength(1);
+      expect(stepsOf(id)).toEqual([
+        'markProcessing',
+        'generate',
+        'moderate',
+        'complete',
+        'discardResult',
+        'discardResult',
+        'discardResult',
+      ]);
+      expect(callsOf(id, 'complete')).toHaveLength(1);
       expect(outcomeOf(id)).toMatchObject({ status: 'failed', failureCode: 'moderation' });
+    },
+    TIMEOUT,
+  );
+
+  it(
+    'keeps retrying a discard that never succeeds, after the row has ended',
+    async () => {
+      const id = randomUUID();
+      const handle = await start(id, {
+        generate: () => {
+          throw failure('provider_error', 'boom');
+        },
+        discardResult: () => {
+          throw new Error('storage down');
+        },
+      });
+
+      await vi.waitFor(
+        () => expect(callsOf(id, 'discardResult').length).toBeGreaterThanOrEqual(2),
+        {
+          timeout: 30_000,
+        },
+      );
+
+      expect(callsOf(id, 'complete')).toHaveLength(1);
+      expect((await handle.describe()).status.name).toBe('RUNNING');
+      await handle.terminate('the test is over');
     },
     TIMEOUT,
   );
@@ -498,7 +536,7 @@ describe('generateFitting workflow (spec 0019 plan §4, A67, A68)', () => {
       expect(error).toBeInstanceOf(WorkflowFailedError);
       expect((error as WorkflowFailedError).cause).toBeInstanceOf(CancelledFailure);
       expect((await handle.describe()).status.name).toBe('CANCELLED');
-      expect(stepsOf(id)).toEqual(['markProcessing', 'generate', 'discardResult', 'complete']);
+      expect(stepsOf(id)).toEqual(['markProcessing', 'generate', 'complete', 'discardResult']);
       expect(callsOf(id, 'discardResult')[0]?.args).toEqual([USER]);
       expect(outcomeOf(id)).toEqual({
         status: 'failed',

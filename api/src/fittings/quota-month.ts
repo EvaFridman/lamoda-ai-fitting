@@ -18,3 +18,10 @@ export function quotaMonth(at: Date): string {
   }
   return `${year}-${month}`;
 }
+
+// When the month of `quotaMonth(at)` ends: the first of the next month, midnight in Moscow
+// (A26, «снова с 1 ноября»). Moscow keeps UTC+3 all year.
+export function quotaRenewsAt(at: Date): Date {
+  const [year, month] = quotaMonth(at).split('-').map(Number) as [number, number];
+  return new Date(Date.UTC(year, month, 1) - 3 * 60 * 60 * 1000);
+}

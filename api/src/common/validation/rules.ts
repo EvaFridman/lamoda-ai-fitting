@@ -75,6 +75,16 @@ export function IsDescription(): PropertyDecorator {
   );
 }
 
+// A user's free text of at most `maxLength` characters, line breaks allowed (a fitting's wishes and
+// comment, spec 0019 A16).
+export function IsFreeText(maxLength: number): PropertyDecorator {
+  return applyDecorators(
+    IsString(),
+    HasMaxCharacters(maxLength),
+    Matches(FREE_TEXT, { message: '$property must not contain NUL' }),
+  );
+}
+
 // `varchar(n)` counts code points. Not MaxLength: it counts UTF-16 units and skips the variation
 // selectors U+FE0E/U+FE0F, so 255 emoji with U+FE0F pass it as 255 but are 510 for PostgreSQL.
 // Same code as MaxLength (MAX_LENGTH).

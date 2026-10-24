@@ -7,7 +7,7 @@ import { GPT_IMAGE_SIZE } from '../../ai/image-models/gpt-image-2.js';
 import type { FittingItem, FittingJob } from '../../ai/image-models/image-model.js';
 import type { ImageInput } from '../../ai/image-input.js';
 import { REGENERATION_REASONS, type RegenerationReason } from '../../ai/prompts.js';
-import { quotaMonth } from '../../fittings/quota-month.js';
+import { endFitting, type FittingOutcome, RUNNING_STATUSES } from '../../fittings/end-fitting.js';
 import type { PrismaClient } from '../../generated/prisma/client.js';
 import type { FittingFailure, GenerationStatus } from '../../generated/prisma/enums.js';
 import {
@@ -21,8 +21,7 @@ import type { StorageService } from '../../storage/storage.service.js';
 
 export type FittingActivities = ReturnType<typeof createFittingActivities>;
 
-// The statuses of a generation that has not ended: the workflow moves the row out of them once.
-export const RUNNING_STATUSES = ['pending', 'processing'] as const satisfies GenerationStatus[];
+export { type FittingOutcome, RUNNING_STATUSES } from '../../fittings/end-fitting.js';
 
 // How often a waiting activity heartbeats (A28, A39): the workflow's heartbeat timeout is three
 // times this, so a dead worker is noticed within it and a cancellation reaches a paid call soon.
@@ -36,8 +35,6 @@ const INPUT_QUALITY = 90;
 // The stored result: the model's size, WebP without metadata.
 const [RESULT_WIDTH, RESULT_HEIGHT] = GPT_IMAGE_SIZE.split('x').map(Number) as [number, number];
 const RESULT_QUALITY = 90;
-// A regeneration of a regeneration of …: how far up `generate` looks for the original's wishes.
-const MAX_PARENT_DEPTH = 50;
 // `error_message` holds at most this many characters (the column's 1000, C23).
 const ERROR_MESSAGE_MAX = 1000;
 
@@ -50,19 +47,6 @@ export type GenerateOutcome =
 // The `type` of the ApplicationFailure a fitting's activity throws for a failure that ends it: the
 // workflow writes it as the row's `failure_code`. Any other failure is `provider_error`.
 export type FittingFailureType = Extract<FittingFailure, 'model_timeout' | 'provider_error'>;
-
-// How a fitting ended, as `complete` writes it. Only codes and OpenAI's request id: no input of
-// the user goes through the workflow's history. `keepUnit`: a cancelled fitting stays spent
-// (A47), since the paid call may have been made.
-export type FittingOutcome =
-  | { status: 'completed'; providerRequestId: string | null }
-  | {
-      status: 'failed';
-      failureCode: FittingFailure;
-      errorMessage: string | null;
-      providerRequestId: string | null;
-      keepUnit?: boolean;
-    };
 
 // The activities of the workflow `generateFitting` (spec 0019 plan §4, A68). The workflow passes
 // only the generation's id (and its user's, to discard a result after a cancellation): every
@@ -180,45 +164,9 @@ export function createFittingActivities(
       );
     },
 
-    // Ends the fitting (plan §4, A20): moves the row out of `pending`/`processing` with a
-    // conditional update and, only when that update changed it, in the same transaction takes the
-    // unit back for a failed fitting that counted. A repeat (a retry after a lost answer) or a row
-    // that is gone (a cancelled fitting keeps its unit, A47) changes nothing. A transient photo
-    // stays for a regeneration while the try-on is open; the housekeeping deletes it (A69).
+    // Ends the fitting, once (endFitting): a repeat or a row that is gone changes nothing.
     async complete(generationId: string, outcome: FittingOutcome): Promise<void> {
-      await prisma.$transaction(async (tx) => {
-        const row = await tx.aiGeneration.findUnique({
-          where: { id: generationId },
-          select: { userId: true, countsAgainstLimit: true, createdAt: true },
-        });
-        if (row?.userId == null) {
-          return;
-        }
-        const { userId } = row;
-        // A failure gives the unit back unless it is to stay spent.
-        const refund = outcome.status === 'failed' && outcome.keepUnit !== true;
-        const changed = await tx.aiGeneration.updateMany({
-          where: { id: generationId, status: { in: [...RUNNING_STATUSES] } },
-          data: {
-            status: outcome.status,
-            finishedAt: new Date(),
-            providerRequestId: outcome.providerRequestId,
-            ...(outcome.status === 'failed'
-              ? {
-                  failureCode: outcome.failureCode,
-                  errorMessage: outcome.errorMessage,
-                  ...(refund ? { countsAgainstLimit: false } : {}),
-                }
-              : { resultImageKey: generationResultKey(userId, generationId) }),
-          },
-        });
-        if (changed.count > 0 && refund && row.countsAgainstLimit) {
-          await tx.fittingQuota.updateMany({
-            where: { userId, month: quotaMonth(row.createdAt), used: { gt: 0 } },
-            data: { used: { decrement: 1 } },
-          });
-        }
-      });
+      await endFitting(prisma, generationId, outcome);
     },
   };
 }
@@ -256,9 +204,9 @@ async function generationUser(prisma: PrismaClient, generationId: string): Promi
 }
 
 // The job of one generation from its row: the photo, the items in a fixed order (by product id)
-// with their catalog names, colour and first image, and the texts. A regeneration's `prompt_text`
-// is its comment (A66); its wishes are the original try-on's, the first ancestor without a
-// parent (none when that one is deleted).
+// with their catalog names, colour and first image, and the texts. Every row holds its wishes in
+// `prompt_text` (a regeneration copied its parent's) and a regeneration its comment (A70), so
+// deleting an earlier result changes nothing here.
 async function loadJob(
   prisma: PrismaClient,
   storage: StorageService,
@@ -269,8 +217,8 @@ async function loadJob(
     where: { id: generationId },
     select: {
       userId: true,
-      parentId: true,
       promptText: true,
+      comment: true,
       regenerationReasons: true,
       photo: { select: { imageKey: true } },
       products: {
@@ -318,38 +266,16 @@ async function loadJob(
       image: await toInputImage(await storage.get(mediaKey(image.imageKey), signal)),
     });
   }
-  const regeneration = row.parentId !== null;
   return {
     userId: row.userId,
     job: {
       person,
       items,
-      wishes: regeneration ? await originalWishes(prisma, row.parentId) : row.promptText,
-      comment: regeneration ? row.promptText : null,
+      wishes: row.promptText,
+      comment: row.comment,
       reasons: row.regenerationReasons.filter(isRegenerationReason),
     },
   };
-}
-
-async function originalWishes(
-  prisma: PrismaClient,
-  parentId: string | null,
-): Promise<string | null> {
-  let next = parentId;
-  for (let depth = 0; next !== null && depth < MAX_PARENT_DEPTH; depth += 1) {
-    const parent = await prisma.aiGeneration.findUnique({
-      where: { id: next },
-      select: { parentId: true, promptText: true },
-    });
-    if (parent === null) {
-      return null;
-    }
-    if (parent.parentId === null) {
-      return parent.promptText;
-    }
-    next = parent.parentId;
-  }
-  return null;
 }
 
 function isRegenerationReason(value: string): value is RegenerationReason {

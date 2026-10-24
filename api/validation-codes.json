@@ -20,5 +20,6 @@
   "MAX",
   "MAX_DECIMAL_PLACES",
   "MAX_LENGTH",
-  "MIN"
+  "MIN",
+  "NESTED_VALIDATION"
 ]

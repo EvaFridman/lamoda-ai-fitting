@@ -8,6 +8,7 @@ import {
   isRetryableError,
   ServiceError,
   type Workflow,
+  WorkflowNotFoundError,
   type WorkflowStartOptions,
 } from '@temporalio/client';
 
@@ -43,12 +44,41 @@ export class WorkflowStarter {
     if (this.closing) {
       throw new Error('The Temporal client is closing; the workflow was not started');
     }
-    const start = this.startWithRetries(workflowType, options);
+    const start = this.withRetries(() =>
+      this.client.workflow.start<T>(workflowType, {
+        ...options,
+        taskQueue: this.settings.taskQueue,
+        workflowIdConflictPolicy: 'USE_EXISTING',
+        // TypeScript cannot narrow the SDK's conditional `args` type over a generic T.
+      } as WorkflowStartOptions<T>),
+    );
     this.inProgress.add(start);
     try {
       await start;
     } finally {
       this.inProgress.delete(start);
+    }
+  }
+
+  // Asks a workflow to cancel (a deleted fitting, spec 0019 A47), within START_TIMEOUT_MS and its
+  // retries as a start. A workflow that is gone or already ended is not an error: there is nothing
+  // to cancel. Throws as `start` does.
+  async cancel(workflowId: string): Promise<void> {
+    if (this.closing) {
+      throw new Error('The Temporal client is closing; the workflow was not cancelled');
+    }
+    const cancel = this.withRetries(async () => {
+      try {
+        await this.client.workflow.getHandle(workflowId).cancel();
+      } catch (error) {
+        if (!(error instanceof WorkflowNotFoundError)) throw error;
+      }
+    });
+    this.inProgress.add(cancel);
+    try {
+      await cancel;
+    } finally {
+      this.inProgress.delete(cancel);
     }
   }
 
@@ -59,37 +89,26 @@ export class WorkflowStarter {
     await Promise.allSettled(this.inProgress);
   }
 
-  private async startWithRetries<T extends Workflow>(
-    workflowType: string,
-    options: StartOptions<T>,
-  ): Promise<void> {
+  private async withRetries(call: () => Promise<unknown>): Promise<void> {
     // Cancels the call in flight (a server that does not answer) and the wait between attempts. The
-    // timer is cleared when the start ends, so the signal never fires on a call of a closed
+    // timer is cleared when the call ends, so the signal never fires on a call of a closed
     // connection.
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), START_TIMEOUT_MS);
     try {
-      await this.retryUntilAborted(workflowType, options, controller.signal);
+      await this.retryUntilAborted(call, controller.signal);
     } finally {
       clearTimeout(timer);
     }
   }
 
-  private async retryUntilAborted<T extends Workflow>(
-    workflowType: string,
-    options: StartOptions<T>,
+  private async retryUntilAborted(
+    call: () => Promise<unknown>,
     signal: AbortSignal,
   ): Promise<void> {
     for (let attempt = 1; ; attempt += 1) {
       try {
-        await this.connection.withAbortSignal(signal, () =>
-          this.client.workflow.start<T>(workflowType, {
-            ...options,
-            taskQueue: this.settings.taskQueue,
-            workflowIdConflictPolicy: 'USE_EXISTING',
-            // TypeScript cannot narrow the SDK's conditional `args` type over a generic T.
-          } as WorkflowStartOptions<T>),
-        );
+        await this.connection.withAbortSignal(signal, call);
         return;
       } catch (error) {
         if (signal.aborted || !isRetryable(error)) {

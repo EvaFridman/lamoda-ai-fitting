@@ -5443,7 +5443,7 @@
                   "save": {
                     "type": "boolean",
                     "default": true,
-                    "description": "`false` stores a one-time photo: not among the saved ones (at most 5), deleted with its generation or after an hour unused."
+                    "description": "`false` stores a one-time photo: not among the saved ones (at most 5), deleted when the try-on closes or an hour after its last fitting (unused, after its upload)."
                   }
                 }
               }
@@ -5493,6 +5493,95 @@
           },
           "413": {
             "description": "Error codes: `PAYLOAD_TOO_LARGE`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error codes: `TOO_MANY_REQUESTS`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error codes: `INTERNAL_ERROR`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error codes: `SERVICE_UNAVAILABLE`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/me/photos/transient/{id}": {
+      "delete": {
+        "operationId": "MePhotosController_deleteTransient",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The one-time photo and its file are gone, or it stays while a running fitting uses it (deleted within an hour of its end)."
+          },
+          "400": {
+            "description": "Error codes: `INVALID_ID`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error codes: `UNAUTHORIZED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error codes: `NOT_FOUND`",
             "content": {
               "application/json": {
                 "schema": {
@@ -6774,6 +6863,634 @@
         ],
         "tags": [
           "ai-generations"
+        ]
+      }
+    },
+    "/fittings": {
+      "post": {
+        "operationId": "FittingsController_start",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartFittingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "An earlier completed result of the same photo, items and text (`repeated: true`, nothing spent), or the running fitting of this request (A32).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StartedFittingDto"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "A new fitting, `pending`: the workflow makes the picture; poll GET /fittings/:id.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StartedFittingDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error codes: `VALIDATION_FAILED`, `BAD_JSON`, `RELATED_NOT_FOUND`, `PROMPT_REFUSED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error codes: `UNAUTHORIZED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error codes: `LIMIT_REACHED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error codes: `PAYLOAD_TOO_LARGE`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error codes: `TOO_MANY_REQUESTS`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error codes: `INTERNAL_ERROR`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error codes: `SERVICE_UNAVAILABLE`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "tags": [
+          "fittings"
+        ]
+      },
+      "get": {
+        "operationId": "FittingsController_list",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 60,
+              "type": "number"
+            }
+          },
+          {
+            "name": "kind",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/FittingKind"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "`nextCursor` of the previous batch; left out for the first batch.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "total",
+                    "nextCursor"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/FittingDto"
+                      }
+                    },
+                    "total": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "nullable": true,
+                      "description": "How many match in all; null for a request with a cursor."
+                    },
+                    "nextCursor": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "The `cursor` of the next batch; null on the last."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error codes: `VALIDATION_FAILED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error codes: `UNAUTHORIZED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error codes: `TOO_MANY_REQUESTS`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error codes: `INTERNAL_ERROR`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error codes: `SERVICE_UNAVAILABLE`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "tags": [
+          "fittings"
+        ]
+      }
+    },
+    "/fittings/{id}": {
+      "get": {
+        "operationId": "FittingsController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FittingDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error codes: `INVALID_ID`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error codes: `UNAUTHORIZED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error codes: `NOT_FOUND`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error codes: `TOO_MANY_REQUESTS`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error codes: `INTERNAL_ERROR`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error codes: `SERVICE_UNAVAILABLE`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "tags": [
+          "fittings"
+        ]
+      },
+      "delete": {
+        "operationId": "FittingsController_delete",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The fitting and its files are gone; its try-on stays spent."
+          },
+          "400": {
+            "description": "Error codes: `INVALID_ID`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error codes: `UNAUTHORIZED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error codes: `NOT_FOUND`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error codes: `TOO_MANY_REQUESTS`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error codes: `INTERNAL_ERROR`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error codes: `SERVICE_UNAVAILABLE`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "tags": [
+          "fittings"
+        ]
+      }
+    },
+    "/fittings/{id}/regenerate": {
+      "post": {
+        "operationId": "FittingsController_regenerate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegenerateFittingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The running regeneration of this result (A32).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StartedFittingDto"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "A new fitting, `pending`: the workflow makes the picture; poll GET /fittings/:id.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StartedFittingDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error codes: `VALIDATION_FAILED`, `BAD_JSON`, `INVALID_ID`, `PROMPT_REFUSED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error codes: `UNAUTHORIZED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error codes: `NOT_FOUND`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error codes: `LIMIT_REACHED`, `PHOTO_GONE`, `NOT_COMPLETED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error codes: `PAYLOAD_TOO_LARGE`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error codes: `TOO_MANY_REQUESTS`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error codes: `INTERNAL_ERROR`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error codes: `SERVICE_UNAVAILABLE`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "tags": [
+          "fittings"
+        ]
+      }
+    },
+    "/me/fitting-quota": {
+      "get": {
+        "operationId": "FittingQuotaController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FittingQuotaDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error codes: `UNAUTHORIZED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error codes: `TOO_MANY_REQUESTS`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error codes: `INTERNAL_ERROR`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error codes: `SERVICE_UNAVAILABLE`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "tags": [
+          "me"
         ]
       }
     }
@@ -8167,7 +8884,7 @@
           },
           "transient": {
             "type": "boolean",
-            "description": "A one-time photo (uploaded with save=false): not among the saved ones, deleted with its generation or after an hour unused."
+            "description": "A one-time photo (uploaded with save=false): not among the saved ones, deleted when the try-on closes or an hour after its last fitting (unused, after its upload)."
           },
           "width": {
             "type": "number",
@@ -8487,6 +9204,424 @@
           }
         }
       },
+      "FittingKind": {
+        "type": "string",
+        "enum": [
+          "single",
+          "look"
+        ]
+      },
+      "FittingItemDto": {
+        "type": "object",
+        "properties": {
+          "productId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "attributeValueId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The colour: one of the product's attribute values. Left out, the product's own."
+          }
+        },
+        "required": [
+          "productId"
+        ]
+      },
+      "StartFittingDto": {
+        "type": "object",
+        "properties": {
+          "photoId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "A photo of «Мои фото» or a one-time one (`save=false`)."
+          },
+          "kind": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FittingKind"
+              }
+            ]
+          },
+          "items": {
+            "minItems": 1,
+            "maxItems": 5,
+            "description": "One item for `single`, 2 to 5 of distinct slots for `look`; each product once.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FittingItemDto"
+            }
+          },
+          "promptText": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "The wishes («Пожелания к образу»), trimmed; blank is none. A different text is a different try-on."
+          }
+        },
+        "required": [
+          "photoId",
+          "kind",
+          "items"
+        ]
+      },
+      "FittingFailure": {
+        "type": "string",
+        "enum": [
+          "photo_dark",
+          "photo_not_full",
+          "photo_many_people",
+          "photo_child",
+          "photo_no_person",
+          "prompt_refused",
+          "model_timeout",
+          "moderation",
+          "provider_error"
+        ]
+      },
+      "FittingItemResponseDto": {
+        "type": "object",
+        "properties": {
+          "productId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "brand": {
+            "type": "string",
+            "description": "The brand's name."
+          },
+          "imageUrl": {
+            "type": "string",
+            "format": "uri",
+            "nullable": true,
+            "description": "The product's first image; null when it has none."
+          },
+          "price": {
+            "type": "number",
+            "example": 4990
+          },
+          "finalPrice": {
+            "type": "number",
+            "example": 3992,
+            "description": "The price after the discount."
+          },
+          "attributeValueId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "colour": {
+            "type": "string",
+            "nullable": true,
+            "description": "The colour's name."
+          }
+        },
+        "required": [
+          "productId",
+          "name",
+          "brand",
+          "imageUrl",
+          "price",
+          "finalPrice",
+          "attributeValueId",
+          "colour"
+        ]
+      },
+      "StartedFittingDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FittingKind"
+              }
+            ]
+          },
+          "parentId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "The result this one regenerates; null for a try-on, or once that one is deleted."
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GenerationStatus"
+              }
+            ]
+          },
+          "stage": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "generating",
+              "done"
+            ]
+          },
+          "failureCode": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FittingFailure"
+              }
+            ]
+          },
+          "countsAgainstLimit": {
+            "type": "boolean",
+            "description": "Whether it spent a try-on of the month's limit: false for a free regeneration and for one that failed."
+          },
+          "regenerationFree": {
+            "type": "boolean",
+            "description": "Whether this result's next regeneration is free (A6, A70): a completed try-on's result whose free one is unused and whose photo is still there; a regeneration's never is."
+          },
+          "model": {
+            "type": "string",
+            "example": "gpt-image-2",
+            "description": "The image model's short name."
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FittingItemResponseDto"
+            }
+          },
+          "photoId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "The photo tried on; null once it is deleted (the result stays)."
+          },
+          "resultUrl": {
+            "type": "string",
+            "format": "uri",
+            "nullable": true,
+            "description": "Reads the result for S3_SIGNED_URL_TTL_SECONDS (15 minutes); null with no result or when the key is outside the owner's folder."
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "startedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true,
+            "description": "When the model call was sent; null before."
+          },
+          "finishedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "estimatedSeconds": {
+            "type": "number",
+            "nullable": true,
+            "example": 25,
+            "description": "The expected seconds from the start to the result (A27): the median of the user's last completed fittings, 25 before any; null once it ended."
+          },
+          "repeated": {
+            "type": "boolean",
+            "description": "An earlier completed result of the same photo, items and text, opened for free."
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "parentId",
+          "status",
+          "stage",
+          "failureCode",
+          "countsAgainstLimit",
+          "regenerationFree",
+          "model",
+          "items",
+          "photoId",
+          "resultUrl",
+          "createdAt",
+          "startedAt",
+          "finishedAt",
+          "estimatedSeconds",
+          "repeated"
+        ]
+      },
+      "FittingDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FittingKind"
+              }
+            ]
+          },
+          "parentId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "The result this one regenerates; null for a try-on, or once that one is deleted."
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GenerationStatus"
+              }
+            ]
+          },
+          "stage": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "generating",
+              "done"
+            ]
+          },
+          "failureCode": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FittingFailure"
+              }
+            ]
+          },
+          "countsAgainstLimit": {
+            "type": "boolean",
+            "description": "Whether it spent a try-on of the month's limit: false for a free regeneration and for one that failed."
+          },
+          "regenerationFree": {
+            "type": "boolean",
+            "description": "Whether this result's next regeneration is free (A6, A70): a completed try-on's result whose free one is unused and whose photo is still there; a regeneration's never is."
+          },
+          "model": {
+            "type": "string",
+            "example": "gpt-image-2",
+            "description": "The image model's short name."
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FittingItemResponseDto"
+            }
+          },
+          "photoId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "The photo tried on; null once it is deleted (the result stays)."
+          },
+          "resultUrl": {
+            "type": "string",
+            "format": "uri",
+            "nullable": true,
+            "description": "Reads the result for S3_SIGNED_URL_TTL_SECONDS (15 minutes); null with no result or when the key is outside the owner's folder."
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "startedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true,
+            "description": "When the model call was sent; null before."
+          },
+          "finishedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "estimatedSeconds": {
+            "type": "number",
+            "nullable": true,
+            "example": 25,
+            "description": "The expected seconds from the start to the result (A27): the median of the user's last completed fittings, 25 before any; null once it ended."
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "parentId",
+          "status",
+          "stage",
+          "failureCode",
+          "countsAgainstLimit",
+          "regenerationFree",
+          "model",
+          "items",
+          "photoId",
+          "resultUrl",
+          "createdAt",
+          "startedAt",
+          "finishedAt",
+          "estimatedSeconds"
+        ]
+      },
+      "RegenerateFittingDto": {
+        "type": "object",
+        "properties": {
+          "reasons": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "face",
+                "figure",
+                "item",
+                "background",
+                "other"
+              ]
+            },
+            "minItems": 1,
+            "maxItems": 5,
+            "uniqueItems": true
+          },
+          "comment": {
+            "type": "string",
+            "maxLength": 300,
+            "description": "The comment on the result, trimmed; blank is none."
+          }
+        },
+        "required": [
+          "reasons"
+        ]
+      },
+      "FittingQuotaDto": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "number",
+            "example": 10,
+            "description": "FITTING_MONTHLY_LIMIT."
+          },
+          "used": {
+            "type": "number",
+            "example": 3
+          },
+          "left": {
+            "type": "number",
+            "example": 7
+          },
+          "renewsAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "When the limit renews: the first of the next month, midnight in Moscow."
+          }
+        },
+        "required": [
+          "limit",
+          "used",
+          "left",
+          "renewsAt"
+        ]
+      },
       "ErrorCode": {
         "type": "string",
         "enum": [
@@ -8501,6 +9636,9 @@
           "ALREADY_EXISTS",
           "IN_USE",
           "LIMIT_REACHED",
+          "PROMPT_REFUSED",
+          "PHOTO_GONE",
+          "NOT_COMPLETED",
           "PAYLOAD_TOO_LARGE",
           "TOO_MANY_REQUESTS",
           "SERVICE_UNAVAILABLE",

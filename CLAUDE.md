@@ -349,7 +349,33 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   its outbox entry in one transaction and the file after it, and makes no other photo the default
   (the next saved upload is, A54). A transient photo, another user's or a missing one answers 404
   on both; both lock the user's row as the upload does, so a gone user answers 401 through
-  `signOutWhenGone` (A59).
+  `signOutWhenGone` (A59). Closing the try-on calls `DELETE /me/photos/transient/:id` (204, only a
+  transient photo, else 404), which leaves one a running fitting uses to the housekeeping (A70).
+- `api` fittings (spec 0019 plan §5, `fittings/`): `POST /fittings` (`@Expensive()`,
+  `StartFittingDto`: `photoId`, `kind` `single` with one item or `look` with 2–5, `items` of
+  `productId` and `attributeValueId`, `promptText` ≤ 200) checks the items (a missing product or a
+  colour not of its product: 400 `RELATED_NOT_FOUND`; the details `HAS_SLOT`, `DISTINCT_SLOTS`) and
+  the photo, answers 200 with an earlier completed result of the same fingerprint
+  (`fingerprint.ts`: photo, items, wishes; `repeated: true`, A7) or the running one (A32), checks
+  the text (refused: 400 `PROMPT_REFUSED`; no answer: 503), then in one transaction locks the
+  user's row (`me/lock-user.ts`), looks for the running one again, reads the photo again, reserves
+  a try-on of the month (`FittingQuotaService.reserve`, `fitting_quota`; at the limit 409
+  `LIMIT_REACHED`, A20) and inserts the `pending` row in the active session; after the commit it
+  starts `generateFitting` (a failed start ends the row `failed` through `endFitting`, which the
+  workflow's `complete` shares, and goes to Sentry with the id only) and answers 201
+  `StartedFittingDto`. `POST /fittings/:id/regenerate` (`{ reasons, comment? }`) copies the
+  parent's photo, items, wishes and fingerprint; a parent not completed is 409 `NOT_COMPLETED`,
+  its photo gone 409 `PHOTO_GONE`; a try-on's own result has one free regeneration
+  (`free_regeneration_used`, given back by a failed one; a regeneration is created with it set, so
+  its regenerations spend, A70), and a paid start or regeneration at the limit is refused before
+  the paid text check. One generation of a fingerprint runs at a time, so a try-on and its
+  regenerations run one after another. `GET /fittings` (`CursorPaginated`, `fitting-cursor.ts`,
+  `kind`), `GET /fittings/:id`, `DELETE /fittings/:id` (the row and the outbox first, then the
+  file deletion's start and the workflow's cancel side by side, the try-on stays spent, A47) and
+  `GET /me/fitting-quota` see only the user's fittings (rows with a `kind`). A fitting still
+  running an hour after its start is ended `failed` with its try-on given back by the
+  housekeeping's first step (`endStuckFittings`, behind the patch `end-stuck-fittings`). `POST`
+  and `PATCH /fitting-sessions` are `@Closed()` (A21).
 - `api` sign-in (spec 0013): Better Auth (`auth/`) with Google only (locally the fake provider of
   the compose service `oidc`), mounted by `mountAuth()` (from `createHttpApp()`) at `/api/auth`
   as an Express route ahead of Nest's; only the routes in `AUTH_ROUTES` (`auth-routes.ts`) answer,

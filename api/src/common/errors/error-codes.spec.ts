@@ -17,6 +17,11 @@ const E20_STATUS: ReadonlyArray<readonly [ErrorCode, number]> = [
   ['IN_USE', 409],
   // Spec 0019 plan §5.
   ['LIMIT_REACHED', 409],
+  // Spec 0019 plan §5, T12: a refused wish or comment, a regeneration of a result not yet
+  // completed, and one whose photo was deleted.
+  ['PROMPT_REFUSED', 400],
+  ['NOT_COMPLETED', 409],
+  ['PHOTO_GONE', 409],
   ['PAYLOAD_TOO_LARGE', 413],
   ['TOO_MANY_REQUESTS', 429],
   ['SERVICE_UNAVAILABLE', 503],

@@ -413,7 +413,13 @@ describe('OpenAPI document (e2e)', () => {
   // The public operations are named by shape, not read from the document's own 401s (that would be
   // circular): every GET outside /health and the resources whose reads are closed or signed-in
   // only (access-markers.e2e-spec.ts pins that split). The rest must all carry a 401.
-  const NOT_PUBLIC_PREFIXES = ['/users', '/ai-generations', '/fitting-sessions', '/me'];
+  const NOT_PUBLIC_PREFIXES = [
+    '/users',
+    '/ai-generations',
+    '/fitting-sessions',
+    '/fittings',
+    '/me',
+  ];
   const isHealth = (op: Op): boolean => op.path.startsWith('/health/');
   const isPublic = (op: Op): boolean =>
     op.method === 'get' &&
