@@ -35,6 +35,11 @@
 .gallery {
   flex: 0 1 888px;
   min-width: 0;
+
+  // In the column the basis would be its height.
+  @media (width < 1024px) {
+    flex: none;
+  }
 }
 
 .buyBox {
@@ -50,17 +55,10 @@
   }
 }
 
-// The brand, the heading (board 1: «Annen»), the product's name under it in the secondary colour.
-.brand {
-  margin: var(--space-4) 0 0;
-  font-size: var(--font-size-headline-m);
-  font-weight: var(--font-weight-regular);
-  line-height: var(--line-height-headline-m);
-}
-
-.name {
-  margin: 2px 0 0;
-  color: var(--color-text-secondary);
+// The buy box itself pads its phone layout, whose bar runs edge to edge.
+.purchase {
+  flex: 1;
+  min-width: 0;
 }
 
 .alert {

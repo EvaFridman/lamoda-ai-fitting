@@ -35,8 +35,9 @@ fitting photos (`/me/photos`, nginx's 20 MB upload route, the page "Мои фо�
 deletions' outbox with the schedule `fitting-housekeeping`; phase 2 the generation (the image
 model and its prompt, the workflow `generateFitting`, `/fittings` with the monthly limit, the
 push `fitting:finished`, OpenAI through the proxy abroad), the try-on of one item in a window
-(`widgets/try-on`, opened for now from `/customer/fittings?product=<id>`) and the history "Мои
-примерки".
+(`widgets/try-on`) and the history "Мои примерки"; phase 3 so far the product page
+`/products/<id>` (its metadata, JSON-LD, 404 and sitemap, the gallery, the buy box with the
+try-on's «Примерить», the limit meter and «Вы это примеряли»).
 
 Keep this file true: update it in the same commit that changes what a section describes.
 
@@ -552,7 +553,7 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   its page with Better Auth's `error` code: `LoginModal` opens with `signInRedirectText` (a text of
   its own for `access_denied`, a general one otherwise), and the code and `error_description` leave
   the address, signed in (`DropSignInError`) or not (N54). A second `LoginModal` on a page (the
-  account invitation, spec 0017) passes `handlesReturnedError={false}`: the returned code, its
+  account invitation, spec 0017; the product page's buy box, spec 0019) passes `handlesReturnedError={false}`: the returned code, its
   report, the flag taken on mount and the address stay with the header's. A code other than `access_denied` is
   reported to Sentry as `SignInFailed` only when the sign-in flag (see analytics) shows a sign-in
   started in this tab, so someone else's link with a made-up `error` reports nothing. The header's profile icon (`widgets/header`, `HeaderProfile`,
@@ -600,8 +601,10 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   `plain` and `Sheet` (spec 0019 A64: the kit's one bottom sheet is `Drawer side="bottom"`, which
   takes `description`, `media` (a picture left of the heading, which then has no "‹" or header
   action), `grip`, `closable` and `initialFocus`; `Sheet` is it with a grip and no ×),
-  `ProgressBar`, `CountBadge` (nothing at 0; its parent places it and names the count) and
-  `Chip`/`ChipGroup` (Base UI's Toggle and ToggleGroup; spec 0019 plan §7). For the
+  `ProgressBar`, `CountBadge` (nothing at 0; its parent places it and names the count),
+  `Chip`/`ChipGroup` (Base UI's Toggle and ToggleGroup; spec 0019 plan §7) and `Gallery` (a
+  product's photos, board 1: from 600px two large and up to three small with «Показать ещё фото»,
+  below it a swiped strip with dots; one list switched by CSS, `unoptimized`). For the
   catalog's sheet (spec 0020) `Drawer` takes `fullHeight` (a bottom sheet as high as it can be, so
   a `Drawer` nested in it, Base UI's nested drawer, is as high and the outer one steps back behind
   it), `onBack` (a "‹" before the title, `backLabel`, `backRef`), `headerAction` (a control before

@@ -1,0 +1,78 @@
+// Board 13's TriedOnNote: a grey plate, 8px 12px 8px 8px, 4px radius; the 36×48 thumbnail, the
+// text in two lines (13px and 11px grey) and «Смотреть» underlined, or a chevron below 600px.
+
+.note {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+
+  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-2);
+  border-radius: var(--radius-s);
+
+  color: var(--color-text);
+  text-decoration: none;
+
+  background-color: var(--color-background-secondary);
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: 2px;
+  }
+}
+
+.thumb {
+  position: relative;
+
+  overflow: hidden;
+  flex: none;
+
+  width: 36px;
+  height: 48px;
+  border-radius: 2px;
+
+  background-color: var(--color-background-tertiary);
+
+  img {
+    object-fit: cover;
+  }
+}
+
+.text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.title {
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+}
+
+.caption {
+  font-size: var(--font-size-caption);
+  line-height: var(--line-height-caption);
+  color: var(--color-text-secondary);
+}
+
+.see {
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+
+  @media (width < 600px) {
+    display: none;
+  }
+}
+
+// The kit's "‹" turned to "›".
+.chevron {
+  transform: rotate(180deg);
+  display: none;
+  flex: none;
+
+  @media (width < 600px) {
+    display: block;
+  }
+}

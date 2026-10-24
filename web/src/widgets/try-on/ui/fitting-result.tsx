@@ -15,6 +15,7 @@ import {
   type StartedFitting,
 } from '@/entities/fitting';
 import type { ProductDetail } from '@/entities/product';
+import { showStubToast } from '@/features/product-stubs';
 import { RegenerateSheet } from '@/features/regenerate-fitting';
 import { TryOnLoader } from '@/features/start-fitting';
 import { ColorTryOn, type TryColour } from '@/features/try-colour';
@@ -33,7 +34,6 @@ import {
 } from '@/shared/ui';
 
 import { ItemRow } from './item-row';
-import { showStubToast } from './stub-toast';
 
 import styles from './fitting-result.module.scss';
 

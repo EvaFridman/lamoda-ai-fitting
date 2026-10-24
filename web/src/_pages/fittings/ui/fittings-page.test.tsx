@@ -156,48 +156,43 @@ describe('the fittings page', () => {
   });
 
   it('keeps the other parameters of the address when it opens a fitting', async () => {
-    window.history.replaceState(null, '', `/customer/fittings?product=${PRODUCT}`);
+    window.history.replaceState(null, '', '/customer/fittings?from=history');
     api(5, [listed]);
     renderPage();
 
     await userEvent.setup().click(await screen.findByRole('button', { name: 'Открыть примерку' }));
 
     expect(mocks.router.replace).toHaveBeenCalledExactlyOnceWith(
-      `/customer/fittings?product=${PRODUCT}&fitting=${FITTING_ID}`,
+      `/customer/fittings?from=history&fitting=${FITTING_ID}`,
       { scroll: false },
     );
   });
 });
 
 describe('the try-on entry on the fittings page', () => {
-  it('shows nothing extra without a product or a fitting in the address', () => {
+  it('shows nothing extra without a fitting in the address', () => {
     renderPage();
 
     expect(screen.queryByRole('button', { name: 'Примерить' })).not.toBeInTheDocument();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('shows «Примерить» for a product in the address', async () => {
+  it('no longer opens a try-on from a product in the address: that starts on the product page', async () => {
     mocks.search.value = `product=${PRODUCT}`;
     renderPage();
 
-    expect(await screen.findByRole('button', { name: 'Примерить' })).toBeEnabled();
-  });
-
-  it('ignores a product that is not an id', () => {
-    mocks.search.value = 'product=not-an-id';
-    renderPage();
-
+    await screen.findByText('Здесь появятся ваши примерки');
     expect(screen.queryByRole('button', { name: 'Примерить' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/снова будут доступны/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('turns the button off at no tries left and says when they come back (AC19)', async () => {
-    mocks.search.value = `product=${PRODUCT}`;
-    api(0);
+  it('ignores a fitting that is not an id', async () => {
+    mocks.search.value = 'fitting=not-an-id';
     renderPage();
 
-    expect(await screen.findByText('Примерки снова будут доступны 1 ноября')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Примерить' })).toBeDisabled();
+    await screen.findByText('Здесь появятся ваши примерки');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('opens the try-on window at once for a fitting in the address', async () => {
@@ -207,16 +202,8 @@ describe('the try-on entry on the fittings page', () => {
     expect(await screen.findByRole('dialog', { name: 'Онлайн-примерка' })).toBeInTheDocument();
   });
 
-  it('opens the window from the button', async () => {
-    mocks.search.value = `product=${PRODUCT}`;
-    renderPage();
-    await userEvent.setup().click(await screen.findByRole('button', { name: 'Примерить' }));
-
-    expect(await screen.findByRole('dialog', { name: 'Онлайн-примерка' })).toBeInTheDocument();
-  });
-
-  it('on closing a fitting window replaces the address without `fitting`, keeping `product`', async () => {
-    mocks.search.value = `fitting=${PRODUCT}&product=${PRODUCT}`;
+  it('on closing a fitting window replaces the address without `fitting`, keeping `from`', async () => {
+    mocks.search.value = `fitting=${PRODUCT}&from=history`;
     renderPage();
     await screen.findByRole('dialog', { name: 'Онлайн-примерка' });
 
@@ -224,7 +211,7 @@ describe('the try-on entry on the fittings page', () => {
 
     await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(mocks.router.replace).toHaveBeenCalledExactlyOnceWith(
-      `/customer/fittings?product=${PRODUCT}`,
+      '/customer/fittings?from=history',
       { scroll: false },
     );
   });
@@ -238,19 +225,6 @@ describe('the try-on entry on the fittings page', () => {
 
     await vi.waitFor(() => expect(mocks.router.replace).toHaveBeenCalledTimes(1));
     expect(mocks.router.replace).toHaveBeenCalledWith('/customer/fittings', { scroll: false });
-  });
-
-  it('does not touch the address when a window opened by the button closes', async () => {
-    mocks.search.value = `product=${PRODUCT}`;
-    renderPage();
-    const user = userEvent.setup();
-    await user.click(await screen.findByRole('button', { name: 'Примерить' }));
-    await screen.findByRole('dialog', { name: 'Онлайн-примерка' });
-
-    await user.keyboard('{Escape}');
-
-    await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect(mocks.router.replace).not.toHaveBeenCalled();
   });
 
   it('opens the window again when a link to the same fitting follows its close', async () => {

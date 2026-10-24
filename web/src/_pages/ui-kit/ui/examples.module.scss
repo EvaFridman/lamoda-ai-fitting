@@ -236,3 +236,10 @@
   top: -6px;
   right: -8px;
 }
+
+// The product page's gallery at its 888px.
+.gallery {
+  width: 100%;
+  max-width: 888px;
+  margin-bottom: var(--space-6);
+}

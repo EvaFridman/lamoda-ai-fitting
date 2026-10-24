@@ -16,3 +16,12 @@ body {
 
   background: var(--color-background);
 }
+
+// A bar fixed to a phone's bottom marks itself `data-fixed-bar` (the product page's buy box, spec
+// 0019 board 1.1): the page's end, the footer too, stays clear of it. The bar measures itself into
+// `--fixed-bar-height`; until it has, its two rows of buttons and the limit meter.
+body:has([data-fixed-bar]) {
+  @media (width < 600px) {
+    padding-bottom: var(--fixed-bar-height, 176px);
+  }
+}

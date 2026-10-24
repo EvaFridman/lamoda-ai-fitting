@@ -9,9 +9,11 @@ import { errorText, reportFailure } from '@/shared/api';
 import { prefetch } from '@/shared/api/server';
 import { requestNonce } from '@/shared/csp/server';
 import { Breadcrumbs } from '@/shared/ui';
+import { ProductGallery } from '@/widgets/product-gallery';
 
-import { loadProduct } from '../model/load-product';
+import { loadProductWithSlot } from '../model/load-product';
 import { ProductJsonLd } from './product-json-ld';
+import { ProductPurchase } from './product-purchase';
 import { ProductSkeleton } from './product-skeleton';
 
 import styles from './product-page.module.scss';
@@ -36,9 +38,9 @@ export function ProductPage({ params }: ProductPageProps) {
 
 async function ProductContent({ params }: ProductPageProps) {
   const { id } = await params;
-  let product;
+  let loaded;
   try {
-    product = await loadProduct(id);
+    loaded = await loadProductWithSlot(id);
   } catch (error) {
     reportFailure(error);
     return (
@@ -50,7 +52,8 @@ async function ProductContent({ params }: ProductPageProps) {
   // `proxy.ts` answers 404 before this (A81). What it lets through ends here as a soft 404: a
   // product whose category was deactivated since, a prefetch (not checked) and a request whose
   // check failed.
-  if (product === null) notFound();
+  if (loaded === null) notFound();
+  const { product, slot } = loaded;
   const queryClient = new QueryClient();
   // The product as read for the visitor, under the browser's key, so its hooks need no request.
   queryClient.setQueryData(productOptions(product.id).queryKey, product);
@@ -76,10 +79,10 @@ async function ProductContent({ params }: ProductPageProps) {
       />
       <Breadcrumbs items={crumbs} className={styles.crumbs} />
       <div className={styles.main}>
-        <section aria-label="Покупка" className={styles.buyBox}>
-          <h1 className={styles.brand}>{product.brand.name}</h1>
-          <p className={styles.name}>{product.name}</p>
-        </section>
+        <ProductGallery product={product} className={styles.gallery} />
+        <div className={styles.purchase}>
+          <ProductPurchase product={product} hasSlot={slot !== null} />
+        </div>
       </div>
     </HydrationBoundary>
   );

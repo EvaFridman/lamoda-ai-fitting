@@ -111,7 +111,8 @@ function GridItem({ product, position, setSize, measureRef, row }: GridItemProps
       <CatalogProductCard
         product={product}
         href={`/products/${encodeURIComponent(product.id)}`}
-        // No product page yet: a prefetch would be a 404 per card (O75).
+        // Off: one card's prefetch reads the api about 4 times on the visitor's quota (0019 A82,
+        // backlog "Catalog card prefetch").
         prefetch={false}
         linkEvents={tracked}
       />

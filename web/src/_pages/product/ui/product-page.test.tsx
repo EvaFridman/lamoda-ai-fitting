@@ -9,6 +9,9 @@ vi.mock('@/shared/config/server', () => ({
 }));
 vi.mock('@/shared/csp/server', () => ({ requestNonce: () => Promise.resolve('n0nce') }));
 vi.mock('next/navigation', () => ({
+  usePathname: () => '/products/p1',
+  useSearchParams: () => new URLSearchParams(),
+  useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
   notFound: vi.fn(() => {
     throw new Error('NEXT_NOT_FOUND');
   }),
@@ -17,7 +20,12 @@ vi.mock('@/shared/api', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/shared/api')>();
   return { ...original, reportFailure: vi.fn() };
 });
-vi.mock('../model/load-product', () => ({ loadProduct: vi.fn() }));
+vi.mock('../model/load-product', () => ({ loadProductWithSlot: vi.fn() }));
+vi.mock('@/entities/session', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/entities/session')>()),
+  useSession: () => ({ status: 'signed-out', failed: false }),
+}));
+vi.mock('@/shared/analytics/client', () => ({ identify: vi.fn(), track: vi.fn(), reset: vi.fn() }));
 const related = vi.hoisted(() => ({ read: vi.fn() }));
 vi.mock('@/entities/product/server', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/entities/product/server')>();
@@ -38,11 +46,11 @@ import type { ProductDetail } from '@/entities/product';
 import { productOptions, relatedProductsOptions } from '@/entities/product/server';
 import { ApiError, errorText, reportFailure } from '@/shared/api';
 
-import { loadProduct } from '../model/load-product';
+import { loadProductWithSlot } from '../model/load-product';
 import { ProductPage } from './product-page';
 import { ProductSkeleton } from './product-skeleton';
 
-const load = vi.mocked(loadProduct);
+const load = vi.mocked(loadProductWithSlot);
 
 const ID = '3f2b8c1e-5a4d-4e6f-8a9b-0c1d2e3f4a5b';
 const DATE = '2026-10-01T12:00:00.000Z';
@@ -65,6 +73,13 @@ const product: ProductDetail = {
   variations: [{ id: ID, size: 'M', stock: 1 }],
   attributes: [],
 };
+
+function loaded(
+  detail: ProductDetail = product,
+  slot: 'top' | null = 'top',
+): NonNullable<Awaited<ReturnType<typeof loadProductWithSlot>>> {
+  return { product: detail, slot };
+}
 
 const params = Promise.resolve({ id: ID });
 // The keys the browser's hooks read under.
@@ -121,13 +136,13 @@ describe('ProductPage', () => {
   });
 
   it('loads the product of the address', async () => {
-    load.mockResolvedValue(product);
+    load.mockResolvedValue(loaded());
     await resolveContent();
     expect(load).toHaveBeenCalledWith(ID);
   });
 
   it('shows the breadcrumbs: the catalog as a link, the category last and not a link', async () => {
-    load.mockResolvedValue(product);
+    load.mockResolvedValue(loaded());
     renderBoundary(await resolveContent());
     const crumbs = screen.getByRole('navigation', { name: /./ });
     expect(within(crumbs).getByRole('link', { name: 'Каталог' })).toHaveAttribute(
@@ -140,14 +155,47 @@ describe('ProductPage', () => {
   });
 
   it('shows the brand as the heading and the name under it', async () => {
-    load.mockResolvedValue(product);
+    load.mockResolvedValue(loaded());
     renderBoundary(await resolveContent());
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Annen$/);
     expect(screen.getByText('Рубашка Design collection')).toBeInTheDocument();
   });
 
+  it('shows the product’s photos in the gallery', async () => {
+    const photo = {
+      id: ID,
+      url: 'https://lamoda.test/media/p1.webp',
+      sortOrder: 0,
+    };
+    load.mockResolvedValue(loaded({ ...product, images: [photo] }));
+    renderBoundary(await resolveContent());
+    expect(screen.getByRole('list', { name: 'Фото товара' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Annen Рубашка Design collection' })).toHaveAttribute(
+      'src',
+      photo.url,
+    );
+  });
+
+  it('shows the buy box with «Примерить» that asks a signed-out visitor to sign in', async () => {
+    load.mockResolvedValue(loaded());
+    renderBoundary(await resolveContent());
+    expect(screen.getByRole('button', { name: 'Добавить в корзину' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Примерить' })).toBeInTheDocument();
+  });
+
+  it('shows «К образу» when the category has a slot and not when it has none (A18)', async () => {
+    load.mockResolvedValue(loaded(product, 'top'));
+    const view = renderBoundary(await resolveContent());
+    expect(screen.getByRole('button', { name: 'К образу' })).toBeDisabled();
+    view.unmount();
+
+    load.mockResolvedValue(loaded(product, null));
+    renderBoundary(await resolveContent());
+    expect(screen.queryByRole('button', { name: 'К образу' })).not.toBeInTheDocument();
+  });
+
   it('renders the structured data with the request nonce', async () => {
-    load.mockResolvedValue(product);
+    load.mockResolvedValue(loaded());
     const { container } = renderBoundary(await resolveContent());
     const script = container.querySelector('script[type="application/ld+json"]');
     expect(script).toHaveAttribute('nonce', 'n0nce');
@@ -166,13 +214,13 @@ describe('ProductPage', () => {
   });
 
   it('encodes the category slug in the crumb and in the structured data', async () => {
-    load.mockResolvedValue({ ...product, category: { ...product.category, slug: 'a b' } });
+    load.mockResolvedValue(loaded({ ...product, category: { ...product.category, slug: 'a b' } }));
     const { container } = renderBoundary(await resolveContent());
     expect(container.textContent).toContain('https://site.test/catalog/a%20b');
   });
 
   it('hands the product to the browser under its key and the related products too', async () => {
-    load.mockResolvedValue(product);
+    load.mockResolvedValue(loaded());
     const items = [{ ...product, id: '7c9e6679-7425-40de-944b-e07fc1f90ae7' }];
     related.read.mockResolvedValue(items);
     const state = stateOf(await resolveContent());
@@ -191,7 +239,7 @@ describe('ProductPage', () => {
   });
 
   it('reports a failed related read, drops it from the state and still shows the page', async () => {
-    load.mockResolvedValue(product);
+    load.mockResolvedValue(loaded());
     const failure = new ApiError('m', { kind: 'http', template: '/t', status: 500 });
     related.read.mockRejectedValue(failure);
     const boundary = await resolveContent();
@@ -205,7 +253,7 @@ describe('ProductPage', () => {
   });
 
   it('does not report when everything loaded', async () => {
-    load.mockResolvedValue(product);
+    load.mockResolvedValue(loaded());
     await resolveContent();
     expect(reportFailure).not.toHaveBeenCalled();
     expect(notFound).not.toHaveBeenCalled();

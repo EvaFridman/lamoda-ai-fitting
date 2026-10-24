@@ -41,6 +41,8 @@ export type { FilterChipsProps } from './filter-chips/filter-chips';
 export { FilterChips } from './filter-chips/filter-chips';
 export type { FilterDropdownProps } from './filter-dropdown/filter-dropdown';
 export { FilterDropdown } from './filter-dropdown/filter-dropdown';
+export type { GalleryImage, GalleryProps } from './gallery/gallery';
+export { Gallery } from './gallery/gallery';
 export type { HelpTipProps } from './tooltip/help-tip';
 export { HelpTip } from './tooltip/help-tip';
 export type { IconProps, IconSize } from './icon/icon';

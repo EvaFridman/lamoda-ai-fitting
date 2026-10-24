@@ -9,6 +9,7 @@ import { FeedbackSection } from './feedback-section';
 import { FieldsSection } from './fields-section';
 import { FileInputSection } from './file-input-section';
 import { FiltersSection } from './filters-section';
+import { GallerySection } from './gallery-section';
 import { IconsSection } from './icons-section';
 import { LinksSection } from './links-section';
 import { MenuSection } from './menu-section';
@@ -46,6 +47,7 @@ export const sections: UiKitSection[] = [
   { id: 'select', title: 'Выпадающий список', Content: SelectSection },
   { id: 'menu', title: 'Меню', Content: MenuSection },
   { id: 'product', title: 'Товар и заказ', Content: ProductSection },
+  { id: 'gallery', title: 'Галерея товара', Content: GallerySection },
   { id: 'catalog-card', title: 'Карточка товара в каталоге', Content: CatalogCardSection },
   { id: 'catalog-filters', title: 'Фильтры каталога', Content: CatalogFiltersSection },
   { id: 'navigation', title: 'Навигация', Content: NavigationSection },
