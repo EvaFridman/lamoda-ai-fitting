@@ -1,6 +1,7 @@
 # 0020 catalog: loading and the phone layout: clarifications
 
-Status: accepted (2026-10-23); amended 2026-10-23 at the review of PR 1 (W15, W19–W22).
+Status: done (2026-10-24). History, not instructions. Accepted 2026-10-23; amended 2026-10-23 at
+the review of PR 1 (W15, W19–W22); amended 2026-10-24 at T12 (W32).
 
 The owner's decisions for this spec. Ids `W1`, `W2`, … are referred to by the spec, the plan and
 code comments. W1–W7, W15–W18 and W19–W22 are the owner's answers given on 2026-10-23; W8–W14 were the
@@ -220,3 +221,11 @@ From the owner's screenshots of Lamoda's sort screen:
   600 px window the grid keeps 16 px from the window's sides and 8 px between the cards, rows as
   far apart as today; no line between the cards, and the card stays as it is (no padding of its
   own on phones). The owner's choice over Lamoda's edge-to-edge grid.
+
+## Added at T12 (2026-10-24)
+
+- **W32. AC16 rests on the analytics tests (amends W21, AC16, plan's verification).** There is no
+  Mixpanel token on the local stack, so no `qa-tester` read the browser's requests to Mixpanel's
+  EU endpoint. The owner's choice: AC16 passes on the Vitest analytics tests (each element sent
+  with its zone and properties, `surface` on the chips and the sheet's rows) and on
+  `catalog.test.ts`; nobody reads the requests in production or Mixpanel's live view (R25).
