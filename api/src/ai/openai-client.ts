@@ -1,8 +1,10 @@
+import { ProxyAgent, FormData as UndiciFormData, fetch as undiciFetch } from 'undici';
 import { z } from 'zod';
 
 import { type AiOperation, AiProviderError } from './ai-provider.error.js';
 import { abortKind, sleep } from './deadline.js';
 import { OPENAI_ORIGIN } from './openai-origin.js';
+import type { OpenAiProxy } from '../config/openai-proxy-url.js';
 
 // The free moderation model of the photo, the text and the result (A15).
 export const MODERATION_MODEL = 'omni-moderation-latest';
@@ -28,11 +30,21 @@ export interface AiLogger {
   error(message: string): void;
 }
 
+// What the client calls: undici's own fetch, with the proxy as each request's dispatcher (A73).
+// Node's global fetch bundles another undici version, which a ProxyAgent of this package is not
+// guaranteed to fit.
+export type OpenAiFetch = (
+  url: string,
+  init: RequestInit & { dispatcher?: ProxyAgent },
+) => Promise<Response>;
+
 export interface OpenAiClientOptions {
   apiKey: string;
+  // Every request goes through it when set (production, A73); null or absent: directly.
+  proxy?: OpenAiProxy | null;
   logger: AiLogger;
   // Tests replace the network with recorded answers and shorten the pauses.
-  fetch?: typeof globalThis.fetch;
+  fetch?: OpenAiFetch;
   backoffMs?: readonly number[];
   now?: () => number;
 }
@@ -49,7 +61,8 @@ export interface CallOptions {
   retry?: boolean | 'unsent';
 }
 
-// Node's fetch (undici) failures of the connection itself, before a byte of the request is sent.
+// undici's failures of the connection itself, before a byte of the request is sent: to OpenAI, or
+// to the proxy (A73).
 const UNSENT_CODES: ReadonlySet<string> = new Set([
   'ENOTFOUND',
   'EAI_AGAIN',
@@ -57,13 +70,29 @@ const UNSENT_CODES: ReadonlySet<string> = new Set([
   'EHOSTUNREACH',
   'ENETUNREACH',
   'UND_ERR_CONNECT_TIMEOUT',
+  // The connection to the proxy failed or closed before it answered `CONNECT`.
+  'UND_ERR_PRX_CONN',
 ]);
 
+// The proxy refused the tunnel (a 407 of a wrong password, a 403 of its access rules, a 503 when it
+// cannot reach OpenAI): undici's RequestAbortedError, two causes deep under fetch's TypeError. The
+// request never reached OpenAI.
+const PROXY_REFUSAL = /^Proxy response \(\d{3}\) !== 200 when HTTP Tunneling$/;
+
 function neverSent(error: unknown): boolean {
+  for (let cause = causeOf(error); cause !== null; cause = causeOf(cause)) {
+    const code = 'code' in cause ? cause.code : undefined;
+    if (typeof code === 'string' && UNSENT_CODES.has(code)) return true;
+    if (code === 'UND_ERR_ABORTED' && cause instanceof Error && PROXY_REFUSAL.test(cause.message)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function causeOf(error: unknown): object | null {
   const cause = error instanceof Error ? error.cause : undefined;
-  const code =
-    typeof cause === 'object' && cause !== null && 'code' in cause ? cause.code : undefined;
-  return typeof code === 'string' && UNSENT_CODES.has(code);
+  return typeof cause === 'object' && cause !== null ? cause : null;
 }
 
 export type ModerationInput = { text: string } | { imageUrl: string };
@@ -107,6 +136,8 @@ const imagesAnswer = z.object({
 });
 export type ImagesAnswer = z.infer<typeof imagesAnswer>;
 
+const modelsAnswer = z.object({ data: z.array(z.object({ id: z.string() })) });
+
 // An answer of the edits endpoint with OpenAI's request id, which the generation stores
 // (`providerRequestId`) for their support.
 export interface EditedImage {
@@ -147,21 +178,40 @@ function stateWord(value: string | undefined): string {
   return value !== undefined && STATE_WORD.test(value) ? value : 'unknown';
 }
 
-// OpenAI over Node's fetch (spec 0019 plan §3, no SDK): the edits endpoint (the generation), the
+// OpenAI over undici's fetch (spec 0019 plan §3, no SDK): the edits endpoint (the generation), the
 // Responses API (the photo and text classifications) and the moderation endpoint. A failed call
 // throws an AiProviderError with the operation, the status, the answer's `error.code` and OpenAI's
-// request id; never the input or the key. The key is sent only as the Authorization header, and a
-// redirect is refused: a POST followed elsewhere would carry the user's photo or text with it.
+// request id; never the input, the key or the proxy. The key is sent only as the Authorization
+// header, and a redirect is refused: a POST followed elsewhere would carry the user's photo or text
+// with it. With a proxy (A73) every request goes through it as a `CONNECT` tunnel to OpenAI.
 export class OpenAiClient {
-  private readonly fetch: typeof globalThis.fetch;
+  private readonly fetch: OpenAiFetch;
+  private readonly dispatcher: ProxyAgent | undefined;
   private readonly backoffMs: readonly number[];
   private readonly now: () => number;
   private regionBlockLoggedAt = Number.NEGATIVE_INFINITY;
 
   constructor(private readonly options: OpenAiClientOptions) {
-    this.fetch = options.fetch ?? globalThis.fetch;
+    // undici's Response is the same class as the global one in shape; only the types differ.
+    this.fetch = options.fetch ?? (undiciFetch as unknown as OpenAiFetch);
+    this.dispatcher = options.proxy
+      ? new ProxyAgent({
+          uri: options.proxy.origin,
+          token: options.proxy.token,
+          // The caller's signal is the deadline (FITTING_TIMEOUT_SECONDS may be up to 600 s);
+          // undici's own 300 s would end a slow generation first.
+          headersTimeout: 0,
+          bodyTimeout: 0,
+        })
+      : undefined;
     this.backoffMs = options.backoffMs ?? DEFAULT_BACKOFF_MS;
     this.now = options.now ?? Date.now;
+  }
+
+  // GET /v1/models: the deploy's check that the key and the proxy reach OpenAI (A73). Free; the
+  // answer is not read beyond its shape.
+  async listModels(options: CallOptions): Promise<void> {
+    await this.request('list_models', '/v1/models', { method: 'GET' }, options, modelsAnswer);
   }
 
   // POST /v1/images/edits with a multipart form (`model`, `prompt`, `image[]`, ...; the image
@@ -200,7 +250,7 @@ export class OpenAiClient {
   private async request<T>(
     operation: AiOperation,
     path: string,
-    init: { body: RequestBody; headers?: Record<string, string> },
+    init: { method?: 'GET' | 'POST'; body?: RequestBody; headers?: Record<string, string> },
     { signal, retry = true }: CallOptions,
     schema: z.ZodType<T>,
   ): Promise<Answer<T>> {
@@ -209,11 +259,12 @@ export class OpenAiClient {
       let response: Response;
       try {
         response = await this.fetch(`${OPENAI_ORIGIN}${path}`, {
-          method: 'POST',
-          body: init.body,
+          method: init.method ?? 'POST',
+          body: init.body instanceof FormData ? undiciForm(init.body) : init.body,
           headers: { ...init.headers, Authorization: `Bearer ${this.options.apiKey}` },
           signal,
           redirect: 'error',
+          dispatcher: this.dispatcher,
         });
       } catch (error) {
         const kind = abortKind(error, signal);
@@ -290,6 +341,15 @@ export class OpenAiClient {
 
 // What a request carries: a JSON string or the edits endpoint's multipart form.
 type RequestBody = string | FormData;
+
+// The image model builds Node's global FormData, which undici's own fetch does not recognise (it
+// would send the text `[object FormData]`): the same fields, files with their names and types,
+// in undici's FormData.
+function undiciForm(form: FormData): RequestBody {
+  const copy = new UndiciFormData();
+  for (const [name, value] of form) copy.append(name, value);
+  return copy as unknown as FormData;
+}
 
 function json(body: object): { body: RequestBody; headers: Record<string, string> } {
   return { body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } };

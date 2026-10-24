@@ -63,6 +63,14 @@ Details and commands: `deploy/README.md`.
   without the seed (a rollback to a version from before it) logs "seed skipped" and deploys. A
   rollback to the copy that still runs applies nginx and switches it: no migrations, no seed, no photo check; compose recreates that copy first
   when `.env` or `app.yml` changed since it started (a rotated secret), and it must pass readiness.
+- Right after readiness `deploy.sh` checks OpenAI from inside the new api (spec 0019 A73):
+  `node dist/ai/check-openai.js`, `GET /v1/models` with the key through the proxy, by the client
+  the checks and the generation use; a failure stops the target and the deploy before the warm-up,
+  the active copy keeps serving. Skipped on a rollback to the copy that still runs, for an image
+  without the script, and with `SKIP_OPENAI_CHECK=1` (CD passes the Environment `production`'s
+  variable of that name, the owner's way round an outage, with a warning on every deploy while
+  it is set; `ci-deploy-check.sh` exports it and turns it off for its one failing case). The script prints
+  nothing of the key or the proxy's address.
 - Between readiness and the switch, for a new version and a rollback alike, `deploy.sh` warms up
   the target (spec 0018 V6–V8): `deploy/scripts/warmup.mjs`, piped into its web container
   (`exec -T`, `127.0.0.1`, never through nginx), requests every address of `/healthz/warmup`

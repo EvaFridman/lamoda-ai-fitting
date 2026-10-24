@@ -1,3 +1,4 @@
+import { FormData as UndiciFormData } from 'undici';
 import { describe, expect, it, vi } from 'vitest';
 
 import { AiProviderError } from './ai-provider.error.js';
@@ -111,7 +112,8 @@ describe('OpenAiClient requests', () => {
     expect(answer.data[0]?.b64_json).toBe('QQ==');
     const [url, init] = fetch.mock.calls[0] as [string, RequestInit];
     expect(url).toBe('https://api.openai.com/v1/images/edits');
-    expect(init.body).toBe(form);
+    expect(init.body).toBeInstanceOf(UndiciFormData);
+    expect([...(init.body as FormData)]).toEqual([...form]);
     expect(init.headers).toEqual({ Authorization: `Bearer ${KEY}` });
   });
 

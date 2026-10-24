@@ -387,7 +387,8 @@ in PR 5), each commit regenerating `EVENTS.md`.
   for development and will not surprise a local check.
 - **`cd.yml`.** `OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}` and `OPENAI_PROXY_URL: ${{
 secrets.OPENAI_PROXY_URL }}` (A73) in the `.env` writer and in the format check list (no spaces
-  or shell characters); the manual run's input `skip_openai_check` (A73). `deploy/README.md` gets
+  or shell characters; the proxy in its own shape); `SKIP_OPENAI_CHECK` from the Environment's
+  variable to `deploy.sh`, with a warning while it is set (A73). `deploy/README.md` gets
   `gh secret set OPENAI_API_KEY --env production`, the same for `OPENAI_PROXY_URL`, the model
   variables, the upload limit, the proxy VPS and the deploy's check with its way round.
 - **The proxy VPS (A73).** `deploy/ansible/openai-proxy.yml` beside `base.yml`, the inventory
@@ -402,7 +403,8 @@ secrets.OPENAI_PROXY_URL }}` (A73) in the `.env` writer and in the format check 
 - **`deploy/scripts/deploy.sh`** (A73). After the new copy's readiness and before its warm-up,
   `node dist/ai/check-openai.js` in the new api container; a failure stops the copy and the
   deploy as the warm-up's does, the running copy keeps serving. Skipped on a rollback and when
-  `SKIP_OPENAI_CHECK=1` (`cd.yml`'s input; `ci-deploy-check.sh`, whose key is a placeholder, A51).
+  `SKIP_OPENAI_CHECK=1` (the Environment's variable; `ci-deploy-check.sh`, whose key is a
+  placeholder, A51, and which turns it off once to see a failed check stop a deploy).
 - **`scripts/check-web-bundle.mjs`.** The patterns `OPENAI_API_KEY` and `OPENAI_PROXY_URL` join
   the list, each with a test case.
 - **nginx** (`deploy/nginx/templates/default.conf.template`): `location = /api/me/photos` with
@@ -469,8 +471,8 @@ secrets.OPENAI_PROXY_URL }}` (A73) in the `.env` writer and in the format check 
   blocked API traffic from unsupported regions since July 2024 (a 403
   `unsupported_country_region_territory`). It came true on production (2026-10-24): the route is
   a proxy on a VPS abroad (A73), checked with the key by every deploy. What stays: the VPS is a
-  single point of failure for the fitting (a failed check blocks a deploy until the owner runs it
-  with `skip_openai_check`), and OpenAI may refuse the proxy's address or its country later.
+  single point of failure for the fitting (a failed check blocks deploys until the owner sets
+  `SKIP_OPENAI_CHECK`), and OpenAI may refuse the proxy's address or its country later.
 - **Order of 0014 and 0018.** Phase 3 waits for both (A1, A22); phases 1 and 2 touch `CLAUDE.md`,
   `catalog.ts`, `account-sections.ts` and the access-markers lists, which 0014's branch touches
   too: the rebase is expected, and for `catalog.ts` (41 new elements) and the markers' lists it

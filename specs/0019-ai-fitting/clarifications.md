@@ -859,20 +859,25 @@ dispatcher of another version is not guaranteed to fit its `fetch`): `undici` be
 dependency of the api at 8.12.2 or later (8.11, today only under `testcontainers`, has npm audit
 advisories). Only OpenAI's requests use the proxy; S3, Sentry, Google and the rest go directly.
 The address is parsed once into the proxy's origin and its credentials, and neither reaches a log
-line, an error, `AiProviderError` or Sentry (the start logs only that a proxy is set). A refusal by
+line, an error, `AiProviderError` or Sentry. A refusal by
 the proxy (a 407, a 403, its 503 on `CONNECT`) never reached OpenAI: it counts as unsent (A67) and
 ends as `provider_error`. The check that replaces A4's: `deploy.sh`, after the new copy's
 readiness and before its warm-up, runs a script in the new api container that calls
 `GET /v1/models` with the key through the same client and proxy (free, no model runs); anything
 but 200 stops the new copy and the deploy, and the running copy keeps serving. The way round an
-outage of OpenAI or of the VPS is the owner's manual run of `cd.yml` with the input
-`skip_openai_check`; `ci-deploy-check.sh` passes the same knob, since its key is a placeholder and
-it never reaches OpenAI (A51). Decided by the owner on 2026-10-24 (the proxy required in
-production, the check in `deploy.sh` through the api's own client, a failed check fails the deploy
-with a way round by hand). Assumptions, owner to confirm at the summary: (1) a rollback skips the
-check, so an outage of OpenAI never blocks a way back; (2) the worker, replaced in place, is not
-checked on its own: it reads the same two variables, and the api's check proves them; (3) the
-proxy VPS is one more single point of failure for the fitting, accepted for the pilot.
+outage of OpenAI or of the VPS is the variable `SKIP_OPENAI_CHECK=1` of the Environment
+`production`, set and removed by the owner (`gh variable`): while it is set every deploy skips the
+check with a warning, so a failed CD is re-run as it is. Not an input of CD's manual run, which
+deploys only a tag that was already live, so a new fix stopped by the check could not use it.
+`ci-deploy-check.sh` sets the same knob, since its key is a placeholder and it never reaches OpenAI
+(A51), and turns it off once to see a failed check stop a deploy. Decided by the owner on
+2026-10-24 (the proxy required in production, the check in `deploy.sh` through the api's own
+client, a failed check fails the deploy with a way round by hand; the variable in place of an
+input, and the three points below, confirmed at T14a's summary). Also decided: (1) a rollback to the copy that still runs skips the check, so an outage of OpenAI never blocks
+the instant way back (a rollback to an older tag is a full deploy and checks, if its image has
+the script); (2) the worker, replaced in place, is not checked on its own: it reads the same two
+variables, and the api's check proves them; (3) the proxy VPS is one more single point of
+failure for the fitting, accepted for the pilot.
 
 ## Canvas and decisions
 

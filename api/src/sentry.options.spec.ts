@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   isRedisCommand,
+  isTunnel,
   isThrottled,
   sentryOptions,
   storageOrigin,
@@ -103,6 +104,35 @@ describe('sentryOptions', () => {
 
     it('drops console breadcrumbs', () => {
       expect(hook?.({ category: 'console', message: 'x' }, undefined)).toBeNull();
+    });
+
+    it.each(['CONNECT', 'connect', 'Connect'])(
+      'drops the http breadcrumb of a %s tunnel',
+      (method) => {
+        const breadcrumb = { category: 'http', data: { method, url: 'http://proxy:3128' } };
+
+        expect(isTunnel(breadcrumb)).toBe(true);
+        expect(hook?.(breadcrumb, undefined)).toBeNull();
+      },
+    );
+
+    it('keeps a CONNECT of another category and an http breadcrumb of another method', () => {
+      expect(isTunnel({ category: 'fetch', data: { method: 'CONNECT' } })).toBe(false);
+      expect(isTunnel({ category: 'http', data: { method: 'GET' } })).toBe(false);
+      expect(isTunnel({ category: 'http', data: { method: 5 } })).toBe(false);
+      expect(isTunnel({ category: 'http' })).toBe(false);
+    });
+
+    it('still cuts a GET to OpenAI to its origin', () => {
+      const crumb = hook?.(
+        {
+          category: 'http',
+          data: { method: 'GET', url: 'https://api.openai.com/v1/models?x=1', 'url.query': 'x=1' },
+        },
+        undefined,
+      );
+
+      expect(crumb?.data).toEqual({ method: 'GET', url: 'https://api.openai.com' });
     });
 
     it('keeps the others', () => {

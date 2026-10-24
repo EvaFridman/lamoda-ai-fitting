@@ -63,9 +63,11 @@ services:
       S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?set S3_ACCESS_KEY_ID}
       S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?set S3_SECRET_ACCESS_KEY}
       S3_SIGNED_URL_TTL_SECONDS: ${S3_SIGNED_URL_TTL_SECONDS:-900}
-      # AI fitting (spec 0019 plan §10): the OpenAI key of the photo and text checks; the api
-      # refuses to start without it in production (AC27). The defaults are the api's own.
+      # AI fitting (spec 0019 plan §10): the OpenAI key of the photo and text checks and the proxy
+      # they go through (A73); the api refuses to start without either in production (AC27). The
+      # defaults are the api's own.
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_PROXY_URL: ${OPENAI_PROXY_URL:-}
       FITTING_MODEL: ${FITTING_MODEL:-gpt-image-2}
       FITTING_VISION_MODEL: ${FITTING_VISION_MODEL:-gpt-6-luna}
       FITTING_MONTHLY_LIMIT: ${FITTING_MONTHLY_LIMIT:-10}

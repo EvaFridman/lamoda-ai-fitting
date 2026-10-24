@@ -35,10 +35,11 @@ async function bootstrap(): Promise<void> {
   app.useLogger(logger);
   const config = app.get<ConfigService<Env, true>>(ConfigService);
   // The generation runs here (spec 0019 plan §3): production refuses to start without the OpenAI
-  // key, elsewhere an empty one selects the fake provider and is logged.
+  // key and the proxy (A73); elsewhere the fake provider answers, and either one set is logged.
   const workerEnv: WorkerEnv = {
     NODE_ENV: config.get('NODE_ENV', { infer: true }),
     OPENAI_API_KEY: config.get('OPENAI_API_KEY', { infer: true }),
+    OPENAI_PROXY_URL: config.get('OPENAI_PROXY_URL', { infer: true }),
   };
   assertWorkerEnv(workerEnv);
   for (const warning of workerEnvWarnings(workerEnv)) {

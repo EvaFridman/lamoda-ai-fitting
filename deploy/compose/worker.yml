@@ -35,9 +35,11 @@ services:
       S3_BUCKET: ${S3_BUCKET:?set S3_BUCKET}
       S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?set S3_ACCESS_KEY_ID}
       S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?set S3_SECRET_ACCESS_KEY}
-      # It runs the generations (spec 0019 plan §10): the OpenAI key and the fitting settings of the
-      # api (app.yml); the worker refuses to start without the key in production (AC27).
+      # It runs the generations (spec 0019 plan §10): the OpenAI key, the proxy (A73) and the
+      # fitting settings of the api (app.yml); the worker refuses to start without the key or the
+      # proxy in production (AC27).
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_PROXY_URL: ${OPENAI_PROXY_URL:-}
       FITTING_MODEL: ${FITTING_MODEL:-gpt-image-2}
       FITTING_VISION_MODEL: ${FITTING_VISION_MODEL:-gpt-6-luna}
       FITTING_MONTHLY_LIMIT: ${FITTING_MONTHLY_LIMIT:-10}

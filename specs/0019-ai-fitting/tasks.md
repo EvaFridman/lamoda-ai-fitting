@@ -160,7 +160,7 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       Commit: `feat(web): add the fitting entity, the realtime client and the kit's additions`
 - 👤 rents the proxy VPS (1 CPU, 1 GB, Germany or the Netherlands) and checks from it by hand that
   `GET /v1/models` with the key answers 200 (A73).
-- [ ] **T14a. api, deploy: OpenAI through the proxy** (runs before T15, A73). The playbook
+- [x] **T14a. api, deploy: OpenAI through the proxy** (runs before T15, A73). The playbook
       `deploy/ansible/openai-proxy.yml` and the inventory group `openai_proxy` (Squid: only
       `CONNECT api.openai.com:443`, basic auth, no `Via` or `X-Forwarded-For`, no cache, a log of
       the connection only; ufw: SSH and the proxy's port from the production server only);
@@ -169,8 +169,9 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       writer and format check, `check-web-bundle`'s list); `undici` 8.12.2 or later as a direct
       dependency, its `fetch` and `ProxyAgent` in `OpenAiClient`, OpenAI only; the proxy's
       refusals unsent (A67) and `provider_error`; `ai/check-openai.ts` run by `deploy.sh` before
-      the warm-up, skipped on a rollback and by `SKIP_OPENAI_CHECK=1` (`cd.yml`'s input
-      `skip_openai_check`, `ci-deploy-check.sh`); `CLAUDE.md` and `deploy/README.md` (the VPS,
+      the warm-up, skipped on a rollback and by `SKIP_OPENAI_CHECK=1` (the Environment's
+      variable, `ci-deploy-check.sh`, whose case 3f sees it fail); `CLAUDE.md` and
+      `deploy/README.md` (the VPS,
       the playbook, the secret, the check in place of A4's `curl`, the way round).
       Check: unit specs of the env (required in production, ignored elsewhere, the address in no
       error), of the client (the dispatcher on OpenAI's requests only; a 407 unsent and

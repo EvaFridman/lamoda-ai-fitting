@@ -1,5 +1,6 @@
 // What the client was doing when the request failed.
-export type AiOperation = 'edit_image' | 'respond' | 'moderate';
+// `list_models` is the deploy's check only (A73).
+export type AiOperation = 'edit_image' | 'respond' | 'moderate' | 'list_models';
 
 // Why it failed: the deadline passed (`timeout`), the caller cancelled (`aborted`), no answer
 // came (`network`) or the answer was an error or unreadable (`http`, with its status).
