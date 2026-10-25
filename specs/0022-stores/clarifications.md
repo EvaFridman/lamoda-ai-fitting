@@ -54,7 +54,8 @@ script) and holds the owner's personal data, so it is not used and never committ
   opens on Moscow. The search filters the list and the map by store name, mall, city, street and
   metro station, in the browser, and fits the map to what is left; nothing matching shows «Ничего не
   нашлось». No city picker, no city by the visitor's address or geolocation. The header's city
-  (0010 L5, inert) reads «Москва» in place of «Укажите ваш населенный пункт» and stays inert.
+  (0010 L5, inert) stays «Укажите ваш населенный пункт»: the owner first chose «Москва» there,
+  then dropped it at the tasks (2026-10-26).
 - **X8. A card's details.** «›» opens and closes the store's details: the description (entrance,
   floor, parking), the phones as `tel:` links and «Проложить маршрут», Yandex Maps' route to the
   store in a new tab. A click elsewhere on the card selects the store (X5). No «Смотреть товары

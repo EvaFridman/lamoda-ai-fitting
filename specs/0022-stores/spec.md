@@ -1,6 +1,6 @@
 # 0022 stores: Lamoda Sport stores on a Yandex map
 
-Status: accepted (2026-10-26).
+Status: accepted (2026-10-26); amended 2026-10-26 at the tasks (AC12 removed: X7).
 
 Decisions: `clarifications.md` (X0–X18).
 
@@ -26,7 +26,7 @@ part of it.
 - The search (X7): it filters the list and the map by store name, mall, city, street and metro
   station, with no request to the api or to Yandex.
 - The phone layout below 600 px: tabs «Список» and «Карта» (X10).
-- The map starts on Moscow (X7); the header's city reads «Москва» (X7).
+- The map starts on Moscow (X7).
 - The footer's «Магазины Lamoda Sport» becomes a link to the page (X11).
 - `/privacy` says the stores page shows Yandex's map, which receives the visitor's address (X6).
 
@@ -75,7 +75,7 @@ part of it.
 
 ### Around the page
 
-- **AC12.** The header shows «Москва» in place of «Укажите ваш населенный пункт», inert as before.
+- **AC12.** Removed at the tasks (X7): the header's city stays as it is.
 - **AC13.** The footer's «Магазины Lamoda Sport» opens `/customer/stores`.
 - **AC14.** `/privacy` has the paragraph about Yandex Maps on the stores page.
 - **AC15.** The page answers 200 to a request with no cookie within the deploy's warm-up limits and
