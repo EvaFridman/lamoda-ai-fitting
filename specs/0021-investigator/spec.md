@@ -1,6 +1,6 @@
 # 0021 investigator: an agent for Sentry events and the api's logs
 
-Status: draft (2026-10-25).
+Status: draft (2026-10-25); amended 2026-10-25 at the plan (Q6: the index's store).
 
 Issue #44. Decisions: `clarifications.md` (Q1–Q14).
 
@@ -23,9 +23,9 @@ through a vector index of the repository, not only by name.
   `ssh ai-fitting` with `docker logs` in allowlisted shapes, each call confirmed by the owner
   (Q3, Q12).
 - A vector index of the repository (code, specs, docs, deploy) in `tools/code-rag/`: embeddings by
-  Voyage AI, stored in an embedded LanceDB in a git-ignored folder, served to the agent by an MCP
-  server of this repository with `search_code`, `search_docs` and `index_status`; updated by
-  `npm run rag:index` (Q4–Q8).
+  Voyage AI, stored in one SQLite file (Node's built-in SQLite with the `sqlite-vec` extension) in a
+  git-ignored folder, served to the agent by an MCP server of this repository with `search_code`,
+  `search_docs` and `index_status`; updated by `npm run rag:index` (Q4–Q8).
 - The api's request log lines carry only four chosen headers (backlog "Request headers in the
   log", Q9), deployed before the agent reads them.
 - A skill `/investigate` that refreshes the index, runs the agent and relays its report (Q14).
