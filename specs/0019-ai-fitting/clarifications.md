@@ -1137,6 +1137,11 @@ re-running its effect on every render of its parent (code-reviewer, T24a). Until
 header one row, the photo still runs past the window's bottom on a phone: the gallery subtracts
 that row's 56 px.
 
+**A89. The logo keeps its link and the catalog's scroll (T24b, 2026-10-25).** The owner decided
+the backlog item «Logo keeps the catalog's scroll»: the logo, on the phone row too, links to `/`
+as now, and a click shows the catalog at the scroll Next kept; it neither links to `/catalog`
+directly nor scrolls to the top. The item leaves the backlog with T24b's commit.
+
 ## Canvas and decisions
 
 Where the canvas differs from the decisions above, the decision wins:

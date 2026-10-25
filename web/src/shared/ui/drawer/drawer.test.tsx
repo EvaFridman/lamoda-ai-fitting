@@ -193,6 +193,41 @@ describe('Drawer', () => {
     expect(onOpenChange).toHaveBeenLastCalledWith(false, 'escape-key');
   });
 
+  it('opens from the left with its title and content, and closes on Esc and on the ×', async () => {
+    const user = setup();
+    const onOpenChange = vi.fn();
+    render(
+      <Drawer side="left" trigger={<Button>Меню</Button>} title="Меню" onOpenChange={onOpenChange}>
+        <p>Разделы</p>
+      </Drawer>,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Меню' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Меню' });
+    expect(dialog).toHaveTextContent('Разделы');
+    expect(dialog.className).toContain('left');
+
+    await user.keyboard('{Escape}');
+    await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(onOpenChange).toHaveBeenLastCalledWith(false, 'escape-key');
+
+    await user.click(screen.getByRole('button', { name: 'Меню' }));
+    await screen.findByRole('dialog', { name: 'Меню' });
+    await user.click(screen.getByRole('button', { name: 'Закрыть' }));
+    await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('gives the left class to a left drawer only', async () => {
+    render(
+      <>
+        <Drawer open title="Справа">
+          <p>а</p>
+        </Drawer>
+      </>,
+    );
+    expect((await screen.findByRole('dialog', { name: 'Справа' })).className).not.toContain('left');
+  });
+
   describe('onBack', () => {
     function WithBack(props: Partial<ComponentProps<typeof Drawer>>) {
       return (

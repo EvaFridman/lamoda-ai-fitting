@@ -185,6 +185,23 @@ describe('HeaderProfile', () => {
     expect(within(dialog).getByRole('button', { name: 'Войти через Google' })).toBeInTheDocument();
   });
 
+  it('returns the focus to the burger when the login modal closes and the icon is hidden', async () => {
+    mocks.session = { status: 'signed-out', failed: false };
+    const burger = document.createElement('button');
+    burger.id = 'header-burger';
+    document.body.append(burger);
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    render(<HeaderProfile />);
+    await user.click(screen.getByRole('button', { name: 'Профиль' }));
+    await screen.findByRole('dialog', { name: 'Вход' });
+
+    await user.keyboard('{Escape}');
+
+    await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await vi.waitFor(() => expect(burger).toHaveFocus());
+    burger.remove();
+  });
+
   it('opens the profile menu with the items in order when signed in', async () => {
     signedIn(NAME);
     render(<HeaderProfile />);
@@ -240,6 +257,7 @@ describe('HeaderProfile', () => {
       zone: 'auth',
       type: 'navigation',
       section: 'data',
+      surface: 'menu',
     });
   });
 

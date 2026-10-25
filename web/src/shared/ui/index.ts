@@ -69,6 +69,7 @@ export {
   InfoIcon,
   LockIcon,
   MapPinIcon,
+  MenuIcon,
   MinusIcon,
   MoreIcon,
   PhoneIcon,

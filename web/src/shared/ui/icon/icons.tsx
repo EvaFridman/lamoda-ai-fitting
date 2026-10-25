@@ -334,6 +334,9 @@ export const MoreIcon = createIcon('MoreIcon', {
   ),
 });
 
+// Three lines: the header's menu on phones, the burger (spec 0019 A87.6).
+export const MenuIcon = createIcon('MenuIcon', lineArt('M3 6.5h18M3 12h18M3 17.5h18'));
+
 // A bin with its lid: delete (spec 0019 board 10).
 export const TrashIcon = createIcon('TrashIcon', lineArt('M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13'));
 

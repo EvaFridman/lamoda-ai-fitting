@@ -163,6 +163,41 @@ describe('Modal', () => {
     expect(trigger).toHaveFocus();
   });
 
+  it('returns the focus to the element finalFocus gives when it closes', async () => {
+    const user = setup();
+    const target = document.createElement('button');
+    document.body.append(target);
+    const finalFocus = vi.fn(() => target);
+    render(
+      <Modal trigger={<Button>Удалить</Button>} title="Удалить товар?" finalFocus={finalFocus}>
+        <p>Содержимое</p>
+      </Modal>,
+    );
+    await open(user, 'click');
+
+    await user.keyboard('{Escape}');
+
+    await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await vi.waitFor(() => expect(target).toHaveFocus());
+    expect(screen.getByRole('button', { name: 'Удалить' })).not.toHaveFocus();
+    target.remove();
+  });
+
+  it('returns the focus to the trigger when finalFocus gives true', async () => {
+    const user = setup();
+    render(
+      <Modal trigger={<Button>Удалить</Button>} title="Удалить товар?" finalFocus={() => true}>
+        <p>Содержимое</p>
+      </Modal>,
+    );
+    const trigger = await open(user, 'click');
+
+    await user.keyboard('{Escape}');
+
+    await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await vi.waitFor(() => expect(trigger).toHaveFocus());
+  });
+
   it('closes on a ModalClose button in the footer', async () => {
     const user = setup();
     render(<Example />);

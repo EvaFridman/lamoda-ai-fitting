@@ -163,11 +163,6 @@ removes it from this list. Found by the agents' first security audit and trial r
   0019 builds «Рядом» only (0019 A41).
 - **Avatar teaser.** «Создать свой аватар · скоро» on the photo picker is not rendered by 0019
   (A41); the digital twin's spec (0016 item 5) adds the real button.
-- **Logo keeps the catalog's scroll.** The header's logo links to `/`, which redirects to
-  `/catalog`; a client-side click from another page (`/privacy`) shows the catalog at the scroll it
-  had, not at the top, and a click on `/catalog` itself does not scroll up (spec 0014 T14 QA). Next
-  shows the list it kept (`cacheComponents`) and the redirect is not a new page to it. Decide
-  whether the logo links to `/catalog` directly or scrolls to the top, with the header's next spec.
 - **Lowest price after the discount in the counts.** `GET /products/facets` answers `price.min`
   and `max` of the price before the discount, so the catalog's description has no "от N ₽" (spec
   0014 O94). Adding the lowest `finalPrice` changes the api's answer, `openapi.json` and the cache

@@ -93,6 +93,13 @@ export function OverlaysSection() {
           <code className={styles.props}>wide (636px)</code>
         </li>
         <li className={styles.example}>
+          <Drawer trigger={<Button variant="outline">Меню</Button>} title="Меню" side="left">
+            <p>Все товары</p>
+            <p>Одежда, обувь, аксессуары</p>
+          </Drawer>
+          <code className={styles.props}>side=&quot;left&quot;</code>
+        </li>
+        <li className={styles.example}>
           <Drawer
             trigger={<Button variant="outline">Фильтры</Button>}
             title="Фильтры"

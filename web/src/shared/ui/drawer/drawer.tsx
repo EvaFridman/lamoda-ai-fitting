@@ -16,8 +16,9 @@ export interface DrawerProps {
   title: string;
   // `right` by default: the side modal. `bottom`: a sheet the width of the window rising from its
   // bottom edge, as high as its content up to a strip of the page left above it (spec 0014 O6).
-  side?: 'right' | 'bottom';
-  // 432px by default, 636px wide; never wider than the window. Only for `right`.
+  // `left`: the side modal from the left edge, the header's menu on phones (spec 0019 A87.6).
+  side?: 'right' | 'bottom' | 'left';
+  // 432px by default, 636px wide; never wider than the window. Not for `bottom`.
   wide?: boolean;
   // Only for `bottom`: the sheet is always as high as it can be, whatever its content, so a sheet
   // nested in it (a filter's screen over the filters, spec 0020 W30) is as high as it is. A
@@ -63,8 +64,8 @@ function present(node: ReactNode): boolean {
 // Lamoda's side modal (SideModal): a white sheet the height of the window that slides in from the
 // right over a dark overlay, a 24/28 heading and a × inside it at the top right (D7ab). Base UI's
 // Drawer behaves as Modal does (focus trapped, no page scroll, Esc or a click on the overlay
-// close it, the focus returns to the trigger); on a touch screen a swipe to the right (down for
-// the bottom sheet) closes it. Opening focuses the sheet itself, or `initialFocus`; in the tab
+// close it, the focus returns to the trigger); on a touch screen a swipe toward its edge (right,
+// left for `left`, down for the bottom sheet) closes it. Opening focuses the sheet itself, or `initialFocus`; in the tab
 // order the "‹" comes first, then the header action, the content, the footer and the × last.
 export function Drawer({
   trigger,
@@ -100,7 +101,7 @@ export function Drawer({
 
   return (
     <BaseDrawer.Root
-      swipeDirection={side === 'bottom' ? 'down' : 'right'}
+      swipeDirection={side === 'bottom' ? 'down' : side}
       open={open}
       defaultOpen={defaultOpen}
       onOpenChange={
@@ -112,7 +113,11 @@ export function Drawer({
       <BaseDrawer.Portal>
         <BaseDrawer.Backdrop className={styles.backdrop} />
         <BaseDrawer.Viewport
-          className={[styles.viewport, side === 'bottom' && styles.viewportBottom]
+          className={[
+            styles.viewport,
+            side === 'bottom' && styles.viewportBottom,
+            side === 'left' && styles.viewportLeft,
+          ]
             .filter(Boolean)
             .join(' ')}
         >
@@ -120,6 +125,7 @@ export function Drawer({
             initialFocus={initialFocus}
             className={[
               styles.popup,
+              side === 'left' && styles.left,
               side === 'bottom' ? styles.bottom : wide && styles.wide,
               side === 'bottom' && fullHeight && styles.fullHeight,
             ]

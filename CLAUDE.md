@@ -44,8 +44,9 @@ the limit meter and «Вы это примеряли», «О товаре» and 
 and its hover (spec 0019 A63.1, A83); phase 4 so far the fitting room's api (`/me/fitting-room`,
 A86) and the product page on phones as Lamoda's (the gallery's slide and dots, the buy box in
 the flow as a panel over the photo, the kit's `ScrollRow` for «С этим товаром выбирают», A87.1–3,
-A88). Next: the header on
-phones, the fitting room in the header, looks, history actions.
+A88) and the header on phones as Lamoda's (one row of the burger, the loupe, the logo and the
+icons, the search row, the burger's left `Drawer`, A87.4–8, A89). Next: the fitting room in the
+header, looks, history actions.
 
 Keep this file true: update it in the same commit that changes what a section describes.
 
@@ -579,7 +580,7 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   its page with Better Auth's `error` code: `LoginModal` opens with `signInRedirectText` (a text of
   its own for `access_denied`, a general one otherwise), and the code and `error_description` leave
   the address, signed in (`DropSignInError`) or not (N54). A second `LoginModal` on a page (the
-  account invitation, spec 0017; the product page's buy box, spec 0019) passes `handlesReturnedError={false}`: the returned code, its
+  account invitation, spec 0017; the product page's buy box and the header's burger, spec 0019) passes `handlesReturnedError={false}`: the returned code, its
   report, the flag taken on mount and the address stay with the header's. A code other than `access_denied` is
   reported to Sentry as `SignInFailed` only when the sign-in flag (see analytics) shows a sign-in
   started in this tab, so someone else's link with a made-up `error` reports nothing. The header's profile icon (`widgets/header`, `HeaderProfile`,
@@ -591,7 +592,17 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   failure shows a toast). It also mounts `useDropUserQueries` (`features/auth`): whenever the
   session is `signed-out` and not `failed`, the queries of `userKeys.all` leave the cache, so the
   next person at the tab never sees `/me` (spec 0017 U22); another user signed in with no end
-  seen in between resets them, so a page reads them again as that user.
+  seen in between resets them, so a page reads them again as that user. Below 600px the header is
+  Lamoda's phone row (spec 0019 A87.4–7): the burger and the loupe, the logo (still `/`, A89),
+  «Избранное» and «Корзина»; the gender switch, the city, the profile icon and the category row
+  are hidden by CSS, not unmounted, so `HeaderProfile`, its hooks and its `LoginModal` (the one
+  that answers a returned sign-in error) run once on every width. The loupe (`HeaderLoupe`)
+  opens and closes the search row (`HeaderSearchRow`, kept mounted while closed); the row is open
+  while `q` is in the address, until the loupe closes it, and a new `q` opens it again. The burger
+  opens `HeaderMenu`, a left `Drawer`: signed out «Войти» (a second `LoginModal`,
+  `handlesReturnedError={false}`), signed in `SessionUserBadge` in an `mp-block`, the account's
+  sections and the sign-outs (`useSignOuts`, `features/auth`, which `SignOutItems` shares), then
+  «Все товары» and the header's categories; a link closes it. The header stays not sticky.
 - `web` account (spec 0017): `/customer` and its sections `/customer/orders`, `stores`,
   `account` ("Мои данные"), `fittings` and `photos` ("Мои фото", spec 0019 A19: `_pages/photos`,
   `widgets/my-photos`, `features/upload-photo`) (`web/app/customer/`, whose layout holds only the
@@ -620,6 +631,9 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
 - The kit (`web/src/shared/ui`, its examples on `/ui-kit`) has, besides its controls,
   `MenuLinkItem` (Base UI's `Menu.LinkItem` rendering `next/link`; `MenuItem` has no link form),
   `LinkButton` (a `<button>` styled as the kit's `Link`, for an action that is not navigation),
+  `Modal`'s `finalFocus` (a function giving the element focused when it closes, `true` for the
+  trigger; `LoginModal` passes it through, so the header's modal returns the focus to the burger
+  while its icon is hidden, spec 0019 A87.7),
   `Modal`'s `initialFocus` (a ref of the element focused when it opens, `'popup'` for the frame
   itself, else the first focusable one), `Modal`'s `wide` (up to 1000px, the whole window below 600px) and `media` (a picture's
   column), `FileInput` (a kit `Button` that clicks a hidden `<input type="file">`, one file, with
@@ -641,6 +655,8 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   the ×), and passes Base UI's close `reason` to `onOpenChange`; `CheckboxFilterPanel` and
   `SortFilterPanel` take `layout: 'sheet'` (rows split by hairlines, the box or circle on the
   right), the checkbox panel `selectAll` ("Выбрать все", W24); the icons include `FilterIcon`.
+  `Drawer side="left"` is the side modal from the left edge (the header's burger, with
+  `MenuIcon`, spec 0019 A87.6).
   Phones are below 600px: `PHONE_QUERY` (`@/shared/config`) with `useMediaQuery` (`@/shared/lib`,
   a client module) where the DOM must differ, else CSS. Tracking handlers reach the kit and entity
   components as props, from the widget or page that calls `useTrackedElement`: `FilterDropdown`'s
@@ -705,7 +721,8 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   Sign-in (spec 0013 N13): `client.ts`'s `identify(id, { signedIn })` ties the SDK to the user's id
   only (no email or name), now or at the next start after consent, and with `signedIn` sends
   `Signed In` after it; `reset()` forgets the user. `identify` is called only by
-  `useSignInAnalytics`, `reset` by it, by `SignOutItems` (`features/auth`, after `Signed Out`) and
+  `useSignInAnalytics`, `reset` by it, by `useSignOuts` (`features/auth`, shared by `SignOutItems` and the burger,
+  after `Signed Out`) and
   by `DeleteAccount` (`features/delete-account`, before its full load of the home page, after
   `Account Deleted` or, on a 401, without it, spec 0017 U25).
   `useSignInAnalytics` (`features/auth`, mounted once by the header's profile icon) calls `identify` on
@@ -717,7 +734,9 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   0014 plan §3.6, O97–O103), the fitting photos' the zone `fitting`, area `photos` (spec 0019
   plan §9, A60), the product page's the zone `product` (areas `buy-box` and `related`, seven
   elements with the row's arrows `related.scroll`, A87.8; `buy-box.to-look` and `related.to-look`
-  come with the fitting room, A84).
+  come with the fitting room, A84), the phone header's the zone `header` (areas `header` and
+  `burger`: `header.burger`, `header.search`, `burger.category`, A87.8); `profile-menu.*` take
+  `surface` (`menu`, `burger`; older sends have none).
   `Signed In` is sent once, on the page a sign-in of this tab came back to: `markSignInStarted()`
   (`features/auth`) puts the time in `sessionStorage` (`sign-in-started`, not an `mp_`/`__mp` key
   the SDK clearing removes) before leaving for Google, and a flag older than 10 minutes counts as

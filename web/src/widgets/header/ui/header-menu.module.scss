@@ -1,0 +1,46 @@
+// The burger's drawer (spec 0019 A87.6): the user's block or «Войти» at the top, then lists of
+// 48px rows in 16px text split by hairlines, as Lamoda's phone menu.
+
+.user {
+  padding-bottom: var(--space-4);
+}
+
+.list {
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  border-top: 1px solid var(--color-border);
+  list-style: none;
+}
+
+.row {
+  cursor: pointer;
+
+  display: flex;
+  align-items: center;
+
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 48px;
+  margin: 0;
+  padding: var(--space-3) 0;
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+
+  font: inherit;
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+  color: inherit;
+  text-align: left;
+  text-decoration: none;
+
+  background: none;
+
+  &:hover {
+    color: var(--color-text-secondary);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: -2px;
+  }
+}
