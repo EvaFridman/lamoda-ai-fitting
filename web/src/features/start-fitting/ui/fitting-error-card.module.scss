@@ -87,6 +87,9 @@
   }
 }
 
+// Wider than its neighbour in the row; in the phones' column `flex: 1` would take its height away.
 .primary {
-  flex: 1;
+  @media (width >= 600px) {
+    flex: 1;
+  }
 }

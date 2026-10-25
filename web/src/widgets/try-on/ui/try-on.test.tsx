@@ -181,6 +181,9 @@ function route(url: string, init?: RequestInit): Response {
     const item = { slot: 'top', product, attributeValueId: RED, colour: 'Красный' };
     return json(200, { room: { items: [item], count: 1, sum: 4500 }, replaced: null });
   }
+  if (pathname.startsWith('/api/me/fitting-room/') && method === 'DELETE') {
+    return new Response(null, { status: 204 });
+  }
   if (pathname === '/api/fittings' && method === 'POST') return api.started();
   if (pathname === '/api/fittings') {
     return json(200, { items: [...api.fittings.values()], nextCursor: null, total: 0 });
@@ -591,21 +594,144 @@ describe('TryOn with a fitting', () => {
       });
     });
 
-    it('sends no analytics event of its own (A90.11)', async () => {
+    // The tile waits (aria-disabled) while the session and the room load.
+    async function readyTile(name: 'К образу' | 'В образе') {
+      await screen.findByText('Сгенерировано ИИ');
+      await vi.waitFor(() => {
+        const tile = screen.getByRole('button', { name });
+        expect(tile).toBeEnabled();
+        expect(tile).not.toHaveAttribute('aria-disabled');
+      });
+      return screen.getByRole('button', { name });
+    }
+
+    const sentOf = (event: 'Element Clicked' | 'Element Hovered') =>
+      mocks.track.mock.calls
+        .filter(([name, props]) => name === event && props.element === 'result.to-look')
+        .map(([, props]) => props);
+
+    it('sends result.to-look with the slot, add and signed_in on a click (A94.1)', async () => {
       completed();
       const user = setup();
       renderTryOn({ fittingId: RUNNING });
-      await screen.findByText('Сгенерировано ИИ');
-      await vi.waitFor(() =>
-        expect(screen.getByRole('button', { name: 'К образу' })).toBeEnabled(),
-      );
-      mocks.track.mockClear();
+      const tile = await readyTile('К образу');
 
-      await user.click(screen.getByRole('button', { name: 'К образу' }));
+      await user.click(tile);
       await screen.findByRole('button', { name: 'В образе' });
 
-      const elements = mocks.track.mock.calls.filter(([event]) => event === 'Element Clicked');
-      expect(elements).toEqual([]);
+      expect(sentOf('Element Clicked')).toEqual([
+        expect.objectContaining({
+          element: 'result.to-look',
+          slot: 'top',
+          action: 'add',
+          signed_in: true,
+        }),
+      ]);
+    });
+
+    it('says replace when the slot holds another product', async () => {
+      completed();
+      api.room = [
+        {
+          slot: 'top',
+          product: { ...product, id: '00000000-0000-4000-8000-0000000000a2' },
+          attributeValueId: RED,
+          colour: 'Красный',
+        },
+      ];
+      const user = setup();
+      renderTryOn({ fittingId: RUNNING });
+      const tile = await readyTile('К образу');
+
+      await user.click(tile);
+
+      await vi.waitFor(() =>
+        expect(sentOf('Element Clicked')).toEqual([
+          expect.objectContaining({ slot: 'top', action: 'replace', signed_in: true }),
+        ]),
+      );
+    });
+
+    it('says remove from «В образе», which takes the item out', async () => {
+      completed();
+      api.room = [{ slot: 'top', product, attributeValueId: RED, colour: 'Красный' }];
+      const user = setup();
+      renderTryOn({ fittingId: RUNNING });
+      const tile = await readyTile('В образе');
+
+      await user.click(tile);
+
+      await vi.waitFor(() =>
+        expect(sentOf('Element Clicked')).toEqual([
+          expect.objectContaining({ slot: 'top', action: 'remove', signed_in: true }),
+        ]),
+      );
+    });
+
+    it('sends a hover of 500 ms with the same properties', async () => {
+      completed();
+      api.room = [
+        {
+          slot: 'top',
+          product: { ...product, id: '00000000-0000-4000-8000-0000000000a3' },
+          attributeValueId: RED,
+          colour: 'Красный',
+        },
+      ];
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      const user = userEvent.setup({
+        pointerEventsCheck: 0,
+        advanceTimers: vi.advanceTimersByTime,
+      });
+      renderTryOn({ fittingId: RUNNING });
+      const tile = await readyTile('К образу');
+
+      await user.hover(tile);
+      expect(sentOf('Element Hovered')).toEqual([]);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(500);
+      });
+
+      expect(sentOf('Element Hovered')).toEqual([
+        expect.objectContaining({ slot: 'top', action: 'replace', signed_in: true }),
+      ]);
+      expect(sentOf('Element Clicked')).toEqual([]);
+    });
+
+    it('sends no hover and no second click while its write runs', async () => {
+      completed();
+      let finish: () => void = () => undefined;
+      fetchMock.mockImplementation((url: string, init?: RequestInit) =>
+        init?.method === 'PUT'
+          ? new Promise<Response>((resolve) => {
+              finish = () => resolve(route(String(url), init));
+            })
+          : Promise.resolve(route(String(url), init)),
+      );
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      const user = userEvent.setup({
+        pointerEventsCheck: 0,
+        advanceTimers: vi.advanceTimersByTime,
+      });
+      renderTryOn({ fittingId: RUNNING });
+      const tile = await readyTile('К образу');
+      await user.click(tile);
+      await vi.waitFor(() => expect(tile).toHaveAttribute('aria-disabled', 'true'));
+      // The pointer's arrival for the click started a hover before the write: its leave ends it.
+      await user.unhover(tile);
+
+      await user.click(tile);
+      await user.unhover(tile);
+      await user.hover(tile);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(600);
+      });
+
+      expect(sentOf('Element Clicked')).toHaveLength(1);
+      expect(sentOf('Element Hovered')).toEqual([]);
+      await act(async () => {
+        finish();
+      });
     });
 
     it('has no tile for a product whose category has no slot', async () => {
@@ -682,6 +808,27 @@ describe('TryOn with a fitting', () => {
       expect(await screen.findByRole('button', { name: 'В образе' })).toBe(tile);
       expect(tile).not.toHaveAttribute('aria-disabled');
     });
+  });
+
+  it('sends result.add-to-cart of kind single from the result’s cart (A94.3)', async () => {
+    api.fittings.set(
+      RUNNING,
+      fitting({
+        status: 'completed',
+        stage: 'done',
+        resultUrl: 'https://s3.test/keep/users/u/result.webp?X-Amz-Signature=abc',
+        finishedAt: DATE,
+      }),
+    );
+    const user = setup();
+    renderTryOn({ fittingId: RUNNING });
+
+    await user.click(await screen.findByRole('button', { name: 'Добавить в корзину' }));
+
+    expect(mocks.track).toHaveBeenCalledWith(
+      'Element Clicked',
+      expect.objectContaining({ element: 'result.add-to-cart', kind: 'single' }),
+    );
   });
 
   it('tries another colour over the old result, which stays with a loader (board 7.2, AC7)', async () => {

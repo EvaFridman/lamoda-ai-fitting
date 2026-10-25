@@ -53,10 +53,16 @@ interface LookTileProps {
 }
 
 // The tile «К образу» (A90.11): the result's item, in its colour, into the fitting room;
-// «В образе» while it is there, and a click takes it out. Untracked until T28.
+// «В образе» while it is there, and a click takes it out (`result.to-look`, A94.1).
 function LookTile({ product, slot, attributeValueId }: LookTileProps) {
   // The try-on is a signed-in user's: no sign-in window here.
-  const look = useLookToggle({ product, slot, attributeValueId, onSignIn: () => undefined });
+  const look = useLookToggle({
+    product,
+    slot,
+    attributeValueId,
+    element: 'result.to-look',
+    onSignIn: () => undefined,
+  });
   return (
     <button
       type="button"
@@ -65,6 +71,7 @@ function LookTile({ product, slot, attributeValueId }: LookTileProps) {
       // Waits focusable, as the hanger: the focus stays on it through the write.
       aria-disabled={look.busy || undefined}
       onClick={look.toggle}
+      {...look.events}
     >
       {look.pressed ? <CheckIcon /> : <HangerIcon />}
       {look.pressed ? 'В образе' : 'К образу'}
@@ -96,7 +103,7 @@ export function FittingResult({
   const [size, setSize] = useState<string | null>(null);
   const [regenerating, setRegenerating] = useState(false);
   const regenerateElement = useTrackedElement('result.regenerate-open');
-  const cartElement = useTrackedElement('result.add-to-cart');
+  const cartElement = useTrackedElement('result.add-to-cart', { kind: 'single' });
   const otherPhotoElement = useTrackedElement('result.other-photo');
   const item = fitting.items[0];
   const progress = useRunningProgress(running);

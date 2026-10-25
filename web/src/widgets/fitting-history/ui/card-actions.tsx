@@ -3,13 +3,7 @@
 import Image from 'next/image';
 import { type ReactNode, useState } from 'react';
 
-import {
-  type Fitting,
-  historyDate,
-  isFittingRunning,
-  itemLabel,
-  kindBadge,
-} from '@/entities/fitting';
+import { type Fitting, historyDate, isFittingRunning, itemLabel } from '@/entities/fitting';
 import { useTrackedElement } from '@/shared/analytics';
 import {
   CompareIcon,
@@ -64,7 +58,7 @@ export function historyStatus(
 // The heading of a card's sheet: the item and its colour, or the kind of a look.
 function sheetTitle(fitting: Fitting): string {
   const single = fitting.kind === 'single' ? fitting.items[0] : undefined;
-  return single ? itemLabel(single) : (kindBadge(fitting) ?? 'Образ');
+  return single ? itemLabel(single) : 'Образ';
 }
 
 interface Action {

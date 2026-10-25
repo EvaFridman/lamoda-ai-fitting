@@ -1226,6 +1226,32 @@ and `compare.add-to-cart` (both columns, nothing of the item); «Отмена»,
 История примерок», the heart and the disabled «Поделиться» send nothing; `sdkPerVisit` goes from
 15 to 16 for the new page.
 
+**A94. The rest of the zone `fitting` (T28's brief, 2026-10-25).** The owner decided, on the
+`analytics` agent's proposal: (1) _the result's tile «К образу» / «В образе»_ (A90.11) is
+`result.to-look` with `slot`, `action` and `signed_in` (always `true` there, kept so the four
+`*.to-look` share one shape); a look's result has no such tile; (2) _a look item's colour_ on the
+result (`MiniSwatches`, A92.1) is `result.item-colour` (`slot`), sent only for another colour and
+not for an item with no slot; the room row's colour stays uncounted (A90.9); (3)
+_`result.favourite-all`_ of plan §9 is dropped: «Всё в избранное» and the look's heart are stubs,
+untracked as the single result's heart (A75); (4) _«Изменить»_ on the look's picker and «Заменить
+вещь в примерочной» on its result are `room.open` with the new `source` values `picker` and
+`result`; (5) _«Какая именно?»_ (A92.2) is no element: `result.regenerate` gains `with_item` (an
+item was chosen; sends before T26 have none and mean `false`); (6) _the look's cart_: «Всё в
+корзину» of a look's result is `result.add-to-cart-all` (`items`), and a look item's «В корзину» is
+`result.add-to-cart`, which gains `kind` (`single`, `look`; earlier sends have none and are
+`single`); (7) «Перейти в каталог» of the empty room stays untracked. No new event, area or page:
+`sdkPerVisit` stays 16, about 111 600 events a month, 11.2 %.
+
+**A95. After the phase's QA (T28's review, 2026-10-25).** The owner decided: (1) «Какая именно?»
+lists a look's items in the slots' order, as its result does (`bySlot`, `entities/fitting-room`),
+not in the api's; (2) the history's card has no badge «Перегенерация» (over board 9): a
+regeneration shows as its kind does, «Образ» for a look, the item for one; (3) «Очистить
+примерочную» stays without a toast or «Вернуть» (A90.9); (4) the look result's «Всё в избранное»,
+wrapped under «Всё в корзину · N вещи», is as wide as it. Fixed with them: the look result is one
+column below 800px (its items' rows had no room beside the picture), beside the picture a column
+under 360px wraps each row's «В корзину» and heart under the text, and the error card's
+«Попробовать ещё раз» keeps its height on phones.
+
 ## Canvas and decisions
 
 Where the canvas differs from the decisions above, the decision wins:
@@ -1248,6 +1274,7 @@ Where the canvas differs from the decisions above, the decision wins:
   the compare page: dropped (A63.5). The share sheet 7.4: not built (A14, A63.6). «нет в наличии»
   on a colour: not drawn (A63.7). The default photo's badge: «По умолчанию» on every screen
   (A62).
+- Board 9's badge «Перегенерация» on a history card: none; a regeneration shows its kind (A95).
 - The catalog card's two corners (the hanger and the heart) and its hover: A63.1, over 0009 K10.
 - Board 1.1's bar fixed to the bottom, its centred grey dots and board 1's related grid of six
   columns: the buy box in the page's flow, Lamoda's dots and one row of related products (A87);

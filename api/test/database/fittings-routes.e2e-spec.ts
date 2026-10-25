@@ -1165,6 +1165,28 @@ describe('the fittings routes (spec 0019 T12: AC5-AC9, A6, A7, A20, A32, A45, A4
       ]);
     });
 
+    it('makes a look’s regeneration with the reason item and a comment free: the quota is unchanged', async () => {
+      const who = await actor();
+      const shirt = await product('top');
+      const jeans = await product('bottom');
+      const parent = await started(who, look(who, [shirt, jeans]));
+      await finish(parent.id);
+      const before = await quota(who).expect(200);
+
+      const child = bodyOf(
+        await regenerate(who, parent.id, { reasons: ['item'], comment: 'a longer skirt' }).expect(
+          201,
+        ),
+      );
+
+      expect(child).toMatchObject({ kind: 'look', parentId: parent.id, countsAgainstLimit: false });
+      expect(await usedOf(who.userId)).toBe(1);
+      const after = await quota(who).expect(200);
+      expect((after.body as { left: number }).left).toBe((before.body as { left: number }).left);
+      expect((await row(child.id)).comment).toBe('a longer skirt');
+      expect((await row(parent.id)).freeRegenerationUsed).toBe(true);
+    });
+
     it('takes a regeneration with no comment', async () => {
       const who = await actor();
       const { parent } = await completed(who);

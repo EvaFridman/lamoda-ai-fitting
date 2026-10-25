@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -305,6 +305,22 @@ describe('RegenerateSheet', () => {
       expect(screen.getByRole('button', { name: 'Брюки Lux' })).toBeInTheDocument();
     });
 
+    it('lists the items in the slots’ order, not the api’s', async () => {
+      const user = setup();
+      const shoes = { ...lookItem(3, 'Туфли Vero'), slot: 'shoes' as const };
+      const bottom = lookItem(2, 'Брюки Lux');
+      const top = lookItem(1, 'Тренч Nord');
+      renderSheet({ fitting: look([bottom, top, shoes]) });
+
+      await user.click(await screen.findByRole('button', { name: 'Вещь' }));
+
+      const group = screen.getByText('Какая именно?').parentElement as HTMLElement;
+      const names = within(group)
+        .getAllByRole('button')
+        .map((button) => button.textContent);
+      expect(names).toEqual(['Тренч Nord', 'Брюки Lux', 'Туфли Vero']);
+    });
+
     it('is never shown for a single fitting or a look of one item', async () => {
       const user = setup();
       renderSheet({
@@ -429,6 +445,34 @@ describe('RegenerateSheet', () => {
       const { comment } = JSON.parse(String(init.body)) as { comment: string };
       expect(comment).toHaveLength(MAX_COMMENT_LENGTH);
       expect(comment.startsWith('Тренч Nord: я')).toBe(true);
+    });
+
+    it('tracks with_item false while «Вещь» is checked and no item is chosen (A94.5)', async () => {
+      fetchMock.mockImplementation(answer(201, startedBody()));
+      const user = setup();
+      renderSheet({ fitting: look() });
+      await user.click(await screen.findByRole('button', { name: 'Вещь' }));
+
+      await user.click(submit());
+      expect(mocks.track).toHaveBeenCalledWith(
+        'Element Clicked',
+        expect.objectContaining({ element: 'result.regenerate', with_item: false }),
+      );
+    });
+
+    it('tracks with_item true after «Какая именно?» is answered', async () => {
+      fetchMock.mockImplementation(answer(201, startedBody()));
+      const user = setup();
+      renderSheet({ fitting: look() });
+      await user.click(await screen.findByRole('button', { name: 'Вещь' }));
+      await user.click(screen.getByRole('button', { name: 'Тренч Nord' }));
+
+      await user.click(submit());
+
+      expect(mocks.track).toHaveBeenCalledWith(
+        'Element Clicked',
+        expect.objectContaining({ element: 'result.regenerate', with_item: true }),
+      );
     });
 
     it('sends Fitting Started with no prompt when only an item is chosen', async () => {

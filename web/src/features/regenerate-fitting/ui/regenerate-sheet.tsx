@@ -11,6 +11,7 @@ import {
   type StartedFitting,
   useRegenerateFitting,
 } from '@/entities/fitting';
+import { bySlot } from '@/entities/fitting-room';
 import { useTrackedElement } from '@/shared/analytics';
 import { errorText } from '@/shared/api';
 import { PHONE_QUERY } from '@/shared/config';
@@ -74,8 +75,9 @@ export function RegenerateSheet({
   const [comment, setComment] = useState('');
   const [itemId, setItemId] = useState<string | null>(null);
   const regenerate = useRegenerateFitting();
-  // «Какая именно?» (board 8.3): a look's items, once «Вещь» is checked.
-  const lookItems = fitting.kind === 'look' ? fitting.items : [];
+  // «Какая именно?» (board 8.3): a look's items in the slots' order, as its result lists them,
+  // once «Вещь» is checked.
+  const lookItems = fitting.kind === 'look' ? bySlot(fitting.items) : [];
   const asksItem = lookItems.length > 1 && reasons.includes('item');
   const itemName = asksItem
     ? (lookItems.find((item) => item.productId === itemId)?.name ?? null)
@@ -86,6 +88,7 @@ export function RegenerateSheet({
   const tracked = useTrackedElement('result.regenerate', {
     reasons: reasons.length,
     with_comment: comment.trim() !== '',
+    with_item: itemName !== null,
     free: fitting.regenerationFree,
   });
   const commentId = useId();

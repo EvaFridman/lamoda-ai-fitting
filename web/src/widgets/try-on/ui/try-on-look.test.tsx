@@ -351,6 +351,22 @@ describe('TryOn of a look: the picker (board 3.2)', () => {
     );
   });
 
+  it('starts one look for a double click while the first start is in flight (AC12)', async () => {
+    fetchMock.mockImplementation((url: string, init?: RequestInit) =>
+      init?.method === 'POST'
+        ? new Promise<Response>(() => undefined)
+        : Promise.resolve(route(String(url), init)),
+    );
+    const user = setup();
+    renderTryOn({ look: true });
+    await vi.waitFor(() => expect(start()).toBeEnabled());
+
+    await user.dblClick(start());
+
+    await vi.waitFor(() => expect(posts()).toHaveLength(1));
+    expect(posts()[0]?.path).toBe('/api/fittings');
+  });
+
   it('names the look, not an item, on the wait', async () => {
     const user = setup();
     renderTryOn({ look: true });

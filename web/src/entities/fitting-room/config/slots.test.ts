@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  bySlot,
   emptySlotCaption,
   OUTFIT_SLOTS,
   ROOM_CAPACITY,
@@ -24,6 +25,64 @@ describe('the slots', () => {
 
   it('name the outerwear in the accusative for the replace toast', () => {
     expect(SLOT_ACCUSATIVE.outerwear).toBe('верхнюю одежду');
+  });
+});
+
+describe('bySlot', () => {
+  it('orders items as the room does, whatever order they come in', () => {
+    const items = [
+      { id: 'accessory', slot: 'accessory' as const },
+      { id: 'shoes', slot: 'shoes' as const },
+      { id: 'top', slot: 'top' as const },
+      { id: 'outerwear', slot: 'outerwear' as const },
+      { id: 'bottom', slot: 'bottom' as const },
+    ];
+
+    expect(bySlot(items).map((item) => item.id)).toEqual([
+      'top',
+      'bottom',
+      'outerwear',
+      'shoes',
+      'accessory',
+    ]);
+  });
+
+  it('puts an item with no slot last', () => {
+    const items = [
+      { id: 'none', slot: null },
+      { id: 'accessory', slot: 'accessory' as const },
+      { id: 'top', slot: 'top' as const },
+    ];
+
+    expect(bySlot(items).map((item) => item.id)).toEqual(['top', 'accessory', 'none']);
+  });
+
+  it('keeps the input order for equal slots', () => {
+    const items = [
+      { id: 'n1', slot: null },
+      { id: 's1', slot: 'shoes' as const },
+      { id: 'n2', slot: null },
+      { id: 's2', slot: 'shoes' as const },
+    ];
+
+    expect(bySlot(items).map((item) => item.id)).toEqual(['s1', 's2', 'n1', 'n2']);
+  });
+
+  it('does not change the input', () => {
+    const items = [
+      { id: 'bottom', slot: 'bottom' as const },
+      { id: 'top', slot: 'top' as const },
+    ];
+    const copy = [...items];
+
+    const sorted = bySlot(items);
+
+    expect(items).toEqual(copy);
+    expect(sorted).not.toBe(items);
+  });
+
+  it('answers an empty list for an empty one', () => {
+    expect(bySlot([])).toEqual([]);
   });
 });
 

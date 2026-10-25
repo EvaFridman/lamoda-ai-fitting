@@ -7,8 +7,9 @@ import { useTrackedElement } from '@/shared/analytics';
 
 import { useRoomActions } from './use-room-actions';
 
-// The tracked places of the hanger and «К образу» (A90.9); the result's tile is not tracked (A90.11).
-export type LookToggleElement = 'catalog.to-look' | 'related.to-look' | 'buy-box.to-look';
+// The tracked places of the hanger, «К образу» (A90.9) and the result's tile (A94.1).
+export type LookToggleElement =
+  'catalog.to-look' | 'related.to-look' | 'buy-box.to-look' | 'result.to-look';
 
 export type LookAction = 'add' | 'replace' | 'remove';
 
@@ -29,7 +30,7 @@ export interface UseLookToggleOptions {
   slot: OutfitSlot;
   // The colour put with it: the buy box's choice; the cards' none.
   attributeValueId?: string | null;
-  // Its tracked element; none for the result's tile, which sends nothing.
+  // Its tracked element; none sends nothing.
   element?: LookToggleElement;
   // A visitor's click: the placer opens the sign-in window (A12, AC16).
   onSignIn: () => void;
@@ -50,7 +51,7 @@ export function useLookToggle({
   const room = useFittingRoom(signedIn);
   const actions = useRoomActions();
   const action = signedIn ? lookAction(room.data, product.id, slot) : 'add';
-  // A hook runs on every render: an untracked place takes an element and never sends it. The three
+  // A hook runs on every render: an untracked place takes an element and never sends it. The four
   // places share their properties; the catalog's types check them per element, so one stands in.
   const events = useTrackedElement((element ?? 'buy-box.to-look') as 'buy-box.to-look', {
     slot,

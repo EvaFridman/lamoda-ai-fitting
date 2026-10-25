@@ -16,7 +16,7 @@ import {
   timeLeftText,
   useStartLookFitting,
 } from '@/entities/fitting';
-import { OUTFIT_SLOTS } from '@/entities/fitting-room';
+import { bySlot, useFittingRoom } from '@/entities/fitting-room';
 import { CartStubButton, FavoriteStub, showStubToast } from '@/features/product-stubs';
 import { RegenerateSheet } from '@/features/regenerate-fitting';
 import { useTrackedElement } from '@/shared/analytics';
@@ -33,9 +33,7 @@ import styles from './look-result.module.scss';
 
 // A look's items in the slots' order (board 8: top, bottom, outerwear, shoes, accessory).
 export function itemsBySlot(items: readonly FittingItem[]): FittingItem[] {
-  const order = (item: FittingItem) =>
-    item.slot === null ? OUTFIT_SLOTS.length : OUTFIT_SLOTS.indexOf(item.slot);
-  return [...items].sort((a, b) => order(a) - order(b));
+  return bySlot(items);
 }
 
 // The item whose colour a regeneration over the result changes: «рубашка Annen, красный».
@@ -85,8 +83,14 @@ export function LookResult({
   const [itemsOpen, setItemsOpen] = useState(false);
   const start = useStartLookFitting();
   const regenerateElement = useTrackedElement('result.regenerate-open');
+  const room = useFittingRoom();
+  const roomElement = useTrackedElement('room.open', {
+    source: 'result',
+    items: room.data?.count ?? 0,
+  });
   const progress = useRunningProgress(running);
   const items = itemsBySlot(fitting.items);
+  const cartElement = useTrackedElement('result.add-to-cart-all', { items: items.length });
   const sum = items.reduce((total, item) => total + item.finalPrice, 0);
   const busy = running !== null || start.isPending;
   // The limit opens its card; anything else, the wishes refused on this start too, is said here.
@@ -171,7 +175,15 @@ export function LookResult({
     </Button>
   );
   const replace = (
-    <LinkButton className={styles.replace} onClick={onOpenRoom}>
+    <LinkButton
+      className={styles.replace}
+      onPointerEnter={roomElement.onPointerEnter}
+      onPointerLeave={roomElement.onPointerLeave}
+      onClick={() => {
+        roomElement.onClick();
+        onOpenRoom();
+      }}
+    >
       Заменить вещь в примерочной
     </LinkButton>
   );
@@ -214,7 +226,7 @@ export function LookResult({
             </span>
           </div>
           <div className={styles.buttons}>
-            <CartStubButton size={48} className={styles.grow}>
+            <CartStubButton size={48} className={styles.grow} events={cartElement}>
               Всё в корзину
             </CartStubButton>
             <Button size={48} variant="outline" onClick={() => setItemsOpen(true)}>
@@ -235,7 +247,7 @@ export function LookResult({
             footer={
               <div className={styles.footer}>
                 <div className={styles.buttons}>
-                  <CartStubButton size={48} className={styles.grow}>
+                  <CartStubButton size={48} className={styles.grow} events={cartElement}>
                     Всё в корзину · {formatPrice(sum)}
                   </CartStubButton>
                   <FavoriteStub size={48} />
@@ -256,10 +268,10 @@ export function LookResult({
           </p>
           {list}
           <div className={styles.buttons}>
-            <CartStubButton size={56} className={styles.grow}>
+            <CartStubButton size={56} className={styles.wide} events={cartElement}>
               Всё в корзину · {itemsText(items.length)}
             </CartStubButton>
-            <Button size={56} variant="outline" onClick={showStubToast}>
+            <Button size={56} variant="outline" className={styles.wide} onClick={showStubToast}>
               <HeartIcon />
               Всё в избранное
             </Button>

@@ -331,6 +331,21 @@ describe('/me/fitting-room (spec 0019 A86, AC13, AC28)', () => {
       expect(body.room.items[0]).toMatchObject({ product: { id: top.id }, colour: 'Синий' });
     });
 
+    it('concurrent PUTs of different products to one slot all succeed and leave one row', async () => {
+      const who = await signIn(testApp.app);
+      const products = [await inSlot('top'), await inSlot('top'), await inSlot('top')];
+
+      const responses = await Promise.all(
+        products.map((top) => put(who, 'top', { productId: top.id })),
+      );
+
+      expect(responses.map((response) => response.status)).toEqual([200, 200, 200]);
+      const rows = await rowsOf(who.userId);
+      expect(rows).toHaveLength(1);
+      expect(products.map((top) => top.id)).toContain(rows[0]?.productId);
+      expect((await room(who)).count).toBe(1);
+    });
+
     describe('refusals', () => {
       async function expectRefused(
         who: SignedIn,

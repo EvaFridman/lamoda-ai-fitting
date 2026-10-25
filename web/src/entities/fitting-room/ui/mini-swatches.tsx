@@ -1,5 +1,7 @@
 'use client';
 
+import type { HTMLAttributes } from 'react';
+
 import { type HexColor, SwatchDot } from '@/shared/ui';
 
 import styles from './mini-swatches.module.scss';
@@ -20,6 +22,8 @@ export interface MiniSwatchesProps {
   // Off while a choice is being applied (a look's colour regenerating, board 8.2).
   disabled?: boolean;
   className?: string;
+  // The placer's hover handlers, on the row of circles; none starts while it is off.
+  events?: Pick<HTMLAttributes<HTMLDivElement>, 'onPointerEnter' | 'onPointerLeave'>;
 }
 
 // Board 13's MiniSwatches: a compact colour choice in lists, a row of 22px circles as the kit's
@@ -32,11 +36,18 @@ export function MiniSwatches({
   onValueChange,
   disabled = false,
   className,
+  events,
 }: MiniSwatchesProps) {
   const chosen = colours.find((colour) => colour.id === value);
   return (
     <div className={[styles.swatches, className].filter(Boolean).join(' ')}>
-      <div role="group" aria-label={label} className={styles.row}>
+      <div
+        role="group"
+        aria-label={label}
+        className={styles.row}
+        onPointerEnter={disabled ? undefined : events?.onPointerEnter}
+        onPointerLeave={events?.onPointerLeave}
+      >
         {colours.map((colour) => (
           <button
             key={colour.id}

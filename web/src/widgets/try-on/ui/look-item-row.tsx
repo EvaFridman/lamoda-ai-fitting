@@ -7,6 +7,7 @@ import type { FittingItem } from '@/entities/fitting';
 import { MiniSwatches } from '@/entities/fitting-room';
 import { productColours, useProduct } from '@/entities/product';
 import { CartStubButton, FavoriteStub } from '@/features/product-stubs';
+import { useTrackedElement } from '@/shared/analytics';
 import { Price } from '@/shared/ui';
 
 import styles from './look-result.module.scss';
@@ -26,6 +27,9 @@ export function LookItemRow({ item, disabled, onColour }: LookItemRowProps) {
   const product = useProduct(item.productId);
   const colours = productColours(product.data);
   const href = `/products/${encodeURIComponent(item.productId)}`;
+  // An item with no slot sends no colour (A94.2): the hook runs, its handlers are not used.
+  const colourElement = useTrackedElement('result.item-colour', { slot: item.slot ?? 'top' });
+  const cartElement = useTrackedElement('result.add-to-cart', { kind: 'look' });
   return (
     <div className={styles.row}>
       <NextLink href={href} prefetch={false} className={styles.rowImage} tabIndex={-1} aria-hidden>
@@ -46,15 +50,18 @@ export function LookItemRow({ item, disabled, onColour }: LookItemRowProps) {
             colours={colours}
             value={item.attributeValueId}
             disabled={disabled}
+            events={item.slot === null ? undefined : colourElement}
             onValueChange={(id) => {
-              if (id !== item.attributeValueId) onColour(id);
+              if (id === item.attributeValueId) return;
+              if (item.slot !== null) colourElement.onClick();
+              onColour(id);
             }}
           />
         ) : (
           colours.length === 1 && <span className={styles.muted}>один цвет</span>
         )}
       </div>
-      <CartStubButton size={32} textSize="body-s" className={styles.rowCart}>
+      <CartStubButton size={32} textSize="body-s" className={styles.rowCart} events={cartElement}>
         В корзину
       </CartStubButton>
       <FavoriteStub size={32} />

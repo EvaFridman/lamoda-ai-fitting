@@ -1,7 +1,8 @@
 'use client';
 
 import { ItemsStrip } from '@/entities/fitting';
-import type { FittingRoom } from '@/entities/fitting-room';
+import { type FittingRoom, useFittingRoom } from '@/entities/fitting-room';
+import { useTrackedElement } from '@/shared/analytics';
 import { formatPrice, plural } from '@/shared/lib';
 import { LinkButton } from '@/shared/ui';
 
@@ -38,8 +39,14 @@ export interface LookSubjectProps {
   onChange: () => void;
 }
 
-// Board 3.2's ItemsStrip row: the look's pictures, «Образ · N вещей», the sum and «Изменить».
+// Board 3.2's ItemsStrip row: the look's pictures, «Образ · N вещей», the sum and «Изменить»
+// (`room.open` from `picker`, A94.4).
 export function LookSubject({ look, onChange }: LookSubjectProps) {
+  const room = useFittingRoom();
+  const tracked = useTrackedElement('room.open', {
+    source: 'picker',
+    items: room.data?.count ?? 0,
+  });
   return (
     <div className={styles.subject}>
       <ItemsStrip items={look.items} />
@@ -47,7 +54,16 @@ export function LookSubject({ look, onChange }: LookSubjectProps) {
         <span>Образ · {itemsText(look.items.length)}</span>
         <b>{formatPrice(look.sum)}</b>
       </span>
-      <LinkButton onClick={onChange}>Изменить</LinkButton>
+      <LinkButton
+        onPointerEnter={tracked.onPointerEnter}
+        onPointerLeave={tracked.onPointerLeave}
+        onClick={() => {
+          tracked.onClick();
+          onChange();
+        }}
+      >
+        Изменить
+      </LinkButton>
     </div>
   );
 }

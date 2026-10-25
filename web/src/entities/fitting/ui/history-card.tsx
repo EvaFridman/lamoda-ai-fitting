@@ -38,9 +38,9 @@ export function itemLabel(item: Pick<Fitting['items'][number], 'name' | 'colour'
   return item.colour ? `${item.name} · ${item.colour}` : item.name;
 }
 
-// Board 9's kind badge: «Перегенерация» for a regeneration, «Образ» for a look, none for one item.
-export function kindBadge(fitting: Pick<Fitting, 'kind' | 'parentId'>): string | null {
-  if (fitting.parentId !== null) return 'Перегенерация';
+// Board 9's kind badge: «Образ» for a look, none for one item; a regeneration has none of its own
+// (A95, over the board's «Перегенерация»).
+export function kindBadge(fitting: Pick<Fitting, 'kind'>): string | null {
   return fitting.kind === 'look' ? 'Образ' : null;
 }
 

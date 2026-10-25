@@ -758,12 +758,13 @@ export const catalog = defineCatalog({
       zone: 'fitting',
       type: 'interaction',
       description:
-        '«Перегенерировать» в шторке «Что поменять?». `reasons` — сколько причин отмечено, `with_comment` — есть ли комментарий (сам текст не отправляется), `free` — бесплатна ли эта перегенерация.',
+        '«Перегенерировать» в шторке «Что поменять?». `reasons` — сколько причин отмечено, `with_comment` — есть ли набранный комментарий (сам текст не отправляется), `with_item` — выбрана ли вещь в «Какая именно?» (только у образа с причиной «Вещь»; отправки до этого свойства его не имеют, поэтому отчёт фильтрует `with_item == true`, а не `!= false`), `free` — бесплатна ли эта перегенерация.',
       clicksPerVisit: 0.004,
       hoversPerVisit: 0.003,
       properties: {
         reasons: { kind: 'number' },
         with_comment: { kind: 'boolean' },
+        with_item: { kind: 'boolean' },
         free: { kind: 'boolean' },
       },
     },
@@ -771,9 +772,36 @@ export const catalog = defineCatalog({
       zone: 'fitting',
       type: 'interaction',
       description:
-        '«Добавить в корзину» («В корзину» на телефоне) у вещи результата: заглушка, показывает уведомление, что в прототипе нет корзины.',
+        '«Добавить в корзину» («В корзину» на телефоне) у вещи результата: заглушка, показывает уведомление, что в прототипе нет корзины. `kind` — результат одной вещи или строка вещи в образе; отправки до этого свойства все про одну вещь, поэтому отчёт по образу фильтрует `kind == look`, а по одной вещи `kind != look`.',
+      clicksPerVisit: 0.005,
+      hoversPerVisit: 0.008,
+      properties: { kind: { kind: 'enum', values: ['single', 'look'] } },
+    },
+    'result.add-to-cart-all': {
+      zone: 'fitting',
+      type: 'interaction',
+      description:
+        '«Всё в корзину» на результате образа (на телефоне и в шторке «Вещи образа»): заглушка, показывает уведомление, что в прототипе нет корзины. `items` — сколько вещей в образе.',
       clicksPerVisit: 0.004,
       hoversPerVisit: 0.006,
+      properties: { items: { kind: 'number' } },
+    },
+    'result.item-colour': {
+      zone: 'fitting',
+      type: 'interaction',
+      description:
+        'Другой цвет вещи в «Вещах образа»: весь образ примеряется заново на том же фото (сама примерка — `Fitting Started` с `source: colour`). `slot` — слот вещи. Текущий цвет и отключённые кружки ничего не шлют, вещь без слота тоже. Id товара и цвет не отправляются. Наведение — на ряд кружков вещи.',
+      clicksPerVisit: 0.003,
+      hoversPerVisit: 0.005,
+      properties: { slot },
+    },
+    'result.to-look': {
+      zone: 'fitting',
+      type: 'interaction',
+      description: `Плитка «К образу» / «В образе» под результатом одной вещи (у результата образа её нет). ${toLookNote} Здесь \`signed_in\` всегда \`true\`: примерка только у вошедшего.`,
+      clicksPerVisit: 0.005,
+      hoversPerVisit: 0.008,
+      properties: { slot, action: lookAction, signed_in: { kind: 'boolean' } },
     },
     'result.other-photo': {
       zone: 'fitting',
@@ -804,11 +832,11 @@ export const catalog = defineCatalog({
       zone: 'fitting',
       type: 'interaction',
       description:
-        'Открытие примерочной. `source` — откуда: `header` — значок «Примерочная» в шапке, `toast` — «Открыть» в уведомлении «… в примерочной», `limit` — «Перейти в примерочную» на карточке лимита в окне примерки. `items` — сколько вещей в примерочной (0–5).',
-      clicksPerVisit: 0.08,
-      hoversPerVisit: 0.05,
+        'Открытие примерочной. `source` — откуда: `header` — значок «Примерочная» в шапке, `toast` — «Открыть» в уведомлении «… в примерочной», `limit` — «Перейти в примерочную» на карточке лимита в окне примерки, `picker` — «Изменить» у образа на выборе фото, `result` — «Заменить вещь в примерочной» на результате образа (окно примерки закрывается). `items` — сколько вещей в примерочной (0–5).',
+      clicksPerVisit: 0.085,
+      hoversPerVisit: 0.055,
       properties: {
-        source: { kind: 'enum', values: ['header', 'toast', 'limit'] },
+        source: { kind: 'enum', values: ['header', 'toast', 'limit', 'picker', 'result'] },
         items: { kind: 'number' },
       },
     },
