@@ -14,7 +14,7 @@ import {
 import type { ProductListItem } from '@/entities/product';
 import { ApiError } from '@/shared/api';
 
-import { useRoomActions } from './use-room-actions';
+import { resetRoomWrites, useRoomActions } from './use-room-actions';
 
 type MockSession =
   | { status: 'signed-in'; user: { id: string; email: string; name: string | null } }
@@ -138,6 +138,7 @@ const elementClicks = () =>
   mocks.track.mock.calls.filter(([name]) => name === 'Element Clicked').map(([, event]) => event);
 
 beforeEach(() => {
+  resetRoomWrites();
   mocks.showToast.mockReset();
   mocks.reportFailure.mockReset();
   mocks.track.mockReset();

@@ -53,6 +53,14 @@ let overlapped = false;
 // next write's answer reads the room again instead of going over the cache it left.
 let readCancelled = false;
 
+// The tab's write state as at load: for tests only, so one that leaves a write unanswered does not
+// change the next one's.
+export function resetRoomWrites(): void {
+  writesInFlight = 0;
+  overlapped = false;
+  readCancelled = false;
+}
+
 function startWrite(): void {
   if (writesInFlight > 0) overlapped = true;
   writesInFlight += 1;
