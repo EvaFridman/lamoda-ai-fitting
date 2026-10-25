@@ -183,6 +183,40 @@ describe('AccountShell', () => {
     });
   });
 
+  describe('title and back', () => {
+    it('shows its own title in place of the section title', () => {
+      signedIn();
+      render(
+        <AccountShell section="fittings" title="Сравнение">
+          {CHILD}
+        </AccountShell>,
+      );
+      expect(screen.getByRole('heading', { level: 1, name: 'Сравнение' })).toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'Мои примерки' })).not.toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Мои примерки' })).toHaveAttribute(
+        'aria-current',
+        'page',
+      );
+    });
+
+    it('shows its own back in place of «Личный кабинет»', () => {
+      signedIn();
+      render(
+        <AccountShell section="fittings" back={<a href="/customer/fittings">← История</a>}>
+          {CHILD}
+        </AccountShell>,
+      );
+      expect(screen.getByRole('link', { name: '← История' })).toBeInTheDocument();
+      expect(backLink()).toBeUndefined();
+    });
+
+    it('keeps the section title and the back to the list without them', () => {
+      render(<AccountShell section="fittings" />);
+      expect(screen.getByRole('heading', { level: 1, name: 'Мои примерки' })).toBeInTheDocument();
+      expect(backLink()).toBeDefined();
+    });
+  });
+
   describe('menu', () => {
     it('lists the five sections in order with their links', () => {
       signedIn();

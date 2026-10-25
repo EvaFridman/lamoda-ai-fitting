@@ -33,6 +33,11 @@ describe('stripStoredReferrer', () => {
       'https://lamoda-ai-fitting.ru/customer/fittings?fitting=3f2b8c1e',
       'https://lamoda-ai-fitting.ru/customer/fittings',
     ],
+    [
+      'the compared fittings',
+      'https://lamoda-ai-fitting.ru/customer/fittings/compare?a=3f2b8c1e&b=9d0e4a7c',
+      'https://lamoda-ai-fitting.ru/customer/fittings/compare',
+    ],
   ])('registers the referrer without %s', (_, stored, stripped) => {
     const mixpanel = sdk(stored);
     stripStoredReferrer(mixpanel);
@@ -82,8 +87,8 @@ describe('stripAttributes without URL.canParse', () => {
 });
 
 describe('stripAttributes drops the fitting parameter from every address', () => {
-  const withFitting = 'https://lamoda-ai-fitting.ru/customer/fittings?fitting=3f2b8c1e&a=1';
-  const without = 'https://lamoda-ai-fitting.ru/customer/fittings?a=1';
+  const withFitting = 'https://lamoda-ai-fitting.ru/customer/fittings?fitting=3f2b8c1e&tab=1';
+  const without = 'https://lamoda-ai-fitting.ru/customer/fittings?tab=1';
 
   it.each(['$current_url', '$referrer', '$initial_referrer'])('in %s', (key) => {
     const [, props] = stripAttributes('$mp_web_page_view', { [key]: withFitting });
@@ -92,11 +97,25 @@ describe('stripAttributes drops the fitting parameter from every address', () =>
 
   it('in current_url_search, a bare query', () => {
     expect(
-      stripAttributes('$mp_web_page_view', { current_url_search: '?fitting=3f2b8c1e&a=1' })[1],
-    ).toEqual({ current_url_search: '?a=1' });
+      stripAttributes('$mp_web_page_view', { current_url_search: '?fitting=3f2b8c1e&tab=1' })[1],
+    ).toEqual({ current_url_search: '?tab=1' });
     expect(
       stripAttributes('$mp_web_page_view', { current_url_search: '?fitting=3f2b8c1e' })[1],
     ).toEqual({ current_url_search: '' });
+  });
+
+  it('drops the compare page ids a and b from the addresses and the query', () => {
+    const [, props] = stripAttributes('$mp_web_page_view', {
+      $current_url: 'https://lamoda-ai-fitting.ru/customer/fittings/compare?a=1&b=2',
+      current_url_search: '?a=1&b=2',
+    });
+    expect(props).toEqual({
+      $current_url: 'https://lamoda-ai-fitting.ru/customer/fittings/compare',
+      current_url_search: '',
+    });
+    expect(
+      stripAttributes('$mp_web_page_view', { current_url_search: '?a=1&sort=new&b=2' })[1],
+    ).toEqual({ current_url_search: '?sort=new' });
   });
 
   it('keeps an address with no fitting as it is', () => {

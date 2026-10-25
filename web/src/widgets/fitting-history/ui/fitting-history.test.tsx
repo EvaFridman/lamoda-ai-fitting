@@ -3,11 +3,20 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { FittingHistory } from './fitting-history';
+import { FittingHistory, REPEAT_TOAST } from './fitting-history';
 
-const mocks = vi.hoisted(() => ({ track: vi.fn(), captureException: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  track: vi.fn(),
+  captureException: vi.fn(),
+  showToast: vi.fn(),
+}));
 
 vi.mock('@sentry/nextjs', () => ({ captureException: mocks.captureException }));
+
+vi.mock('@/shared/ui', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/shared/ui')>()),
+  showToast: mocks.showToast,
+}));
 
 vi.mock('@/shared/analytics/client', () => ({
   identify: vi.fn(),
@@ -335,7 +344,7 @@ describe('FittingHistory card menu', () => {
     });
   }
 
-  it('offers «Открыть», «Скачать» and «Удалить» for a result and tracks the «⋯»', async () => {
+  it('offers the actions of board 9 for a result and tracks the «⋯»', async () => {
     api({ 'all:': { items: [fitting(1)], total: 1, nextCursor: null } });
     const user = setup();
     renderHistory();
@@ -344,6 +353,8 @@ describe('FittingHistory card menu', () => {
 
     expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
       'Открыть',
+      'Примерить ещё раз',
+      'Поделиться',
       'Скачать',
       'Удалить',
     ]);
@@ -415,6 +426,7 @@ describe('FittingHistory card menu', () => {
 
     expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
       'Открыть',
+      'Примерить ещё раз',
       'Удалить',
     ]);
   });
@@ -515,5 +527,502 @@ describe('FittingHistory card sheet on a phone', () => {
 
     expect(within(sheet).queryByRole('button', { name: 'Удалить' })).not.toBeInTheDocument();
     expect(within(sheet).queryByRole('button', { name: 'Скачать' })).not.toBeInTheDocument();
+  });
+});
+
+type Post = () => Promise<Response>;
+
+// GET /fittings answers the one page; POST /fittings answers `post`.
+function apiWithStart(items: unknown[], post: Post) {
+  fetchMock.mockImplementation((_url: unknown, init?: RequestInit) =>
+    init?.method === 'POST' ? post() : json({ items, total: items.length, nextCursor: null }),
+  );
+}
+
+function posts() {
+  return fetchMock.mock.calls.filter(
+    ([, init]) => (init as RequestInit | undefined)?.method === 'POST',
+  );
+}
+
+function postedBody(): unknown {
+  return JSON.parse(String((posts()[0]?.[1] as RequestInit).body));
+}
+
+async function openCardMenu(user: ReturnType<typeof setup>, index = 0) {
+  await screen.findAllByRole('button', { name: 'Действия' });
+  const trigger = screen.getAllByRole('button', { name: 'Действия' })[index] as HTMLElement;
+  await vi.waitFor(async () => {
+    if (trigger.getAttribute('aria-expanded') !== 'true') await user.click(trigger);
+    expect(trigger).toHaveAttribute('aria-expanded', 'true');
+  });
+}
+
+describe('FittingHistory «Примерить ещё раз» (AC17)', () => {
+  const first = fitting(1, {
+    items: [{ ...fitting(1).items[0], attributeValueId: uuid(301) }],
+    promptText: ' Светлее ',
+  });
+
+  it('sends the same photo, items, colours and wishes', async () => {
+    apiWithStart([first], () => json({ ...first, status: 'pending', repeated: false }, 201));
+    const user = setup();
+    renderHistory();
+
+    await openCardMenu(user);
+    await user.click(screen.getByRole('menuitem', { name: 'Примерить ещё раз' }));
+
+    await vi.waitFor(() => expect(posts()).toHaveLength(1));
+    expect(new URL(String(posts()[0]?.[0])).pathname).toBe('/api/fittings');
+    expect(postedBody()).toEqual({
+      photoId: uuid(200),
+      kind: 'single',
+      items: [{ productId: uuid(101), attributeValueId: uuid(301) }],
+      promptText: 'Светлее',
+    });
+    expect(mocks.track).toHaveBeenCalledWith(
+      'Element Clicked',
+      clicked('history.repeat', { kind: 'single', status: 'completed' }),
+    );
+  });
+
+  it('an earlier result says the limit was not spent, and its «Открыть» opens it', async () => {
+    const earlier = { ...first, id: uuid(9), repeated: true };
+    apiWithStart([first], () => json(earlier, 200));
+    const user = setup();
+    const { onOpen } = renderHistory();
+
+    await openCardMenu(user);
+    await user.click(screen.getByRole('menuitem', { name: 'Примерить ещё раз' }));
+
+    await vi.waitFor(() => expect(mocks.showToast).toHaveBeenCalledOnce());
+    expect(REPEAT_TOAST).toBe(
+      'Такая примерка уже есть — открыли готовый результат. Лимит не потрачен.',
+    );
+    const toast = mocks.showToast.mock.calls[0]?.[0] as {
+      title: string;
+      actionLabel: string;
+      onAction: () => void;
+    };
+    expect(toast).toMatchObject({ title: REPEAT_TOAST, actionLabel: 'Открыть' });
+    expect(onOpen).not.toHaveBeenCalled();
+    expect(mocks.track).toHaveBeenCalledWith(
+      'Fitting Completed',
+      expect.objectContaining({ repeated: true, duration: 0, counts_against_limit: false }),
+    );
+
+    toast.onAction();
+
+    expect(onOpen).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ id: uuid(9) }));
+    expect(mocks.track).toHaveBeenCalledWith(
+      'Element Clicked',
+      clicked('fitting-toast.open', { kind: 'single' }),
+    );
+  });
+
+  it('a new start opens its wait at once, with no toast', async () => {
+    const started = { ...first, id: uuid(8), status: 'pending', repeated: false };
+    apiWithStart([first], () => json(started, 201));
+    const user = setup();
+    const { onOpen } = renderHistory();
+
+    await openCardMenu(user);
+    await user.click(screen.getByRole('menuitem', { name: 'Примерить ещё раз' }));
+
+    await vi.waitFor(() =>
+      expect(onOpen).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ id: uuid(8) })),
+    );
+    expect(mocks.showToast).not.toHaveBeenCalled();
+  });
+
+  it('sends one start for a double click while the first is in flight', async () => {
+    apiWithStart([first], () => new Promise<Response>(() => undefined));
+    const user = setup();
+    renderHistory();
+
+    await openCardMenu(user);
+    await user.click(screen.getByRole('menuitem', { name: 'Примерить ещё раз' }));
+    await vi.waitFor(() => expect(posts()).toHaveLength(1));
+    const again = screen.queryByRole('menuitem', { name: 'Примерить ещё раз' });
+    if (again) await user.click(again);
+    else {
+      await openCardMenu(user);
+      await user.click(screen.getByRole('menuitem', { name: 'Примерить ещё раз' }));
+    }
+
+    expect(posts()).toHaveLength(1);
+  });
+
+  it('opens nothing from the picture while the repeat runs, and opens it after the answer', async () => {
+    let answer: (response: Response) => void = () => undefined;
+    const earlier = { ...first, id: uuid(9), repeated: true };
+    apiWithStart(
+      [first],
+      () =>
+        new Promise<Response>((resolve) => {
+          answer = resolve;
+        }),
+    );
+    const user = setup();
+    const { onOpen } = renderHistory();
+
+    await openCardMenu(user);
+    await user.click(screen.getByRole('menuitem', { name: 'Примерить ещё раз' }));
+    await vi.waitFor(() => expect(posts()).toHaveLength(1));
+    await user.click(screen.getByRole('button', { name: 'Открыть примерку' }));
+    expect(onOpen).not.toHaveBeenCalled();
+
+    answer(await json(earlier, 200));
+    await vi.waitFor(() => expect(mocks.showToast).toHaveBeenCalledOnce());
+    expect(onOpen).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Открыть примерку' }));
+    expect(onOpen).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ id: first.id }));
+  });
+
+  it('shows the api’s text in an error toast when the limit is reached', async () => {
+    apiWithStart([first], () => apiError(409, 'LIMIT_REACHED'));
+    const user = setup();
+    const { onOpen } = renderHistory();
+
+    await openCardMenu(user);
+    await user.click(screen.getByRole('menuitem', { name: 'Примерить ещё раз' }));
+
+    await vi.waitFor(() => expect(mocks.showToast).toHaveBeenCalledOnce());
+    expect(mocks.showToast).toHaveBeenCalledWith({
+      title: expect.stringContaining('лимит'),
+      tone: 'error',
+    });
+    expect(onOpen).not.toHaveBeenCalled();
+    expect(mocks.track).toHaveBeenCalledWith('Fitting Refused', {
+      kind: 'single',
+      reason: 'limit_reached',
+    });
+  });
+
+  it('tries a failed entry on again with its status in the event', async () => {
+    const failed = fitting(1, { status: 'failed', resultUrl: null });
+    apiWithStart([failed], () => json({ ...failed, status: 'pending', repeated: false }, 201));
+    const user = setup();
+    renderHistory();
+
+    await openCardMenu(user);
+    await user.click(screen.getByRole('menuitem', { name: 'Примерить ещё раз' }));
+
+    await vi.waitFor(() => expect(posts()).toHaveLength(1));
+    expect(mocks.track).toHaveBeenCalledWith(
+      'Element Clicked',
+      clicked('history.repeat', { kind: 'single', status: 'failed' }),
+    );
+  });
+
+  it('is disabled with «Фото удалено» once the photo is gone, and sends nothing', async () => {
+    apiWithStart([fitting(1, { photoId: null })], () => json({}, 201));
+    const user = setup();
+    renderHistory();
+
+    await openCardMenu(user);
+    const item = screen.getByRole('menuitem', { name: /Примерить ещё раз/ });
+
+    expect(item).toHaveTextContent('Фото удалено');
+    expect(item).toHaveAttribute('aria-disabled', 'true');
+    await user.click(item);
+    expect(posts()).toHaveLength(0);
+    expect(mocks.showToast).not.toHaveBeenCalled();
+  });
+
+  it('sends nothing for «Поделиться»', async () => {
+    apiWithStart([first], () => json({}, 201));
+    const user = setup();
+    renderHistory();
+
+    await openCardMenu(user);
+    const share = screen.getByRole('menuitem', { name: 'Поделиться' });
+    expect(share).toHaveAttribute('aria-disabled', 'true');
+    await user.click(share);
+
+    expect(posts()).toHaveLength(0);
+    expect(mocks.track).not.toHaveBeenCalledWith(
+      'Element Clicked',
+      expect.objectContaining({ element: expect.stringContaining('share') }),
+    );
+  });
+
+  it('has no «Поделиться» for a failed entry', async () => {
+    apiWithStart([fitting(1, { status: 'failed', resultUrl: null })], () => json({}, 201));
+    const user = setup();
+    renderHistory();
+
+    await openCardMenu(user);
+
+    expect(screen.queryByRole('menuitem', { name: 'Поделиться' })).not.toBeInTheDocument();
+  });
+});
+
+describe('FittingHistory sheet on a phone: repeat and compare', () => {
+  const NOTICE = /с теми же фото, вещами и цветами откроет готовый результат и не потратит лимит/;
+
+  async function openSheet(user: ReturnType<typeof setup>) {
+    await user.click(
+      (await screen.findAllByRole('button', { name: 'Действия' }))[0] as HTMLElement,
+    );
+    return await screen.findByRole('dialog');
+  }
+
+  it('offers «Сравнить с другой» for a result with the note that a repeat spends nothing', async () => {
+    stubPhone();
+    apiWithStart([fitting(1), fitting(2)], () => json({}, 201));
+    renderHistory();
+    const sheet = await openSheet(setup());
+
+    expect(within(sheet).getByRole('button', { name: 'Сравнить с другой' })).toBeInTheDocument();
+    expect(within(sheet).getByText(NOTICE)).toBeInTheDocument();
+    expect(within(sheet).getByRole('button', { name: 'Поделиться' })).toBeDisabled();
+  });
+
+  it('does not offer «Сравнить с другой» when the tab has one result only', async () => {
+    stubPhone();
+    apiWithStart([fitting(1), fitting(2, { status: 'failed', resultUrl: null })], () =>
+      json({}, 201),
+    );
+    renderHistory();
+    const sheet = await openSheet(setup());
+
+    expect(
+      within(sheet).queryByRole('button', { name: 'Сравнить с другой' }),
+    ).not.toBeInTheDocument();
+    expect(within(sheet).getByRole('button', { name: 'Примерить ещё раз' })).toBeEnabled();
+  });
+
+  it('has neither the compare nor the note for a failed entry', async () => {
+    stubPhone();
+    apiWithStart([fitting(1, { status: 'failed', resultUrl: null })], () => json({}, 201));
+    renderHistory();
+    const sheet = await openSheet(setup());
+
+    expect(within(sheet).getByRole('button', { name: 'Примерить ещё раз' })).toBeEnabled();
+    expect(
+      within(sheet).queryByRole('button', { name: 'Сравнить с другой' }),
+    ).not.toBeInTheDocument();
+    expect(within(sheet).queryByText(NOTICE)).not.toBeInTheDocument();
+  });
+
+  it('has no note when the photo is gone, and the repeat is disabled with its hint', async () => {
+    stubPhone();
+    apiWithStart([fitting(1, { photoId: null })], () => json({}, 201));
+    renderHistory();
+    const sheet = await openSheet(setup());
+
+    const repeat = within(sheet).getByRole('button', { name: /Примерить ещё раз/ });
+    expect(repeat).toBeDisabled();
+    expect(repeat).toHaveTextContent('Фото удалено');
+    expect(within(sheet).queryByText(NOTICE)).not.toBeInTheDocument();
+  });
+
+  it('has only «Открыть» for a running entry', async () => {
+    stubPhone();
+    apiWithStart([fitting(1, { status: 'processing', resultUrl: null })], () => json({}, 201));
+    renderHistory();
+    const sheet = await openSheet(setup());
+
+    expect(
+      within(sheet)
+        .getAllByRole('button')
+        .map((button) => button.textContent),
+    ).toEqual(expect.arrayContaining(['Открыть']));
+    expect(within(sheet).queryByRole('button', { name: /Примерить ещё раз/ })).toBeNull();
+    expect(within(sheet).queryByRole('button', { name: 'Сравнить с другой' })).toBeNull();
+  });
+
+  it('«Сравнить с другой» starts the selection with that entry chosen and tracks it', async () => {
+    stubPhone();
+    apiWithStart([fitting(1), fitting(2)], () => json({}, 201));
+    renderHistory();
+    const sheet = await openSheet(setup());
+
+    await setup().click(within(sheet).getByRole('button', { name: 'Сравнить с другой' }));
+
+    expect(await screen.findByText('Выбрано 1 из 2')).toBeInTheDocument();
+    const boxes = screen.getAllByRole('checkbox', { name: 'Выбрать для сравнения' });
+    expect(boxes.map((box) => box.getAttribute('aria-checked'))).toEqual(['true', 'false']);
+    expect(mocks.track).toHaveBeenCalledWith(
+      'Element Clicked',
+      clicked('history.compare', { from: 'sheet' }),
+    );
+  });
+});
+
+describe('FittingHistory compare selection (AC18)', () => {
+  const results = () => [fitting(1), fitting(2), fitting(3)];
+
+  it('offers «Сравнить» only with two results in the tab', async () => {
+    apiWithStart([fitting(1), fitting(2, { status: 'failed', resultUrl: null })], () =>
+      json({}, 201),
+    );
+    renderHistory();
+    await screen.findByText('Рубашка 1 · белый');
+
+    expect(screen.queryByRole('button', { name: 'Сравнить' })).not.toBeInTheDocument();
+  });
+
+  it('does not count a running or failed entry as a result to compare', async () => {
+    apiWithStart(
+      [
+        fitting(1),
+        fitting(2, { status: 'processing', resultUrl: null }),
+        fitting(3, { status: 'failed', resultUrl: null }),
+      ],
+      () => json({}, 201),
+    );
+    renderHistory();
+    await screen.findByText('Рубашка 1 · белый');
+
+    expect(screen.queryByRole('button', { name: 'Сравнить' })).not.toBeInTheDocument();
+  });
+
+  it('shows the button with two results, tracks it and shows a box per result only', async () => {
+    apiWithStart([fitting(1), fitting(2), fitting(3, { status: 'failed', resultUrl: null })], () =>
+      json({}, 201),
+    );
+    renderHistory();
+    await setup().click(await screen.findByRole('button', { name: 'Сравнить' }));
+
+    expect(mocks.track).toHaveBeenCalledWith(
+      'Element Clicked',
+      clicked('history.compare', { from: 'button' }),
+    );
+    expect(screen.getByText('Выбрано 0 из 2')).toBeInTheDocument();
+    expect(screen.getAllByRole('checkbox', { name: 'Выбрать для сравнения' })).toHaveLength(2);
+    expect(screen.getByRole('button', { name: 'Сравнить' })).toBeDisabled();
+  });
+
+  it('the picture chooses instead of opening, and two chosen make the link', async () => {
+    apiWithStart(results(), () => json({}, 201));
+    const user = setup();
+    const { onOpen } = renderHistory();
+    await user.click(await screen.findByRole('button', { name: 'Сравнить' }));
+
+    const pictures = screen.getAllByRole('button', { name: 'Выбрать для сравнения' });
+    expect(pictures).toHaveLength(3);
+    expect(screen.queryByRole('button', { name: 'Открыть примерку' })).not.toBeInTheDocument();
+    await user.click(pictures[0] as HTMLElement);
+    expect(pictures[0]).toHaveAccessibleName('Снять выбор для сравнения');
+    await user.click(pictures[2] as HTMLElement);
+
+    expect(onOpen).not.toHaveBeenCalled();
+    expect(mocks.track).not.toHaveBeenCalledWith(
+      'Element Clicked',
+      expect.objectContaining({ element: 'history.open' }),
+    );
+    expect(screen.getByText('Выбрано 2 из 2')).toBeInTheDocument();
+    const link = screen.getByRole('link', { name: 'Сравнить' });
+    expect(link).toHaveAttribute('href', `/customer/fittings/compare?a=${uuid(1)}&b=${uuid(3)}`);
+    expect(link).toHaveClass('mp-block');
+  });
+
+  it('dims the box of a third entry and lets a chosen one go', async () => {
+    apiWithStart(results(), () => json({}, 201));
+    const user = setup();
+    renderHistory();
+    await user.click(await screen.findByRole('button', { name: 'Сравнить' }));
+    const boxes = () => screen.getAllByRole('checkbox', { name: 'Выбрать для сравнения' });
+
+    await user.click(boxes()[0] as HTMLElement);
+    await user.click(boxes()[1] as HTMLElement);
+
+    expect(boxes()[2]).toBeDisabled();
+    await user.click(boxes()[0] as HTMLElement);
+    expect(screen.getByText('Выбрано 1 из 2')).toBeInTheDocument();
+    expect(boxes()[2]).toBeEnabled();
+  });
+
+  it('«Отмена» leaves the mode, and the pictures open again', async () => {
+    apiWithStart(results(), () => json({}, 201));
+    const user = setup();
+    const { onOpen } = renderHistory();
+    await user.click(await screen.findByRole('button', { name: 'Сравнить' }));
+    await user.click(
+      screen.getAllByRole('checkbox', { name: 'Выбрать для сравнения' })[0] as HTMLElement,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Отмена' }));
+
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Сравнить' })).toBeEnabled();
+    await user.click(screen.getAllByRole('button', { name: 'Открыть примерку' })[0] as HTMLElement);
+    expect(onOpen).toHaveBeenCalledOnce();
+  });
+
+  it('another tab ends the selection mode', async () => {
+    fetchMock.mockImplementation((url: unknown) => {
+      const kind = new URL(String(url)).searchParams.get('kind');
+      const items = kind === 'single' ? [fitting(4), fitting(5)] : results();
+      return json({ items, total: items.length, nextCursor: null });
+    });
+    const user = setup();
+    renderHistory();
+    await user.click(await screen.findByRole('button', { name: 'Сравнить' }));
+    await user.click(
+      screen.getAllByRole('checkbox', { name: 'Выбрать для сравнения' })[0] as HTMLElement,
+    );
+    expect(screen.getByText('Выбрано 1 из 2')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: 'Одна вещь' }));
+    await screen.findByText('Рубашка 4 · белый');
+
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Выбрано/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Сравнить' })).toBeEnabled();
+  });
+
+  it('keeps the count and the link right when a chosen entry is deleted', async () => {
+    let gone = false;
+    fetchMock.mockImplementation((_url: unknown, init?: RequestInit) => {
+      if (init?.method === 'DELETE') {
+        gone = true;
+        return Promise.resolve(new Response(null, { status: 204 }));
+      }
+      const items = gone ? [fitting(1), fitting(3)] : results();
+      return json({ items, total: items.length, nextCursor: null });
+    });
+    const user = setup();
+    renderHistory();
+    await user.click(await screen.findByRole('button', { name: 'Сравнить' }));
+    const boxes = () => screen.getAllByRole('checkbox', { name: 'Выбрать для сравнения' });
+    await user.click(boxes()[0] as HTMLElement);
+    await user.click(boxes()[1] as HTMLElement);
+    expect(screen.getByText('Выбрано 2 из 2')).toBeInTheDocument();
+
+    const triggers = screen.getAllByRole('button', { name: 'Действия' });
+    await vi.waitFor(async () => {
+      const trigger = triggers[1] as HTMLElement;
+      if (trigger.getAttribute('aria-expanded') !== 'true') await user.click(trigger);
+      expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    });
+    await user.click(screen.getByRole('menuitem', { name: 'Удалить' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Удалить примерку?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Удалить' }));
+
+    expect(await screen.findByText('Выбрано 1 из 2')).toBeInTheDocument();
+    expect(screen.queryByText('Рубашка 2 · белый')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Сравнить' })).toBeDisabled();
+    expect(screen.queryByRole('link', { name: 'Сравнить' })).not.toBeInTheDocument();
+    expect(document.querySelector(`a[href*="${uuid(2)}"]`)).toBeNull();
+  });
+
+  it('a running entry’s picture still opens it in the selection mode', async () => {
+    apiWithStart(
+      [fitting(1), fitting(2), fitting(3, { status: 'processing', resultUrl: null })],
+      () => json({}, 201),
+    );
+    const user = setup();
+    const { onOpen } = renderHistory();
+    await user.click(await screen.findByRole('button', { name: 'Сравнить' }));
+
+    const pictures = screen.getAllByRole('button', { name: 'Открыть примерку' });
+    expect(pictures).toHaveLength(1);
+    await user.click(pictures[0] as HTMLElement);
+
+    expect(onOpen).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ id: uuid(3) }));
   });
 });

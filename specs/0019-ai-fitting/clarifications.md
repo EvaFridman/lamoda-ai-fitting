@@ -1201,6 +1201,31 @@ review: (4) _«Примерить образ» with one item_ in the room is dis
 with the caption «Добавьте ещё вещь — образ от двух» under it; (5) _`room.try-on`_ carries
 `items`, as `room.add-to-cart-all` does (clicks 0.01, hovers 0.01 a visit).
 
+**A93. The history's actions and compare (T27's brief, 2026-10-25).** The owner decided, after
+board 9 was re-read: (1) _the compare page's address_ is `/customer/fittings/compare?a=<id>&b=<id>`;
+an id that is not a uuid, is missing, someone else's or deleted shows an empty state with the link
+to the history; the analytics drop `a` and `b` from the addresses they send, as `fitting` (A77.6);
+(2) _«Примерить ещё раз» of an entry whose photo is gone_ (`photoId: null`) is disabled with the
+caption «Фото удалено»; otherwise it is `POST /fittings` with the entry's photo, items and
+`promptText` (A92.1): `repeated: true` shows the toast of A62 with «Открыть» (`?fitting=<id>`), a
+new start (a failed entry) opens its wait in the try-on window; (3) _the analytics_ of T27's
+controls (`history.repeat`, `history.compare`, the `source` value `history`, A78.5) are added by
+T27 itself, as `.claude/rules/analytics.md` requires, on the `analytics` agent's proposal; T28
+keeps the rest of the zone and the budget. Assumptions, owner to confirm at review: (4) the
+selection mode starts from «Сравнить» in the heading (desktop), the header's icon (phones, board
+9.1) or «Сравнить с другой» in the sheet (this entry preselected); a running or failed entry
+cannot be selected; any two entries of any kind compare; (5) «Чем отличаются» compares the items:
+«Цвет» lists the items whose colour differs, «Вещи» replaces it when the items differ, «Фото» says
+«одно и то же» or «разные» by `photoId` (two gone photos are «разные»), «Цена» is each entry's sum
+of `finalPrice`; a look's column on phones has a plain «В корзину»; (6) the analytics, on the
+`analytics` agent's proposal: `Fitting Started`'s `source` gains `history`; the repeat's toast
+«Открыть» is `fitting-toast.open`; the zone `fitting` gains `history.repeat` (`kind`, `status`:
+`completed | failed`), `history.compare` (entering the selection, `from`: `button | sheet`),
+`history.compare-open` (the mode's «Сравнить») and the area `compare` with `compare.open` (`kind`)
+and `compare.add-to-cart` (both columns, nothing of the item); «Отмена», the checkboxes, «←
+История примерок», the heart and the disabled «Поделиться» send nothing; `sdkPerVisit` goes from
+15 to 16 for the new page.
+
 ## Canvas and decisions
 
 Where the canvas differs from the decisions above, the decision wins:

@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 
 import { type Fitting, type FittingKind, HistoryCard, useFittings } from '@/entities/fitting';
+import { COMPARE_MAX, CompareCheckbox, type CompareSelection } from '@/features/compare-fittings';
 import { type DeletableFitting } from '@/features/delete-fitting';
 import { useTrackedElement } from '@/shared/analytics';
 import { errorText } from '@/shared/api';
@@ -16,15 +17,23 @@ export interface HistoryListProps {
   // The tab's kind; undefined is every fitting.
   kind?: FittingKind;
   phone: boolean;
+  selection: CompareSelection;
+  // The tab has two results or more: «Сравнить с другой» is offered.
+  canCompare: boolean;
   onOpen: (fitting: Fitting) => void;
+  onRepeat: (fitting: Fitting) => void;
   onDelete: (fitting: DeletableFitting) => void;
 }
 
-// One card and its tracked «Открыть» of the picture.
+// One card and its tracked «Открыть» of the picture. In the selection mode a result shows its box
+// and its picture chooses it; a running or failed entry cannot be compared (A93.4).
 function Card({
   fitting,
   phone,
+  selection,
+  canCompare,
   onOpen,
+  onRepeat,
   onDelete,
 }: { fitting: Fitting } & Omit<HistoryListProps, 'kind'>) {
   const status = historyStatus(fitting);
@@ -33,16 +42,33 @@ function Card({
     status,
     kind: fitting.kind,
   });
+  const selectable = status === 'completed';
+  const choosing = selection.active && selectable;
+  const checked = selection.ids.includes(fitting.id);
   return (
     <HistoryCard
       fitting={fitting}
-      onOpen={() => onOpen(fitting)}
-      openEvents={openElement}
+      onOpen={() => (choosing ? selection.toggle(fitting.id) : onOpen(fitting))}
+      openEvents={choosing ? undefined : openElement}
+      openLabel={
+        !choosing ? undefined : checked ? 'Снять выбор для сравнения' : 'Выбрать для сравнения'
+      }
+      select={
+        choosing ? (
+          <CompareCheckbox
+            checked={checked}
+            disabled={!checked && selection.ids.length >= COMPARE_MAX}
+            onToggle={() => selection.toggle(fitting.id)}
+          />
+        ) : undefined
+      }
       actions={
         <CardActions
           fitting={fitting}
           phone={phone}
           onOpen={() => onOpen(fitting)}
+          onRepeat={status === 'running' ? undefined : () => onRepeat(fitting)}
+          onCompare={selectable && canCompare ? () => selection.start(fitting.id) : undefined}
           onDelete={
             status === 'running'
               ? undefined
@@ -87,7 +113,15 @@ function EmptyHistory() {
 // A tab's fittings, newest first (spec 0019 AC17, board 9): a grid of `HistoryCard`s, four across on
 // a wide screen and two on a phone, read in the browser by cursor; the next batch loads as the end
 // of the list comes into view, or with «Показать ещё». Polled while one runs (A72).
-export function HistoryList({ kind, phone, onOpen, onDelete }: HistoryListProps) {
+export function HistoryList({
+  kind,
+  phone,
+  selection,
+  canCompare,
+  onOpen,
+  onRepeat,
+  onDelete,
+}: HistoryListProps) {
   const fittings = useFittings(kind);
   const endRef = useRef<HTMLDivElement>(null);
   const { hasNextPage, isFetchingNextPage, isFetchNextPageError, fetchNextPage } = fittings;
@@ -151,7 +185,15 @@ export function HistoryList({ kind, phone, onOpen, onDelete }: HistoryListProps)
       <ul className={styles.grid}>
         {list.map((fitting) => (
           <li key={fitting.id}>
-            <Card fitting={fitting} phone={phone} onOpen={onOpen} onDelete={onDelete} />
+            <Card
+              fitting={fitting}
+              phone={phone}
+              selection={selection}
+              canCompare={canCompare}
+              onOpen={onOpen}
+              onRepeat={onRepeat}
+              onDelete={onDelete}
+            />
           </li>
         ))}
       </ul>

@@ -9,7 +9,7 @@ import type { Fitting, FittingKind, StartedFitting } from './schemas';
 const watched = new Set<string>();
 const reported = new Set<string>();
 
-export type FittingStartSource = 'picker' | 'retry' | 'colour' | 'regenerate';
+export type FittingStartSource = 'picker' | 'retry' | 'colour' | 'regenerate' | 'history';
 
 const MODELS = ['gpt-image-2', 'gpt-image-2-5-sunburst'] as const;
 

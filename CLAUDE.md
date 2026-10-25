@@ -49,8 +49,9 @@ icons, the search row, the burger's left `Drawer`, A87.4–8, A89) and the fitti
 header (`FittingRoomButton` with its count, the drawer `widgets/fitting-room-drawer`, the live
 hanger, «К образу» / «В образе» and the result's tile, the toasts with «Вернуть», A90) and the
 look's try-on (`LookTryOn`, the picker of board 3.2, the result of board 8 with a colour per item
-and «Какая именно?», `promptText` and the items' `slot` in `FittingDto`, A92). Next: history
-actions.
+and «Какая именно?», `promptText` and the items' `slot` in `FittingDto`, A92) and the history's
+actions and compare («Примерить ещё раз», the selection mode, `/customer/fittings/compare`, A93).
+Next: the fitting's analytics.
 
 Keep this file true: update it in the same commit that changes what a section describes.
 
@@ -615,8 +616,9 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   `account` ("Мои данные"), `fittings` and `photos` ("Мои фото", spec 0019 A19: `_pages/photos`,
   `widgets/my-photos`, `features/upload-photo`) (`web/app/customer/`, whose layout holds only the
   metadata: `noindex`, the titles; `robots.ts` disallows `/customer`). Every page is
-  `AccountShell({ section, aside })` (`widgets/account-shell`; `aside`, a block under the menu
-  shown signed in on a wide screen, is the history's `LimitMeter`): the side menu of
+  `AccountShell({ section, aside, title, back })` (`widgets/account-shell`; `aside`, a block under
+  the menu shown signed in on a wide screen, is the history's `LimitMeter`; `title` and `back`, a
+  page's own title and way back on every width, are the compare page's): the side menu of
   `shared/config/account-sections.ts` (the header reads the same list, since a widget imports no
   widget), `Skeleton`s while the session loads, signed out (a failed read too) an invitation whose
   button is a second `LoginModal` (no redirect), signed in the section. Below 1024 px `/customer`
@@ -624,7 +626,11 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   switched by CSS. `_pages/customer` has no section, `_pages/account-stubs` holds the two
   stubs, `_pages/fittings` the history («Мои примерки», spec 0019 T16: `widgets/fitting-history`,
   `features/delete-fitting`, `entities/fitting`'s `HistoryCard`; a card opens its fitting through
-  `?fitting=<id>` in T15's try-on window), and `_pages/account-data` shows the user's data from `entities/user` (`useMe`,
+  `?fitting=<id>` in T15's try-on window; «Примерить ещё раз» is `useRepeatFitting` with the
+  entry's `repeatBody`, disabled once its photo is gone, a repeat's answer the toast «Такая
+  примерка уже есть…», T27, A93; the selection mode of `features/compare-fittings` leads to
+  `_pages/fitting-compare`, `/customer/fittings/compare?a=<id>&b=<id>`, `widgets/fitting-compare`
+  with `fittingDifference`), and `_pages/account-data` shows the user's data from `entities/user` (`useMe`,
   `updateMe`, `deleteMe`, `userKeys`, `UserInitials`, `profileInitials`), read only in the
   browser (U11), with `ProfileForm` (`features/edit-profile`: the date mask `ДД.ММ.ГГГГ`, only
   changed fields sent, the api's `details` under their fields, the whole form `mp-block`) and
@@ -707,7 +713,8 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   third argument `{ sendNow }` sends the event at once by beacon, delivered even while the page
   unloads (only `Account Deleted`, before a full load); others go in the SDK's batches. The SDK sends its own page views and, for heatmaps, `$mp_click`-style events, from
   which `strip-attributes.ts` drops element attributes, ids, links and text; it also drops the
-  search parameter `q` and the fragment from every event's addresses (`$current_url`,
+  search parameter `q`, the fittings' ids (`fitting`, the compare's `a` and `b`, spec 0019 A77,
+  A93) and the fragment from every event's addresses (`$current_url`,
   `current_url_search`, `$referrer`, `$initial_referrer`), `mp_keyword`, and `q` from the
   profile's (the stored `$initial_referrer` in `loaded`, and `before_send_people`, which the SDK's
   types do not list); recordings keep `q`
@@ -745,7 +752,9 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   elements with the row's arrows `related.scroll`, A87.8, and `buy-box.to-look`, `related.to-look`,
   A90.9), the fitting room's the zone `fitting`, area `room` (`room.open`, `.remove`, `.undo`,
   `.fill`, `.clear`, `.add-to-cart-all`, A90.9, `.try-on`, T26; a toast's action sends its click through
-  `trackElementClick`, `@/shared/analytics`), the grid's hanger `catalog.to-look` in the zone
+  `trackElementClick`, `@/shared/analytics`), the history's and the compare page's the zone
+  `fitting`, areas `history` and `compare` (`history.repeat`, `.compare`, `.compare-open`,
+  `compare.open`, `.add-to-cart`, `source: history`, A93.6), the grid's hanger `catalog.to-look` in the zone
   `catalog` (A90.9), the phone header's the zone `header` (areas `header` and
   `burger`: `header.burger`, `header.search`, `burger.category`, A87.8); `profile-menu.*` take
   `surface` (`menu`, `burger`; older sends have none).

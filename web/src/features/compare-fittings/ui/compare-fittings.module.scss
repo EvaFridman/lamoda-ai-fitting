@@ -1,0 +1,47 @@
+// Board 9's selection mode: the row «Выбрано N из 2», «Отмена», «Сравнить» 8px apart, and the
+// cards' 24px boxes.
+
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.count {
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+}
+
+.checkbox {
+  cursor: pointer;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: var(--border-width) solid var(--color-border-active);
+  border-radius: var(--radius-xs);
+
+  color: var(--color-background);
+
+  background-color: var(--color-background);
+
+  &[aria-checked='true'] {
+    background-color: var(--color-text);
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.4;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: 2px;
+  }
+}

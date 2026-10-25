@@ -106,9 +106,10 @@ export const catalog = defineCatalog({
   // The owner's estimates (R15, R17), set without traffic data: a demo site. The SDK sends about
   // 5 page views and 7 heatmap clicks a visit (`autocapture` is off; the catalog's categories are
   // paths of their own, spec 0014 O102); «Мои фото» adds about one more, «Мои примерки» another,
-  // the product page another (spec 0019 plan §9, A78, A84).
+  // the product page another, the fittings' compare page another (spec 0019 plan §9, A78, A84,
+  // A93).
   visitsPerMonth: 3_000,
-  sdkPerVisit: 15,
+  sdkPerVisit: 16,
   zones: {
     service: {
       title: 'Служебное',
@@ -148,9 +149,9 @@ export const catalog = defineCatalog({
     },
     fitting: {
       title: 'Примерка',
-      areas: ['photos', 'try-on', 'result', 'fitting-toast', 'history', 'room'],
+      areas: ['photos', 'try-on', 'result', 'fitting-toast', 'history', 'compare', 'room'],
       description:
-        'Онлайн-примерка (спека 0019). `photos` — фото для примерки: загрузка (подсказки и согласия первой загрузки, экран отказа) и страница «Мои фото» (`/customer/photos`). `try-on` — окно примерки до результата: выбор фото, ожидание, экраны лимита и ошибок. `result` — результат примерки и шторка «Что поменять?». `fitting-toast` — уведомления «Примерка готова» и «Примерка … не удалась» на любой странице сайта. `history` — «Мои примерки» (`/customer/fittings`): вкладки, карточки, меню и шторка действий карточки, подтверждение удаления, пустой список. `room` — примерочная: значок в шапке со счётчиком и шторка справа (на телефоне на весь экран): слоты, «Убрать», «Вернуть», «Подобрать в каталоге», «Очистить примерочную», «Всё в корзину».',
+        'Онлайн-примерка (спека 0019). `photos` — фото для примерки: загрузка (подсказки и согласия первой загрузки, экран отказа) и страница «Мои фото» (`/customer/photos`). `try-on` — окно примерки до результата: выбор фото, ожидание, экраны лимита и ошибок. `result` — результат примерки и шторка «Что поменять?». `fitting-toast` — уведомления «Примерка готова» и «Примерка … не удалась» на любой странице сайта. `history` — «Мои примерки» (`/customer/fittings`): вкладки, карточки, меню и шторка действий карточки, «Примерить ещё раз», режим выбора для сравнения, подтверждение удаления, пустой список. `compare` — страница сравнения двух примерок (`/customer/fittings/compare`): «Открыть» и «В корзину» колонок; сердце и «Поделиться» не отслеживаются. `room` — примерочная: значок в шапке со счётчиком и шторка справа (на телефоне на весь экран): слоты, «Убрать», «Вернуть», «Подобрать в каталоге», «Очистить примерочную», «Всё в корзину».',
     },
   },
   commonEvents: {
@@ -281,11 +282,11 @@ export const catalog = defineCatalog({
       zone: 'fitting',
       type: 'interaction',
       description:
-        'Примерка запущена: после ответа api (новая, идущая или уже готовая с тем же фото, вещами и цветами). `kind` — одна вещь или образ, `source` — каким действием: `picker` — «Примерить» на выборе фото, `retry` — «Попробовать ещё раз» на экране ошибки или «Повторить» в уведомлении, `colour` — другой цвет на результате, `regenerate` — «Перегенерировать». `items` — сколько вещей, `repeated` — api открыл готовый результат без списания, `with_prompt` — есть пожелания или комментарий перегенерации (сам текст не отправляется).',
+        'Примерка запущена: после ответа api (новая, идущая или уже готовая с тем же фото, вещами и цветами). `kind` — одна вещь или образ, `source` — каким действием: `picker` — «Примерить» на выборе фото, `retry` — «Попробовать ещё раз» на экране ошибки или «Повторить» в уведомлении, `colour` — другой цвет на результате, `regenerate` — «Перегенерировать», `history` — «Примерить ещё раз» в «Моих примерках». `items` — сколько вещей, `repeated` — api открыл готовый результат без списания, `with_prompt` — есть пожелания или комментарий перегенерации (сам текст не отправляется).',
       perVisit: 0.03,
       properties: {
         kind: { kind: 'enum', values: ['single', 'look'] },
-        source: { kind: 'enum', values: ['picker', 'retry', 'colour', 'regenerate'] },
+        source: { kind: 'enum', values: ['picker', 'retry', 'colour', 'regenerate', 'history'] },
         items: { kind: 'number' },
         repeated: { kind: 'boolean' },
         with_prompt: { kind: 'boolean' },
@@ -785,7 +786,7 @@ export const catalog = defineCatalog({
       zone: 'fitting',
       type: 'navigation',
       description:
-        '«Открыть» в уведомлении «Примерка готова»: открывает результат. `kind` — одна вещь или образ.',
+        '«Открыть» в уведомлении «Примерка готова» или «Такая примерка уже есть» (повтор из «Моих примерок»): открывает результат. `kind` — одна вещь или образ.',
       clicksPerVisit: 0.008,
       hoversPerVisit: 0.003,
       properties: { kind: { kind: 'enum', values: ['single', 'look'] } },
@@ -922,6 +923,52 @@ export const catalog = defineCatalog({
         '«Выбрать вещь для примерки» в пустом списке «Моих примерок»: ведёт в `/catalog`.',
       clicksPerVisit: 0.005,
       hoversPerVisit: 0.005,
+    },
+    'history.repeat': {
+      zone: 'fitting',
+      type: 'interaction',
+      description:
+        '«Примерить ещё раз» в меню «⋯» или шторке действий карточки «Моих примерок»: запускает примерку с теми же фото, вещами и пожеланиями (сам запуск — `Fitting Started` с `source: history`; готовый результат открывается без списания, `repeated: true`). Выключена, когда фото удалено. `kind` — одна вещь или образ, `status` — состояние карточки.',
+      clicksPerVisit: 0.003,
+      hoversPerVisit: 0.002,
+      properties: {
+        kind: { kind: 'enum', values: ['single', 'look'] },
+        status: { kind: 'enum', values: ['completed', 'failed'] },
+      },
+    },
+    'history.compare': {
+      zone: 'fitting',
+      type: 'interaction',
+      description:
+        'Вход в режим выбора для сравнения. `from` — откуда: `button` — «Сравнить» над списком «Моих примерок», `sheet` — «Сравнить с другой» в шторке действий карточки (эта примерка уже отмечена). «Отмена» и отметки карточек не отслеживаются.',
+      clicksPerVisit: 0.004,
+      hoversPerVisit: 0.004,
+      properties: { from: { kind: 'enum', values: ['button', 'sheet'] } },
+    },
+    'history.compare-open': {
+      zone: 'fitting',
+      type: 'navigation',
+      description:
+        '«Сравнить» в режиме выбора (активна при двух отмеченных): открывает страницу сравнения. Id примерок не отправляются и убираются из адресов (`a`, `b`), как `fitting`.',
+      clicksPerVisit: 0.002,
+      hoversPerVisit: 0.002,
+    },
+    'compare.open': {
+      zone: 'fitting',
+      type: 'navigation',
+      description:
+        '«Открыть» в колонке страницы сравнения: открывает эту примерку. `kind` — одна вещь или образ.',
+      clicksPerVisit: 0.002,
+      hoversPerVisit: 0.002,
+      properties: { kind: { kind: 'enum', values: ['single', 'look'] } },
+    },
+    'compare.add-to-cart': {
+      zone: 'fitting',
+      type: 'interaction',
+      description:
+        '«В корзину» в колонке страницы сравнения (на телефоне «<Цвет> в корзину»): заглушка, показывает уведомление, что в прототипе нет корзины. Один элемент на обе колонки; цвет и товар не отправляются.',
+      clicksPerVisit: 0.002,
+      hoversPerVisit: 0.003,
     },
   },
 });

@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 
 import {
   type Fitting,
@@ -12,12 +12,16 @@ import {
 } from '@/entities/fitting';
 import { useTrackedElement } from '@/shared/analytics';
 import {
+  CompareIcon,
   DownloadIcon,
   FullscreenIcon,
   IconButton,
   Menu,
   MenuItem,
   MoreIcon,
+  Notice,
+  RefreshIcon,
+  ShareIcon,
   Sheet,
   TrashIcon,
 } from '@/shared/ui';
@@ -29,6 +33,10 @@ export interface CardActionsProps {
   // A phone shows the actions in a sheet, a wider screen in a menu (board 9, 9.2).
   phone: boolean;
   onOpen: () => void;
+  // «Примерить ещё раз»; absent for a running fitting, which has nothing to repeat yet.
+  onRepeat?: () => void;
+  // «Сравнить с другой» of the phones' sheet (A78.1); absent for an entry that cannot be chosen.
+  onCompare?: () => void;
   // Asks to delete; absent for a running fitting, which web never deletes (A47).
   onDelete?: () => void;
 }
@@ -59,19 +67,48 @@ function sheetTitle(fitting: Fitting): string {
   return single ? itemLabel(single) : (kindBadge(fitting) ?? 'Образ');
 }
 
-// A card's actions (spec 0019 board 9, A78): «Открыть», «Скачать» for a result, «Удалить» but for
-// a running fitting; on a wide screen the «⋯» menu, on a phone the actions sheet with the result's
-// thumbnail, the item and the date. T27 adds «Примерить ещё раз», «Поделиться» and «Сравнить».
-export function CardActions({ fitting, phone, onOpen, onDelete }: CardActionsProps) {
+interface Action {
+  key: string;
+  icon: ReactNode;
+  label: string;
+  // Drawn grey and runs nothing: «Поделиться» (A14), a repeat without its photo (A93.2).
+  disabled?: boolean;
+  // A second line under the label: why it is disabled.
+  hint?: string;
+  danger?: boolean;
+  events?: ReturnType<typeof useTrackedElement>;
+  run: () => void;
+}
+
+// A card's actions (spec 0019 board 9, A62, A78, A93): «Открыть», «Примерить ещё раз» (disabled
+// with «Фото удалено» once the photo is gone), «Поделиться» (disabled, A14) and «Скачать» for a
+// result, on a phone «Сравнить с другой», and «Удалить» but for a running fitting; on a wide screen
+// the «⋯» menu, on a phone the actions sheet with the result's thumbnail, the item and the date,
+// and under the actions the note that a repeat spends nothing.
+export function CardActions({
+  fitting,
+  phone,
+  onOpen,
+  onRepeat,
+  onCompare,
+  onDelete,
+}: CardActionsProps) {
   const [sheetOpen, setSheetOpen] = useState(false);
+  const status = historyStatus(fitting);
   const menuElement = useTrackedElement('history.menu');
   const openElement = useTrackedElement('history.open', {
     from: 'menu',
-    status: historyStatus(fitting),
+    status,
     kind: fitting.kind,
   });
+  const repeatElement = useTrackedElement('history.repeat', {
+    kind: fitting.kind,
+    status: status === 'failed' ? 'failed' : 'completed',
+  });
+  const compareElement = useTrackedElement('history.compare', { from: 'sheet' });
   const downloadElement = useTrackedElement('history.download');
   const resultUrl = fitting.status === 'completed' ? fitting.resultUrl : null;
+  const photoGone = fitting.photoId === null;
 
   const trigger = (
     <IconButton
@@ -90,13 +127,38 @@ export function CardActions({ fitting, phone, onOpen, onDelete }: CardActionsPro
     </IconButton>
   );
 
-  const actions = [
+  const offered: (Action | false | null | undefined | '')[] = [
     {
       key: 'open',
       icon: <FullscreenIcon />,
       label: 'Открыть',
       events: openElement,
       run: onOpen,
+    },
+    onRepeat && {
+      key: 'repeat',
+      icon: <RefreshIcon />,
+      label: 'Примерить ещё раз',
+      disabled: photoGone,
+      hint: photoGone ? 'Фото удалено' : undefined,
+      events: repeatElement,
+      run: onRepeat,
+    },
+    phone &&
+      onCompare && {
+        key: 'compare',
+        icon: <CompareIcon />,
+        label: 'Сравнить с другой',
+        events: compareElement,
+        run: onCompare,
+      },
+    // A result's, disabled, sending nothing (A14, A43).
+    status === 'completed' && {
+      key: 'share',
+      icon: <ShareIcon />,
+      label: 'Поделиться',
+      disabled: true,
+      run: () => {},
     },
     resultUrl && {
       key: 'download',
@@ -112,7 +174,17 @@ export function CardActions({ fitting, phone, onOpen, onDelete }: CardActionsPro
       danger: true,
       run: onDelete,
     },
-  ].filter((action) => !!action);
+  ];
+  const actions = offered.filter((action): action is Action => !!action);
+
+  function label(action: Action) {
+    return (
+      <span className={styles.actionLabel}>
+        <span className={action.danger ? styles.danger : undefined}>{action.label}</span>
+        {action.hint && <span className={styles.actionHint}>{action.hint}</span>}
+      </span>
+    );
+  }
 
   if (!phone) {
     return (
@@ -120,14 +192,16 @@ export function CardActions({ fitting, phone, onOpen, onDelete }: CardActionsPro
         {actions.map((action) => (
           <MenuItem
             key={action.key}
+            disabled={action.disabled}
             onClick={() => {
               action.events?.onClick();
               action.run();
             }}
-            onPointerEnter={action.events?.onPointerEnter}
-            onPointerLeave={action.events?.onPointerLeave}
+            // A disabled action is not hovered as one (A93.2).
+            onPointerEnter={action.disabled ? undefined : action.events?.onPointerEnter}
+            onPointerLeave={action.disabled ? undefined : action.events?.onPointerLeave}
           >
-            <span className={action.danger ? styles.danger : undefined}>{action.label}</span>
+            {label(action)}
           </MenuItem>
         ))}
       </Menu>
@@ -166,6 +240,7 @@ export function CardActions({ fitting, phone, onOpen, onDelete }: CardActionsPro
                 className={[styles.sheetAction, action.danger && styles.danger]
                   .filter(Boolean)
                   .join(' ')}
+                disabled={action.disabled}
                 onClick={() => {
                   action.events?.onClick();
                   setSheetOpen(false);
@@ -173,11 +248,17 @@ export function CardActions({ fitting, phone, onOpen, onDelete }: CardActionsPro
                 }}
               >
                 {action.icon}
-                {action.label}
+                {label(action)}
               </button>
             </li>
           ))}
         </ul>
+        {onRepeat && !photoGone && status === 'completed' && (
+          <Notice className={styles.sheetNotice}>
+            «Примерить ещё раз» с теми же фото, вещами и цветами откроет готовый результат и не
+            потратит лимит.
+          </Notice>
+        )}
       </Sheet>
     </>
   );

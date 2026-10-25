@@ -130,6 +130,11 @@
   }
 }
 
+// A page's own way back (the compare's «← История примерок»), on every width.
+.ownBack {
+  justify-self: start;
+}
+
 .title {
   margin: 0;
   font-size: var(--font-size-headline-m);

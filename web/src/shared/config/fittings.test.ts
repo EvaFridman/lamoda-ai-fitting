@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { FITTINGS_HREF, fittingHref } from './fittings';
+import { compareHref, FITTINGS_COMPARE_HREF } from '@/shared/config';
 
-describe('fittingHref', () => {
-  it('opens the fitting on the history page', () => {
-    expect(fittingHref('abc')).toBe(`${FITTINGS_HREF}?fitting=abc`);
+describe('compareHref', () => {
+  it('points to the compare page with both ids', () => {
+    expect(compareHref('aa', 'bb')).toBe('/customer/fittings/compare?a=aa&b=bb');
+    expect(compareHref('aa', 'bb').startsWith(FITTINGS_COMPARE_HREF)).toBe(true);
   });
 
-  it('encodes the id into the one query value', () => {
-    expect(fittingHref('a&b=c d')).toBe('/customer/fittings?fitting=a%26b%3Dc%20d');
+  it('encodes the ids', () => {
+    expect(compareHref('a&b', 'c d')).toBe('/customer/fittings/compare?a=a%26b&b=c+d');
   });
 });

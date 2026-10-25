@@ -2,7 +2,8 @@
 // the attributes of the clicked element and its ancestors (`title`, `aria-label`, `href`, `name`,
 // `id`), which recording masks do not touch. They are dropped before sending; tag, classes and
 // position are what heatmaps need (spec 0008 J28). The page's address in every event loses the
-// search text (`q`, spec 0014 O104) and the id of a user's fitting (`fitting`, spec 0019 A77).
+// search text (`q`, spec 0014 O104) and the ids of a user's fittings (`fitting`, spec 0019 A77; the
+// compare page's `a` and `b`, A93).
 
 type Properties = Record<string, unknown>;
 
@@ -15,8 +16,9 @@ const DROPPED = /^(\$el_(attr__|id$|text$)|mp_keyword$)/;
 // The addresses the SDK adds to an event, and the query of the page view's address.
 const URL_KEYS = new Set(['$current_url', '$referrer', '$initial_referrer']);
 const SEARCH_KEY = 'current_url_search';
-// The catalog's search parameter, and the fitting a link opens (its id names a user's photo).
-const STRIPPED_PARAMS = ['q', 'fitting'] as const;
+// The catalog's search parameter, the fitting a link opens and the two the compare page shows (an
+// id names a user's photo).
+const STRIPPED_PARAMS = ['q', 'fitting', 'a', 'b'] as const;
 
 function hasStripped(params: URLSearchParams): boolean {
   return STRIPPED_PARAMS.some((name) => params.has(name));
@@ -27,7 +29,7 @@ function stripElement(element: unknown): unknown {
   return Object.fromEntries(Object.entries(element).filter(([key]) => ELEMENT_KEYS.has(key)));
 }
 
-// The query without `q` and `fitting`, with its `?` when anything is left.
+// The query without the stripped parameters, with its `?` when anything is left.
 function stripSearch(search: string): string {
   const params = new URLSearchParams(search);
   if (!hasStripped(params)) return search;
@@ -36,7 +38,7 @@ function stripSearch(search: string): string {
   return rest === '' ? '' : `?${rest}`;
 }
 
-// An address without `q`, `fitting` and its fragment (the site uses none, a link sent by someone else
+// An address without the stripped parameters and its fragment (the site uses none, a link sent by someone else
 // may carry text there); anything that is not an absolute address (`$direct`) stays as it is.
 function stripUrl(value: unknown): unknown {
   if (typeof value !== 'string') return value;

@@ -1,0 +1,199 @@
+// Board 9's compare: two columns 40px apart and the 240px aside «Чем отличаются»; below 1024px the
+// aside goes under the columns, and on a phone (9.3) the pictures sit 4px apart with the cart
+// buttons in a row at the end.
+
+.page {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.compare {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 240px;
+  gap: var(--space-10);
+  align-items: start;
+
+  @media (width < 1024px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-6);
+  }
+
+  @media (width < 600px) {
+    gap: var(--space-4) var(--space-1);
+  }
+}
+
+.column {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+
+  @media (width < 600px) {
+    gap: var(--space-2);
+  }
+}
+
+.picture {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 3 / 4;
+  background-color: var(--color-background-secondary);
+}
+
+.image {
+  object-fit: cover;
+}
+
+.ai {
+  position: absolute;
+  top: var(--space-3);
+  left: var(--space-3);
+}
+
+.skeleton {
+  display: block;
+  aspect-ratio: 3 / 4;
+}
+
+.caption {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.about {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+// As high as a look's strip, so both columns' buttons stand on one line.
+.name {
+  display: flex;
+  align-items: center;
+
+  min-height: 38px;
+  margin: 0;
+
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+
+  @media (width < 600px) {
+    font-size: var(--font-size-body-s);
+    line-height: var(--line-height-body-s);
+  }
+}
+
+// The value that differs between the two (board 9's grey mark).
+.diff {
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-xs);
+  font-weight: var(--font-weight-medium);
+  background-color: var(--color-background-tertiary);
+}
+
+.look {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.meta {
+  margin: 0;
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  color: var(--color-text-secondary);
+
+  @media (width < 600px) {
+    font-size: var(--font-size-caption);
+    line-height: var(--line-height-caption);
+  }
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.differences {
+  display: grid;
+  gap: var(--space-3);
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+
+  @media (width < 1024px) {
+    grid-column: 1 / -1;
+  }
+}
+
+.heading {
+  margin: 0;
+  font-size: var(--font-size-body-m);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-body-m);
+
+  @media (width < 600px) {
+    // The phone's board shows the rows alone; the heading stays for screen readers.
+    position: absolute;
+
+    overflow: hidden;
+
+    width: 1px;
+    height: 1px;
+
+    white-space: nowrap;
+
+    clip-path: inset(50%);
+  }
+}
+
+.rows {
+  display: grid;
+  margin: 0;
+}
+
+.row {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+
+  padding: var(--space-2) 0;
+  border-bottom: var(--border-width) solid var(--color-border);
+
+  dt {
+    color: var(--color-text-secondary);
+  }
+
+  dd {
+    margin: 0;
+    text-align: right;
+  }
+}
+
+.phoneCarts {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.phoneCart {
+  flex: 1;
+  min-width: 0;
+}
+
+.state {
+  max-width: 640px;
+}
+
+.failed {
+  display: grid;
+  gap: var(--space-4);
+  justify-items: start;
+}
+
+.failedText {
+  margin: 0;
+  color: var(--color-error);
+}

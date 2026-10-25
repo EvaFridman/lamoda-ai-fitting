@@ -145,3 +145,11 @@
     display: none;
   }
 }
+
+// The page's selection box for the compare (board 9), over the picture's top right corner.
+.select {
+  position: absolute;
+  z-index: 1;
+  top: var(--space-2);
+  right: var(--space-2);
+}
