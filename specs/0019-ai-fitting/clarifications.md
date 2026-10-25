@@ -1071,6 +1071,23 @@ a sign; the demo catalog has 6. It is not fixed here: the backlog item «Categor
 records it. The kit's `Gallery` keys its items by a `GalleryImage.id` (the product image's id),
 since nothing makes two images of one product differ in key.
 
+**A86. The fitting room's api (T24's brief).** The owner decided on 2026-10-25, where plan §5 is
+silent: (1) `PUT /me/fitting-room/:slot` answers 200 (it inserts or replaces, a repeat changes
+nothing) with `{ room, replaced }`, `room` the shape of `GET` and `replaced` the previous item or
+`null`, `null` too when the previous item is the same product in the same colour (a repeat has
+nothing to bring back; a colour change answers the previous colour); (2) `DELETE /me/fitting-room/:slot` of an empty slot answers 204 as of an occupied one;
+(3) `:slot` takes the five slots (a param DTO, `IsEnum`), so `accessory` is a valid path whose
+`PUT` is always refused, since no category has that slot; (4) a product whose category has no slot
+answers 400 `VALIDATION_FAILED` with the detail `HAS_SLOT` on `productId`, as `POST /fittings`;
+(5) a product of another slot answers the new detail `MATCHES_SLOT` on `productId` («Эта вещь
+для другого слота»); (6) an unknown product, one of an inactive category (A36) or a colour not of
+the product answers 400 `RELATED_NOT_FOUND`; (7) a row whose product's category became inactive
+(or moved to another slot) stays, but `GET` leaves it out of `items`, `count` and `sum`, and the
+next `PUT` of its slot replaces it, answering `replaced: null`; (8) `sum` adds the items' `finalPrice`; (9) `items` follow the slots' order (top,
+bottom, outerwear, shoes, accessory); (10) the writes lock the user's row (`me/lock-user.ts`) and
+go through `signOutWhenGone`, as the photos' do (A59), and `GET` of a gone user answers an empty
+room, as `GET /me/photos`. The room keeps no wishes and no size (A8, A63.3).
+
 ## Canvas and decisions
 
 Where the canvas differs from the decisions above, the decision wins:

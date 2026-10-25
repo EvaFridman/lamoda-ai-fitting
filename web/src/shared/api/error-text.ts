@@ -109,7 +109,8 @@ export function errorText(error: unknown): string {
 // photo (me/photos, spec 0019 plan §5: a file that is not a JPG, PNG or WebP, and a photo the
 // check refused, its reason in the message), `HAS_SLOT` and `DISTINCT_SLOTS` of a fitting's items
 // (fittings, spec 0019 A70: an item outside the fitting room's slots, two items of a look in one
-// slot) and `TOO_MANY_ERRORS` of a cut list (spec 0006 F14).
+// slot), `MATCHES_SLOT` of a fitting room's item (me/fitting-room, A86: a product of another slot)
+// and `TOO_MANY_ERRORS` of a cut list (spec 0006 F14).
 export const DETAIL_TEXTS = {
   IS_STRING: 'Должно быть текстом',
   IS_NUMBER: 'Должно быть числом',
@@ -146,6 +147,7 @@ export const DETAIL_TEXTS = {
   PHOTO_REFUSED: 'Фото не подходит для примерки',
   HAS_SLOT: 'Эту вещь пока нельзя примерить',
   DISTINCT_SLOTS: 'В образе может быть только одна вещь каждого типа',
+  MATCHES_SLOT: 'Эта вещь для другого слота',
   TOO_MANY_ERRORS: 'И другие ошибки',
 } as const satisfies Record<string, string>;
 

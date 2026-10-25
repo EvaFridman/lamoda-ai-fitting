@@ -65,6 +65,8 @@ export const CONSTRAINT_FIELDS: Readonly<Record<string, readonly string[]>> = {
   file_deletions_kind_row_id_key: ['rowId'],
   // One spend row per user and month (spec 0019 A20).
   fitting_quota_pkey: ['month'],
+  // One item per slot (spec 0019 A12): the route replaces it, so a write never hits this.
+  fitting_room_items_pkey: ['slot'],
   fitting_sessions_user_id_key: ['userId'],
   // The api refuses a repeated product id first (spec 0004 E53); this covers a write that skips it.
   generation_products_pkey: ['productIds'],
@@ -88,6 +90,10 @@ export const CONSTRAINT_FIELDS: Readonly<Record<string, readonly string[]>> = {
   ai_generations_user_id_fkey: ['userId'],
   attribute_values_attribute_id_fkey: ['attributeId'],
   fitting_quota_user_id_fkey: ['userId'],
+  // A colour of another product is refused as missing (spec 0019 A86).
+  fitting_room_items_product_id_attribute_value_id_fkey: ['attributeValueId'],
+  fitting_room_items_product_id_fkey: ['productId'],
+  fitting_room_items_user_id_fkey: ['userId'],
   fitting_sessions_user_id_fkey: ['userId'],
   // A fitting's colours come in its list of items (spec 0019 plan §5).
   generation_products_attribute_value_id_fkey: ['items'],

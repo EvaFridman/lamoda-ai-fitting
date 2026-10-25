@@ -20,6 +20,7 @@ import { expectViolation } from '../support/violation.js';
 // the migrated template, put back into the state before the migration.
 const MIGRATION = '20261021120000_fitting_photos';
 const LATER_MIGRATION = '20261023120000_fittings';
+const ROOM_MIGRATION = '20261025120000_fitting_room';
 const apiRoot = fileURLToPath(new URL('../../', import.meta.url));
 const run = promisify(execFile);
 
@@ -41,6 +42,10 @@ beforeAll(async () => {
   await db.category.create({
     data: { name: `Other ${randomUUID()}`, slug: otherCategorySlug, isActive: true },
   });
+
+  // The fitting room's table comes off before: its slot is an outfit_slot.
+  await db.$executeRawUnsafe('DROP TABLE fitting_room_items');
+  await db.$executeRaw`DELETE FROM _prisma_migrations WHERE migration_name = ${ROOM_MIGRATION}`;
 
   // The later migration comes off first: it references user_photos and outfit_slot. Its columns go
   // (with their foreign keys, indexes and CHECKs) and the status rule is the earlier one.

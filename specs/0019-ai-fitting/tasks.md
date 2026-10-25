@@ -246,7 +246,7 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
 
 ## PR 5 · `feat/0019-fitting` · looks, the fitting room and history
 
-- [ ] **T24. api: the fitting room.** `fitting_room_items` and its migration (cascade from the
+- [x] **T24. api: the fitting room.** `fitting_room_items` and its migration (cascade from the
       user); `GET`, `PUT /:slot`, `DELETE /:slot`, `DELETE` of `/me/fitting-room`; the access
       lists; `openapi.json`.
       Check: database e2e (replace answers the replaced item, a category without a slot is refused,

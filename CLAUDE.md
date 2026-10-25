@@ -41,7 +41,8 @@ sitemap, the gallery, the buy box with the try-on's «Примерить», the 
 the limit meter and «Вы это примеряли», «О товаре» and «С этим товаром выбирают» with the card's
 `compact` variant, the analytics zone `product`), the catalog card's two corners (the hanger
 `LookToggle`, disabled until the fitting room, and the heart stub, in place of its one `action`)
-and its hover (spec 0019 A63.1, A83). Next: phase 4, the fitting room and looks.
+and its hover (spec 0019 A63.1, A83); phase 4 so far the fitting room's api (`/me/fitting-room`,
+A86). Next: the fitting room in the header, looks, history actions.
 
 Keep this file true: update it in the same commit that changes what a section describes.
 
@@ -388,6 +389,17 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   running an hour after its start is ended `failed` with its try-on given back by the
   housekeeping's first step (`endStuckFittings`, behind the patch `end-stuck-fittings`). `POST`
   and `PATCH /fitting-sessions` are `@Closed()` (A21).
+- `api` fitting room (spec 0019 plan §5, A12, A86, `me/fitting-room/`): one row per user and slot
+  in `fitting_room_items` (gone with the user or the product; the colour references the product's
+  own link, set to NULL when it goes). `GET /me/fitting-room` answers `{ items, count, sum }`, the
+  items in the slots' order with the catalog's list item and the colour, `sum` of `finalPrice`,
+  leaving out a row whose category is inactive or of another slot now. `PUT /me/fitting-room/:slot`
+  (`{ productId, attributeValueId? }`, 200) puts or replaces and answers `{ room, replaced }` for
+  «Вернуть» (`null` after a repeat of the same product and colour): an unknown product, one of an inactive category or a colour not of it is 400
+  `RELATED_NOT_FOUND`, a category without a slot the detail `HAS_SLOT`, another slot's product
+  `MATCHES_SLOT` (so `accessory` is always refused). `DELETE /:slot` (an empty one too) and
+  `DELETE` (204) empty one slot or all; the writes lock the user's row and go through
+  `signOutWhenGone`, `GET` of a gone user is empty.
 - `api` the product page's reads (spec 0019 A36, A80): `GET /products/:id` still answers a product
   of an inactive category (web compares its `category.id` with the active categories);
   `GET /products/:id/related` (`@Public()`) answers the six newest products of other active
