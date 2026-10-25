@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   EMPTY_ROOM,
   fittingRoomKeys,
+  fittingRoomQueryOptions,
   type FittingRoom,
   type FittingRoomItem,
   useRoomStore,
@@ -642,6 +643,415 @@ describe('a room read in flight', () => {
 
     expect(client.getQueryState(fittingRoomKeys.all)?.fetchStatus).toBe('idle');
     expect(room()).toEqual(after);
+  });
+});
+
+describe('answers arriving out of order (A97)', () => {
+  // Every request waits until the test answers it, found by its method and path.
+  function holdRequests() {
+    const held = new Map<string, (response: Response) => void>();
+    fetchMock.mockImplementation(
+      (url: string, init?: RequestInit) =>
+        new Promise<Response>((resolve) => {
+          held.set(`${init?.method ?? 'GET'} ${new URL(String(url)).pathname}`, resolve);
+        }),
+    );
+    return {
+      answer(key: string, response: Response) {
+        const resolve = held.get(key);
+        if (!resolve) throw new Error(`no request ${key}`);
+        resolve(response);
+      },
+    };
+  }
+
+  const putAnswer = (room: FittingRoom) =>
+    new Response(JSON.stringify({ room, replaced: null }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+  const GET_ROOM = 'GET /api/me/fitting-room';
+  const roomA = roomOf(entry('top', shirt));
+  const roomB = roomOf(entry('bottom', jeans));
+  const roomRead = roomOf(entry('top', shirt), entry('bottom', jeans));
+
+  const reads = () =>
+    fetchMock.mock.calls.filter(([, init]) => ((init as RequestInit)?.method ?? 'GET') === 'GET')
+      .length;
+
+  // Two hook instances and an active observer of the room query, so an invalidation refetches.
+  // Never stale, so mounting the observer reads nothing by itself.
+  function setupTwo(initial: FittingRoom = EMPTY_ROOM) {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+    client.setQueryData(fittingRoomKeys.all, initial);
+    const view = renderHook(
+      () => {
+        useQuery(fittingRoomQueryOptions());
+        return [useRoomActions(), useRoomActions()] as const;
+      },
+      {
+        wrapper: ({ children }: { children: ReactNode }) => (
+          <QueryClientProvider client={client}>{children}</QueryClientProvider>
+        ),
+      },
+    );
+    return { ...view, client, room: () => client.getQueryData<FittingRoom>(fittingRoomKeys.all) };
+  }
+
+  type Pair = ReturnType<typeof setupTwo>['result']['current'];
+
+  // Starts both writes, in order, and waits until both requests are out.
+  async function startBoth(
+    result: { current: Pair },
+    first: (actions: Pair[0]) => Promise<boolean>,
+    second: (actions: Pair[1]) => Promise<boolean>,
+  ) {
+    let doneFirst: Promise<boolean> = Promise.resolve(false);
+    let doneSecond: Promise<boolean> = Promise.resolve(false);
+    act(() => {
+      doneFirst = first(result.current[0]);
+    });
+    act(() => {
+      doneSecond = second(result.current[1]);
+    });
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    return { doneFirst: () => doneFirst, doneSecond: () => doneSecond };
+  }
+
+  const putTop = (actions: Pair[0]) => actions.put({ product: shirt, slot: 'top' });
+  const putBottom = (actions: Pair[1]) => actions.put({ product: jeans, slot: 'bottom' });
+
+  const readAnswer = (room: FittingRoom) =>
+    new Response(JSON.stringify(room), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+  // The one read after the last write: it is out, answered, and its answer is the cache's.
+  async function finishRead(
+    requests: ReturnType<typeof holdRequests>,
+    room: () => FittingRoom | undefined,
+  ) {
+    await waitFor(() => expect(reads()).toBe(1));
+    requests.answer(GET_ROOM, readAnswer(roomRead));
+    await waitFor(() => expect(room()).toEqual(roomRead));
+    expect(reads()).toBe(1);
+  }
+
+  it('puts neither answer into the cache when B answers first, then reads once after A', async () => {
+    const requests = holdRequests();
+    const { result, room } = setupTwo();
+    const { doneFirst, doneSecond } = await startBoth(result, putTop, putBottom);
+
+    await act(async () => {
+      requests.answer('PUT /api/me/fitting-room/bottom', putAnswer(roomB));
+      await doneSecond();
+    });
+    expect(room()).toEqual(EMPTY_ROOM);
+    expect(reads()).toBe(0);
+
+    await act(async () => {
+      requests.answer('PUT /api/me/fitting-room/top', putAnswer(roomA));
+      await doneFirst();
+    });
+    expect(room()).toEqual(EMPTY_ROOM);
+    await finishRead(requests, room);
+  });
+
+  it('reads nothing until B ends when A answers first, then reads once', async () => {
+    const requests = holdRequests();
+    const { result, room } = setupTwo();
+    const { doneFirst, doneSecond } = await startBoth(result, putTop, putBottom);
+
+    await act(async () => {
+      requests.answer('PUT /api/me/fitting-room/top', putAnswer(roomA));
+      await doneFirst();
+    });
+    expect(room()).toEqual(EMPTY_ROOM);
+    expect(reads()).toBe(0);
+
+    await act(async () => {
+      requests.answer('PUT /api/me/fitting-room/bottom', putAnswer(roomB));
+      await doneSecond();
+    });
+    expect(room()).toEqual(EMPTY_ROOM);
+    await finishRead(requests, room);
+  });
+
+  it.each([
+    ['the put answers first and the remove fails', 'put-first'],
+    ['the remove fails first and the put answers last', 'remove-first'],
+  ])('reads once after the last of an overlapping put and remove when %s', async (_name, order) => {
+    const requests = holdRequests();
+    const { result, room } = setupTwo(roomOf(entry('top', shirt)));
+    const { doneFirst, doneSecond } = await startBoth(
+      result,
+      (actions) => actions.remove(entry('top', shirt)),
+      putBottom,
+    );
+    const failRemove = async () => {
+      await act(async () => {
+        requests.answer(
+          'DELETE /api/me/fitting-room/top',
+          new Response(
+            JSON.stringify({ error: { code: 'SERVICE_UNAVAILABLE', message: 'm', details: [] } }),
+            { status: 503, headers: { 'Content-Type': 'application/json' } },
+          ),
+        );
+        expect(await doneFirst()).toBe(false);
+      });
+    };
+    const answerPut = async () => {
+      await act(async () => {
+        requests.answer('PUT /api/me/fitting-room/bottom', putAnswer(roomB));
+        expect(await doneSecond()).toBe(true);
+      });
+    };
+
+    if (order === 'put-first') {
+      await answerPut();
+      expect(reads()).toBe(0);
+      await failRemove();
+    } else {
+      await failRemove();
+      expect(reads()).toBe(0);
+      await answerPut();
+    }
+
+    expect(room()).toEqual(roomOf(entry('top', shirt)));
+    await finishRead(requests, room);
+  });
+
+  it('puts a lone write’s answer into the cache and reads nothing', async () => {
+    fetchMock.mockImplementation(() => json({ room: roomA, replaced: null }));
+    const { result, room } = setupTwo();
+
+    await act(async () => {
+      await result.current[0].put({ product: shirt, slot: 'top' });
+    });
+
+    expect(room()).toEqual(roomA);
+    expect(reads()).toBe(0);
+  });
+
+  it('applies the answers of writes one after the other, with no read', async () => {
+    fetchMock.mockImplementation((_url: string, init?: RequestInit) =>
+      init?.method === 'DELETE'
+        ? Promise.resolve(new Response(null, { status: 204 }))
+        : json({ room: roomA, replaced: null }),
+    );
+    const { result, room } = setupTwo();
+
+    await act(async () => {
+      await result.current[0].put({ product: shirt, slot: 'top' });
+    });
+    expect(room()).toEqual(roomA);
+
+    await act(async () => {
+      await result.current[1].remove(entry('top', shirt));
+    });
+    expect(room()).toEqual(EMPTY_ROOM);
+    expect(reads()).toBe(0);
+  });
+
+  it('does not apply a lone remove over a cache whose read the remove cancelled, and reads again', async () => {
+    const requests = holdRequests();
+    const { result, room } = setupTwo(roomA);
+    const { doneFirst, doneSecond } = await startBoth(result, putTop, putBottom);
+    await act(async () => {
+      requests.answer('PUT /api/me/fitting-room/top', putAnswer(roomA));
+      requests.answer('PUT /api/me/fitting-room/bottom', putAnswer(roomB));
+      await doneFirst();
+      await doneSecond();
+    });
+    await waitFor(() => expect(reads()).toBe(1));
+
+    let doneRemove: Promise<boolean> = Promise.resolve(false);
+    act(() => {
+      doneRemove = result.current[0].remove(entry('top', shirt));
+    });
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    await act(async () => {
+      requests.answer('DELETE /api/me/fitting-room/top', new Response(null, { status: 204 }));
+      expect(await doneRemove).toBe(true);
+    });
+
+    expect(room()).toEqual(roomA);
+    await waitFor(() => expect(reads()).toBe(2));
+    requests.answer(GET_ROOM, readAnswer(roomRead));
+    await waitFor(() => expect(room()).toEqual(roomRead));
+    expect(reads()).toBe(2);
+  });
+
+  it('does not put a lone write’s answer over a room read started during it, and reads again', async () => {
+    const requests = holdRequests();
+    const { result, room, client } = setupTwo();
+
+    let done: Promise<boolean> = Promise.resolve(false);
+    act(() => {
+      done = result.current[0].put({ product: shirt, slot: 'top' });
+    });
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    act(() => {
+      void client.invalidateQueries({ queryKey: fittingRoomKeys.all });
+    });
+    await waitFor(() => expect(reads()).toBe(1));
+
+    await act(async () => {
+      requests.answer('PUT /api/me/fitting-room/top', putAnswer(roomA));
+      expect(await done).toBe(true);
+    });
+
+    expect(room()).toEqual(EMPTY_ROOM);
+    await waitFor(() => expect(reads()).toBe(2));
+    requests.answer(GET_ROOM, readAnswer(roomRead));
+    await waitFor(() => expect(room()).toEqual(roomRead));
+    expect(reads()).toBe(2);
+  });
+
+  it('does not carry the overlap into the next lone write', async () => {
+    const requests = holdRequests();
+    const { result, room } = setupTwo();
+    const { doneFirst, doneSecond } = await startBoth(result, putTop, putBottom);
+    await act(async () => {
+      requests.answer('PUT /api/me/fitting-room/top', putAnswer(roomA));
+      requests.answer('PUT /api/me/fitting-room/bottom', putAnswer(roomB));
+      await doneFirst();
+      await doneSecond();
+    });
+    await finishRead(requests, room);
+
+    const later = roomOf(entry('top', blouse));
+    fetchMock.mockImplementation(() => json({ room: later, replaced: null }));
+    await act(async () => {
+      await result.current[0].put({ product: blouse, slot: 'top' });
+    });
+
+    expect(room()).toEqual(later);
+    expect(reads()).toBe(1);
+  });
+
+  // A plain refetch (not an invalidation) is cancelled by the write's start.
+  async function startWriteOverRefetch(
+    write: (actions: Pair[0]) => Promise<boolean>,
+    initial: FittingRoom,
+  ) {
+    const requests = holdRequests();
+    const setupResult = setupTwo(initial);
+    act(() => {
+      void setupResult.client.refetchQueries({ queryKey: fittingRoomKeys.all });
+    });
+    await waitFor(() => expect(reads()).toBe(1));
+    let done: Promise<boolean> = Promise.resolve(false);
+    act(() => {
+      done = write(setupResult.result.current[0]);
+    });
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    return { requests, ...setupResult, done: () => done };
+  }
+
+  it('does not apply a lone remove’s change after a plain refetch it cancelled, and reads again', async () => {
+    const { requests, room, done } = await startWriteOverRefetch(
+      (actions) => actions.remove(entry('top', shirt)),
+      roomOf(entry('top', shirt), entry('bottom', jeans)),
+    );
+
+    await act(async () => {
+      requests.answer('DELETE /api/me/fitting-room/top', new Response(null, { status: 204 }));
+      expect(await done()).toBe(true);
+    });
+
+    expect(room()).toEqual(roomOf(entry('top', shirt), entry('bottom', jeans)));
+    await waitFor(() => expect(reads()).toBe(2));
+    const fresh = roomOf(entry('bottom', jeans), entry('top', blouse));
+    requests.answer(GET_ROOM, readAnswer(fresh));
+    await waitFor(() => expect(room()).toEqual(fresh));
+    expect(reads()).toBe(2);
+  });
+
+  it('applies a lone put’s whole room after a plain refetch it cancelled, with no new read', async () => {
+    const { requests, room, done } = await startWriteOverRefetch(
+      (actions) => actions.put({ product: shirt, slot: 'top' }),
+      EMPTY_ROOM,
+    );
+
+    await act(async () => {
+      requests.answer('PUT /api/me/fitting-room/top', putAnswer(roomA));
+      expect(await done()).toBe(true);
+    });
+
+    expect(room()).toEqual(roomA);
+    expect(reads()).toBe(1);
+  });
+
+  it('applies a later lone remove’s change with no read once the owed read answered', async () => {
+    const { requests, room, done, result } = await startWriteOverRefetch(
+      (actions) => actions.remove(entry('top', shirt)),
+      roomOf(entry('top', shirt), entry('bottom', jeans)),
+    );
+    await act(async () => {
+      requests.answer('DELETE /api/me/fitting-room/top', new Response(null, { status: 204 }));
+      await done();
+    });
+    await waitFor(() => expect(reads()).toBe(2));
+    requests.answer(GET_ROOM, readAnswer(roomRead));
+    await waitFor(() => expect(room()).toEqual(roomRead));
+
+    fetchMock.mockImplementation(() => Promise.resolve(new Response(null, { status: 204 })));
+    await act(async () => {
+      expect(await result.current[0].remove(entry('top', shirt))).toBe(true);
+    });
+
+    expect(room()).toEqual(roomOf(entry('bottom', jeans)));
+    expect(reads()).toBe(2);
+  });
+
+  const unavailable = () =>
+    new Response(
+      JSON.stringify({ error: { code: 'SERVICE_UNAVAILABLE', message: 'm', details: [] } }),
+      { status: 503, headers: { 'Content-Type': 'application/json' } },
+    );
+
+  it('reads the room once after a lone put that failed, and its answer is the cache', async () => {
+    fetchMock.mockImplementation((_url: string, init?: RequestInit) =>
+      init?.method === 'PUT' ? Promise.resolve(unavailable()) : json(roomRead),
+    );
+    const { result, room } = setupTwo(roomA);
+
+    await act(async () => {
+      expect(await result.current[0].put({ product: jeans, slot: 'bottom' })).toBe(false);
+    });
+
+    await waitFor(() => expect(room()).toEqual(roomRead));
+    expect(reads()).toBe(1);
+  });
+
+  it('reads once after a lone remove that failed over a cancelled refetch, then applies the next remove with no read', async () => {
+    const { requests, room, done, result } = await startWriteOverRefetch(
+      (actions) => actions.remove(entry('top', shirt)),
+      roomOf(entry('top', shirt), entry('bottom', jeans)),
+    );
+
+    await act(async () => {
+      requests.answer('DELETE /api/me/fitting-room/top', unavailable());
+      expect(await done()).toBe(false);
+    });
+
+    await waitFor(() => expect(reads()).toBe(2));
+    requests.answer(GET_ROOM, readAnswer(roomRead));
+    await waitFor(() => expect(room()).toEqual(roomRead));
+    expect(reads()).toBe(2);
+
+    fetchMock.mockImplementation(() => Promise.resolve(new Response(null, { status: 204 })));
+    await act(async () => {
+      expect(await result.current[0].remove(entry('top', shirt))).toBe(true);
+    });
+
+    expect(room()).toEqual(roomOf(entry('bottom', jeans)));
+    expect(reads()).toBe(2);
   });
 });
 
