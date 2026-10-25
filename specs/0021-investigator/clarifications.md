@@ -1,7 +1,8 @@
 # 0021 investigator: clarifications
 
-Status: draft (2026-10-25); amended 2026-10-25 at the plan (Q6: SQLite instead of LanceDB) and at
-the tasks (Q15: three pull requests).
+Status: draft (2026-10-25); amended 2026-10-25 at the plan (Q6: SQLite instead of LanceDB), at
+the tasks (Q15: three pull requests) and at the review of PR 1 (Q2: the US region; Q7: the plan's
+§3.2 holds the exact rules).
 
 The owner's decisions for this spec. Ids `Q1`, `Q2`, … are referred to by the spec, the plan and
 code comments. All decisions below: owner, 2026-10-25, while the spec was written.
@@ -50,7 +51,10 @@ server (`https://mcp.sentry.dev/mcp/<org>`, OAuth), as it declares Mixpanel's; C
 the token outside the repository. The agent lists its Sentry tools by name, reads only, and gets
 no Seer tool. Weighed: the local `@sentry/mcp-server` over stdio with a user token in the owner's
 environment (its stdio transport is marked work in progress; the token would sit on the
-development machine), and Sentry's REST API through `curl` with a new guard rule set.
+development machine), and Sentry's REST API through `curl` with a new guard rule set. The
+organization is in Sentry's US region (`sentry.io`, owner, at the review of PR 1), which the
+hosted server serves; the local server stays only as the fallback of the plan's §4 should the
+connection fail for another reason.
 
 **Q10. Permissions.** Every Sentry call asks for permission, as Mixpanel's do: the text of events
 and issues is written by the outside world, and "don't ask again" is never answered for a remote
@@ -64,7 +68,7 @@ Sentry's read tools too (faster, against the README's rule), and asking for the 
 **Q3. Production logs over `ssh ai-fitting 'docker logs …'`, read-only.** The logs stay where they
 are (Docker's `json-file`, 3 × 10 MB per container, no shipper). The agent runs allowlisted shapes
 of `ssh ai-fitting` (`docker logs` of a named container with time and tail flags, the deploy state,
-the container list), optionally filtered locally by `rg` or `grep`, and each call asks for the
+the compose projects' list), optionally filtered locally by `rg` or `grep`, and each call asks for the
 owner's confirmation. Weighed: Sentry Logs through the pino integration (no ssh, but logs would
 leave the server and spend the Sentry quota, and the headers would have to be cut first); the owner
 pasting logs by hand; a log shipper (Loki) as a new service.
@@ -115,7 +119,11 @@ index stores its schema version and is rebuilt on a mismatch.
 compose files and nginx's templates. Never: `.env*`, lock files, generated code
 (`api/src/generated`, `api/openapi.json`, `api/validation-codes.json`, `EVENTS.md`), media and
 `api/seed-media/`, and the third-party skills under `.claude/skills/`. Tests are indexed: they
-state expected behavior. Specs carry whether they are binding or history.
+state expected behavior. Specs carry whether they are binding or history. The exact rules are the
+plan's §3.2, the source of truth for `files.ts` (owner, at the review of PR 1): it adds the api's
+scripts, web's root files (`next.config.ts`, `proxy.ts`, the instrumentation files,
+`sentry.options.ts`) and `.env.example` (variable names and comments, no values), reads only a
+whitelist of extensions and skips files over 512 KB.
 
 **Q8. Updated on demand, with a freshness check.** `npm run rag:index` re-embeds only the files
 whose git blob changed; the skill runs it before the agent, and the index's server names in every
