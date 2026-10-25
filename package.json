@@ -11,9 +11,10 @@
     "format:check": "prettier --check .",
     "lint": "eslint --max-warnings=0 .",
     "lint:css": "stylelint --max-warnings=0 \"web/**/*.scss\"",
-    "typecheck": "npm --prefix api run typecheck && npm --prefix web run typecheck",
-    "test": "node --test \".claude/hooks/*.test.mjs\" \"scripts/*.test.mjs\" \"deploy/scripts/*.test.mjs\" && node scripts/run-parallel.mjs \"npm --prefix api run test -- --maxWorkers=50%\" \"npm --prefix web run test -- --maxWorkers=50%\"",
+    "typecheck": "npm --prefix api run typecheck && npm --prefix web run typecheck && npm --prefix tools/code-rag run typecheck",
+    "test": "node --test \".claude/hooks/*.test.mjs\" \"scripts/*.test.mjs\" \"deploy/scripts/*.test.mjs\" \"tools/code-rag/src/**/*.test.ts\" && node scripts/run-parallel.mjs \"npm --prefix api run test -- --maxWorkers=50%\" \"npm --prefix web run test -- --maxWorkers=50%\"",
     "build": "npm --prefix api run build && npm --prefix web run build",
+    "rag:index": "npm --prefix tools/code-rag run index",
     "check:web-bundle": "node scripts/check-web-bundle.mjs",
     "check:web-shells": "node scripts/check-web-shells.mjs",
     "verify": "npm run format:check && npm run lint && npm run lint:css && npm run typecheck && npm test && npm run build && npm run check:web-bundle && npm run check:web-shells"

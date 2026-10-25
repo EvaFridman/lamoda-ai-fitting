@@ -150,7 +150,8 @@ Pinned on purpose; each "not newer" has a reason and a condition to move on.
   hook and CI run exactly this, so the list of checks lives in one place (root `package.json`).
 
 `verify` covers `api` (lint, typecheck, tests, build), `web` (lint, Stylelint, typecheck, tests,
-`next build`), the agents' guard hooks and root `scripts/*.mjs` (lint, `node --test`). Last, after
+`next build`), the agents' guard hooks and root `scripts/*.mjs` (lint, `node --test`), and
+`tools/code-rag` (lint, `tsc --noEmit`, `node --test`). Last, after
 `build`, `check:web-bundle` (`scripts/check-web-bundle.mjs`) fails when a file under
 `web/.next/static` (the browser bundle) contains `x-proxy-secret` (any case), `PROXY_SECRET`,
 `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_SECRET`,
@@ -213,6 +214,16 @@ and the full `verify` once at the phase's end (as spec 0019 A58 did).
   built only by `backup/keys.ts`.
 - `api/scripts/`: development-only scripts, not in the runtime image: `fake-oidc.mjs`, the fake
   Google of the compose service `oidc` and of e2e (spec 0013 N14, N19, N20).
+- `tools/code-rag/`: the code index for the agents (spec 0021), a package of its own whose
+  TypeScript Node runs as it is (type stripping: only erasable syntax, relative imports end in
+  `.ts`), tested by `node --test`. `verify` (so the pre-push hook) needs `npm ci` in it, as in
+  `api` and `web`. `files.ts` picks the tracked regular files it reads (`git ls-files`; the
+  included places and the exclusions are spec 0021 plan §3.2; never a `.env*` but the root
+  `.env.example`, a symlink or an unmerged path) and `findSecretLine` tells a piece that looks
+  like a secret; `chunk.ts` cuts TypeScript and JavaScript by top-level statement (a class over
+  80 lines by member), Markdown by heading section, the rest and anything too long by windows of
+  at most 60 lines and 6000 characters. The index lives in the git-ignored `.rag/`; the images'
+  build contexts (`api`, `web`) reach neither.
 - `web/`: `app/` holds routing only and re-exports pages from `src/_pages`. FSD layers in `web/src/`,
   imports only downward: `_app → _pages → widgets → features → entities → shared`. A slice or a
   `shared` segment exposes `index.ts` (browser-safe) and/or `server.ts`, which starts with
