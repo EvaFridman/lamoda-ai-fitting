@@ -1,6 +1,7 @@
 # 0021 investigator: clarifications
 
-Status: draft (2026-10-25); amended 2026-10-25 at the plan (Q6: SQLite instead of LanceDB).
+Status: draft (2026-10-25); amended 2026-10-25 at the plan (Q6: SQLite instead of LanceDB) and at
+the tasks (Q15: three pull requests).
 
 The owner's decisions for this spec. Ids `Q1`, `Q2`, … are referred to by the spec, the plan and
 code comments. All decisions below: owner, 2026-10-25, while the spec was written.
@@ -33,6 +34,14 @@ has. `sonnet` was weighed as cheaper.
 the skill `/investigate`, which refreshes the index, runs the agent and relays its report. It is
 not a step of `finish-task`, does not run after deploys and never runs from CI. "Also after every
 deploy, by hand" was weighed and left for later.
+
+**Q15. Three pull requests, the first documents only.** The owner asked for as few pull requests
+as possible, and for the first one to hold only the spec's documents: the review bot checks a
+documents-only pull request in a mode of its own. The log headers (Q9) must be deployed before the
+agent's production run, so they cannot share a pull request with the agent either. Hence three:
+the documents, the api's log headers, everything else (the plan's §1). Weighed: two pull requests
+with the headers in the first (mixes code into the documents' review) or in the second (the run
+would read logs that still carry every header, against Q9).
 
 ## Sentry
 

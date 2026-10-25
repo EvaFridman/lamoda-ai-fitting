@@ -1,16 +1,18 @@
 # 0021 investigator: plan
 
-Status: draft (2026-10-25).
+Status: draft (2026-10-25); amended 2026-10-25 at the tasks (three pull requests, Q15).
 
 Implements [spec.md](spec.md) with the decisions of [clarifications.md](clarifications.md)
 (Q1–Q14). Sections name the decisions and criteria they carry out.
 
 ## 1. Pull requests and release order
 
-- **PR 1 `feat/0021-log-headers`**: the documents (T1–T3) and the api's log headers (T4, §2). It
-  is merged and deployed first, so the logs the agent reads in PR 2's production run already carry
-  four headers (Q9). A normal blue-green deploy, no migration.
-- **PR 2 `feat/0021-investigator`**: the index package (§3), the Sentry server (§4), the agent
+- **PR 1 `docs/0021-investigator`**: the documents only (T1–T3), since the review bot checks a
+  documents-only pull request in a mode of its own (Q15).
+- **PR 2 `fix/0021-log-headers`**: the api's log headers (T4, §2). Merged and deployed before PR 3's
+  production run, so the logs the agent reads already carry four headers (Q9). A normal blue-green
+  deploy, no migration.
+- **PR 3 `feat/0021-investigator`**: the index package (§3), the Sentry server (§4), the agent
   (§5), its guard (§6), the skill (§7), the docs (§8), the production run and the closing
   (T5–T13). It changes nothing the site runs: no api or web code, no compose, no nginx. Its
   production-facing parts only read. The run of AC9–AC11 happens from the branch before the pull
