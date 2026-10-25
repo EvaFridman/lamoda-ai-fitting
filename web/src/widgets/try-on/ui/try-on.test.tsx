@@ -1080,3 +1080,75 @@ describe('TryOn picker details', () => {
     await vi.waitFor(() => expect(productReads).toBe(2));
   });
 });
+
+describe('TryOn owner', () => {
+  const signedIn = (id: string): SessionState => ({
+    status: 'signed-in',
+    user: { id, email: `${id}@example.com`, name: null },
+  });
+
+  function renderOwned() {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const onClose = vi.fn();
+    // A new element each time: the same one would bail out and not read the session again.
+    const tree = () => (
+      <QueryClientProvider client={queryClient}>
+        <TryOn productId={PRODUCT} onClose={onClose} />
+      </QueryClientProvider>
+    );
+    const view = render(tree());
+    return { onClose, again: () => view.rerender(tree()) };
+  }
+
+  it('shows nothing and closes once when another user signs in', async () => {
+    mocks.session = signedIn('u1');
+    const { onClose, again } = renderOwned();
+    expect(await screen.findByRole('dialog', { name: 'Онлайн-примерка' })).toBeInTheDocument();
+
+    mocks.session = signedIn('u2');
+    again();
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows nothing and closes when the session ends', async () => {
+    mocks.session = signedIn('u1');
+    const { onClose, again } = renderOwned();
+    await screen.findByRole('dialog', { name: 'Онлайн-примерка' });
+
+    mocks.session = { status: 'signed-out', failed: false };
+    again();
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('stays open when the session read failed', async () => {
+    mocks.session = signedIn('u1');
+    const { onClose, again } = renderOwned();
+    await screen.findByRole('dialog', { name: 'Онлайн-примерка' });
+
+    mocks.session = { status: 'signed-out', failed: true };
+    again();
+
+    expect(screen.getByRole('dialog', { name: 'Онлайн-примерка' })).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('opened while the session loads, takes the first user as its owner', async () => {
+    mocks.session = { status: 'pending' };
+    const { onClose, again } = renderOwned();
+
+    mocks.session = signedIn('u1');
+    again();
+    expect(await screen.findByRole('dialog', { name: 'Онлайн-примерка' })).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+
+    mocks.session = signedIn('u2');
+    again();
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});
