@@ -16,6 +16,7 @@ export {
   useProductVariations,
   useRelatedProducts,
 } from './api/queries';
+export { productColours } from './lib/colours';
 export { isRefusedCursor } from './lib/cursor';
 export { chipValue, splitFacetAttributes } from './lib/facets';
 export { defaultProductSort, productFilterTitles } from './lib/filter-options';

@@ -21,6 +21,7 @@ import type { OutfitSlot } from '../generated/prisma/enums.js';
 import { lockUser } from '../me/lock-user.js';
 import { userGone } from '../me/me.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { COLOUR_VALUE } from '../products/colour.js';
 import { IMAGE_ORDER } from '../products/product-mapper.js';
 import { generationFolder } from '../storage/keys.js';
 import { ownedLink } from '../storage/owner-check.js';
@@ -384,15 +385,20 @@ export class FittingsService {
     }
   }
 
-  // The products exist and each colour is one of its product's values (RELATED_NOT_FOUND); each
-  // category has a slot (HAS_SLOT) and a look's slots differ (DISTINCT_SLOTS, A18, A70).
+  // The products exist and each colour is one of its product's colours, a value of its colour
+  // attribute (RELATED_NOT_FOUND, A76, A91: a season or a material is no colour); each category
+  // has a slot (HAS_SLOT) and a look's slots differ (DISTINCT_SLOTS, A18, A70). A regeneration
+  // copies its parent's items unchecked: a parent from before this rule keeps its value.
   private async checkItems(dto: StartFittingDto): Promise<ItemRow[]> {
     const products = await this.prisma.product.findMany({
       where: { id: { in: dto.items.map((item) => item.productId) } },
       select: {
         id: true,
         category: { select: { slot: true } },
-        attributeValues: { select: { attributeValueId: true } },
+        attributeValues: {
+          where: { attributeValue: COLOUR_VALUE },
+          select: { attributeValueId: true },
+        },
       },
     });
     const byId = new Map(products.map((product) => [product.id, product]));
@@ -412,7 +418,7 @@ export class FittingsService {
         missing.push({
           field: `items.${index}.attributeValueId`,
           code: 'RELATED_NOT_FOUND',
-          message: `items.${index}.attributeValueId is not a value of its product`,
+          message: `items.${index}.attributeValueId is not a colour of its product`,
         });
       }
     });

@@ -10,7 +10,7 @@ import {
   roomItemName,
   type SwatchChoice,
 } from '@/entities/fitting-room';
-import { type ProductDetail, sortSizes, useProduct } from '@/entities/product';
+import { type ProductDetail, productColours, sortSizes, useProduct } from '@/entities/product';
 import { useRoomActions } from '@/features/fitting-room';
 import { CartStubButton } from '@/features/product-stubs';
 import { useTrackedElement } from '@/shared/analytics';
@@ -34,12 +34,14 @@ function capitalised(text: string): string {
   return text.charAt(0).toLocaleUpperCase('ru-RU') + text.slice(1);
 }
 
-// The product's colours: its own values of a colour attribute, one with a swatch (A76).
-function productColours(product: ProductDetail | undefined): SwatchChoice[] {
-  return (product?.attributes ?? [])
-    .flatMap((attribute) => attribute.values)
-    .filter((value) => value.colorHex !== null)
-    .map((value) => ({ id: value.id, value: capitalised(value.value), colorHex: value.colorHex }));
+// The product's colours: the values of its colour attribute (A76, A91); one with no swatch is an
+// empty circle.
+function swatchChoices(product: ProductDetail | undefined): SwatchChoice[] {
+  return productColours(product).map((value) => ({
+    id: value.id,
+    value: capitalised(value.value),
+    colorHex: value.colorHex,
+  }));
 }
 
 export interface RoomSlotProps {
@@ -60,7 +62,7 @@ export function RoomSlot({ item, phone }: RoomSlotProps) {
   const [draft, setDraft] = useState<string | null>(null);
 
   const name = roomItemName(item.product);
-  const colours = productColours(product.data);
+  const colours = swatchChoices(product.data);
   const sizes: SelectOption[] = sortSizes(
     product.data?.variations.map((variation) => variation.size) ?? [],
   ).map((value) => ({ value, label: value }));

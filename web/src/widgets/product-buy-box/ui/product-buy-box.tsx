@@ -10,7 +10,7 @@ import {
   useFittingQuota,
   useLastFitting,
 } from '@/entities/fitting';
-import { type ProductDetail, sortSizes } from '@/entities/product';
+import { type ProductDetail, productColours, sortSizes } from '@/entities/product';
 import { useSession } from '@/entities/session';
 import { LoginModal } from '@/features/auth';
 import { ToLookButton } from '@/features/fitting-room';
@@ -34,13 +34,14 @@ function capitalised(text: string): string {
   return text.charAt(0).toLocaleUpperCase('ru-RU') + text.slice(1);
 }
 
-// The product's colours: its own values of a colour attribute, one with a swatch (spec 0019 A76).
+// The product's colours: the values of its colour attribute (spec 0019 A76, A91).
 function colourOptions(product: ProductDetail): SelectOption[] {
   const thumbnail = product.image?.url;
-  return product.attributes
-    .flatMap((attribute) => attribute.values)
-    .filter((value) => value.colorHex !== null)
-    .map((value) => ({ value: value.id, label: capitalised(value.value), thumbnail }));
+  return productColours(product).map((value) => ({
+    value: value.id,
+    label: capitalised(value.value),
+    thumbnail,
+  }));
 }
 
 // The product page's buy box (spec 0019 T20, boards 1, 11 and 13; A33, A62, A63.2, A82): the
