@@ -822,7 +822,8 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   starts with `userKeys.all`; its store (`useRoomStore`, Zustand) holds whether the drawer is open
   (`openRoom()`, also from a toast's action) and the wishes of one user in the tab's memory only
   (A90.5). `features/fitting-room`'s `useRoomActions` puts, removes and clears, answering the cache
-  with the write's answer, and shows the toasts (names in quotes, A90.10): «Заменили <слот>: «…»
+  with the write's answer (writes that overlap or fail, a write answered while the room is being
+  read and a remove over a room waiting for a read read it again instead, A97), and shows the toasts (names in quotes, A90.10): «Заменили <слот>: «…»
   вместо «…»» and «Убрали «…» из примерочной» with «Вернуть» (a `PUT` of the item back), ««…» в
   примерочной: <слот>» with «Открыть»; `useLookToggle` is the hanger's, «К образу»'s and the
   result's tile's (A90.11). `widgets/fitting-room-drawer` (`FittingRoomDrawer`, mounted once in
