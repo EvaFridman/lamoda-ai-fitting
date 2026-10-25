@@ -1,11 +1,13 @@
-// A product with no photo: the gallery's first frame, empty.
+// A product with no photo: the gallery's first frame, empty; on a phone as high as its slide
+// (A88).
 .empty {
   aspect-ratio: 432 / 624;
   max-width: 432px;
   background-color: var(--color-background-secondary);
 
   @media (width < 600px) {
-    aspect-ratio: 3 / 4;
+    aspect-ratio: auto;
     max-width: none;
+    height: calc(100svh - var(--gallery-offset, 0px));
   }
 }

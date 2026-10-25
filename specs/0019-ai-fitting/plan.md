@@ -340,10 +340,11 @@ status }` to the room; the worker's `notify` publishes the same JSON with its ow
   250 ms before each product page of the repeated pass. The catalog grid's cards get their
   prefetch back once one card's prefetch is measured (A81.5, T20 or T23).
 - The page's analytics: zone `product` (§9).
-- Phones (A87, T24a): the kit's `Gallery` sizes its strip's slides to `100svh` less the header's
-  row (at most 3:4, the photo `contain`ed) with Lamoda's dots (black, bottom left, the current one
+- Phones (A87, A88, T24a): the kit's `Gallery` sizes its strip's slides to `100svh` less the
+  header's row (the photo covers it, A88) with Lamoda's dots (black, bottom left, the current one
   larger); the buy box loses its fixed bar (`use-fixed-bar-height.ts`, `data-fixed-bar` and its
-  rule in `globals.scss` go) and keeps the wider page's order; `widgets/related-products` becomes
+  rule in `globals.scss` go), keeps the wider page's order and on a phone is a panel with 16 px
+  rounded top corners overlapping the photo by 16 px (A88); `widgets/related-products` becomes
   one row on every width through a new kit `ScrollRow` (scroll snap, «‹» «›» from 600 px, disabled
   at the ends, hidden when everything fits), with its `/ui-kit` example.
 

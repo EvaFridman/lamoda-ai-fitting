@@ -42,7 +42,10 @@ the limit meter and «Вы это примеряли», «О товаре» and 
 `compact` variant, the analytics zone `product`), the catalog card's two corners (the hanger
 `LookToggle`, disabled until the fitting room, and the heart stub, in place of its one `action`)
 and its hover (spec 0019 A63.1, A83); phase 4 so far the fitting room's api (`/me/fitting-room`,
-A86). Next: the fitting room in the header, looks, history actions.
+A86) and the product page on phones as Lamoda's (the gallery's slide and dots, the buy box in
+the flow as a panel over the photo, the kit's `ScrollRow` for «С этим товаром выбирают», A87.1–3,
+A88). Next: the header on
+phones, the fitting room in the header, looks, history actions.
 
 Keep this file true: update it in the same commit that changes what a section describes.
 
@@ -627,7 +630,11 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   `ProgressBar`, `CountBadge` (nothing at 0; its parent places it and names the count),
   `Chip`/`ChipGroup` (Base UI's Toggle and ToggleGroup; spec 0019 plan §7) and `Gallery` (a
   product's photos, board 1: from 600px two large and up to three small with «Показать ещё фото»,
-  below it a swiped strip with dots; one list switched by CSS, `unoptimized`). For the
+  below it a swiped strip whose slides, the photo covering them, are as high as the window less
+  the page's `--gallery-offset`, with Lamoda's dots above the page's `--gallery-overlap`, spec
+  0019 A87.1, A88; one list switched by CSS, `unoptimized`) and `ScrollRow` (one row of `<li>`s scrolling sideways with snapping, as many in
+  view as the parent's `--scroll-row-visible` and `--scroll-row-gap`; from 600px «‹» «›»,
+  disabled at the ends, gone while everything fits, taking `events`; A87.3). For the
   catalog's sheet (spec 0020) `Drawer` takes `fullHeight` (a bottom sheet as high as it can be, so
   a `Drawer` nested in it, Base UI's nested drawer, is as high and the outer one steps back behind
   it), `onBack` (a "‹" before the title, `backLabel`, `backRef`), `headerAction` (a control before
@@ -638,7 +645,7 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   a client module) where the DOM must differ, else CSS. Tracking handlers reach the kit and entity
   components as props, from the widget or page that calls `useTrackedElement`: `FilterDropdown`'s
   and the catalog filters' `chipEvents` (on the chip's trigger, not its ×), `FileInput`'s and
-  `Chip`'s `events`, `CatalogProductCard`'s and `CatalogCategoryList`'s `linkEvents`,
+  `Chip`'s `events`, `ScrollRow`'s `events` (by direction), `CatalogProductCard`'s and `CatalogCategoryList`'s `linkEvents`,
   `SavedPhotoCard`'s `makeDefaultEvents`, `HistoryCard`'s `openEvents`.
 
 - `web` photos (spec 0019 plan §7): `entities/user-photo` reads `GET /me/photos` in the browser
@@ -708,8 +715,9 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   and tracked elements are the catalog's zone `auth` (`Signed Out` goes before `reset`); the
   account's are the zone `account` (spec 0017 U14), the catalog page's the zone `catalog` (spec
   0014 plan §3.6, O97–O103), the fitting photos' the zone `fitting`, area `photos` (spec 0019
-  plan §9, A60), the product page's the zone `product` (areas `buy-box` and `related`, six
-  elements; `buy-box.to-look` and `related.to-look` come with the fitting room, A84).
+  plan §9, A60), the product page's the zone `product` (areas `buy-box` and `related`, seven
+  elements with the row's arrows `related.scroll`, A87.8; `buy-box.to-look` and `related.to-look`
+  come with the fitting room, A84).
   `Signed In` is sent once, on the page a sign-in of this tab came back to: `markSignInStarted()`
   (`features/auth`) puts the time in `sessionStorage` (`sign-in-started`, not an `mp_`/`__mp` key
   the SDK clearing removes) before leaving for Google, and a flag older than 10 minutes counts as
@@ -750,10 +758,12 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   `LoginModal`; «К образу», disabled until the fitting room, A82.2; `entities/fitting`'s
   `LimitMeter`, at the limit only «Закончились · снова с <date>» under the disabled «Примерить»,
   A82.5; its `TriedOnNote` from `/products/:id/fittings/last`, whose «Смотреть» opens
-  `/customer/fittings?fitting=<id>`; on phones a bar fixed to the bottom that writes its height
-  into `--fixed-bar-height`), `ProductAbout` (`entities/product`: the description whole, every
-  attribute, then «Артикул», A83) and `widgets/related-products` (`CatalogProductCard`'s `compact`
-  variant with «В корзину»; fewer than six shows as many, none hides the block). The stubs
+  `/customer/fittings?fitting=<id>`; on phones in the page's flow in the same order, nothing
+  fixed, A87.2, a white panel with rounded top corners lying 16 px over the photo, A88), `ProductAbout` (`entities/product`: the description whole, every attribute, then
+  «Артикул», A83) and `widgets/related-products` (`CatalogProductCard`'s `compact` variant with
+  «В корзину» in one `ScrollRow` on every width: four cards in view from 1024px, three below,
+  about two and a third on phones, A87.3; fewer than six shows as many, none hides the block). The
+  stubs
   «Добавить в корзину», «В корзину» and «В избранное» (`CartStubButton`, `FavoriteStub`, taking
   `events`) are enabled, send their click and show the toast «В прототипе нет корзины и
   избранного» (`showStubToast`, A33). The catalog card has two corners (A63.1): the hanger

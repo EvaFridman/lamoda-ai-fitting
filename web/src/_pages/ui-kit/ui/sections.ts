@@ -18,6 +18,7 @@ import { NoticesSection } from './notices-section';
 import { OverlaysSection } from './overlays-section';
 import { ProductSection } from './product-section';
 import { ProgressSection } from './progress-section';
+import { ScrollRowSection } from './scroll-row-section';
 import { SelectSection } from './select-section';
 import { SizesColorsSection } from './sizes-colors-section';
 import { SpinnerSection } from './spinner-section';
@@ -48,6 +49,7 @@ export const sections: UiKitSection[] = [
   { id: 'menu', title: 'Меню', Content: MenuSection },
   { id: 'product', title: 'Товар и заказ', Content: ProductSection },
   { id: 'gallery', title: 'Галерея товара', Content: GallerySection },
+  { id: 'scroll-row', title: 'Ряд с прокруткой', Content: ScrollRowSection },
   { id: 'catalog-card', title: 'Карточка товара в каталоге', Content: CatalogCardSection },
   { id: 'catalog-filters', title: 'Фильтры каталога', Content: CatalogFiltersSection },
   { id: 'navigation', title: 'Навигация', Content: NavigationSection },

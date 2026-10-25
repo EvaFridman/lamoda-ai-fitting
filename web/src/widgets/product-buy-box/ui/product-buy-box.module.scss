@@ -1,7 +1,7 @@
 // Board 1's buy box beside the gallery: the rating, the brand (24px) and the name, the price, the
 // note, the two selects, then the cart row and the try-on row (A63.2: board 13's TryOnButton, 56px,
-// with «К образу» beside it) and the limit meter. Below 600px (board 1.1) the buttons stick to the
-// window's bottom as a bar, the try-on row and the meter above the cart row.
+// with «К образу» beside it) and the limit meter. Below 600px the same order in the page's flow,
+// closer together (A87.2: not board 1.1's bar fixed to the bottom).
 
 .box {
   display: flex;
@@ -68,22 +68,9 @@
   gap: var(--space-3);
   margin-top: var(--space-6);
 
-  // Fixed, not sticky: a sticky bar stays inside the box and leaves while the gallery is in view.
-  // Under the cookie banner (`--z-banner`), which must stay answerable.
   @media (width < 600px) {
-    position: fixed;
-    z-index: var(--z-sticky);
-    right: 0;
-    bottom: 0;
-    left: 0;
-
     gap: var(--space-2);
-
-    margin: 0;
-    padding: 10px var(--space-4) var(--space-4);
-    border-top: 1px solid var(--color-border);
-
-    background-color: var(--color-background);
+    margin-top: var(--space-4);
   }
 }
 
@@ -93,30 +80,9 @@
   gap: var(--space-2);
 }
 
-.fitting,
-.meter {
-  @media (width < 600px) {
-    order: -1;
-  }
-}
-
-.meter {
-  @media (width < 600px) {
-    justify-content: center;
-  }
-}
-
 .grow,
 .tryOn,
 .toLook {
   flex: 1;
   min-width: 0;
-}
-
-// Board 1.1's bar: 48px buttons on a phone.
-.tryOn,
-.toLook {
-  @media (width < 600px) {
-    height: 48px;
-  }
 }

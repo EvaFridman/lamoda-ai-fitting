@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useRef } from 'react';
+import { Suspense } from 'react';
 
 import {
   LimitMeter,
@@ -25,8 +25,6 @@ import {
   type SelectOption,
   SparkleIcon,
 } from '@/shared/ui';
-
-import { useFixedBarHeight } from '../lib/use-fixed-bar-height';
 
 import styles from './product-buy-box.module.scss';
 
@@ -56,11 +54,10 @@ function colourOptions(product: ProductDetail): SelectOption[] {
 // rating, the brand and name, the price and discount, «Вы это примеряли», the colour and size (kept
 // on the screen only, A8), the cart and favourite stubs, board 13's TryOnButton with «К образу»
 // beside it, and the limit meter. The visitor's data (the session, the quota, the last fitting) is
-// read in the browser only (AC23). Signed out, «Примерить» opens the sign-in window (A12).
+// read in the browser only (AC23). Signed out, «Примерить» opens the sign-in window (A12). On a
+// phone it stays in the page's flow in the same order, nothing fixed to the window (A87.2).
 export function ProductBuyBox({ product, hasSlot, onTryOn }: ProductBuyBoxProps) {
   const session = useSession();
-  const barRef = useRef<HTMLDivElement>(null);
-  useFixedBarHeight(barRef);
   const signedIn = session.status === 'signed-in';
   const quota = useFittingQuota(signedIn);
   const last = useLastFitting(product.id, signedIn);
@@ -167,9 +164,7 @@ export function ProductBuyBox({ product, hasSlot, onTryOn }: ProductBuyBoxProps)
         )}
       </div>
 
-      {/* `data-fixed-bar`: the global styles keep the page's end clear of it on a phone, by the
-          height it measures of itself. */}
-      <div ref={barRef} className={styles.actions} data-fixed-bar="">
+      <div className={styles.actions}>
         <div className={styles.cart}>
           <CartStubButton size={48} className={styles.grow} events={cartEvents}>
             Добавить в корзину

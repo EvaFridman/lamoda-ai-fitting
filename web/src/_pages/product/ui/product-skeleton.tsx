@@ -15,14 +15,17 @@ export function ProductSkeleton() {
         <Skeleton width={200} height={16} />
       </div>
       <div className={styles.main}>
-        <div className={styles.gallery}>
-          <Skeleton height={624} />
+        <div className={[styles.gallery, styles.gallerySkeleton].join(' ')}>
+          <Skeleton height="100%" />
         </div>
-        <div className={styles.buyBox}>
-          <Skeleton width={120} height={16} />
-          <Skeleton width={160} height={28} />
-          <Skeleton width={240} height={20} />
-          <Skeleton width={140} height={28} />
+        {/* On a phone the buy box's panel over the photo, as the page's (A88). */}
+        <div className={styles.purchase}>
+          <div className={styles.buyBox}>
+            <Skeleton width={120} height={16} />
+            <Skeleton width={160} height={28} />
+            <Skeleton width={240} height={20} />
+            <Skeleton width={140} height={28} />
+          </div>
         </div>
       </div>
     </div>

@@ -442,6 +442,7 @@ describe('analytics catalog', () => {
       'buy-box.tried-on': ['product', 'navigation'],
       'related.card': ['product', 'navigation'],
       'related.add-to-cart': ['product', 'interaction'],
+      'related.scroll': ['product', 'interaction'],
       'photos.upload': ['fitting', 'interaction'],
       'photos.camera': ['fitting', 'interaction'],
       'photos.set-default': ['fitting', 'interaction'],
