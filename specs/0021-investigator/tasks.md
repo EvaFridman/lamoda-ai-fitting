@@ -1,6 +1,7 @@
 # 0021 investigator: tasks
 
-Status: draft (2026-10-25); amended 2026-10-25 at the tasks (three pull requests, Q15).
+Status: draft (2026-10-25); amended 2026-10-25 at the tasks (three pull requests, Q15) and at the
+review of PR 1 (T12's record).
 
 Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
 
@@ -75,8 +76,8 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       Commit: `feat(tooling): serve the code index to agents over mcp`
 - [ ] **T8. Sentry's MCP server.** `sentry` in `.mcp.json` (plan §4); 👤 the OAuth connection
       and the organization's slug; the live tool list read and compared with the plan's names
-      (`clarifications.md` records a difference, or the switch to the local server if the hosted
-      one cannot reach the organization); the `deny` list in `settings.json`; the guards tests
+      (`clarifications.md` records a difference, or the switch to the local server should the
+      connection fail, plan §4); the `deny` list in `settings.json`; the guards tests
       for the deny names and that no agent but `investigator` names Sentry (AC7's Sentry part,
       with the agent file's check added in T10).
       Check: the guards tests; a `get_issue_details` call from the main session asks for
@@ -101,9 +102,10 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       Commit: `feat(tooling): add the investigate skill`
 - [ ] **T12. 👤 Production run.** `/investigate <a real Sentry issue link>` (AC9) and
       `/investigate since <the live release's tag>` (AC10); the permission prompts seen (AC11).
-      The owner reads the report for personal data. The reports and the prompts go into the
-      acceptance record; a bug found in the tool or the agent is fixed in a task added here with
-      the owner.
+      The owner reads the report for personal data. The reports go into the acceptance record
+      only after that reading, with every request url cut at `?` (the repository is public:
+      request ids and `path:line` may stay, nothing a visitor typed may), the prompts seen with
+      them; a bug found in the tool or the agent is fixed in a task added here with the owner.
       Check: AC9–AC11 recorded.
       Commit: `docs(specs): record the production run of spec 0021`
 - [ ] **T13. Closing.** `Status: done` in the four files, the acceptance record completed

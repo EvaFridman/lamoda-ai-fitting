@@ -1,7 +1,8 @@
 # 0021 investigator: an agent for Sentry events and the api's logs
 
-Status: draft (2026-10-25); amended 2026-10-25 at the plan (Q6: the index's store) and at the
-tasks (Q15: three pull requests).
+Status: draft (2026-10-25); amended 2026-10-25 at the plan (Q6: the index's store), at the tasks
+(Q15: three pull requests) and at the review of PR 1 (AC3's source list, AC9's record, the
+region assumption).
 
 Issue #44. Decisions: `clarifications.md` (Q1–Q15).
 
@@ -57,8 +58,8 @@ through a vector index of the repository, not only by name.
 
 ### The index
 
-- **AC3.** `npm run rag:index` builds the index from the tracked files of the folders Q7 names and
-  prints how many files and chunks it embedded. Run again without a change, it embeds nothing;
+- **AC3.** `npm run rag:index` builds the index from the tracked files the plan's §3.2 names (Q7)
+  and prints how many files and chunks it embedded. Run again without a change, it embeds nothing;
   after a change to one file it embeds that file's chunks only. `.env*`, lock files, generated code
   and media are never indexed. Checked by tests with a stand-in embedder and by one run with the
   real key.
@@ -77,8 +78,8 @@ through a vector index of the repository, not only by name.
   denies every Sentry write tool and the dispatcher tools by name and allows only the three tools
   of the index's server; no other agent names a Sentry or index tool. `npm test` fails otherwise.
 - **AC8.** The agent's shell guard lets the allowed shapes through (`docker logs` of a named
-  production container with its time and tail flags, the deploy state, the container list, each
-  optionally filtered by `rg` or `grep`) and blocks everything else: another host, another docker
+  production container with its time and tail flags, the deploy state, the compose projects'
+  list, each optionally filtered by `rg` or `grep`) and blocks everything else: another host, another docker
   command, an unknown container, a pipe to anything else, any write. Each has a case in
   `guards.test.mjs`.
 
@@ -87,7 +88,8 @@ through a vector index of the repository, not only by name.
 - **AC9.** Given the link of a real Sentry issue, `/investigate` returns a report naming the issue,
   the request id(s), the log lines of the copy that served them, the place in the code of that
   release (`path:line`), the cause, a proposed fix and a test. The report holds no personal data
-  (no email, name, token, cookie or signed link; the owner reads it). Recorded in `tasks.md`.
+  (no email, name, token, cookie or signed link; the owner reads it). Recorded in `tasks.md` after
+  the owner's reading, its request urls without their query: the repository is public.
 - **AC10.** `/investigate since <release tag>` lists the unresolved issues of both Sentry projects
   first seen since that release, grouped by cause, most important first.
 - **AC11.** In those runs every Sentry call and every ssh asked for permission; the index's calls
@@ -112,9 +114,9 @@ through a vector index of the repository, not only by name.
 
 ## Assumptions
 
-- Sentry's hosted MCP server serves the owner's organization (checked at the task that connects
-  it; otherwise the local `@sentry/mcp-server` with `--host` and a user token takes its place, the
-  agent's tools unchanged).
+- Sentry's hosted MCP server serves the owner's organization, which is in Sentry's US region
+  (`sentry.io`); should the connection still fail, the local `@sentry/mcp-server` with a user token
+  takes its place, the agent's tools unchanged.
 - The hosted server's tool names are those of its catalog on 2026-10-25; the task that connects it
   checks them again, as spec 0015 did for Mixpanel's.
 - Voyage AI's free allowance (200 M tokens per account on its pricing page) covers the

@@ -1,9 +1,11 @@
 # 0021 investigator: plan
 
-Status: draft (2026-10-25); amended 2026-10-25 at the tasks (three pull requests, Q15).
+Status: draft (2026-10-25); amended 2026-10-25 at the tasks (three pull requests, Q15) and at the
+review of PR 1 (the remote string's second parse in §6, the query rule in §5, two accepted risks,
+the US region, the pull request numbers of §8 and §10).
 
 Implements [spec.md](spec.md) with the decisions of [clarifications.md](clarifications.md)
-(Q1–Q14). Sections name the decisions and criteria they carry out.
+(Q1–Q15). Sections name the decisions and criteria they carry out.
 
 ## 1. Pull requests and release order
 
@@ -70,7 +72,8 @@ params, headers, remoteAddress, remotePort), so the change is a filter on that o
 ### 3.2 File selection (Q7)
 
 `files.ts`, a pure function over the output of `git ls-files -z` (tracked files only: `.env`,
-`.rag/` and anything untracked never appear), with tests:
+`.rag/` and anything untracked never appear), with tests. This section is the source of truth for
+what is indexed; Q7 names it (owner, at the review of PR 1):
 
 - Included prefixes: `api/src`, `api/prisma`, `api/test`, `api/scripts`, `web/src`, `web/app`,
   web's root files (`next.config.ts`, `proxy.ts`, `instrumentation*.ts`, `sentry.options.ts`),
@@ -185,7 +188,9 @@ score` with a snippet of at most 40 lines. The query is embedded with `input_typ
   splits by members, markdown splits by headings with the heading path and `specStatus`, SCSS by
   windows, a secret-like chunk is skipped.
 - `embed.test.ts`: batch sizes, a 429 retried against a fake `fetch`, `voyageKey()`'s order (the
-  environment, then only that key of a fixture `.env`), a missing key before any request.
+  environment first; then a fixture `.env` holding `VOYAGE_API_KEY` next to other variables, of
+  which exactly that one is returned and none reaches `process.env`), a missing key before any
+  request.
 - `store.test.ts`, with the real `node:sqlite` and extension and the `FakeEmbedder`: a round trip;
   an unchanged run embeds nothing, a changed file replaces its chunks, a removed file disappears
   (AC3); an exact symbol query hits through FTS and a paraphrase through the vectors (AC4); a model
@@ -219,10 +224,11 @@ score` with a snippet of at most 40 lines. The query is embedded with `input_typ
   `search_traces` turn a question in words into Sentry's query on the hosted server's own model;
   our question is their input, what comes back is data. The two project slugs
   (`lamoda-ai-fitting`, `lamoda-ai-fitting-api`) are in the agent's text.
-- If the organization lives in Sentry's EU region and the hosted server cannot reach it, T8
-  switches to the local `@sentry/mcp-server` (stdio, `SENTRY_HOST`, a user token with read scopes
-  read from `.env` as the Voyage key is); the tool names are the same package's, so the agent file
-  and the deny list do not change. Recorded in `clarifications.md` if it happens.
+- The organization is in Sentry's US region (Q2), which the hosted server serves. Should the
+  connection fail for another reason, T8 switches to the local `@sentry/mcp-server` (stdio, a user
+  token with read scopes read from `.env` as the Voyage key is); the tool names are the same
+  package's, so the agent file and the deny list do not change. Recorded in `clarifications.md` if
+  it happens.
 
 ## 5. The agent `investigator` (Q1, Q11–Q13)
 
@@ -252,6 +258,9 @@ score` with a snippet of at most 40 lines. The query is embedded with `input_typ
   name, token, cookie, authorization value or signed link (`X-Amz-`); log lines are cut to the
   fields that matter (`time`, `req.id`, `req.method`, `req.url` without its query,
   `res.statusCode`, `responseTime`, `msg`, `err.type`, `code`); an opaque user id may appear (Q9).
+  A query to `search_code` or `search_docs` leaves the machine (Voyage embeds it): it holds code
+  terms, error codes and the symptom in the agent's own words, never a quote from an event, a
+  breadcrumb or a log line (no email, token, signed link, user id or request id).
   Every `docker logs` is bounded (`--since` or `--tail`, at most 5 000 lines) and filtered when a
   request id is known; at most six ssh calls per investigation, more only with the owner's word
   through the main session.
@@ -273,20 +282,30 @@ score` with a snippet of at most 40 lines. The query is embedded with `input_typ
   the filter sees; a container's stderr (nginx's error log) comes unfiltered when no filter is
   given.
 - The ssh stage is exactly `ssh ai-fitting` (no ssh option at all: `-o`, `-i`, `-p`, `-J` could
-  change the connection) and one of:
+  change the connection) followed by the remote command. The remote command reaches the guard as
+  one quoted word (`ssh ai-fitting 'docker logs …'`) or as bare words; either way the rule set
+  joins the words after the host and parses them again with `words()` (as `main-rules.mjs` checks
+  the words after the host as code of their own): `;`, `&&`, `||`, `|`, `&`, `$(`, backticks,
+  redirections and newlines inside the remote string are refused there, and only then the remote
+  words are matched against the shapes below. No shape needs a character `words()` quotes (no
+  braces, no spaces inside a value), so the quoted and the bare form parse alike. The remote
+  command is one of:
   - `docker logs [--since <d>] [--until <d>] [--tail <n>] [--timestamps|-t] <container>`, with the
     container one of `ai-fitting-blue-api-1`, `ai-fitting-green-api-1`, `ai-fitting-blue-web-1`,
     `ai-fitting-green-web-1`, `ai-fitting-worker-temporal-worker-1`, `ai-fitting-backup-backup-1`,
     `ai-fitting-infra-nginx-1`; `--since`/`--until` a duration (`\d+[smh]`) or an RFC 3339 stamp;
     `--tail` at most 5 000; `--since` or `--tail` required;
   - `cat /opt/ai-fitting/.deploy-state`;
-  - `docker ps --format '{{.Names}}'`;
   - `docker compose ls`.
+    There is no `docker ps`: the deploy state names the colour, and the container names are the fixed
+    list above (a `--format '{{.Names}}'` would also fail the second parse on its braces).
     Every word still passes `isSecret` (so `/opt/ai-fitting/.env` is refused by name).
-- `guards.test.mjs` cases (AC8): each allowed shape with and without the filter; blocked: another
-  host, `ssh -o … ai-fitting`, `docker restart`, `docker exec`, an unknown container, `docker logs`
-  with no bound, a pipe to `tee` or a second pipe, a redirection, `cat` of the server's `.env`,
-  `rm`, `git fetch`, `npm`.
+- `guards.test.mjs` cases (AC8): each allowed shape with and without the filter, quoted and as
+  bare words; blocked: another host, `ssh -o … ai-fitting`, `docker restart`, `docker exec`, an
+  unknown container, `docker logs` with no bound, a pipe to `tee` or a second pipe, a redirection,
+  `cat` of the server's `.env`, `rm`, `git fetch`, `npm`, and a remote string that hides a second
+  command: `'docker logs --tail 10 ai-fitting-blue-api-1; rm -rf /'`, `… && …`, `… | …`,
+  `$(…)`, backticks, a newline, `2>&1`.
 - `Bash(ssh:*)` stays in `settings.json`'s `ask`, so every ssh asks the owner after the guard
   passed it (Q10).
 
@@ -306,14 +325,16 @@ finding); propose the next step (a task of an open spec, a backlog item, or a Gi
 - `.claude/README.md`: a row for `investigator` in the agents' table; a section on the two new
   servers mirroring Mixpanel's (OAuth, the deny list and the dispatcher, no `allow` for Sentry and
   why, `allow` for `code-rag` and why, data not instructions); the `investigator` rule set under
-  hooks; the owner's decisions; the accepted risks (§11).
+  hooks; the owner's decisions; the accepted risks (§11), among them that the `code-rag` server,
+  which runs under `allow`, reads one key out of `.env` itself, and that the index and the records
+  of `tasks.md` assume a public repository.
 - `CLAUDE.md`: the agents' list (`investigator`, `/investigate`), the commands (`rag:index`), the
-  structure (`tools/code-rag/`), the "Logging" bullet (PR 1), and at the closing the header line.
+  structure (`tools/code-rag/`), the "Logging" bullet (PR 2), and at the closing the header line.
 - `README.md`: a section «Расследование ошибок прода»: the Voyage key, `npm run rag:index`, `/mcp`
   for Sentry's OAuth, `/investigate`.
 - `.env.example`, `.gitignore`, `scripts/check-web-bundle.mjs`, the root `package.json` scripts,
   `eslint.config.mjs`, the CI workflow's `npm ci`, `.mcp.json`, `.claude/settings.json`,
-  `specs/backlog.md` (PR 1).
+  `specs/backlog.md` (PR 2).
 
 ## 9. Analytics
 
@@ -323,7 +344,7 @@ None: the spec has no UI and sends no events.
 
 | AC   | How                                                                                                                                                                                         |
 | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| AC1  | `core.module.spec.ts` and `mount-auth.spec.ts` (§2); after PR 1's deploy, one line of `docker logs --tail 20 ai-fitting-<colour>-api-1` read by the owner, recorded in `tasks.md`.          |
+| AC1  | `core.module.spec.ts` and `mount-auth.spec.ts` (§2); after PR 2's deploy, one line of `docker logs --tail 20 ai-fitting-<colour>-api-1` read by the owner, recorded in `tasks.md`.          |
 | AC2  | `git show` of T4's commit touches `specs/backlog.md`.                                                                                                                                       |
 | AC3  | `store.test.ts` (unchanged, changed, removed); `files.test.ts`; `rag:index --dry-run` lists no excluded path; one real run's summary recorded in `tasks.md`.                                |
 | AC4  | `store.test.ts` (symbol through FTS, paraphrase through vectors with the fake embedder); the question about storage paths run by hand with the real key, the answer recorded in `tasks.md`. |
@@ -331,15 +352,15 @@ None: the spec has no UI and sends no events.
 | AC6  | `embed.test.ts` and `server.test.ts` (missing key: message, no fetch); `npm run verify` on a machine with no key, in CI.                                                                    |
 | AC7  | `guards.test.mjs`: the agent's `tools:` equal the list; every deny name present; `allow` holds only the three `code-rag` tools; no other agent file mentions `sentry` or `code-rag`.        |
 | AC8  | `guards.test.mjs`'s `investigator` cases (§6).                                                                                                                                              |
-| AC9  | T12: `/investigate <issue link>` on production; the owner reads the report; its text (minus anything the owner strikes) is kept in `tasks.md`'s record.                                     |
+| AC9  | T12: `/investigate <issue link>` on production; the owner reads the report; the report is kept in `tasks.md`'s record only after that reading, every request url cut at `?` (T12).          |
 | AC10 | T12: `/investigate since <tag>`; the list recorded.                                                                                                                                         |
 | AC11 | T12: the permission prompts seen during AC9 and AC10, recorded.                                                                                                                             |
 | AC12 | `.gitignore`; the build contexts (§3.1); `check:web-bundle` in `verify`; `rg VOYAGE_API_KEY deploy/ docker-compose.yml` finds nothing.                                                      |
 
 ## 11. Risks
 
-- **Sentry's region.** The hosted server may not serve an EU organization; the fallback is §4's
-  local server, same tools.
+- **Sentry's connection.** The organization is in the US region (Q2), which the hosted server
+  serves; should it still fail, §4's local server takes its place, same tools.
 - **The hosted tool set is not pinned.** Names can change or appear; T8 reads the live list, the
   `tools:` test pins the agent's, and no `allow` means a new tool asks.
 - **Prompt injection.** Event text, breadcrumbs, comments and log lines are written by the outside
@@ -360,6 +381,15 @@ None: the spec has no UI and sends no events.
   the index is refreshed later.
 - **The log line's contract.** Removing headers from the log could break a reader that expected
   them; none exists (the backlog item says nobody reads them).
+- **`.env` read by a server under `allow`.** `CLAUDE.md` says Claude cannot read `.env`; the
+  `code-rag` server, which Claude Code starts from `.mcp.json` and whose tools never ask, reads
+  one key out of it. The fence is the code of `tools/code-rag/` itself, reviewed like any code,
+  and `embed.test.ts`'s check that exactly `VOYAGE_API_KEY` comes out of a `.env` holding other
+  variables. An accepted risk, written into `.claude/README.md`.
+- **A public repository is assumed.** Sending tracked files and search queries to Voyage (Q5) and
+  keeping the production run's reports in `tasks.md` (AC9) are harmless because the repository is
+  public. Should it become private, both become disclosures: `.claude/README.md` says so next to
+  the accepted risks, so the change is weighed then.
 
 ## 12. Versions (checked 2026-10-25)
 
