@@ -1,8 +1,9 @@
 # 0021 investigator: an agent for Sentry events and the api's logs
 
-Status: draft (2026-10-25); amended 2026-10-25 at the plan (Q6: the index's store).
+Status: draft (2026-10-25); amended 2026-10-25 at the plan (Q6: the index's store) and at the
+tasks (Q15: three pull requests).
 
-Issue #44. Decisions: `clarifications.md` (Q1–Q14).
+Issue #44. Decisions: `clarifications.md` (Q1–Q15).
 
 ## Goal
 
@@ -106,8 +107,8 @@ through a vector index of the repository, not only by name.
 - Confirming each ssh call and each Sentry call while the agent runs (Q10).
 - Choosing a real Sentry issue for AC9 and reading the report for personal data; running
   `/investigate since` for AC10.
-- Merging and deploying PR 1 before PR 2's production run, so the logs the agent reads carry only
-  four headers (Q9).
+- Merging and deploying PR 2 (the log headers) before PR 3's production run, so the logs the agent
+  reads carry only four headers (Q9, Q15).
 
 ## Assumptions
 
