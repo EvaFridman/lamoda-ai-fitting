@@ -1252,6 +1252,10 @@ column below 800px (its items' rows had no room beside the picture), beside the 
 under 360px wraps each row's «В корзину» and heart under the text, and the error card's
 «Попробовать ещё раз» keeps its height on phones.
 
+**A96. The spec closes in a pull request of its own (2026-10-25).** T29 checks AC13, AC14 and AC17
+on production, which PR 5 brings there; so PR 5 ends with T28, and T29 is PR 6, `docs/0019-close`,
+from a fresh `main` after PR 5 is merged and deployed, as specs 0014 and 0020 closed.
+
 ## Canvas and decisions
 
 Where the canvas differs from the decisions above, the decision wins:
