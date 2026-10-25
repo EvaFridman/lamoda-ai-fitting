@@ -1,8 +1,8 @@
 # 0022 stores: Lamoda Sport stores on a Yandex map
 
-Status: draft (2026-10-26).
+Status: accepted (2026-10-26).
 
-Decisions: `clarifications.md` (X0–X15).
+Decisions: `clarifications.md` (X0–X18).
 
 Issue #73, «Интеграция яндекс-карт и вывод магазинов на карте».
 
@@ -94,7 +94,7 @@ part of it.
   outlet» and of the map pin «la» from Lamoda's stores page (X9).
 - Get the key of «JavaScript API и HTTP Геокодер» in Yandex's developer cabinet, restricted by HTTP
   Referer to `lamoda-ai-fitting.ru` and `localhost`; put it into the local `.env` and the GitHub
-  secret the plan names (X13).
+  repository variable the plan names (X13).
 - Check the page on a real phone after the deploy.
 
 ## Assumptions
