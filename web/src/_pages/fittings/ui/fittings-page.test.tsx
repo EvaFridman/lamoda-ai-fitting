@@ -229,6 +229,21 @@ describe('the try-on entry on the fittings page', () => {
     expect(mocks.router.replace).toHaveBeenCalledWith('/customer/fittings', { scroll: false });
   });
 
+  it('closes the window of a fitting in the address when another user signs in', async () => {
+    mocks.search.value = `fitting=${PRODUCT}&from=history`;
+    const page = renderPage();
+    await screen.findByRole('dialog', { name: 'Онлайн-примерка' });
+
+    mocks.session = { status: 'signed-in', user: { id: 'u2', email: 'b@example.com', name: null } };
+    page.navigate();
+
+    await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(mocks.router.replace).toHaveBeenCalledExactlyOnceWith(
+      '/customer/fittings?from=history',
+      { scroll: false },
+    );
+  });
+
   it('opens the window again when a link to the same fitting follows its close', async () => {
     mocks.search.value = `fitting=${PRODUCT}`;
     const page = renderPage();

@@ -78,6 +78,18 @@ export function TryOn({
   const queryClient = useQueryClient();
   const session = useSession();
   const userId = session.status === 'signed-in' ? session.user.id : '';
+  // The user the window opened for: an end of the session or another user signed in with no end
+  // seen in between closes it, and it shows nothing meanwhile, since its state (a one-time
+  // photo's link, the chosen photo) is that user's (spec 0017 U22). A failed read is no end.
+  const [ownerId, setOwnerId] = useState<string | null>(userId || null);
+  // Opened while the session loads (a link to `?fitting=`): its first user is the owner.
+  if (ownerId === null && userId !== '') setOwnerId(userId);
+  const foreign =
+    (session.status === 'signed-out' && !session.failed) ||
+    (ownerId !== null && userId !== '' && userId !== ownerId);
+  useEffect(() => {
+    if (foreign) onClose();
+  }, [foreign, onClose]);
   const [fittingId, setFittingId] = useState<string | null>(givenFittingId ?? null);
   // The result a colour runs over (board 7.2).
   const [baseId, setBaseId] = useState<string | null>(null);
@@ -447,6 +459,8 @@ export function TryOn({
       />
     );
   }
+
+  if (foreign) return null;
 
   return (
     <TryOnModal
