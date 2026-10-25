@@ -1,6 +1,6 @@
 # 0022 stores: plan
 
-Status: accepted (2026-10-26).
+Status: accepted (2026-10-26); amended 2026-10-26 at the tasks (no header change: X7).
 
 How [spec.md](spec.md) is built. Decisions: [clarifications.md](clarifications.md) (X0–X18).
 
@@ -159,7 +159,6 @@ A client component, `StoresMap({ stores, selectedId, onSelect, fit, pinEvents })
 - Plain links (X16): `account-sections.ts` gets `fullLoad: true` on `stores`; the side menu, the
   header's profile menu and its burger menu render such an entry as a plain `<a>` (the kit's `Link`
   / `MenuLinkItem` with a plain-anchor form), and so does the footer's item. A test per menu.
-- Header: «Москва» in place of «Укажите ваш населенный пункт», still `aria-disabled` (X7).
 - Footer: `items.ts` `{ label: 'Магазины Lamoda Sport', href: '/customer/stores', track: 'stores'
 }`; `footer.link` (X18) on items with `track`.
 - `/privacy`: a paragraph (X6): «На странице магазинов показана карта Яндекса: Яндекс получает
@@ -248,7 +247,7 @@ entry. A pin is not a React element of ours only if reactify fails; then `trackE
 | AC9           | `stores-view` test at a phone width (tabs, switch on select); qa-tester at 375 px  |
 | AC10          | `stores-map` test without a key; qa-tester without a key                           |
 | AC11          | after the deploy: the page on the site, the console clean (owner and main session) |
-| AC12          | `header.test.tsx`                                                                  |
+| AC12          | removed (X7)                                                                       |
 | AC13          | `footer.test.tsx` (href, plain link)                                               |
 | AC14          | `privacy-page.test.tsx`                                                            |
 | AC15          | `routes.test.ts`; the deploy's warm-up log; the page's `noindex` in a test         |
