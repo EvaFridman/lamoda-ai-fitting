@@ -1,0 +1,20 @@
+{
+  "name": "code-rag",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=26 <27",
+    "npm": ">=12 <13"
+  },
+  "scripts": {
+    "index": "node src/cli.ts index",
+    "typecheck": "tsc --noEmit"
+  },
+  "allowScripts": {},
+  "dependencies": {
+    "typescript": "^6.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4"
+  }
+}

@@ -49,7 +49,7 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
 
 ## PR 3 · `feat/0021-investigator` · the index, the servers, the agent, the skill
 
-- [ ] **T5. The package, file selection and chunking.** `tools/code-rag/` with `package.json`,
+- [x] **T5. The package, file selection and chunking.** `tools/code-rag/` with `package.json`,
       `tsconfig.json`, `files.ts`, `chunk.ts` and their tests (plan §3.1–3.3); the root scripts
       (`rag:index`, `typecheck`, the `node --test` line), `eslint.config.mjs`'s Node block, CI's
       `npm ci` for the package, `.gitignore`'s `.rag/`.

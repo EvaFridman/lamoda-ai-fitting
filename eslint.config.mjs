@@ -56,13 +56,15 @@ export default tseslint.config(
     },
   },
 
-  // Root tooling scripts and configs, the deploy's scripts and the agents' guard hooks run in Node.
+  // Root tooling scripts and configs, the deploy's scripts, the agents' guard hooks and the code
+  // index (tools/code-rag) run in Node.
   {
     files: [
       '*.{js,mjs,cjs,ts}',
       'scripts/**/*.{js,mjs}',
       'deploy/scripts/*.mjs',
       '.claude/hooks/**/*.mjs',
+      'tools/**/*.ts',
     ],
     languageOptions: { globals: globals.node },
   },

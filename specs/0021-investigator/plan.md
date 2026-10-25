@@ -3,7 +3,8 @@
 Status: draft (2026-10-25); amended 2026-10-25 at the tasks (three pull requests, Q15) and at the
 review of PR 1 (the remote string's second parse in §6, the query rule in §5, two accepted risks,
 the US region, the pull request numbers of §8 and §10) and on 2026-10-26 at T4 (§2's referer and
-length, Q16; §6's nginx filter, Q17; §2's tests).
+length, Q16; §6's nginx filter, Q17; §2's tests) and at T5 (§3.2's modes, stages, `.env*` and
+secret patterns; §3.3's windows, imports, directives, lists and empty headings).
 
 Implements [spec.md](spec.md) with the decisions of [clarifications.md](clarifications.md)
 (Q1–Q17). Sections name the decisions and criteria they carry out.
@@ -91,10 +92,22 @@ what is indexed; Q7 names it (owner, at the review of PR 1):
   binaries by extension, the third-party skills (`.claude/skills/prisma-*`,
   `.claude/skills/temporal-developer`), files over 512 KB. Only a whitelist of extensions is read
   (`ts tsx mts mjs cjs js json yml yaml md scss css sh sql prisma conf template toml` and
-  `Dockerfile`); the rest is counted as skipped.
-- A secret guard, defence in depth behind gitleaks: a chunk matching a private key header
-  (`-----BEGIN`), an AWS key id (`AKIA[0-9A-Z]{16}`), `sk-…`, `ghp_…`, `xox[baprs]-…` or a long
-  hex/base64 run after `=` or `:` is skipped with a warning naming the path and lines.
+  `Dockerfile`); the rest is counted as skipped. Also skipped: any name starting with `.env` but
+  the root `.env.example`, anything but a regular file (a symlink could point at `.env` or a key
+  outside the repository; `git ls-files` gives the mode), and an unmerged path during a conflict
+  (named once). The indexer reads a file's content by its blob hash (`git cat-file`), not from the
+  working tree, so the text, the hash and the chunk ids agree and an unstaged edit stays out (T6).
+- A secret guard, defence in depth behind gitleaks: a chunk whose embedded text (§3.3: the path
+  and the symbol too, since a heading path carries its parents' headings) matches either end of a
+  private key (`-----BEGIN|END … PRIVATE KEY( BLOCK)?-----`) or a key's body line (60–76 base64
+  characters with a digit, alone on a line or quoted), an AWS key id (`AKIA[0-9A-Z]{16}`), an age
+  secret key, a Google client secret (`GOCSPX-…`), `sk-…`, Voyage's `pa-…`, GitHub's
+  `gh[pousr]_…` and `github_pat_…`, Sentry's `sntry[su]_…`, `xox[baprs]-…`, a `Bearer` token, a
+  JWT, a password with a digit in an address (`://user:password@`), a value of 20+ characters
+  with a digit of a variable named `…SECRET…`, `…PASSWORD…`, `…TOKEN…` or `…API_KEY…`, or a long
+  hex, base64 or mixed-case base64url run after `=` or `:` (not an image digest's `@sha256:`) is
+  skipped with a warning naming the path and lines. Test fixtures with fake secrets of these
+  shapes are skipped too (a handful of `*.spec.ts` chunks).
 
 ### 3.3 Chunking
 
@@ -102,16 +115,22 @@ what is indexed; Q7 names it (owner, at the review of PR 1):
 
 - TypeScript and JavaScript: `ts.createSourceFile` (the compiler API, no type checking) and the
   top-level statements: functions, classes, interfaces, types, enums, variable statements, export
-  assignments. A class over 80 lines splits into its members. A statement over 120 lines or
-  6 000 characters splits into windows of 60 lines with 10 overlapping. Leading comments and JSDoc
-  attach to their node. `symbol` is the declared name(s).
+  assignments. Consecutive imports and re-exports make one chunk (`imports`); directives at the
+  top (`'use client'`) and comments after the last statement go with their neighbour. A class over
+  80 lines splits into its members. A statement over 120 lines or 6 000 characters splits into
+  windows (below). Leading comments and JSDoc attach to their node. `symbol` is the declared
+  name(s).
 - Markdown: one chunk per heading section (`#` to `####`), prefixed with its heading path
-  (`0018 page cache and warm-up on deploy › Acceptance criteria › Page cache`); long sections
-  split at paragraphs around 6 000 characters. A file under `specs/` gets `specStatus`: `history`
+  (`0018 page cache and warm-up on deploy › Acceptance criteria › Page cache`); a heading with
+  nothing under it before the next one makes none. Long sections split at paragraphs around
+  6 000 characters, a paragraph over that at its top-level list items, an item over that at its
+  lines. A file under `specs/` gets `specStatus`: `history`
   when its `Status:` line says `done`, else `binding`; `specs/backlog.md` and `principles.md` are
   `binding`.
-- Everything else (SCSS, YAML, shell, SQL, Prisma, nginx templates, Dockerfile, JSON): windows of
-  60 lines with 10 overlapping; `symbol` is the first non-empty line, cut to 80 characters.
+- Everything else (SCSS, YAML, shell, SQL, Prisma, nginx templates, Dockerfile, JSON): windows;
+  `symbol` is the first non-empty line, cut to 80 characters. A window holds 60 lines, fewer when
+  they would pass 6 000 characters (so a short statement of long lines splits too), and shares 10
+  lines, at most a quarter of itself, with the one before.
 - A chunk: `id` (sha256 of path, lines and blob hash), `path`, `startLine`, `endLine`, `kind`
   (`code`; `test` for `*.spec.ts`, `*.e2e-spec.ts`, `*.test.ts(x)`; `spec` under `specs/`; `doc`
   for other markdown; `deploy` under `deploy/`, `.github/`, `scripts/`, Dockerfiles and compose),

@@ -14,6 +14,9 @@ api/src/generated/
 # Tests
 coverage/
 
+# The code index of tools/code-rag (a cache: `npm run rag:index` rebuilds it)
+.rag/
+
 # Environment files: only the examples are committed
 .env
 .env.*
