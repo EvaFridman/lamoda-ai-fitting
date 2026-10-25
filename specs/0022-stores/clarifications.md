@@ -77,8 +77,10 @@ script) and holds the owner's personal data, so it is not used and never committ
 
 - **X13. The owner gets the key.** Yandex's developer cabinet, «JavaScript API и HTTP Геокодер»,
   restricted by HTTP Referer to `lamoda-ai-fitting.ru` and `localhost`. The browser sees the key in
-  any case, so it is a public build setting of web, as Mixpanel's token is, and a GitHub secret for
-  the images built from `main`. Without it (tests, CI, a local copy with none) the map's place shows
+  any case, so it is a public build setting of web, as Mixpanel's token is: a GitHub repository
+  variable (not a secret) passed to the images built from `main` (owner, 2026-10-26, after the
+  plan's research; weighed: a server setting of web read per request, which changes without a
+  build but needs a new path through the deploy). Without it (tests, CI, a local copy with none) the map's place shows
   a placeholder and the rest of the page works.
 
 ## Settled after the first answers (2026-10-26)
@@ -97,3 +99,26 @@ script) and holds the owner's personal data, so it is not used and never committ
 - **X15. The account menu signed out.** Signed out, the page keeps the account's side menu as
   signed in (its other sections then show the invitation to sign in); below 1024 px «‹ Личный
   кабинет» stays. The main session's proposal, accepted by the owner.
+
+## Settled while the plan was written (2026-10-26)
+
+- **X16. The map's Content Security Policy, on this page only.** Yandex's documented policy for
+  version 3 (`yandex.ru/dev/jsapi30/doc/ru/common/connection/csp`) needs `'unsafe-eval'` in
+  `script-src` (its vector engine parses tiles) and its origins in `script-src`, `style-src`,
+  `img-src`, `connect-src` and `worker-src` (with `data:`). The page `/customer/stores` alone gets
+  them; every other page keeps 0014 O112's policy. A page keeps the policy it was loaded with, so
+  every link to the stores page (the account menus, the footer) is a plain link that loads it in
+  full. Weighed: the whole site (no full load, but `'unsafe-eval'` everywhere); no `'unsafe-eval'`
+  (Yandex documents the map as needing it).
+- **X17. Analytics: a zone `stores`.** The page's elements are a zone of their own, `stores`
+  («Магазины Lamoda Sport»), area `stores`, since the page is public and not about the user's data:
+  `stores.card` (a card's click), `stores.details` (`expanded`: boolean), `stores.phone`,
+  `stores.route` (navigation), `stores.pin` (a pin's click), `stores.tab` (`tab`: `list` | `map`).
+  The event `Stores Searched` (`query_length`, `results`: numbers; sent after a pause of 1 s in
+  typing, not for an empty or unchanged text). No property names a store: no city, card position or
+  store type (a city or a position names one store, and there is one Urban store). Zoom, drag and a
+  cluster's click are not tracked. `sdkPerVisit` goes from 16 to 17. The menus' existing
+  `section: stores` stays as it is. Weighed: an area of the zone `account`.
+- **X18. Analytics: the footer.** A zone `footer` («Подвал»), area `footer`, element `footer.link`
+  (navigation) with `link`: enum `stores`; each later footer link adds a value. Weighed: one
+  element per link, or none.
