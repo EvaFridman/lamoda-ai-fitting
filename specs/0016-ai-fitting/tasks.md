@@ -7,8 +7,8 @@ No `plan.md`: the spec holds no code (S14). `👤` marks a step only the owner c
 
 One pull request with the documents (S14), committed on its own branch from `main`, without spec
 0015's documents (S1). The pull request carries `Closes #84` under
-"Что сделано". After it the spec stays accepted; the spec of the digital twin records AC5–AC15 and
-closes it (S18).
+"Что сделано". After it the spec stays accepted; 0019 records AC5–AC10, AC14 and AC15 (S20), and the
+spec of the digital twin records the rest and closes it (S18).
 
 ## PR 1 · `docs/0016-ai-fitting` · documents
 
@@ -38,3 +38,26 @@ Checked at T1, 2026-10-19.
   user", "A revoked session on an open socket" and "Guests".
 - **AC4. Pass.** `spec.md` names no library, route, table or file of the code; models (S7), money
   (S11–S13) and the prototype's scope (S6, S12) come from `clarifications.md`.
+
+Checked by spec 0019 (S20), 2026-10-25; the evidence is in its acceptance record
+(`specs/0019-ai-fitting/tasks.md`), under the criterion named.
+
+- **AC5. Pass.** 0019 AC1: the upload, the refusals with their reasons, the saved photos and a
+  deleted one's link answering 404.
+- **AC6. Pass, with the colour in place of the size.** 0019 AC5, on production with the owner: the
+  result shows the item, its chosen colour and the «Сгенерировано ИИ» mark, the counter drops by
+  one. Sizes are out of the prototype (0019 A8), so the result names the colour.
+- **AC7. Pass.** 0019 AC14, on production with the owner: three items, one picture, one try-on.
+- **AC8. Pass by tests.** 0019 AC7: every demo product has one colour (0019 A76), so another
+  colour is checked by the routes' e2e and the result's web tests.
+- **AC9. Pass.** 0019 AC8: «Перегенерировать» asks what went wrong, the result is a new history
+  entry.
+- **AC10. Pass.** 0019 AC17, on production with the owner, in a second browser: the history after
+  a reload and on another browser, a repeat opens the existing result with the counter unchanged,
+  a deletion removes the entry.
+- **AC14. Pass by tests.** 0019 AC19: at the limit the start answers 409 `LIMIT_REACHED` with the
+  renewal date before any model call; on production the owner checked the counter up to its
+  caution colour, not the limit itself.
+- **AC15. Pass for the account.** 0019 AC28, on production with the owner: deleting the account
+  removes the user's photos and generations. The digital twin is not built yet; deleting it is the
+  twin's spec's to check, with AC11–AC13 (S18, S20).

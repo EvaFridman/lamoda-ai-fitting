@@ -1,6 +1,7 @@
 # 0019 AI fitting v1: plan
 
-Status: accepted (2026-10-21); amended 2026-10-24 (§3, §10, §12: A73), 2026-10-25 (§7, §8: A87).
+Status: done (2026-10-25): accepted 2026-10-21; amended 2026-10-24 (§3, §10, §12: A73),
+2026-10-25 (§7, §8: A87). History, not instructions.
 
 How [spec.md](spec.md) is built. Decisions: [clarifications.md](clarifications.md) (A1–A47).
 New dependencies, checked on npm on 2026-10-21: api `sharp` 0.35.5 (lovell/sharp, prebuilt
