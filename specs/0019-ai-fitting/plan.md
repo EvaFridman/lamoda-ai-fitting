@@ -369,16 +369,18 @@ in PR 5), each commit regenerating `EVENTS.md`.
   `related.to-look`. `fitting`: `photos.upload`, `photos.camera`, `photos.set-default`,
   `photos.delete`, `try-on.photo`, `try-on.start`, `try-on.retry`, `try-on.close`,
   `result.download`, `result.fullscreen`, `result.try-colour`, `result.regenerate-open`,
-  `result.reason`, `result.regenerate`, `result.add-to-cart`, `result.favourite-all`,
-  `result.item-colour`, `room.open`, `room.fill`, `room.remove`, `room.undo`, `room.try-on`,
+  `result.reason`, `result.regenerate`, `result.add-to-cart`, `result.add-to-cart-all`,
+  `result.item-colour`, `result.to-look` (A94; `result.favourite-all` dropped), `room.open`, `room.fill`, `room.remove`, `room.undo`, `room.try-on`,
   `room.add-to-cart-all`, `room.clear`, `history.tab`, `history.open`, `history.repeat`,
   `history.compare`, `history.delete`, `history.choose-item`, `fitting-toast.open`,
   `fitting-toast.retry`. Properties are enums, numbers or booleans only: no id, link, text,
   measurement or anything about the person.
 - **Changed.** `section` of `profile-menu.section` and `account-menu.section` gains `photos`
-  (A19); `sdkPerVisit` goes from 10 to 14 (four more pages' views and heatmap clicks).
+  (A19); `sdkPerVisit` goes from 10 to 14 (four more pages' views and heatmap clicks), then 16
+  with the product page and the compare page (A84, A93).
 - **Budget.** 21.07 events per visit, 63 219 a month: 7.9 % of the free plan's 1 M, far below the
-  80 % the rules allow.
+  80 % the rules allow. After A94, with the product page and the room: 37.208 a visit, 111 624 a
+  month, 11.2 %.
 - **Decided with A43:** `Fitting Refused` stays separate from `Fitting Failed`; no
   `Look Item Added` event (the hanger clicks and `Fitting Started` carry it); no `Product Viewed`
   (the SDK's page view covers it); a repeat sends `Fitting Completed` with `duration: 0` and

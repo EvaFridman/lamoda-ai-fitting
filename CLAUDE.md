@@ -50,8 +50,9 @@ header (`FittingRoomButton` with its count, the drawer `widgets/fitting-room-dra
 hanger, «К образу» / «В образе» and the result's tile, the toasts with «Вернуть», A90) and the
 look's try-on (`LookTryOn`, the picker of board 3.2, the result of board 8 with a colour per item
 and «Какая именно?», `promptText` and the items' `slot` in `FittingDto`, A92) and the history's
-actions and compare («Примерить ещё раз», the selection mode, `/customer/fittings/compare`, A93).
-Next: the fitting's analytics.
+actions and compare («Примерить ещё раз», the selection mode, `/customer/fittings/compare`, A93)
+and the rest of the fitting's analytics (the result's tile, a look's colours and cart, A94).
+Next: closing the spec.
 
 Keep this file true: update it in the same commit that changes what a section describes.
 
@@ -676,7 +677,7 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   a client module) where the DOM must differ, else CSS. Tracking handlers reach the kit and entity
   components as props, from the widget or page that calls `useTrackedElement`: `FilterDropdown`'s
   and the catalog filters' `chipEvents` (on the chip's trigger, not its ×), `FileInput`'s and
-  `Chip`'s `events`, `ScrollRow`'s `events` (by direction), `CatalogProductCard`'s and `CatalogCategoryList`'s `linkEvents`,
+  `Chip`'s `events`, `ScrollRow`'s `events` (by direction), `MiniSwatches`' `events` (hovers of its row), `CatalogProductCard`'s and `CatalogCategoryList`'s `linkEvents`,
   `SavedPhotoCard`'s `makeDefaultEvents`, `HistoryCard`'s `openEvents`.
 
 - `web` photos (spec 0019 plan §7): `entities/user-photo` reads `GET /me/photos` in the browser
@@ -751,10 +752,13 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   plan §9, A60), the product page's the zone `product` (areas `buy-box` and `related`, seven
   elements with the row's arrows `related.scroll`, A87.8, and `buy-box.to-look`, `related.to-look`,
   A90.9), the fitting room's the zone `fitting`, area `room` (`room.open`, `.remove`, `.undo`,
-  `.fill`, `.clear`, `.add-to-cart-all`, A90.9, `.try-on`, T26; a toast's action sends its click through
+  `.fill`, `.clear`, `.add-to-cart-all`, A90.9, `.try-on`, T26; `.open`'s `source` `picker` and
+  `result` from the look's try-on, A94; a toast's action sends its click through
   `trackElementClick`, `@/shared/analytics`), the history's and the compare page's the zone
   `fitting`, areas `history` and `compare` (`history.repeat`, `.compare`, `.compare-open`,
-  `compare.open`, `.add-to-cart`, `source: history`, A93.6), the grid's hanger `catalog.to-look` in the zone
+  `compare.open`, `.add-to-cart`, `source: history`, A93.6), the result's `result.to-look`,
+  `.item-colour`, `.add-to-cart-all`, `.add-to-cart`'s `kind` and
+  `.regenerate`'s `with_item` (A94), the grid's hanger `catalog.to-look` in the zone
   `catalog` (A90.9), the phone header's the zone `header` (areas `header` and
   `burger`: `header.burger`, `header.search`, `burger.category`, A87.8); `profile-menu.*` take
   `surface` (`menu`, `burger`; older sends have none).

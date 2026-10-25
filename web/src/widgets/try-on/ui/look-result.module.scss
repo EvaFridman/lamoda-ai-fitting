@@ -15,7 +15,8 @@
     column-gap: var(--space-6);
   }
 
-  @media (width < 600px) {
+  // Below 800px the window is too narrow for «Вещи образа» beside the picture: one column.
+  @media (width < 800px) {
     grid-template-areas:
       'saved'
       'left'
@@ -43,9 +44,17 @@
   grid-area: left;
   flex-direction: column;
   gap: var(--space-3);
+
+  // One column of 600–799px: the picture as wide as beside the items, centred over them.
+  @media (600px <= width < 800px) {
+    justify-self: center;
+    width: 360px;
+  }
 }
 
+// The items' rows follow this column's width, not the window's (`container-type`).
 .right {
+  container-type: inline-size;
   display: flex;
   grid-area: right;
   flex-direction: column;
@@ -108,6 +117,12 @@
   @media (width < 600px) {
     padding: 10px 0;
   }
+
+  // A column narrower than 360px (beside the picture, in a window just over 800px or 1024px): the
+  // text takes the line beside the picture, «В корзину» and the heart wrap under the text.
+  @container (width < 360px) {
+    flex-wrap: wrap;
+  }
 }
 
 .rowImage {
@@ -141,6 +156,10 @@
 
   font-size: var(--font-size-body-s);
   line-height: var(--line-height-body-s);
+
+  @container (width < 360px) {
+    flex-basis: calc(100% - 60px - var(--space-3));
+  }
 }
 
 .rowName {
@@ -150,6 +169,10 @@
 
 .rowCart {
   align-self: center;
+
+  @container (width < 360px) {
+    margin-left: calc(60px + var(--space-3));
+  }
 }
 
 .sum {
@@ -176,6 +199,14 @@
 .grow {
   flex: 1;
   min-width: 0;
+}
+
+// The column's «Всё в корзину · N вещи» and «Всё в избранное»: equal in one row, never narrower
+// than their labels (a button does not wrap its text), so «Всё в избранное» wraps instead and
+// fills its row, as wide as the cart's. The phone's shorter rows keep `.grow`.
+.wide {
+  flex: 1 1 0;
+  min-width: max-content;
 }
 
 .replace {

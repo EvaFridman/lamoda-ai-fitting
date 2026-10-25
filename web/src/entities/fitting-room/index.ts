@@ -2,6 +2,7 @@ export { fittingRoomKeys } from './api/keys';
 export { fittingRoomQueryOptions, useFittingRoom } from './api/queries';
 export { clearRoom, putRoomItem, removeRoomItem } from './api/room-requests';
 export {
+  bySlot,
   emptySlotCaption,
   OUTFIT_SLOTS,
   ROOM_CAPACITY,

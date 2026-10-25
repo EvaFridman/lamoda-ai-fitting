@@ -1,8 +1,27 @@
-import { describe, expect, it } from 'vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Fitting, FittingItem } from '@/entities/fitting';
+import { fittingRoomKeys } from '@/entities/fitting-room';
 
-import { changedItemText, itemsBySlot } from './look-result';
+const mocks = vi.hoisted(() => ({ track: vi.fn(), captureException: vi.fn() }));
+vi.mock('@/shared/analytics/client', () => ({
+  identify: vi.fn(),
+  reset: vi.fn(),
+  track: mocks.track,
+}));
+vi.mock('@sentry/nextjs', () => ({ captureException: mocks.captureException }));
+vi.mock('@/entities/session', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/entities/session')>()),
+  useSession: () => ({
+    status: 'signed-in',
+    user: { id: 'u1', email: 'a@example.com', name: 'A' },
+  }),
+}));
+
+import { changedItemText, itemsBySlot, LookResult } from './look-result';
 import { itemsText } from './look-subject';
 
 const WHITE = '00000000-0000-4000-8000-0000000000c1';
@@ -105,5 +124,141 @@ describe('itemsText', () => {
     [1, '1 вещь'],
   ])('says %i as %s', (count, text) => {
     expect(itemsText(count)).toBe(text);
+  });
+});
+
+describe('LookResult analytics (A94)', () => {
+  const P1 = '00000000-0000-4000-8000-0000000000a1';
+  const P2 = '00000000-0000-4000-8000-0000000000a2';
+  const DATE = '2026-10-20T12:00:00.000Z';
+
+  function productOf(id: string) {
+    return {
+      id,
+      article: 'A-1',
+      name: 'Вещь',
+      brand: { id, name: 'Brand' },
+      category: { id, name: 'Категория', slug: 'cat' },
+      image: null,
+      price: 1000,
+      discount: 0,
+      finalPrice: 1000,
+      rating: null,
+      createdAt: DATE,
+      updatedAt: DATE,
+      description: null,
+      images: [],
+      variations: [{ id, size: 'M', stock: 3 }],
+      attributes: [],
+    };
+  }
+
+  function renderResult(roomCount: number | null) {
+    const onOpenRoom = vi.fn();
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+    if (roomCount !== null) {
+      queryClient.setQueryData(fittingRoomKeys.all, { items: [], count: roomCount, sum: 0 });
+    }
+    vi.stubGlobal('fetch', (url: string) => {
+      const { pathname } = new URL(String(url));
+      if (pathname === '/api/me/fitting-room') return new Promise(() => undefined);
+      const id = pathname.split('/').pop() ?? P1;
+      return Promise.resolve(new Response(JSON.stringify(productOf(id)), { status: 200 }));
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <LookResult
+          fitting={fitting([
+            item(1, { productId: P1, slot: 'top' }),
+            item(2, { productId: P2, slot: 'bottom' }),
+          ])}
+          running={null}
+          quota={undefined}
+          onStarted={vi.fn()}
+          onRegenerated={vi.fn()}
+          onLimit={vi.fn()}
+          onOpenRoom={onOpenRoom}
+        />
+      </QueryClientProvider>,
+    );
+    return onOpenRoom;
+  }
+
+  const sent = (element: string) =>
+    mocks.track.mock.calls
+      .filter(([event, props]) => event === 'Element Clicked' && props.element === element)
+      .map(([, props]) => props);
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('sends result.add-to-cart-all with the items count from the wide button', async () => {
+    renderResult(2);
+
+    await userEvent.setup().click(screen.getByRole('button', { name: /^Всё в корзину/ }));
+
+    expect(sent('result.add-to-cart-all')).toEqual([
+      expect.objectContaining({ element: 'result.add-to-cart-all', items: 2 }),
+    ]);
+  });
+
+  describe('on a phone', () => {
+    beforeEach(() => {
+      vi.stubGlobal('matchMedia', (query: string) => ({
+        matches: query === '(width < 600px)',
+        media: query,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }));
+    });
+
+    it('sends it from the row under the picture and from the drawer’s footer', async () => {
+      renderResult(2);
+      const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+      await user.click(screen.getByRole('button', { name: 'Всё в корзину' }));
+      expect(sent('result.add-to-cart-all')).toHaveLength(1);
+
+      await user.click(screen.getByRole('button', { name: 'Вещи образа' }));
+      await user.click(await screen.findByRole('button', { name: /^Всё в корзину · / }));
+
+      expect(sent('result.add-to-cart-all')).toEqual([
+        expect.objectContaining({ items: 2 }),
+        expect.objectContaining({ items: 2 }),
+      ]);
+    });
+  });
+
+  it('sends room.open from the result with the room’s count and opens the room', async () => {
+    const onOpenRoom = renderResult(2);
+
+    await userEvent
+      .setup()
+      .click(screen.getByRole('button', { name: 'Заменить вещь в примерочной' }));
+
+    expect(sent('room.open')).toEqual([
+      expect.objectContaining({ element: 'room.open', source: 'result', items: 2 }),
+    ]);
+    expect(onOpenRoom).toHaveBeenCalled();
+  });
+
+  it('counts 0 items while the room is unread', async () => {
+    const onOpenRoom = renderResult(null);
+
+    await userEvent
+      .setup()
+      .click(screen.getByRole('button', { name: 'Заменить вещь в примерочной' }));
+
+    expect(sent('room.open')).toEqual([
+      expect.objectContaining({ element: 'room.open', source: 'result', items: 0 }),
+    ]);
+    expect(onOpenRoom).toHaveBeenCalledOnce();
   });
 });

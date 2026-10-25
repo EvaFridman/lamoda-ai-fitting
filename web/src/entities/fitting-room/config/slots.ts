@@ -11,6 +11,14 @@ export const OUTFIT_SLOTS: readonly OutfitSlot[] = [
 
 export const ROOM_CAPACITY = OUTFIT_SLOTS.length;
 
+// Items in the slots' order, an item with no slot last (board 8: a look's result and «Какая
+// именно?», A95).
+export function bySlot<T extends { slot: OutfitSlot | null }>(items: readonly T[]): T[] {
+  const order = (item: T) =>
+    item.slot === null ? OUTFIT_SLOTS.length : OUTFIT_SLOTS.indexOf(item.slot);
+  return [...items].sort((a, b) => order(a) - order(b));
+}
+
 // Board 2's names of the slots: the row's caption, the toasts' «… в примерочной: верх» and
 // «Заменили верх: …» (the same in the accusative), the phone's empty cells.
 export const SLOT_TITLES: Readonly<Record<OutfitSlot, string>> = {

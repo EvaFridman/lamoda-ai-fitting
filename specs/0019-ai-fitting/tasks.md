@@ -287,7 +287,7 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       (A14, A63.6), the repeat's toast; the texts of A62.
       Check: web tests; `qa-tester` on AC17, AC18; `npm run verify`.
       Commit: `feat(web): repeat and compare fittings`
-- [ ] **T28. Analytics of the fitting.** The rest of the zone `fitting` (the room, the look, the
+- [x] **T28. Analytics of the fitting.** The rest of the zone `fitting` (the room, the look, the
       history), `EVENTS.md`, the budget.
       Check: `catalog.test.ts`; `npm run verify`.
       Commit: `feat(web): count the fitting room and look events`

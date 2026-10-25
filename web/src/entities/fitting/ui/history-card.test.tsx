@@ -34,14 +34,15 @@ function fitting(overrides: Partial<Parameters<typeof HistoryCard>[0]['fitting']
 }
 
 describe('kindBadge', () => {
-  it('says «Перегенерация» for a regeneration, whatever its kind', () => {
-    expect(kindBadge({ kind: 'single', parentId: 'x' })).toBe('Перегенерация');
-    expect(kindBadge({ kind: 'look', parentId: 'x' })).toBe('Перегенерация');
+  it('says «Образ» for a look and nothing for one item', () => {
+    expect(kindBadge({ kind: 'look' })).toBe('Образ');
+    expect(kindBadge({ kind: 'single' })).toBeNull();
   });
 
-  it('says «Образ» for a look and nothing for one item', () => {
-    expect(kindBadge({ kind: 'look', parentId: null })).toBe('Образ');
-    expect(kindBadge({ kind: 'single', parentId: null })).toBeNull();
+  it('ignores the parent: a regeneration is badged by its kind only', () => {
+    const withParent = (kind: 'look' | 'single') => ({ kind, parentId: 'x' });
+    expect(kindBadge(withParent('look'))).toBe('Образ');
+    expect(kindBadge(withParent('single'))).toBeNull();
   });
 });
 
@@ -66,15 +67,23 @@ describe('HistoryCard', () => {
     expect(screen.queryByText('Перегенерация')).not.toBeInTheDocument();
   });
 
-  it('shows the kind badge for a look and a regeneration', () => {
+  it('shows «Образ» for a look, and for a regeneration of a look', () => {
     const look = fitting({ kind: 'look', items: [item(1), item(2)] });
     const { rerender } = render(<HistoryCard fitting={look} onOpen={vi.fn()} now={NOW} />);
     expect(screen.getByText('Образ')).toBeInTheDocument();
     expect(screen.queryByText('Рубашка 1')).not.toBeInTheDocument();
 
     rerender(<HistoryCard fitting={{ ...look, parentId: 'p' }} onOpen={vi.fn()} now={NOW} />);
-    expect(screen.getByText('Перегенерация')).toBeInTheDocument();
+    expect(screen.getByText('Образ')).toBeInTheDocument();
+    expect(screen.queryByText('Перегенерация')).not.toBeInTheDocument();
+  });
+
+  it('shows the item label and no badge for a regeneration of one item', () => {
+    render(<HistoryCard fitting={fitting({ parentId: 'p' })} onOpen={vi.fn()} now={NOW} />);
+
+    expect(screen.getByText('Рубашка 1 · белый')).toBeInTheDocument();
     expect(screen.queryByText('Образ')).not.toBeInTheDocument();
+    expect(screen.queryByText('Перегенерация')).not.toBeInTheDocument();
   });
 
   it.each(['pending', 'processing'] as const)(
