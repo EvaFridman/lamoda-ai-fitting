@@ -56,6 +56,9 @@ let readCancelled = false;
 // The tab's write state as at load: for tests only, so one that leaves a write unanswered does not
 // change the next one's.
 export function resetRoomWrites(): void {
+  if (process.env.VITEST === undefined) {
+    throw new Error('resetRoomWrites() is for tests only');
+  }
   writesInFlight = 0;
   overlapped = false;
   readCancelled = false;
@@ -97,7 +100,8 @@ export function useRoomActions() {
     owner: string | null,
     answer?: { room: FittingRoom } | { change: (current: FittingRoom) => FittingRoom },
   ) {
-    writesInFlight -= 1;
+    // Never below zero: a test's write answered after resetRoomWrites() would hide the next overlap.
+    writesInFlight = Math.max(0, writesInFlight - 1);
     const alone = !overlapped;
     if (writesInFlight === 0) overlapped = false;
     if (!isRoomOwner(owner)) {
