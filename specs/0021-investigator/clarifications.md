@@ -1,6 +1,6 @@
 # 0021 investigator: clarifications
 
-Status: draft (2026-10-25).
+Status: draft (2026-10-25); amended 2026-10-25 at the plan (Q6: SQLite instead of LanceDB).
 
 The owner's decisions for this spec. Ids `Q1`, `Q2`, … are referred to by the spec, the plan and
 code comments. All decisions below: owner, 2026-10-25, while the spec was written.
@@ -84,12 +84,21 @@ is public, so its tracked files going to the API disclose nothing. Weighed: a lo
 `@huggingface/transformers` (no key and offline, but a native ONNX dependency, minutes of CPU per
 full index and lower quality) and OpenAI's `text-embedding-3-small` (a general model, paid).
 
-**Q6. LanceDB, embedded.** `@lancedb/lancedb` stores the vectors as files in the git-ignored
-`.rag/`: no server, no Docker, prebuilt binaries, vector and full-text search together (hybrid
-search matters for code, where an exact symbol name is as common a query as a question). Weighed:
-SQLite with `sqlite-vec` (a 0.1 extension and `better-sqlite3`'s install script), pgvector in the
-development PostgreSQL (a changed image, and no search without the stack running) and a Qdrant
-container (a server for 8 thousand vectors).
+**Q6. One SQLite file: Node's built-in SQLite with the `sqlite-vec` extension.** The index is
+`.rag/index.sqlite`, git-ignored: Node 26's `node:sqlite` (SQLite 3.53 with FTS5, extension
+loading allowed; checked on this machine) opens it and loads `sqlite-vec` 0.1.9, whose npm package
+ships the extension as 160 KB platform packages with no install script. Vectors live in a `vec0`
+table, the words in an FTS5 table, and a search merges both rankings (reciprocal rank fusion):
+hybrid search matters for code, where an exact symbol name is as common a query as a question. No
+server, no Docker, no native npm build, about 1 MB of dependencies. First chosen and then dropped
+at the plan: LanceDB (`@lancedb/lancedb`), whose platform binary is 254 MB, which needs
+`apache-arrow` as a peer and pulls `@huggingface/transformers` (38 MB), `onnxruntime-node` and
+`sharp` as optional dependencies, each with an install script npm 12 blocks, so they would sit as
+dead weight on the machine and in CI. Also weighed: `better-sqlite3` with `sqlite-vec` (an install
+script to approve), pgvector in the development PostgreSQL (a changed image, and no search without
+the stack running) and a Qdrant container (a server for 8 thousand vectors). Risks accepted:
+`node:sqlite` is a release candidate in Node 26 (the pinned version) and `sqlite-vec` is 0.1.x; the
+index stores its schema version and is rebuilt on a mismatch.
 
 **Q7. What is indexed.** Tracked files (`git ls-files`) of: `api/` (`src`, `prisma`, `test`),
 `web/` (`src`, `app`), `specs/`, `CLAUDE.md`, `README.md` and the packages' READMEs,
