@@ -373,7 +373,7 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
 - `api` fittings (spec 0019 plan §5, `fittings/`): `POST /fittings` (`@Expensive()`,
   `StartFittingDto`: `photoId`, `kind` `single` with one item or `look` with 2–5, `items` of
   `productId` and `attributeValueId`, `promptText` ≤ 200) checks the items (a missing product or a
-  colour not of its product: 400 `RELATED_NOT_FOUND`; the details `HAS_SLOT`, `DISTINCT_SLOTS`) and
+  colour not of its product (a value of its colour attribute, A76, A91): 400 `RELATED_NOT_FOUND`; the details `HAS_SLOT`, `DISTINCT_SLOTS`) and
   the photo, answers 200 with an earlier completed result of the same fingerprint
   (`fingerprint.ts`: photo, items, wishes; `repeated: true`, A7) or the running one (A32), checks
   the text (refused: 400 `PROMPT_REFUSED`; no answer: 503), then in one transaction locks the
@@ -401,7 +401,7 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   items in the slots' order with the catalog's list item and the colour, `sum` of `finalPrice`,
   leaving out a row whose category is inactive or of another slot now. `PUT /me/fitting-room/:slot`
   (`{ productId, attributeValueId? }`, 200) puts or replaces and answers `{ room, replaced }` for
-  «Вернуть» (`null` after a repeat of the same product and colour): an unknown product, one of an inactive category or a colour not of it is 400
+  «Вернуть» (`null` after a repeat of the same product and colour): an unknown product, one of an inactive category or a colour not of it (`COLOUR_VALUE`, `products/colour.ts`: a value of a colour attribute, A76, A91) is 400
   `RELATED_NOT_FOUND`, a category without a slot the detail `HAS_SLOT`, another slot's product
   `MATCHES_SLOT` (so `accessory` is always refused). `DELETE /:slot` (an empty one too) and
   `DELETE` (204) empty one slot or all; the writes lock the user's row and go through

@@ -67,7 +67,7 @@ function listItem(n: number, name: string, finalPrice: number) {
 const shirt = listItem(1, 'Рубашка', 5000);
 const jeans = listItem(2, 'Джинсы', 4000);
 
-function detail(base: ReturnType<typeof listItem>, colours: [string, string, string][]) {
+function detail(base: ReturnType<typeof listItem>, colours: [string, string, string | null][]) {
   return {
     ...base,
     description: null,
@@ -581,6 +581,39 @@ describe('FittingRoomDrawer filled (desktop)', () => {
         within(dialog).getByRole('combobox', { name: 'Цвет: Рубашка Annen' }),
       ).toHaveTextContent('Чёрный'),
     );
+  });
+
+  it('offers a value with no swatch as a colour, and no value of another attribute (A91)', async () => {
+    const original = details.get(jeans.id)!;
+    details.set(jeans.id, {
+      ...original,
+      attributes: [
+        {
+          attribute: { id: COLOUR_ATTRIBUTE, name: 'Цвет' },
+          values: [
+            { id: BLUE, value: 'синий', colorHex: '#0000FF' },
+            { id: SIZE_ID, value: 'в полоску', colorHex: null },
+          ],
+        },
+        {
+          attribute: { id: BRAND, name: 'Сезон' },
+          values: [{ id: WHITE, value: 'демисезон', colorHex: null }],
+        },
+      ],
+    });
+    try {
+      const { dialog } = await openDrawer();
+      const colour = await within(dialog).findByRole('combobox', { name: 'Цвет: Джинсы Annen' });
+      await waitFor(() => expect(colour).toBeEnabled());
+      const user = setup();
+
+      await user.click(colour);
+
+      const options = within(await screen.findByRole('listbox')).getAllByRole('option');
+      expect(options.map((option) => option.textContent)).toEqual(['Синий', 'В полоску']);
+    } finally {
+      details.set(jeans.id, original);
+    }
   });
 
   it('turns the colour select off for a product with one colour', async () => {

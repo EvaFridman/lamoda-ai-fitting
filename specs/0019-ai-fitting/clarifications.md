@@ -1175,6 +1175,17 @@ product's name in quotes, since Russian cannot inflect it: «Заменили в
 tile «К образу»_ (A75) goes live with the same actions, untracked until T28; (12) _the limit card's
 «Перейти в примерочную»_ closes the try-on window, then opens the room.
 
+**A91. What a colour is (2026-10-25, after T25's QA).** The fitting room's `PUT` and
+`POST /fittings` took any attribute value of the product as an item's colour (a season
+«демисезон» was stored as one), while the try-on listed every value of the colour attribute and
+the buy box and the room only the values with a swatch. The owner decided A76's letter: a colour
+is any value of the product's colour attribute, the attribute with at least one value that has a
+`colorHex` (as `splitFacetAttributes` tells a colour filter); one of its values with no swatch
+(«в полоску») is a colour, drawn as an empty circle. The api refuses any other value with 400
+`RELATED_NOT_FOUND` (`products/colour.ts`), and web takes the colours from one rule,
+`productColours` of `entities/product`. A regeneration copies its parent's items unchecked, so a
+parent stored before the fix keeps its value; old rows are not migrated.
+
 ## Canvas and decisions
 
 Where the canvas differs from the decisions above, the decision wins:

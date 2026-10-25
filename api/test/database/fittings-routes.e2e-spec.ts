@@ -67,6 +67,10 @@ interface Product {
   id: string;
   // The product's own colours (attribute value ids), in the order they were made.
   colours: string[];
+  // A value of a season attribute with no coloured value: not a colour.
+  nonColour: string;
+  // A value of the colour attribute with colorHex null: a colour (A91).
+  uncoloured: string;
   name: string;
 }
 interface Actor extends SignedIn {
@@ -151,14 +155,37 @@ describe('the fittings routes (spec 0019 T12: AC5-AC9, A6, A7, A20, A32, A45, A4
     const ids: string[] = [];
     for (let index = 0; index < colours; index++) {
       const value = await prisma().attributeValue.create({
-        data: { attributeId: attribute.id, value: `Цвет ${index}` },
+        data: { attributeId: attribute.id, value: `Цвет ${index}`, colorHex: '#FF0000' },
       });
       await prisma().productAttributeValue.create({
         data: { productId: created.id, attributeValueId: value.id },
       });
       ids.push(value.id);
     }
-    return { id: created.id, colours: ids, name: created.name };
+    // A colour with no swatch («в полоску») is a colour of the colour attribute too (A91).
+    const striped = await prisma().attributeValue.create({
+      data: { attributeId: attribute.id, value: 'в полоску' },
+    });
+    await prisma().productAttributeValue.create({
+      data: { productId: created.id, attributeValueId: striped.id },
+    });
+    // A value of another attribute with no coloured value, a season, is not a colour.
+    const seasonAttribute = await prisma().attribute.create({
+      data: { name: `Season ${randomUUID()}` },
+    });
+    const season = await prisma().attributeValue.create({
+      data: { attributeId: seasonAttribute.id, value: 'демисезон' },
+    });
+    await prisma().productAttributeValue.create({
+      data: { productId: created.id, attributeValueId: season.id },
+    });
+    return {
+      id: created.id,
+      colours: ids,
+      name: created.name,
+      nonColour: season.id,
+      uncoloured: striped.id,
+    };
   }
 
   // A signed-in user with a saved photo (no file: the routes never read it).
@@ -880,6 +907,79 @@ describe('the fittings routes (spec 0019 T12: AC5-AC9, A6, A7, A20, A32, A45, A4
         'RELATED_NOT_FOUND',
         { field: 'items.0.attributeValueId', code: 'RELATED_NOT_FOUND' },
       );
+    });
+
+    it('refuses a value of the product that is not a colour (A76): message, nothing written', async () => {
+      const who = await actor();
+      const dress = await product('top');
+
+      const response = await start(
+        who,
+        single(who, dress, { items: [{ productId: dress.id, attributeValueId: dress.nonColour }] }),
+      );
+
+      expectError(response, 400, 'RELATED_NOT_FOUND', {
+        field: 'items.0.attributeValueId',
+        code: 'RELATED_NOT_FOUND',
+      });
+      expect(errorOf(response).details).toContainEqual(
+        expect.objectContaining({
+          message: 'items.0.attributeValueId is not a colour of its product',
+        }),
+      );
+      expect(await rowsOf(who.userId)).toEqual([]);
+      expect(await usedOf(who.userId)).toBe(0);
+    });
+
+    it('names the item with a non-colour value in a look', async () => {
+      const who = await actor();
+      const shirt = await product('top');
+      const jeans = await product('bottom');
+
+      await expectRefused(
+        who,
+        look(who, [shirt, jeans], {
+          items: [
+            { productId: shirt.id },
+            { productId: jeans.id, attributeValueId: jeans.nonColour },
+          ],
+        }),
+        400,
+        'RELATED_NOT_FOUND',
+        { field: 'items.1.attributeValueId', code: 'RELATED_NOT_FOUND' },
+      );
+    });
+
+    it('still accepts a colour value of the product', async () => {
+      const who = await actor();
+      const dress = await product('top');
+
+      const body = await started(
+        who,
+        single(who, dress, {
+          items: [{ productId: dress.id, attributeValueId: dress.colours[0] }],
+        }),
+      );
+
+      expect(body.items[0]).toMatchObject({ attributeValueId: dress.colours[0] });
+      expect(await usedOf(who.userId)).toBe(1);
+    });
+
+    it('accepts a value of the colour attribute with no swatch as a colour (A91)', async () => {
+      const who = await actor();
+      const dress = await product('top');
+
+      const body = await started(
+        who,
+        single(who, dress, {
+          items: [{ productId: dress.id, attributeValueId: dress.uncoloured }],
+        }),
+      );
+
+      expect(body.items[0]).toMatchObject({
+        attributeValueId: dress.uncoloured,
+        colour: 'в полоску',
+      });
     });
 
     it('names the item that is wrong in a look', async () => {

@@ -43,7 +43,12 @@ describe('/me/fitting-room (spec 0019 A86, AC13, AC28)', () => {
   let noSlotCategoryId: string;
   let brandId: string;
   let attributeId: string;
-  const colours: Record<'red' | 'blue', string> = { red: '', blue: '' };
+  const colours: Record<'red' | 'blue' | 'striped' | 'season', string> = {
+    red: '',
+    blue: '',
+    striped: '',
+    season: '',
+  };
 
   beforeAll(async () => {
     testApp = await createTestApp({ access: 'production' });
@@ -76,6 +81,17 @@ describe('/me/fitting-room (spec 0019 A86, AC13, AC28)', () => {
     colours.blue = (
       await prisma.attributeValue.create({
         data: { attributeId, value: 'Синий', colorHex: '#0000FF' },
+      })
+    ).id;
+    colours.striped = (
+      await prisma.attributeValue.create({ data: { attributeId, value: 'в полоску' } })
+    ).id;
+    const seasonAttributeId = (
+      await prisma.attribute.create({ data: { name: `Room season ${tag}` } })
+    ).id;
+    colours.season = (
+      await prisma.attributeValue.create({
+        data: { attributeId: seasonAttributeId, value: 'демисезон' },
       })
     ).id;
   });
@@ -213,6 +229,35 @@ describe('/me/fitting-room (spec 0019 A86, AC13, AC28)', () => {
       expect((response.body as Change).room.items[0]).toMatchObject({
         attributeValueId: null,
         colour: null,
+      });
+    });
+
+    it('still accepts a colour value when the product also has a non-colour one', async () => {
+      const who = await signIn(testApp.app);
+      const top = await inSlot('top', { colourIds: [colours.season, colours.blue] });
+
+      const response = await put(who, 'top', { productId: top.id, attributeValueId: colours.blue });
+
+      expect(response.status).toBe(200);
+      expect((response.body as Change).room.items[0]).toMatchObject({
+        attributeValueId: colours.blue,
+        colour: 'Синий',
+      });
+    });
+
+    it('accepts a value of the colour attribute with no swatch as a colour (A91)', async () => {
+      const who = await signIn(testApp.app);
+      const top = await inSlot('top', { colourIds: [colours.red, colours.striped] });
+
+      const response = await put(who, 'top', {
+        productId: top.id,
+        attributeValueId: colours.striped,
+      });
+
+      expect(response.status).toBe(200);
+      expect((response.body as Change).room.items[0]).toMatchObject({
+        attributeValueId: colours.striped,
+        colour: 'в полоску',
       });
     });
 
@@ -354,6 +399,28 @@ describe('/me/fitting-room (spec 0019 A86, AC13, AC28)', () => {
           'RELATED_NOT_FOUND',
           { field: 'attributeValueId', code: 'RELATED_NOT_FOUND' },
         );
+      });
+
+      it('a value of the product that is not a colour (A76): RELATED_NOT_FOUND, nothing written', async () => {
+        const top = await inSlot('top', { colourIds: [colours.red, colours.season] });
+        const who = await arranged();
+
+        const response = await put(who, 'top', {
+          productId: top.id,
+          attributeValueId: colours.season,
+        });
+
+        expect(response.status).toBe(400);
+        expect(errorOf(response).code).toBe('RELATED_NOT_FOUND');
+        expect(errorOf(response).details).toContainEqual(
+          expect.objectContaining({
+            field: 'attributeValueId',
+            code: 'RELATED_NOT_FOUND',
+            message: 'attributeValueId is not a colour of the product',
+          }),
+        );
+        expect(await room(who)).toEqual(roomBefore.get(who.userId));
+        expect(await rowsOf(who.userId)).toHaveLength(1);
       });
 
       it('a category without a slot: VALIDATION_FAILED with HAS_SLOT', async () => {

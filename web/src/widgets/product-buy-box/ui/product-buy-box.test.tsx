@@ -277,6 +277,28 @@ describe('ProductBuyBox: colour and size', () => {
     expect(options.map((option) => option.textContent)).toEqual(['Белый', 'Чёрный']);
   });
 
+  it('lists a value of the colour attribute with no swatch too, and no value of another attribute (A91)', async () => {
+    const STRIPED = '44444444-4444-4444-8444-444444444444';
+    const first = product.attributes[0]!;
+    const { user } = setup({
+      product: {
+        ...product,
+        attributes: [
+          {
+            ...first,
+            values: [...first.values, { id: STRIPED, value: 'в полоску', colorHex: null }],
+          },
+          product.attributes[1]!,
+        ],
+      },
+    });
+
+    await user.click(screen.getByRole('combobox', { name: 'Цвет' }));
+
+    const options = within(await screen.findByRole('listbox')).getAllByRole('option');
+    expect(options.map((option) => option.textContent)).toEqual(['Белый', 'Чёрный', 'В полоску']);
+  });
+
   it('has no colour select for a product with no coloured value', () => {
     setup({ product: { ...product, attributes: [product.attributes[1]!] } });
 

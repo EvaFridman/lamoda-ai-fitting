@@ -10,6 +10,7 @@ import type { Env } from '../../config/env.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import type { OutfitSlot } from '../../generated/prisma/enums.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { COLOUR_VALUE } from '../../products/colour.js';
 import { LIST_ITEM_INCLUDE, toListItem } from '../../products/product-mapper.js';
 import { lockUser } from '../lock-user.js';
 import type {
@@ -51,7 +52,8 @@ export class FittingRoomService {
   }
 
   // Puts the product into its slot, replacing what was there (AC13). Refused: an unknown product,
-  // one of an inactive category or a colour not of the product (RELATED_NOT_FOUND), a category
+  // one of an inactive category or a colour not of the product (a value of its colour attribute,
+  // A76, A91: a season or a material is none) (RELATED_NOT_FOUND), a category
   // without a slot (HAS_SLOT), another slot's product (MATCHES_SLOT).
   async put(
     userId: string,
@@ -111,7 +113,7 @@ export class FittingRoomService {
           dto.attributeValueId === undefined
             ? false
             : {
-                where: { attributeValueId: dto.attributeValueId },
+                where: { attributeValueId: dto.attributeValueId, attributeValue: COLOUR_VALUE },
                 select: { attributeValueId: true },
               },
       },
@@ -127,7 +129,7 @@ export class FittingRoomService {
         {
           field: 'attributeValueId',
           code: 'RELATED_NOT_FOUND',
-          message: 'attributeValueId is not a value of the product',
+          message: 'attributeValueId is not a colour of the product',
         },
       ]);
     }
