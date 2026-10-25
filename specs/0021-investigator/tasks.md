@@ -37,7 +37,7 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
 
 ## PR 2 · `fix/0021-log-headers` · the api's log headers
 
-- [ ] **T4. The api's log headers.** `serializeRequest` in `core.module.ts` (plan §2),
+- [x] **T4. The api's log headers.** `serializeRequest` in `core.module.ts` (plan §2),
       `withoutQuery` wrapping it in `mount-auth.ts`, the tests of both, `CLAUDE.md`'s "Logging"
       bullet, the backlog item removed (AC2).
       Check: `core.module.spec.ts` and `mount-auth.spec.ts` (AC1); `qa-tester` reads one request

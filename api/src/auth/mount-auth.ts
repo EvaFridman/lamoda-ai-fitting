@@ -8,7 +8,7 @@ import { PinoLogger } from 'nestjs-pino';
 import { pinoHttp } from 'pino-http';
 
 import type { Env } from '../config/env.js';
-import { pinoHttpOptions } from '../core/core.module.js';
+import { pinoHttpOptions, serializeRequest } from '../core/core.module.js';
 import { authThrottle, tierLimits } from '../throttling/auth-throttle.js';
 import { FallbackThrottlerStorage } from '../throttling/fallback-throttler-storage.js';
 import type { Auth } from './auth.js';
@@ -38,7 +38,8 @@ export async function mountAuth(app: NestExpressApplication): Promise<void> {
     '/api/auth/*splat',
     // nestjs-pino logs requests from a Nest middleware, which runs only after this route: the
     // same request line here, on the same logger (its redaction and request id included). Without
-    // the query: the callback's carries Google's code and the OAuth state.
+    // the query: the callback's carries Google's code and the OAuth state. Its serializer replaces
+    // the shared one, so it applies serializeRequest's header filter itself.
     pinoHttp({
       ...pinoHttpOptions(config),
       transport: undefined,
@@ -72,9 +73,10 @@ function siteAddress(origin: URL): (req: Request, res: Response, next: NextFunct
   };
 }
 
-// pino-http's serialized request (method, url, query, params, headers, ...).
+// pino-http's serialized request (method, url, query, params, headers, ...), with the shared
+// header filter (spec 0021 Q9) and without the query.
 function withoutQuery(req: { url?: string } & Record<string, unknown>): Record<string, unknown> {
-  const { query: _query, ...rest } = req;
+  const { query: _query, ...rest } = serializeRequest(req);
   return { ...rest, url: req.url?.split('?')[0] };
 }
 

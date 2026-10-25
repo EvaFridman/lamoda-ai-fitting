@@ -2,10 +2,11 @@
 
 Status: draft (2026-10-25); amended 2026-10-25 at the tasks (three pull requests, Q15) and at the
 review of PR 1 (the remote string's second parse in §6, the query rule in §5, two accepted risks,
-the US region, the pull request numbers of §8 and §10).
+the US region, the pull request numbers of §8 and §10) and on 2026-10-26 at T4 (§2's referer and
+length, Q16; §6's nginx filter, Q17; §2's tests).
 
 Implements [spec.md](spec.md) with the decisions of [clarifications.md](clarifications.md)
-(Q1–Q15). Sections name the decisions and criteria they carry out.
+(Q1–Q17). Sections name the decisions and criteria they carry out.
 
 ## 1. Pull requests and release order
 
@@ -29,7 +30,8 @@ params, headers, remoteAddress, remotePort), so the change is a filter on that o
 
 - `api/src/core/core.module.ts`: `pinoHttpOptions` gets `serializers: { req: serializeRequest }`;
   the exported `serializeRequest` keeps of `headers` only `user-agent`, `content-type`,
-  `content-length` and `referer`. `redact` stays as it is: the three `req.headers` rules no longer
+  `content-length` and `referer`, the referer cut at `?` or `#` and every value at 512 characters
+  with `…` (Q16, amended at T4). `redact` stays as it is: the three `req.headers` rules no longer
   match anything (the headers are gone before redaction) but cost nothing and guard a future
   serializer change; `res.headers["set-cookie"]` is still needed.
 - `api/src/auth/mount-auth.ts` replaces the `req` serializer with `withoutQuery` for `/api/auth`,
@@ -38,7 +40,10 @@ params, headers, remoteAddress, remotePort), so the change is a filter on that o
 - Tests: `core.module.spec.ts` sends a request with `Authorization`, `Cookie`, `X-Proxy-Secret`,
   `X-Custom`, `User-Agent`, `Referer` and checks the line's `req.headers` holds exactly the four
   names; `mount-auth.spec.ts` checks the auth line has no query and the same four. The existing
-  redaction tests stay (a kept header is never a secret; `set-cookie` is redacted).
+  redaction tests of `authorization`, `cookie` and `x-proxy-secret` asserted `[Redacted]`; those
+  headers are now absent from the line, so the tests assert that, and that their values appear
+  nowhere in the output (amended at T4). `set-cookie` is still redacted, and the test that the
+  retired admin token has no redaction rule stays.
 - `CLAUDE.md`'s "Logging" bullet says which headers a request line carries; the backlog item is
   removed in the same commit (AC2).
 
@@ -278,9 +283,10 @@ score` with a snippet of at most 40 lines. The query is embedded with `input_typ
   into at most two stages (`splitPipeline` in `guard-lib.mjs`, following `words()`'s quoting, with
   tests), checks the first with the ssh rule and the second with the read-only `rg`/`grep` flag
   lists; a second stage must be `rg` or `grep` with a plain pattern. Redirections stay refused
-  (`words()`), so `2>&1` is not possible: pino and nginx's access log write to stdout, which is what
-  the filter sees; a container's stderr (nginx's error log) comes unfiltered when no filter is
-  given.
+  (`words()`) but one: pino and nginx's access log write to stdout, which is what the filter sees,
+  while nginx's error log is the container's stderr, which a pipe does not see; so nginx's
+  `docker logs` ends in exactly `2>&1` (below, Q17). The api, web and worker write their lines to
+  stdout and take no redirection.
 - The ssh stage is exactly `ssh ai-fitting` (no ssh option at all: `-o`, `-i`, `-p`, `-J` could
   change the connection) followed by the remote command. The remote command reaches the guard as
   one quoted word (`ssh ai-fitting 'docker logs …'`) or as bare words; either way the rule set
@@ -294,7 +300,11 @@ score` with a snippet of at most 40 lines. The query is embedded with `input_typ
     container one of `ai-fitting-blue-api-1`, `ai-fitting-green-api-1`, `ai-fitting-blue-web-1`,
     `ai-fitting-green-web-1`, `ai-fitting-worker-temporal-worker-1`, `ai-fitting-backup-backup-1`,
     `ai-fitting-infra-nginx-1`; `--since`/`--until` a duration (`\d+[smh]`) or an RFC 3339 stamp;
-    `--tail` at most 5 000; `--since` or `--tail` required;
+    `--tail` at most 5 000; `--since` or `--tail` required; `ai-fitting-infra-nginx-1` only with
+    the filter stage, and that stage `rg -F` or `grep -F` with a request id (32 hex characters or
+    a uuid) as its pattern, and its remote command ends in exactly `2>&1`, so nginx's error log
+    (the container's stderr) passes the filter too; the rule set accepts that one trailing word
+    for nginx before the second `words()` parse and refuses every other redirection (Q17);
   - `cat /opt/ai-fitting/.deploy-state`;
   - `docker compose ls`.
     There is no `docker ps`: the deploy state names the colour, and the container names are the fixed
@@ -302,10 +312,12 @@ score` with a snippet of at most 40 lines. The query is embedded with `input_typ
     Every word still passes `isSecret` (so `/opt/ai-fitting/.env` is refused by name).
 - `guards.test.mjs` cases (AC8): each allowed shape with and without the filter, quoted and as
   bare words; blocked: another host, `ssh -o … ai-fitting`, `docker restart`, `docker exec`, an
-  unknown container, `docker logs` with no bound, a pipe to `tee` or a second pipe, a redirection,
+  unknown container, `docker logs` with no bound, nginx's log with no filter or with a pattern
+  that is not a request id (Q17), a pipe to `tee` or a second pipe, a redirection,
   `cat` of the server's `.env`, `rm`, `git fetch`, `npm`, and a remote string that hides a second
   command: `'docker logs --tail 10 ai-fitting-blue-api-1; rm -rf /'`, `… && …`, `… | …`,
-  `$(…)`, backticks, a newline, `2>&1`.
+  `$(…)`, backticks, a newline, `2>&1` on any container but nginx, any other redirection on nginx
+  (`2>/tmp/x`, `>&2`, `1>&2`), nginx's form without its `2>&1`.
 - `Bash(ssh:*)` stays in `settings.json`'s `ask`, so every ssh asks the owner after the guard
   passed it (Q10).
 

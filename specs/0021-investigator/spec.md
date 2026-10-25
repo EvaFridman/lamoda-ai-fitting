@@ -1,10 +1,10 @@
 # 0021 investigator: an agent for Sentry events and the api's logs
 
 Status: draft (2026-10-25); amended 2026-10-25 at the plan (Q6: the index's store), at the tasks
-(Q15: three pull requests) and at the review of PR 1 (AC3's source list, AC9's record, the
-region assumption).
+(Q15: three pull requests), at the review of PR 1 (AC3's source list, AC9's record, the
+region assumption) and on 2026-10-26 at T4 (AC1's referer and length, Q16).
 
-Issue #44. Decisions: `clarifications.md` (Q1–Q15).
+Issue #44. Decisions: `clarifications.md` (Q1–Q17).
 
 ## Goal
 
@@ -52,8 +52,10 @@ through a vector index of the repository, not only by name.
 
 - **AC1.** A request's log line carries, of the request's headers, only `user-agent`,
   `content-type`, `content-length` and `referer`; `authorization`, `cookie`, `x-proxy-secret` and
-  any other header are absent, and a `set-cookie` of the answer is redacted. Checked by an api test
-  and in one production log line.
+  any other header are absent, and a `set-cookie` of the answer is redacted. The referer is logged
+  without its query or fragment, and each kept value is cut to 512 characters followed by `…`
+  (Q16). Checked by
+  an api test and in one production log line.
 - **AC2.** The backlog item "Request headers in the log" is removed by the commit of AC1.
 
 ### The index
