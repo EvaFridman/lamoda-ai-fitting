@@ -17,7 +17,11 @@ import styles from './login-modal.module.scss';
 
 export interface LoginModalProps {
   // The control that opens it: the header's profile icon or the account invitation's button.
-  trigger: ReactElement;
+  // Without one, the placer opens it through `open`: one window for many controls, as the cards'
+  // hangers of a grid (spec 0019 A90.1).
+  trigger?: ReactElement;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   // False for a second modal on a page that has the header's: only one opens on a failed sign-in's
   // code, takes the sign-in flag, reports and drops the code from the address (spec 0017, the
   // account invitation). Only where the header's modal is mounted too, or nothing answers the
@@ -34,11 +38,19 @@ export interface LoginModalProps {
 // only a sign-in started in this tab reports it (the `sessionStorage` flag), so someone else's link
 // with a made-up code reports nothing. Render it per request inside <Suspense>: it reads the query
 // (`useSearchParams`).
-export function LoginModal({ trigger, handlesReturnedError = true, finalFocus }: LoginModalProps) {
+export function LoginModal({
+  trigger,
+  open: openProp,
+  onOpenChange,
+  handlesReturnedError = true,
+  finalFocus,
+}: LoginModalProps) {
   const pathname = usePathname();
   const { code, rest } = useDropSignInError(handlesReturnedError);
   const returnedCode = handlesReturnedError ? code : null;
-  const [open, setOpen] = useState(returnedCode !== null);
+  const [ownOpen, setOwnOpen] = useState(returnedCode !== null);
+  const controlled = openProp !== undefined;
+  const open = controlled ? openProp : ownOpen;
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(() =>
     returnedCode === null ? null : signInRedirectText(returnedCode),
@@ -84,10 +96,16 @@ export function LoginModal({ trigger, handlesReturnedError = true, finalFocus }:
   // The visitor's own opening only: the modal open after a failed sign-in (N54) never passes here,
   // so it sends no `Login Opened` (N56).
   function changeOpen(next: boolean) {
-    setOpen(next);
-    if (next) track('Login Opened', {});
-    else setError(null);
+    if (controlled) onOpenChange?.(next);
+    else setOwnOpen(next);
+    if (next && !controlled) track('Login Opened', {});
+    if (!next) setError(null);
   }
+
+  // A placer's opening is the visitor's too (their click on a control of the placer's).
+  useEffect(() => {
+    if (controlled && openProp) track('Login Opened', {});
+  }, [controlled, openProp]);
 
   return (
     <Modal

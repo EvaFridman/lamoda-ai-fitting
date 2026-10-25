@@ -2,10 +2,11 @@ import './globals.scss';
 
 import type { Metadata } from 'next';
 import { Onest } from 'next/font/google';
-import type { ReactNode } from 'react';
+import { type ReactNode, Suspense } from 'react';
 
 import { Providers } from '@/_app';
 import { SITE_NAME, SITE_TITLE_TEMPLATE } from '@/shared/config';
+import { FittingRoomDrawer } from '@/widgets/fitting-room-drawer';
 import { Footer } from '@/widgets/footer';
 import { Header } from '@/widgets/header';
 
@@ -18,7 +19,8 @@ export const metadata: Metadata = {
   title: { template: SITE_TITLE_TEMPLATE, default: SITE_NAME },
 };
 
-// The frame shared by every page: providers, the site header and footer.
+// The frame shared by every page: providers, the site header and footer, and the fitting room's
+// drawer, which the header and the pages open (spec 0019 A90.7).
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ru" className={onest.variable}>
@@ -27,6 +29,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <Header />
           {children}
           <Footer />
+          {/* It reads the path (`usePathname`): its own boundary, or a dynamic route's build fails. */}
+          <Suspense fallback={null}>
+            <FittingRoomDrawer />
+          </Suspense>
         </Providers>
       </body>
     </html>

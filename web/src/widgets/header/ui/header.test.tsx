@@ -13,6 +13,10 @@ vi.mock('./header-profile-slot', () => {
   const pending = new Promise<never>(() => {});
   return { HeaderProfileSlot: () => use(pending) };
 });
+vi.mock('./header-room-slot', () => {
+  const pending = new Promise<never>(() => {});
+  return { HeaderRoomSlot: () => use(pending) };
+});
 vi.mock('./header-search-slot', () => {
   const pending = new Promise<never>(() => {});
   return { HeaderSearchSlot: () => use(pending), HeaderLoupeSlot: () => use(pending) };
@@ -44,7 +48,14 @@ describe('Header', () => {
 
   it('draws the gender switch, the city and the icons as inert buttons in the tab order', () => {
     render(<Header />);
-    const names = ['Женщинам', 'Укажите ваш населенный пункт', 'Профиль', 'Избранное', 'Корзина'];
+    const names = [
+      'Женщинам',
+      'Укажите ваш населенный пункт',
+      'Профиль',
+      'Избранное',
+      'Примерочная',
+      'Корзина',
+    ];
     for (const name of names) {
       const button = screen.getByRole('button', { name });
       expect(button).toHaveAttribute('aria-disabled', 'true');
@@ -131,6 +142,18 @@ describe('Header', () => {
   it('keeps the profile icon mounted next to the burger and the loupe, once', () => {
     render(<Header />);
     expect(screen.getAllByRole('button', { name: 'Профиль' })).toHaveLength(1);
+  });
+
+  it('puts the fitting room between favourites and the cart, inert while its slot loads', () => {
+    render(<Header />);
+    const room = screen.getByRole('button', { name: 'Примерочная' });
+    const favourites = screen.getByRole('button', { name: 'Избранное' });
+    const cart = screen.getByRole('button', { name: 'Корзина' });
+    expect(room).toHaveAttribute('aria-disabled', 'true');
+    expect(
+      favourites.compareDocumentPosition(room) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(room.compareDocumentPosition(cart) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('has the search field', () => {

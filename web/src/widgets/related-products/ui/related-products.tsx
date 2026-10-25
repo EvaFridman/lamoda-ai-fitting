@@ -1,14 +1,16 @@
 'use client';
 
-import { useEffect, useId } from 'react';
+import { Suspense, useEffect, useId, useMemo, useState } from 'react';
 
+import { categorySlots, type OutfitSlot, useActiveCategories } from '@/entities/category';
 import {
   CatalogProductCard,
   CatalogProductCardSkeleton,
-  LookToggle,
   type ProductListItem,
   useRelatedProducts,
 } from '@/entities/product';
+import { LoginModal } from '@/features/auth';
+import { RoomLookToggle } from '@/features/fitting-room';
 import { CartStubButton, FavoriteStub } from '@/features/product-stubs';
 import { useTrackedElement } from '@/shared/analytics';
 import { errorText, reportFailure } from '@/shared/api';
@@ -28,11 +30,15 @@ interface RelatedItemProps {
   product: ProductListItem;
   // From 1, in the block.
   position: number;
+  // The product's slot of the fitting room (A36: the api answers only products with one), unknown
+  // while the categories load: no hanger then.
+  slot: OutfitSlot | undefined;
+  onSignIn: () => void;
 }
 
-// A card of the block: its link is tracked by position, never by product, and its «В корзину» as
-// one element for every card (A84). The hanger and the heart send nothing (A83.6, A83.10).
-function RelatedItem({ product, position }: RelatedItemProps) {
+// A card of the block: its link is tracked by position, never by product, its «В корзину» and its
+// hanger as one element each for every card (A84, A90.9). The heart sends nothing (A83.10).
+function RelatedItem({ product, position, slot, onSignIn }: RelatedItemProps) {
   const cardEvents = useTrackedElement('related.card', { position });
   const cartEvents = useTrackedElement('related.add-to-cart');
   return (
@@ -44,7 +50,16 @@ function RelatedItem({ product, position }: RelatedItemProps) {
         // Off as the grid's: a card's prefetch reads the api on the visitor's quota (A82.1).
         prefetch={false}
         linkEvents={cardEvents}
-        lookToggle={<LookToggle disabled />}
+        lookToggle={
+          slot ? (
+            <RoomLookToggle
+              product={product}
+              slot={slot}
+              element="related.to-look"
+              onSignIn={onSignIn}
+            />
+          ) : null
+        }
         favorite={<FavoriteStub size={32} />}
         footer={
           <CartStubButton size={32} textSize="body-s" events={cartEvents}>
@@ -57,7 +72,7 @@ function RelatedItem({ product, position }: RelatedItemProps) {
 }
 
 // Board 1's «С этим товаром выбирают» (spec 0019 A36, A83): the compact cards with the hanger
-// (disabled until the fitting room, T26), the heart and «В корзину» stubs (A33), in one row that
+// (which puts the product into the fitting room, A90.1), the heart and «В корзину» stubs (A33), in one row that
 // scrolls sideways on every width with «‹» «›» from 600px (A87.3). The page prefetches the list;
 // the browser asks only when that failed. None hides the block (A83.8).
 export function RelatedProducts({ productId, className }: RelatedProductsProps) {
@@ -67,6 +82,10 @@ export function RelatedProducts({ productId, className }: RelatedProductsProps) 
   // The arrows, not a swipe (A87.8).
   const prevEvents = useTrackedElement('related.scroll', { direction: 'prev' });
   const nextEvents = useTrackedElement('related.scroll', { direction: 'next' });
+  const categories = useActiveCategories();
+  const slots = useMemo(() => categorySlots(categories.data?.items), [categories.data]);
+  // One sign-in window for every hanger of a visitor (A12, AC16).
+  const [signIn, setSignIn] = useState(false);
 
   useEffect(() => {
     if (error !== null) reportFailure(error);
@@ -79,7 +98,13 @@ export function RelatedProducts({ productId, className }: RelatedProductsProps) 
     content = (
       <ScrollRow className={styles.row} events={{ prev: prevEvents, next: nextEvents }}>
         {related.data.map((product, index) => (
-          <RelatedItem key={product.id} product={product} position={index + 1} />
+          <RelatedItem
+            key={product.id}
+            product={product}
+            position={index + 1}
+            slot={slots.get(product.category.id)}
+            onSignIn={() => setSignIn(true)}
+          />
         ))}
       </ScrollRow>
     );
@@ -113,6 +138,10 @@ export function RelatedProducts({ productId, className }: RelatedProductsProps) 
         С этим товаром выбирают
       </h2>
       {content}
+      {/* It reads the query (`useSearchParams`). */}
+      <Suspense fallback={null}>
+        <LoginModal open={signIn} onOpenChange={setSignIn} handlesReturnedError={false} />
+      </Suspense>
     </section>
   );
 }

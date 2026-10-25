@@ -166,7 +166,10 @@ describe('CatalogBrowser', () => {
       const plain = cardOf(/Платье 2/);
 
       await vi.waitFor(() =>
-        expect(within(slotted).getByRole('button', { name: 'Добавить к образу' })).toBeDisabled(),
+        expect(within(slotted).getByRole('button', { name: 'Добавить к образу' })).toHaveAttribute(
+          'aria-disabled',
+          'true',
+        ),
       );
       expect(within(plain).queryByRole('button', { name: 'Добавить к образу' })).toBeNull();
       expect(within(slotted).getByRole('button', { name: 'В избранное' })).toBeInTheDocument();

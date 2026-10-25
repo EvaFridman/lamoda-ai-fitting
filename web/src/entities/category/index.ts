@@ -1,5 +1,13 @@
 export { CATEGORY_LIST_MAX, type CategoryListQuery } from './api/keys';
-export { categoryListOptions, categoryOptions, useCategories, useCategory } from './api/queries';
+export {
+  ACTIVE_CATEGORIES_QUERY,
+  categoryListOptions,
+  categoryOptions,
+  categorySlots,
+  useActiveCategories,
+  useCategories,
+  useCategory,
+} from './api/queries';
 export {
   categoryListSchema,
   categorySchema,

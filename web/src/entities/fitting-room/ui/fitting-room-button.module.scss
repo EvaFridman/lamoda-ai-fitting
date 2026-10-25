@@ -1,0 +1,11 @@
+// The counter sits over the hanger's top right corner (board 13: 6px up, 8px out of the icon's
+// box), inside the 44–48px button, so the header's row keeps its height.
+.button {
+  position: relative;
+}
+
+.count {
+  position: absolute;
+  top: 4px;
+  right: 2px;
+}

@@ -4,7 +4,10 @@ import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { type CSSProperties, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
-import { CatalogProductCard, LookToggle, type ProductListItem } from '@/entities/product';
+import type { OutfitSlot } from '@/entities/category';
+import { CatalogProductCard, type ProductListItem } from '@/entities/product';
+import { LoginModal } from '@/features/auth';
+import { RoomLookToggle } from '@/features/fitting-room';
 import { FavoriteStub } from '@/features/product-stubs';
 import { useTrackedElement } from '@/shared/analytics';
 import { Link } from '@/shared/ui';
@@ -45,9 +48,9 @@ export interface ProductGridProps {
   moreHref?: string;
   // "Дальше" stays visible with JavaScript too (a batch failed to load: the visitor goes on by it).
   showMore?: boolean;
-  // The ids of the categories with a slot of the fitting room: only their cards show the hanger
-  // (AC16, A83.7). None while the categories load.
-  slottedCategoryIds?: ReadonlySet<string>;
+  // The slot of the fitting room of each category that has one, by its id: only their cards show
+  // the hanger (AC16, A83.7). None while the categories load.
+  categorySlots?: ReadonlyMap<string, OutfitSlot>;
 }
 
 interface Layout {
@@ -105,12 +108,15 @@ interface GridItemProps {
   setSize: number;
   measureRef?: (element: HTMLLIElement | null) => void;
   row?: number;
-  hasSlot: boolean;
+  // The product's slot of the fitting room; none shows no hanger.
+  slot: OutfitSlot | undefined;
+  onSignIn: () => void;
 }
 
 // A card of the list; its clicks and hovers are tracked by position, never by product (O35). Its
-// corners (A63.1): the hanger, disabled until the fitting room (T26), and the heart stub (A33).
-function GridItem({ product, position, setSize, measureRef, row, hasSlot }: GridItemProps) {
+// corners (A63.1): the hanger, which puts the product into the fitting room (A90.1), and the heart
+// stub (A33).
+function GridItem({ product, position, setSize, measureRef, row, slot, onSignIn }: GridItemProps) {
   const tracked = useTrackedElement('catalog.card', { position });
   return (
     <li ref={measureRef} data-index={row} aria-setsize={setSize} aria-posinset={position}>
@@ -121,7 +127,16 @@ function GridItem({ product, position, setSize, measureRef, row, hasSlot }: Grid
         // backlog "Catalog card prefetch").
         prefetch={false}
         linkEvents={tracked}
-        lookToggle={hasSlot ? <LookToggle disabled /> : null}
+        lookToggle={
+          slot ? (
+            <RoomLookToggle
+              product={product}
+              slot={slot}
+              element="catalog.to-look"
+              onSignIn={onSignIn}
+            />
+          ) : null
+        }
         favorite={<FavoriteStub size={32} />}
       />
     </li>
@@ -139,8 +154,11 @@ export function ProductGrid({
   onLoadMore,
   moreHref,
   showMore = false,
-  slottedCategoryIds,
+  categorySlots,
 }: ProductGridProps) {
+  // One sign-in window for every card's hanger of a visitor (A12, AC16).
+  const [signIn, setSignIn] = useState(false);
+  const openSignIn = () => setSignIn(true);
   const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const [layout, setLayout] = useState<Layout | null>(null);
@@ -340,11 +358,13 @@ export function ProductGrid({
               // The first card of a row measures the row: a grid row is as high as its tallest.
               measureRef={firstInRow ? virtualizer.measureElement : undefined}
               row={firstInRow ? index / columns : undefined}
-              hasSlot={slottedCategoryIds?.has(product.category.id) ?? false}
+              slot={categorySlots?.get(product.category.id)}
+              onSignIn={openSignIn}
             />
           );
         })}
       </ul>
+      <LoginModal open={signIn} onOpenChange={setSignIn} handlesReturnedError={false} />
       {moreHref === undefined ? null : (
         // Crawlers and pages without JavaScript go on by it; with JavaScript the list loads the
         // next batch itself, and the link stays last in the tab order, out of sight (plan §3.3).

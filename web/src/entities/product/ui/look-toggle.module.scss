@@ -30,13 +30,14 @@
     color: var(--color-text);
   }
 
-  &:disabled {
+  &:disabled,
+  &[aria-disabled='true'] {
     cursor: default;
     opacity: 0.4;
   }
 
   @media (hover: hover) {
-    &:hover:not(:disabled) {
+    &:hover:not(:disabled, [aria-disabled='true']) {
       color: var(--color-text);
     }
   }

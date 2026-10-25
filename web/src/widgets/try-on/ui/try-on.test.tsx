@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { isFittingShown, type Fitting } from '@/entities/fitting';
+import { useRoomStore } from '@/entities/fitting-room';
 import type { SessionState } from '@/entities/session';
 
 const mocks = vi.hoisted(() => ({
@@ -46,6 +47,13 @@ interface Api {
   // What POST /fittings and POST /fittings/:id/regenerate answer.
   started: () => Response;
   upload: () => Response;
+  // The slot of the product's category in the fitting room; null: none.
+  slot: string | null;
+  // The items of the fitting room as GET answers it.
+  room: unknown[];
+  // The reads of the product and of the categories answer 503.
+  productFails: boolean;
+  categoriesFail: boolean;
 }
 
 let api: Api;
@@ -142,7 +150,35 @@ function route(url: string, init?: RequestInit): Response {
   if (pathname === '/api/me/photos' && method === 'POST') return api.upload();
   if (pathname.startsWith('/api/me/photos/transient/')) return new Response(null, { status: 204 });
   if (pathname === '/api/me/fitting-quota') return json(200, api.quota);
-  if (pathname === `/api/products/${PRODUCT}`) return json(200, product);
+  if (pathname === `/api/products/${PRODUCT}`) {
+    return api.productFails ? failure(503, 'SERVICE_UNAVAILABLE') : json(200, product);
+  }
+  if (pathname === '/api/categories') {
+    if (api.categoriesFail) return failure(503, 'SERVICE_UNAVAILABLE');
+    return json(200, {
+      items: [
+        {
+          ...product.category,
+          isActive: true,
+          description: null,
+          sortOrder: 0,
+          slot: api.slot,
+          createdAt: DATE,
+          updatedAt: DATE,
+        },
+      ],
+      total: 1,
+      limit: 100,
+      offset: 0,
+    });
+  }
+  if (pathname === '/api/me/fitting-room' && method === 'GET') {
+    return json(200, { items: api.room, count: api.room.length, sum: 0 });
+  }
+  if (pathname.startsWith('/api/me/fitting-room/') && method === 'PUT') {
+    const item = { slot: 'top', product, attributeValueId: RED, colour: 'Красный' };
+    return json(200, { room: { items: [item], count: 1, sum: 4500 }, replaced: null });
+  }
   if (pathname === '/api/fittings' && method === 'POST') return api.started();
   if (pathname === '/api/fittings') {
     return json(200, { items: [...api.fittings.values()], nextCursor: null, total: 0 });
@@ -194,7 +230,12 @@ beforeEach(() => {
     fittings: new Map(),
     started: () => startedResponse(),
     upload: () => json(201, photo(ONE_TIME, { transient: true })),
+    slot: 'top',
+    room: [],
+    productFails: false,
+    categoriesFail: false,
   };
+  useRoomStore.setState({ open: false });
   fetchMock.mockReset();
   fetchMock.mockImplementation((url: string, init?: RequestInit) =>
     Promise.resolve(route(String(url), init)),
@@ -309,6 +350,24 @@ describe('TryOn picker', () => {
       await screen.findByRole('heading', { name: 'Примерки на этот месяц закончились' }),
     ).toBeInTheDocument();
     expect(posts()).toHaveLength(0);
+  });
+
+  it('closes the window and opens the fitting room from the limit card (A90.12)', async () => {
+    api.quota = { ...api.quota, used: 20, left: 0 };
+    api.room = [{ slot: 'top', product, attributeValueId: RED, colour: 'Красный' }];
+    const user = setup();
+    const { onClose } = renderTryOn({ productId: PRODUCT });
+    await screen.findByRole('heading', { name: 'Примерки на этот месяц закончились' });
+    expect(useRoomStore.getState().open).toBe(false);
+
+    await user.click(screen.getByRole('button', { name: 'Перейти в примерочную' }));
+
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(useRoomStore.getState().open).toBe(true);
+    expect(mocks.track).toHaveBeenCalledWith(
+      'Element Clicked',
+      expect.objectContaining({ element: 'room.open', source: 'limit' }),
+    );
   });
 
   it('shows another failure of the start under the picker and lets it be tried again', async () => {
@@ -485,6 +544,142 @@ describe('TryOn with a fitting', () => {
     expect(screen.getByRole('button', { name: 'Хотите что-то поменять в образе?' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Примерить на другом фото' })).toBeInTheDocument();
     expect(screen.getByText('Осталось 17')).toBeInTheDocument();
+  });
+
+  describe('«К образу» of the result (A90.11, AC13, AC16)', () => {
+    function completed() {
+      api.fittings.set(
+        RUNNING,
+        fitting({
+          status: 'completed',
+          stage: 'done',
+          resultUrl: 'https://s3.test/keep/users/u/result.webp?X-Amz-Signature=abc',
+          finishedAt: DATE,
+        }),
+      );
+    }
+
+    function puts() {
+      return fetchMock.mock.calls
+        .map(([url, init]) => ({ path: new URL(String(url)).pathname, init: init as RequestInit }))
+        .filter(({ init }) => init?.method === 'PUT');
+    }
+
+    it('puts the item in its colour into the fitting room and turns to «В образе»', async () => {
+      completed();
+      const user = setup();
+      renderTryOn({ fittingId: RUNNING });
+      await screen.findByText('Сгенерировано ИИ');
+      // A placeholder stands in while the categories load: look the tile up again once enabled.
+      await vi.waitFor(() =>
+        expect(screen.getByRole('button', { name: 'К образу' })).toBeEnabled(),
+      );
+
+      await user.click(screen.getByRole('button', { name: 'К образу' }));
+
+      await vi.waitFor(() => expect(puts()).toHaveLength(1));
+      expect(await screen.findByRole('button', { name: 'В образе' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+      expect(puts()[0]?.path).toBe('/api/me/fitting-room/top');
+      expect(JSON.parse(String(puts()[0]?.init.body))).toEqual({
+        productId: PRODUCT,
+        attributeValueId: RED,
+      });
+    });
+
+    it('sends no analytics event of its own (A90.11)', async () => {
+      completed();
+      const user = setup();
+      renderTryOn({ fittingId: RUNNING });
+      await screen.findByText('Сгенерировано ИИ');
+      await vi.waitFor(() =>
+        expect(screen.getByRole('button', { name: 'К образу' })).toBeEnabled(),
+      );
+      mocks.track.mockClear();
+
+      await user.click(screen.getByRole('button', { name: 'К образу' }));
+      await screen.findByRole('button', { name: 'В образе' });
+
+      const elements = mocks.track.mock.calls.filter(([event]) => event === 'Element Clicked');
+      expect(elements).toEqual([]);
+    });
+
+    it('has no tile for a product whose category has no slot', async () => {
+      api.slot = null;
+      completed();
+      renderTryOn({ fittingId: RUNNING });
+      await screen.findByText('Сгенерировано ИИ');
+      await vi.waitFor(() =>
+        expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/api/categories'))).toBe(
+          true,
+        ),
+      );
+
+      await vi.waitFor(() =>
+        expect(screen.queryByRole('button', { name: 'К образу' })).not.toBeInTheDocument(),
+      );
+    });
+
+    it('has no tile, not a disabled one, when the categories cannot be read', async () => {
+      api.categoriesFail = true;
+      completed();
+      renderTryOn({ fittingId: RUNNING });
+      await screen.findByText('Сгенерировано ИИ');
+
+      await vi.waitFor(() =>
+        expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/api/categories'))).toBe(
+          true,
+        ),
+      );
+      await vi.waitFor(() =>
+        expect(screen.queryByRole('button', { name: 'К образу' })).not.toBeInTheDocument(),
+      );
+    });
+
+    it('has no tile, not a disabled one, when the product cannot be read', async () => {
+      api.productFails = true;
+      completed();
+      renderTryOn({ fittingId: RUNNING });
+      await screen.findByText('Сгенерировано ИИ');
+
+      await vi.waitFor(() =>
+        expect(screen.queryByRole('button', { name: 'К образу' })).not.toBeInTheDocument(),
+      );
+    });
+
+    it('stays the same focusable, aria-disabled button while its write runs', async () => {
+      completed();
+      let finish: () => void = () => undefined;
+      const answer = (url: string, init?: RequestInit) =>
+        init?.method === 'PUT'
+          ? new Promise<Response>((resolve) => {
+              finish = () => resolve(route(url, init));
+            })
+          : Promise.resolve(route(url, init));
+      fetchMock.mockImplementation((url: string, init?: RequestInit) => answer(String(url), init));
+      const user = setup();
+      renderTryOn({ fittingId: RUNNING });
+      await screen.findByText('Сгенерировано ИИ');
+      await vi.waitFor(() =>
+        expect(screen.getByRole('button', { name: 'К образу' })).toBeEnabled(),
+      );
+      const tile = screen.getByRole('button', { name: 'К образу' });
+      tile.focus();
+
+      await user.click(tile);
+      await vi.waitFor(() => expect(tile).toHaveAttribute('aria-disabled', 'true'));
+      await user.click(tile);
+
+      expect(puts()).toHaveLength(1);
+      expect(tile).toHaveFocus();
+      await act(async () => {
+        finish();
+      });
+      expect(await screen.findByRole('button', { name: 'В образе' })).toBe(tile);
+      expect(tile).not.toHaveAttribute('aria-disabled');
+    });
   });
 
   it('tries another colour over the old result, which stays with a loader (board 7.2, AC7)', async () => {

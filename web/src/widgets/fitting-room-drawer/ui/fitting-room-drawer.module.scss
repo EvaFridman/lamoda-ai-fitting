@@ -1,0 +1,230 @@
+// Board 2: the room's subtitle, slots, wishes and footer inside the kit's wide Drawer; on a phone
+// (2.1–2.4) the same, smaller.
+
+.subtitle,
+.muted {
+  margin: 0;
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  color: var(--color-text-secondary);
+}
+
+.subtitle {
+  margin-bottom: var(--space-2);
+
+  @media (width < 600px) {
+    font-size: var(--font-size-caption);
+    line-height: var(--line-height-caption);
+  }
+}
+
+.slots {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.colourSelect {
+  width: 150px;
+}
+
+.sizeSelect {
+  width: 120px;
+}
+
+// Board 2's compact select, 40px high (`sel-s`), for both fields of a row.
+.colourSelect,
+.sizeSelect {
+  min-height: 40px;
+  padding-top: var(--space-1);
+  padding-bottom: var(--space-1);
+
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+}
+
+.remove {
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+}
+
+// The phone's one field «Белый, 42/44» (2.1), drawn as the kit's select.
+.pick {
+  cursor: pointer;
+
+  display: flex;
+  flex: 1;
+  gap: var(--space-1);
+  align-items: center;
+  justify-content: space-between;
+
+  box-sizing: border-box;
+  min-width: 0;
+  height: 40px;
+  padding: 0 var(--space-2) 0 var(--space-3);
+  border: var(--border-width) solid var(--color-border-control);
+  border-radius: var(--radius-s);
+
+  font: inherit;
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  color: var(--color-text);
+
+  background-color: var(--color-background);
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: 2px;
+  }
+}
+
+.pickValue {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sheetBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.wishes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: var(--space-5, 20px);
+}
+
+.wishesLabel {
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+}
+
+.wishesArea {
+  resize: none;
+
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 64px;
+  padding: 10px var(--space-3);
+  border: var(--border-width) solid var(--color-border-control);
+  border-radius: var(--radius-s);
+
+  font: inherit;
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  color: var(--color-text);
+
+  &::placeholder {
+    color: var(--color-text-secondary);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: 2px;
+  }
+
+  @media (width < 600px) {
+    min-height: 48px;
+  }
+}
+
+.wishesMeta {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: space-between;
+
+  font-size: var(--font-size-caption);
+  line-height: var(--line-height-caption);
+  color: var(--color-text-secondary);
+}
+
+.footer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: 100%;
+}
+
+.sum {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+
+  margin: 0;
+
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+
+  b {
+    font-weight: var(--font-weight-bold);
+  }
+}
+
+.buttons {
+  display: flex;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.meterRow {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.clear {
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+}
+
+.empty {
+  margin-top: var(--space-10);
+
+  @media (width < 600px) {
+    margin-top: var(--space-12);
+  }
+}
+
+// The phone's five dashed slot cells (2.3).
+.cells {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+
+  width: 100%;
+  margin: var(--space-4) 0 0;
+  padding: 0;
+
+  list-style: none;
+
+  li {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+
+    box-sizing: border-box;
+    height: 64px;
+    padding-bottom: var(--space-1);
+    border: var(--border-width) dashed var(--color-border-neutral);
+
+    font-size: var(--font-size-caption);
+    line-height: var(--line-height-caption);
+    color: var(--color-text-secondary);
+  }
+}
+
+.failed {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-items: flex-start;
+}

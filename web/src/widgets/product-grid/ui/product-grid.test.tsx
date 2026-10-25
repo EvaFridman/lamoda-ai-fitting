@@ -51,8 +51,25 @@ const nav = vi.hoisted(() => ({ pathname: '/catalog', search: 'q=a' }));
 vi.mock('next/navigation', () => ({
   usePathname: () => nav.pathname,
   useSearchParams: () => new URLSearchParams(nav.search),
+  useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
 }));
 
+// The hangers read the session: a visitor, so they read nothing of the room.
+const auth = vi.hoisted(() => ({
+  session: { status: 'signed-out', failed: false } as
+    | { status: 'signed-out'; failed: boolean }
+    | { status: 'signed-in'; user: { id: string; email: string; name: string | null } },
+}));
+
+vi.mock('@/entities/session', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/entities/session')>()),
+  useSession: () => auth.session,
+}));
+
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import userEvent from '@testing-library/user-event';
+
+import type { OutfitSlot } from '@/entities/category';
 import type { ProductListItem } from '@/entities/product';
 
 import type { ProductGridProps } from './product-grid';
@@ -159,18 +176,44 @@ describe('ProductGrid corners (A63.1, AC16)', () => {
     );
   }
 
+  const slots = new Map<string, OutfitSlot>([[SLOTTED, 'top']]);
+  const fetchMock = vi.fn();
+
+  function renderGrid(overrides: Partial<ProductGridProps> = {}) {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const ui = (next: Partial<ProductGridProps>) => (
+      <QueryClientProvider client={queryClient}>
+        <ProductGrid {...props(next)} />
+      </QueryClientProvider>
+    );
+    const view = render(ui(overrides));
+    return { ...view, again: (next: Partial<ProductGridProps>) => view.rerender(ui(next)) };
+  }
+
+  const json = (body: unknown) =>
+    Promise.resolve(
+      new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+  beforeEach(() => {
+    auth.session = { status: 'signed-out', failed: false };
+    fetchMock.mockReset();
+    vi.stubGlobal('fetch', fetchMock);
+  });
+
   it('gives every card the heart', () => {
-    render(<ProductGrid {...props({ products: productsOf(4) })} />);
+    renderGrid({ products: productsOf(4) });
     expect(screen.getAllByRole('button', { name: 'В избранное' })).toHaveLength(4);
   });
 
-  it('shows the disabled hanger only on cards of a slotted category', () => {
-    render(
-      <ProductGrid {...props({ products: mixed(), slottedCategoryIds: new Set([SLOTTED]) })} />,
-    );
+  it('shows the hanger only on cards of a category that has a slot (AC16)', () => {
+    renderGrid({ products: mixed(), categorySlots: slots });
     const hangers = screen.getAllByRole('button', { name: 'Добавить к образу' });
     expect(hangers).toHaveLength(2);
-    for (const hanger of hangers) expect(hanger).toBeDisabled();
+    for (const hanger of hangers) expect(hanger).toBeEnabled();
     const cards = screen.getAllByRole('article');
     expect(
       within(cards[0] as HTMLElement).getByRole('button', { name: 'Добавить к образу' }),
@@ -181,11 +224,54 @@ describe('ProductGrid corners (A63.1, AC16)', () => {
   });
 
   it('shows no hanger while the categories are unknown or none has a slot', () => {
-    const { rerender } = render(<ProductGrid {...props({ products: mixed() })} />);
+    const { again } = renderGrid({ products: mixed() });
     expect(screen.queryByRole('button', { name: 'Добавить к образу' })).not.toBeInTheDocument();
 
-    rerender(<ProductGrid {...props({ products: mixed(), slottedCategoryIds: new Set() })} />);
+    again({ products: mixed(), categorySlots: new Map() });
     expect(screen.queryByRole('button', { name: 'Добавить к образу' })).not.toBeInTheDocument();
+  });
+
+  it('opens one sign-in window for a visitor and changes nothing (AC16)', async () => {
+    renderGrid({ products: mixed(), categorySlots: slots });
+
+    await userEvent
+      .setup({ pointerEventsCheck: 0 })
+      .click(screen.getAllByRole('button', { name: 'Добавить к образу' })[0]!);
+
+    expect(await screen.findAllByRole('dialog', { name: 'Вход' })).toHaveLength(1);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('puts the product into its slot for a signed-in user (AC13)', async () => {
+    auth.session = { status: 'signed-in', user: { id: 'u1', email: 'a@b.c', name: null } };
+    const products = mixed();
+    const first = products[0]!;
+    const room = (items: unknown[]) => ({ items, count: items.length, sum: items.length * 5000 });
+    fetchMock.mockImplementation((url: unknown) => {
+      const { pathname } = new URL(String(url));
+      if (pathname === '/api/me/fitting-room') return json(room([]));
+      return json({
+        room: room([{ slot: 'top', product: first, attributeValueId: null, colour: null }]),
+        replaced: null,
+      });
+    });
+    renderGrid({ products, categorySlots: slots });
+
+    const card = screen.getAllByRole('article')[0] as HTMLElement;
+    await vi.waitFor(() =>
+      expect(within(card).getByRole('button', { name: 'Добавить к образу' })).toBeEnabled(),
+    );
+    await userEvent
+      .setup({ pointerEventsCheck: 0 })
+      .click(within(card).getByRole('button', { name: 'Добавить к образу' }));
+
+    await vi.waitFor(() =>
+      expect(within(card).getByRole('button', { name: 'В примерочной — убрать' })).toBeEnabled(),
+    );
+    const put = fetchMock.mock.calls.find(([, init]) => (init as RequestInit)?.method === 'PUT')!;
+    expect(new URL(String(put[0])).pathname).toBe('/api/me/fitting-room/top');
+    expect(JSON.parse((put[1] as RequestInit).body as string)).toEqual({ productId: first.id });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });
 

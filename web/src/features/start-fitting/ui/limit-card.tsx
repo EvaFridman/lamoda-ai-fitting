@@ -1,6 +1,8 @@
 'use client';
 
 import { LimitMeter, renewalDate, type FittingQuota } from '@/entities/fitting';
+import { useFittingRoom } from '@/entities/fitting-room';
+import { useTrackedElement } from '@/shared/analytics';
 import { PHONE_QUERY } from '@/shared/config';
 import { plural, useMediaQuery } from '@/shared/lib';
 import { Button, StateCard } from '@/shared/ui';
@@ -11,6 +13,8 @@ export interface LimitCardProps {
   quota: FittingQuota;
   // The history of fittings.
   historyHref: string;
+  // «Перейти в примерочную»: the window closes, the room opens (A90.12).
+  onOpenRoom: () => void;
 }
 
 const CALENDAR = (
@@ -21,10 +25,14 @@ const CALENDAR = (
 );
 
 // Board 11 (spec 0019 AC19): the month's try-ons are spent; they come back on the first of the next
-// month (A26). The history works as usual; the fitting room comes with T24, so its button is shown
-// off until then (A75).
-export function LimitCard({ quota, historyHref }: LimitCardProps) {
+// month (A26). The history and the fitting room work as usual (A75, A90.7).
+export function LimitCard({ quota, historyHref, onOpenRoom }: LimitCardProps) {
   const phone = useMediaQuery(PHONE_QUERY);
+  const room = useFittingRoom();
+  const openEvents = useTrackedElement('room.open', {
+    source: 'limit',
+    items: room.data?.count ?? 0,
+  });
   return (
     <StateCard
       icon={CALENDAR}
@@ -36,7 +44,16 @@ export function LimitCard({ quota, historyHref }: LimitCardProps) {
           <Button href={historyHref} fullWidth>
             {phone ? 'История примерок' : 'Открыть историю примерок'}
           </Button>
-          <Button variant="outline" fullWidth disabled>
+          <Button
+            variant="outline"
+            fullWidth
+            onPointerEnter={openEvents.onPointerEnter}
+            onPointerLeave={openEvents.onPointerLeave}
+            onClick={() => {
+              openEvents.onClick();
+              onOpenRoom();
+            }}
+          >
             {phone ? 'Примерочная' : 'Перейти в примерочную'}
           </Button>
         </>

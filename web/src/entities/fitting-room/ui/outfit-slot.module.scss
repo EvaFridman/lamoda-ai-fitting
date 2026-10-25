@@ -1,0 +1,113 @@
+// Board 2's slot row: a 72×96 photo (60×80 on phones), the slot in caption grey, the name, the
+// price and the controls; a hairline under every row.
+
+.slot {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+
+  padding: var(--space-3) 0;
+  border-bottom: var(--border-width) solid var(--color-border);
+
+  @media (width < 600px) {
+    padding: var(--space-2) 0;
+  }
+}
+
+.photo,
+.placeholder {
+  position: relative;
+
+  overflow: hidden;
+  display: block;
+  flex: none;
+
+  width: 72px;
+  height: 96px;
+
+  @media (width < 600px) {
+    width: 60px;
+    height: 80px;
+  }
+}
+
+.photo {
+  background-color: var(--color-background-secondary);
+
+  img {
+    object-fit: cover;
+  }
+}
+
+.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  box-sizing: border-box;
+  border: var(--border-width) dashed var(--color-border-neutral);
+
+  font-size: var(--font-size-headline-s);
+  color: var(--color-text-disabled);
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-1);
+  align-items: flex-start;
+
+  min-width: 0;
+}
+
+.kind,
+.caption {
+  font-size: var(--font-size-caption);
+  line-height: var(--line-height-caption);
+  color: var(--color-text-secondary);
+}
+
+.caption {
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+}
+
+.name {
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+  color: var(--color-text);
+  text-decoration: none;
+
+  &:hover {
+    color: var(--color-text-secondary);
+  }
+
+  @media (width < 600px) {
+    font-size: var(--font-size-body-s);
+    line-height: var(--line-height-body-s);
+  }
+}
+
+.controls {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+
+  width: 100%;
+  margin-top: var(--space-1);
+}
+
+.aside {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: flex-end;
+}
+
+.fill {
+  margin-top: var(--space-1);
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+}

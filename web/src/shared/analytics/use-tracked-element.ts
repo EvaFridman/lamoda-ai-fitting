@@ -72,6 +72,31 @@ export type UseTrackedElementOf<C extends Catalog> = <E extends ElementsOf<C>>(
   ...properties: ElementArgumentsOf<C, E>
 ) => TrackedElementProps;
 
+function elementEvent(element: string, properties: PropertyValues): ElementEvent {
+  const elements: Catalog['elements'] = catalog.elements;
+  const entry = elements[element];
+  // Only the properties the catalog declares are sent: a variable passed in may carry more than
+  // its type shows (R7). The types allow only a listed element (AC1).
+  const declared = Object.keys(entry?.properties ?? {}).filter((name) =>
+    Object.hasOwn(properties, name),
+  );
+  const own = Object.fromEntries(declared.map((name) => [name, properties[name]]));
+  return { ...own, element, zone: entry?.zone, type: entry?.type } as ElementEvent;
+}
+
+function trackClickOf(element: string, properties: PropertyValues = {}): void {
+  track('Element Clicked', elementEvent(element, properties));
+}
+
+/**
+ * The click of a listed element outside a component, where no hook runs: a toast's action, whose
+ * properties are known only when it is shown (spec 0019 A90.9). It has no hover.
+ */
+export const trackElementClick: <E extends ElementsOf<typeof catalog>>(
+  element: E,
+  ...properties: ElementArgumentsOf<typeof catalog, E>
+) => void = trackClickOf;
+
 function useTrackedElementOf(
   element: string,
   properties: PropertyValues = {},
@@ -82,15 +107,7 @@ function useTrackedElementOf(
   // A hover started before a navigation does not count for the new page.
   useEffect(() => () => clearTimeout(timerRef.current), [pathname]);
 
-  const elements: Catalog['elements'] = catalog.elements;
-  const entry = elements[element];
-  // Only the properties the catalog declares are sent: a variable passed in may carry more than
-  // its type shows (R7). The types allow only a listed element (AC1).
-  const declared = Object.keys(entry?.properties ?? {}).filter((name) =>
-    Object.hasOwn(properties, name),
-  );
-  const own = Object.fromEntries(declared.map((name) => [name, properties[name]]));
-  const event = { ...own, element, zone: entry?.zone, type: entry?.type } as ElementEvent;
+  const event = elementEvent(element, properties);
   const key = hoverKey<Catalog, string>(element, properties, catalog);
 
   return {

@@ -186,7 +186,7 @@ describe('ProductPage', () => {
   it('shows «К образу» when the category has a slot and not when it has none (A18)', async () => {
     load.mockResolvedValue(loaded(product, 'top'));
     const view = renderBoundary(await resolveContent());
-    expect(screen.getByRole('button', { name: 'К образу' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'К образу' })).toBeEnabled();
     view.unmount();
 
     load.mockResolvedValue(loaded(product, null));

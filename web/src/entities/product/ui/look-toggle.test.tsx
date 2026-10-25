@@ -43,6 +43,56 @@ describe('LookToggle', () => {
     expect(onPressedChange).not.toHaveBeenCalled();
   });
 
+  it('is busy: aria-disabled, still focusable, clicks ignored', async () => {
+    const onPressedChange = vi.fn();
+    render(<LookToggle busy onPressedChange={onPressedChange} />);
+    const user = userEvent.setup();
+
+    const button = screen.getByRole('button', { name: 'Добавить к образу' });
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    expect(button).toBeEnabled();
+    await user.tab();
+    expect(button).toHaveFocus();
+    await user.click(button);
+
+    expect(onPressedChange).not.toHaveBeenCalled();
+  });
+
+  it('keeps the same button, focused, when it turns busy', () => {
+    const { rerender } = render(<LookToggle />);
+    const button = screen.getByRole('button', { name: 'Добавить к образу' });
+    button.focus();
+
+    rerender(<LookToggle busy />);
+
+    expect(screen.getByRole('button', { name: 'Добавить к образу' })).toBe(button);
+    expect(button).toHaveFocus();
+  });
+
+  it('shows the tooltip while busy', async () => {
+    const user = userEvent.setup();
+    render(<LookToggle busy />);
+
+    await user.hover(screen.getByRole('button'));
+
+    expect(
+      await screen.findByText('Добавить к образу', { selector: '[role="tooltip"], div' }),
+    ).toBeInTheDocument();
+  });
+
+  it('hands the placer’s hover handlers to the button', async () => {
+    const onPointerEnter = vi.fn();
+    const onPointerLeave = vi.fn();
+    render(<LookToggle events={{ onPointerEnter, onPointerLeave }} />);
+    const user = userEvent.setup();
+
+    await user.hover(screen.getByRole('button'));
+    await user.unhover(screen.getByRole('button'));
+
+    expect(onPointerEnter).toHaveBeenCalled();
+    expect(onPointerLeave).toHaveBeenCalled();
+  });
+
   it('shows the tooltip on hover when enabled', async () => {
     const user = userEvent.setup();
     render(<LookToggle />);

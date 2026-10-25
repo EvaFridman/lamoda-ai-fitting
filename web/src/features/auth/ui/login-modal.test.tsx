@@ -258,6 +258,45 @@ describe('LoginModal', () => {
     });
   });
 
+  describe('controlled by its placer', () => {
+    it('stays closed while open is false, with no trigger and no event', () => {
+      render(<LoginModal open={false} onOpenChange={vi.fn()} handlesReturnedError={false} />);
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(mocks.track).not.toHaveBeenCalled();
+    });
+
+    it('opens when the placer says so and sends "Login Opened" once', async () => {
+      const view = render(
+        <LoginModal open={false} onOpenChange={vi.fn()} handlesReturnedError={false} />,
+      );
+      view.rerender(<LoginModal open onOpenChange={vi.fn()} handlesReturnedError={false} />);
+      expect(await screen.findByRole('dialog', { name: 'Вход' })).toBeInTheDocument();
+      expect(mocks.track).toHaveBeenCalledExactlyOnceWith('Login Opened', {});
+    });
+
+    it('asks the placer to close and stays open until it does', async () => {
+      const onOpenChange = vi.fn();
+      const user = userEvent.setup({ pointerEventsCheck: 0 });
+      render(<LoginModal open onOpenChange={onOpenChange} handlesReturnedError={false} />);
+      await screen.findByRole('dialog', { name: 'Вход' });
+
+      await user.click(screen.getByRole('button', { name: 'Закрыть' }));
+
+      expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(false);
+      expect(screen.getByRole('dialog', { name: 'Вход' })).toBeInTheDocument();
+    });
+
+    it('signs in from the placer-opened window with the current address', async () => {
+      const user = userEvent.setup({ pointerEventsCheck: 0 });
+      render(<LoginModal open onOpenChange={vi.fn()} handlesReturnedError={false} />);
+      await screen.findByRole('dialog', { name: 'Вход' });
+
+      await user.click(screen.getByRole('button', { name: 'Войти через Google' }));
+
+      expect(mocks.signInWithGoogle).toHaveBeenCalledExactlyOnceWith('/catalog');
+    });
+  });
+
   describe('after a sign-in that failed at Google', () => {
     it('opens with the text but reports nothing for a made-up link without the flag', async () => {
       mocks.navigation.params = new URLSearchParams('error=server_error');

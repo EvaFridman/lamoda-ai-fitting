@@ -1,11 +1,17 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const api = vi.hoisted(() => ({ clientFetch: vi.fn(), reportFailure: vi.fn() }));
 const toast = vi.hoisted(() => ({ showToast: vi.fn() }));
+const auth = vi.hoisted(() => ({
+  session: { status: 'signed-in', user: { id: 'u1', email: 'a@example.com', name: null } } as
+    | { status: 'pending' }
+    | { status: 'signed-in'; user: { id: string; email: string; name: string | null } }
+    | { status: 'signed-out'; failed: boolean },
+}));
 
 vi.mock('@/shared/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/shared/api')>()),
@@ -16,6 +22,10 @@ vi.mock('@/shared/ui', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/shared/ui')>()),
   showToast: toast.showToast,
 }));
+vi.mock('@/entities/session', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/entities/session')>()),
+  useSession: () => auth.session,
+}));
 
 vi.mock('@/shared/analytics/client', () => ({
   identify: vi.fn(),
@@ -25,8 +35,10 @@ vi.mock('@/shared/analytics/client', () => ({
 vi.mock('next/navigation', () => ({
   usePathname: () => '/products/p1',
   useSearchParams: () => new URLSearchParams(),
+  useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
 }));
 
+import { type OutfitSlot } from '@/entities/category';
 import { type ProductListItem, relatedProductsOptions } from '@/entities/product';
 import { track } from '@/shared/analytics/client';
 import { ApiError, errorText } from '@/shared/api';
@@ -53,6 +65,58 @@ function productsOf(count: number): ProductListItem[] {
   }));
 }
 
+function roomOf(...items: { slot: string; product: ProductListItem }[]) {
+  return {
+    items: items.map((item) => ({ ...item, attributeValueId: null, colour: null })),
+    count: items.length,
+    sum: items.length * 5000,
+  };
+}
+
+interface Served {
+  // The related list, a promise, or an error to reject with.
+  related?: unknown;
+  // The slot of the products' category (the id ID); none: a category outside the room.
+  slot?: OutfitSlot | null;
+  room?: ReturnType<typeof roomOf>;
+  // The answer of a PUT.
+  change?: unknown;
+}
+
+function serve({ related, slot = 'top', room = roomOf(), change }: Served = {}) {
+  const categories = {
+    items: [
+      {
+        id: ID,
+        name: 'Платья',
+        slug: 'dresses',
+        isActive: true,
+        description: null,
+        sortOrder: 0,
+        slot,
+        createdAt: DATE,
+        updatedAt: DATE,
+      },
+    ],
+  };
+  api.clientFetch.mockImplementation((target: { template: string }) => {
+    switch (target.template) {
+      case '/categories':
+        return Promise.resolve(categories);
+      case '/me/fitting-room':
+        return Promise.resolve(room);
+      case '/me/fitting-room/:slot':
+        return Promise.resolve(change);
+      default:
+        return related instanceof Error ? Promise.reject(related) : Promise.resolve(related);
+    }
+  });
+}
+
+function callsTo(template: string) {
+  return api.clientFetch.mock.calls.filter(([target]) => target.template === template);
+}
+
 function renderWith(client: QueryClient, ui: ReactNode = <RelatedProducts productId={ID} />) {
   return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
 }
@@ -70,18 +134,29 @@ function hydrated(items: ProductListItem[]) {
   return client;
 }
 
+// The hanger is there once the categories give the slot and the room is read.
+async function readyHanger(card: HTMLElement) {
+  // The button is drawn again once it is enabled (a disabled one has no tooltip): look it up anew.
+  await waitFor(() =>
+    expect(within(card).getByRole('button', { name: 'Добавить к образу' })).toBeEnabled(),
+  );
+  return within(card).getByRole('button', { name: 'Добавить к образу' });
+}
+
 beforeEach(() => {
   api.clientFetch.mockReset();
   api.reportFailure.mockReset();
   toast.showToast.mockReset();
   vi.mocked(track).mockClear();
+  auth.session = { status: 'signed-in', user: { id: 'u1', email: 'a@example.com', name: null } };
+  serve();
 });
 
 describe('RelatedProducts', () => {
   it('shows the heading and six compact cards that lead to their products (AC21)', async () => {
     const items = productsOf(6);
     const client = newClient();
-    api.clientFetch.mockResolvedValue(items);
+    serve({ related: items });
     renderWith(client);
 
     expect(
@@ -89,8 +164,8 @@ describe('RelatedProducts', () => {
     ).toBeInTheDocument();
     const cards = await screen.findAllByRole('article');
     expect(cards).toHaveLength(6);
-    expect(api.clientFetch).toHaveBeenCalledOnce();
-    expect(api.clientFetch.mock.calls[0]?.[0]).toMatchObject({
+    expect(callsTo('/products/:id/related')).toHaveLength(1);
+    expect(callsTo('/products/:id/related')[0]?.[0]).toMatchObject({
       path: `/products/${ID}/related`,
     });
     for (const [index, card] of cards.entries()) {
@@ -102,18 +177,18 @@ describe('RelatedProducts', () => {
     }
   });
 
-  it('reads nothing when the page handed the list over', () => {
+  it('reads nothing of the product when the page handed the list over', () => {
     renderWith(hydrated(productsOf(2)));
 
     expect(screen.getAllByRole('article')).toHaveLength(2);
-    expect(api.clientFetch).not.toHaveBeenCalled();
+    expect(callsTo('/products/:id/related')).toHaveLength(0);
   });
 
-  it('gives each card a disabled hanger, a heart and «В корзину» (A33, A83)', () => {
+  it('gives each card a hanger, a heart and «В корзину» (A33, A83)', async () => {
     renderWith(hydrated(productsOf(1)));
 
     const card = screen.getByRole('article');
-    expect(within(card).getByRole('button', { name: 'Добавить к образу' })).toBeDisabled();
+    expect(await readyHanger(card)).toHaveAttribute('aria-pressed', 'false');
     expect(within(card).getByRole('button', { name: 'В избранное' })).toBeEnabled();
     expect(within(card).getByRole('button', { name: 'В корзину' })).toBeEnabled();
     expect(within(card).getByRole('link')).not.toContainElement(
@@ -145,6 +220,83 @@ describe('RelatedProducts', () => {
 
     expect(toast.showToast).toHaveBeenCalledOnce();
     expect(heart).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  describe('the hanger (AC13, AC16, A90.1)', () => {
+    it('puts the product into its slot and sends related.to-look', async () => {
+      const items = productsOf(1);
+      serve({
+        slot: 'top',
+        change: { room: roomOf({ slot: 'top', product: items[0]! }), replaced: null },
+      });
+      const user = userEvent.setup();
+      renderWith(hydrated(items));
+      const card = screen.getByRole('article');
+
+      await user.click(await readyHanger(card));
+
+      await waitFor(() => expect(callsTo('/me/fitting-room/:slot')).toHaveLength(1));
+      const [target, , init] = callsTo('/me/fitting-room/:slot')[0]!;
+      expect(target.path).toBe('/me/fitting-room/top');
+      expect(init).toMatchObject({
+        method: 'PUT',
+        body: JSON.stringify({ productId: items[0]!.id }),
+      });
+      expect(
+        await within(card).findByRole('button', { name: 'В примерочной — убрать' }),
+      ).toHaveAttribute('aria-pressed', 'true');
+      expect(vi.mocked(track)).toHaveBeenCalledWith('Element Clicked', {
+        element: 'related.to-look',
+        zone: 'product',
+        type: 'interaction',
+        slot: 'top',
+        action: 'add',
+        signed_in: true,
+      });
+    });
+
+    it('is pressed for a product already in the room', async () => {
+      const items = productsOf(1);
+      serve({ slot: 'top', room: roomOf({ slot: 'top', product: items[0]! }) });
+      renderWith(hydrated(items));
+
+      expect(await screen.findByRole('button', { name: 'В примерочной — убрать' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+    });
+
+    it('is not drawn for a category outside the room (AC16)', async () => {
+      serve({ slot: null });
+      renderWith(hydrated(productsOf(1)));
+
+      await waitFor(() => expect(callsTo('/categories')).toHaveLength(1));
+      await screen.findByRole('button', { name: 'В корзину' });
+      expect(screen.queryByRole('button', { name: /образу|примерочной/ })).not.toBeInTheDocument();
+    });
+
+    it('opens the sign-in window for a visitor and changes nothing (AC16)', async () => {
+      auth.session = { status: 'signed-out', failed: false };
+      const items = productsOf(1);
+      const user = userEvent.setup({ pointerEventsCheck: 0 });
+      renderWith(hydrated(items));
+      const card = screen.getByRole('article');
+
+      await user.click(await within(card).findByRole('button', { name: 'Добавить к образу' }));
+
+      expect(await screen.findByRole('dialog', { name: 'Вход' })).toBeInTheDocument();
+      expect(callsTo('/me/fitting-room')).toHaveLength(0);
+      expect(callsTo('/me/fitting-room/:slot')).toHaveLength(0);
+      expect(toast.showToast).not.toHaveBeenCalled();
+      expect(vi.mocked(track)).toHaveBeenCalledWith('Element Clicked', {
+        element: 'related.to-look',
+        zone: 'product',
+        type: 'interaction',
+        slot: 'top',
+        action: 'add',
+        signed_in: false,
+      });
+    });
   });
 
   describe('tracked elements (A84)', () => {
@@ -228,13 +380,12 @@ describe('RelatedProducts', () => {
       });
     });
 
-    it('sends nothing from the heart and the disabled hanger', async () => {
+    it('sends nothing from the heart', async () => {
       const user = userEvent.setup();
       renderWith(hydrated(productsOf(1)));
       const card = screen.getByRole('article');
 
       await user.click(within(card).getByRole('button', { name: 'В избранное' }));
-      await user.click(within(card).getByRole('button', { name: 'Добавить к образу' }));
 
       expect(track).not.toHaveBeenCalled();
     });
@@ -259,7 +410,7 @@ describe('RelatedProducts', () => {
 
   it('shows the error text as an alert and reports the failure', async () => {
     const failure = new ApiError('m', { kind: 'http', template: '/t', status: 503 });
-    api.clientFetch.mockRejectedValue(failure);
+    serve({ related: failure });
     renderWith(newClient());
 
     expect(await screen.findByRole('alert')).toHaveTextContent(errorText(failure));

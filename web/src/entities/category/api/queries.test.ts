@@ -93,3 +93,43 @@ describe('category browser options', () => {
     expect(init.signal).toBeInstanceOf(AbortSignal);
   });
 });
+
+describe('the active categories (the slots of the cards, spec 0019 A90.8)', () => {
+  it('are one request of every active category, under the catalog’s own key', async () => {
+    await new QueryClient().query(browser.categoryListOptions(browser.ACTIVE_CATEGORIES_QUERY));
+
+    const url = requested();
+    expect(url.searchParams.get('isActive')).toBe('true');
+    expect(url.searchParams.get('limit')).toBe('100');
+    expect(browser.categoryListOptions(browser.ACTIVE_CATEGORIES_QUERY).queryKey).toEqual(
+      server.categoryListOptions({ isActive: true, limit: 100 }).queryKey,
+    );
+  });
+});
+
+describe('categorySlots', () => {
+  const other = { ...category, id: '7c9e6679-7425-40de-944b-e07fc1f90ae7', slot: null };
+
+  it('maps the id of each category that has a slot to it', () => {
+    const shoes = {
+      ...category,
+      id: '9b2e3a4f-5c6d-4e7f-9081-2b3c4d5e6f70',
+      slot: 'shoes' as const,
+    };
+
+    const slots = browser.categorySlots([{ ...category, slot: 'top' as const }, other, shoes]);
+
+    expect([...slots]).toEqual([
+      [ID, 'top'],
+      [shoes.id, 'shoes'],
+    ]);
+  });
+
+  it('leaves out a category with no slot', () => {
+    expect(browser.categorySlots([other]).size).toBe(0);
+  });
+
+  it('is empty while the categories load', () => {
+    expect(browser.categorySlots(undefined).size).toBe(0);
+  });
+});

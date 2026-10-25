@@ -2,7 +2,12 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { track } from './client';
-import { HOVER_MS, useHoverReset, useTrackedElement } from './use-tracked-element';
+import {
+  HOVER_MS,
+  trackElementClick,
+  useHoverReset,
+  useTrackedElement,
+} from './use-tracked-element';
 
 const pathname = vi.hoisted(() => ({ current: '/a' }));
 
@@ -25,6 +30,55 @@ function hover(pointerType: string, index = 0) {
 // The hook keeps the "hover sent" state at module level, so every test gets a path of its own
 // instead of reloading modules (a second React copy would break the hooks).
 let testNumber = 0;
+
+describe('trackElementClick', () => {
+  beforeEach(() => {
+    vi.mocked(track).mockClear();
+  });
+
+  it('sends the click of a listed element with its zone, type and properties, outside React', () => {
+    trackElementClick('room.undo', { slot: 'top', action: 'replace' });
+    expect(track).toHaveBeenCalledExactlyOnceWith('Element Clicked', {
+      element: 'room.undo',
+      zone: 'fitting',
+      type: 'interaction',
+      slot: 'top',
+      action: 'replace',
+    });
+  });
+
+  it('sends an element without properties with nothing else', () => {
+    trackElementClick('ui-kit.button-primary');
+    expect(track).toHaveBeenCalledExactlyOnceWith('Element Clicked', {
+      element: 'ui-kit.button-primary',
+      zone: 'service',
+      type: 'service',
+    });
+  });
+
+  it('drops a property the catalog does not declare for the element', () => {
+    const extra = { slot: 'top', action: 'remove', email: 'a@b.c' } as const;
+    trackElementClick('room.undo', extra);
+    expect(track).toHaveBeenCalledExactlyOnceWith('Element Clicked', {
+      element: 'room.undo',
+      zone: 'fitting',
+      type: 'interaction',
+      slot: 'top',
+      action: 'remove',
+    });
+  });
+
+  it('sends no hover', () => {
+    vi.useFakeTimers();
+    try {
+      trackElementClick('room.open', { source: 'toast', items: 2 });
+      vi.advanceTimersByTime(HOVER_MS * 2);
+      expect(track).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
 
 describe('useTrackedElement', () => {
   beforeEach(() => {
