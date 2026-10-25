@@ -14,7 +14,10 @@ an idea to `main`.
    each acceptance criterion will be verified.
 4. **`tasks.md`: steps.** Small tasks, each with a check and a commit message, grouped into one pull
    request per phase.
-5. **Code.** One task, one commit. The owner reviews each task before it is committed.
+5. **Code.** One task, one commit. The owner reviews each task before it is committed, or, when the
+   spec's `clarifications.md` chooses it, at the end of each phase: inside a phase every task runs
+   its checks and is committed without a stop, and the phase ends with a clean install,
+   `verify`, the push, the pull request and a stop with a summary for the owner (spec 0019 A2).
 
 The owner accepts each of `spec.md`, `plan.md` and `tasks.md` before the next one starts. Each file
 carries a `Status:` line.

@@ -1,6 +1,6 @@
 # 0019 AI fitting v1: clarifications
 
-Status: accepted (2026-10-21).
+Status: done (2026-10-25): accepted 2026-10-21, decisions up to A97. History, not instructions.
 
 The owner's decisions for this spec. Ids `A1`, `A2`, … are referred to by the spec, the plan and
 code comments. A1–A13 are the owner's decisions given with the task, A14–A19, A21 and A22 the
@@ -27,7 +27,9 @@ pull request in the owner's format, then a stop with a summary: what was done, w
 found, which assumptions were taken. The review bot's rounds go through `apply-review`, one fix
 commit and one push per round. Confirmed 2026-10-21 at the review of PR 1: this mode stays an
 exception recorded here, since this is the first spec that uses it; whether `specs/principles.md`
-and `CLAUDE.md` name it as an option is decided at the close of the spec.
+and `CLAUDE.md` name it as an option is decided at the close of the spec. Decided 2026-10-25 at
+T29: both name it as an option a spec chooses in its own `clarifications.md`; review after every
+task stays the default.
 
 **A3. A fork none of the decisions cover takes the most cautious option.** Less behaviour, nothing
 irreversible; it is recorded here as «Assumption, owner to confirm» and listed in the phase's

@@ -28,31 +28,17 @@ from its page by `0017-account`; the caches' Redis and both Redis' memory limits
 of the public catalog's reads, the deploy's warm-up and its route list, the first-request measurement after a deploy, the rule
 `.claude/rules/web-pages.md` and the deploy job's time limit by `0018-cache-warmup`; the catalog's
 loading placeholders, its phone layout below 600 px and the filters' sheet with a screen per
-filter below 1024 px by `0020-catalog-mobile` (all closed).
-In progress: `0019-ai-fitting`, whose phase 1 brought the OpenAI module and its checks, the
-tables of the fitting (user photos, `fitting_quota`, the categories' `slot` in their answer), the
-fitting photos (`/me/photos`, nginx's 20 MB upload route, the page "Мои фото") and the file
-deletions' outbox with the schedule `fitting-housekeeping`; phase 2 the generation (the image
-model and its prompt, the workflow `generateFitting`, `/fittings` with the monthly limit, the
-push `fitting:finished`, OpenAI through the proxy abroad), the try-on of one item in a window
-(`widgets/try-on`) and the history "Мои примерки"; phase 3 the product page `/products/<id>`
-(`GET /products/:id/related` and `/products/:id/fittings/last`, its metadata, JSON-LD, 404 and
-sitemap, the gallery, the buy box with the try-on's «Примерить», the cart and favourite stubs,
-the limit meter and «Вы это примеряли», «О товаре» and «С этим товаром выбирают» with the card's
-`compact` variant, the analytics zone `product`), the catalog card's two corners (the hanger
-`LookToggle`, disabled until the fitting room, and the heart stub, in place of its one `action`)
-and its hover (spec 0019 A63.1, A83); phase 4 so far the fitting room's api (`/me/fitting-room`,
-A86) and the product page on phones as Lamoda's (the gallery's slide and dots, the buy box in
-the flow as a panel over the photo, the kit's `ScrollRow` for «С этим товаром выбирают», A87.1–3,
-A88) and the header on phones as Lamoda's (one row of the burger, the loupe, the logo and the
-icons, the search row, the burger's left `Drawer`, A87.4–8, A89) and the fitting room in the
-header (`FittingRoomButton` with its count, the drawer `widgets/fitting-room-drawer`, the live
-hanger, «К образу» / «В образе» and the result's tile, the toasts with «Вернуть», A90) and the
-look's try-on (`LookTryOn`, the picker of board 3.2, the result of board 8 with a colour per item
-and «Какая именно?», `promptText` and the items' `slot` in `FittingDto`, A92) and the history's
-actions and compare («Примерить ещё раз», the selection mode, `/customer/fittings/compare`, A93)
-and the rest of the fitting's analytics (the result's tile, a look's colours and cart, A94).
-Next: closing the spec.
+filter below 1024 px by `0020-catalog-mobile`; the AI fitting by `0019-ai-fitting`: the OpenAI
+module and its checks through the proxy abroad, the fitting photos (`/me/photos`, nginx's 20 MB
+upload route, "Мои фото"), the file deletions' outbox and the schedule `fitting-housekeeping`,
+the generation (the image model and its prompt, the workflow `generateFitting`, `/fittings` with
+the monthly limit, the push `fitting:finished`), the try-on of one item and of a look
+(`widgets/try-on`), the history "Мои примерки" with its repeat and compare, the product page
+`/products/<id>` (on phones as Lamoda's), the catalog card's hanger and heart, the header on
+phones as Lamoda's, the fitting room (`/me/fitting-room`, the header's `FittingRoomButton` and
+`widgets/fitting-room-drawer`) and the fitting's analytics (all closed). The AI fitting's vision
+`0016-ai-fitting` stays accepted: 0019 checked its AC5–AC10, AC14 and AC15 (for the account), the rest wait for
+specs of their own.
 
 Keep this file true: update it in the same commit that changes what a section describes.
 
@@ -81,7 +67,11 @@ Keep this file true: update it in the same commit that changes what a section de
   the commit that closes one removes it from the backlog.
 - Before a task: read its section of `tasks.md`, get a brief from `spec-finder` (what the task
   refers to and related decisions it does not mention), then state a time estimate. After it: stop,
-  summarize what changed and the check result, wait for the owner's OK, then commit.
+  summarize what changed and the check result, wait for the owner's OK, then commit. A spec whose
+  `clarifications.md` chooses the review at phase boundaries (`specs/principles.md`, spec 0019 A2)
+  commits each task after its `finish-task` without a stop and stops once at the phase's end, with
+  the pull request and a summary of what was done, what the agents found and which assumptions
+  were taken.
 - If a task shows the plan is wrong: stop, fix the plan with the owner, then continue.
 - Sessions: write the spec, clarifications, plan and tasks in one session; do each task of
   `tasks.md` in a fresh session (or after `/clear`). Every call re-reads the whole context, so a
@@ -178,9 +168,10 @@ with a message to start it. The project `unit` (everything else) needs no Docker
 `web/src/**/*.test.ts(x)` and need no Docker: `npm --prefix web test`.
 
 Before calling a task done: `npm run verify`. Before opening a pull request, also a clean install
-the way CI does it (`npm ci` in the root and in each package), then `verify` again. Inside a phase
-of spec 0019 a task ends with `typecheck`, `lint` and its own tests, `qa-tester` runs once per
-phase at its last task, and the full `verify` runs once at the phase's end (spec 0019 A58).
+the way CI does it (`npm ci` in the root and in each package), then `verify` again. A spec that
+reviews at phase boundaries may also choose in its `clarifications.md` that a task inside a phase
+ends with `typecheck`, `lint` and its own tests, `qa-tester` runs once per phase at its last task,
+and the full `verify` once at the phase's end (as spec 0019 A58 did).
 
 ## Structure
 
@@ -918,7 +909,7 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   flagged image or text answers the reason `moderation`, a malformed verdict of the model counts as
   accepted with a warning, and a passed deadline or a cancelled caller signal throws an
   `AiProviderError` whose `isTimeout` or `reason: 'aborted'` says which (the routes that call the
-  checks, `POST /me/photos` and, later, `POST /fittings`, answer any `AiProviderError` as 503 with
+  checks, `POST /me/photos` and `POST /fittings`, answer any `AiProviderError` as 503 with
   nothing stored).
   The client makes three attempts (`retry: false` makes one, for an activity with a retry policy of
   its own) for a network error, a 429 or a 5xx, none for another 4xx, `insufficient_quota` or a

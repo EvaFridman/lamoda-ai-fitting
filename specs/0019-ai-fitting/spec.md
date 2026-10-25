@@ -1,6 +1,7 @@
 # 0019 AI fitting v1
 
-Status: accepted (2026-10-21).
+Status: done (2026-10-25): accepted 2026-10-21; closed by T29 (`tasks.md`, acceptance record).
+History, not instructions.
 
 Issue #69 («Собрать страницу товара»). Decisions: `clarifications.md` (A1–A47). Design: the
 owner's canvas «Онлайн-примерка 2.0» (26 boards, the kit's design system), read only. This spec
