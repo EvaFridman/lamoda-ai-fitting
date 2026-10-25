@@ -1,11 +1,36 @@
 'use client';
 
-import { fittingRefusal, type StartedFitting, useStartSingleFitting } from '@/entities/fitting';
+import { useRef } from 'react';
+
+import {
+  fittingRefusal,
+  type LookFittingRequest,
+  type StartedFitting,
+  useStartLookFitting,
+  useStartSingleFitting,
+} from '@/entities/fitting';
 import { useTrackedElement } from '@/shared/analytics';
 import { errorText } from '@/shared/api';
 import { PHONE_QUERY } from '@/shared/config';
 import { useMediaQuery } from '@/shared/lib';
 import { Button, SparkleIcon } from '@/shared/ui';
+
+// One start at a time, decided at the click: `isPending` of the render is stale for a second click
+// in the same tick, whose `mutate` would replace the first one's callbacks, so the first answer
+// would reach nobody while its fitting runs (AC12, A32).
+function useInFlight() {
+  const ref = useRef(false);
+  return {
+    take: () => {
+      if (ref.current) return false;
+      ref.current = true;
+      return true;
+    },
+    release: () => {
+      ref.current = false;
+    },
+  };
+}
 
 export interface StartFittingButtonProps {
   // The chosen photo; none yet keeps the button off.
@@ -35,6 +60,7 @@ export function StartFittingButton({
 }: StartFittingButtonProps) {
   const phone = useMediaQuery(PHONE_QUERY);
   const start = useStartSingleFitting();
+  const inFlight = useInFlight();
   const tracked = useTrackedElement('try-on.start');
 
   return (
@@ -45,11 +71,12 @@ export function StartFittingButton({
       loading={start.isPending}
       onClick={() => {
         tracked.onClick();
-        if (photoId === null || start.isPending) return;
+        if (photoId === null || !inFlight.take()) return;
         onError(null);
         start.mutate(
           { photoId, productId, attributeValueId, source: 'picker' },
           {
+            onSettled: inFlight.release,
             onSuccess: (fitting) => onStarted(fitting),
             onError: (failure) => {
               if (fittingRefusal(failure) === 'limit_reached') onLimit();
@@ -63,6 +90,66 @@ export function StartFittingButton({
     >
       <SparkleIcon />
       Примерить
+    </Button>
+  );
+}
+
+export interface StartLookButtonProps {
+  // The chosen photo; none yet keeps the button off.
+  photoId: string | null;
+  // The room's items in their colours, 2 to 5 of distinct slots.
+  items: LookFittingRequest['items'];
+  // The wishes of the room (A90.5); blank is none.
+  promptText: string;
+  disabled?: boolean;
+  onStarted: (fitting: StartedFitting) => void;
+  onLimit: () => void;
+  onError: (text: string | null) => void;
+}
+
+// «Примерить образ» (board 3.2): the look's try-on, busy while its request runs (AC12, A32), as
+// «Примерить» is.
+export function StartLookButton({
+  photoId,
+  items,
+  promptText,
+  disabled = false,
+  onStarted,
+  onLimit,
+  onError,
+}: StartLookButtonProps) {
+  const phone = useMediaQuery(PHONE_QUERY);
+  const start = useStartLookFitting();
+  const inFlight = useInFlight();
+  const tracked = useTrackedElement('try-on.start');
+
+  return (
+    <Button
+      size={phone ? 48 : 56}
+      fullWidth
+      disabled={disabled || photoId === null || items.length < 2}
+      loading={start.isPending}
+      onClick={() => {
+        tracked.onClick();
+        if (photoId === null || !inFlight.take()) return;
+        onError(null);
+        start.mutate(
+          { photoId, items, promptText, source: 'picker' },
+          {
+            onSettled: inFlight.release,
+            onSuccess: (fitting) => onStarted(fitting),
+            onError: (failure) => {
+              if (fittingRefusal(failure) === 'limit_reached') onLimit();
+              else onError(errorText(failure));
+            },
+          },
+        );
+      }}
+      onPointerEnter={tracked.onPointerEnter}
+      onPointerLeave={tracked.onPointerLeave}
+    >
+      <SparkleIcon />
+      Примерить образ
     </Button>
   );
 }

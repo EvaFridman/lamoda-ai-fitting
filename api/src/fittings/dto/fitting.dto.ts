@@ -1,6 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-import { FittingFailure, FittingKind, GenerationStatus } from '../../generated/prisma/enums.js';
+import {
+  FittingFailure,
+  FittingKind,
+  GenerationStatus,
+  OutfitSlot,
+} from '../../generated/prisma/enums.js';
 
 // Where a fitting is, for the waiting screen (A27, A70): `queued` until the worker takes it,
 // `generating` while it runs, `done` once it ended either way.
@@ -37,10 +42,19 @@ export class FittingItemResponseDto {
 
   @ApiProperty({ type: String, nullable: true, description: "The colour's name." })
   colour: string | null;
+
+  @ApiProperty({
+    enum: OutfitSlot,
+    enumName: 'OutfitSlot',
+    nullable: true,
+    description:
+      "The item's slot in the look when it was tried on; null on the closed route's rows.",
+  })
+  slot: OutfitSlot | null;
 }
 
 // A fitting of the signed-in user (spec 0019 plan §5): no storage key, a signed link instead (spec
-// 0011 M9), and no text of the user.
+// 0011 M9); its one text is the user's own wishes (A92.1).
 export class FittingDto {
   @ApiProperty({ format: 'uuid' })
   id: string;
@@ -90,6 +104,14 @@ export class FittingDto {
     description: 'The photo tried on; null once it is deleted (the result stays).',
   })
   photoId: string | null;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description:
+      "The wishes it was tried on with (a regeneration has its parent's); null when none. A colour change sends them again (A92.1).",
+  })
+  promptText: string | null;
 
   @ApiProperty({
     type: String,

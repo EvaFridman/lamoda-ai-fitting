@@ -8,6 +8,7 @@ import {
   FITTING_STEPS,
   fittingProgress,
   type FittingStep,
+  ItemsStrip,
   itemWord,
   timeLeftText,
 } from '@/entities/fitting';
@@ -62,8 +63,10 @@ export function FittingWait({ fitting, photoUrl, onClose }: FittingWaitProps) {
   const now = useNow();
   const close = useTrackedElement('try-on.close', { screen: 'wait' });
   const progress = fittingProgress(fitting.createdAt, fitting.estimatedSeconds, now);
-  const item = fitting.items[0];
-  const word = item ? itemWord(item.name) : 'вещь';
+  const look = fitting.kind === 'look';
+  // A look shows its items as the strip under the progress (A62), not one item beside it.
+  const item = look ? undefined : fitting.items[0];
+  const word = look ? 'образ' : item ? itemWord(item.name) : 'вещь';
   const current = FITTING_STEPS.indexOf(progress.step);
 
   return (
@@ -90,6 +93,7 @@ export function FittingWait({ fitting, photoUrl, onClose }: FittingWaitProps) {
           </p>
           <ProgressBar value={progress.percent} aria-label="Прогресс примерки" />
           <p className={styles.muted}>{timeLeftText(progress.secondsLeft)}</p>
+          {look && <ItemsStrip items={fitting.items} />}
         </div>
         {!phone && (
           <ol className={styles.steps}>

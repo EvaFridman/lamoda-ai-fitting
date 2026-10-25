@@ -467,15 +467,60 @@ describe('FittingRoomDrawer filled (desktop)', () => {
     ]);
   });
 
-  it('shows the sum of the look, a disabled «Примерить образ» and the month’s meter', async () => {
+  it('shows the sum of the look, a live «Примерить образ» and the month’s meter', async () => {
     const { dialog } = await openDrawer();
 
     expect(await within(dialog).findByText('Сумма образа')).toBeInTheDocument();
     expect(within(dialog).getByText(/9\s000/)).toBeInTheDocument();
-    expect(within(dialog).getByRole('button', { name: 'Примерить образ' })).toBeDisabled();
+    expect(within(dialog).getByRole('button', { name: 'Примерить образ' })).toBeEnabled();
     expect(
       await within(dialog).findByText('Осталось 17 примерок в этом месяце'),
     ).toBeInTheDocument();
+  });
+
+  it('opens the look’s try-on from «Примерить образ», closing the room, and sends room.try-on with the count (AC14)', async () => {
+    useRoomStore.setState({ lookOpen: false });
+    const { dialog } = await openDrawer();
+    await within(dialog).findByText('Рубашка Annen');
+
+    await setup().click(within(dialog).getByRole('button', { name: 'Примерить образ' }));
+
+    expect(useRoomStore.getState().lookOpen).toBe(true);
+    expect(useRoomStore.getState().open).toBe(false);
+    expect(clicks()).toEqual([
+      { element: 'room.try-on', zone: 'fitting', type: 'interaction', items: 2 },
+    ]);
+  });
+
+  it('keeps «Примерить образ» off with one item and opens nothing', async () => {
+    useRoomStore.setState({ lookOpen: false });
+    api.room = roomOf(roomItem('top', shirt, WHITE, 'белый'));
+    const { dialog } = await openDrawer();
+    await within(dialog).findByText('Рубашка Annen');
+    const button = within(dialog).getByRole('button', { name: 'Примерить образ' });
+
+    expect(button).toBeDisabled();
+    await setup().click(button);
+
+    expect(useRoomStore.getState().lookOpen).toBe(false);
+    expect(clicks()).toEqual([]);
+  });
+
+  it('explains the disabled «Примерить образ» with a caption when the room holds one item (A92.4)', async () => {
+    api.room = roomOf(roomItem('top', shirt, WHITE, 'белый'));
+    const { dialog } = await openDrawer();
+    await within(dialog).findByText('Рубашка Annen');
+
+    expect(within(dialog).getByText('Добавьте ещё вещь — образ от двух')).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Примерить образ' })).toBeDisabled();
+  });
+
+  it('shows no such caption when the room holds two items (A92.4)', async () => {
+    const { dialog } = await openDrawer();
+    await within(dialog).findByText('Рубашка Annen');
+
+    expect(within(dialog).queryByText('Добавьте ещё вещь — образ от двух')).toBeNull();
+    expect(within(dialog).getByRole('button', { name: 'Примерить образ' })).toBeEnabled();
   });
 
   it('answers «Всё в корзину» with the prototype toast and sends room.add-to-cart-all with the count', async () => {

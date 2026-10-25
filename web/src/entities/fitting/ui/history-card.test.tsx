@@ -17,6 +17,7 @@ function item(n: number, colour: string | null = null) {
     finalPrice: 900,
     attributeValueId: null,
     colour,
+    slot: 'top' as const,
   };
 }
 

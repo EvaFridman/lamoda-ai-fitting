@@ -1,15 +1,11 @@
 'use client';
 
-import Image from 'next/image';
 import NextLink from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 
 import {
-  AiLabel,
   type Fitting,
   fittingDate,
-  fittingProgress,
-  timeLeftText,
   type FittingQuota,
   LimitMeter,
   type StartedFitting,
@@ -19,55 +15,16 @@ import type { ProductDetail } from '@/entities/product';
 import { useLookToggle } from '@/features/fitting-room';
 import { showStubToast } from '@/features/product-stubs';
 import { RegenerateSheet } from '@/features/regenerate-fitting';
-import { TryOnLoader } from '@/features/start-fitting';
 import { ColorTryOn, type TryColour } from '@/features/try-colour';
 import { useTrackedElement } from '@/shared/analytics';
 import { FITTINGS_HREF, PHONE_QUERY } from '@/shared/config';
 import { useMediaQuery } from '@/shared/lib';
-import {
-  Button,
-  CheckIcon,
-  DownloadIcon,
-  FavoriteToggle,
-  FullscreenIcon,
-  HangerIcon,
-  LinkButton,
-  ProgressBar,
-  Select,
-} from '@/shared/ui';
+import { Button, CheckIcon, FavoriteToggle, HangerIcon, LinkButton, Select } from '@/shared/ui';
 
 import { ItemRow } from './item-row';
+import { ResultPicture, ResultTiles, useRunningProgress } from './result-media';
 
 import styles from './fitting-result.module.scss';
-
-const SHARE_ICON = (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
-    <path d="M12 15V4M8 8l4-4 4 4M5 12v8h14v-8" />
-  </svg>
-);
-
-// Saves the result: a link made on the click and dropped at once, so the signed link never sits in
-// the page's markup (A37). The storage's link is another origin, where `download` does not apply:
-// the picture opens in a new tab, from which it is saved.
-function download(url: string) {
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = 'primerka.webp';
-  link.target = '_blank';
-  link.rel = 'noopener';
-  link.click();
-}
-
-// The clock board 7.2's progress follows, while a colour runs.
-function useNow(active: boolean): number {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    if (!active) return;
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, [active]);
-  return now;
-}
 
 export interface FittingResultProps {
   // The result shown.
@@ -135,86 +92,29 @@ export function FittingResult({
   slot,
 }: FittingResultProps) {
   const phone = useMediaQuery(PHONE_QUERY);
-  const now = useNow(running !== null);
   const pictureRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<string | null>(null);
   const [regenerating, setRegenerating] = useState(false);
-  const downloadElement = useTrackedElement('result.download');
-  const fullscreenElement = useTrackedElement('result.fullscreen');
   const regenerateElement = useTrackedElement('result.regenerate-open');
   const cartElement = useTrackedElement('result.add-to-cart');
   const otherPhotoElement = useTrackedElement('result.other-photo');
   const item = fitting.items[0];
-  const progress = running
-    ? fittingProgress(running.createdAt, running.estimatedSeconds, now)
-    : null;
+  const progress = useRunningProgress(running);
   const sizes = product?.variations.map(({ size: value }) => ({ value, label: value })) ?? [];
 
-  const picture = running ? (
-    <TryOnLoader photoUrl={fitting.resultUrl} className={styles.picture}>
-      {progress && (
-        <div className={styles.runningBox}>
-          <p className={styles.runningHead}>
-            <span>Примеряем {running.items[0]?.colour ?? 'другой цвет'}…</span>
-            <span>{progress.percent}%</span>
-          </p>
-          <ProgressBar value={progress.percent} aria-label="Прогресс примерки" />
-          <span className={styles.muted}>{timeLeftText(progress.secondsLeft)}</span>
-        </div>
-      )}
-    </TryOnLoader>
-  ) : (
-    <div ref={pictureRef} className={['mp-block', styles.picture].join(' ')}>
-      {fitting.resultUrl && (
-        <Image
-          className={styles.image}
-          src={fitting.resultUrl}
-          alt={
-            item ? `Сгенерированное изображение: вы в вещи «${item.name}»` : 'Результат примерки'
-          }
-          fill
-          sizes="540px"
-          unoptimized
-        />
-      )}
-      <AiLabel />
-    </div>
+  const picture = (
+    <ResultPicture
+      fitting={fitting}
+      running={running}
+      progress={progress}
+      runningLabel={`Примеряем ${running?.items[0]?.colour ?? 'другой цвет'}…`}
+      alt={item ? `Сгенерированное изображение: вы в вещи «${item.name}»` : 'Результат примерки'}
+      pictureRef={pictureRef}
+    />
   );
 
   const tiles = (
-    <div className={styles.tiles} role="group" aria-label="Действия с изображением">
-      <button type="button" className={styles.tile} disabled>
-        {SHARE_ICON}
-        Поделиться
-      </button>
-      <button
-        type="button"
-        className={styles.tile}
-        disabled={running !== null || !fitting.resultUrl}
-        onClick={() => {
-          downloadElement.onClick();
-          if (fitting.resultUrl) download(fitting.resultUrl);
-        }}
-        onPointerEnter={downloadElement.onPointerEnter}
-        onPointerLeave={downloadElement.onPointerLeave}
-      >
-        <DownloadIcon />
-        Скачать
-      </button>
-      <button
-        type="button"
-        className={styles.tile}
-        disabled={running !== null || !fitting.resultUrl}
-        onClick={() => {
-          fullscreenElement.onClick();
-          void pictureRef.current?.requestFullscreen?.().catch(() => undefined);
-        }}
-        onPointerEnter={fullscreenElement.onPointerEnter}
-        onPointerLeave={fullscreenElement.onPointerLeave}
-      >
-        <FullscreenIcon />
-        {phone ? 'Экран' : 'Во весь экран'}
-      </button>
+    <ResultTiles fitting={fitting} running={running} pictureRef={pictureRef} phone={phone}>
       {product && slot ? (
         <LookTile product={product} slot={slot} attributeValueId={item?.attributeValueId} />
       ) : (
@@ -225,7 +125,7 @@ export function FittingResult({
           </button>
         )
       )}
-    </div>
+    </ResultTiles>
   );
 
   const cart = (

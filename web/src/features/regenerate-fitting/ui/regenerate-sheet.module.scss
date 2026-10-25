@@ -26,6 +26,17 @@
   text-align: right;
 }
 
+// Board 8.3: an item's chip carries its catalog picture, 24×32.
+.itemImage {
+  flex: none;
+
+  width: 24px;
+  height: 32px;
+  margin-left: calc(-1 * var(--space-2));
+
+  object-fit: cover;
+}
+
 .area {
   resize: none;
 

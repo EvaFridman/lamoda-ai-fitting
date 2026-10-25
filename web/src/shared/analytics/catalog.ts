@@ -682,7 +682,8 @@ export const catalog = defineCatalog({
     'try-on.start': {
       zone: 'fitting',
       type: 'interaction',
-      description: '«Примерить» на выборе фото.',
+      description:
+        '«Примерить» или «Примерить образ» на выборе фото (одна вещь или образ различаются по `kind` у `Fitting Started`).',
       clicksPerVisit: 0.025,
       hoversPerVisit: 0.02,
     },
@@ -852,6 +853,15 @@ export const catalog = defineCatalog({
       description:
         '«Всё в корзину» в примерочной: заглушка, показывает уведомление, что в прототипе нет корзины. `items` — сколько вещей в примерочной.',
       clicksPerVisit: 0.008,
+      hoversPerVisit: 0.01,
+      properties: { items: { kind: 'number' } },
+    },
+    'room.try-on': {
+      zone: 'fitting',
+      type: 'interaction',
+      description:
+        '«Примерить образ» в примерочной: шторка закрывается, открывается выбор фото для образа (сама примерка — `Fitting Started` с `kind: look`). `items` — сколько вещей в примерочной.',
+      clicksPerVisit: 0.01,
       hoversPerVisit: 0.01,
       properties: { items: { kind: 'number' } },
     },

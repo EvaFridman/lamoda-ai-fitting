@@ -21,6 +21,7 @@ const started = {
   regenerationFree: true,
   model: 'gpt-image-2',
   items: [],
+  promptText: null,
   photoId: ID,
   resultUrl: null,
   createdAt: '2026-10-01T12:00:00.000Z',

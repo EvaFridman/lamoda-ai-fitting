@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -11,7 +11,12 @@ vi.mock('@/shared/analytics/client', () => ({
 }));
 vi.mock('@sentry/nextjs', () => ({ captureException: mocks.captureException }));
 
-import { StartFittingButton, type StartFittingButtonProps } from './start-fitting-button';
+import {
+  StartFittingButton,
+  type StartFittingButtonProps,
+  StartLookButton,
+  type StartLookButtonProps,
+} from './start-fitting-button';
 
 const PHOTO = '00000000-0000-4000-8000-0000000000f1';
 const PRODUCT = '00000000-0000-4000-8000-0000000000a1';
@@ -32,6 +37,7 @@ function startedBody() {
     regenerationFree: true,
     model: 'gpt-image-2',
     items: [],
+    promptText: null,
     photoId: PHOTO,
     resultUrl: null,
     createdAt: '2026-10-20T12:00:00.000Z',
@@ -99,6 +105,24 @@ describe('StartFittingButton', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(button()).toHaveAttribute('aria-busy', 'true');
+  });
+
+  it('sends one POST for two clicks in the same tick and reports the first answer (AC12)', async () => {
+    fetchMock
+      .mockImplementationOnce(answer(201, startedBody()))
+      .mockImplementation(failure(429, 'TOO_MANY_REQUESTS'));
+    const { onStarted, onError, onLimit } = renderButton();
+
+    act(() => {
+      fireEvent.click(button());
+      fireEvent.click(button());
+    });
+
+    await vi.waitFor(() => expect(onStarted).toHaveBeenCalledTimes(1));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(onStarted.mock.calls[0]?.[0]).toMatchObject({ id: FITTING });
+    expect(onError).not.toHaveBeenCalledWith(expect.any(String));
+    expect(onLimit).not.toHaveBeenCalled();
   });
 
   it('is busy while the request runs and ready again after a failure', async () => {
@@ -170,5 +194,131 @@ describe('StartFittingButton', () => {
       'Element Clicked',
       expect.objectContaining({ element: 'try-on.start' }),
     );
+  });
+});
+
+describe('StartLookButton', () => {
+  const SHIRT = '00000000-0000-4000-8000-0000000000a2';
+  const ITEMS = [
+    { productId: PRODUCT, attributeValueId: COLOUR },
+    { productId: SHIRT, attributeValueId: null },
+  ];
+
+  function renderLook(props: Partial<StartLookButtonProps> = {}) {
+    const handlers = { onStarted: vi.fn(), onLimit: vi.fn(), onError: vi.fn() };
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <StartLookButton photoId={PHOTO} items={ITEMS} promptText="" {...handlers} {...props} />
+      </QueryClientProvider>,
+    );
+    return handlers;
+  }
+
+  const lookButton = () => screen.getByRole('button', { name: /Примерить образ/ });
+
+  it('starts a look of the photo, the items in their colours and the wishes (AC14)', async () => {
+    fetchMock.mockImplementation(answer(201, { ...startedBody(), kind: 'look' }));
+    const { onStarted, onError } = renderLook({ promptText: ' Свободнее ' });
+
+    await userEvent.setup().click(lookButton());
+
+    await vi.waitFor(() => expect(onStarted).toHaveBeenCalledTimes(1));
+    const [url, init] = fetchMock.mock.calls[0] as [unknown, RequestInit];
+    expect(new URL(String(url)).pathname).toBe('/api/fittings');
+    expect(JSON.parse(String(init.body))).toEqual({
+      photoId: PHOTO,
+      kind: 'look',
+      items: [{ productId: PRODUCT, attributeValueId: COLOUR }, { productId: SHIRT }],
+      promptText: 'Свободнее',
+    });
+    expect(onError).toHaveBeenCalledWith(null);
+  });
+
+  it('sends no wishes when they are blank', async () => {
+    fetchMock.mockImplementation(answer(201, { ...startedBody(), kind: 'look' }));
+    renderLook({ promptText: '   ' });
+
+    await userEvent.setup().click(lookButton());
+
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const [, init] = fetchMock.mock.calls[0] as [unknown, RequestInit];
+    expect(JSON.parse(String(init.body))).not.toHaveProperty('promptText');
+  });
+
+  it('is off without a photo and sends nothing', async () => {
+    renderLook({ photoId: null });
+
+    expect(lookButton()).toBeDisabled();
+    await userEvent.setup().click(lookButton());
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('is off with one item', () => {
+    renderLook({ items: ITEMS.slice(0, 1) });
+
+    expect(lookButton()).toBeDisabled();
+  });
+
+  it('is off when disabled', () => {
+    renderLook({ disabled: true });
+
+    expect(lookButton()).toBeDisabled();
+  });
+
+  it('is busy while the request runs and starts one look when clicked twice (AC12)', async () => {
+    fetchMock.mockImplementation(() => new Promise<Response>(() => undefined));
+    renderLook();
+    const user = userEvent.setup();
+
+    await user.dblClick(lookButton());
+    await user.click(lookButton());
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(lookButton()).toHaveAttribute('aria-busy', 'true');
+  });
+
+  it('sends one POST for two clicks in the same tick and reports the first answer (AC12)', async () => {
+    fetchMock
+      .mockImplementationOnce(answer(201, { ...startedBody(), kind: 'look' }))
+      .mockImplementation(failure(429, 'TOO_MANY_REQUESTS'));
+    const { onStarted, onError, onLimit } = renderLook();
+
+    act(() => {
+      fireEvent.click(lookButton());
+      fireEvent.click(lookButton());
+    });
+
+    await vi.waitFor(() => expect(onStarted).toHaveBeenCalledTimes(1));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(onStarted.mock.calls[0]?.[0]).toMatchObject({ id: FITTING });
+    expect(onError).not.toHaveBeenCalledWith(expect.any(String));
+    expect(onLimit).not.toHaveBeenCalled();
+  });
+
+  it('calls onLimit at the month’s limit and tracks the refusal of a look', async () => {
+    fetchMock.mockImplementation(failure(409, 'LIMIT_REACHED'));
+    const { onLimit, onStarted } = renderLook();
+
+    await userEvent.setup().click(lookButton());
+
+    await vi.waitFor(() => expect(onLimit).toHaveBeenCalledTimes(1));
+    expect(onStarted).not.toHaveBeenCalled();
+    expect(mocks.track).toHaveBeenCalledWith('Fitting Refused', {
+      kind: 'look',
+      reason: 'limit_reached',
+    });
+  });
+
+  it('passes the Russian text of any other failure to onError', async () => {
+    fetchMock.mockImplementation(failure(503, 'SERVICE_UNAVAILABLE'));
+    const { onLimit, onError } = renderLook();
+
+    await userEvent.setup().click(lookButton());
+
+    await vi.waitFor(() =>
+      expect(onError).toHaveBeenLastCalledWith('Сервис временно недоступен, попробуйте позже'),
+    );
+    expect(onLimit).not.toHaveBeenCalled();
   });
 });

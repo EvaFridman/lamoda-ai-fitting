@@ -20,12 +20,24 @@ export interface SingleFittingRequest {
   source: Exclude<FittingStartSource, 'regenerate'>;
 }
 
+// A try-on of a look (spec 0019 T26): the photo, 2 to 5 items of distinct slots in their colours,
+// and the wishes (A90.5; a colour change sends the result's again, A92.1).
+export interface LookFittingRequest {
+  photoId: string;
+  items: { productId: string; attributeValueId: string | null }[];
+  promptText: string | null;
+  source: Exclude<FittingStartSource, 'regenerate'>;
+}
+
 export interface RegenerateRequest extends RegenerateFittingBody {
   // The result to regenerate, and its kind (a regeneration keeps it, A70).
   parentId: string;
   kind: FittingKind;
   // «Перегенерировать», or «Попробовать ещё раз» of a failed regeneration.
   source: Extract<FittingStartSource, 'regenerate' | 'retry'>;
+  // Whether the user typed a comment, when the sent one holds more (a look's item, A92.2);
+  // left out, whether a comment is sent.
+  withComment?: boolean;
 }
 
 // After a start: the fitting's own entry holds the answer (its screen opens without a read), and
@@ -69,6 +81,31 @@ export function useStartSingleFitting() {
   });
 }
 
+// Starts a try-on of a look, as `useStartSingleFitting` does one item.
+export function useStartLookFitting() {
+  const started = useStarted();
+  return useMutation({
+    mutationFn: ({ photoId, items, promptText }: LookFittingRequest) => {
+      const wishes = promptText?.trim();
+      return startFitting({
+        photoId,
+        kind: 'look',
+        items: items.map(({ productId, attributeValueId }) =>
+          attributeValueId ? { productId, attributeValueId } : { productId },
+        ),
+        ...(wishes ? { promptText: wishes } : {}),
+      });
+    },
+    retry: false,
+    gcTime: 0,
+    onSuccess: (fitting, { promptText, source }) => {
+      trackFittingStarted(fitting, source, Boolean(promptText?.trim()));
+      started(fitting);
+    },
+    onError: (failure) => refused(failure, 'look'),
+  });
+}
+
 // Regenerates a result with the reasons and the comment of «Что поменять?».
 export function useRegenerateFitting() {
   const started = useStarted();
@@ -77,8 +114,8 @@ export function useRegenerateFitting() {
       regenerateFitting(parentId, comment ? { reasons, comment } : { reasons }),
     retry: false,
     gcTime: 0,
-    onSuccess: (fitting, { comment, source }) => {
-      trackFittingStarted(fitting, source, Boolean(comment));
+    onSuccess: (fitting, { comment, withComment, source }) => {
+      trackFittingStarted(fitting, source, withComment ?? Boolean(comment));
       started(fitting);
     },
     onError: (failure, { kind }) => refused(failure, kind),

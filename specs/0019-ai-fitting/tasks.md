@@ -275,7 +275,7 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       counter (A10, A12).
       Check: web tests; `qa-tester` on AC13, AC16; `npm run verify`.
       Commit: `feat(web): the fitting room in the header`
-- [ ] **T26. web: looks.** «Примерить образ» → the try-on widget for a look (board 3.2), the look
+- [x] **T26. web: looks.** «Примерить образ» → the try-on widget for a look (board 3.2), the look
       result (board 8: the items, the colours, the sum, the stubs, the sheet's «Какая именно?»
       step; A62), the colour change of one item (AC15), the cards' hanger made live with its
       tooltip (A62, A63.1) in the catalog and on the related products.

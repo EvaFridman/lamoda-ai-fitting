@@ -20,6 +20,7 @@ const item = {
   finalPrice: 4000,
   attributeValueId: ID,
   colour: 'Красный',
+  slot: 'top',
 };
 
 const fitting = {
@@ -33,6 +34,7 @@ const fitting = {
   regenerationFree: true,
   model: 'gpt-image-2',
   items: [item],
+  promptText: 'Свободнее',
   photoId: ID,
   resultUrl: 'https://s3.example/keep/users/u/result.webp?X-Amz-Signature=abc',
   createdAt: '2026-10-01T12:00:00.000Z',
@@ -56,9 +58,17 @@ describe('fittingSchema', () => {
       startedAt: null,
       finishedAt: null,
       estimatedSeconds: null,
-      items: [{ ...item, imageUrl: null, attributeValueId: null, colour: null }],
+      promptText: null,
+      items: [{ ...item, imageUrl: null, attributeValueId: null, colour: null, slot: null }],
     };
     expect(fittingSchema.safeParse(bare).success).toBe(true);
+  });
+
+  it('fails on an unknown slot and on a missing promptText', () => {
+    const bad = { ...fitting, items: [{ ...item, slot: 'hat' }] };
+    expect(fittingSchema.safeParse(bad).success).toBe(false);
+    const { promptText: _promptText, ...rest } = fitting;
+    expect(fittingSchema.safeParse(rest).success).toBe(false);
   });
 
   it.each([

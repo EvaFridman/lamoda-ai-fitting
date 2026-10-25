@@ -53,6 +53,7 @@ const FOR_RESPONSE = {
     select: {
       productId: true,
       attributeValueId: true,
+      slot: true,
       attributeValue: { select: { value: true } },
       product: {
         select: {
@@ -588,7 +589,7 @@ export class FittingsService {
       regenerationFree:
         row.status === 'completed' && !row.freeRegenerationUsed && row.photoId !== null,
       model: row.aiModel,
-      items: row.products.map(({ productId, attributeValueId, attributeValue, product }) => {
+      items: row.products.map(({ productId, attributeValueId, attributeValue, slot, product }) => {
         const image = product.images[0];
         return {
           productId,
@@ -599,9 +600,11 @@ export class FittingsService {
           finalPrice: finalPrice(product.price, product.discount),
           attributeValueId,
           colour: attributeValue?.value ?? null,
+          slot,
         };
       }),
       photoId: row.photoId,
+      promptText: row.promptText,
       resultUrl:
         row.userId === null
           ? null

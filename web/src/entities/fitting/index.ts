@@ -1,9 +1,11 @@
 export { deleteFitting, regenerateFitting, startFitting } from './api/fitting-requests';
 export { fittingKeys } from './api/keys';
 export {
+  type LookFittingRequest,
   type RegenerateRequest,
   type SingleFittingRequest,
   useRegenerateFitting,
+  useStartLookFitting,
   useStartSingleFitting,
 } from './api/mutations';
 export {

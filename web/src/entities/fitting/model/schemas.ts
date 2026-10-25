@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { outfitSlotSchema } from '@/entities/category/@x/fitting';
 import { cursorPaginatedSchema } from '@/shared/api';
 
 // A value web does not know fails the schema (H13): a newer api's status is an `ApiError` of kind
@@ -40,6 +41,8 @@ export const fittingItemSchema = z.object({
   finalPrice: z.number(),
   attributeValueId: z.uuid().nullable(),
   colour: z.string().nullable(),
+  // The slot it was tried on in: a look's items show in the slots' order.
+  slot: outfitSlotSchema.nullable(),
 });
 
 // FittingDto.
@@ -59,6 +62,9 @@ export const fittingSchema = z.object({
   items: z.array(fittingItemSchema),
   // Null once the photo is deleted; the result stays.
   photoId: z.uuid().nullable(),
+  // The wishes it was tried on with, null when none: a colour change sends them again (A92.1).
+  // Personal text: rendered nowhere.
+  promptText: z.string().nullable(),
   // A signed link that works for 15 minutes (spec 0011 M9); null with no result or a key outside
   // the owner's folder (M25). Personal data: only ever an image's `src` (spec 0019 A37).
   resultUrl: httpUrl.nullable(),
