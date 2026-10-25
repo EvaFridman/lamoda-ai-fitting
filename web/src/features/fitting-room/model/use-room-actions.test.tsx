@@ -152,6 +152,23 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+describe('resetRoomWrites outside Vitest', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('refuses', () => {
+    vi.stubEnv('VITEST', undefined);
+    expect(() => resetRoomWrites()).toThrow('resetRoomWrites() is for tests only');
+  });
+
+  it('works again once VITEST is back', () => {
+    vi.stubEnv('VITEST', undefined);
+    vi.unstubAllEnvs();
+    expect(() => resetRoomWrites()).not.toThrow();
+  });
+});
+
 describe('put', () => {
   it('sends the product and its colour to the slot and puts the answer into the cache', async () => {
     const after = roomOf(entry('top', shirt, WHITE));
@@ -933,6 +950,44 @@ describe('answers arriving out of order (A97)', () => {
 
     expect(room()).toEqual(later);
     expect(reads()).toBe(1);
+  });
+
+  it('still sees two overlapping writes as overlapping after a write answered late across a reset', async () => {
+    const requests = holdRequests();
+    const { result, room } = setupTwo();
+
+    let doneLate: Promise<boolean> = Promise.resolve(false);
+    act(() => {
+      doneLate = result.current[0].clear();
+    });
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    resetRoomWrites();
+    await act(async () => {
+      requests.answer('DELETE /api/me/fitting-room', new Response(null, { status: 204 }));
+      expect(await doneLate).toBe(true);
+    });
+    expect(reads()).toBe(0);
+
+    let doneTop: Promise<boolean> = Promise.resolve(false);
+    let doneBottom: Promise<boolean> = Promise.resolve(false);
+    act(() => {
+      doneTop = putTop(result.current[0]);
+    });
+    act(() => {
+      doneBottom = putBottom(result.current[1]);
+    });
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    await act(async () => {
+      requests.answer('PUT /api/me/fitting-room/top', putAnswer(roomA));
+      requests.answer('PUT /api/me/fitting-room/bottom', putAnswer(roomB));
+      await doneTop;
+      await doneBottom;
+    });
+
+    expect(room()).toEqual(EMPTY_ROOM);
+    await waitFor(() => expect(reads()).toBe(1));
+    requests.answer(GET_ROOM, readAnswer(roomRead));
+    await waitFor(() => expect(room()).toEqual(roomRead));
   });
 
   // A plain refetch (not an invalidation) is cancelled by the write's start.
