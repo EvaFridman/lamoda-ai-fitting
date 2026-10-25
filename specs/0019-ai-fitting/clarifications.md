@@ -1184,7 +1184,9 @@ is any value of the product's colour attribute, the attribute with at least one 
 («в полоску») is a colour, drawn as an empty circle. The api refuses any other value with 400
 `RELATED_NOT_FOUND` (`products/colour.ts`), and web takes the colours from one rule,
 `productColours` of `entities/product`. A regeneration copies its parent's items unchecked, so a
-parent stored before the fix keeps its value; old rows are not migrated.
+parent stored before the fix keeps its value; old rows are not migrated. «Примерить ещё раз» of
+such an entry (A93.2) is a plain `POST /fittings`, so it answers that 400 before looking for the
+ready result (A97).
 
 **A92. The look's try-on and result (T26's brief, 2026-10-25).** The owner decided, after boards
 3.2 and 8 were re-read: (1) _the colour change of one item_ (AC15) is `POST /fittings` with the
@@ -1255,6 +1257,18 @@ under 360px wraps each row's «В корзину» and heart under the text, and
 **A96. The spec closes in a pull request of its own (2026-10-25).** T29 checks AC13, AC14 and AC17
 on production, which PR 5 brings there; so PR 5 ends with T28, and T29 is PR 6, `docs/0019-close`,
 from a fresh `main` after PR 5 is merged and deployed, as specs 0014 and 0020 closed.
+
+**A97. PR 5's review (2026-10-25).** The owner decided: (1) a repeat of an entry whose colour was
+stored before A91 keeps answering 400 `RELATED_NOT_FOUND`: web offers only colour values, so only
+test data holds such rows, and the order of `POST /fittings`' checks stays (noted in A91); (2)
+choosing an item in «Какая именно?» keeps cutting the typed comment to the limit, and unchecking
+«Вещь» does not give the cut text back (T26: what is sent is what shows). Fixed: two room writes of
+a tab that overlap may run and answer in either order, so neither answer goes into the cache; the
+room is read once after the last of them ends. A write that overlapped none is answered in the
+cache as before, unless a read of the room runs, or, for a remove (a change of the cached room),
+the room waits for a read or the write cancelled one: then it is read again. A put's or a clear's
+whole room settles a read it cancelled; a failed write reads the room again (it may have reached
+the api).
 
 ## Canvas and decisions
 

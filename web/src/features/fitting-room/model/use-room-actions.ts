@@ -41,13 +41,32 @@ function quoted(product: Pick<ProductListItem, 'name' | 'brand'>): string {
   return `«${roomItemName(product)}»`;
 }
 
+// The tab's room writes on their way, across every `useRoomActions` (two cards' hangers each have
+// one). Two that overlap may run on the api in either order and answer in either order, so neither
+// answer is the room: an overlapped write's answer is dropped, and the room is read once the last
+// of them ends, when no write of the tab is left to race that read (a new one cancels it, and its
+// own answer then reads the room again: `endWrite`). Shared
+// by every user of the tab: another user's answer goes to a read anyway (`isRoomOwner`).
+let writesInFlight = 0;
+let overlapped = false;
+// A read of the room a write cancelled (a return to focus, a mount): its answer is owed, so the
+// next write's answer reads the room again instead of going over the cache it left.
+let readCancelled = false;
+
+function startWrite(): void {
+  if (writesInFlight > 0) overlapped = true;
+  writesInFlight += 1;
+}
+
 function failed(failure: unknown): void {
   showToast({ title: errorText(failure), tone: 'error' });
   reportFailure(failure);
 }
 
 // The fitting room's writes (spec 0019 AC13, A86): put or replace an item, remove one, empty the
-// room, each answered in the cache (no read after it), with board 2's toasts. Writes are
+// room, each answered in the cache with no read after it, with board 2's toasts; writes that
+// overlap, or a write over a room being read, are read once after the last of them ends (A97).
+// Writes are
 // mutations with no retry and nothing kept (`gcTime: 0`), as the account's (spec 0017 plan §4).
 // A failure shows its text in a toast and is reported. Everything is the user's who started it: an
 // answer that arrives after another user signed in at the tab is not put into their cache (the room
@@ -57,14 +76,51 @@ export function useRoomActions() {
   const session = useSession();
   const userId = session.status === 'signed-in' ? session.user.id : null;
 
-  // The answer of `owner`'s write, into the cache only while `owner` is still the one signed in.
-  function setRoom(owner: string | null, room: (current: FittingRoom) => FittingRoom) {
+  const readRoom = () => {
+    readCancelled = false;
+    void queryClient.invalidateQueries({ queryKey: fittingRoomKeys.all });
+  };
+
+  // The end of `owner`'s write, with its answer when it succeeded: the whole room (a put's, a
+  // clear's) or a change of the cached one (a remove's). Into the cache only while `owner` is still
+  // the one signed in and no other write overlapped it; else the room is read again, at once for
+  // another user, after the last overlapping write otherwise.
+  function endWrite(
+    owner: string | null,
+    answer?: { room: FittingRoom } | { change: (current: FittingRoom) => FittingRoom },
+  ) {
+    writesInFlight -= 1;
+    const alone = !overlapped;
+    if (writesInFlight === 0) overlapped = false;
     if (!isRoomOwner(owner)) {
-      void queryClient.invalidateQueries({ queryKey: fittingRoomKeys.all });
-      return;
+      readRoom();
+    } else if (!alone) {
+      if (writesInFlight === 0) readRoom();
+    } else if (!answer) {
+      // A failed write may still have reached the api (a timeout), and may have cancelled a read.
+      readRoom();
+    } else {
+      // A read started during the write may overwrite any answer, and a change needs the room
+      // under it: not one whose read a write cancelled or that waits for a read (a remove would
+      // take its slot out of a stale room). Either way the room is read again. A whole room is
+      // newer than any read the write cancelled, so it settles that read.
+      const stale =
+        readCancelled || (queryClient.getQueryState(fittingRoomKeys.all)?.isInvalidated ?? false);
+      if (
+        queryClient.isFetching({ queryKey: fittingRoomKeys.all }) > 0 ||
+        ('change' in answer && stale)
+      ) {
+        readRoom();
+        return;
+      }
+      if ('room' in answer) {
+        readCancelled = false;
+        queryClient.setQueryData(fittingRoomKeys.all, answer.room);
+        return;
+      }
+      const current = queryClient.getQueryData<FittingRoom>(fittingRoomKeys.all) ?? EMPTY_ROOM;
+      queryClient.setQueryData(fittingRoomKeys.all, answer.change(current));
     }
-    const current = queryClient.getQueryData<FittingRoom>(fittingRoomKeys.all) ?? EMPTY_ROOM;
-    queryClient.setQueryData(fittingRoomKeys.all, room(current));
   }
 
   // A toast's action, for the user it was shown to only. The toast outlives this hook's component
@@ -76,8 +132,11 @@ export function useRoomActions() {
   }
 
   // A read in flight (a tab's return to focus) may have read the room before the write and answer
-  // after it, over the write's answer: it is cancelled first.
-  const cancelReads = () => queryClient.cancelQueries({ queryKey: fittingRoomKeys.all });
+  // after it, over the write's answer: it is cancelled first, and owed (`readCancelled`).
+  const cancelReads = () => {
+    if (queryClient.isFetching({ queryKey: fittingRoomKeys.all }) > 0) readCancelled = true;
+    return queryClient.cancelQueries({ queryKey: fittingRoomKeys.all });
+  };
 
   const putMutation = useMutation({
     mutationFn: ({ slot, product, attributeValueId }: PutRequest) =>
@@ -117,15 +176,17 @@ export function useRoomActions() {
     const before = queryClient.getQueryData<FittingRoom>(fittingRoomKeys.all);
     const already = before?.items.some((item) => item.product.id === request.product.id) ?? false;
     const owner = userId;
-    let replaced: FittingRoomItem | null;
+    startWrite();
+    let change: Awaited<ReturnType<typeof putRoomItem>>;
     try {
-      const change = await putMutation.mutateAsync(request);
-      ({ replaced } = change);
-      setRoom(owner, () => change.room);
+      change = await putMutation.mutateAsync(request);
     } catch (failure) {
+      endWrite(owner);
       failed(failure);
       return false;
     }
+    endWrite(owner, { room: change.room });
+    const { replaced } = change;
     if (announce === 'silent' || !isRoomOwner(owner)) return true;
     if (replaced !== null && replaced.product.id !== request.product.id) {
       const previous = replaced;
@@ -150,13 +211,15 @@ export function useRoomActions() {
 
   async function remove(item: FittingRoomItem): Promise<boolean> {
     const owner = userId;
+    startWrite();
     try {
       await removeMutation.mutateAsync(item);
-      setRoom(owner, (current) => withoutSlot(current, item.slot));
     } catch (failure) {
+      endWrite(owner);
       failed(failure);
       return false;
     }
+    endWrite(owner, { change: (current) => withoutSlot(current, item.slot) });
     if (!isRoomOwner(owner)) return true;
     showToast({
       title: `Убрали ${quoted(item.product)} из примерочной`,
@@ -168,13 +231,15 @@ export function useRoomActions() {
 
   async function clear(): Promise<boolean> {
     const owner = userId;
+    startWrite();
     try {
       await clearMutation.mutateAsync();
-      setRoom(owner, () => EMPTY_ROOM);
     } catch (failure) {
+      endWrite(owner);
       failed(failure);
       return false;
     }
+    endWrite(owner, { room: EMPTY_ROOM });
     return true;
   }
 
