@@ -1,11 +1,12 @@
 # 0021 investigator: clarifications
 
 Status: draft (2026-10-25); amended 2026-10-25 at the plan (Q6: SQLite instead of LanceDB), at
-the tasks (Q15: three pull requests) and at the review of PR 1 (Q2: the US region; Q7: the plan's
-§3.2 holds the exact rules).
+the tasks (Q15: three pull requests), at the review of PR 1 (Q2: the US region; Q7: the plan's
+§3.2 holds the exact rules) and on 2026-10-26 at T4 (Q16, Q17).
 
 The owner's decisions for this spec. Ids `Q1`, `Q2`, … are referred to by the spec, the plan and
-code comments. All decisions below: owner, 2026-10-25, while the spec was written.
+code comments. All decisions below: owner, 2026-10-25, while the spec was written, except where a
+decision names a later step.
 
 ## Scope
 
@@ -80,6 +81,26 @@ headers in the log"). The agent's report never quotes an email, a name, a token,
 signed storage link; an opaque user id is allowed, as it already reaches Sentry (0011 M32). Weighed:
 leaving the log as it is and relying on the agent's text alone (the headers would still enter the
 model's context).
+
+**Q16. The kept headers' values are trimmed (owner, at T4's security review).** The referer is
+the browser's page address (`strict-origin-when-cross-origin` sends it whole within the site), so
+it carries the page's query (`/catalog?q=…`, a failed sign-in's `?error=…`) and could one day
+carry a token: it is logged without its query and fragment, as Sentry and `/api/auth`'s line
+already cut theirs. Every kept value is cut to 512 characters with `…`, since the backlog item
+also counted a header's size (Node allows 16 KB). The query of the request to the api itself
+stays on the line: filters and the cursor matter to an investigation, and the agent's report never
+quotes it. Weighed: removing `q` too, cutting every query, leaving both as they were.
+
+**Q17. nginx's log only through a filter (owner, at T4's security review).** nginx's access log
+holds the whole request line with its query (the Google callback's `code` and `state`, the search
+text), the visitor's address and the referer with its query. Its format stays; the agent's guard
+lets `docker logs` of `ai-fitting-infra-nginx-1` through only piped into `rg -F` or `grep -F` with
+a request id, so the agent sees that request's lines and not thousands of others. nginx's error
+log goes to the container's stderr, which a pipe does not see and whose upstream errors quote the
+same request line and address, so for nginx the remote command ends in exactly `2>&1` and both
+streams pass the filter; no other redirection is allowed (owner, at T4's review). Weighed: a new
+`log_format` without queries (cleaner, but a change to production's nginx in this spec) and no
+nginx log at all (the 502s and 504s that never reach the api would be lost).
 
 ## The index (RAG)
 

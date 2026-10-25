@@ -266,7 +266,11 @@ and the full `verify` once at the phase's end (as spec 0019 A58 did).
 - `api` is an ESM package: relative imports end in `.js`.
 - Configuration comes from validated environment variables (zod schemas), never hard-coded
   addresses; containers reach each other by service name.
-- Logging: `api` through the injected pino logger, never `console` (ESLint enforces it).
+- Logging: `api` through the injected pino logger, never `console` (ESLint enforces it). A
+  request's log line keeps of its headers only `user-agent`, `content-type`, `content-length` and
+  `referer`, the referer without its query or fragment and each value cut to 512 characters, then
+  `…` (`serializeRequest`, `core/core.module.ts`; `/api/auth`'s line too, without its query; spec 0021
+  Q9, Q16); the answer's `Set-Cookie` is redacted.
 - `api` errors: every HTTP error answers `{ error: { code, message, details } }` (successful
   responses are the data itself); `details` is `[{ field, code, message }]`, `message` is English,
   at most 50 entries (`MAX_DETAILS`, `common/validation/`) and then one `TOO_MANY_ERRORS` entry that

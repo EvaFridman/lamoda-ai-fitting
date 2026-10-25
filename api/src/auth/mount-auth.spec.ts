@@ -84,7 +84,38 @@ describe('mountAuth', () => {
       res: { statusCode: 200 },
     });
     expect(JSON.stringify(line)).not.toContain('top-secret-token');
-    expect((line?.req as { headers: Record<string, unknown> }).headers.cookie).toBe('[Redacted]');
+    expect((line?.req as { headers: Record<string, unknown> }).headers).not.toHaveProperty(
+      'cookie',
+    );
+  });
+
+  it('logs of the headers only the listed ones, and no query', async () => {
+    await request(app)
+      .get('/api/auth/get-session?code=secret-code')
+      .set('Authorization', 'Bearer bearer-secret')
+      .set('Cookie', 'lamoda.session_token=top-secret-token')
+      .set('X-Custom', 'custom-value')
+      .set('User-Agent', 'test-agent')
+      .set('Referer', 'http://x.test/p?token=leak-value');
+
+    await vi.waitFor(() => {
+      expect(lines.some((line) => line.msg === 'request completed')).toBe(true);
+    });
+    const line = lines.find((entry) => entry.msg === 'request completed');
+    const req = line?.req as { url: string; headers: Record<string, unknown> };
+    expect(req).not.toHaveProperty('query');
+    expect(req.url).toBe('/api/auth/get-session');
+    expect(req.headers).toEqual({ 'user-agent': 'test-agent', referer: 'http://x.test/p' });
+    const output = JSON.stringify(line);
+    for (const secret of [
+      'bearer-secret',
+      'top-secret-token',
+      'custom-value',
+      'secret-code',
+      'leak-value',
+    ]) {
+      expect(output).not.toContain(secret);
+    }
   });
 
   it('logs the url and fields without the query (the callback carries a code and a state)', async () => {

@@ -91,12 +91,6 @@ removes it from this list. Found by the agents' first security audit and trial r
   provider behind the `ImageModel` adapter (Google's API, or an intermediary such as fal.ai, whose
   queue and signed webhook were in 0019's first plan) once the pilot of 0016 wants the
   comparison, with a fallback on a technical failure of the primary model.
-- **Request headers in the log.** pino-http writes every request header in full (found in 0006
-  T4): a client's 9000-character header goes into the log line as is. Node caps a request's
-  headers at 16 KB and the throttler caps the requests, so the size is bounded, but the lines carry
-  data nobody reads (cookies are redacted, other headers are not). Log only chosen headers
-  (`user-agent`, `content-type`, `content-length`, `referer`) through pino-http's `req`
-  serializer, keeping the redaction of secrets for the headers that stay.
 - **Bodies that are not JSON.** Only JSON bodies are read (0006 F26): a body sent with another
   `Content-Type` (`text/plain`, a form) reaches validation as `{}`, so a route whose fields are all
   optional (`PATCH /me`, `PATCH /fitting-sessions/:id`) answers 200 unchanged and the data is lost
