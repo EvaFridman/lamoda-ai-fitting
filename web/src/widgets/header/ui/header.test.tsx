@@ -15,7 +15,11 @@ vi.mock('./header-profile-slot', () => {
 });
 vi.mock('./header-search-slot', () => {
   const pending = new Promise<never>(() => {});
-  return { HeaderSearchSlot: () => use(pending) };
+  return { HeaderSearchSlot: () => use(pending), HeaderLoupeSlot: () => use(pending) };
+});
+vi.mock('./header-menu-slot', () => {
+  const pending = new Promise<never>(() => {});
+  return { HeaderMenuSlot: () => use(pending) };
 });
 
 describe('Header', () => {
@@ -103,6 +107,30 @@ describe('Header', () => {
       const dataAttributes = element.getAttributeNames().filter((n) => n.startsWith('data-'));
       expect(dataAttributes).toEqual([]);
     }
+  });
+
+  it('draws the burger and the loupe once each as inert buttons before the logo', () => {
+    render(<Header />);
+    // The stylesheet hides both from 600px, which jsdom applies, so roles do not see them.
+    const banner = screen.getByRole('banner');
+    const burger = [...banner.querySelectorAll<HTMLElement>('button[aria-label="Меню"]')];
+    const loupe = [...banner.querySelectorAll<HTMLElement>('button[aria-label="Поиск"]')];
+    expect(burger).toHaveLength(1);
+    expect(loupe).toHaveLength(1);
+    for (const button of [burger[0]!, loupe[0]!]) {
+      expect(button).toHaveAttribute('aria-disabled', 'true');
+      expect(button).toHaveAttribute('type', 'button');
+    }
+    const logo = screen.getByRole('link', { name: 'Lamoda, на главную' });
+    expect(
+      burger[0]!.compareDocumentPosition(logo) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(loupe[0]!.compareDocumentPosition(logo) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('keeps the profile icon mounted next to the burger and the loupe, once', () => {
+    render(<Header />);
+    expect(screen.getAllByRole('button', { name: 'Профиль' })).toHaveLength(1);
   });
 
   it('has the search field', () => {

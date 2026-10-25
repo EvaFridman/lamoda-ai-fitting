@@ -68,6 +68,7 @@ describe('analytics event types', () => {
       element: 'profile-menu.sign-out',
       zone: 'auth',
       type: 'interaction',
+      surface: 'menu',
     };
     expect(names).toHaveLength(3);
     expect(props.element).toBe('profile-menu.sign-out');

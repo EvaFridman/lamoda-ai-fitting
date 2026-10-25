@@ -468,6 +468,9 @@ describe('analytics catalog', () => {
       'history.download': ['fitting', 'interaction'],
       'history.delete': ['fitting', 'interaction'],
       'history.choose-item': ['fitting', 'navigation'],
+      'header.burger': ['header', 'interaction'],
+      'header.search': ['header', 'interaction'],
+      'burger.category': ['header', 'navigation'],
     });
   });
 

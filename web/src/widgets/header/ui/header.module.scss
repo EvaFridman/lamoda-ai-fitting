@@ -4,6 +4,7 @@
 // search field, 300px wide. Content at most 1200px wide with the footer's side padding.
 // Narrow screens (plan §1, L6): below 1024px the gender switch and the city get a row of their own,
 // then the logo and the icons, the search field at full width, the category row scrolling sideways.
+// Below 600px Lamoda's phone row (spec 0019 A87.4): the burger, the loupe, the logo and the icons.
 
 .header {
   // Positioned, so its shadow paints over the page below it; not sticky (spec non-goals).
@@ -34,8 +35,58 @@
     padding-top: var(--space-3);
   }
 
+  // Lamoda's phone row (spec 0019 A87.4): one 56px row, the gallery under it subtracts its height
+  // (A88), and the search row under it while open.
   @media (width < 600px) {
-    padding-inline: var(--space-4);
+    grid-template:
+      'burger loupe logo nav' 56px
+      'search search search search' auto / auto auto minmax(0, 1fr) auto;
+    padding: 0 var(--space-4);
+  }
+}
+
+// The burger and the loupe: only in the phone row. Two classes, so the kit's display gives way.
+.inner .burger,
+.inner .loupe {
+  display: none;
+
+  @media (width < 600px) {
+    display: inline-flex;
+  }
+}
+
+// Flush with the content's left edge as the icons on the right are; two classes over the kit's
+// margin, whichever stylesheet loads last.
+.inner .burger {
+  grid-area: burger;
+  margin-left: calc(-1 * var(--space-3));
+}
+
+.loupe {
+  grid-area: loupe;
+}
+
+// Inert while they load, as the header's other inert icons: no hover change.
+.inner .burger[aria-disabled],
+.inner .loupe[aria-disabled] {
+  &,
+  &:hover {
+    cursor: default;
+    color: var(--color-text);
+  }
+}
+
+// The phone row hides the switch, the city, the profile icon and the category row (A87.4): hidden,
+// not unmounted, so the profile's hooks and login modal run on every width (A87.7).
+.profile {
+  display: contents;
+}
+
+.inner .place,
+.inner .categories,
+.inner .profile {
+  @media (width < 600px) {
+    display: none;
   }
 }
 
@@ -46,10 +97,6 @@
   align-items: center;
 
   min-width: 0;
-
-  @media (width < 600px) {
-    gap: var(--space-4);
-  }
 }
 
 // The gender switch and the city: plain 16px text, as on Lamoda.
@@ -83,8 +130,8 @@
   flex: none;
 }
 
-// On a phone the city does not fit beside "Женщинам": it ends in an ellipsis, so both keep one row
-// (L6); the button's name stays whole.
+// Where the city does not fit beside "Женщинам" it ends in an ellipsis, so both keep one row (L6);
+// the button's name stays whole.
 .city {
   overflow: hidden;
   display: block;
@@ -117,6 +164,13 @@
       width: 100%;
       height: auto;
     }
+  }
+
+  // Centred between the icons, smaller, as on Lamoda's phone row.
+  @media (width < 600px) {
+    justify-self: center;
+    max-width: 120px;
+    margin: 0 var(--space-2);
   }
 }
 
@@ -195,5 +249,14 @@
     justify-self: stretch;
     width: auto;
     margin: var(--space-2) 0 0;
+  }
+
+  // The loupe opens it (A87.5); closed, it stays mounted.
+  @media (width < 600px) {
+    margin: 0 0 var(--space-3);
+
+    &:not([data-open]) {
+      display: none;
+    }
   }
 }

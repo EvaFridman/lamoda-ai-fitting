@@ -26,6 +26,9 @@ export interface ModalProps {
   // whose first control is far down, so nothing scrolls on opening (spec 0019's tips). By default,
   // the first focusable element.
   initialFocus?: RefObject<HTMLElement | null> | 'popup';
+  // The element focused when the modal closes, else the trigger: an element, or `true` for the
+  // trigger (Base UI's). For a trigger a width hides (the header's profile icon on phones).
+  finalFocus?: () => HTMLElement | true | null;
   // Up to 1000px wide for a screen of its own (spec 0019 boards 4 and 5); below 600px it fills the
   // window and its × moves inside, at the top right.
   wide?: boolean;
@@ -48,6 +51,7 @@ export function Modal({
   defaultOpen,
   onOpenChange,
   initialFocus,
+  finalFocus,
   wide = false,
   media,
   children,
@@ -73,6 +77,7 @@ export function Modal({
               .join(' ')}
             ref={popupRef}
             initialFocus={initialFocus === 'popup' ? popupRef : initialFocus}
+            finalFocus={finalFocus ? () => finalFocus() : undefined}
           >
             {hasMedia && <div className={styles.media}>{media}</div>}
             <Dialog.Title className={styles.title}>{title}</Dialog.Title>

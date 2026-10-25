@@ -63,6 +63,18 @@
   width: 636px;
 }
 
+// The same sheet at the left edge (`side="left"`), sliding in from it.
+.viewportLeft {
+  justify-content: flex-start;
+}
+
+.left {
+  &[data-starting-style],
+  &[data-ending-style] {
+    transform: translateX(-100%);
+  }
+}
+
 // The bottom sheet: the width of the window, as high as its content up to 48px under the top,
 // its top corners rounded 8px; it rises over 0.2s and a finger drags it down (--drawer-swipe-movement-y).
 .viewportBottom {

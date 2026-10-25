@@ -24,10 +24,11 @@ import {
 } from '@/shared/ui';
 
 import styles from './header.module.scss';
+import { BURGER_ID } from './header-menu';
 
 // A section of the account (spec 0017 U6, AC2): a link, its clicks and hovers tracked by section.
 function SectionLink({ section, title, href }: AccountSection) {
-  const tracked = useTrackedElement('profile-menu.section', { section });
+  const tracked = useTrackedElement('profile-menu.section', { section, surface: 'menu' });
   return (
     <MenuLinkItem
       href={href}
@@ -43,7 +44,8 @@ function SectionLink({ section, title, href }: AccountSection) {
 // The profile icon (spec 0013 N12, AC1, AC3): signed out, it opens the login modal; signed in, the
 // profile menu. While the session loads it is drawn as before, inert (0010 L5). The session is read
 // in the browser, so the page stays static. Render it per request inside <Suspense>: the modal
-// reads the query.
+// reads the query. Below 600px the header hides it by CSS but keeps it mounted: its hooks and its
+// login modal, the one that answers a failed sign-in's code, run on every width (spec 0019 A87.7).
 export function HeaderProfile() {
   const session = useSession();
   useSignInAnalytics(session);
@@ -52,6 +54,10 @@ export function HeaderProfile() {
   useFittingEvents();
   const iconRef = useRef<HTMLButtonElement>(null);
   const wasSignedInRef = useRef(false);
+  // On phones the icon is hidden (spec 0019 A87.4), so the modal that opened by itself on a failed
+  // sign-in's code gives the focus back to the burger, not to the page.
+  const returnFocus = () =>
+    iconRef.current?.offsetParent ? true : document.getElementById(BURGER_ID);
 
   // A sign-out from the menu replaces the menu's icon with the modal's: the focus, left on the page,
   // goes back to the icon, as when the menu closes.
@@ -80,7 +86,9 @@ export function HeaderProfile() {
     </IconButton>
   );
 
-  if (session.status === 'signed-out') return <LoginModal trigger={trigger} />;
+  if (session.status === 'signed-out') {
+    return <LoginModal trigger={trigger} finalFocus={returnFocus} />;
+  }
 
   return (
     <>

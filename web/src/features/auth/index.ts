@@ -4,6 +4,7 @@ export { signInWithGoogle, signOut, signOutEverywhere } from './model/auth-actio
 export { useDropUserQueries } from './model/use-drop-user-queries';
 export { useSessionRealtime } from './model/use-session-realtime';
 export { useSignInAnalytics } from './model/use-sign-in-analytics';
+export { type SignOutControl, type SignOutSurface, useSignOuts } from './model/use-sign-outs';
 export { DropSignInError } from './ui/drop-sign-in-error';
 export { LoginModal, type LoginModalProps } from './ui/login-modal';
 export { SignOutItems } from './ui/sign-out-items';

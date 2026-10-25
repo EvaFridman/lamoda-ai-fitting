@@ -81,6 +81,12 @@ const surface = { kind: 'enum', values: ['chips', 'sheet'] } as const;
 const surfaceNote =
   '`surface` — `chips` или `sheet`. До спеки 0020 свойства не было и все отправки были чипами, так что отчёт по чипам фильтрует `surface != sheet`, а не `surface == chips`.';
 
+// Where the profile menu's item was chosen: the header's menu or, on phones, the burger's drawer
+// (spec 0019 A87.8). Sends from before the burger carry no `surface` and were all the menu.
+const profileSurface = { kind: 'enum', values: ['menu', 'burger'] } as const;
+const profileSurfaceNote =
+  '`surface` — `menu` (меню профиля) или `burger` (меню-бургер шапки на телефоне). До спеки 0019 A87 свойства не было и все отправки были из меню, так что отчёт по меню фильтрует `surface != burger`, а не `surface == menu`.';
+
 /** Checks a catalog and keeps its literal types. */
 export function defineCatalog<const C extends Catalog>(catalog: C & Checked<C>): C {
   return catalog;
@@ -104,7 +110,13 @@ export const catalog = defineCatalog({
       title: 'Вход и профиль',
       areas: ['login', 'profile-menu'],
       description:
-        'Вход через Google и выход. `login` — окно входа, `profile-menu` — меню профиля в шапке.',
+        'Вход через Google и выход. `login` — окно входа, `profile-menu` — меню профиля в шапке (его пункты есть и в меню-бургере телефона, `surface` их различает).',
+    },
+    header: {
+      title: 'Шапка',
+      areas: ['header', 'burger'],
+      description:
+        'Шапка сайта на телефоне (спека 0019 A87). `header` — её строка: бургер и лупа; `burger` — меню-бургер слева: «Все товары» и категории. Логотип, «Избранное» и «Корзина» не отслеживаются; «Войти» бургера считает `Login Opened`, его разделы кабинета и выходы — элементы `profile-menu` с `surface: burger`.',
     },
     account: {
       title: 'Личный кабинет',
@@ -339,27 +351,56 @@ export const catalog = defineCatalog({
     'profile-menu.sign-out': {
       zone: 'auth',
       type: 'interaction',
-      description: '«Выйти» в меню профиля.',
+      description: `«Выйти» в меню профиля или в меню-бургере. ${profileSurfaceNote}`,
       clicksPerVisit: 0.02,
       hoversPerVisit: 0.03,
+      properties: { surface: profileSurface },
     },
     'profile-menu.sign-out-everywhere': {
       zone: 'auth',
       type: 'interaction',
-      description: '«Выйти со всех устройств» в меню профиля.',
+      description: `«Выйти со всех устройств» в меню профиля или в меню-бургере. ${profileSurfaceNote}`,
       clicksPerVisit: 0.005,
       hoversPerVisit: 0.01,
+      properties: { surface: profileSurface },
     },
     'profile-menu.section': {
       zone: 'auth',
       type: 'navigation',
-      description:
-        'Раздел личного кабинета в меню профиля: «Мои заказы», «Магазины», «Мои данные», «Мои примерки» или «Мои фото».',
+      description: `Раздел личного кабинета в меню профиля или в меню-бургере: «Мои заказы», «Магазины», «Мои данные», «Мои примерки» или «Мои фото». ${profileSurfaceNote}`,
       clicksPerVisit: 0.04,
       hoversPerVisit: 0.06,
       properties: {
         section: { kind: 'enum', values: ['orders', 'stores', 'data', 'fittings', 'photos'] },
+        surface: profileSurface,
       },
+    },
+    'header.burger': {
+      zone: 'header',
+      type: 'interaction',
+      description:
+        'Бургер в строке шапки на телефоне: открывает меню слева. `signed_in` — вошёл ли посетитель (сверху меню «Войти» или его имя).',
+      clicksPerVisit: 0.3,
+      hoversPerVisit: 0.05,
+      properties: { signed_in: { kind: 'boolean' } },
+    },
+    'header.search': {
+      zone: 'header',
+      type: 'interaction',
+      description:
+        'Лупа в строке шапки на телефоне: открывает и закрывает строку поиска под шапкой. `expanded` — состояние, которое ставит клик (`true` — строку открыли).',
+      clicksPerVisit: 0.2,
+      hoversPerVisit: 0.05,
+      properties: { expanded: { kind: 'boolean' } },
+    },
+    'burger.category': {
+      zone: 'header',
+      type: 'navigation',
+      description:
+        'Ссылка каталога в меню-бургере: «Все товары» (`all: true`) или одна из категорий (`all: false`; какая — не шлётся, её видно по следующей странице).',
+      clicksPerVisit: 0.25,
+      hoversPerVisit: 0.05,
+      properties: { all: { kind: 'boolean' } },
     },
     'account-menu.section': {
       zone: 'account',

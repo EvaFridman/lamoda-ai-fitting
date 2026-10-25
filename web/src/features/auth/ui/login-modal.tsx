@@ -23,6 +23,8 @@ export interface LoginModalProps {
   // account invitation). Only where the header's modal is mounted too, or nothing answers the
   // code. True by default.
   handlesReturnedError?: boolean;
+  // Where the focus goes when it closes, else the trigger (the kit's `Modal`).
+  finalFocus?: () => HTMLElement | true | null;
 }
 
 // The login modal (spec 0013 N12, AC1): one button, "Войти через Google", which leaves for Google
@@ -32,7 +34,7 @@ export interface LoginModalProps {
 // only a sign-in started in this tab reports it (the `sessionStorage` flag), so someone else's link
 // with a made-up code reports nothing. Render it per request inside <Suspense>: it reads the query
 // (`useSearchParams`).
-export function LoginModal({ trigger, handlesReturnedError = true }: LoginModalProps) {
+export function LoginModal({ trigger, handlesReturnedError = true, finalFocus }: LoginModalProps) {
   const pathname = usePathname();
   const { code, rest } = useDropSignInError(handlesReturnedError);
   const returnedCode = handlesReturnedError ? code : null;
@@ -88,7 +90,13 @@ export function LoginModal({ trigger, handlesReturnedError = true }: LoginModalP
   }
 
   return (
-    <Modal trigger={trigger} title="Вход" open={open} onOpenChange={changeOpen}>
+    <Modal
+      trigger={trigger}
+      title="Вход"
+      open={open}
+      onOpenChange={changeOpen}
+      finalFocus={finalFocus}
+    >
       <div className={styles.body}>
         <Button
           fullWidth

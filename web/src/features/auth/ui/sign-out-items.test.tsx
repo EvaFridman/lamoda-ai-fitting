@@ -65,7 +65,7 @@ describe('SignOutItems', () => {
         // Longer than the default 1 s: the full verify runs the api and web tests at once.
         await vi.waitFor(() => expect(mocks.reset).toHaveBeenCalledTimes(1), { timeout: 5000 });
         expect(mocks.track.mock.calls).toEqual([
-          ['Element Clicked', { element, zone: 'auth', type: 'interaction' }],
+          ['Element Clicked', { element, zone: 'auth', type: 'interaction', surface: 'menu' }],
           ['Signed Out', {}],
         ]);
         expect(mocks.track.mock.invocationCallOrder[1]).toBeLessThan(
@@ -93,7 +93,7 @@ describe('SignOutItems', () => {
           await within(region).findByText('Что-то пошло не так, попробуйте позже'),
         ).toBeInTheDocument();
         expect(mocks.track.mock.calls).toEqual([
-          ['Element Clicked', { element, zone: 'auth', type: 'interaction' }],
+          ['Element Clicked', { element, zone: 'auth', type: 'interaction', surface: 'menu' }],
         ]);
         expect(mocks.reset).not.toHaveBeenCalled();
       },
@@ -109,6 +109,7 @@ describe('SignOutItems', () => {
             element: 'profile-menu.sign-out',
             zone: 'auth',
             type: 'interaction',
+            surface: 'menu',
           }),
         { timeout: 3000 },
       );

@@ -259,7 +259,7 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       Check: web tests; `typecheck`, `lint` (A58); the phone and desktop by hand on the local
       stack.
       Commit: `feat(web): the product page on phones as lamoda's`
-- [ ] **T24b. web: the header on phones (A87.4–7).** One row of the burger, the loupe, the logo
+- [x] **T24b. web: the header on phones (A87.4–7).** One row of the burger, the loupe, the logo
       and the icons below 600 px on every page; the search row; `HeaderMenu` (a left `Drawer`:
       «Войти» or the user's block, the account's sections, the sign-outs, «Все товары» and the
       categories); the session's hooks and the returned sign-in error mounted once on every width;
