@@ -1,6 +1,6 @@
 # 0022 stores: Lamoda Sport stores on a Yandex map: clarifications
 
-Status: draft (2026-10-26).
+Status: accepted (2026-10-26); amended 2026-10-26 at the review of PR 1 (X16, X19–X22).
 
 The owner's decisions for this spec. Ids `X1`, `X2`, … are referred to by the spec, the plan and
 code comments. All of them are the owner's answers given on 2026-10-26 while the spec was written;
@@ -110,7 +110,13 @@ script) and holds the owner's personal data, so it is not used and never committ
   them; every other page keeps 0014 O112's policy. A page keeps the policy it was loaded with, so
   every link to the stores page (the account menus, the footer) is a plain link that loads it in
   full. Weighed: the whole site (no full load, but `'unsafe-eval'` everywhere); no `'unsafe-eval'`
-  (Yandex documents the map as needing it).
+  (Yandex documents the map as needing it). Amended at the review of PR 1 (2026-10-26): a link
+  away from the stores page is a client navigation and keeps the loosened policy in that tab until
+  its next full load; the owner accepts it (Yandex's scripts are already loaded in the tab, and the
+  site's pages render no foreign HTML). Weighed: every link on the stores page as a full load
+  (many components, and a new link could miss it). `https://yastatic.net` (Yandex's shared CDN,
+  with many libraries: with `'unsafe-eval'`, a known way around a policy) is left out of
+  `script-src` and `worker-src` and added only if the browser shows the map needs it.
 - **X17. Analytics: a zone `stores`.** The page's elements are a zone of their own, `stores`
   («Магазины Lamoda Sport»), area `stores`, since the page is public and not about the user's data:
   `stores.card` (a card's click), `stores.details` (`expanded`: boolean), `stores.phone`,
@@ -123,3 +129,21 @@ script) and holds the owner's personal data, so it is not used and never committ
 - **X18. Analytics: the footer.** A zone `footer` («Подвал»), area `footer`, element `footer.link`
   (navigation) with `link`: enum `stores`; each later footer link adds a value. Weighed: one
   element per link, or none.
+
+## Added at the review of PR 1 (2026-10-26)
+
+- **X19. A pin's click on a phone.** Below 600 px, on «Карта», a pin's click marks the pin and
+  shows its store's card over the bottom of the map (the same card, with «›»), with a close
+  button; the map stays as it is. As on Lamoda. Weighed: switching to «Список» (the map's context
+  is lost), only marking the pin.
+- **X20. Missing metro or phones.** A store with no metro station has no metro line on its card;
+  one with no phone has none in its details (description and route only). As on Lamoda. Weighed:
+  a line saying there is none.
+- **X21. Watching the key's counter.** The owner looks at the key's request statistics in Yandex's
+  cabinet daily for the first week after the deploy (the free plan's 500 a day, X14); then a
+  backlog item keeps the watch and the paid plan in view.
+- **X22. The seed's data is the canon.** `stores.data.ts` is checked against
+  `source/lamoda-stores.json` once, at T4, by a script outside the repository, its result in the
+  task's summary; the permanent test checks only what holds for any list (unique codes, ranges,
+  trimmed text, known types), so no api test reads `specs/`, which becomes history at the close.
+  Weighed: moving the JSON into `api/`; a test reading `specs/` for good.
