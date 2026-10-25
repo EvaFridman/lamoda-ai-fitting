@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const api = vi.hoisted(() => ({ clientFetch: vi.fn(), reportFailure: vi.fn() }));
 const toast = vi.hoisted(() => ({ showToast: vi.fn() }));
@@ -189,6 +189,45 @@ describe('RelatedProducts', () => {
       expect(toast.showToast).toHaveBeenCalledOnce();
     });
 
+    describe('the arrows (A87.8)', () => {
+      beforeEach(() => {
+        vi.spyOn(Element.prototype, 'scrollWidth', 'get').mockReturnValue(1000);
+        vi.spyOn(Element.prototype, 'clientWidth', 'get').mockReturnValue(400);
+        Object.defineProperty(Element.prototype, 'scrollBy', {
+          value: vi.fn(),
+          configurable: true,
+          writable: true,
+        });
+      });
+
+      afterEach(() => {
+        vi.restoreAllMocks();
+        Reflect.deleteProperty(Element.prototype, 'scrollBy');
+      });
+
+      it('sends related.scroll with direction next from «Следующие»', async () => {
+        const user = userEvent.setup();
+        renderWith(hydrated(productsOf(6)));
+
+        await user.click(screen.getByRole('button', { name: 'Следующие' }));
+
+        expect(vi.mocked(track).mock.calls).toEqual([
+          [
+            'Element Clicked',
+            { element: 'related.scroll', zone: 'product', type: 'interaction', direction: 'next' },
+          ],
+        ]);
+      });
+
+      it('sends nothing for a scroll of the row itself', () => {
+        renderWith(hydrated(productsOf(6)));
+
+        fireEvent.scroll(screen.getByRole('list'));
+
+        expect(track).not.toHaveBeenCalled();
+      });
+    });
+
     it('sends nothing from the heart and the disabled hanger', async () => {
       const user = userEvent.setup();
       renderWith(hydrated(productsOf(1)));
@@ -215,6 +254,7 @@ describe('RelatedProducts', () => {
     expect(container.querySelectorAll('[aria-busy="true"]')).toHaveLength(6);
     expect(screen.queryByRole('list')).not.toBeInTheDocument();
     expect(screen.queryByRole('article')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
   it('shows the error text as an alert and reports the failure', async () => {

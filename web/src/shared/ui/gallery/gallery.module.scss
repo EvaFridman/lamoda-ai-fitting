@@ -1,6 +1,9 @@
 // Board 1's gallery. From 600px a grid of six columns: a large photo spans three (432×624 at the
-// page's 888px), a small one two (200px high), 24px apart across, 8px down. Below 600px the list
-// is a strip of whole-width slides with scroll snap, and black and grey 6px dots over its bottom.
+// page's 888px), a small one two (200px high), 24px apart across, 8px down. Below 600px (spec 0019
+// A87.1, A88, as Lamoda's) the list is a strip of whole-width slides with scroll snap, each as high
+// as the window less `--gallery-offset` (what the page keeps above it, 0 unless set), the photo
+// covering it; black dots sit at its bottom left, the current one larger, above
+// `--gallery-overlap` (what the page lays over the slide's bottom, 0 unless set).
 
 .gallery {
   position: relative;
@@ -43,7 +46,8 @@
   @media (width < 600px) {
     scroll-snap-align: start;
     flex: 0 0 100%;
-    aspect-ratio: 3 / 4;
+    aspect-ratio: auto;
+    height: calc(100svh - var(--gallery-offset, 0px));
   }
 }
 
@@ -53,8 +57,7 @@
   height: 200px;
 
   @media (width < 600px) {
-    aspect-ratio: 3 / 4;
-    height: auto;
+    height: calc(100svh - var(--gallery-offset, 0px));
   }
 }
 
@@ -105,13 +108,12 @@
   pointer-events: none;
 
   position: absolute;
-  right: 0;
-  bottom: var(--space-3);
-  left: 0;
+  bottom: calc(var(--gallery-overlap, 0px) + var(--space-3));
+  left: var(--space-4);
 
   display: none;
   gap: 6px;
-  justify-content: center;
+  align-items: center;
 
   @media (width < 600px) {
     display: flex;
@@ -119,12 +121,14 @@
 }
 
 .dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 3px;
-  background-color: var(--color-text-disabled);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background-color: var(--color-text);
 }
 
+// Larger, not darker (A87.1).
 .on {
-  background-color: var(--color-text);
+  width: 8px;
+  height: 8px;
 }

@@ -1125,6 +1125,18 @@ event, `sdkPerVisit` stays 15. The budget: about 106 000 events a month, 10.6 % 
 The cards in view of the related row: about two and a third on a phone, three below 1024 px,
 four from 1024 px (the api answers six, so the row always scrolls).
 
+**A88. The phone gallery fills the window, the buy box overlaps it (T24a, the owner's
+screenshots of lamoda.ru and of the local page, 2026-10-25).** The owner decided, over A87.1's
+"at most its 3:4" and its kept proportions: (1) below 600 px a slide is as high as the window less
+the header's row (`100svh`) with no 3:4 bound, and the photo covers it (`object-fit: cover`, its
+edges cropped), as Lamoda's; (2) the buy box below it is a white panel with 16 px rounded top
+corners that overlaps the photo only as far as its corners (16 px), so it covers almost nothing;
+the dots sit just above its edge; (3) the back arrow «←» Lamoda draws over the photo is not built
+now; (4) `ScrollRow` follows its items through a `MutationObserver` on the list's children, not by
+re-running its effect on every render of its parent (code-reviewer, T24a). Until T24b makes the
+header one row, the photo still runs past the window's bottom on a phone: the gallery subtracts
+that row's 56 px.
+
 ## Canvas and decisions
 
 Where the canvas differs from the decisions above, the decision wins:
@@ -1149,7 +1161,9 @@ Where the canvas differs from the decisions above, the decision wins:
   (A62).
 - The catalog card's two corners (the hanger and the heart) and its hover: A63.1, over 0009 K10.
 - Board 1.1's bar fixed to the bottom, its centred grey dots and board 1's related grid of six
-  columns: the buy box in the page's flow, Lamoda's dots and one row of related products (A87).
+  columns: the buy box in the page's flow, Lamoda's dots and one row of related products (A87);
+  the photo fills the window under the header and the buy box overlaps it as a rounded panel
+  (A88).
 
 ## Backlog
 

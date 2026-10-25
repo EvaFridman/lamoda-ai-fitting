@@ -12,6 +12,7 @@ import {
 import { CartStubButton, FavoriteStub } from '@/features/product-stubs';
 import { useTrackedElement } from '@/shared/analytics';
 import { errorText, reportFailure } from '@/shared/api';
+import { ScrollRow } from '@/shared/ui';
 
 import styles from './related-products.module.scss';
 
@@ -56,12 +57,16 @@ function RelatedItem({ product, position }: RelatedItemProps) {
 }
 
 // Board 1's «С этим товаром выбирают» (spec 0019 A36, A83): the compact cards with the hanger
-// (disabled until the fitting room, T26), the heart and «В корзину» stubs (A33). The page prefetches
-// the list; the browser asks only when that failed. None hides the block (A83.8).
+// (disabled until the fitting room, T26), the heart and «В корзину» stubs (A33), in one row that
+// scrolls sideways on every width with «‹» «›» from 600px (A87.3). The page prefetches the list;
+// the browser asks only when that failed. None hides the block (A83.8).
 export function RelatedProducts({ productId, className }: RelatedProductsProps) {
   const related = useRelatedProducts(productId);
   const { error } = related;
   const headingId = useId();
+  // The arrows, not a swipe (A87.8).
+  const prevEvents = useTrackedElement('related.scroll', { direction: 'prev' });
+  const nextEvents = useTrackedElement('related.scroll', { direction: 'next' });
 
   useEffect(() => {
     if (error !== null) reportFailure(error);
@@ -72,11 +77,11 @@ export function RelatedProducts({ productId, className }: RelatedProductsProps) 
   let content;
   if (related.data !== undefined) {
     content = (
-      <ul className={styles.list}>
+      <ScrollRow className={styles.row} events={{ prev: prevEvents, next: nextEvents }}>
         {related.data.map((product, index) => (
           <RelatedItem key={product.id} product={product} position={index + 1} />
         ))}
-      </ul>
+      </ScrollRow>
     );
   } else if (error !== null) {
     content = (
@@ -85,14 +90,17 @@ export function RelatedProducts({ productId, className }: RelatedProductsProps) 
       </p>
     );
   } else {
+    // The row's own sizes, with no arrows: the cards in view and a part of the next.
     content = (
-      <ul aria-hidden className={styles.list}>
-        {Array.from({ length: SKELETONS }, (_, index) => (
-          <li key={index}>
-            <CatalogProductCardSkeleton variant="compact" />
-          </li>
-        ))}
-      </ul>
+      <div aria-hidden className={styles.row}>
+        <ul className={styles.skeletons}>
+          {Array.from({ length: SKELETONS }, (_, index) => (
+            <li key={index}>
+              <CatalogProductCardSkeleton variant="compact" />
+            </li>
+          ))}
+        </ul>
+      </div>
     );
   }
 

@@ -27,8 +27,9 @@ const SMALL = 3;
 
 // A product's photos (board 1). From 600px: the first two large side by side, up to three small
 // under them, the last of those with «Показать ещё фото» while more are left; the button shows the
-// rest, all large. Below 600px: one photo at a time, swiped (scroll snap), with a dot per photo.
-// One list for both, switched by CSS. Catalog photos come from /media/, which never reaches the
+// rest, all large. Below 600px: one photo at a time, swiped (scroll snap), covering a slide as high
+// as the window less the page's `--gallery-offset`, with Lamoda's dots above the page's
+// `--gallery-overlap` (spec 0019 A87.1, A88). One list for both, switched by CSS. Catalog photos come from /media/, which never reaches the
 // optimizer (spec 0011 M29).
 export function Gallery({ images, 'aria-label': label, className }: GalleryProps) {
   const [expanded, setExpanded] = useState(false);

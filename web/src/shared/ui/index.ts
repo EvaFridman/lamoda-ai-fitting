@@ -55,6 +55,7 @@ export {
   CheckIcon,
   ChevronDownIcon,
   ChevronLeftIcon,
+  ChevronRightIcon,
   ChevronUpIcon,
   ClockIcon,
   CloseIcon,
@@ -120,6 +121,8 @@ export type { RadioGroupProps } from './radio-group/radio-group';
 export { RadioGroup } from './radio-group/radio-group';
 export type { RatingProps } from './rating/rating';
 export { Rating } from './rating/rating';
+export type { ScrollDirection, ScrollRowEvents, ScrollRowProps } from './scroll-row/scroll-row';
+export { ScrollRow } from './scroll-row/scroll-row';
 export type { SearchFieldProps } from './search-field/search-field';
 export { SearchField } from './search-field/search-field';
 export type { SelectOption, SelectProps } from './select/select';

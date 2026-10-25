@@ -252,7 +252,7 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       Check: database e2e (replace answers the replaced item, a category without a slot is refused,
       someone else's room is invisible, `DELETE /me` leaves no room item, AC28); `npm run verify`.
       Commit: `feat(api): keep a fitting room per user`
-- [ ] **T24a. web: the product page on phones (A87.1–3).** The kit's `Gallery`: the strip's
+- [x] **T24a. web: the product page on phones (A87.1–3, A88).** The kit's `Gallery`: the strip's
       slide height and Lamoda's dots; the buy box in the page's flow (the fixed bar, its hook and
       the body's padding go); the kit's `ScrollRow` with its `/ui-kit` example and
       `related-products` as one row on every width; the analytics of A87 for the row, if any.

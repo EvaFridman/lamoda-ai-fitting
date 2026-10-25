@@ -20,6 +20,12 @@ export const ChevronLeftIcon = createIcon('ChevronLeftIcon', {
   24: <path d="M15 3l-7 9 7 9" stroke="currentColor" />,
 });
 
+// "›": the next cards of a row (`ScrollRow`, spec 0019 A87).
+export const ChevronRightIcon = createIcon('ChevronRightIcon', {
+  16: <path d="M6 2l5 6-5 6" stroke="currentColor" />,
+  24: <path d="M9 3l7 9-7 9" stroke="currentColor" />,
+});
+
 export const ArrowForwardIcon = createIcon('ArrowForwardIcon', {
   16: <path d="M9 2l5 6.5L9 15M1 8.5h13" stroke="currentColor" />,
   24: <path d="M14 2.5l7 9-7 9M3 11.5h18" stroke="currentColor" />,

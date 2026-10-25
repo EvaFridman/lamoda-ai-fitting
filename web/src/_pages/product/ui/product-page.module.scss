@@ -1,6 +1,7 @@
 // The product page on the desktop (board 1): the header's 1200px column; the breadcrumbs, then the
 // gallery (888px) and the buy box side by side, 32px apart. Below 600px the breadcrumbs go (board
-// 1.1 has none) and the blocks stack edge to edge.
+// 1.1 has none) and the blocks stack edge to edge: the photo fills the window under the header and
+// the buy box overlaps its bottom as a panel with rounded top corners, as Lamoda's (A88).
 
 .page {
   box-sizing: content-box;
@@ -30,15 +31,35 @@
     flex-direction: column;
     gap: var(--space-4);
   }
+
+  // How far the buy box's panel lies over the photo: only its corners (A88). The gallery keeps its
+  // dots above it.
+  @media (width < 600px) {
+    --gallery-overlap: 16px;
+
+    gap: 0;
+  }
 }
 
 .gallery {
+  // A phone's slide leaves the header's one row of 56px on the screen (A87.1, A87.4).
+  --gallery-offset: 56px;
+
   flex: 0 1 888px;
   min-width: 0;
 
   // In the column the basis would be its height.
   @media (width < 1024px) {
     flex: none;
+  }
+}
+
+// The skeleton's gallery: the first large photo's height, on a phone the slide's (A88).
+.gallerySkeleton {
+  height: 624px;
+
+  @media (width < 600px) {
+    height: calc(100svh - var(--gallery-offset, 0px));
   }
 }
 
@@ -74,10 +95,20 @@
   }
 }
 
-// The buy box itself pads its phone layout, whose bar runs edge to edge.
+// The buy box itself pads its phone layout; on a phone this is its panel over the photo.
 .purchase {
   flex: 1;
   min-width: 0;
+
+  @media (width < 600px) {
+    position: relative;
+    z-index: 1;
+
+    margin-top: calc(-1 * var(--gallery-overlap));
+    border-radius: var(--gallery-overlap) var(--gallery-overlap) 0 0;
+
+    background-color: var(--color-background);
+  }
 }
 
 .alert {

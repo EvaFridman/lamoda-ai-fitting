@@ -250,16 +250,20 @@ describe('ProductBuyBox: colour and size', () => {
   });
 });
 
-describe('ProductBuyBox: the fixed bar', () => {
-  it('holds the cart and the try-on buttons in an element marked data-fixed-bar', () => {
+describe('ProductBuyBox: the actions (A87)', () => {
+  it('has no fixed bar and keeps the cart, try-on, look and meter in that order', async () => {
     setup();
+    const meter = await screen.findByText('Осталось 5 примерок в этом месяце');
 
+    expect(document.querySelector('[data-fixed-bar]')).toBeNull();
     const cart = screen.getByRole('button', { name: 'Добавить в корзину' });
     const tryOn = screen.getByRole('button', { name: 'Примерить' });
-    const bar = cart.closest('[data-fixed-bar]');
-    expect(bar).not.toBeNull();
-    expect(bar).toHaveAttribute('data-fixed-bar', '');
-    expect(bar).toContainElement(tryOn);
+    const look = screen.getByRole('button', { name: 'К образу' });
+    const follows = (a: Node, b: Node) =>
+      Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(follows(cart, tryOn)).toBe(true);
+    expect(follows(tryOn, look)).toBe(true);
+    expect(follows(look, meter)).toBe(true);
   });
 });
 

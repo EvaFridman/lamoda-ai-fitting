@@ -9,15 +9,15 @@ describe('icons section', () => {
     expect(sections.map(({ id, title }) => [id, title])).toContainEqual(['icons', 'Иконки']);
   });
 
-  it('shows 33 icons, each with a name and one 16px and one 24px drawing', () => {
+  it('shows 34 icons, each with a name and one 16px and one 24px drawing', () => {
     render(<UiKitPage />);
 
     const region = screen.getByRole('region', { name: 'Иконки' });
     const items = within(region).getAllByRole('listitem');
 
-    expect(items).toHaveLength(33);
+    expect(items).toHaveLength(34);
     const names = items.map((item) => item.querySelector('code')?.textContent);
-    expect(new Set(names).size).toBe(33);
+    expect(new Set(names).size).toBe(34);
     expect(names).toContain('BagIcon');
     expect(names).toContain('ProfileIcon');
     for (const name of [
@@ -32,6 +32,7 @@ describe('icons section', () => {
       'CompareIcon',
       'FilterIcon',
       'ChevronLeftIcon',
+      'ChevronRightIcon',
       'TrashIcon',
       'MoreIcon',
     ]) {
