@@ -1088,6 +1088,43 @@ bottom, outerwear, shoes, accessory); (10) the writes lock the user's row (`me/l
 go through `signOutWhenGone`, as the photos' do (A59), and `GET` of a gone user answers an empty
 room, as `GET /me/photos`. The room keeps no wishes and no size (A8, A63.3).
 
+**A87. The product page and the header on phones follow Lamoda's (the owner's screenshots of
+lamoda.ru on a phone, 2026-10-25).** The owner decided on 2026-10-25, over board 1.1 and 0010 L6;
+all of it below 600 px (`PHONE_QUERY`) unless said otherwise:
+(1) _the gallery:_ a slide is as high as the window less the header's row (`100svh`), at most its
+3:4, so the photo and its dots are on the screen at once; a photo that does not fill the slide
+keeps its proportions on the page's background; the dots are black, at the slide's bottom left,
+and the current one is larger, not darker; (2) _the buy box is not fixed:_ «Примерить», «К образу»,
+`LimitMeter`, «Добавить в корзину» and «В избранное» stay in the page's flow after the colour and
+the size and before «О товаре», in the order the wider page has; the fixed bar, its
+`--fixed-bar-height` and the body's padding for it go (board 1.1's bar, A82); (3) _«С этим товаром
+выбирают» is one row_ that scrolls sideways with snapping, on every width: about two and a third
+cards on a phone, three below 1024 px, four from 1024 px, with «‹» and «›» buttons on the row
+from 600 px (disabled at either end, hidden when everything fits; on a phone a swipe), over A83.5's
+grid and board 1's six columns; (4) _the header on phones is one row_ on every page: the burger
+and the loupe on the left, the logo, then «Избранное», the fitting room (T25) and «Корзина» on the
+right; «Женщинам», the city, the profile icon and the category row are not shown there (0010 L6:
+"no burger menu" no longer holds on phones; tablets and desktops keep their header); (5) _the
+loupe_ opens the header's `SearchField` in a row under the header and closes it; with `q` in the
+address the row is open; (6) _the burger_ opens a drawer from the left: signed out «Войти» at its
+top (the header's `LoginModal`), signed in the initials and the name (no email, 0013 N6), the
+account's sections and «Выйти», «Выйти со всех устройств»; then «Все товары» (`/catalog`) and the
+active categories (the header's list); a link closes it; (7) the hooks the profile icon mounts
+(`useSignInAnalytics`, `useDropUserQueries`, `useSessionRealtime`, the returned sign-in error of
+`LoginModal`, later `useFittingEvents`) stay mounted once on every width, whichever control a width
+shows. The catalog's own phone heading and bar (0020) are unchanged, and the header stays not
+sticky. (8) _Analytics_, on the `analytics` agent's proposal: `profile-menu.section`,
+`profile-menu.sign-out` and `profile-menu.sign-out-everywhere` take `surface` (`menu`, `burger`;
+an older send has none, so a report of the profile menu filters `surface != burger`), the burger's
+user block is `mp-block`; a new zone `header` («Шапка», areas `header` and `burger`) with
+`header.burger` (`signed_in`), `header.search` (`expanded`, the state the click sets) and
+`burger.category` (`all` for «Все товары»; no slug); `related.scroll` (`direction`: `prev`,
+`next`) in the zone `product`; no element for the burger's «Войти» (`Login Opened` counts it),
+the header's heart and cart (as A83.10) or a swipe; the fitting room's icon is T25's; no new
+event, `sdkPerVisit` stays 15. The budget: about 106 000 events a month, 10.6 % of the free plan.
+The cards in view of the related row: about two and a third on a phone, three below 1024 px,
+four from 1024 px (the api answers six, so the row always scrolls).
+
 ## Canvas and decisions
 
 Where the canvas differs from the decisions above, the decision wins:
@@ -1111,6 +1148,8 @@ Where the canvas differs from the decisions above, the decision wins:
   on a colour: not drawn (A63.7). The default photo's badge: «По умолчанию» on every screen
   (A62).
 - The catalog card's two corners (the hanger and the heart) and its hover: A63.1, over 0009 K10.
+- Board 1.1's bar fixed to the bottom, its centred grey dots and board 1's related grid of six
+  columns: the buy box in the page's flow, Lamoda's dots and one row of related products (A87).
 
 ## Backlog
 

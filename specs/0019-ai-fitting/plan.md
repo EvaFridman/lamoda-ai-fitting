@@ -1,6 +1,6 @@
 # 0019 AI fitting v1: plan
 
-Status: accepted (2026-10-21); amended 2026-10-24 (§3, §10, §12: A73).
+Status: accepted (2026-10-21); amended 2026-10-24 (§3, §10, §12: A73), 2026-10-25 (§7, §8: A87).
 
 How [spec.md](spec.md) is built. Decisions: [clarifications.md](clarifications.md) (A1–A47).
 New dependencies, checked on npm on 2026-10-21: api `sharp` 0.35.5 (lovell/sharp, prebuilt
@@ -284,7 +284,11 @@ status }` to the room; the worker's `notify` publishes the same JSON with its ow
   their toast).
 - **widgets** (compose the features). `header` gains `FittingRoomButton` (the hanger with
   `CountBadge`, between «Избранное» and «Корзина»; on phones the only extra icon, A10) rendered
-  inside the existing `<Suspense>` because it reads the session; `try-on` (the modal: the
+  inside the existing `<Suspense>` because it reads the session; on phones (A87, T24b) it is one
+  row of the burger, the loupe, the logo and the three icons: the loupe toggles the search row,
+  the burger opens `HeaderMenu`, a left `Drawer` with «Войти» or the user's block, the account's
+  sections and the sign-outs, then the categories; the session's hooks and the one `LoginModal`
+  that handles a returned error move from `HeaderProfile` to a part mounted on every width; `try-on` (the modal: the
   picker, the wait, the result of one item or a look with the colours, the stubs, the regeneration
   sheet, the limit and error screens, in one place that owns the flow's state), `fitting-room-drawer`
   (board 2), `product-gallery`, `product-buy-box`, `related-products`, `fitting-history`,
@@ -336,6 +340,12 @@ status }` to the room; the worker's `notify` publishes the same JSON with its ow
   250 ms before each product page of the repeated pass. The catalog grid's cards get their
   prefetch back once one card's prefetch is measured (A81.5, T20 or T23).
 - The page's analytics: zone `product` (§9).
+- Phones (A87, T24a): the kit's `Gallery` sizes its strip's slides to `100svh` less the header's
+  row (at most 3:4, the photo `contain`ed) with Lamoda's dots (black, bottom left, the current one
+  larger); the buy box loses its fixed bar (`use-fixed-bar-height.ts`, `data-fixed-bar` and its
+  rule in `globals.scss` go) and keeps the wider page's order; `widgets/related-products` becomes
+  one row on every width through a new kit `ScrollRow` (scroll snap, «‹» «›» from 600 px, disabled
+  at the ends, hidden when everything fits), with its `/ui-kit` example.
 
 ## 9. Analytics (A13, A43)
 

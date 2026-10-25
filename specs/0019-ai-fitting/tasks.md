@@ -252,6 +252,21 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       Check: database e2e (replace answers the replaced item, a category without a slot is refused,
       someone else's room is invisible, `DELETE /me` leaves no room item, AC28); `npm run verify`.
       Commit: `feat(api): keep a fitting room per user`
+- [ ] **T24a. web: the product page on phones (A87.1–3).** The kit's `Gallery`: the strip's
+      slide height and Lamoda's dots; the buy box in the page's flow (the fixed bar, its hook and
+      the body's padding go); the kit's `ScrollRow` with its `/ui-kit` example and
+      `related-products` as one row on every width; the analytics of A87 for the row, if any.
+      Check: web tests; `typecheck`, `lint` (A58); the phone and desktop by hand on the local
+      stack.
+      Commit: `feat(web): the product page on phones as lamoda's`
+- [ ] **T24b. web: the header on phones (A87.4–7).** One row of the burger, the loupe, the logo
+      and the icons below 600 px on every page; the search row; `HeaderMenu` (a left `Drawer`:
+      «Войти» or the user's block, the account's sections, the sign-outs, «Все товары» and the
+      categories); the session's hooks and the returned sign-in error mounted once on every width;
+      the analytics of A87 for the menu; `CLAUDE.md`'s header paragraph.
+      Check: web tests; `typecheck`, `lint` (A58); the phone and desktop by hand on the local
+      stack.
+      Commit: `feat(web): the header on phones as lamoda's`
 - [ ] **T25. web: the header's icon and the drawer.** `entities/fitting-room`,
       `features/fitting-room` (the `LookToggle` actions, the slot rows' actions, the replace and
       remove toasts with «Вернуть»), the widget `fitting-room-drawer` (board 2: the slots, the
