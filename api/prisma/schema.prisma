@@ -83,6 +83,7 @@ model User {
   photos          UserPhoto[]
   fittingQuotas   FittingQuota[]
   generations     AiGeneration[]
+  fittingRoom     FittingRoomItem[]
 
   @@map("users")
 }
@@ -205,6 +206,7 @@ model Product {
   variations         ProductVariation[]
   attributeValues    ProductAttributeValue[]
   generationProducts GenerationProduct[]
+  fittingRoomItems   FittingRoomItem[]
 
   @@index([brandId])
   @@index([categoryId])
@@ -284,8 +286,9 @@ model ProductAttributeValue {
   createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  product        Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
-  attributeValue AttributeValue @relation(fields: [attributeValueId], references: [id], onDelete: Restrict)
+  product        Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+  attributeValue AttributeValue    @relation(fields: [attributeValueId], references: [id], onDelete: Restrict)
+  fittingRoom    FittingRoomItem[]
 
   @@id([productId, attributeValueId])
   @@index([attributeValueId])
@@ -474,4 +477,28 @@ model FileDeletion {
   @@unique([kind, rowId])
   @@index([createdAt], where: raw("started_at IS NULL"))
   @@map("file_deletions")
+}
+
+// A user's fitting room (spec 0019 plan §2, A12, A86): one item per slot, so at most five, kept on
+// the server for every device of the account. It goes with the user and with the product. The
+// colour references the product's own link `(product_id, attribute_value_id)`, so a colour of
+// another product is refused by the key; the migration sets only `attribute_value_id` to NULL
+// when that link goes (`SET NULL (column)`, which Prisma does not model). Write `productId` and
+// `attributeValueId` only as scalars, never through `connect` of `colour`: its `disconnect` would
+// set `productId` to NULL with the key. No size and no wishes (A8, A63.3).
+model FittingRoomItem {
+  userId           String     @map("user_id") @db.Uuid
+  slot             OutfitSlot
+  productId        String     @map("product_id") @db.Uuid
+  attributeValueId String?    @map("attribute_value_id") @db.Uuid
+  createdAt        DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user    User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product                @relation(fields: [productId], references: [id], onDelete: Cascade)
+  colour  ProductAttributeValue? @relation(fields: [productId, attributeValueId], references: [productId, attributeValueId], onDelete: SetNull, onUpdate: NoAction)
+
+  @@id([userId, slot])
+  // Serves both keys to products: a product's or a colour link's delete finds its rows.
+  @@index([productId, attributeValueId])
+  @@map("fitting_room_items")
 }

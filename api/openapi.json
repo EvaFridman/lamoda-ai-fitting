@@ -5920,6 +5920,310 @@
         ]
       }
     },
+    "/me/fitting-room": {
+      "get": {
+        "operationId": "FittingRoomController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FittingRoomDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error codes: `UNAUTHORIZED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error codes: `TOO_MANY_REQUESTS`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error codes: `INTERNAL_ERROR`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error codes: `SERVICE_UNAVAILABLE`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "tags": [
+          "me"
+        ]
+      },
+      "delete": {
+        "operationId": "FittingRoomController_clear",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "The room is empty."
+          },
+          "401": {
+            "description": "Error codes: `UNAUTHORIZED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error codes: `TOO_MANY_REQUESTS`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error codes: `INTERNAL_ERROR`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error codes: `SERVICE_UNAVAILABLE`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/me/fitting-room/{slot}": {
+      "put": {
+        "operationId": "FittingRoomController_put",
+        "parameters": [
+          {
+            "name": "slot",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "$ref": "#/components/schemas/OutfitSlot"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PutFittingRoomItemDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FittingRoomChangeDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error codes: `VALIDATION_FAILED`, `BAD_JSON`, `RELATED_NOT_FOUND`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error codes: `UNAUTHORIZED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error codes: `PAYLOAD_TOO_LARGE`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error codes: `TOO_MANY_REQUESTS`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error codes: `INTERNAL_ERROR`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error codes: `SERVICE_UNAVAILABLE`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "tags": [
+          "me"
+        ]
+      },
+      "delete": {
+        "operationId": "FittingRoomController_remove",
+        "parameters": [
+          {
+            "name": "slot",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "$ref": "#/components/schemas/OutfitSlot"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The slot is empty, as it may have been already."
+          },
+          "400": {
+            "description": "Error codes: `VALIDATION_FAILED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error codes: `UNAUTHORIZED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error codes: `TOO_MANY_REQUESTS`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error codes: `INTERNAL_ERROR`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error codes: `SERVICE_UNAVAILABLE`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "tags": [
+          "me"
+        ]
+      }
+    },
     "/fitting-sessions": {
       "get": {
         "operationId": "FittingSessionsController_list",
@@ -9123,6 +9427,104 @@
         },
         "required": [
           "isDefault"
+        ]
+      },
+      "FittingRoomItemDto": {
+        "type": "object",
+        "properties": {
+          "slot": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OutfitSlot"
+              }
+            ]
+          },
+          "product": {
+            "$ref": "#/components/schemas/ProductListItemDto"
+          },
+          "attributeValueId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "colour": {
+            "type": "string",
+            "nullable": true,
+            "description": "The colour's name."
+          }
+        },
+        "required": [
+          "slot",
+          "product",
+          "attributeValueId",
+          "colour"
+        ]
+      },
+      "FittingRoomDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FittingRoomItemDto"
+            }
+          },
+          "count": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 5,
+            "description": "The number of items."
+          },
+          "sum": {
+            "type": "number",
+            "example": 8990,
+            "description": "The items' prices after the discount, added up."
+          }
+        },
+        "required": [
+          "items",
+          "count",
+          "sum"
+        ]
+      },
+      "PutFittingRoomItemDto": {
+        "type": "object",
+        "properties": {
+          "productId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "A product whose category's slot is the path's."
+          },
+          "attributeValueId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The colour: one of the product's attribute values. Left out, none is chosen."
+          }
+        },
+        "required": [
+          "productId"
+        ]
+      },
+      "FittingRoomChangeDto": {
+        "type": "object",
+        "properties": {
+          "room": {
+            "$ref": "#/components/schemas/FittingRoomDto"
+          },
+          "replaced": {
+            "nullable": true,
+            "description": "The item that was in the slot; null when it was empty.",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FittingRoomItemDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "room",
+          "replaced"
         ]
       },
       "FittingSessionResponseDto": {
