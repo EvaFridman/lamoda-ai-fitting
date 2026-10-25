@@ -291,6 +291,10 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       history), `EVENTS.md`, the budget.
       Check: `catalog.test.ts`; `npm run verify`.
       Commit: `feat(web): count the fitting room and look events`
+- 👤 reviews and merges PR 5.
+
+## PR 6 · `docs/0019-close` · closing the spec (after PR 5 is deployed, A96)
+
 - [ ] **T29. Close the spec.** The production checks with the owner (AC5, AC13, AC14, AC17, AC19,
       AC28 on production after the merge); the acceptance record below; 0016's record of AC5–AC10,
       AC14, AC15 in its `tasks.md`; every file gets `Status: done`; `CLAUDE.md`'s opening paragraph and README's list;
@@ -298,7 +302,7 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       name the phase-boundary review as an option (A2), and the commit records it.
       Check: every criterion has evidence; `npm run verify`.
       Commit: `docs(specs): close spec 0019`
-- 👤 reviews and merges PR 5.
+- 👤 reviews and merges PR 6.
 
 ## Acceptance record
 
