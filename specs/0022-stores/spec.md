@@ -1,8 +1,9 @@
 # 0022 stores: Lamoda Sport stores on a Yandex map
 
-Status: accepted (2026-10-26); amended 2026-10-26 at the tasks (AC12 removed: X7).
+Status: accepted (2026-10-26); amended 2026-10-26 at the tasks (AC12 removed: X7) and at the
+review of PR 1 (AC4: X20; AC6, AC9: X19; owner actions: X21).
 
-Decisions: `clarifications.md` (X0–X18).
+Decisions: `clarifications.md` (X0–X22).
 
 Issue #73, «Интеграция яндекс-карт и вывод магазинов на карте».
 
@@ -56,18 +57,20 @@ part of it.
   the same inside the account menu.
 - **AC4.** Each card shows the store's name, address, metro stations and hours; «›» opens the
   description, the phones as links that dial them and «Проложить маршрут», which opens Yandex Maps'
-  route to the store in a new tab; «›» again closes them.
+  route to the store in a new tab; «›» again closes them. A store with no metro station or no
+  phone shows no line for it (X20).
 - **AC5.** The map shows one black «la» pin per store and a circle with a count where pins overlap;
   zooming in splits the circle into pins. Yandex's logo, copyright and «Открыть в Картах» stay
   visible on the map (X14).
-- **AC6.** A click on a card centres the map on its pin and marks the pin; a click on a pin marks
-  its card and scrolls the list to it.
+- **AC6.** A click on a card centres the map on its pin and marks the pin; at 600 px and wider, a
+  click on a pin marks its card and scrolls the list to it (on a phone: AC9).
 - **AC7.** Typing «Ладожская» leaves only «ТЦ Охта Молл Sport» in the list and on the map, and fits
   the map to it; typing «Екатеринбург» leaves the city's stores; a text that matches nothing shows
   «Ничего не нашлось»; clearing the field brings every store back.
 - **AC8.** The page opens with the map on Moscow.
 - **AC9.** At 375 px the page shows the tabs «Список» and «Карта» under the search, the list first;
-  a click on a card switches to «Карта» with that store marked.
+  a click on a card switches to «Карта» with that store marked; on «Карта» a pin's click shows its
+  store's card over the map, which the card's close button hides (X19).
 - **AC10.** With no Yandex key (local development, tests, CI) the map's place shows a placeholder
   and the list and the search work.
 - **AC11.** On lamoda-ai-fitting.ru the page loads the map with no Content Security Policy violation
@@ -96,6 +99,8 @@ part of it.
   Referer to `lamoda-ai-fitting.ru` and `localhost`; put it into the local `.env` and the GitHub
   repository variable the plan names (X13).
 - Check the page on a real phone after the deploy.
+- Look at the key's request statistics in Yandex's cabinet daily for the first week after the
+  deploy (X21).
 
 ## Assumptions
 

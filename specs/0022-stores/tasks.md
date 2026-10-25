@@ -1,6 +1,7 @@
 # 0022 stores: Lamoda Sport stores on a Yandex map: tasks
 
-Status: accepted (2026-10-26).
+Status: accepted (2026-10-26); amended 2026-10-26 at the review of PR 1 (T4: X22; T6, T10, T11:
+X19–X21).
 
 ## How the work flows
 
@@ -37,7 +38,8 @@ Status: accepted (2026-10-26).
 - [ ] **T4. The stores table and seed (X1, X2; plan §2.1, §2.2).** `StoreType`, `Store` in
       `schema.prisma`; migration `…_stores` with its CHECKs; rows in `constraint-fields.ts`;
       `seed/stores.data.ts` (48 stores, cleaned); `seedStores()` in `SeedService`.
-      Check: `stores.data.spec.ts` against the source JSON; the seed e2e (twice → 48 rows); the
+      Check: the one-off comparison with the source JSON (X22, result in the summary);
+      `stores.data.spec.ts` (invariants); the seed e2e (twice → 48 rows); the
       migration applied locally (`prisma migrate dev`, `seed:dev`).
       Commit: `feat(api): add lamoda sport stores to the database`
 - [ ] **T5. `GET /stores` (X2; plan §2.3).** `stores/` module, controller, service,
@@ -48,7 +50,7 @@ Status: accepted (2026-10-26).
 
 ### web: the page without the map
 
-- [ ] **T6. The store entity (X7, X8; plan §3.1).** `entities/store`: schemas and contract test,
+- [ ] **T6. The store entity (X7, X8, X20; plan §3.1).** `entities/store`: schemas and contract test,
       keys, `getStores` (page cache), `storeListOptions`, `useStores`, `lib/search.ts`,
       `lib/links.ts`, `ui/store-card`.
       Check: Vitest (contract, `matchStores` cases of AC7, `telHref`, `routeHref`, the card's
@@ -80,13 +82,14 @@ Status: accepted (2026-10-26).
       `/customer`, `/customer/stores/x` do not); `npm run verify` (`check:web-shells`,
       `check:web-bundle` unchanged).
       Commit: `feat(web): allow yandex maps on the stores page`
-- [ ] **T10. The map (X5, X10, X12, X14, X17; plan §3.2, §3.3, §4).** `@yandex/ymaps3-clusterer`,
-      `@yandex/ymaps3-types` (versions checked, CONTRIBUTING); `widgets/stores-map` (loader,
-      pins, clusters, selection, fit, placeholder); the page's map and phone tabs; `stores.pin`,
-      `stores.tab`, `sdkPerVisit` 17; `EVENTS.md`. Fonts or frames the browser blocks go into the
-      policy only after they are seen (plan §3.5).
-      Check: Vitest (placeholder without a key, the loader once, `fit.ts`, tabs and switch on
-      select); `npm run verify`; qa-tester with the owner's key AC5, AC6, AC8, AC9, AC10 and the
+- [ ] **T10. The map (X5, X10, X12, X14, X16, X17, X19; plan §3.2, §3.3, §4).**
+      `@yandex/ymaps3-clusterer`, `@yandex/ymaps3-types` (versions checked, CONTRIBUTING);
+      `widgets/stores-map` (loader, pins, clusters, selection, fit, placeholder); the page's map,
+      phone tabs and the card over the map on a pin's click; `stores.pin`, `stores.tab`,
+      `sdkPerVisit` 17; `EVENTS.md`. `yastatic.net`, fonts or frames go into the policy only after
+      the browser shows them blocked (plan §3.5).
+      Check: Vitest (placeholder without a key, the loader once, `fit.ts`, tabs, switch on select,
+      the card over the map and its close); `npm run verify`; qa-tester with the owner's key AC5, AC6, AC8, AC9, AC10 and the
       console free of CSP violations, at 375 and 1280 px.
       Commit: `feat(web): show the stores on a yandex map`
 - 👤 adds the repository variable `NEXT_PUBLIC_YANDEX_MAPS_API_KEY` (plan §3.6), then merges PR 2.
@@ -96,9 +99,10 @@ Status: accepted (2026-10-26).
 - [ ] **T11. Close the spec.** AC11 on lamoda-ai-fitting.ru; the acceptance record below
       (AC1–AC17 with evidence); `CLAUDE.md` (the stores table and route, the page, the map's CSP
       on one path, the key, the zones `stores` and `footer`, the summary's spec list), `README.md`
-      (the key in local setup), `backlog.md` ("Footer links" without the stores' entry); every file
-      `Status: done`.
-      Check: `npm run format:check`; the owner's check on a real phone.
+      (the key in local setup), `backlog.md` ("Footer links" without the stores' entry; a new item:
+      the Yandex key's daily requests and the paid plan, X21); every file `Status: done`.
+      Check: `npm run format:check`; the owner's check on a real phone; the owner's first week of
+      the key's statistics (X21).
       Commit: `docs(specs): close spec 0022`
 
 ## Acceptance record

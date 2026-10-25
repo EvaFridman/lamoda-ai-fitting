@@ -1,6 +1,7 @@
 # 0022 stores: plan
 
-Status: accepted (2026-10-26); amended 2026-10-26 at the tasks (no header change: X7).
+Status: accepted (2026-10-26); amended 2026-10-26 at the tasks (no header change: X7) and at the
+review of PR 1 (§2.2: X22; §3.3: X19, X20; §3.5, §5: X16).
 
 How [spec.md](spec.md) is built. Decisions: [clarifications.md](clarifications.md) (X0–X18).
 
@@ -72,9 +73,11 @@ order), kept by `position`, so the list opens on the stores the map shows first 
   `metroStations` ← `underground_station`, `workTime` ← `work_time`, `mall` ← `shopping_mall`.
   Cleaning: `&nbsp;` → space, runs of spaces → one, trimmed (`ТЦ  Командор Outlet`, `Макси `).
   Phones keep Lamoda's text.
-- `stores.data.spec.ts` (unit) reads the source JSON and checks: the same 48 codes in the same
-  order, each kept field equal after the cleaning, codes unique, coordinates in range. A store added
-  to one and not the other fails it.
+- At T4 a script outside the repository (the scratchpad) compares `stores.data.ts` with the source
+  JSON once: the same 48 codes in the same order, each kept field equal after the cleaning; its
+  result goes into the task's summary (X22). `stores.data.spec.ts` (unit) checks what holds for any
+  list: codes unique and of the CHECK's shape, positions unique, coordinates in range, every text
+  trimmed and non-empty, types known. No api test reads `specs/`.
 - `SeedService.seedStores()`: `createMany({ data, skipDuplicates: true })` by `code` (and
   `position`), after the catalog; it never updates (CLAUDE.md, seed). The database seed e2e gets a
   case: twice → 48 rows.
@@ -107,7 +110,8 @@ rewritten with `-u`. No new error code.
 - `lib/links.ts`: `telHref(phone)` (`+` and digits only), `routeHref(store)`
   (`https://yandex.ru/maps/?rtext=~<lat>,<lon>&rtt=auto`, Yandex's documented link; the empty start
   is "from where I am"), `storeAddress(store)`.
-- `ui/store-card`: displays one store (name, address, metro, hours; «›» and, open, the
+- `ui/store-card`: displays one store (name, address, metro, hours, a line left out when its
+  data is empty, X20; «›» and, open, the
   description, phones and «Проложить маршрут» with `target="_blank" rel="noopener"`). Props:
   `store`, `selected`, `expanded`, `onSelect`, `onExpandedChange`, and the tracking handlers
   (`events`); no state, no URL (0009 K7). The «›» is a `<button aria-expanded>`; the card's main
@@ -145,7 +149,9 @@ A client component, `StoresMap({ stores, selectedId, onSelect, fit, pinEvents })
   from event addresses), the selected id, the expanded ids, the phone tab. Desktop: list (its own
   scroll, the height of the map, 640 px) beside the map; a pin's click scrolls its card into view.
   Below 600 px: the kit's `Tabs` «Список» / «Карта» under the search; a card's click selects and
-  switches to «Карта» (X10). «Ничего не нашлось» for no match. Both panels stay mounted (the map is
+  switches to «Карта» (X10); on «Карта» a pin's click shows the store's `StoreCard` over the
+  map's bottom with a close button (X19), above Yandex's copyright block, which stays visible.
+  «Ничего не нашлось» for no match. Both panels stay mounted (the map is
   not reloaded on a tab switch); the hidden one is `hidden` by CSS.
 - `Stores Searched` (X17) from a 1 s debounce of the text, not for empty or unchanged text.
 - `web/app/customer/stores/page.tsx` re-exports `StoresPage` from `@/_pages/stores`;
@@ -175,14 +181,15 @@ A client component, `StoresMap({ stores, selectedId, onSelect, fit, pinEvents })
 With it, Yandex's list for version 3 is added:
 
 ```
-script-src  … https://api-maps.yandex.ru https://*.api-maps.yandex.ru https://yastatic.net 'unsafe-eval'
+script-src  … https://api-maps.yandex.ru https://*.api-maps.yandex.ru 'unsafe-eval'
 connect-src … https://api-maps.yandex.ru https://*.api-maps.yandex.ru https://*.maps.yandex.net
 style-src   … https://api-maps.yandex.ru https://*.api-maps.yandex.ru https://yastatic.net
 img-src     … https://api-maps.yandex.ru https://*.api-maps.yandex.ru https://*.maps.yandex.net https://yastatic.net
-worker-src  … data: https://api-maps.yandex.ru https://*.api-maps.yandex.ru https://yastatic.net
+worker-src  … data: https://api-maps.yandex.ru https://*.api-maps.yandex.ru
 ```
 
-(`img-src` already has `data:`.) Fonts and frames are not in Yandex's list; the task checks the
+(`img-src` already has `data:`.) Yandex's list also has `https://yastatic.net` in `script-src` and
+`worker-src`; it is left out (X16) and added only if the browser shows the map blocked without it. Fonts and frames are not in Yandex's list; the task checks the
 page in a browser with the owner's key and adds an origin only after seeing it blocked. `policy.test.ts`
 and `proxy.test.ts`: the stores path has the list, any other path (`/catalog`, `/customer`,
 `/customer/stores/x`) does not. `check:web-shells` is unaffected (no new inline script).
@@ -228,7 +235,9 @@ entry. A pin is not a React element of ours only if reactify fails; then `trackE
   `'unsafe-eval'` on one page weakens that page's protection (X16; the page renders only the
   store data and the visitor's own search text).
 - **A client navigation keeps the old policy.** Every link to the page is plain (X16); a link
-  missed would show the placeholder until a reload: the menus' and footer's tests pin it.
+  missed would show the placeholder until a reload: the menus' and footer's tests pin it. The other
+  way, a link away from the stores page keeps the loosened policy in the tab until its next full
+  load (accepted, X16).
 - **The free plan** (X14): a key over its limit for long is blocked for good; ads may appear.
 - **Young packages**: both Yandex packages were six days old on 2026-10-26; the task takes the
   latest one at least a few days old.
