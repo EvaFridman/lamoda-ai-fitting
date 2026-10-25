@@ -21,6 +21,7 @@ function item(productId: string, colour: string | null) {
     finalPrice: 900,
     attributeValueId: null,
     colour,
+    slot: 'top' as const,
   };
 }
 

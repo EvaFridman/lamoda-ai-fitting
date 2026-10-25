@@ -11,6 +11,9 @@ interface RoomState {
   // The room's drawer is mounted once (the root layout), so anything opens it through here: a
   // widget imports no widget.
   open: boolean;
+  // The look's try-on window (T26), mounted once in the root layout as the drawer is: the drawer's
+  // «Примерить образ» opens it.
+  lookOpen: boolean;
   // «Пожелания к образу» of one user, kept in the tab's memory only (A90.5): never in storage
   // (personal text), gone on a reload, and never shown to another user signed in at the tab.
   wishes: { userId: string; text: string } | null;
@@ -19,6 +22,7 @@ interface RoomState {
   // known yet, nothing is refused.
   userId: string | null | undefined;
   setOpen: (open: boolean) => void;
+  setLookOpen: (open: boolean) => void;
   setWishes: (userId: string, text: string) => void;
   // A change of user; signed out (`null`) forgets the wishes too.
   setUser: (userId: string | null) => void;
@@ -26,9 +30,11 @@ interface RoomState {
 
 export const useRoomStore = create<RoomState>()((set) => ({
   open: false,
+  lookOpen: false,
   wishes: null,
   userId: undefined,
   setOpen: (open) => set({ open }),
+  setLookOpen: (lookOpen) => set({ lookOpen }),
   setWishes: (userId, text) => set({ wishes: { userId, text: text.slice(0, ROOM_WISHES_MAX) } }),
   setUser: (userId) =>
     set((state) => ({
@@ -51,6 +57,12 @@ export function openRoom(): void {
 // Closes it: a link inside it was followed, to another page or to the one it is on.
 export function closeRoom(): void {
   useRoomStore.getState().setOpen(false);
+}
+
+// «Примерить образ»: the room's drawer closes and the look's try-on opens (two dialogs do not
+// stack, A90.12).
+export function openLookTryOn(): void {
+  useRoomStore.setState({ open: false, lookOpen: true });
 }
 
 // The wishes of this user, else none.

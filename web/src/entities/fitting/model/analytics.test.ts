@@ -29,6 +29,7 @@ function fitting(patch: Partial<Fitting> = {}): Fitting {
     regenerationFree: true,
     model: 'gpt-image-2',
     items: [],
+    promptText: null,
     photoId: null,
     resultUrl: null,
     createdAt: '2026-10-20T12:00:00.000Z',
@@ -152,6 +153,7 @@ describe('trackFittingStarted', () => {
           finalPrice: 1,
           attributeValueId: null,
           colour: null,
+          slot: 'top',
         },
       ],
     });

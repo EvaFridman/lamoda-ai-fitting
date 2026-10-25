@@ -18,7 +18,7 @@ import { ApiError } from '@/shared/api';
 
 import type { StartedFitting } from '../model/schemas';
 import { fittingKeys } from './keys';
-import { useRegenerateFitting, useStartSingleFitting } from './mutations';
+import { useRegenerateFitting, useStartLookFitting, useStartSingleFitting } from './mutations';
 
 const PHOTO = '00000000-0000-4000-8000-0000000000f1';
 const PRODUCT = '00000000-0000-4000-8000-0000000000a1';
@@ -37,6 +37,7 @@ function started(patch: Partial<StartedFitting> = {}): StartedFitting {
     regenerationFree: true,
     model: 'gpt-image-2',
     items: [],
+    promptText: null,
     photoId: PHOTO,
     resultUrl: null,
     createdAt: '2026-10-20T12:00:00.000Z',
@@ -190,6 +191,100 @@ describe('useStartSingleFitting', () => {
     );
     expect(reportFailure).toHaveBeenCalledExactlyOnceWith(failure);
     expect(track).not.toHaveBeenCalled();
+  });
+});
+
+describe('useStartLookFitting', () => {
+  const OTHER = '00000000-0000-4000-8000-0000000000a2';
+
+  it('sends a look of every item, a colour only where there is one, and the trimmed wishes', async () => {
+    requests.startFitting.mockResolvedValue(started({ kind: 'look' }));
+    const { result } = renderHook(() => useStartLookFitting(), { wrapper });
+    await act(() =>
+      result.current.mutateAsync({
+        photoId: PHOTO,
+        items: [
+          { productId: PRODUCT, attributeValueId: COLOUR },
+          { productId: OTHER, attributeValueId: null },
+        ],
+        promptText: '  Свободнее  ',
+        source: 'picker',
+      }),
+    );
+    expect(requests.startFitting).toHaveBeenCalledExactlyOnceWith({
+      photoId: PHOTO,
+      kind: 'look',
+      items: [{ productId: PRODUCT, attributeValueId: COLOUR }, { productId: OTHER }],
+      promptText: 'Свободнее',
+    });
+  });
+
+  it.each([null, '', '   '])('leaves blank wishes (%j) out and tracks no prompt', async (text) => {
+    requests.startFitting.mockResolvedValue(started({ kind: 'look' }));
+    const { result } = renderHook(() => useStartLookFitting(), { wrapper });
+    await act(() =>
+      result.current.mutateAsync({
+        photoId: PHOTO,
+        items: [
+          { productId: PRODUCT, attributeValueId: null },
+          { productId: OTHER, attributeValueId: null },
+        ],
+        promptText: text,
+        source: 'picker',
+      }),
+    );
+    expect(requests.startFitting.mock.calls[0]?.[0]).not.toHaveProperty('promptText');
+    expect(track).toHaveBeenCalledWith(
+      'Fitting Started',
+      expect.objectContaining({ with_prompt: false }),
+    );
+  });
+
+  it('sends Fitting Started of a look with the source and the prompt', async () => {
+    requests.startFitting.mockResolvedValue(started({ kind: 'look' }));
+    const { result } = renderHook(() => useStartLookFitting(), { wrapper });
+    await act(() =>
+      result.current.mutateAsync({
+        photoId: PHOTO,
+        items: [
+          { productId: PRODUCT, attributeValueId: COLOUR },
+          { productId: OTHER, attributeValueId: null },
+        ],
+        promptText: 'Светлее',
+        source: 'colour',
+      }),
+    );
+    expect(track).toHaveBeenCalledWith(
+      'Fitting Started',
+      expect.objectContaining({ kind: 'look', source: 'colour', with_prompt: true }),
+    );
+    expect(client.getQueryData(fittingKeys.detail(FITTING))).toMatchObject({ kind: 'look' });
+  });
+
+  it('tracks a refused limit with the kind look and reports any other failure', async () => {
+    const request = {
+      photoId: PHOTO,
+      items: [
+        { productId: PRODUCT, attributeValueId: null },
+        { productId: OTHER, attributeValueId: null },
+      ],
+      promptText: null,
+      source: 'picker' as const,
+    };
+    requests.startFitting.mockRejectedValueOnce(refusal('LIMIT_REACHED'));
+    const { result } = renderHook(() => useStartLookFitting(), { wrapper });
+    await act(() => result.current.mutateAsync(request).catch(() => undefined));
+    expect(track).toHaveBeenCalledExactlyOnceWith('Fitting Refused', {
+      kind: 'look',
+      reason: 'limit_reached',
+    });
+    expect(reportFailure).not.toHaveBeenCalled();
+
+    const failure = refusal('INTERNAL');
+    requests.startFitting.mockRejectedValueOnce(failure);
+    await act(() => result.current.mutateAsync(request).catch(() => undefined));
+    expect(reportFailure).toHaveBeenCalledExactlyOnceWith(failure);
+    expect(requests.startFitting).toHaveBeenCalledTimes(2);
   });
 });
 

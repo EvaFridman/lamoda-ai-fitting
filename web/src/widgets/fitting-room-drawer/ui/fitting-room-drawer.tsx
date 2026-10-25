@@ -9,6 +9,7 @@ import {
   closeRoom,
   EmptySlotRow,
   type FittingRoom,
+  openLookTryOn,
   OUTFIT_SLOTS,
   type OutfitSlot,
   SlotRowSkeleton,
@@ -95,10 +96,23 @@ function RoomSlots({ room, phone }: { room: FittingRoom; phone: boolean }) {
   );
 }
 
-// «Примерить образ»: a look's try-on comes with T26, so it is shown and does nothing yet.
-function TryOnLook({ loading = false }: { loading?: boolean }) {
+// «Примерить образ» (T26): the drawer closes and the look's try-on opens, for two items or more
+// (a look is 2 to 5, A70.4); busy while the room loads.
+function TryOnLook({ count }: { count: number | null }) {
+  const tracked = useTrackedElement('room.try-on', { items: count ?? 0 });
   return (
-    <Button size={48} className={styles.grow} loading={loading} disabled={!loading}>
+    <Button
+      size={48}
+      className={styles.grow}
+      loading={count === null}
+      disabled={count !== null && count < 2}
+      onClick={() => {
+        tracked.onClick();
+        openLookTryOn();
+      }}
+      onPointerEnter={tracked.onPointerEnter}
+      onPointerLeave={tracked.onPointerLeave}
+    >
       <SparkleIcon />
       Примерить образ
     </Button>
@@ -168,11 +182,13 @@ function RoomFooter({ room, phone }: FooterProps) {
         <b>{formatPrice(room.sum)}</b>
       </p>
       <div className={styles.buttons}>
-        <TryOnLook />
+        <TryOnLook count={room.count} />
         <CartStubButton size={48} variant="outline" className={styles.grow} events={cartAll}>
           Всё в корзину
         </CartStubButton>
       </div>
+      {/* Why «Примерить образ» is off with one item (A92.4). */}
+      {room.count < 2 && <p className={styles.muted}>Добавьте ещё вещь — образ от двух</p>}
       {!phone && (
         <div className={styles.meterRow}>
           {quota.data ? <LimitMeter left={quota.data.left} limit={quota.data.limit} /> : <span />}
@@ -298,7 +314,7 @@ export function FittingRoomDrawer() {
   if (room.isPending) {
     footer = (
       <div className={styles.buttons}>
-        <TryOnLook loading />
+        <TryOnLook count={null} />
       </div>
     );
   } else if (data && data.count > 0) {

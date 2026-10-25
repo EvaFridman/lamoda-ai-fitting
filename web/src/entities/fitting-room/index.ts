@@ -13,6 +13,7 @@ export {
 export {
   closeRoom,
   isRoomOwner,
+  openLookTryOn,
   openRoom,
   ROOM_WISHES_MAX,
   type RoomOpenSource,

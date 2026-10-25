@@ -11,7 +11,7 @@ const COLOURS: SwatchChoice[] = [
   { id: BLACK, value: 'Чёрный', colorHex: null },
 ];
 
-function setup(value: string | null = WHITE) {
+function setup(value: string | null = WHITE, disabled?: boolean) {
   const onValueChange = vi.fn();
   render(
     <MiniSwatches
@@ -19,6 +19,7 @@ function setup(value: string | null = WHITE) {
       colours={COLOURS}
       value={value}
       onValueChange={onValueChange}
+      disabled={disabled}
     />,
   );
   return onValueChange;
@@ -57,5 +58,20 @@ describe('MiniSwatches', () => {
     await userEvent.setup().click(screen.getByRole('button', { name: 'Чёрный' }));
 
     expect(onValueChange).toHaveBeenCalledExactlyOnceWith(BLACK);
+  });
+
+  it('turns every colour off when disabled and reports no click', async () => {
+    const onValueChange = setup(WHITE, true);
+
+    for (const button of screen.getAllByRole('button')) expect(button).toBeDisabled();
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Чёрный' }));
+
+    expect(onValueChange).not.toHaveBeenCalled();
+  });
+
+  it('is on by default', () => {
+    setup();
+
+    for (const button of screen.getAllByRole('button')) expect(button).toBeEnabled();
   });
 });

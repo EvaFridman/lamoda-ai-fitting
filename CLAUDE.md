@@ -47,8 +47,10 @@ the flow as a panel over the photo, the kit's `ScrollRow` for «С этим то
 A88) and the header on phones as Lamoda's (one row of the burger, the loupe, the logo and the
 icons, the search row, the burger's left `Drawer`, A87.4–8, A89) and the fitting room in the
 header (`FittingRoomButton` with its count, the drawer `widgets/fitting-room-drawer`, the live
-hanger, «К образу» / «В образе» and the result's tile, the toasts with «Вернуть», A90). Next:
-looks, history actions.
+hanger, «К образу» / «В образе» and the result's tile, the toasts with «Вернуть», A90) and the
+look's try-on (`LookTryOn`, the picker of board 3.2, the result of board 8 with a colour per item
+and «Какая именно?», `promptText` and the items' `slot` in `FittingDto`, A92). Next: history
+actions.
 
 Keep this file true: update it in the same commit that changes what a section describes.
 
@@ -382,7 +384,8 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   `LIMIT_REACHED`, A20) and inserts the `pending` row in the active session; after the commit it
   starts `generateFitting` (a failed start ends the row `failed` through `endFitting`, which the
   workflow's `complete` shares, and goes to Sentry with the id only) and answers 201
-  `StartedFittingDto`. `POST /fittings/:id/regenerate` (`{ reasons, comment? }`) copies the
+  `StartedFittingDto`. `FittingDto` carries the wishes as `promptText` (the user's own text, for a
+  colour change to send again, A92.1) and each item's `slot`. `POST /fittings/:id/regenerate` (`{ reasons, comment? }`) copies the
   parent's photo, items, wishes and fingerprint; a parent not completed is 409 `NOT_COMPLETED`,
   its photo gone 409 `PHOTO_GONE`; a try-on's own result has one free regeneration
   (`free_regeneration_used`, given back by a failed one; a regeneration is created with it set, so
@@ -741,7 +744,7 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   plan §9, A60), the product page's the zone `product` (areas `buy-box` and `related`, seven
   elements with the row's arrows `related.scroll`, A87.8, and `buy-box.to-look`, `related.to-look`,
   A90.9), the fitting room's the zone `fitting`, area `room` (`room.open`, `.remove`, `.undo`,
-  `.fill`, `.clear`, `.add-to-cart-all`, A90.9; a toast's action sends its click through
+  `.fill`, `.clear`, `.add-to-cart-all`, A90.9, `.try-on`, T26; a toast's action sends its click through
   `trackElementClick`, `@/shared/analytics`), the grid's hanger `catalog.to-look` in the zone
   `catalog` (A90.9), the phone header's the zone `header` (areas `header` and
   `burger`: `header.burger`, `header.search`, `burger.category`, A87.8); `profile-menu.*` take
@@ -815,8 +818,15 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   примерочную»): the five slots (`OutfitSlotRow` with the colour `Select` of `swatch` circles, the
   size stub, «В корзину», «Убрать»; on phones one field opening the `Sheet` «Цвет «…»» of
   `MiniSwatches`; `EmptySlotRow` with «Подобрать в каталоге» to the slot's first active
-  category, none for the accessory), the wishes, the sum, «Примерить образ» (disabled until
-  T26), «Всё в корзину», `LimitMeter` and «Очистить примерочную». The header's `HeaderRoom`
+  category, none for the accessory), the wishes, the sum, «Примерить образ» (from two items;
+  `openLookTryOn()` closes the drawer and opens the store's `lookOpen`, `room.try-on`), «Всё в
+  корзину», `LimitMeter` and «Очистить примерочную». `widgets/try-on`'s `LookTryOn`, mounted
+  beside the drawer and closed the same way, is `TryOn` with `look` (T26, A92): the picker with
+  the room's items, its sum and «Изменить» (back to the room), started with the store's wishes;
+  a look's result (`LookResult`, also from the history's `?fitting=`) lists the items in the
+  slots' order with `MiniSwatches`, and another colour is `POST /fittings` with the result's
+  photo, items and `promptText`, run over the result; «Что поменять?» asks «Какая именно?»,
+  whose item goes before the comment. The header's `HeaderRoom`
   (`FittingRoomButton` with `CountBadge`, between «Избранное» and «Корзина», per request inside
   `<Suspense>`) opens it, or a visitor's `LoginModal`; so do the limit card's «Перейти в
   примерочную», after the try-on window closes (A90.12), and the add toast's «Открыть».

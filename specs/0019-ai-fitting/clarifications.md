@@ -1186,6 +1186,21 @@ is any value of the product's colour attribute, the attribute with at least one 
 `productColours` of `entities/product`. A regeneration copies its parent's items unchecked, so a
 parent stored before the fix keeps its value; old rows are not migrated.
 
+**A92. The look's try-on and result (T26's brief, 2026-10-25).** The owner decided, after boards
+3.2 and 8 were re-read: (1) _the colour change of one item_ (AC15) is `POST /fittings` with the
+result's photo, its items with that one colour changed and its wishes, `source: colour` as a
+single item's (A75): a combination already tried opens as a repeat (A7), a new one spends a
+try-on; so `FittingDto` carries `promptText` (the wishes, `null` when none), the user's own text
+on the user's own fitting, rendered nowhere and kept in `mp-block` wherever a later screen shows
+it; (2) _«Какая именно?»_ of the regeneration sheet (board 8.3) adds no api field: web puts
+«<вещь>: » before the comment, within its 300 characters, and the chip is offered only with the
+reason «Вещь» on a look; (3) _T26's checks_ are `typecheck`, `lint`, its own tests and `qa-tester`
+on AC14 and AC15 now, the full `verify` at the phase's end (A58 over T26's text). In the demo
+catalog every product has one colour, so AC15 is checked by tests, as AC7 (A76). After T26's
+review: (4) _«Примерить образ» with one item_ in the room is disabled (a look is 2 to 5, A70.4)
+with the caption «Добавьте ещё вещь — образ от двух» under it; (5) _`room.try-on`_ carries
+`items`, as `room.add-to-cart-all` does (clicks 0.01, hovers 0.01 a visit).
+
 ## Canvas and decisions
 
 Where the canvas differs from the decisions above, the decision wins:

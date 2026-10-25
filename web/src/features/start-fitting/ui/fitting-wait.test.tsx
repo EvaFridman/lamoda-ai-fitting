@@ -32,8 +32,10 @@ function fitting(patch: Partial<Fitting> = {}): Fitting {
         finalPrice: 4500,
         attributeValueId: null,
         colour: 'Красный',
+        slot: 'top',
       },
     ],
+    promptText: null,
     photoId: '00000000-0000-4000-8000-0000000000f1',
     resultUrl: null,
     createdAt: START,
@@ -156,6 +158,45 @@ describe('FittingWait', () => {
       'Element Clicked',
       expect.objectContaining({ element: 'try-on.close', screen: 'wait' }),
     );
+  });
+
+  describe('of a look', () => {
+    const lookItem = (n: number, name: string) => ({
+      productId: `00000000-0000-4000-8000-00000000010${n}`,
+      name,
+      brand: 'Brand',
+      imageUrl: `https://cdn.example/p${n}.jpg`,
+      price: 5000,
+      finalPrice: 4500,
+      attributeValueId: null,
+      colour: 'Красный',
+      slot: n === 1 ? ('top' as const) : ('bottom' as const),
+    });
+    const look = () =>
+      fitting({ kind: 'look', items: [lookItem(1, 'Тренч Nord'), lookItem(2, 'Брюки Lux')] });
+
+    it('names the look, not an item, in the stage and shows no single item block', () => {
+      render(<FittingWait fitting={look()} photoUrl={null} onClose={vi.fn()} />);
+
+      expect(screen.getByText('Надеваем образ')).toBeInTheDocument();
+      expect(screen.queryByText('Тренч Nord')).not.toBeInTheDocument();
+      expect(screen.queryByText('Красный')).not.toBeInTheDocument();
+    });
+
+    it('shows the strip of the items under the bar', () => {
+      render(<FittingWait fitting={look()} photoUrl={null} onClose={vi.fn()} />);
+
+      const lists = screen.getAllByRole('list');
+      const strip = lists.find((list) => list.querySelectorAll('img').length === 2);
+      expect(strip).toBeDefined();
+      expect(strip?.querySelectorAll('li')).toHaveLength(2);
+    });
+
+    it('does not show the strip for a single fitting', () => {
+      render(<FittingWait fitting={fitting()} photoUrl={null} onClose={vi.fn()} />);
+
+      expect(screen.getAllByRole('list')).toHaveLength(1);
+    });
   });
 
   describe('on a phone', () => {

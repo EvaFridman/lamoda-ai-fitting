@@ -1,0 +1,202 @@
+// Board 8: on a wide screen the picture 540×720 with the caption and three tiles left of «Вещи
+// образа», the sum and the actions; on a phone (8.1) one column, the items on a screen of their
+// own (8.2).
+
+.result {
+  display: grid;
+  grid-template-areas:
+    'saved saved'
+    'left right';
+  grid-template-columns: 540px minmax(0, 1fr);
+  gap: var(--space-4) var(--space-10);
+
+  @media (width < 1024px) {
+    grid-template-columns: 360px minmax(0, 1fr);
+    column-gap: var(--space-6);
+  }
+
+  @media (width < 600px) {
+    grid-template-areas:
+      'saved'
+      'left'
+      'right';
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.saved {
+  grid-area: saved;
+
+  margin: 0;
+
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  color: var(--color-text-secondary);
+}
+
+.link {
+  color: inherit;
+}
+
+.left {
+  display: flex;
+  grid-area: left;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.right {
+  display: flex;
+  grid-area: right;
+  flex-direction: column;
+  gap: var(--space-3);
+
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-size-body-m);
+  font-weight: 400;
+  line-height: var(--line-height-body-m);
+}
+
+.note,
+.muted {
+  margin: 0;
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+}
+
+.note {
+  color: #5e5e5e;
+}
+
+.muted {
+  color: var(--color-text-secondary);
+}
+
+// Board 8.2: «Перегенерируем образ: …» with its bar on the secondary fill.
+.running {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  padding: var(--space-3) var(--space-4);
+
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+
+  background-color: var(--color-background-secondary);
+}
+
+.items {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+// A LookItemRow: 60×80 picture, the text, «В корзину» and the heart, a hairline under it.
+.row {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+
+  padding: var(--space-3) 0;
+  border-bottom: var(--border-width) solid var(--color-border);
+
+  @media (width < 600px) {
+    padding: 10px 0;
+  }
+}
+
+.rowImage {
+  position: relative;
+
+  overflow: hidden;
+  flex: none;
+
+  width: 60px;
+  height: 80px;
+
+  background-color: var(--color-background-secondary);
+
+  img {
+    object-fit: cover;
+  }
+
+  @media (width < 600px) {
+    width: 52px;
+    height: 70px;
+  }
+}
+
+.rowText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+
+  min-width: 0;
+
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+}
+
+.rowName {
+  color: inherit;
+  text-decoration: none;
+}
+
+.rowCart {
+  align-self: center;
+}
+
+.sum {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+
+  margin: 0;
+  padding: var(--space-4) 0;
+
+  b {
+    font-size: var(--font-size-headline-s);
+    line-height: var(--line-height-headline-s);
+  }
+}
+
+// «Всё в корзину · N вещи» and «Всё в избранное» wrap to two rows in a narrow column.
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.replace {
+  align-self: center;
+}
+
+// Board 8.1: the strip on the left, the count and the sum on the right.
+.summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.summaryText {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.footer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}

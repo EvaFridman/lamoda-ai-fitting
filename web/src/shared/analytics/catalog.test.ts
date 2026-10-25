@@ -477,6 +477,7 @@ describe('analytics catalog', () => {
       'room.undo': ['fitting', 'interaction'],
       'room.clear': ['fitting', 'interaction'],
       'room.add-to-cart-all': ['fitting', 'interaction'],
+      'room.try-on': ['fitting', 'interaction'],
       'header.burger': ['header', 'interaction'],
       'header.search': ['header', 'interaction'],
       'burger.category': ['header', 'navigation'],

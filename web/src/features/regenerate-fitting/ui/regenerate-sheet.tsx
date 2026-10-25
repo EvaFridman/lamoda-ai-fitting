@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useId, useState } from 'react';
 
 import {
@@ -39,8 +40,16 @@ function ReasonChip({ reason, checked }: { reason: RegenerateReason; checked: bo
   );
 }
 
+// The comment with the item of «Какая именно?» before it (A92.2): «Тренч Nord: короче, чем…»,
+// within the comment's limit; none chosen leaves the comment as it is.
+export function commentWithItem(comment: string, itemName: string | null): string {
+  const text = comment.trim();
+  if (itemName === null) return text;
+  return (text ? `${itemName}: ${text}` : itemName).slice(0, MAX_COMMENT_LENGTH);
+}
+
 export interface RegenerateSheetProps {
-  // The result to regenerate.
+  // The result to regenerate; a look's items are offered in «Какая именно?» (board 8.3).
   fitting: Fitting;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -63,7 +72,17 @@ export function RegenerateSheet({
   const phone = useMediaQuery(PHONE_QUERY);
   const [reasons, setReasons] = useState<RegenerateReason[]>([]);
   const [comment, setComment] = useState('');
+  const [itemId, setItemId] = useState<string | null>(null);
   const regenerate = useRegenerateFitting();
+  // «Какая именно?» (board 8.3): a look's items, once «Вещь» is checked.
+  const lookItems = fitting.kind === 'look' ? fitting.items : [];
+  const asksItem = lookItems.length > 1 && reasons.includes('item');
+  const itemName = asksItem
+    ? (lookItems.find((item) => item.productId === itemId)?.name ?? null)
+    : null;
+  // The item's name goes before the comment, so the field takes that much less.
+  const commentMax =
+    itemName === null ? MAX_COMMENT_LENGTH : MAX_COMMENT_LENGTH - itemName.length - 2;
   const tracked = useTrackedElement('result.regenerate', {
     reasons: reasons.length,
     with_comment: comment.trim() !== '',
@@ -71,6 +90,7 @@ export function RegenerateSheet({
   });
   const commentId = useId();
   const counterId = useId();
+  const itemsId = useId();
 
   const refusal = regenerate.isError ? fittingRefusal(regenerate.error) : null;
   const commentError = refusal === 'prompt_refused' ? errorText(regenerate.error) : null;
@@ -86,19 +106,22 @@ export function RegenerateSheet({
   function submit() {
     tracked.onClick();
     if (reasons.length === 0 || regenerate.isPending) return;
-    const text = comment.trim();
+    const text = commentWithItem(comment, itemName);
     regenerate.mutate(
       {
         parentId: fitting.id,
         kind: fitting.kind,
         reasons,
         comment: text || undefined,
+        // The comment the user typed, not the item's name alone (`with_prompt`).
+        withComment: comment.trim() !== '',
         source: 'regenerate',
       },
       {
         onSuccess: (started) => {
           setReasons([]);
           setComment('');
+          setItemId(null);
           onStarted(started);
         },
         onError: (error) => {
@@ -122,6 +145,44 @@ export function RegenerateSheet({
           <ReasonChip key={reason} reason={reason} checked={reasons.includes(reason)} />
         ))}
       </ChipGroup>
+      {asksItem && (
+        <div className={styles.field}>
+          <span className={styles.label} id={itemsId}>
+            Какая именно?
+          </span>
+          <ChipGroup
+            value={itemId === null ? [] : [itemId]}
+            multiple={false}
+            onValueChange={(next) => {
+              const id = next[0] ?? null;
+              setItemId(id);
+              // The comment gives way to the item's name at once, so what is sent is what shows.
+              const name = lookItems.find((item) => item.productId === id)?.name;
+              if (name !== undefined) {
+                setComment((text) => text.slice(0, MAX_COMMENT_LENGTH - name.length - 2));
+              }
+            }}
+            aria-labelledby={itemsId}
+            disabled={regenerate.isPending}
+          >
+            {lookItems.map((item) => (
+              <Chip key={item.productId} value={item.productId}>
+                {item.imageUrl && (
+                  <Image
+                    className={styles.itemImage}
+                    src={item.imageUrl}
+                    alt=""
+                    width={24}
+                    height={32}
+                    unoptimized
+                  />
+                )}
+                {item.name}
+              </Chip>
+            ))}
+          </ChipGroup>
+        </div>
+      )}
       <div className={styles.field}>
         <label className={styles.label} htmlFor={commentId}>
           Комментарий, по желанию
@@ -132,7 +193,7 @@ export function RegenerateSheet({
           id={commentId}
           className={[styles.area, commentError && styles.invalid].filter(Boolean).join(' ')}
           value={comment}
-          maxLength={MAX_COMMENT_LENGTH}
+          maxLength={commentMax}
           aria-describedby={counterId}
           aria-invalid={commentError ? true : undefined}
           disabled={regenerate.isPending}
@@ -144,7 +205,7 @@ export function RegenerateSheet({
           </p>
         ) : null}
         <p id={counterId} className={styles.counter}>
-          {comment.length} / {MAX_COMMENT_LENGTH}
+          {comment.length} / {commentMax}
         </p>
       </div>
       {failure && (

@@ -9918,6 +9918,15 @@
             "type": "string",
             "nullable": true,
             "description": "The colour's name."
+          },
+          "slot": {
+            "nullable": true,
+            "description": "The item's slot in the look when it was tried on; null on the closed route's rows.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OutfitSlot"
+              }
+            ]
           }
         },
         "required": [
@@ -9928,7 +9937,8 @@
           "price",
           "finalPrice",
           "attributeValueId",
-          "colour"
+          "colour",
+          "slot"
         ]
       },
       "StartedFittingDto": {
@@ -9999,6 +10009,11 @@
             "nullable": true,
             "description": "The photo tried on; null once it is deleted (the result stays)."
           },
+          "promptText": {
+            "type": "string",
+            "nullable": true,
+            "description": "The wishes it was tried on with (a regeneration has its parent's); null when none. A colour change sends them again (A92.1)."
+          },
           "resultUrl": {
             "type": "string",
             "format": "uri",
@@ -10043,6 +10058,7 @@
           "model",
           "items",
           "photoId",
+          "promptText",
           "resultUrl",
           "createdAt",
           "startedAt",
@@ -10119,6 +10135,11 @@
             "nullable": true,
             "description": "The photo tried on; null once it is deleted (the result stays)."
           },
+          "promptText": {
+            "type": "string",
+            "nullable": true,
+            "description": "The wishes it was tried on with (a regeneration has its parent's); null when none. A colour change sends them again (A92.1)."
+          },
           "resultUrl": {
             "type": "string",
             "format": "uri",
@@ -10159,6 +10180,7 @@
           "model",
           "items",
           "photoId",
+          "promptText",
           "resultUrl",
           "createdAt",
           "startedAt",

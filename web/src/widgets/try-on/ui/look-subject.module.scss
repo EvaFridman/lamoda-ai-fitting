@@ -1,0 +1,18 @@
+// Board 3.2: the strip, the look's count and sum, «Изменить» on the right.
+
+.subject {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+
+  min-width: 0;
+
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+}

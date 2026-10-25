@@ -17,6 +17,8 @@ export interface MiniSwatchesProps {
   colours: readonly SwatchChoice[];
   value: string | null;
   onValueChange: (id: string) => void;
+  // Off while a choice is being applied (a look's colour regenerating, board 8.2).
+  disabled?: boolean;
   className?: string;
 }
 
@@ -28,6 +30,7 @@ export function MiniSwatches({
   colours,
   value,
   onValueChange,
+  disabled = false,
   className,
 }: MiniSwatchesProps) {
   const chosen = colours.find((colour) => colour.id === value);
@@ -41,6 +44,7 @@ export function MiniSwatches({
             className={styles.choice}
             aria-label={colour.value}
             aria-pressed={colour.id === value}
+            disabled={disabled}
             onClick={() => onValueChange(colour.id)}
           >
             <SwatchDot

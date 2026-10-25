@@ -37,6 +37,7 @@ interface ItemBody {
   finalPrice: number;
   attributeValueId: string | null;
   colour: string | null;
+  slot: 'top' | 'bottom' | 'outerwear' | 'shoes' | 'accessory' | null;
 }
 interface FittingBody {
   id: string;
@@ -49,6 +50,7 @@ interface FittingBody {
   regenerationFree: boolean;
   model: string;
   items: ItemBody[];
+  promptText: string | null;
   photoId: string | null;
   resultUrl: string | null;
   createdAt: string;
@@ -340,8 +342,10 @@ describe('the fittings routes (spec 0019 T12: AC5-AC9, A6, A7, A20, A32, A45, A4
           finalPrice: 800,
           attributeValueId: null,
           colour: null,
+          slot: 'top',
         },
       ]);
+      expect(body.promptText).toBe('long sleeves');
       const stored = await row(body.id);
       expect(stored).toMatchObject({
         userId: who.userId,
@@ -1438,6 +1442,131 @@ describe('the fittings routes (spec 0019 T12: AC5-AC9, A6, A7, A20, A32, A45, A4
 
       const body = bodyOf(await get(who, parent.id));
       expect(body).toMatchObject({ status: 'completed', photoId: null, regenerationFree: false });
+    });
+  });
+
+  describe('the wishes and the slots in the answer (spec 0019 T26, A92.1)', () => {
+    const slotsOf = (body: FittingBody) =>
+      Object.fromEntries(body.items.map((item) => [item.productId, item.slot]));
+
+    it('answers a look’s wishes and its items’ slots on the start, the read and the list', async () => {
+      const who = await actor();
+      const shirt = await product('top');
+      const jeans = await product('bottom');
+
+      const startedBody = await started(
+        who,
+        look(who, [shirt, jeans], { promptText: 'tuck the shirt in' }),
+      );
+
+      const expectedSlots = { [shirt.id]: 'top', [jeans.id]: 'bottom' };
+      expect(startedBody.promptText).toBe('tuck the shirt in');
+      expect(slotsOf(startedBody)).toEqual(expectedSlots);
+      const one = bodyOf(await get(who, startedBody.id).expect(200));
+      expect(one.promptText).toBe('tuck the shirt in');
+      expect(slotsOf(one)).toEqual(expectedSlots);
+      const listed = (await list(who).expect(200)).body as ListBody;
+      expect(listed.items).toHaveLength(1);
+      expect(listed.items[0]?.promptText).toBe('tuck the shirt in');
+      expect(slotsOf(listed.items[0]!)).toEqual(expectedSlots);
+    });
+
+    it('answers null for a fitting started with no wishes, on the start, the read and the list', async () => {
+      const who = await actor();
+
+      const startedBody = await started(who, single(who, await product('bottom')));
+
+      expect(startedBody.promptText).toBeNull();
+      expect(startedBody.items[0]?.slot).toBe('bottom');
+      expect(bodyOf(await get(who, startedBody.id)).promptText).toBeNull();
+      const listed = (await list(who).expect(200)).body as ListBody;
+      expect(listed.items[0]?.promptText).toBeNull();
+    });
+
+    it('answers null for wishes that were only spaces, and the trimmed text for padded ones', async () => {
+      const who = await actor();
+      const blank = await started(who, single(who, await product(), { promptText: '   ' }));
+      const padded = await started(who, single(who, await product(), { promptText: '  bright  ' }));
+
+      expect(blank.promptText).toBeNull();
+      expect(bodyOf(await get(who, blank.id)).promptText).toBeNull();
+      expect(padded.promptText).toBe('bright');
+      expect(bodyOf(await get(who, padded.id)).promptText).toBe('bright');
+    });
+
+    it('gives a regeneration its parent’s wishes and slots, not its comment', async () => {
+      const who = await actor();
+      const shirt = await product('top');
+      const jeans = await product('bottom');
+      const parent = await started(who, look(who, [shirt, jeans], { promptText: 'long sleeves' }));
+      await finish(parent.id);
+
+      const child = bodyOf(
+        await regenerate(who, parent.id, { reasons: REASONS, comment: 'brighter' }).expect(201),
+      );
+
+      expect(child.promptText).toBe('long sleeves');
+      expect(slotsOf(child)).toEqual({ [shirt.id]: 'top', [jeans.id]: 'bottom' });
+      expect(bodyOf(await get(who, child.id)).promptText).toBe('long sleeves');
+    });
+
+    it('gives a regeneration of a result with no wishes null', async () => {
+      const who = await actor();
+      const parent = await started(who, single(who, await product()));
+      await finish(parent.id);
+
+      const child = bodyOf(await regenerate(who, parent.id, { reasons: REASONS }).expect(201));
+
+      expect(child.promptText).toBeNull();
+    });
+
+    it('answers a repeat with the wishes and the slots of the result it opens', async () => {
+      const who = await actor();
+      const shirt = await product('top');
+      const jeans = await product('bottom');
+      const first = await started(who, look(who, [shirt, jeans], { promptText: 'bright' }));
+      await finish(first.id);
+
+      const again = await start(who, look(who, [jeans, shirt], { promptText: 'bright' }));
+
+      expect(again.status).toBe(200);
+      expect(bodyOf(again)).toMatchObject({ id: first.id, repeated: true, promptText: 'bright' });
+      expect(slotsOf(bodyOf(again))).toEqual({ [shirt.id]: 'top', [jeans.id]: 'bottom' });
+    });
+
+    it('answers a colour change with the wishes of the result it came from sent again', async () => {
+      const who = await actor();
+      const shirt = await product('top', 2);
+      const jeans = await product('bottom');
+      const base = await started(
+        who,
+        look(who, [shirt, jeans], {
+          items: [
+            { productId: shirt.id, attributeValueId: shirt.colours[0] },
+            { productId: jeans.id },
+          ],
+          promptText: 'bright',
+        }),
+      );
+      await finish(base.id);
+
+      const other = await started(
+        who,
+        look(who, [shirt, jeans], {
+          items: [
+            { productId: shirt.id, attributeValueId: shirt.colours[1] },
+            { productId: jeans.id },
+          ],
+          promptText: bodyOf(await get(who, base.id)).promptText,
+        }),
+      );
+
+      expect(other.id).not.toBe(base.id);
+      expect(other.promptText).toBe('bright');
+      expect(other.items.find((item) => item.productId === shirt.id)?.attributeValueId).toBe(
+        shirt.colours[1],
+      );
+      expect(await usedOf(who.userId)).toBe(2);
     });
   });
 

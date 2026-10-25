@@ -1,19 +1,13 @@
 'use client';
 
 import Image from 'next/image';
-import { useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 
-import { LimitMeter, type FittingQuota, type StartedFitting } from '@/entities/fitting';
-import type { ProductDetail } from '@/entities/product';
+import { LimitMeter, type FittingQuota } from '@/entities/fitting';
 import { PhotoThumb, type UserPhoto } from '@/entities/user-photo';
-import { showStubToast } from '@/features/product-stubs';
-import { StartFittingButton } from '@/features/start-fitting';
-import type { TryColour } from '@/features/try-colour';
 import { UploadPhoto } from '@/features/upload-photo';
 import { useTrackedElement } from '@/shared/analytics';
-import { Button, Link, LockIcon, Notice, Skeleton, Spinner, Switch } from '@/shared/ui';
-
-import { ItemRow } from './item-row';
+import { Link, LockIcon, Notice, Skeleton, Spinner, Switch } from '@/shared/ui';
 
 import styles from './photo-picker.module.scss';
 
@@ -80,9 +74,12 @@ function PendingPhoto({ file }: { file: File }) {
 }
 
 export interface PhotoPickerProps {
-  product: ProductDetail | undefined;
-  // The colour tried on: the product's first one (A76), none for a product without colours.
-  colour: TryColour | undefined;
+  // What is tried on, above the photos: the item (board 3.1) or the look's strip (3.2).
+  subject: ReactNode;
+  // The start button for the chosen photo (null while none is ready), which says its failure.
+  renderStart: (photoId: string | null, onError: (text: string | null) => void) => ReactNode;
+  // The meter's text; left out, «Осталось N примерок в этом месяце».
+  meterText?: (left: number) => string;
   photos: UserPhoto[] | undefined;
   photosFailed: boolean;
   // A one-time photo uploaded here, not among the saved ones.
@@ -92,8 +89,6 @@ export interface PhotoPickerProps {
   chosenId: string | null;
   onChoose: (id: string) => void;
   quota: FittingQuota | undefined;
-  onStarted: (fitting: StartedFitting) => void;
-  onLimit: () => void;
 }
 
 // Board 3, the photo picker (spec 0019 AC3, AC5, AC6, A62): the chosen photo with «Видите только
@@ -102,8 +97,9 @@ export interface PhotoPickerProps {
 // «Примерить». A new photo shows dimmed while it uploads (3.3) and is chosen once stored; a refusal
 // opens board 5 with the note that the try-on was not spent.
 export function PhotoPicker({
-  product,
-  colour,
+  subject,
+  renderStart,
+  meterText,
   photos,
   photosFailed,
   transient,
@@ -111,8 +107,6 @@ export function PhotoPicker({
   chosenId,
   onChoose,
   quota,
-  onStarted,
-  onLimit,
 }: PhotoPickerProps) {
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [startError, setStartError] = useState<string | null>(null);
@@ -167,24 +161,7 @@ export function PhotoPicker({
         )}
       </div>
 
-      <div className={styles.item}>
-        {product ? (
-          <ItemRow
-            name={product.name}
-            imageUrl={product.image?.url ?? null}
-            details={colour?.value}
-            price={product.price}
-            finalPrice={product.finalPrice}
-            action={
-              <Button variant="outline" size={32} textSize="body-s" onClick={showStubToast}>
-                В корзину
-              </Button>
-            }
-          />
-        ) : (
-          <Skeleton height={80} />
-        )}
-      </div>
+      <div className={styles.item}>{subject}</div>
 
       <div className={styles.photos}>
         <div className={styles.photosHead}>
@@ -239,17 +216,12 @@ export function PhotoPicker({
             {startError}
           </Notice>
         )}
-        {quota && <LimitMeter left={quota.left} limit={quota.limit} className={styles.meter} />}
-        {product && (
-          <StartFittingButton
-            photoId={chosen && !pendingFile ? chosen.id : null}
-            productId={product.id}
-            attributeValueId={colour?.id}
-            onStarted={onStarted}
-            onLimit={onLimit}
-            onError={setStartError}
-          />
+        {quota && (
+          <LimitMeter left={quota.left} limit={quota.limit} className={styles.meter}>
+            {meterText?.(quota.left)}
+          </LimitMeter>
         )}
+        {renderStart(chosen && !pendingFile ? chosen.id : null, setStartError)}
         <p className={styles.caption}>
           Фото не используются для обучения моделей ·{' '}
           <Link href="/privacy" variant="secondary" target="_blank">

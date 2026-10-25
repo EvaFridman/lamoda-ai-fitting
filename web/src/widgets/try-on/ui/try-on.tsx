@@ -15,20 +15,32 @@ import {
   trackFittingOutcome,
   useFittingQuota,
   useRegenerateFitting,
+  useStartLookFitting,
   useStartSingleFitting,
   watchFitting,
 } from '@/entities/fitting';
 import { categorySlots, type OutfitSlot, useActiveCategories } from '@/entities/category';
-import { openRoom } from '@/entities/fitting-room';
+import { openRoom, useFittingRoom, useRoomWishes } from '@/entities/fitting-room';
 import { productOptions } from '@/entities/product';
+import { useSession } from '@/entities/session';
 import { deleteTransientPhoto, useMyPhotos, type UserPhoto } from '@/entities/user-photo';
-import { FittingErrorCard, FittingWait, LimitCard } from '@/features/start-fitting';
+import { showStubToast } from '@/features/product-stubs';
+import {
+  FittingErrorCard,
+  FittingWait,
+  LimitCard,
+  StartFittingButton,
+  StartLookButton,
+} from '@/features/start-fitting';
 import { ApiError, errorText, reportFailure } from '@/shared/api';
 import { FITTINGS_HREF } from '@/shared/config';
 import { Button, Modal, Notice, Skeleton } from '@/shared/ui';
 
 import { productColours, triedColours } from '../lib/colours';
 import { FittingResult } from './fitting-result';
+import { ItemRow } from './item-row';
+import { LookResult } from './look-result';
+import { type LookItems, LookSubject, roomLook } from './look-subject';
 import { PhotoPicker } from './photo-picker';
 
 import styles from './try-on.module.scss';
@@ -45,22 +57,27 @@ function dropTransient(id: string) {
 export interface TryOnProps {
   // The item to try on; or, with `fittingId`, the item of that fitting.
   productId?: string;
-  // A fitting to open at once: its wait, result or error.
+  // The look of the fitting room (T26): the picker of board 3.2 with the room's items and wishes.
+  look?: boolean;
+  // A fitting to open at once: its wait, result or error (a look's too).
   fittingId?: string;
   onClose: () => void;
 }
 
-// The try-on window of one item (spec 0019 T15, plan §7, boards 3, 5, 6, 7, 11, 12): the photo
-// picker, the wait, the result with the other colours and the regeneration, the limit and error
-// cards, in one place that owns the flow's state. Rendered while open: closing unmounts it, which
-// deletes a one-time photo uploaded here (a fitting that runs keeps it, A70). A fitting it shows
-// gives no toast (A11); its end is sent to the analytics by this tab (A75).
+// The try-on window of one item or a look (spec 0019 T15, T26, plan §7, boards 3, 5, 6, 7, 8, 11,
+// 12): the photo picker, the wait, the result with the other colours and the regeneration, the
+// limit and error cards, in one place that owns the flow's state. Rendered while open: closing
+// unmounts it, which deletes a one-time photo uploaded here (a fitting that runs keeps it, A70). A
+// fitting it shows gives no toast (A11); its end is sent to the analytics by this tab (A75).
 export function TryOn({
   productId: givenProductId,
+  look = false,
   fittingId: givenFittingId,
   onClose,
 }: TryOnProps) {
   const queryClient = useQueryClient();
+  const session = useSession();
+  const userId = session.status === 'signed-in' ? session.user.id : '';
   const [fittingId, setFittingId] = useState<string | null>(givenFittingId ?? null);
   // The result a colour runs over (board 7.2).
   const [baseId, setBaseId] = useState<string | null>(null);
@@ -78,7 +95,11 @@ export function TryOn({
   });
   const fitting = fittingId === null ? undefined : fittingQuery.data;
   const baseQuery = useQuery({ ...fittingQueryOptions(baseId ?? ''), enabled: baseId !== null });
-  const productId = givenProductId ?? fitting?.items[0]?.productId;
+  const isLook = look || fitting?.kind === 'look';
+  const productId = isLook ? undefined : (givenProductId ?? fitting?.items[0]?.productId);
+  // The look's picker tries on the room's items with its wishes (A90.5).
+  const room = useFittingRoom(isLook && userId !== '');
+  const wishes = useRoomWishes(userId);
   const productQuery = useQuery({
     ...productOptions(productId ?? ''),
     enabled: productId !== undefined,
@@ -97,9 +118,10 @@ export function TryOn({
   const showsResult = !picking && fitting?.status === 'completed';
   const history = useInfiniteQuery({
     ...fittingsInfiniteQueryOptions('single'),
-    enabled: showsResult || baseId !== null,
+    enabled: !isLook && (showsResult || baseId !== null),
   });
   const start = useStartSingleFitting();
+  const startLook = useStartLookFitting();
   const regenerate = useRegenerateFitting();
 
   // The default photo is chosen until another is (A63.4).
@@ -177,6 +199,21 @@ export function TryOn({
       );
       return;
     }
+    if (failed.kind === 'look') {
+      startLook.mutate(
+        {
+          photoId: failed.photoId,
+          items: failed.items.map(({ productId: id, attributeValueId }) => ({
+            productId: id,
+            attributeValueId,
+          })),
+          promptText: failed.promptText,
+          source: 'retry',
+        },
+        { onSuccess: (next) => started(next), onError },
+      );
+      return;
+    }
     start.mutate(
       {
         photoId: failed.photoId,
@@ -200,22 +237,82 @@ export function TryOn({
   const pickerColour = colours.find((colour) => colour.id === shownColour) ?? colours[0];
   const loadedFittings = history.data?.pages.flatMap((page) => page.items) ?? [];
 
+  // The window closes first: two dialogs do not stack (A90.12).
+  function toRoom() {
+    onClose();
+    openRoom();
+  }
+
+  const pickerProps = {
+    photos: photos.data,
+    photosFailed: photos.isError,
+    transient,
+    onTransient: (photo: UserPhoto) => setTransients((list) => [...list, photo]),
+    chosenId: chosen,
+    onChoose: setChosenId,
+    quota: quota.data,
+  };
+
   let content;
   let description: string | undefined;
   if (limited || (picking && quota.data?.left === 0)) {
     content = quota.data ? (
-      <LimitCard
-        quota={quota.data}
-        historyHref={FITTINGS_HREF}
-        // The window closes first: two dialogs do not stack (A90.12).
-        onOpenRoom={() => {
-          onClose();
-          openRoom();
-        }}
-      />
+      <LimitCard quota={quota.data} historyHref={FITTINGS_HREF} onOpenRoom={toRoom} />
     ) : (
       <Skeleton height={320} />
     );
+  } else if (picking && isLook) {
+    description = 'Изображение приблизительное: модель ещё учится';
+    // A look shown here (another photo for it, its failure, the history's) is tried on as it was,
+    // with its colours and wishes, as one item keeps its colour (A77.3); else the room's.
+    const shownLook = fitting?.kind === 'look' ? fitting : null;
+    const pickerLook: LookItems | undefined = shownLook
+      ? {
+          items: shownLook.items.map(({ productId: id, imageUrl, attributeValueId }) => ({
+            productId: id,
+            imageUrl,
+            attributeValueId,
+          })),
+          sum: shownLook.items.reduce((total, item) => total + item.finalPrice, 0),
+        }
+      : room.data && roomLook(room.data);
+    const pickerWishes = shownLook ? (shownLook.promptText ?? '') : wishes;
+    content =
+      !shownLook && room.isError ? (
+        <div className={styles.failed}>
+          <Notice tone="error" role="alert">
+            {errorText(room.error)}
+          </Notice>
+          <Button variant="outline" onClick={() => void room.refetch()}>
+            Повторить
+          </Button>
+        </div>
+      ) : (
+        <PhotoPicker
+          {...pickerProps}
+          subject={
+            pickerLook ? (
+              <LookSubject look={pickerLook} onChange={toRoom} />
+            ) : (
+              <Skeleton height={48} />
+            )
+          }
+          meterText={(left) => `Образ целиком — 1 примерка · осталось ${left}`}
+          renderStart={(photoId, onError) => (
+            <StartLookButton
+              photoId={photoId}
+              items={(pickerLook?.items ?? []).map(({ productId: id, attributeValueId }) => ({
+                productId: id,
+                attributeValueId,
+              }))}
+              promptText={pickerWishes}
+              onStarted={(next) => started(next)}
+              onLimit={reachedLimit}
+              onError={onError}
+            />
+          )}
+        />
+      );
   } else if (picking) {
     description = 'Изображение приблизительное: модель ещё учится';
     content = productQuery.isError ? (
@@ -229,17 +326,37 @@ export function TryOn({
       </div>
     ) : (
       <PhotoPicker
-        product={product}
-        colour={pickerColour}
-        photos={photos.data}
-        photosFailed={photos.isError}
-        transient={transient}
-        onTransient={(photo) => setTransients((list) => [...list, photo])}
-        chosenId={chosen}
-        onChoose={setChosenId}
-        quota={quota.data}
-        onStarted={(next) => started(next)}
-        onLimit={reachedLimit}
+        {...pickerProps}
+        subject={
+          product ? (
+            <ItemRow
+              name={product.name}
+              imageUrl={product.image?.url ?? null}
+              details={pickerColour?.value}
+              price={product.price}
+              finalPrice={product.finalPrice}
+              action={
+                <Button variant="outline" size={32} textSize="body-s" onClick={showStubToast}>
+                  В корзину
+                </Button>
+              }
+            />
+          ) : (
+            <Skeleton height={80} />
+          )
+        }
+        renderStart={(photoId, onError) =>
+          product && (
+            <StartFittingButton
+              photoId={photoId}
+              productId={product.id}
+              attributeValueId={pickerColour?.id}
+              onStarted={(next) => started(next)}
+              onLimit={reachedLimit}
+              onError={onError}
+            />
+          )
+        }
       />
     );
   } else if (!fitting) {
@@ -248,12 +365,36 @@ export function TryOn({
         <Notice tone="error" role="alert">
           {errorText(fittingQuery.error)}
         </Notice>
-        <Button variant="outline" onClick={() => setPicking(true)} disabled={!productId}>
+        <Button variant="outline" onClick={() => setPicking(true)} disabled={!productId && !look}>
           Выбрать фото
         </Button>
       </div>
     ) : (
       <Skeleton height={480} />
+    );
+  } else if (isLook && fitting.status === 'completed') {
+    content = (
+      <LookResult
+        fitting={fitting}
+        running={null}
+        quota={quota.data}
+        onStarted={startedColour}
+        onRegenerated={(next) => started(next)}
+        onLimit={reachedLimit}
+        onOpenRoom={toRoom}
+      />
+    );
+  } else if (isLook && isFittingRunning(fitting) && baseQuery.data) {
+    content = (
+      <LookResult
+        fitting={baseQuery.data}
+        running={fitting}
+        quota={quota.data}
+        onStarted={startedColour}
+        onRegenerated={(next) => started(next)}
+        onLimit={reachedLimit}
+        onOpenRoom={toRoom}
+      />
     );
   } else if (isFittingRunning(fitting) && baseQuery.data) {
     content = (
@@ -299,7 +440,7 @@ export function TryOn({
         left={quota.data?.left}
         photoUrl={photoUrl(fitting.photoId)}
         onRetry={() => retry(fitting)}
-        retrying={start.isPending || regenerate.isPending}
+        retrying={start.isPending || startLook.isPending || regenerate.isPending}
         onClose={onClose}
         onOtherPhoto={() => setPicking(true)}
         error={retryError}
@@ -308,13 +449,18 @@ export function TryOn({
   }
 
   return (
-    <TryOnModal description={description} onClose={onClose}>
+    <TryOnModal
+      title={isLook ? 'Примерка образа' : 'Онлайн-примерка'}
+      description={description}
+      onClose={onClose}
+    >
       {content}
     </TryOnModal>
   );
 }
 
 interface TryOnModalProps {
+  title: string;
   description?: string;
   onClose: () => void;
   children: ReactNode;
@@ -325,7 +471,7 @@ interface TryOnModalProps {
 // page's body, out of the window: then it moves to the window, so the keyboard and a screen reader
 // stay inside. Checked a moment after the focus leaves or the page's nodes change (a browser may
 // drop the focus of a removed node without a `focusout`), once the browser has settled it.
-function TryOnModal({ description, onClose, children }: TryOnModalProps) {
+function TryOnModal({ title, description, onClose, children }: TryOnModalProps) {
   const bodyRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -333,7 +479,7 @@ function TryOnModal({ description, onClose, children }: TryOnModalProps) {
       clearTimeout(timer);
       timer = setTimeout(() => {
         if (document.activeElement !== null && document.activeElement !== document.body) return;
-        // The window itself, named «Онлайн-примерка», as Base UI's own restore does; never while a
+        // The window itself, named by its title, as Base UI's own restore does; never while a
         // window over it (the tips, «Что поменять?») holds the focus, which Base UI keeps there.
         const popup = bodyRef.current?.closest<HTMLElement>('[role="dialog"]');
         if (!popup || popup.hasAttribute('data-nested-dialog-open')) return;
@@ -354,7 +500,7 @@ function TryOnModal({ description, onClose, children }: TryOnModalProps) {
     <Modal
       open
       wide
-      title="Онлайн-примерка"
+      title={title}
       description={description}
       onOpenChange={(next) => {
         if (!next) onClose();

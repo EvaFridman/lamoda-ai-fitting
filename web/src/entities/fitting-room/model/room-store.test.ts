@@ -1,10 +1,47 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { isRoomOwner, openRoom, ROOM_WISHES_MAX, useRoomStore, useRoomWishes } from './room-store';
+import {
+  isRoomOwner,
+  openLookTryOn,
+  openRoom,
+  ROOM_WISHES_MAX,
+  useRoomStore,
+  useRoomWishes,
+} from './room-store';
 
 beforeEach(() => {
-  useRoomStore.setState({ open: false, wishes: null, userId: undefined });
+  useRoomStore.setState({ open: false, lookOpen: false, wishes: null, userId: undefined });
+});
+
+describe('the look window', () => {
+  it('is closed at first and set by setLookOpen', () => {
+    expect(useRoomStore.getState().lookOpen).toBe(false);
+
+    useRoomStore.getState().setLookOpen(true);
+    expect(useRoomStore.getState().lookOpen).toBe(true);
+
+    useRoomStore.getState().setLookOpen(false);
+    expect(useRoomStore.getState().lookOpen).toBe(false);
+  });
+
+  it('openLookTryOn closes the room and opens the look, keeping the wishes', () => {
+    useRoomStore.getState().setWishes('u1', 'шарф');
+    openRoom();
+
+    openLookTryOn();
+
+    expect(useRoomStore.getState().open).toBe(false);
+    expect(useRoomStore.getState().lookOpen).toBe(true);
+    expect(useRoomStore.getState().wishes).toEqual({ userId: 'u1', text: 'шарф' });
+  });
+
+  it('openLookTryOn opens it when the room was already closed', () => {
+    openLookTryOn();
+
+    expect(useRoomStore.getState().open).toBe(false);
+    expect(useRoomStore.getState().lookOpen).toBe(true);
+  });
 });
 
 describe('setUser', () => {
