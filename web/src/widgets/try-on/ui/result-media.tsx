@@ -12,15 +12,9 @@ import {
 } from '@/entities/fitting';
 import { TryOnLoader } from '@/features/start-fitting';
 import { useTrackedElement } from '@/shared/analytics';
-import { DownloadIcon, FullscreenIcon, ProgressBar } from '@/shared/ui';
+import { DownloadIcon, FullscreenIcon, ProgressBar, ShareIcon } from '@/shared/ui';
 
 import styles from './fitting-result.module.scss';
-
-const SHARE_ICON = (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
-    <path d="M12 15V4M8 8l4-4 4 4M5 12v8h14v-8" />
-  </svg>
-);
 
 // Saves the result: a link made on the click and dropped at once, so the signed link never sits in
 // the page's markup (A37). The storage's link is another origin, where `download` does not apply:
@@ -123,7 +117,7 @@ export function ResultTiles({ fitting, running, pictureRef, phone, children }: R
       aria-label="Действия с изображением"
     >
       <button type="button" className={styles.tile} disabled>
-        {SHARE_ICON}
+        <ShareIcon />
         Поделиться
       </button>
       <button

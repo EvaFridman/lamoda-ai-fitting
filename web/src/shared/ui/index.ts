@@ -77,6 +77,7 @@ export {
   ProfileIcon,
   RefreshIcon,
   SearchIcon,
+  ShareIcon,
   SparkleIcon,
   StarIcon,
   TrashIcon,

@@ -324,6 +324,9 @@ export const CompareIcon = createIcon(
   lineArt('M12 2v20M3.5 5.5h5v13h-5zM15.5 5.5h5v13h-5z'),
 );
 
+// An arrow up out of a tray: share a result (shown disabled, spec 0019 A14).
+export const ShareIcon = createIcon('ShareIcon', lineArt('M12 15V4M8 8l4-4 4 4M5 12v8h14v-8'));
+
 // Three dots in a row: a card's actions menu (spec 0019 board 9).
 export const MoreIcon = createIcon('MoreIcon', {
   24: (

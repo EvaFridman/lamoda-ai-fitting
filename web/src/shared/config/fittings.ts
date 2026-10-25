@@ -7,3 +7,11 @@ export const FITTINGS_HREF = '/customer/fittings';
 export function fittingHref(id: string): string {
   return `${FITTINGS_HREF}?fitting=${encodeURIComponent(id)}`;
 }
+
+// The page comparing two fittings side by side (spec 0019 A93).
+export const FITTINGS_COMPARE_HREF = `${FITTINGS_HREF}/compare`;
+
+// The compare page of two fittings; their ids are cut from the analytics' addresses too.
+export function compareHref(a: string, b: string): string {
+  return `${FITTINGS_COMPARE_HREF}?${new URLSearchParams({ a, b }).toString()}`;
+}

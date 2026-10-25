@@ -19,6 +19,10 @@ export interface AccountShellProps {
   // A block under the side menu, signed in only and on a wide screen, where the menu shows: the
   // history's `LimitMeter` (spec 0019 board 9, A78).
   aside?: ReactNode;
+  // A page inside a section: its own title in place of the section's, and its own way back on
+  // every width in place of «‹ Личный кабинет» (the compare page, spec 0019 A93).
+  title?: string;
+  back?: ReactNode;
 }
 
 // The frame of every account page (spec 0017 U5–U7, U10): the side menu with the current section
@@ -26,7 +30,7 @@ export interface AccountShellProps {
 // a section is shown alone, with a way back to the list; one DOM, switched by CSS. The session is
 // read in the browser (U11): while it loads the content is a placeholder, signed out (a failed
 // read too) it is the invitation to sign in.
-export function AccountShell({ section, children, aside }: AccountShellProps) {
+export function AccountShell({ section, children, aside, title, back }: AccountShellProps) {
   const current = accountSections.find((entry) => entry.section === section);
 
   return (
@@ -38,8 +42,8 @@ export function AccountShell({ section, children, aside }: AccountShellProps) {
       </div>
       {current && (
         <div className={styles.section}>
-          <AccountBackLink />
-          <h1 className={styles.title}>{current.title}</h1>
+          {back ? <div className={styles.ownBack}>{back}</div> : <AccountBackLink />}
+          <h1 className={styles.title}>{title ?? current.title}</h1>
           <SectionContent>{children}</SectionContent>
         </div>
       )}

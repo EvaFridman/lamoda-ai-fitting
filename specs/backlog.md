@@ -161,6 +161,11 @@ removes it from this list. Found by the agents' first security audit and trial r
   report the owner reads; needs a place to keep reports and a rate limit.
 - **Compare as an overlay.** The history's compare page has the tab «Наложением» in the design;
   0019 builds «Рядом» only (0019 A41).
+- **Fitting ids in Sentry.** The analytics drop the fittings' ids from addresses (`fitting`, the
+  compare page's `a` and `b`, 0019 A77, A93), but web's Sentry keeps them in navigation
+  breadcrumbs, the page's address and pageload names (`sentry.options.ts` filters only signed
+  links and the socket's `sid`). An id alone opens nothing (someone else's answers 404); drop them
+  the way `strip-attributes.ts` does.
 - **Avatar teaser.** «Создать свой аватар · скоро» on the photo picker is not rendered by 0019
   (A41); the digital twin's spec (0016 item 5) adds the real button.
 - **Lowest price after the discount in the counts.** `GET /products/facets` answers `price.min`

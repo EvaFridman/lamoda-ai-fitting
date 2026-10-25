@@ -281,7 +281,7 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       tooltip (A62, A63.1) in the catalog and on the related products.
       Check: web tests; `qa-tester` on AC14, AC15; `npm run verify`.
       Commit: `feat(web): try a look on`
-- [ ] **T27. web: history actions and compare.** «Примерить ещё раз» (the repeat of A7),
+- [x] **T27. web: history actions and compare.** «Примерить ещё раз» (the repeat of A7),
       compare two entries side by side (board 9, A41; the selection mode, «Чем отличаются», no
       «Заменить запись», A63.5), the actions menu and the phones' sheet, «Поделиться» disabled
       (A14, A63.6), the repeat's toast; the texts of A62.

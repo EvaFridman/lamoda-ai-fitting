@@ -25,6 +25,10 @@ export interface HistoryCardProps {
   openEvents?: HistoryCardEvents;
   // The page's actions over the picture's bottom right corner (the «⋯» menu).
   actions?: ReactNode;
+  // The page's selection box over its top right corner, in the compare's selection mode.
+  select?: ReactNode;
+  // The picture's name: what its click does («Выбрать для сравнения» in the selection mode).
+  openLabel?: string;
   // The clock «Сегодня» is counted from; now by default.
   now?: number;
 }
@@ -45,7 +49,15 @@ export function kindBadge(fitting: Pick<Fitting, 'kind' | 'parentId'>): string |
 // «+N», the kind badge or the item and its colour, and the date. The picture is a button that opens
 // the fitting; the result is personal data, so its link is only the image's `src` inside an
 // `mp-block` container (A37), and nothing of it goes into an attribute.
-export function HistoryCard({ fitting, onOpen, openEvents, actions, now }: HistoryCardProps) {
+export function HistoryCard({
+  fitting,
+  onOpen,
+  openEvents,
+  actions,
+  select,
+  openLabel = 'Открыть примерку',
+  now,
+}: HistoryCardProps) {
   const captionId = useId();
   const running = isFittingRunning(fitting);
   const badge = kindBadge(fitting);
@@ -84,7 +96,7 @@ export function HistoryCard({ fitting, onOpen, openEvents, actions, now }: Histo
         <button
           type="button"
           className={styles.open}
-          aria-label="Открыть примерку"
+          aria-label={openLabel}
           aria-describedby={captionId}
           onClick={() => {
             openEvents?.onClick?.();
@@ -95,6 +107,7 @@ export function HistoryCard({ fitting, onOpen, openEvents, actions, now }: Histo
         >
           {picture}
         </button>
+        {select && <div className={styles.select}>{select}</div>}
         {actions && <div className={styles.actions}>{actions}</div>}
       </div>
       <div id={captionId} className={styles.caption}>

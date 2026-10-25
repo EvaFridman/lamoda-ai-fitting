@@ -128,4 +128,37 @@
   &.danger {
     color: var(--color-error);
   }
+
+  &:disabled {
+    cursor: default;
+    color: var(--color-text-disabled);
+  }
+}
+
+// An action's label, and under it why it is disabled («Фото удалено»).
+.actionLabel {
+  display: grid;
+  gap: 2px;
+}
+
+.actionHint {
+  font-size: var(--font-size-caption);
+  line-height: var(--line-height-caption);
+  color: var(--color-text-secondary);
+}
+
+// Board 9.2's note under the sheet's actions.
+.sheetNotice {
+  margin-top: var(--space-2);
+}
+
+// The heading's row: the subtitle, and the compare's controls at its end (board 9).
+.heading {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: space-between;
+
+  min-height: 40px;
 }

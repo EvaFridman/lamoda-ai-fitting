@@ -7,7 +7,13 @@ import {
   trackFittingRefused,
   trackFittingStarted,
 } from '../model/analytics';
-import type { FittingKind, RegenerateFittingBody, StartedFitting } from '../model/schemas';
+import type {
+  Fitting,
+  FittingKind,
+  RegenerateFittingBody,
+  StartedFitting,
+  StartFittingBody,
+} from '../model/schemas';
 import { regenerateFitting, startFitting } from './fitting-requests';
 import { fittingKeys } from './keys';
 
@@ -103,6 +109,39 @@ export function useStartLookFitting() {
       started(fitting);
     },
     onError: (failure) => refused(failure, 'look'),
+  });
+}
+
+// «Примерить ещё раз» of a history entry (spec 0019 A7, A93): the same photo, items, colours and
+// wishes; null once the photo is gone, which leaves nothing to send.
+export function repeatBody(
+  fitting: Pick<Fitting, 'kind' | 'photoId' | 'items' | 'promptText'>,
+): StartFittingBody | null {
+  if (fitting.photoId === null) return null;
+  const wishes = fitting.promptText?.trim();
+  return {
+    photoId: fitting.photoId,
+    kind: fitting.kind,
+    items: fitting.items.map(({ productId, attributeValueId }) =>
+      attributeValueId ? { productId, attributeValueId } : { productId },
+    ),
+    ...(wishes ? { promptText: wishes } : {}),
+  };
+}
+
+// Tries a history entry on again: an earlier result of the same photo, items and wishes answers
+// `repeated` and spends nothing (A7), a failed entry's starts a new generation.
+export function useRepeatFitting() {
+  const started = useStarted();
+  return useMutation({
+    mutationFn: (body: StartFittingBody) => startFitting(body),
+    retry: false,
+    gcTime: 0,
+    onSuccess: (fitting, body) => {
+      trackFittingStarted(fitting, 'history', Boolean(body.promptText));
+      started(fitting);
+    },
+    onError: (failure, body) => refused(failure, body.kind),
   });
 }
 

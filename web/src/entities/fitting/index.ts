@@ -3,8 +3,10 @@ export { fittingKeys } from './api/keys';
 export {
   type LookFittingRequest,
   type RegenerateRequest,
+  repeatBody,
   type SingleFittingRequest,
   useRegenerateFitting,
+  useRepeatFitting,
   useStartLookFitting,
   useStartSingleFitting,
 } from './api/mutations';
@@ -25,6 +27,12 @@ export {
   useFittings,
   useLastFitting,
 } from './api/queries';
+export {
+  type CompareRow,
+  type FittingDifference,
+  fittingDifference,
+  fittingSum,
+} from './lib/compare';
 export { fittingDate, historyDate, renewalDate } from './lib/dates';
 export { itemWord } from './lib/item-word';
 export {

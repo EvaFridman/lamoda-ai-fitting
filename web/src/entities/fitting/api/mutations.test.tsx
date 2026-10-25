@@ -18,7 +18,13 @@ import { ApiError } from '@/shared/api';
 
 import type { StartedFitting } from '../model/schemas';
 import { fittingKeys } from './keys';
-import { useRegenerateFitting, useStartLookFitting, useStartSingleFitting } from './mutations';
+import {
+  repeatBody,
+  useRegenerateFitting,
+  useRepeatFitting,
+  useStartLookFitting,
+  useStartSingleFitting,
+} from './mutations';
 
 const PHOTO = '00000000-0000-4000-8000-0000000000f1';
 const PRODUCT = '00000000-0000-4000-8000-0000000000a1';
@@ -285,6 +291,139 @@ describe('useStartLookFitting', () => {
     await act(() => result.current.mutateAsync(request).catch(() => undefined));
     expect(reportFailure).toHaveBeenCalledExactlyOnceWith(failure);
     expect(requests.startFitting).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('repeatBody', () => {
+  const OTHER = '00000000-0000-4000-8000-0000000000a2';
+  const item = (productId: string, attributeValueId: string | null) => ({
+    productId,
+    name: 'Рубашка',
+    brand: 'Annen',
+    imageUrl: null,
+    price: 1000,
+    finalPrice: 900,
+    attributeValueId,
+    colour: null,
+    slot: null,
+  });
+
+  it('is null once the photo is gone', () => {
+    expect(
+      repeatBody({
+        kind: 'single',
+        photoId: null,
+        items: [item(PRODUCT, COLOUR)],
+        promptText: null,
+      }),
+    ).toBeNull();
+  });
+
+  it('sends the photo, the kind and each item with its colour only where it has one', () => {
+    expect(
+      repeatBody({
+        kind: 'look',
+        photoId: PHOTO,
+        items: [item(PRODUCT, COLOUR), item(OTHER, null)],
+        promptText: null,
+      }),
+    ).toEqual({
+      photoId: PHOTO,
+      kind: 'look',
+      items: [{ productId: PRODUCT, attributeValueId: COLOUR }, { productId: OTHER }],
+    });
+  });
+
+  it('sends the wishes trimmed', () => {
+    expect(
+      repeatBody({
+        kind: 'single',
+        photoId: PHOTO,
+        items: [item(PRODUCT, null)],
+        promptText: '  Свободнее ',
+      }),
+    ).toHaveProperty('promptText', 'Свободнее');
+  });
+
+  it.each([null, '', '   '])('leaves blank wishes (%j) out', (promptText) => {
+    expect(
+      repeatBody({ kind: 'single', photoId: PHOTO, items: [item(PRODUCT, null)], promptText }),
+    ).not.toHaveProperty('promptText');
+  });
+});
+
+describe('useRepeatFitting', () => {
+  const body = {
+    photoId: PHOTO,
+    kind: 'single' as const,
+    items: [{ productId: PRODUCT, attributeValueId: COLOUR }],
+  };
+
+  it('starts the body as it is and tracks a start from the history', async () => {
+    requests.startFitting.mockResolvedValue(started());
+    const { result } = renderHook(() => useRepeatFitting(), { wrapper });
+    await act(() => result.current.mutateAsync(body));
+    expect(requests.startFitting).toHaveBeenCalledExactlyOnceWith(body);
+    expect(track).toHaveBeenCalledExactlyOnceWith('Fitting Started', {
+      kind: 'single',
+      source: 'history',
+      items: 0,
+      repeated: false,
+      with_prompt: false,
+    });
+  });
+
+  it('tracks the wishes of the body', async () => {
+    requests.startFitting.mockResolvedValue(started());
+    const { result } = renderHook(() => useRepeatFitting(), { wrapper });
+    await act(() => result.current.mutateAsync({ ...body, promptText: 'Светлее' }));
+    expect(track).toHaveBeenCalledWith(
+      'Fitting Started',
+      expect.objectContaining({ with_prompt: true }),
+    );
+  });
+
+  it('sends the repeated result as completed at once, spending nothing', async () => {
+    requests.startFitting.mockResolvedValue(started({ status: 'completed', repeated: true }));
+    const { result } = renderHook(() => useRepeatFitting(), { wrapper });
+    await act(() => result.current.mutateAsync(body));
+    expect(track).toHaveBeenCalledWith(
+      'Fitting Started',
+      expect.objectContaining({ repeated: true, source: 'history' }),
+    );
+    expect(track).toHaveBeenCalledWith(
+      'Fitting Completed',
+      expect.objectContaining({ repeated: true, duration: 0, counts_against_limit: false }),
+    );
+  });
+
+  it('puts the answer into its entry and reads the quota and lists again', async () => {
+    requests.startFitting.mockResolvedValue(started({ repeated: true }));
+    client.setQueryData(fittingKeys.quota, { limit: 20, used: 0, left: 20 });
+    const { result } = renderHook(() => useRepeatFitting(), { wrapper });
+    await act(() => result.current.mutateAsync(body));
+    expect(client.getQueryData(fittingKeys.detail(FITTING))).not.toHaveProperty('repeated');
+    expect(client.getQueryState(fittingKeys.quota)?.isInvalidated).toBe(true);
+  });
+
+  it('tracks a refused limit with the kind of the body, and does not retry', async () => {
+    requests.startFitting.mockRejectedValue(refusal('LIMIT_REACHED'));
+    const { result } = renderHook(() => useRepeatFitting(), { wrapper });
+    await act(() => result.current.mutateAsync({ ...body, kind: 'look' }).catch(() => undefined));
+    expect(track).toHaveBeenCalledExactlyOnceWith('Fitting Refused', {
+      kind: 'look',
+      reason: 'limit_reached',
+    });
+    expect(reportFailure).not.toHaveBeenCalled();
+    expect(requests.startFitting).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports any other failure', async () => {
+    const failure = refusal('INTERNAL');
+    requests.startFitting.mockRejectedValue(failure);
+    const { result } = renderHook(() => useRepeatFitting(), { wrapper });
+    await act(() => result.current.mutateAsync(body).catch(() => undefined));
+    expect(reportFailure).toHaveBeenCalledExactlyOnceWith(failure);
   });
 });
 
