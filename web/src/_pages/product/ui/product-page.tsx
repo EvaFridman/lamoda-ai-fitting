@@ -83,7 +83,7 @@ async function ProductContent({ params }: ProductPageProps) {
       <div className={styles.main}>
         <ProductGallery product={product} className={styles.gallery} />
         <div className={styles.purchase}>
-          <ProductPurchase product={product} hasSlot={slot !== null} />
+          <ProductPurchase product={product} slot={slot} />
         </div>
       </div>
       <ProductAbout product={product} className={styles.about} />

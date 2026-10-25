@@ -1,7 +1,16 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import userEvent from '@testing-library/user-event';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { EMPTY_ROOM, fittingRoomKeys, type FittingRoom } from '@/entities/fitting-room';
 
 import { LimitCard } from './limit-card';
+
+const mocks = vi.hoisted(() => ({ track: vi.fn() }));
+
+vi.mock('@/shared/analytics/client', () => ({ track: mocks.track }));
+vi.mock('next/navigation', () => ({ usePathname: () => '/products/p' }));
 
 const QUOTA = {
   limit: 20,
@@ -10,13 +19,31 @@ const QUOTA = {
   renewsAt: '2026-10-31T21:00:00.000Z',
 };
 
+function renderCard(room: FittingRoom = EMPTY_ROOM, quota = QUOTA) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  });
+  queryClient.setQueryData(fittingRoomKeys.all, room);
+  const onOpenRoom = vi.fn();
+  render(
+    <QueryClientProvider client={queryClient}>
+      <LimitCard quota={quota} historyHref="/customer/fittings" onOpenRoom={onOpenRoom} />
+    </QueryClientProvider>,
+  );
+  return { onOpenRoom };
+}
+
+beforeEach(() => {
+  mocks.track.mockReset();
+});
+
 afterEach(() => {
   vi.unstubAllGlobals();
 });
 
 describe('LimitCard', () => {
   it('says the month is spent and when the tries come back (AC19)', () => {
-    render(<LimitCard quota={QUOTA} historyHref="/customer/fittings" />);
+    renderCard();
 
     expect(
       screen.getByRole('heading', { name: 'Примерки на этот месяц закончились' }),
@@ -31,19 +58,35 @@ describe('LimitCard', () => {
     [22, /Новые 22 примерки появятся/],
     [25, /Новые 25 примерок появятся/],
   ])('agrees the sentence with a limit of %i', (limit, text) => {
-    render(<LimitCard quota={{ ...QUOTA, limit, used: limit }} historyHref="/customer/fittings" />);
+    renderCard(EMPTY_ROOM, { ...QUOTA, limit, used: limit });
 
     expect(screen.getByText(text)).toBeInTheDocument();
   });
 
-  it('links to the history and keeps the fitting room off', () => {
-    render(<LimitCard quota={QUOTA} historyHref="/customer/fittings" />);
+  it('links to the history and has the fitting room button enabled', () => {
+    renderCard();
 
     expect(screen.getByRole('link', { name: 'Открыть историю примерок' })).toHaveAttribute(
       'href',
       '/customer/fittings',
     );
-    expect(screen.getByRole('button', { name: 'Перейти в примерочную' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Перейти в примерочную' })).toBeEnabled();
+  });
+
+  it('asks its placer to open the room and tracks room.open from the limit with the count', async () => {
+    const room: FittingRoom = { items: [], count: 3, sum: 0 };
+    const { onOpenRoom } = renderCard(room);
+
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Перейти в примерочную' }));
+
+    expect(onOpenRoom).toHaveBeenCalledOnce();
+    expect(mocks.track).toHaveBeenCalledExactlyOnceWith('Element Clicked', {
+      element: 'room.open',
+      zone: 'fitting',
+      type: 'interaction',
+      source: 'limit',
+      items: 3,
+    });
   });
 
   it('on a phone has the short button names and the meter at 0 of the limit', () => {
@@ -53,15 +96,15 @@ describe('LimitCard', () => {
       addEventListener: () => {},
       removeEventListener: () => {},
     }));
-    render(<LimitCard quota={QUOTA} historyHref="/customer/fittings" />);
+    renderCard();
 
     expect(screen.getByRole('link', { name: 'История примерок' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Примерочная' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Примерочная' })).toBeEnabled();
     expect(screen.getByText('0 из 20')).toBeInTheDocument();
   });
 
   it('shows no meter on a wide screen', () => {
-    render(<LimitCard quota={QUOTA} historyHref="/customer/fittings" />);
+    renderCard();
 
     expect(screen.queryByText('0 из 20')).not.toBeInTheDocument();
   });

@@ -45,8 +45,10 @@ and its hover (spec 0019 A63.1, A83); phase 4 so far the fitting room's api (`/m
 A86) and the product page on phones as Lamoda's (the gallery's slide and dots, the buy box in
 the flow as a panel over the photo, the kit's `ScrollRow` for «С этим товаром выбирают», A87.1–3,
 A88) and the header on phones as Lamoda's (one row of the burger, the loupe, the logo and the
-icons, the search row, the burger's left `Drawer`, A87.4–8, A89). Next: the fitting room in the
-header, looks, history actions.
+icons, the search row, the burger's left `Drawer`, A87.4–8, A89) and the fitting room in the
+header (`FittingRoomButton` with its count, the drawer `widgets/fitting-room-drawer`, the live
+hanger, «К образу» / «В образе» and the result's tile, the toasts with «Вернуть», A90). Next:
+looks, history actions.
 
 Keep this file true: update it in the same commit that changes what a section describes.
 
@@ -580,7 +582,10 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   its page with Better Auth's `error` code: `LoginModal` opens with `signInRedirectText` (a text of
   its own for `access_denied`, a general one otherwise), and the code and `error_description` leave
   the address, signed in (`DropSignInError`) or not (N54). A second `LoginModal` on a page (the
-  account invitation, spec 0017; the product page's buy box and the header's burger, spec 0019) passes `handlesReturnedError={false}`: the returned code, its
+  account invitation, spec 0017; the product page's buy box, the header's burger and fitting
+  room, the grid's and the related row's hangers, spec 0019) passes `handlesReturnedError={false}`
+  (a placer that opens it from many controls passes `open` and no `trigger`, and the opening still
+  sends `Login Opened`): the returned code, its
   report, the flag taken on mount and the address stay with the header's. A code other than `access_denied` is
   reported to Sentry as `SignInFailed` only when the sign-in flag (see analytics) shows a sign-in
   started in this tab, so someone else's link with a made-up `error` reports nothing. The header's profile icon (`widgets/header`, `HeaderProfile`,
@@ -594,7 +599,7 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   next person at the tab never sees `/me` (spec 0017 U22); another user signed in with no end
   seen in between resets them, so a page reads them again as that user. Below 600px the header is
   Lamoda's phone row (spec 0019 A87.4–7): the burger and the loupe, the logo (still `/`, A89),
-  «Избранное» and «Корзина»; the gender switch, the city, the profile icon and the category row
+  «Избранное», the fitting room and «Корзина»; the gender switch, the city, the profile icon and the category row
   are hidden by CSS, not unmounted, so `HeaderProfile`, its hooks and its `LoginModal` (the one
   that answers a returned sign-in error) run once on every width. The loupe (`HeaderLoupe`)
   opens and closes the search row (`HeaderSearchRow`, kept mounted while closed); the row is open
@@ -642,7 +647,8 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   takes `description`, `media` (a picture left of the heading, which then has no "‹" or header
   action), `grip`, `closable` and `initialFocus`; `Sheet` is it with a grip and no ×),
   `ProgressBar`, `CountBadge` (nothing at 0; its parent places it and names the count),
-  `Chip`/`ChipGroup` (Base UI's Toggle and ToggleGroup; spec 0019 plan §7) and `Gallery` (a
+  `Chip`/`ChipGroup` (Base UI's Toggle and ToggleGroup; spec 0019 plan §7), `Select`'s option
+  `swatch` (a colour circle in place of a thumbnail, spec 0019 A90.3) and `Gallery` (a
   product's photos, board 1: from 600px two large and up to three small with «Показать ещё фото»,
   below it a swiped strip whose slides, the photo covering them, are as high as the window less
   the page's `--gallery-offset`, with Lamoda's dots above the page's `--gallery-overlap`, spec
@@ -733,8 +739,11 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   account's are the zone `account` (spec 0017 U14), the catalog page's the zone `catalog` (spec
   0014 plan §3.6, O97–O103), the fitting photos' the zone `fitting`, area `photos` (spec 0019
   plan §9, A60), the product page's the zone `product` (areas `buy-box` and `related`, seven
-  elements with the row's arrows `related.scroll`, A87.8; `buy-box.to-look` and `related.to-look`
-  come with the fitting room, A84), the phone header's the zone `header` (areas `header` and
+  elements with the row's arrows `related.scroll`, A87.8, and `buy-box.to-look`, `related.to-look`,
+  A90.9), the fitting room's the zone `fitting`, area `room` (`room.open`, `.remove`, `.undo`,
+  `.fill`, `.clear`, `.add-to-cart-all`, A90.9; a toast's action sends its click through
+  `trackElementClick`, `@/shared/analytics`), the grid's hanger `catalog.to-look` in the zone
+  `catalog` (A90.9), the phone header's the zone `header` (areas `header` and
   `burger`: `header.burger`, `header.search`, `burger.category`, A87.8); `profile-menu.*` take
   `surface` (`menu`, `burger`; older sends have none).
   `Signed In` is sent once, on the page a sign-in of this tab came back to: `markSignInStarted()`
@@ -774,7 +783,8 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   (rating, price, colour and size, `features/product-stubs`, the primary «Примерить», its own
   button, through which `ProductPurchase` opens `widgets/try-on` in place (the window's start is
   `features/start-fitting`), signed out the second
-  `LoginModal`; «К образу», disabled until the fitting room, A82.2; `entities/fitting`'s
+  `LoginModal`; `features/fitting-room`'s `ToLookButton` «К образу», «В образе» while the
+  product is in the room, with the colour chosen beside it, A82.2, A90.1; `entities/fitting`'s
   `LimitMeter`, at the limit only «Закончились · снова с <date>» under the disabled «Примерить»,
   A82.5; its `TriedOnNote` from `/products/:id/fittings/last`, whose «Смотреть» opens
   `/customer/fittings?fitting=<id>`; on phones in the page's flow in the same order, nothing
@@ -786,9 +796,30 @@ phase at its last task, and the full `verify` runs once at the phase's end (spec
   «Добавить в корзину», «В корзину» and «В избранное» (`CartStubButton`, `FavoriteStub`, taking
   `events`) are enabled, send their click and show the toast «В прототипе нет корзины и
   избранного» (`showStubToast`, A33). The catalog card has two corners (A63.1): the hanger
-  `LookToggle` top left, only for a product whose category has a slot and disabled until the
-  room, and the heart stub top right (untracked, A83.10); on `@media (hover: hover)` it lifts with
-  `--shadow-box` and the photo grows to 1.03.
+  `LookToggle` top left, only for a product whose category has a slot (`categorySlots` of the
+  active categories, `@/entities/category`), live through `RoomLookToggle` (A90.1), and the
+  heart stub top right (untracked, A83.10); on `@media (hover: hover)` it lifts with
+  `--shadow-box` and the photo grows to 1.03. A visitor's hanger opens the grid's or the row's
+  one `LoginModal`, opened through its `open` (no trigger).
+- `web` fitting room (spec 0019 board 2, AC13, A12, A90): `entities/fitting-room` reads
+  `GET /me/fitting-room` in the browser (`useFittingRoom`) under `fittingRoomKeys.all`, which
+  starts with `userKeys.all`; its store (`useRoomStore`, Zustand) holds whether the drawer is open
+  (`openRoom()`, also from a toast's action) and the wishes of one user in the tab's memory only
+  (A90.5). `features/fitting-room`'s `useRoomActions` puts, removes and clears, answering the cache
+  with the write's answer, and shows the toasts (names in quotes, A90.10): «Заменили <слот>: «…»
+  вместо «…»» and «Убрали «…» из примерочной» with «Вернуть» (a `PUT` of the item back), ««…» в
+  примерочной: <слот>» with «Открыть»; `useLookToggle` is the hanger's, «К образу»'s and the
+  result's tile's (A90.11). `widgets/fitting-room-drawer` (`FittingRoomDrawer`, mounted once in
+  `app/layout.tsx` inside its `<Suspense>`, signed in only, closed by a new path or the session's
+  end) is the kit's wide `Drawer`, on phones the whole window with «‹» and «…» («Очистить
+  примерочную»): the five slots (`OutfitSlotRow` with the colour `Select` of `swatch` circles, the
+  size stub, «В корзину», «Убрать»; on phones one field opening the `Sheet` «Цвет «…»» of
+  `MiniSwatches`; `EmptySlotRow` with «Подобрать в каталоге» to the slot's first active
+  category, none for the accessory), the wishes, the sum, «Примерить образ» (disabled until
+  T26), «Всё в корзину», `LimitMeter` and «Очистить примерочную». The header's `HeaderRoom`
+  (`FittingRoomButton` with `CountBadge`, between «Избранное» and «Корзина», per request inside
+  `<Suspense>`) opens it, or a visitor's `LoginModal`; so do the limit card's «Перейти в
+  примерочную», after the try-on window closes (A90.12), and the add toast's «Открыть».
 - `web` data from the api renders at request time inside `<Suspense>`: the web image must build with
   no api, Redis or database running. So a page has sent its static shell with 200 before it reads
   anything, and a `notFound()` there is a soft 404 (the not-found page with `noindex`). A real 404

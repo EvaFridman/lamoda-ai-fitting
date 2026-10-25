@@ -267,7 +267,7 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       Check: web tests; `typecheck`, `lint` (A58); the phone and desktop by hand on the local
       stack.
       Commit: `feat(web): the header on phones as lamoda's`
-- [ ] **T25. web: the header's icon and the drawer.** `entities/fitting-room`,
+- [x] **T25. web: the header's icon and the drawer.** `entities/fitting-room`,
       `features/fitting-room` (the `LookToggle` actions, the slot rows' actions, the replace and
       remove toasts with «Вернуть»), the widget `fitting-room-drawer` (board 2: the slots, the
       colour per item and the size stub (A63.3), the wishes field, the sum, the stubs, «Очистить»,

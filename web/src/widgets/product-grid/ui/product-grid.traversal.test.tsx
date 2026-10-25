@@ -34,6 +34,7 @@ const nav = vi.hoisted(() => ({ pathname: '/catalog', search: 'q=a' }));
 vi.mock('next/navigation', () => ({
   usePathname: () => nav.pathname,
   useSearchParams: () => new URLSearchParams(nav.search),
+  useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
 }));
 
 import type { ProductListItem } from '@/entities/product';

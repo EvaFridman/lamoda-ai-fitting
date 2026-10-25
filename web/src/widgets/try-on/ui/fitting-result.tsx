@@ -14,7 +14,9 @@ import {
   LimitMeter,
   type StartedFitting,
 } from '@/entities/fitting';
+import type { OutfitSlot } from '@/entities/category';
 import type { ProductDetail } from '@/entities/product';
+import { useLookToggle } from '@/features/fitting-room';
 import { showStubToast } from '@/features/product-stubs';
 import { RegenerateSheet } from '@/features/regenerate-fitting';
 import { TryOnLoader } from '@/features/start-fitting';
@@ -24,6 +26,7 @@ import { FITTINGS_HREF, PHONE_QUERY } from '@/shared/config';
 import { useMediaQuery } from '@/shared/lib';
 import {
   Button,
+  CheckIcon,
   DownloadIcon,
   FavoriteToggle,
   FullscreenIcon,
@@ -82,11 +85,39 @@ export interface FittingResultProps {
   onLimit: () => void;
   // «Примерить на другом фото»: back to the picker.
   onOtherPhoto: () => void;
+  // The product's slot of the fitting room: `null` none (no tile), `undefined` not known yet.
+  slot: OutfitSlot | null | undefined;
+}
+
+interface LookTileProps {
+  product: ProductDetail;
+  slot: OutfitSlot;
+  attributeValueId: string | null | undefined;
+}
+
+// The tile «К образу» (A90.11): the result's item, in its colour, into the fitting room;
+// «В образе» while it is there, and a click takes it out. Untracked until T28.
+function LookTile({ product, slot, attributeValueId }: LookTileProps) {
+  // The try-on is a signed-in user's: no sign-in window here.
+  const look = useLookToggle({ product, slot, attributeValueId, onSignIn: () => undefined });
+  return (
+    <button
+      type="button"
+      className={styles.tile}
+      aria-pressed={look.pressed}
+      // Waits focusable, as the hanger: the focus stays on it through the write.
+      aria-disabled={look.busy || undefined}
+      onClick={look.toggle}
+    >
+      {look.pressed ? <CheckIcon /> : <HangerIcon />}
+      {look.pressed ? 'В образе' : 'К образу'}
+    </button>
+  );
 }
 
 // Board 7, the result of one item (spec 0019 AC5, AC7, AC8, A62): the picture with «Сгенерировано
-// ИИ» and the caption under it, the tiles (the share disabled, A14; «К образу» off until the room,
-// A75), the item with the size select and the cart's and favourites' stubs (A33), the product's
+// ИИ» and the caption under it, the tiles (the share disabled, A14; «К образу» into the fitting
+// room, A90.11), the item with the size select and the cart's and favourites' stubs (A33), the product's
 // other colours (A74, A76), «Хотите что-то поменять в образе?» with the sheet «Что поменять?»,
 // «Примерить на другом фото» and the month's meter. The picture is only an image's `src`, in an
 // `mp-block` container (A37).
@@ -101,6 +132,7 @@ export function FittingResult({
   onRegenerated,
   onLimit,
   onOtherPhoto,
+  slot,
 }: FittingResultProps) {
   const phone = useMediaQuery(PHONE_QUERY);
   const now = useNow(running !== null);
@@ -183,9 +215,16 @@ export function FittingResult({
         <FullscreenIcon />
         {phone ? 'Экран' : 'Во весь экран'}
       </button>
-      <button type="button" className={styles.tile} disabled>
-        <HangerIcon />К образу
-      </button>
+      {product && slot ? (
+        <LookTile product={product} slot={slot} attributeValueId={item?.attributeValueId} />
+      ) : (
+        // A product of no slot has none (AC16), nor one whose reads failed; one that loads waits.
+        slot !== null && (
+          <button type="button" className={styles.tile} disabled>
+            <HangerIcon />К образу
+          </button>
+        )
+      )}
     </div>
   );
 

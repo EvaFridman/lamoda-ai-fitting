@@ -89,6 +89,10 @@
   background-color: var(--color-background-secondary);
 }
 
+.swatch {
+  flex-shrink: 0;
+}
+
 .label {
   overflow: hidden;
   min-width: 0;

@@ -1,7 +1,8 @@
 'use client';
 
-import { Suspense } from 'react';
+import { Suspense, useState } from 'react';
 
+import type { OutfitSlot } from '@/entities/category';
 import {
   LimitMeter,
   renewalDate,
@@ -12,26 +13,18 @@ import {
 import { type ProductDetail, sortSizes } from '@/entities/product';
 import { useSession } from '@/entities/session';
 import { LoginModal } from '@/features/auth';
+import { ToLookButton } from '@/features/fitting-room';
 import { CartStubButton, FavoriteStub } from '@/features/product-stubs';
 import { useTrackedElement } from '@/shared/analytics';
 import { fittingHref } from '@/shared/config';
-import {
-  Badges,
-  Button,
-  HangerIcon,
-  Price,
-  Rating,
-  Select,
-  type SelectOption,
-  SparkleIcon,
-} from '@/shared/ui';
+import { Badges, Button, Price, Rating, Select, type SelectOption, SparkleIcon } from '@/shared/ui';
 
 import styles from './product-buy-box.module.scss';
 
 export interface ProductBuyBoxProps {
   product: ProductDetail;
-  // Whether the product's category has a slot of the fitting room: none shows no «К образу» (A18).
-  hasSlot: boolean;
+  // The slot of the fitting room of the product's category: none shows no «К образу» (A18).
+  slot: OutfitSlot | null;
   // «Примерить» of a signed-in user: the page opens the try-on window (a widget of its own).
   onTryOn: () => void;
 }
@@ -52,17 +45,23 @@ function colourOptions(product: ProductDetail): SelectOption[] {
 
 // The product page's buy box (spec 0019 T20, boards 1, 11 and 13; A33, A62, A63.2, A82): the
 // rating, the brand and name, the price and discount, «Вы это примеряли», the colour and size (kept
-// on the screen only, A8), the cart and favourite stubs, board 13's TryOnButton with «К образу»
+// on the screen only, A8; the colour goes into the fitting room with «К образу»), the cart and
+// favourite stubs, board 13's TryOnButton with «К образу» («В образе» once in the room, A82.2)
 // beside it, and the limit meter. The visitor's data (the session, the quota, the last fitting) is
 // read in the browser only (AC23). Signed out, «Примерить» opens the sign-in window (A12). On a
 // phone it stays in the page's flow in the same order, nothing fixed to the window (A87.2).
-export function ProductBuyBox({ product, hasSlot, onTryOn }: ProductBuyBoxProps) {
+export function ProductBuyBox({ product, slot, onTryOn }: ProductBuyBoxProps) {
   const session = useSession();
+  // The colour chosen: «К образу» puts the product in it (A90.1).
+  const [colour, setColour] = useState<string | null>(null);
+  // The sign-in window of a visitor's «К образу» (A12, AC16).
+  const [signIn, setSignIn] = useState(false);
   const signedIn = session.status === 'signed-in';
   const quota = useFittingQuota(signedIn);
   const last = useLastFitting(product.id, signedIn);
 
   const colours = colourOptions(product);
+  const chosenColour = colour ?? colours[0]?.value ?? null;
   const sizes: SelectOption[] = sortSizes(
     product.variations.map((variation) => variation.size),
   ).map((size) => ({ value: size, label: size }));
@@ -157,7 +156,12 @@ export function ProductBuyBox({ product, hasSlot, onTryOn }: ProductBuyBoxProps)
 
       <div className={styles.selects}>
         {colours.length > 0 && (
-          <Select aria-label="Цвет" options={colours} defaultValue={colours[0]?.value} />
+          <Select
+            aria-label="Цвет"
+            options={colours}
+            value={chosenColour}
+            onValueChange={(value) => setColour(value)}
+          />
         )}
         {sizes.length > 0 && (
           <Select aria-label="Размер" options={sizes} placeholder="Выберите размер" />
@@ -173,12 +177,21 @@ export function ProductBuyBox({ product, hasSlot, onTryOn }: ProductBuyBoxProps)
         </div>
         <div className={styles.fitting}>
           {tryOn}
-          {hasSlot && (
-            // The fitting room comes with T24; until then the button is shown and sends nothing
-            // (A82), as the try-on's own «К образу» tile (A75).
-            <Button size={56} variant="outline" className={styles.toLook} disabled>
-              <HangerIcon />К образу
-            </Button>
+          {slot && (
+            <ToLookButton
+              product={product}
+              slot={slot}
+              attributeValueId={chosenColour}
+              element="buy-box.to-look"
+              onSignIn={() => setSignIn(true)}
+              className={styles.toLook}
+            />
+          )}
+          {slot && !signedIn && (
+            // It reads the query (`useSearchParams`).
+            <Suspense fallback={null}>
+              <LoginModal open={signIn} onOpenChange={setSignIn} handlesReturnedError={false} />
+            </Suspense>
           )}
         </div>
         {signedIn && quota.data && (

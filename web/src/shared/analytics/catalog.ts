@@ -87,6 +87,16 @@ const profileSurface = { kind: 'enum', values: ['menu', 'burger'] } as const;
 const profileSurfaceNote =
   '`surface` — `menu` (меню профиля) или `burger` (меню-бургер шапки на телефоне). До спеки 0019 A87 свойства не было и все отправки были из меню, так что отчёт по меню фильтрует `surface != burger`, а не `surface == menu`.';
 
+// A fitting room's slot (spec 0019 A86): a class of categories, not a product.
+const slot = {
+  kind: 'enum',
+  values: ['top', 'bottom', 'outerwear', 'shoes', 'accessory'],
+} as const;
+// What a hanger's or «К образу»'s click does, from the room already read (spec 0019 A90.9).
+const lookAction = { kind: 'enum', values: ['add', 'replace', 'remove'] } as const;
+const toLookNote =
+  '`slot` — слот вещи. `action` — что делает клик: `add` кладёт вещь в пустой слот, `replace` заменяет вещь слота (придёт уведомление с «Вернуть»), `remove` убирает эту вещь. `signed_in` — вошёл ли посетитель: `false` открывает окно входа (придёт и `Login Opened`), `action` тогда `add`. Пока загружаются сессия и примерочная, кнопка отключена и ничего не шлёт. Id товара и цвет не отправляются.';
+
 /** Checks a catalog and keeps its literal types. */
 export function defineCatalog<const C extends Catalog>(catalog: C & Checked<C>): C {
   return catalog;
@@ -128,19 +138,19 @@ export const catalog = defineCatalog({
       title: 'Каталог',
       areas: ['catalog'],
       description:
-        'Страницы `/catalog` и `/catalog/<slug>`: список категорий слева, ряд фильтров над сеткой (на узком экране — шторка «Фильтры»), сетка карточек.',
+        'Страницы `/catalog` и `/catalog/<slug>`: список категорий слева, ряд фильтров над сеткой (на узком экране — шторка «Фильтры»), сетка карточек и вешалка «Добавить к образу» на них.',
     },
     product: {
       title: 'Страница товара',
       areas: ['buy-box', 'related'],
       description:
-        'Страница `/products/<id>` (спека 0019). `buy-box` — блок покупки справа от галереи (на телефоне под ней): «Добавить в корзину», «В избранное», «Примерить», «Вы это примеряли». `related` — «С этим товаром выбирают» под ним: один ряд компактных карточек, их «В корзину» и стрелки ряда. Галерея, «О товаре» и хлебные крошки не отслеживаются; окно примерки, открытое отсюда, шлёт элементы и события зоны `fitting`.',
+        'Страница `/products/<id>` (спека 0019). `buy-box` — блок покупки справа от галереи (на телефоне под ней): «Добавить в корзину», «В избранное», «Примерить», «К образу» («В образе»), «Вы это примеряли». `related` — «С этим товаром выбирают» под ним: один ряд компактных карточек, их вешалка, «В корзину» и стрелки ряда. Галерея, «О товаре» и хлебные крошки не отслеживаются; окно примерки, открытое отсюда, шлёт элементы и события зоны `fitting`.',
     },
     fitting: {
       title: 'Примерка',
-      areas: ['photos', 'try-on', 'result', 'fitting-toast', 'history'],
+      areas: ['photos', 'try-on', 'result', 'fitting-toast', 'history', 'room'],
       description:
-        'Онлайн-примерка (спека 0019). `photos` — фото для примерки: загрузка (подсказки и согласия первой загрузки, экран отказа) и страница «Мои фото» (`/customer/photos`). `try-on` — окно примерки до результата: выбор фото, ожидание, экраны лимита и ошибок. `result` — результат примерки и шторка «Что поменять?». `fitting-toast` — уведомления «Примерка готова» и «Примерка … не удалась» на любой странице сайта. `history` — «Мои примерки» (`/customer/fittings`): вкладки, карточки, меню и шторка действий карточки, подтверждение удаления, пустой список.',
+        'Онлайн-примерка (спека 0019). `photos` — фото для примерки: загрузка (подсказки и согласия первой загрузки, экран отказа) и страница «Мои фото» (`/customer/photos`). `try-on` — окно примерки до результата: выбор фото, ожидание, экраны лимита и ошибок. `result` — результат примерки и шторка «Что поменять?». `fitting-toast` — уведомления «Примерка готова» и «Примерка … не удалась» на любой странице сайта. `history` — «Мои примерки» (`/customer/fittings`): вкладки, карточки, меню и шторка действий карточки, подтверждение удаления, пустой список. `room` — примерочная: значок в шапке со счётчиком и шторка справа (на телефоне на весь экран): слоты, «Убрать», «Вернуть», «Подобрать в каталоге», «Очистить примерочную», «Всё в корзину».',
     },
   },
   commonEvents: {
@@ -443,6 +453,14 @@ export const catalog = defineCatalog({
       clicksPerVisit: 0.002,
       hoversPerVisit: 0.002,
     },
+    'catalog.to-look': {
+      zone: 'catalog',
+      type: 'interaction',
+      description: `Вешалка в левом верхнем углу карточки сетки (только у товаров со слотом); карточку она не открывает и \`catalog.card\` не шлёт. Место карточки не отправляется. ${toLookNote}`,
+      clicksPerVisit: 0.1,
+      hoversPerVisit: 0.3,
+      properties: { slot, action: lookAction, signed_in: { kind: 'boolean' } },
+    },
     'catalog.card': {
       zone: 'catalog',
       type: 'navigation',
@@ -580,11 +598,27 @@ export const catalog = defineCatalog({
       clicksPerVisit: 0.005,
       hoversPerVisit: 0.008,
     },
+    'buy-box.to-look': {
+      zone: 'product',
+      type: 'interaction',
+      description: `«К образу» / «В образе» в блоке покупки (только у товаров со слотом). ${toLookNote}`,
+      clicksPerVisit: 0.04,
+      hoversPerVisit: 0.06,
+      properties: { slot, action: lookAction, signed_in: { kind: 'boolean' } },
+    },
+    'related.to-look': {
+      zone: 'product',
+      type: 'interaction',
+      description: `Вешалка на карточке в «С этим товаром выбирают»; карточку она не открывает и \`related.card\` не шлёт. Один элемент на все карточки: наведение уходит раз за просмотр страницы на набор свойств. ${toLookNote}`,
+      clicksPerVisit: 0.02,
+      hoversPerVisit: 0.05,
+      properties: { slot, action: lookAction, signed_in: { kind: 'boolean' } },
+    },
     'related.card': {
       zone: 'product',
       type: 'navigation',
       description:
-        'Карточка в «С этим товаром выбирают»: ссылка на страницу товара. `position` — её место в блоке, с 1 (не больше 6); id товара не отправляется. Вешалка, сердце и «В корзину» карточки — не ссылка и этот элемент не шлют.',
+        'Карточка в «С этим товаром выбирают»: ссылка на страницу товара. `position` — её место в блоке, с 1 (не больше 6); id товара не отправляется. Вешалка (`related.to-look`), сердце и «В корзину» карточки — не ссылка и этот элемент не шлют.',
       clicksPerVisit: 0.08,
       hoversPerVisit: 0.4,
       properties: { position: { kind: 'number' } },
@@ -763,6 +797,63 @@ export const catalog = defineCatalog({
       clicksPerVisit: 0.001,
       hoversPerVisit: 0.001,
       properties: { kind: { kind: 'enum', values: ['single', 'look'] } },
+    },
+    'room.open': {
+      zone: 'fitting',
+      type: 'interaction',
+      description:
+        'Открытие примерочной. `source` — откуда: `header` — значок «Примерочная» в шапке, `toast` — «Открыть» в уведомлении «… в примерочной», `limit` — «Перейти в примерочную» на карточке лимита в окне примерки. `items` — сколько вещей в примерочной (0–5).',
+      clicksPerVisit: 0.08,
+      hoversPerVisit: 0.05,
+      properties: {
+        source: { kind: 'enum', values: ['header', 'toast', 'limit'] },
+        items: { kind: 'number' },
+      },
+    },
+    'room.remove': {
+      zone: 'fitting',
+      type: 'interaction',
+      description:
+        '«Убрать» у слота в примерочной (на телефоне ×). `slot` — какой слот. Снятие вешалкой или «В образе» шлёт `*.to-look` с `action: remove`.',
+      clicksPerVisit: 0.02,
+      hoversPerVisit: 0.02,
+      properties: { slot },
+    },
+    'room.undo': {
+      zone: 'fitting',
+      type: 'interaction',
+      description:
+        '«Вернуть» в уведомлении: возвращает вещь после замены (`action: replace`) или удаления (`action: remove`). `slot` — какой слот.',
+      clicksPerVisit: 0.005,
+      hoversPerVisit: 0.003,
+      properties: { slot, action: { kind: 'enum', values: ['replace', 'remove'] } },
+    },
+    'room.fill': {
+      zone: 'fitting',
+      type: 'navigation',
+      description:
+        '«Подобрать в каталоге» у пустого слота: ведёт в первую активную категорию слота. У аксессуаров ссылки нет, поэтому `accessory` не приходит. `slot` — какой слот.',
+      clicksPerVisit: 0.01,
+      hoversPerVisit: 0.01,
+      properties: { slot },
+    },
+    'room.clear': {
+      zone: 'fitting',
+      type: 'interaction',
+      description:
+        '«Очистить примерочную» (на компьютере внизу шторки, на телефоне в меню «…»), без подтверждения. `items` — сколько вещей убрано.',
+      clicksPerVisit: 0.003,
+      hoversPerVisit: 0.003,
+      properties: { items: { kind: 'number' } },
+    },
+    'room.add-to-cart-all': {
+      zone: 'fitting',
+      type: 'interaction',
+      description:
+        '«Всё в корзину» в примерочной: заглушка, показывает уведомление, что в прототипе нет корзины. `items` — сколько вещей в примерочной.',
+      clicksPerVisit: 0.008,
+      hoversPerVisit: 0.01,
+      properties: { items: { kind: 'number' } },
     },
     'history.tab': {
       zone: 'fitting',

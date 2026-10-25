@@ -141,13 +141,21 @@
     outline-offset: 2px;
   }
 
-  &:disabled {
+  &:disabled,
+  &[aria-disabled='true'] {
     cursor: default;
     color: var(--color-text-disabled);
   }
 
+  // «В образе»: the item is in the fitting room (board 13's ResultActions).
+  &[aria-pressed='true'],
+  &[aria-pressed='true']:hover {
+    color: var(--color-background);
+    background-color: var(--color-text);
+  }
+
   @media (hover: hover) {
-    &:hover:not(:disabled) {
+    &:hover:not(:disabled, [aria-pressed='true']) {
       background-color: var(--color-background-tertiary);
     }
   }

@@ -3,7 +3,12 @@
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 
-import { CatalogCategoryList, CatalogCategoryToggle, useCategories } from '@/entities/category';
+import {
+  CatalogCategoryList,
+  CatalogCategoryToggle,
+  categorySlots,
+  useCategories,
+} from '@/entities/category';
 import {
   isRefusedCursor,
   type ProductFacets,
@@ -116,15 +121,7 @@ export function CatalogBrowser({
     facets.data ?? (kept !== null && kept.categoryId === categoryId ? kept.facets : undefined);
   const categories = useCategories(catalogCategoriesQuery);
   // The cards whose category has a slot of the fitting room show the hanger (AC16, A83.7).
-  const slottedCategoryIds = useMemo(
-    () =>
-      new Set(
-        (categories.data?.items ?? [])
-          .filter((category) => category.slot !== null)
-          .map((category) => category.id),
-      ),
-    [categories.data],
-  );
+  const slots = useMemo(() => categorySlots(categories.data?.items), [categories.data]);
   // The address of the visitor's last change, which the live region's count is read for (plan
   // §3.4): nothing on load, and not the old selection's count before the address changes.
   const [foundFor, setFoundFor] = useState<string | null>(null);
@@ -378,7 +375,7 @@ export function CatalogBrowser({
           onLoadMore={loadMore}
           moreHref={next === null ? undefined : catalogSearch({ query, cursor: next })}
           showMore={isFetchNextPageError}
-          slottedCategoryIds={slottedCategoryIds}
+          categorySlots={slots}
         />
         {isFetchNextPageError ? (
           <p role="alert" className={styles.inset}>

@@ -5,6 +5,7 @@ import type { ButtonHTMLAttributes, ReactNode } from 'react';
 import {
   Button,
   type ButtonSize,
+  type ButtonVariant,
   FavoriteToggle,
   type FavoriteToggleSize,
   showToast,
@@ -22,9 +23,11 @@ export type StubEvents = Pick<
 > & { onClick?: () => void };
 
 export interface CartStubButtonProps {
-  // «Добавить в корзину», «В корзину».
+  // «Добавить в корзину», «В корзину», «Всё в корзину».
   children: ReactNode;
   size?: ButtonSize;
+  // `outline`: the fitting room's «Всё в корзину» (board 2).
+  variant?: ButtonVariant;
   textSize?: 'body-m' | 'body-s';
   className?: string;
   events?: StubEvents;
@@ -34,6 +37,7 @@ export interface CartStubButtonProps {
 export function CartStubButton({
   children,
   size,
+  variant,
   textSize,
   className,
   events,
@@ -41,6 +45,7 @@ export function CartStubButton({
   return (
     <Button
       size={size}
+      variant={variant}
       textSize={textSize}
       className={className}
       onPointerEnter={events?.onPointerEnter}

@@ -18,6 +18,8 @@ import {
   useStartSingleFitting,
   watchFitting,
 } from '@/entities/fitting';
+import { categorySlots, type OutfitSlot, useActiveCategories } from '@/entities/category';
+import { openRoom } from '@/entities/fitting-room';
 import { productOptions } from '@/entities/product';
 import { deleteTransientPhoto, useMyPhotos, type UserPhoto } from '@/entities/user-photo';
 import { FittingErrorCard, FittingWait, LimitCard } from '@/features/start-fitting';
@@ -82,6 +84,14 @@ export function TryOn({
     enabled: productId !== undefined,
   });
   const product = productQuery.data;
+  // The product's slot of the fitting room, for the result's «К образу»: null none (or either read
+  // failed: no tile rather than one that waits for ever), undefined while either loads.
+  const categories = useActiveCategories();
+  let slot: OutfitSlot | null | undefined;
+  if (productQuery.isError || categories.isError) slot = null;
+  else if (product && categories.data) {
+    slot = categorySlots(categories.data.items).get(product.category.id) ?? null;
+  }
   const photos = useMyPhotos();
   const quota = useFittingQuota();
   const showsResult = !picking && fitting?.status === 'completed';
@@ -194,7 +204,15 @@ export function TryOn({
   let description: string | undefined;
   if (limited || (picking && quota.data?.left === 0)) {
     content = quota.data ? (
-      <LimitCard quota={quota.data} historyHref={FITTINGS_HREF} />
+      <LimitCard
+        quota={quota.data}
+        historyHref={FITTINGS_HREF}
+        // The window closes first: two dialogs do not stack (A90.12).
+        onOpenRoom={() => {
+          onClose();
+          openRoom();
+        }}
+      />
     ) : (
       <Skeleton height={320} />
     );
@@ -250,6 +268,7 @@ export function TryOn({
         onRegenerated={(next) => started(next)}
         onLimit={reachedLimit}
         onOtherPhoto={() => setPicking(true)}
+        slot={slot}
       />
     );
   } else if (isFittingRunning(fitting)) {
@@ -269,6 +288,7 @@ export function TryOn({
         onRegenerated={(next) => started(next)}
         onLimit={reachedLimit}
         onOtherPhoto={() => setPicking(true)}
+        slot={slot}
       />
     );
   } else {

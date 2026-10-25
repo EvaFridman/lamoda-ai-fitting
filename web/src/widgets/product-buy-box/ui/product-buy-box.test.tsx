@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { OutfitSlot } from '@/entities/category';
 import type { ProductDetail } from '@/entities/product';
 import { track } from '@/shared/analytics/client';
 import { HOVER_MS } from '@/shared/analytics/use-tracked-element';
@@ -125,16 +126,65 @@ const json = (body: unknown, status = 200) =>
     }),
   );
 
+const OTHER_PRODUCT_ID = '5d6e7f80-1a2b-4c3d-8e4f-5a6b7c8d9e0f';
+const otherProduct: ProductDetail = {
+  ...product,
+  id: OTHER_PRODUCT_ID,
+  name: 'Блузка',
+};
+
+function roomItem(of: ProductDetail, attributeValueId: string | null, colour: string | null) {
+  return { slot: 'top', product: of, attributeValueId, colour };
+}
+
+function roomOf(...items: ReturnType<typeof roomItem>[]) {
+  return { items, count: items.length, sum: items.length * 5000 };
+}
+
 interface Api {
   left?: number;
   last?: unknown;
   // The quota never answers.
   quotaPending?: boolean;
+  // GET /me/fitting-room.
+  room?: unknown;
+  // The answer of a PUT /me/fitting-room/:slot.
+  change?: unknown;
 }
 
-function api({ left = 5, last = null, quotaPending = false }: Api = {}) {
-  fetchMock.mockImplementation((url: unknown) => {
+interface Write {
+  method: string;
+  path: string;
+  body: unknown;
+}
+
+function writes(): Write[] {
+  return fetchMock.mock.calls
+    .map(([url, init]) => {
+      const request = init as RequestInit | undefined;
+      return {
+        method: request?.method ?? 'GET',
+        path: new URL(String(url)).pathname,
+        body: typeof request?.body === 'string' ? JSON.parse(request.body) : undefined,
+      };
+    })
+    .filter((call) => call.method !== 'GET');
+}
+
+function api({
+  left = 5,
+  last = null,
+  quotaPending = false,
+  room = roomOf(),
+  change = { room: roomOf(roomItem(product, WHITE, 'белый')), replaced: null },
+}: Api = {}) {
+  fetchMock.mockImplementation((url: unknown, init?: RequestInit) => {
     const { pathname } = new URL(String(url));
+    const method = init?.method ?? 'GET';
+    if (pathname === '/api/me/fitting-room' && method === 'GET') return json(room);
+    if (pathname.startsWith('/api/me/fitting-room/')) {
+      return method === 'PUT' ? json(change) : Promise.resolve(new Response(null, { status: 204 }));
+    }
     if (pathname === '/api/me/fitting-quota') {
       if (quotaPending) return new Promise(() => {});
       return json({ limit: 20, used: 20 - left, left, renewsAt: '2026-10-31T21:00:00.000Z' });
@@ -149,14 +199,16 @@ function api({ left = 5, last = null, quotaPending = false }: Api = {}) {
   });
 }
 
-function setup(props: { hasSlot?: boolean; product?: ProductDetail; onTryOn?: () => void } = {}) {
+function setup(
+  props: { slot?: OutfitSlot | null; product?: ProductDetail; onTryOn?: () => void } = {},
+) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const onTryOn = props.onTryOn ?? vi.fn();
   render(
     <QueryClientProvider client={queryClient}>
       <ProductBuyBox
         product={props.product ?? product}
-        hasSlot={props.hasSlot ?? true}
+        slot={props.slot === undefined ? 'top' : props.slot}
         onTryOn={onTryOn}
       />
     </QueryClientProvider>,
@@ -563,24 +615,201 @@ describe('ProductBuyBox: tracked elements (A84)', () => {
   });
 });
 
-describe('ProductBuyBox: «К образу» (A18, A82)', () => {
-  it('is shown, and always disabled, when the category has a slot', () => {
-    setup({ hasSlot: true });
+describe('ProductBuyBox: «К образу» (A18, A82, AC13, AC16)', () => {
+  const NAME = '«Рубашка Design collection Annen»';
+  const clicks = () =>
+    vi
+      .mocked(track)
+      .mock.calls.filter(([name]) => name === 'Element Clicked')
+      .map(([, event]) => event);
 
-    expect(screen.getByRole('button', { name: 'К образу' })).toBeDisabled();
-  });
+  async function readyLook(name = 'К образу') {
+    const button = await screen.findByRole('button', { name });
+    await vi.waitFor(() => expect(button).not.toHaveAttribute('aria-busy', 'true'));
+    return button;
+  }
 
-  it('is disabled for a signed-out visitor too', () => {
-    mocks.session = { status: 'signed-out', failed: false };
-    setup({ hasSlot: true });
-
-    expect(screen.getByRole('button', { name: 'К образу' })).toBeDisabled();
-  });
-
-  it('is not shown without a slot', () => {
-    setup({ hasSlot: false });
-
+  it('is not shown without a slot, signed in or out (AC16)', () => {
+    setup({ slot: null });
     expect(screen.queryByRole('button', { name: 'К образу' })).not.toBeInTheDocument();
+  });
+
+  it('is not shown without a slot for a visitor either', () => {
+    mocks.session = { status: 'signed-out', failed: false };
+    setup({ slot: null });
+    expect(screen.queryByRole('button', { name: 'К образу' })).not.toBeInTheDocument();
+  });
+
+  it('waits while the room loads and reads it', async () => {
+    setup();
+
+    expect(screen.getByRole('button', { name: 'К образу' })).toHaveAttribute('aria-busy', 'true');
+    await readyLook();
+    expect(screen.getByRole('button', { name: 'К образу' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+  });
+
+  it('puts the product into its slot with the chosen colour and says so (AC13)', async () => {
+    const { user } = setup();
+
+    await user.click(await readyLook());
+
+    await vi.waitFor(() => expect(writes()).toHaveLength(1));
+    expect(writes()[0]).toEqual({
+      method: 'PUT',
+      path: '/api/me/fitting-room/top',
+      body: { productId: ID, attributeValueId: WHITE },
+    });
+    expect(await screen.findByRole('button', { name: 'В образе' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(mocks.showToast).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        title: `${NAME} в примерочной: верх`,
+        actionLabel: 'Открыть',
+      }),
+    );
+  });
+
+  it('puts the colour picked in the select', async () => {
+    const { user } = setup();
+    await readyLook();
+
+    await user.click(screen.getByRole('combobox', { name: 'Цвет' }));
+    await user.click(await screen.findByRole('option', { name: 'Чёрный' }));
+    await user.click(screen.getByRole('button', { name: 'К образу' }));
+
+    await vi.waitFor(() => expect(writes()).toHaveLength(1));
+    expect(writes()[0]?.body).toEqual({ productId: ID, attributeValueId: BLACK });
+  });
+
+  it('takes the product out of the room on a second click, with «Вернуть»', async () => {
+    api({ room: roomOf(roomItem(product, WHITE, 'белый')) });
+    const { user } = setup();
+
+    await user.click(await readyLook('В образе'));
+
+    await vi.waitFor(() => expect(writes()).toHaveLength(1));
+    expect(writes()[0]).toEqual({
+      method: 'DELETE',
+      path: '/api/me/fitting-room/top',
+      body: undefined,
+    });
+    expect(await screen.findByRole('button', { name: 'К образу' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+    expect(mocks.showToast).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        title: `Убрали ${NAME} из примерочной`,
+        actionLabel: 'Вернуть',
+      }),
+    );
+  });
+
+  it('replaces an occupied slot with a toast whose «Вернуть» puts the previous item back (AC13)', async () => {
+    const before = roomOf(roomItem(otherProduct, BLACK, 'чёрный'));
+    api({
+      room: before,
+      change: {
+        room: roomOf(roomItem(product, WHITE, 'белый')),
+        replaced: roomItem(otherProduct, BLACK, 'чёрный'),
+      },
+    });
+    const { user } = setup();
+
+    await user.click(await readyLook());
+
+    await vi.waitFor(() => expect(mocks.showToast).toHaveBeenCalledOnce());
+    const toast = mocks.showToast.mock.calls[0]![0] as {
+      title: string;
+      actionLabel: string;
+      onAction: () => void;
+    };
+    expect(toast.title).toBe(`Заменили верх: ${NAME} вместо «Блузка Annen»`);
+    expect(toast.actionLabel).toBe('Вернуть');
+
+    toast.onAction();
+
+    await vi.waitFor(() => expect(writes()).toHaveLength(2));
+    expect(writes()[1]).toEqual({
+      method: 'PUT',
+      path: '/api/me/fitting-room/top',
+      body: { productId: OTHER_PRODUCT_ID, attributeValueId: BLACK },
+    });
+    expect(clicks()).toContainEqual({
+      element: 'room.undo',
+      zone: 'fitting',
+      type: 'interaction',
+      slot: 'top',
+      action: 'replace',
+    });
+    expect(mocks.showToast).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the error and keeps the button when the write fails', async () => {
+    api();
+    const base = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation((url: unknown, init?: RequestInit) =>
+      init?.method === 'PUT'
+        ? json({ error: { code: 'RELATED_NOT_FOUND', message: 'm', details: [] } }, 400)
+        : base(url, init),
+    );
+    const { user } = setup();
+
+    await user.click(await readyLook());
+
+    await vi.waitFor(() =>
+      expect(mocks.showToast).toHaveBeenCalledWith(expect.objectContaining({ tone: 'error' })),
+    );
+    expect(screen.getByRole('button', { name: 'К образу' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+  });
+
+  it('sends buy-box.to-look with the slot, the action and signed_in', async () => {
+    const { user } = setup();
+
+    await user.click(await readyLook());
+
+    expect(clicks()).toContainEqual({
+      element: 'buy-box.to-look',
+      zone: 'product',
+      type: 'interaction',
+      slot: 'top',
+      action: 'add',
+      signed_in: true,
+    });
+  });
+
+  it('opens the sign-in window for a visitor and changes nothing (AC16)', async () => {
+    mocks.session = { status: 'signed-out', failed: false };
+    const { user } = setup();
+
+    await user.click(screen.getByRole('button', { name: 'К образу' }));
+
+    expect(await screen.findByRole('dialog', { name: 'Вход' })).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(mocks.showToast).not.toHaveBeenCalled();
+    expect(clicks()).toContainEqual({
+      element: 'buy-box.to-look',
+      zone: 'product',
+      type: 'interaction',
+      slot: 'top',
+      action: 'add',
+      signed_in: false,
+    });
+  });
+
+  it('waits while the session loads', () => {
+    mocks.session = { status: 'pending' };
+    setup();
+
+    expect(screen.getByRole('button', { name: 'К образу' })).toHaveAttribute('aria-busy', 'true');
   });
 });
 

@@ -2,8 +2,13 @@ import { queryOptions, useQuery } from '@tanstack/react-query';
 
 import { buildPath, clientFetch } from '@/shared/api';
 
-import { categoryListSchema, categorySchema } from '../model/schemas';
-import { categoryKeys, categoryListQuery, type CategoryListQuery } from './keys';
+import {
+  type Category,
+  categoryListSchema,
+  categorySchema,
+  type OutfitSlot,
+} from '../model/schemas';
+import { CATEGORY_LIST_MAX, categoryKeys, categoryListQuery, type CategoryListQuery } from './keys';
 
 // The browser's options: the same keys as the server's (`server-queries.ts`), so data the server
 // prefetched is already in the cache (plan §4). `signal` is TanStack Query's: a query nobody waits
@@ -29,6 +34,28 @@ export function categoryOptions(id: string) {
 
 export function useCategories(query: CategoryListQuery = {}) {
   return useQuery(categoryListOptions(query));
+}
+
+// Every active category in one request, as the catalog reads them (the same key): the fitting
+// room's slots of the cards, and its «Подобрать в каталоге» (spec 0019 A90.8).
+export const ACTIVE_CATEGORIES_QUERY: CategoryListQuery = {
+  isActive: true,
+  limit: CATEGORY_LIST_MAX,
+};
+
+export function useActiveCategories() {
+  return useCategories(ACTIVE_CATEGORIES_QUERY);
+}
+
+// The slot of each active category that has one, by its id (A18).
+export function categorySlots(
+  categories: readonly Category[] | undefined,
+): Map<string, OutfitSlot> {
+  const slots = new Map<string, OutfitSlot>();
+  for (const category of categories ?? []) {
+    if (category.slot !== null) slots.set(category.id, category.slot);
+  }
+  return slots;
 }
 
 export function useCategory(id: string) {

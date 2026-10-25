@@ -3,6 +3,7 @@
 import { Select as BaseSelect } from '@base-ui/react/select';
 import Image from 'next/image';
 
+import { type HexColor, SwatchDot } from '../color-swatch/color-swatch';
 import { ChevronDownIcon } from '../icon/icons';
 
 import styles from './select.module.scss';
@@ -13,6 +14,9 @@ export interface SelectOption {
   label: string;
   // A 23×32 picture before the text: the product in this colour. Decorative, the label names it.
   thumbnail?: string;
+  // An 18px colour circle before the text, in place of a thumbnail: a colour that has no photo of
+  // its own (spec 0019 A90.3). `null` draws the empty bordered circle. Decorative too.
+  swatch?: HexColor | null;
   disabled?: boolean;
 }
 
@@ -120,6 +124,8 @@ function OptionContent({
           height={32}
           unoptimized
         />
+      ) : option.swatch !== undefined ? (
+        <SwatchDot color={option.swatch ?? undefined} className={styles.swatch} />
       ) : null}
       <Text className={styles.label}>{option.label}</Text>
     </>

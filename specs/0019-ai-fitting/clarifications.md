@@ -1142,6 +1142,39 @@ the backlog item «Logo keeps the catalog's scroll»: the logo, on the phone row
 as now, and a click shows the catalog at the scroll Next kept; it neither links to `/catalog`
 directly nor scrolls to the top. The item leaves the backlog with T24b's commit.
 
+**A90. The fitting room's screens (T25's brief, 2026-10-25).** The owner decided, after boards 2
+and 13 were re-read: (1) _the hanger goes live with T25_, in the catalog and on the related
+products, with its tooltip, as the buy box's «К образу» and its pressed «В образе» with the toast
+«<Вещь> в примерочной: <слот>» and «Открыть» (A82.2); T26 keeps the look's try-on (a departure
+from T26's text and A63.8, A83.6); (2) _T25 counts what it ships_, on the `analytics` agent's
+proposal: `buy-box.to-look` and `related.to-look` (A84), `room.open`, `room.remove`, `room.undo`,
+`room.fill`, `room.clear` and `room.add-to-cart-all`; `room.try-on` comes with T26 (plan §9's
+«the room and looks in PR 5»; T28 keeps the look and the history); (3) _a slot row's colour_: the
+catalog has no photo per colour, so the colour `Select` shows `ColorSwatch` circles in place of
+the board's thumbnails, disabled when the product has one colour (board 2's boots); on phones one
+trigger «<цвет>, <размер>» opens a `Sheet` «Цвет <вещи>» of circles with «Готово»; the size stays
+A63.3's stub; (4) _on phones_ the room is the same `Drawer` from the right over the whole window,
+its own header «‹ Примерочная» and «…», which holds «Очистить примерочную» (the phone footer has
+none); (5) _the wishes_ live in the tab's memory (a store of `entities/fitting-room`) until the
+page reloads, never in `localStorage` (personal text), the field in `mp-block`; T26 sends them;
+(6) _«Вернуть»_ puts back the item of `replaced` after a replace and the removed item with its
+colour after a remove, each by `PUT`; both toasts last 5 s; (7) _the limit card's «Перейти в
+примерочную»_ (A75) is enabled by T25 and opens the room: whether the room is open is a store of
+`entities/fitting-room`, so the header, the toast's «Открыть» and the limit card open it (a widget
+imports no widget); (8) _«Подобрать в каталоге»_ links to `/catalog/<slug>` of the first active
+category with that slot; the accessory slot, which no category has, shows its caption with no link.
+Then, on the `analytics` agent's proposal: (9) _the elements_ are `buy-box.to-look`,
+`related.to-look` and a new `catalog.to-look` (the grid's hanger, no `position`), each with `slot`,
+`action` (`add`, `replace`, `remove`: what the click does, from the room already read) and
+`signed_in`; `room.open` (`source`: `header`, `toast`, `limit`; `items`), `room.remove` (`slot`),
+`room.undo` (`slot`, `action`: `replace`, `remove`), `room.fill` (`slot`), `room.clear` (`items`;
+no confirmation, as on the board) and `room.add-to-cart-all` (`items`); a row's «В корзину» and the
+colour change are not counted; about 108 000 events a month, 10.8 %; (10) _the toasts_ put a
+product's name in quotes, since Russian cannot inflect it: «Заменили верх: «<новая>» вместо
+«<прежняя>»», «Убрали «<вещь>» из примерочной», «<Вещь>» в примерочной: <слот>»; (11) _the result's
+tile «К образу»_ (A75) goes live with the same actions, untracked until T28; (12) _the limit card's
+«Перейти в примерочную»_ closes the try-on window, then opens the room.
+
 ## Canvas and decisions
 
 Where the canvas differs from the decisions above, the decision wins:

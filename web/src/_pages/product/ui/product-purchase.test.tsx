@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { OutfitSlot } from '@/entities/category';
 import type { ProductDetail } from '@/entities/product';
 
 import { ProductPurchase } from './product-purchase';
@@ -55,9 +56,12 @@ beforeEach(() => {
   fetchMock.mockReset();
   fetchMock.mockImplementation((url: unknown) => {
     const { pathname } = new URL(String(url));
-    const body = pathname.endsWith('/fittings/last')
-      ? { error: { code: 'NOT_FOUND', message: 'm', details: [] } }
-      : { limit: 20, used: 0, left: 20, renewsAt: '2026-10-31T21:00:00.000Z' };
+    let body: unknown = { limit: 20, used: 0, left: 20, renewsAt: '2026-10-31T21:00:00.000Z' };
+    if (pathname.endsWith('/fittings/last')) {
+      body = { error: { code: 'NOT_FOUND', message: 'm', details: [] } };
+    } else if (pathname === '/api/me/fitting-room') {
+      body = { items: [], count: 0, sum: 0 };
+    }
     return Promise.resolve(
       new Response(JSON.stringify(body), {
         status: pathname.endsWith('/fittings/last') ? 404 : 200,
@@ -68,17 +72,27 @@ beforeEach(() => {
   vi.stubGlobal('fetch', fetchMock);
 });
 
-function setup() {
+function setup(slot: OutfitSlot | null = 'top') {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={queryClient}>
-      <ProductPurchase product={product} hasSlot />
+      <ProductPurchase product={product} slot={slot} />
     </QueryClientProvider>,
   );
   return userEvent.setup();
 }
 
 describe('ProductPurchase', () => {
+  it('hands the slot to the buy box: «К образу» with a slot, none without (AC16)', () => {
+    setup('top');
+    expect(screen.getByRole('button', { name: 'К образу' })).toBeInTheDocument();
+  });
+
+  it('shows no «К образу» for a product without a slot', () => {
+    setup(null);
+    expect(screen.queryByRole('button', { name: 'К образу' })).not.toBeInTheDocument();
+  });
+
   it('shows the buy box and no try-on window at first', () => {
     setup();
 

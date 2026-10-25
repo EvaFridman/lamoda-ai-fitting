@@ -39,6 +39,7 @@ const nav = vi.hoisted(() => ({ pathname: '/catalog' }));
 vi.mock('next/navigation', () => ({
   usePathname: () => nav.pathname,
   useSearchParams: () => new URLSearchParams('q=a'),
+  useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
 }));
 vi.mock('@/shared/analytics/client', () => ({ track: vi.fn() }));
 
