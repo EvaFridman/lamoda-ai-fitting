@@ -12,6 +12,7 @@
   },
   "allowScripts": {},
   "dependencies": {
+    "sqlite-vec": "^0.1.9",
     "typescript": "^6.0.3"
   },
   "devDependencies": {

@@ -1,5 +1,6 @@
-// Which tracked files the index reads (spec 0021 plan §3.2, Q7). Only `git ls-files` output is
-// looked at, so `.env`, `.rag/` and anything untracked never come in.
+// Which committed files the index reads (spec 0021 plan §3.2, Q7, Q19). Only the files of a
+// commit (`git ls-tree`) are looked at, so `.env`, `.rag/`, anything untracked and a staged change
+// gitleaks has not seen yet never come in.
 
 import { execFileSync } from 'node:child_process';
 
@@ -7,7 +8,7 @@ export interface TrackedFile {
   path: string;
   /** git's mode: `100644` or `100755` for a regular file, `120000` a symlink, `160000` a submodule. */
   mode: string;
-  /** git's blob hash of the staged content. */
+  /** git's blob hash of the content. */
   blobHash: string;
   size: number;
   /** 0, or 1–3 for each side of an unmerged path during a conflict. */
@@ -23,11 +24,16 @@ export interface Selection {
 
 export const MAX_FILE_BYTES = 512 * 1024;
 
-export const LS_FILES_ARGS = [
-  'ls-files',
-  '-z',
-  '--format=%(objectmode) %(objectname) %(objectsize) %(stage) %(path)',
-];
+/** `git ls-tree` of a commit in `git ls-files`' shape: a commit's files are never unmerged. */
+export function lsTreeArgs(commit: string): string[] {
+  return [
+    'ls-tree',
+    '-r',
+    '-z',
+    '--format=%(objectmode) %(objectname) %(objectsize) 0 %(path)',
+    commit,
+  ];
+}
 
 // A symlink could point at `.env` or a key outside the repository; only regular files are read.
 const REGULAR_MODES = new Set(['100644', '100755']);
@@ -131,7 +137,10 @@ function hasReadableType(path: string): boolean {
   return dot > 0 && EXTENSIONS.has(name.slice(dot + 1));
 }
 
-/** Parses the output of `git ls-files` run with `LS_FILES_ARGS`. */
+/**
+ * Parses `git ls-files -z --format='%(objectmode) %(objectname) %(objectsize) %(stage) %(path)'`,
+ * or `git ls-tree` run with `lsTreeArgs`.
+ */
 export function parseLsFiles(output: string): TrackedFile[] {
   return output
     .split('\0')
@@ -182,13 +191,53 @@ export function selectFiles(files: TrackedFile[]): Selection {
   return selection;
 }
 
-export function listTrackedFiles(root: string): TrackedFile[] {
-  const output = execFileSync('git', LS_FILES_ARGS, {
+/** The files of a commit (by default `HEAD`), never the staged or working tree's ones. */
+export function listTrackedFiles(root: string, commit = 'HEAD'): TrackedFile[] {
+  const output = execFileSync('git', lsTreeArgs(commit), {
     cwd: root,
     encoding: 'utf8',
     maxBuffer: 64 * 1024 * 1024,
   });
   return parseLsFiles(output);
+}
+
+/** Parses the output of `git cat-file --batch`: each blob's text by its hash. */
+export function parseCatFileBatch(output: Buffer): Map<string, string> {
+  const blobs = new Map<string, string>();
+  const decoder = new TextDecoder();
+  let position = 0;
+  while (position < output.length) {
+    const newline = output.indexOf(10, position);
+    if (newline === -1) throw new Error('Truncated git cat-file output');
+    const header = output.subarray(position, newline).toString('utf8');
+    const match = /^([0-9a-f]+) blob (\d+)$/.exec(header);
+    if (!match) throw new Error(`Unexpected git cat-file header: ${JSON.stringify(header)}`);
+    const start = newline + 1;
+    const end = start + Number(match[2]);
+    if (end >= output.length || output[end] !== 10)
+      throw new Error('Truncated git cat-file output');
+    blobs.set(match[1]!, decoder.decode(output.subarray(start, end)));
+    position = end + 1;
+  }
+  return blobs;
+}
+
+/**
+ * The content of blobs by their hashes (`git cat-file`), not the working tree's, so the text,
+ * the hash and the chunk ids agree and an uncommitted edit stays out (plan §3.2).
+ */
+export function readBlobs(root: string, hashes: string[]): Map<string, string> {
+  const unique = [...new Set(hashes)];
+  if (unique.length === 0) return new Map();
+  const output = execFileSync('git', ['cat-file', '--batch'], {
+    cwd: root,
+    input: `${unique.join('\n')}\n`,
+    maxBuffer: 1024 * 1024 * 1024,
+  });
+  const blobs = parseCatFileBatch(output);
+  const missing = unique.find((hash) => !blobs.has(hash));
+  if (missing) throw new Error(`git cat-file did not return the blob ${missing}`);
+  return blobs;
 }
 
 // Defence in depth behind gitleaks: a chunk that looks like it holds a secret is not indexed.

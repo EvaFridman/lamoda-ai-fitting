@@ -4,7 +4,9 @@ Status: draft (2026-10-25); amended 2026-10-25 at the tasks (three pull requests
 review of PR 1 (the remote string's second parse in §6, the query rule in §5, two accepted risks,
 the US region, the pull request numbers of §8 and §10) and on 2026-10-26 at T4 (§2's referer and
 length, Q16; §6's nginx filter, Q17; §2's tests) and at T5 (§3.2's modes, stages, `.env*` and
-secret patterns; §3.3's windows, imports, directives, lists and empty headings).
+secret patterns; §3.3's windows, imports, directives, lists and empty headings) and at T6
+(§3.4's batches, pace and backoff and §3.6's first run, Q18; §3.2's committed files, Q19; §3.5's
+and §12's `DatabaseSync`).
 
 Implements [spec.md](spec.md) with the decisions of [clarifications.md](clarifications.md)
 (Q1–Q17). Sections name the decisions and criteria they carry out.
@@ -77,8 +79,9 @@ params, headers, remoteAddress, remotePort), so the change is a filter on that o
 
 ### 3.2 File selection (Q7)
 
-`files.ts`, a pure function over the output of `git ls-files -z` (tracked files only: `.env`,
-`.rag/` and anything untracked never appear), with tests. This section is the source of truth for
+`files.ts`, a pure function over the files of the indexed commit, `HEAD` (`git ls-tree -r -z`,
+Q19: committed files only, so `.env`, `.rag/`, anything untracked and a staged change gitleaks has
+not seen never appear), with tests. This section is the source of truth for
 what is indexed; Q7 names it (owner, at the review of PR 1):
 
 - Included prefixes: `api/src`, `api/prisma`, `api/test`, `api/scripts`, `web/src`, `web/app`,
@@ -94,9 +97,10 @@ what is indexed; Q7 names it (owner, at the review of PR 1):
   (`ts tsx mts mjs cjs js json yml yaml md scss css sh sql prisma conf template toml` and
   `Dockerfile`); the rest is counted as skipped. Also skipped: any name starting with `.env` but
   the root `.env.example`, anything but a regular file (a symlink could point at `.env` or a key
-  outside the repository; `git ls-files` gives the mode), and an unmerged path during a conflict
-  (named once). The indexer reads a file's content by its blob hash (`git cat-file`), not from the
-  working tree, so the text, the hash and the chunk ids agree and an unstaged edit stays out (T6).
+  outside the repository; `git ls-tree` gives the mode), and an unmerged path during a conflict
+  (named once; a commit has none, the check stays for `git ls-files`' shape). The indexer reads a
+  file's content by its blob hash (`git cat-file`), not from the working tree, so the text, the
+  hash and the chunk ids agree and an uncommitted edit stays out (T6).
 - A secret guard, defence in depth behind gitleaks: a chunk whose embedded text (§3.3: the path
   and the symbol too, since a heading path carries its parents' headings) matches either end of a
   private key (`-----BEGIN|END … PRIVATE KEY( BLOCK)?-----`) or a key's body line (60–76 base64
@@ -142,8 +146,10 @@ what is indexed; Q7 names it (owner, at the review of PR 1):
 - `embed.ts`: an `Embedder` interface (`embed(texts, inputType)`, `model`, `dimension`) with two
   implementations. `VoyageEmbedder` posts `{ input, model: 'voyage-code-4', input_type:
 'document' | 'query', truncation: true, output_dimension: 1024 }` in batches of at most 128
-  texts and about 100 k estimated tokens (characters ÷ 3.5), retries 429 and 5xx with backoff
-  (1, 2, 4, 8 s, five tries) and fails the run on anything else. `FakeEmbedder` (tests) derives a
+  texts and about 5 k estimated tokens (characters ÷ 3.5), at the pace of Voyage's free tier
+  (Q18: at least 20 s apart, longer for the tokens Voyage counted, at 9 k a minute), retries 429
+  and 5xx with backoff (20, 40, 60, 60 s, five tries), splits a batch of several texts refused
+  twice with 429 in halves, and fails the run on anything else. `FakeEmbedder` (tests) derives a
   deterministic vector from a hash of the text's words, so equal texts are equal and others far.
 - The key: `voyageKey()` reads `VOYAGE_API_KEY` from the process environment, else parses the
   repository's `.env` with `util.parseEnv` and takes that one key, nothing else from the file enters
@@ -156,7 +162,7 @@ what is indexed; Q7 names it (owner, at the review of PR 1):
 
 ### 3.5 The store (Q6)
 
-- `store.ts` opens `.rag/index.sqlite` with `node:sqlite`'s `Database` (`allowExtension: true`),
+- `store.ts` opens `.rag/index.sqlite` with `node:sqlite`'s `DatabaseSync` (`allowExtension: true`),
   loads the extension from `sqlite-vec`'s `getLoadablePath()` and disables further loading
   (`enableLoadExtension(false)`). Tables: `meta` (`schemaVersion`, `model`, `dimension`,
   `indexedCommit`, `indexedAt`), `files` (`path`, `blobHash`, `chunkCount`), `chunks` (the fields
@@ -180,7 +186,7 @@ what is indexed; Q7 names it (owner, at the review of PR 1):
   removed, chunks embedded, estimated tokens and the time (AC3). `--full` rebuilds; `--dry-run`
   lists what would be indexed and skipped without embedding, so the exclusions are checked without
   a key.
-- The first run of this repository (about 2 M tokens, a few minutes) and every later one spend
+- The first run of this repository (about 2.6 M tokens, about five hours at Q18's pace) and every later one spend
   Voyage's free allowance; the CLI prints the running token estimate so the owner sees it.
 
 ### 3.7 The MCP server (Q4, Q8, AC4, AC5)
@@ -427,8 +433,8 @@ None: the spec has no UI and sends no events.
 - `sqlite-vec` 0.1.9 (npm 2026-05-18; platform packages for darwin-arm64, linux-x64 and others,
   no install script). `@modelcontextprotocol/sdk` 1.32.2 (2026-10-23; peer `zod ^3.25 || ^4`).
   `zod` 4, as api and web. `typescript` ^6.0, as the root. Node 26.5: `node:sqlite` is SQLite 3.53
-  with FTS5 and extension loading (checked on the owner's machine; the class is `Database`,
-  `DatabaseSync` a deprecated alias; Stability 1.2).
+  with FTS5 and extension loading (checked on the owner's machine; the class is `DatabaseSync`,
+  Node 26.5 exports no `Database`, seen at T6; Stability 1.2).
 - Voyage AI: `voyage-code-4` (32 k tokens of context, 1 024 dimensions by default, at most 1 000
   texts per request, $0.12 per million tokens past the 200 M free ones per account); no SDK,
   Node's `fetch`.

@@ -2,7 +2,7 @@
 
 Status: draft (2026-10-25); amended 2026-10-25 at the plan (Q6: SQLite instead of LanceDB), at
 the tasks (Q15: three pull requests), at the review of PR 1 (Q2: the US region; Q7: the plan's
-§3.2 holds the exact rules) and on 2026-10-26 at T4 (Q16, Q17).
+§3.2 holds the exact rules) and on 2026-10-26 at T4 (Q16, Q17) and at T6 (Q18, Q19).
 
 The owner's decisions for this spec. Ids `Q1`, `Q2`, … are referred to by the spec, the plan and
 code comments. All decisions below: owner, 2026-10-25, while the spec was written, except where a
@@ -151,3 +151,24 @@ whose git blob changed; the skill runs it before the agent, and the index's serv
 answer the commit the index was built on and the files changed since. Weighed: a git hook after
 each commit (every commit waits for the network and fails without the key) and the server indexing
 on demand inside a search (slow after a large rebase, a network call from a search tool).
+
+**Q18. Voyage's free tier's rate (owner, at T6).** An account without a payment method gets 3
+requests and 10 K tokens a minute (seen on T6's first run: every 100 K-token batch answered 429),
+so the embedder keeps to them instead of the plan's §3.4 batches: about 5 K estimated tokens a
+request and, after each, a pause of at least 20 s and as long as the tokens Voyage counted
+(`usage.total_tokens`) take at 9 K a minute; a 429 or 5xx is retried after 20, 40, 60 and 60 s,
+but a batch of several texts refused twice with 429 is split in halves. The estimate (characters ÷
+3.5) falls far short of Voyage's count for dense text: on the first run a batch of SVG paths
+(`icons.tsx`) estimated at 4.4 K was refused at 8 K and again at 5 K, and no estimate fits every
+kind of text, while one chunk (6000 characters at most) always fits.
+The repository's first index (about 2.6 M tokens) then takes about five hours, and a run stopped
+on the way keeps the files embedded so far. Weighed: adding a payment method (the 200 M free tokens
+stay free, the run takes minutes).
+
+**Q19. Only committed files are indexed (owner, at T6's security review).** The index reads the
+files of `HEAD` (`git ls-tree`), the commit it records as `indexedCommit`, not the staged ones of
+`git ls-files`: a staged change has not passed gitleaks (the pre-commit hook), and the secret guard
+(plan §3.2) cannot catch every token, so only what is about to be public goes to Voyage. An
+uncommitted change is not in the index; the server names such files as stale (`git status`, plan
+§3.7). Weighed: the staged files (the index sees the work in progress, but a staged token may be
+sent before gitleaks sees it).
