@@ -1,7 +1,7 @@
 # 0022 stores: Lamoda Sport stores on a Yandex map: tasks
 
-Status: accepted (2026-10-26); amended 2026-10-26 at the review of PR 1 (T4: X22; T6, T10, T11:
-X19–X21).
+Status: done (2026-10-26); amended 2026-10-26 at the review of PR 1 (T4: X22; T6, T10, T11:
+X19–X21), at T9 (T9, T10: X23, X24) and at T10 (X25, X26).
 
 ## How the work flows
 
@@ -98,7 +98,7 @@ X19–X21).
 
 ## PR 3 · `docs/0022-close` · closing
 
-- [ ] **T11. Close the spec.** AC11 on lamoda-ai-fitting.ru; the acceptance record below
+- [x] **T11. Close the spec.** AC11 on lamoda-ai-fitting.ru; the acceptance record below
       (AC1–AC17 with evidence); `CLAUDE.md` (the stores table and route, the page, the map's CSP
       on one path, the key, the zones `stores` and `footer`, the summary's spec list), `README.md`
       (the key in local setup), `backlog.md` ("Footer links" without the stores' entry; a new item:
@@ -109,4 +109,28 @@ X19–X21).
 
 ## Acceptance record
 
-Filled at T11.
+Checked 2026-10-26 after PR 2 (#114) was merged and deployed (`main` 8bb8588, CI with the deploy
+green). "Production" is lamoda-ai-fitting.ru, checked with curl by the main session.
+
+| AC   | Result | Evidence                                                                                                                                                                                                                                                                                       |
+| ---- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AC1  | ✅     | T4: `stores.data.spec.ts`, `seed.e2e-spec.ts` (the seed twice → 48 rows), the comparison with the source (X22). T5: `stores.e2e-spec.ts` (no cookie, 200, 48 rows in order, the fields, no `code`/`position`). Production: `GET /api/stores` without a cookie, 48 stores with the 13 fields.   |
+| AC2  | ✅     | T5: `throttle-markers.e2e-spec.ts` (no skip, the `read` tier). Production: the answer carries `X-RateLimit-Limit-read-minute` and `-read-burst`.                                                                                                                                               |
+| AC3  | ✅     | T7: `stores-page.test.tsx` and `account-shell.test.tsx` (signed out and in, `public`); qa-tester on the local stack at 375 and 1280 px.                                                                                                                                                        |
+| AC4  | ✅     | T6: `store-card.test.tsx` (details, `tel:` links, the route's link and `target`, `aria-expanded`, no metro or phone line, X20), `links.test.ts`; T7: qa-tester.                                                                                                                                |
+| AC5  | ✅     | T10: the owner in the browser with the key (pins, circles, a zoom splitting them, Yandex's logo, copyright and «Открыть в Картах»).                                                                                                                                                            |
+| AC6  | ✅     | T10: `stores-view.test.tsx` (a card's click fits the map and selects its pin, a pin's click selects the store), `fit.test.ts`; the card marked and the list scrolled to it on a pin's click: qa-tester at 1280 px only.                                                                        |
+| AC7  | ✅     | T6: `search.test.ts` («Ладожская», «Екатеринбург», no match, empty text); T7: `stores-view.test.tsx` with fixtures; the seed's 48 stores: qa-tester.                                                                                                                                           |
+| AC8  | ✅     | T10: `fit.test.ts` (`START_LOCATION`), qa-tester.                                                                                                                                                                                                                                              |
+| AC9  | ✅     | T10: `stores-view.test.tsx` (tabs, the switch on a card's click, the card over the map and its close), qa-tester at 375 px; tabs below 1024 px (X25).                                                                                                                                          |
+| AC10 | ✅     | T10: `stores-map.test.tsx` (the placeholder without a key), `load-ymaps.test.ts` (a failed or slow load); qa-tester without a key.                                                                                                                                                             |
+| AC11 | ✅     | The owner, 2026-10-26, in the browser on production: the map loads, no CSP violation in the console. Production's policy on `/customer/stores` holds `https://api-maps.yandex.ru/v3/`, yastatic's `maps-front-jsapi-3` folder and `'unsafe-eval'` (X16, X23); `/catalog`'s has none of Yandex. |
+| AC12 | —      | Removed (X7).                                                                                                                                                                                                                                                                                  |
+| AC13 | ✅     | T8: `footer.test.tsx`, `footer-link.test.tsx` (the `href`, a plain `<a>`).                                                                                                                                                                                                                     |
+| AC14 | ✅     | T8: `privacy-page.test.tsx`.                                                                                                                                                                                                                                                                   |
+| AC15 | ✅     | T7: `routes.test.ts`, the `noindex` of `app/customer`'s layout in `_pages/customer/model/metadata.test.ts`. The deploy of 8bb8588: `warm-up: /customer/stores 200`, first 32–111 ms. Production without a cookie: 200 and `<meta name="robots" content="noindex, nofollow"/>`.                 |
+| AC16 | ✅     | T7, T8, T10: `catalog.test.ts`, `EVENTS.md` regenerated; the zones `stores` and `footer` as X17, X18 chose, `Stores Searched` carries only `query_length` and `results`, no property names a store.                                                                                            |
+| AC17 | ✅     | `npm run verify` at T9 and T10; CI green on #114 and on `main` 8bb8588.                                                                                                                                                                                                                        |
+
+Owner's checks after the deploy: the page on a real phone, OK (2026-10-26); the key's request statistics daily for the first week (X21), then the backlog item "Yandex Maps
+key's requests and the paid plan".

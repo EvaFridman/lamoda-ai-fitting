@@ -40,7 +40,11 @@ phones as Lamoda's, the fitting room (`/me/fitting-room`, the header's `FittingR
 `0016-ai-fitting` stays accepted: 0019 checked its AC5–AC10, AC14 and AC15 (for the account), the rest wait for
 specs of their own. Spec `0021-investigator` added the investigator: a request's log line with
 four headers only, the code index `tools/code-rag` and its MCP server, Sentry's MCP server
-read-only, the `investigator` agent with its shell guard and the skill `/investigate`.
+read-only, the `investigator` agent with its shell guard and the skill `/investigate`. Spec
+`0022-stores` added Lamoda Sport's stores: the table `stores` filled by the seed, `GET /stores`,
+the page `/customer/stores` open to everyone (the search, the cards and Yandex's map), its
+Content Security Policy on that one path, the footer's link and the analytics zones `stores` and
+`footer`.
 
 Keep this file true: update it in the same commit that changes what a section describes.
 
@@ -204,7 +208,9 @@ and the full `verify` once at the phase's end (as spec 0019 A58 did).
   `api/seed-media/<key>`, and the seed uploads the missing ones to the bucket's `media/<key>`
   (served at `/media/<key>`). `seed/large-catalog.ts` (`npm run seed:dev-large -- <count>`, spec
   0014 plan §2.8) adds development products `DEV-00001…` made of the demo catalog's, with its photo
-  keys; it refuses to run in production.
+  keys; it refuses to run in production. `seed/stores.data.ts` holds Lamoda Sport's stores in
+  Lamoda's order (spec 0022 X1, X2), added by their `code` after the catalog; a changed, closed or
+  reordered store needs a migration (the file's head says how).
 - `api/src/storage/`: the S3 bucket (`StorageService`: `put`, `get`, `exists`,
   `deletePrefix`, `signedUrl`) and `keys.ts`, the one place object keys are built and checked.
 - `api/src/ai/`: OpenAI (spec 0019 plan §3): `AiModule` provides `AI_SETTINGS` (the
@@ -466,6 +472,9 @@ and the full `verify` once at the phase's end (as spec 0019 A58 did).
   inactive category; `GET /products/:id/fittings/last` (`@SignedIn()`,
   `ProductFittingsController`) the user's newest completed fitting that holds the product,
   regenerations included, else 404. `ProductListItemDto` carries `updatedAt` (the sitemap's).
+- `api` stores (spec 0022, `stores/`): `GET /stores` (`@Public()`, the `read` tier) answers every
+  row of `stores` as a plain array in `position` order (no paging; `code`, `position` and
+  `createdAt` stay in the database). Only the seed writes them; no route does (X2).
 - `api` sign-in (spec 0013): Better Auth (`auth/`) with Google only (locally the fake provider of
   the compose service `oidc`), mounted by `mountAuth()` (from `createHttpApp()`) at `/api/auth`
   as an Express route ahead of Nest's; only the routes in `AUTH_ROUTES` (`auth-routes.ts`) answer,
@@ -819,7 +828,9 @@ and the full `verify` once at the phase's end (as spec 0019 A58 did).
   `.regenerate`'s `with_item` (A94), the grid's hanger `catalog.to-look` in the zone
   `catalog` (A90.9), the phone header's the zone `header` (areas `header` and
   `burger`: `header.burger`, `header.search`, `burger.category`, A87.8), the footer's
-  `footer.link` in the zone `footer` (`link`: `stores`, spec 0022 X18); `profile-menu.*` take
+  `footer.link` in the zone `footer` (`link`: `stores`, spec 0022 X18), the stores page's the zone
+  `stores` (`stores.card`, `.details`, `.phone`, `.route`, `.pin`, `.tab` and `Stores Searched`,
+  its text's length and the count only, X17); `profile-menu.*` take
   `surface` (`menu`, `burger`; older sends have none).
   `Signed In` is sent once, on the page a sign-in of this tab came back to: `markSignInStarted()`
   (`features/auth`) puts the time in `sessionStorage` (`sign-in-started`, not an `mp_`/`__mp` key
@@ -903,6 +914,17 @@ and the full `verify` once at the phase's end (as spec 0019 A58 did).
   (`FittingRoomButton` with `CountBadge`, between «Избранное» and «Корзина», per request inside
   `<Suspense>`) opens it, or a visitor's `LoginModal`; so do the limit card's «Перейти в
   примерочную», after the try-on window closes (A90.12), and the add toast's «Открыть».
+- `web` stores page (spec 0022, `_pages/stores`): `useStores` (`entities/store`) starts from the
+  page cache's `getStores`; the search (`matchStores`: every word the start of a word of the
+  name, mall, city, street or a metro station, X7) runs in the browser, its text never in an
+  attribute or the address. `StoreCard`'s «›» opens the description, the phones as `tel:` links
+  and «Проложить маршрут» (Yandex Maps in a new tab, X8). `widgets/stores-map` loads Yandex Maps
+  version 3 once per tab (`loadYmaps`: one script from `https://api-maps.yandex.ru/v3/`, reactify,
+  `@yandex/ymaps3-clusterer`; 15 s, then «Карта недоступна», as with no key), draws the «la» pins
+  and circles with counts, and keeps Yandex's logo, copyright and «Открыть в Картах» (X14); its
+  container is `mp-block` (X26). From 1024 px the list and the map are side by side; below it the
+  kit's `Tabs` «Список» and «Карта» switch them by CSS, so the map never loads again, and a pin's
+  click shows its store's card over the map (X10, X19, X25). The map opens on Moscow (X7).
 - `web` data from the api renders at request time inside `<Suspense>`: the web image must build with
   no api, Redis or database running. So a page has sent its static shell with 200 before it reads
   anything, and a `notFound()` there is a soft 404 (the not-found page with `noindex`). A real 404

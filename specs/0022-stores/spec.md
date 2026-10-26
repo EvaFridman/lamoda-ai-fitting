@@ -1,10 +1,10 @@
 # 0022 stores: Lamoda Sport stores on a Yandex map
 
-Status: accepted (2026-10-26); amended 2026-10-26 at the tasks (AC12 removed: X7) and at the
+Status: done (2026-10-26); amended 2026-10-26 at the tasks (AC12 removed: X7) and at the
 review of PR 1 (AC4: X20; AC6, AC9: X19; owner actions: X21) and after the owner read Yandex's
 terms (owner actions: the key's product name).
 
-Decisions: `clarifications.md` (X0–X22).
+Decisions: `clarifications.md` (X0–X26).
 
 Issue #73, «Интеграция яндекс-карт и вывод магазинов на карте».
 

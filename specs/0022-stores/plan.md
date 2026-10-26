@@ -1,10 +1,10 @@
 # 0022 stores: plan
 
-Status: accepted (2026-10-26); amended 2026-10-26 at the tasks (no header change: X7) and at the
+Status: done (2026-10-26); amended 2026-10-26 at the tasks (no header change: X7) and at the
 review of PR 1 (§2.2: X22; §3.3: X19, X20; §3.5, §5: X16) and after the owner read Yandex's
 terms (§3.6: the cabinet's menu) and at T10 (§3.3: X25, X26).
 
-How [spec.md](spec.md) is built. Decisions: [clarifications.md](clarifications.md) (X0–X18).
+How [spec.md](spec.md) is built. Decisions: [clarifications.md](clarifications.md) (X0–X26).
 
 ## 1. Overview
 

@@ -119,9 +119,15 @@ removes it from this list. Found by the agents' first security audit and trial r
   by 0014 O76: on Next 16.3 the flag runs the whole `app` directory on `react@experimental`. Take
   it when the taint API ships in stable React and the flag no longer switches the channel (Next's
   `taint.md`).
-- **Footer links.** The footer copies Lamoda's items, but only the personal data policy has a page
-  (0008 J22): each other item becomes a link when its page appears. The list is
-  `widgets/footer/config/items.ts`.
+- **Footer links.** The footer copies Lamoda's items, but only the personal data policy and
+  «Магазины Lamoda Sport» (0022 X11) have a page (0008 J22): each other item becomes a link when
+  its page appears. The list is `widgets/footer/config/items.ts`.
+- **Yandex Maps key's requests and the paid plan.** The stores page's map uses the free
+  JavaScript API plan (0022 X14): its terms state no daily limit, but Yandex may limit or block a
+  key at its discretion, and the map may show ads. The owner watches the key's request statistics
+  in Yandex's cabinet daily for the first week after the deploy (0022 X21). After it, look at them
+  again when the site's traffic grows or before a demo. The paid «Базовый» plan removes the ads; a
+  demo read as made for resale would need a paid licence (X14).
 - **Catalog card prefetch.** The catalog grid's cards link to `/products/<id>` with
   `prefetch={false}` (`widgets/product-grid`; the card keeps its `href`, 0019 A40). Measured on a
   production build (0019 A82): one card's prefetch is 2 requests to web (`_tree` and the page's
