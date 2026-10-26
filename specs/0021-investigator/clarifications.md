@@ -1,6 +1,7 @@
 # 0021 investigator: clarifications
 
-Status: draft (2026-10-25); amended 2026-10-25 at the plan (Q6: SQLite instead of LanceDB), at
+Status: done (2026-10-26): decisions up to Q23. History, not instructions. Accepted 2026-10-25;
+amended 2026-10-25 at the plan (Q6: SQLite instead of LanceDB), at
 the tasks (Q15: three pull requests), at the review of PR 1 (Q2: the US region; Q7: the plan's
 §3.2 holds the exact rules) and on 2026-10-26 at T4 (Q16, Q17), at T6 (Q18, Q19), at T7
 (Q20), at T8 (Q21), at T9 (Q22) and at T12 (Q23).

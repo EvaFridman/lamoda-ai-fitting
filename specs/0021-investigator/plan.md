@@ -1,6 +1,7 @@
 # 0021 investigator: plan
 
-Status: draft (2026-10-25); amended 2026-10-25 at the tasks (three pull requests, Q15) and at the
+Status: done (2026-10-26). History, not instructions. Accepted 2026-10-25; amended 2026-10-25
+at the tasks (three pull requests, Q15) and at the
 review of PR 1 (the remote string's second parse in §6, the query rule in §5, two accepted risks,
 the US region, the pull request numbers of §8 and §10) and on 2026-10-26 at T4 (§2's referer and
 length, Q16; §6's nginx filter, Q17; §2's tests) and at T5 (§3.2's modes, stages, `.env*` and
@@ -11,7 +12,7 @@ and §12's `DatabaseSync`) and at T7 (§3.7's git commands and its query check, 
 size, Q22).
 
 Implements [spec.md](spec.md) with the decisions of [clarifications.md](clarifications.md)
-(Q1–Q21). Sections name the decisions and criteria they carry out.
+(Q1–Q23). Sections name the decisions and criteria they carry out.
 
 ## 1. Pull requests and release order
 

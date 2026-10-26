@@ -38,7 +38,9 @@ the monthly limit, the push `fitting:finished`), the try-on of one item and of a
 phones as Lamoda's, the fitting room (`/me/fitting-room`, the header's `FittingRoomButton` and
 `widgets/fitting-room-drawer`) and the fitting's analytics (all closed). The AI fitting's vision
 `0016-ai-fitting` stays accepted: 0019 checked its AC5–AC10, AC14 and AC15 (for the account), the rest wait for
-specs of their own.
+specs of their own. Spec `0021-investigator` added the investigator: a request's log line with
+four headers only, the code index `tools/code-rag` and its MCP server, Sentry's MCP server
+read-only, the `investigator` agent with its shell guard and the skill `/investigate`.
 
 Keep this file true: update it in the same commit that changes what a section describes.
 

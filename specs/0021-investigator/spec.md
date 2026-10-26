@@ -1,11 +1,12 @@
 # 0021 investigator: an agent for Sentry events and the api's logs
 
-Status: draft (2026-10-25); amended 2026-10-25 at the plan (Q6: the index's store), at the tasks
-(Q15: three pull requests), at the review of PR 1 (AC3's source list, AC9's record, the
-region assumption) and on 2026-10-26 at T4 (AC1's referer and length, Q16) and at T12 (AC9's
-input, Q23).
+Status: done (2026-10-26): all 12 criteria pass ([tasks.md](tasks.md), acceptance record).
+History, not instructions. Accepted 2026-10-25; amended 2026-10-25 at the plan (Q6: the index's
+store), at the tasks (Q15: three pull requests), at the review of PR 1 (AC3's source list, AC9's
+record, the region assumption) and on 2026-10-26 at T4 (AC1's referer and length, Q16) and at T12
+(AC9's input, Q23).
 
-Issue #44. Decisions: `clarifications.md` (Q1–Q17).
+Issue #44. Decisions: `clarifications.md` (Q1–Q23).
 
 ## Goal
 
