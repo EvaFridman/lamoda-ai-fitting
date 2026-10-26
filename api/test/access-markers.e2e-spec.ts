@@ -121,6 +121,7 @@ const PUBLIC_HANDLERS = [
   'ProductsController.list',
   'ProductsController.related',
   'RealtimeGateway.ping',
+  'StoresController.list',
 ];
 
 // Every handler no one may call, a signed-in user neither (spec 0013 N8), sorted.

@@ -7981,6 +7981,60 @@
           "fittings"
         ]
       }
+    },
+    "/stores": {
+      "get": {
+        "operationId": "StoresController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Every store in Lamoda's order, as a plain array (no paging).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StoreResponseDto"
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error codes: `TOO_MANY_REQUESTS`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error codes: `INTERNAL_ERROR`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error codes: `SERVICE_UNAVAILABLE`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "stores"
+        ]
+      }
     }
   },
   "info": {
@@ -10244,6 +10298,94 @@
           "used",
           "left",
           "renewsAt"
+        ]
+      },
+      "StoreType": {
+        "type": "string",
+        "enum": [
+          "sport",
+          "urban",
+          "outlet"
+        ]
+      },
+      "StoreResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "example": "ТЦ Охотный ряд Urban"
+          },
+          "type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StoreType"
+              }
+            ]
+          },
+          "city": {
+            "type": "string",
+            "example": "г. Москва"
+          },
+          "street": {
+            "type": "string"
+          },
+          "house": {
+            "type": "string"
+          },
+          "mall": {
+            "type": "string",
+            "description": "The mall the store is in."
+          },
+          "latitude": {
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90
+          },
+          "longitude": {
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180
+          },
+          "metroStations": {
+            "description": "Empty when no station is near (spec 0022 X20).",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "workTime": {
+            "type": "string",
+            "description": "Lamoda's text of the opening hours."
+          },
+          "description": {
+            "type": "string"
+          },
+          "phones": {
+            "description": "Lamoda's text of each phone; may be empty.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "type",
+          "city",
+          "street",
+          "house",
+          "mall",
+          "latitude",
+          "longitude",
+          "metroStations",
+          "workTime",
+          "description",
+          "phones"
         ]
       },
       "ErrorCode": {
