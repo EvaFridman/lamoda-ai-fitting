@@ -3,7 +3,7 @@
 Status: draft (2026-10-25); amended 2026-10-25 at the plan (Q6: SQLite instead of LanceDB), at
 the tasks (Q15: three pull requests), at the review of PR 1 (Q2: the US region; Q7: the plan's
 §3.2 holds the exact rules) and on 2026-10-26 at T4 (Q16, Q17), at T6 (Q18, Q19), at T7
-(Q20) and at T8 (Q21).
+(Q20), at T8 (Q21) and at T9 (Q22).
 
 The owner's decisions for this spec. Ids `Q1`, `Q2`, … are referred to by the spec, the plan and
 code comments. All decisions below: owner, 2026-10-25, while the spec was written, except where a
@@ -102,6 +102,20 @@ same request line and address, so for nginx the remote command ends in exactly `
 streams pass the filter; no other redirection is allowed (owner, at T4's review). Weighed: a new
 `log_format` without queries (cleaner, but a change to production's nginx in this spec) and no
 nginx log at all (the 502s and 504s that never reach the api would be lost).
+
+**Q22. The guard's bounds, tightened (owner, at T9's security review).** nginx's filter takes only
+`request_id=<32 hex>`: nginx logs its own `$request_id` (32 hex) at the end of the access log's line
+as `request_id=…`, while a uuid appears in its log only inside paths (`/products/<id>`,
+`/api/fittings/<id>`), so `rg -F <a product's id>` would give every visitor's requests for that
+product; the uuid stays for the api's logs. The error log's lines carry no request id, so they pass
+this filter only by chance; the access log's line keeps the 502's or 504's status, and `2>&1` stays
+as Q17 has it. Revisited at T12's production run: should the upstream's error be missed, the fix
+is `$upstream_status`, `$upstream_addr` and `$upstream_response_time` in `main_id` (a change to
+production's nginx, a task or spec of its own), not the error log by time, whose lines quote the
+request line and address. And every `docker logs` takes `--tail` (at most 5 000); `--since` and `--until` only
+narrow the window, since `--since 100000h` alone would bring the whole log (up to 30 MB) into the
+agent's context. Weighed: a bare 32 hex for nginx (a query could hold one) and capping `--since`
+at 72 hours (a duration is easy to cap, a stamp needs the clock).
 
 ## The index (RAG)
 

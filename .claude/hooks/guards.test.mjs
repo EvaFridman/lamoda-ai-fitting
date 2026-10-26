@@ -7,7 +7,8 @@ import path from 'node:path';
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { Blocked } from './guard-lib.mjs';
+import { Blocked, splitPipeline } from './guard-lib.mjs';
+import { check as investigator } from './investigator-rules.mjs';
 import { GH_WRITES, check as main } from './main-rules.mjs';
 import { BROWSER_TOOLS, PORTS, check as qaTester } from './qa-tester-rules.mjs';
 import { check as readOnly } from './read-only-rules.mjs';
@@ -310,6 +311,176 @@ describe('test-writer rules', () => {
       ['Read', { file_path: '/x' }],
     ],
   );
+});
+
+describe('splitPipeline', () => {
+  it('cuts at a | outside quotes only', () => {
+    assert.deepEqual(splitPipeline("ssh h 'a | b' | rg -F 'x|y'", 2), [
+      "ssh h 'a | b' ",
+      " rg -F 'x|y'",
+    ]);
+    assert.deepEqual(splitPipeline('ls "a|b"', 2), ['ls "a|b"']);
+  });
+
+  it('refuses too many, empty or unbalanced stages', () => {
+    for (const cmd of ['a | b | c', 'a || b', '| a', 'a |', "a 'b | c"]) {
+      assert.throws(() => splitPipeline(cmd, 2), Blocked, cmd);
+    }
+  });
+});
+
+// Spec 0021 plan §6, Q3, Q17, Q22, AC8.
+const NGINX_ID = 'b1946ac92492d2347c6235b4d2611184';
+const NGINX_MATCH = `request_id=${NGINX_ID}`;
+const API_ID = '3f2b8c1e-4d5a-4b6c-9e7f-0a1b2c3d4e5f';
+const NGINX_LOGS = 'docker logs --tail 5000 --since 1h ai-fitting-infra-nginx-1';
+const INVESTIGATOR_ALLOWED = [
+  bash("ssh ai-fitting 'docker logs --tail 200 ai-fitting-blue-api-1'"),
+  bash('ssh ai-fitting docker logs --tail 200 ai-fitting-blue-api-1'),
+  bash(
+    "ssh ai-fitting 'docker logs --tail 5000 --since 2026-10-26T10:00:00Z " +
+      `--until 2026-10-26T10:05:00Z ai-fitting-green-api-1' | rg -F '${API_ID}'`,
+  ),
+  bash(
+    'ssh ai-fitting docker logs --since 2026-10-26T10:00:00.5+03:00 --until 5m --tail 100 ' +
+      `ai-fitting-green-api-1 | grep -F ${API_ID}`,
+  ),
+  bash("ssh ai-fitting 'docker logs --since 30m --tail 10 -t ai-fitting-worker-temporal-worker-1'"),
+  bash("ssh ai-fitting 'docker logs --tail=5000 --timestamps ai-fitting-backup-backup-1'"),
+  bash("ssh ai-fitting 'docker logs --tail 0 ai-fitting-blue-web-1' | rg -n -i 'digest'"),
+  bash("ssh ai-fitting 'docker logs --tail 50 ai-fitting-green-web-1' | grep -c error"),
+  bash(`ssh ai-fitting '${NGINX_LOGS} 2>&1' | rg -F ${NGINX_MATCH}`),
+  bash(`ssh ai-fitting ${NGINX_LOGS} '2>&1' | grep -F '${NGINX_MATCH}'`),
+  bash(`ssh ai-fitting '${NGINX_LOGS} 2>&1' | rg --fixed-strings ${NGINX_MATCH}`),
+  bash("ssh ai-fitting 'cat /opt/ai-fitting/.deploy-state'"),
+  bash('ssh ai-fitting cat /opt/ai-fitting/.deploy-state'),
+  bash("ssh ai-fitting 'cat /opt/ai-fitting/.deploy-state' | rg -F api"),
+  bash('ssh ai-fitting cat /opt/ai-fitting/.deploy-state | grep -F api'),
+  bash("ssh ai-fitting 'docker compose ls'"),
+  bash("ssh ai-fitting 'docker compose ls' | rg -F ai-fitting"),
+  bash('ssh ai-fitting docker compose ls'),
+  bash('ssh ai-fitting docker compose ls | grep ai-fitting'),
+];
+
+describe('investigator rules', () => {
+  cases(
+    investigator,
+    [
+      ...INVESTIGATOR_ALLOWED,
+      // What the read-only agents run.
+      bash("rg -n 'sentry' api/src"),
+      bash('git show 391e6cf:api/src/sentry.options.ts'),
+      bash('git log --oneline -5'),
+      bash('ls specs'),
+    ],
+    [
+      // Another host or ssh options.
+      bash("ssh other 'docker compose ls'"),
+      bash("ssh ai-fitting.example 'docker compose ls'"),
+      bash("ssh -o ProxyCommand=x ai-fitting 'docker compose ls'"),
+      bash("ssh -p 22 ai-fitting 'docker compose ls'"),
+      bash("ssh -- ai-fitting 'docker compose ls'"),
+      bash('ssh ai-fitting -o ProxyCommand=x docker compose ls'),
+      bash('ssh ai-fitting'),
+      bash('ssh'),
+      // Another docker command or remote program.
+      bash("ssh ai-fitting 'docker restart ai-fitting-blue-api-1'"),
+      bash("ssh ai-fitting 'docker exec ai-fitting-blue-api-1 env'"),
+      bash("ssh ai-fitting 'docker ps'"),
+      bash("ssh ai-fitting 'docker compose ps'"),
+      bash("ssh ai-fitting 'docker compose ls --format json'"),
+      bash("ssh ai-fitting 'docker inspect ai-fitting-blue-api-1'"),
+      bash("ssh ai-fitting 'cat /opt/ai-fitting/.env'"),
+      bash("ssh ai-fitting 'cat /opt/ai-fitting/.deploy-state /opt/ai-fitting/.env'"),
+      bash("ssh ai-fitting 'cat /etc/shadow'"),
+      bash("ssh ai-fitting 'rm -rf /opt/ai-fitting'"),
+      bash("ssh ai-fitting 'tail -n 10 /var/log/syslog'"),
+      // An unknown container, no bound, bad bounds, other flags.
+      bash("ssh ai-fitting 'docker logs --tail 10 ai-fitting-infra-postgres-1'"),
+      bash("ssh ai-fitting 'docker logs --tail 10 ai-fitting-blue-api-2'"),
+      bash("ssh ai-fitting 'docker logs --tail 10 ai-fitting-blue-api-1 ai-fitting-green-api-1'"),
+      bash("ssh ai-fitting 'docker logs ai-fitting-blue-api-1'"),
+      bash("ssh ai-fitting 'docker logs --until 5m ai-fitting-blue-api-1'"),
+      bash("ssh ai-fitting 'docker logs --since 100000h ai-fitting-blue-api-1'"),
+      bash("ssh ai-fitting 'docker logs --since 1970-01-01T00:00:00Z ai-fitting-blue-api-1'"),
+      bash("ssh ai-fitting '' -oProxyCommand=x docker compose ls"),
+      bash("ssh ai-fitting 'docker logs --tail 5001 ai-fitting-blue-api-1'"),
+      bash("ssh ai-fitting 'docker logs --tail all ai-fitting-blue-api-1'"),
+      bash("ssh ai-fitting 'docker logs --tail -1 ai-fitting-blue-api-1'"),
+      bash("ssh ai-fitting 'docker logs --since yesterday ai-fitting-blue-api-1'"),
+      bash("ssh ai-fitting 'docker logs --since 10m --since 1h ai-fitting-blue-api-1'"),
+      bash("ssh ai-fitting 'docker logs --tail 10 --follow ai-fitting-blue-api-1'"),
+      bash("ssh ai-fitting 'docker logs --tail 10 -f ai-fitting-blue-api-1'"),
+      bash("ssh ai-fitting 'docker logs --tail 10 -tf ai-fitting-blue-api-1'"),
+      bash("ssh ai-fitting 'docker logs --tail 10'"),
+      bash("ssh ai-fitting 'docker logs --tail'"),
+      // nginx's log with no filter, another filter, or no 2>&1 (Q17, Q22).
+      bash(`ssh ai-fitting '${NGINX_LOGS} 2>&1'`),
+      bash(`ssh ai-fitting '${NGINX_LOGS} 2>&1' | rg -F callback`),
+      bash(`ssh ai-fitting '${NGINX_LOGS} 2>&1' | rg -F ${NGINX_ID}`),
+      bash(`ssh ai-fitting '${NGINX_LOGS} 2>&1' | rg -F ${API_ID}`),
+      bash(`ssh ai-fitting '${NGINX_LOGS} 2>&1' | rg -F request_id=${API_ID}`),
+      bash(`ssh ai-fitting '${NGINX_LOGS} 2>&1' | rg -F request_id=${NGINX_ID}0`),
+      bash(`ssh ai-fitting '${NGINX_LOGS} 2>&1' | rg ${NGINX_MATCH}`),
+      bash(`ssh ai-fitting '${NGINX_LOGS} 2>&1' | rg -F -v ${NGINX_MATCH}`),
+      bash(`ssh ai-fitting '${NGINX_LOGS} 2>&1' | rg -F -C 500 ${NGINX_MATCH}`),
+      bash(`ssh ai-fitting '${NGINX_LOGS} 2>&1' | rg -F -e ${NGINX_MATCH}`),
+      bash(`ssh ai-fitting '${NGINX_LOGS} 2>&1' | rg -F ${NGINX_MATCH} /`),
+      bash(`ssh ai-fitting '${NGINX_LOGS}' | rg -F ${NGINX_MATCH}`),
+      bash(`ssh ai-fitting '${NGINX_LOGS} 2>/tmp/x' | rg -F ${NGINX_MATCH}`),
+      bash(`ssh ai-fitting '${NGINX_LOGS} >&2' | rg -F ${NGINX_MATCH}`),
+      bash(`ssh ai-fitting '${NGINX_LOGS} 1>&2' | rg -F ${NGINX_MATCH}`),
+      bash(`ssh ai-fitting '${NGINX_LOGS} 2>&1 2>&1' | rg -F ${NGINX_MATCH}`),
+      bash(`ssh ai-fitting '${NGINX_LOGS} 2>&1 > x' | rg -F ${NGINX_MATCH}`),
+      // 2>&1 on any other container or command.
+      bash("ssh ai-fitting 'docker logs --tail 10 ai-fitting-blue-api-1 2>&1'"),
+      bash("ssh ai-fitting 'docker compose ls 2>&1'"),
+      bash("ssh ai-fitting 'cat /opt/ai-fitting/.deploy-state 2>&1'"),
+      // A remote string that hides a second command.
+      bash("ssh ai-fitting 'docker logs --tail 10 ai-fitting-blue-api-1; rm -rf /'"),
+      bash("ssh ai-fitting 'docker logs --tail 10 ai-fitting-blue-api-1 && rm -rf /'"),
+      bash("ssh ai-fitting 'docker logs --tail 10 ai-fitting-blue-api-1 || rm -rf /'"),
+      bash("ssh ai-fitting 'docker logs --tail 10 ai-fitting-blue-api-1 | sh'"),
+      bash("ssh ai-fitting 'docker logs --tail 10 ai-fitting-blue-api-1 & rm -rf /'"),
+      bash("ssh ai-fitting 'docker logs --tail $(echo 10) ai-fitting-blue-api-1'"),
+      bash("ssh ai-fitting 'docker logs --tail `echo 10` ai-fitting-blue-api-1'"),
+      bash("ssh ai-fitting 'docker logs --tail 10 ai-fitting-blue-api-1\nrm -rf /'"),
+      bash("ssh ai-fitting 'docker logs --tail 10 ai-fitting-blue-api-1 > /tmp/x'"),
+      bash("ssh ai-fitting 'docker logs --tail 10 ai-fitting-blue-api-*'"),
+      bash("ssh ai-fitting 'docker logs --tail 10 ai-fitting-{blue,green}-api-1'"),
+      bash('ssh ai-fitting "docker logs --tail 10 $HOME"'),
+      bash("ssh ai-fitting 'cat ~/.deploy-state'"),
+      // A pipe to anything else, a second pipe, a redirection, a pipe after another program.
+      bash("ssh ai-fitting 'docker compose ls' | tee out.txt"),
+      bash("ssh ai-fitting 'docker compose ls' | sh"),
+      bash("ssh ai-fitting 'docker compose ls' | rg x | rg y"),
+      bash("ssh ai-fitting 'docker compose ls' || rm x"),
+      bash("ssh ai-fitting 'docker compose ls' > out.txt"),
+      bash("ssh ai-fitting 'docker compose ls' | rg x > out.txt"),
+      bash("ssh ai-fitting 'docker compose ls'; rm x"),
+      bash("ssh ai-fitting 'docker compose ls' | rg x .env"),
+      bash("ssh ai-fitting 'docker compose ls' | rg x api/src"),
+      bash("ssh ai-fitting 'docker compose ls' | rg --files x"),
+      bash("ssh ai-fitting 'docker compose ls' | rg --pre ./evil.sh x"),
+      bash("ssh ai-fitting 'docker compose ls' | rg -e x -e y"),
+      bash("ssh ai-fitting 'docker compose ls' | rg"),
+      bash("git log --oneline | rg 'fix'"),
+      bash('ls | grep x'),
+      // Writes and other programs.
+      bash('rm -rf specs'),
+      bash('git fetch'),
+      bash('git push'),
+      bash('npm test'),
+      bash('curl https://sentry.io'),
+      bash('cat .env'),
+      ['Write', { file_path: path.join(ROOT, 'x.md') }],
+    ],
+  );
+
+  // The main session's guard runs over every subagent's rules too.
+  for (const [tool, input] of INVESTIGATOR_ALLOWED) {
+    it(`main rules allow ${JSON.stringify(input.command)}`, () => main(tool, input));
+  }
 });
 
 describe('main rules', () => {

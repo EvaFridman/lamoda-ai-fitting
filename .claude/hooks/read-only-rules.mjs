@@ -8,8 +8,9 @@
 import { Blocked, allowFlags, isSecret, words } from './guard-lib.mjs';
 
 const LS = { short: 'lahtrRS1dFG' };
-const GREP = { short: 'niIlLcvwxoFEGhHsq', withValue: ['-e', '-A', '-B', '-C', '-m'] };
-const RG = {
+// investigator-rules.mjs filters a pipe with the same flags.
+export const GREP = { short: 'niIlLcvwxoFEGhHsq', withValue: ['-e', '-A', '-B', '-C', '-m'] };
+export const RG = {
   short: 'nilcwFSsvxoqHN',
   long: [
     '--files',

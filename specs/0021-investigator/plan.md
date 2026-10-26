@@ -7,7 +7,8 @@ length, Q16; §6's nginx filter, Q17; §2's tests) and at T5 (§3.2's modes, sta
 secret patterns; §3.3's windows, imports, directives, lists and empty headings) and at T6
 (§3.4's batches, pace and backoff and §3.6's first run, Q18; §3.2's committed files, Q19; §3.5's
 and §12's `DatabaseSync`) and at T7 (§3.7's git commands and its query check, Q20) and at T8 (§4's and §5's Sentry tools and
-`search_replays` denied, Q21).
+`search_replays` denied, Q21) and at T9 (§5's and §6's bound and nginx's filter, §11's context
+size, Q22).
 
 Implements [spec.md](spec.md) with the decisions of [clarifications.md](clarifications.md)
 (Q1–Q21). Sections name the decisions and criteria they carry out.
@@ -285,7 +286,7 @@ HEAD` and `status` for the stale files, all with `--no-optional-locks`, so none 
   → the other events' request ids (`search_errors` with `issue:<short id>` and the fields
   `timestamp`, `release`, `request_id`; Sentry's syntax and explicit fields, never a question in
   words, whose model picks fields such as `user.email` itself, Q21) → the logs: the deploy state (the
-  active colour and tag, the previous ones), then `docker logs --since <first seen − 1 min> --until
+  active colour and tag, the previous ones), then `docker logs --tail 5000 --since <first seen − 1 min> --until
 <last seen + 1 min>` of the api container of the colour that served the release (both colours
   when it changed in between; the worker for `temporal.*`; nginx for the request line; web for a
   web issue), filtered by `rg -F <request id>` → the release's code with `git show <tag>:<path>`
@@ -304,7 +305,7 @@ HEAD` and `status` for the stale files, all with `--no-optional-locks`, so none 
   A query to `search_code` or `search_docs` leaves the machine (Voyage embeds it): it holds code
   terms, error codes and the symptom in the agent's own words, never a quote from an event, a
   breadcrumb or a log line (no email, token, signed link, user id or request id).
-  Every `docker logs` is bounded (`--since` or `--tail`, at most 5 000 lines) and filtered when a
+  Every `docker logs` is bounded (`--tail`, at most 5 000 lines, Q22) and filtered when a
   request id is known; at most six ssh calls per investigation, more only with the owner's word
   through the main session.
 - Output, in Russian, with code and names in English: Причина; Доказательства (issue, request
@@ -338,11 +339,13 @@ HEAD` and `status` for the stale files, all with `--no-optional-locks`, so none 
     container one of `ai-fitting-blue-api-1`, `ai-fitting-green-api-1`, `ai-fitting-blue-web-1`,
     `ai-fitting-green-web-1`, `ai-fitting-worker-temporal-worker-1`, `ai-fitting-backup-backup-1`,
     `ai-fitting-infra-nginx-1`; `--since`/`--until` a duration (`\d+[smh]`) or an RFC 3339 stamp;
-    `--tail` at most 5 000; `--since` or `--tail` required; `ai-fitting-infra-nginx-1` only with
-    the filter stage, and that stage `rg -F` or `grep -F` with a request id (32 hex characters or
-    a uuid) as its pattern, and its remote command ends in exactly `2>&1`, so nginx's error log
-    (the container's stderr) passes the filter too; the rule set accepts that one trailing word
-    for nginx before the second `words()` parse and refuses every other redirection (Q17);
+    `--tail` required, at most 5 000, `--since`/`--until` only narrowing the window (Q22);
+    `ai-fitting-infra-nginx-1` only with the filter stage, and that stage `rg -F` or `grep -F`
+    with nginx's request id as `request_id=<32 hex>` as its pattern (a uuid is found in nginx's
+    log only inside paths, Q22; the other filters take a uuid too), and its remote command ends
+    in exactly `2>&1`, so nginx's error log (the container's stderr) passes the filter too; the
+    rule set accepts that one trailing word for nginx before the second `words()` parse and
+    refuses every other redirection (Q17);
   - `cat /opt/ai-fitting/.deploy-state`;
   - `docker compose ls`.
     There is no `docker ps`: the deploy state names the colour, and the container names are the fixed
@@ -426,7 +429,7 @@ None: the spec has no UI and sends no events.
 - **A stale index.** Every answer names the commit and the changed files; the skill refreshes
   before the agent runs; a rebase makes `indexedCommit` unreachable and the server says so.
 - **Context size.** A `docker logs` without a bound would dump megabytes into the agent's context;
-  the guard requires a bound and the agent filters by request id.
+  the guard requires `--tail` (at most 5 000 lines, Q22) and the agent filters by request id.
 - **Voyage down or throttled.** Retries with backoff; the agent still works through Grep and Read;
   the index is refreshed later.
 - **The log line's contract.** Removing headers from the log could break a reader that expected
