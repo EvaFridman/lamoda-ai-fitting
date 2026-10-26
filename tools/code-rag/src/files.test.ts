@@ -18,6 +18,9 @@ import {
 
 const HASH = 'a411afbff4e32229fc209f6543e43cf68d826bff';
 const BASE64URL = ['Ab3_dEf-GhIjKlMn', 'OpQrStUvWxYz', '0123456789'].join('');
+// Made-up values, built from parts so that secret scanners do not take the file for a leak.
+const FAKE_PASSWORD = ['Ab3dEfGh', '5jKlMn0p', 'QrStUvWx'].join('');
+const FAKE_AUTH_SECRET = ['abcdefghijklmnop', 'qrstuvwxyz012345'].join('');
 
 function file(path: string, size = 100, mode = '100644', stage = 0): TrackedFile {
   return { path, mode, blobHash: HASH, size, stage };
@@ -299,8 +302,8 @@ describe('findSecretLine', () => {
       `TOKEN=${BASE64URL}_-aB`,
       `key = "${BASE64URL}_-a=="`,
       `  '${'MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC7'.padEnd(64, 'x')}',`,
-      'OPENAI_PROXY_URL=http://aifitting:Ab3dEfGh5jKlMn0pQrStUvWx@203.0.113.7:3128',
-      'BETTER_AUTH_SECRET=abcdefghijklmnopqrstuvwxyz012345',
+      `OPENAI_PROXY_URL=http://aifitting:${FAKE_PASSWORD}@203.0.113.7:3128`,
+      `BETTER_AUTH_SECRET=${FAKE_AUTH_SECRET}`,
       `SENTRY_AUTH_TOKEN=sntryu_${'0123456789abcdef'.repeat(4)}`,
     ]) {
       assert.equal(findSecretLine(`line one\n${secret}\nline three`), 1, secret);

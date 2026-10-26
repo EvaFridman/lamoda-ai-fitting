@@ -316,7 +316,16 @@ export function chunkFile(file: SourceFile): Chunk[] {
 
   const kind = chunkKind(file.path);
   const status = specStatus(file.path, file.text);
-  return pieces.map((piece) => {
+  // Two statements on one line give two pieces of the same lines, so of the same id and text:
+  // they become one, named by both, or the index's unique id would fail the whole run.
+  const byRange = new Map<string, Piece>();
+  for (const piece of pieces) {
+    const range = `${piece.start}:${piece.end}`;
+    const kept = byRange.get(range);
+    if (kept) kept.symbol = `${kept.symbol}, ${piece.symbol}`;
+    else byRange.set(range, { ...piece });
+  }
+  return [...byRange.values()].map((piece) => {
     const startLine = piece.start + 1;
     const endLine = piece.end + 1;
     return {

@@ -63,6 +63,14 @@ describe('chunkFile: TypeScript and JavaScript', () => {
     ]);
   });
 
+  it('makes one chunk named by both for two statements on one line, so no two share an id', () => {
+    const result = chunks('api/src/x.ts', 'const a = 1; const b = 2;\n');
+    assert.deepEqual(
+      result.map((c) => [c.startLine, c.endLine, c.symbol, c.text]),
+      [[1, 1, 'a, b', 'const a = 1; const b = 2;']],
+    );
+  });
+
   it('attaches leading comments and JSDoc to their node, not a trailing comment', () => {
     const text = [
       'const a = 1; // about a',
