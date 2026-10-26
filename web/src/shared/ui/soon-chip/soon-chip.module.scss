@@ -1,0 +1,20 @@
+// Board 3's `.n-soon`: 18px high, 6px from the sides, a 9px radius, 11px medium white text on
+// black.
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+
+  box-sizing: border-box;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 9px;
+
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-caption);
+  color: var(--color-background);
+  white-space: nowrap;
+
+  background-color: var(--color-text);
+}

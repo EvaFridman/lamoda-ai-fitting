@@ -11,6 +11,7 @@ import {
   ProfileIcon,
   SearchField,
   SearchIcon,
+  SoonChip,
 } from '@/shared/ui';
 
 import styles from './header.module.scss';
@@ -25,7 +26,8 @@ import { Logo } from './logo';
 // Lamoda's site header without the announcement bar (spec 0010 L2): the gender switch and the city,
 // the logo, the profile, favourites and cart; under them the category row and the search field.
 // The switch, the city, favourites and the cart are drawn as on Lamoda and do nothing yet (L5): they
-// say so to assistive technology with `aria-disabled`, have no handler and stay in the tab order.
+// say so to assistive technology with `aria-disabled`, have no handler and stay in the tab order;
+// favourites and the cart carry «скоро» (spec 0023 C4, C5). No icon has a frame (C2, C3).
 // The profile icon signs in and opens the profile menu (spec 0013 N12); the fitting room's hanger,
 // between favourites and the cart, opens the room (spec 0019 A10).
 // Below 600px it is Lamoda's phone row (spec 0019 A87.4): the burger and the loupe, the logo,
@@ -91,7 +93,12 @@ export function Header() {
             {/* The fallback is the profile icon as it is while the session loads. */}
             <Suspense
               fallback={
-                <IconButton aria-label="Профиль" aria-disabled="true" className={styles.iconButton}>
+                <IconButton
+                  aria-label="Профиль"
+                  aria-disabled="true"
+                  variant="plain"
+                  className={styles.iconButton}
+                >
                   <ProfileIcon />
                 </IconButton>
               }
@@ -99,8 +106,14 @@ export function Header() {
               <HeaderProfileSlot />
             </Suspense>
           </div>
-          <IconButton aria-label="Избранное" aria-disabled="true" className={styles.iconButton}>
+          <IconButton
+            aria-label="Избранное"
+            aria-disabled="true"
+            variant="plain"
+            className={`${styles.iconButton} ${styles.soonButton}`}
+          >
             <HeartIcon />
+            <SoonChip className={styles.soon} />
           </IconButton>
           <Suspense
             fallback={
@@ -109,8 +122,14 @@ export function Header() {
           >
             <HeaderRoomSlot />
           </Suspense>
-          <IconButton aria-label="Корзина" aria-disabled="true" className={styles.iconButton}>
+          <IconButton
+            aria-label="Корзина"
+            aria-disabled="true"
+            variant="plain"
+            className={`${styles.iconButton} ${styles.soonButton}`}
+          >
             <BagIcon />
+            <SoonChip className={styles.soon} />
           </IconButton>
         </div>
 

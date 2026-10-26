@@ -18,11 +18,13 @@ export function fittingRoomLabel(count: number): string {
 
 // Board 13's FittingRoomButton: the header's hanger with the room's count (spec 0019 A10). Its
 // handlers are the placer's: it opens the room, or the sign-in window for a visitor (A12). The
-// other props reach the kit's button, so a modal's trigger can render it.
+// other props reach the kit's button, so a modal's trigger can render it. Only the header places
+// it, so it has no frame itself (spec 0023 C3).
 export function FittingRoomButton({ count, className, ...props }: FittingRoomButtonProps) {
   return (
     <IconButton
       {...props}
+      variant="plain"
       aria-label={fittingRoomLabel(count)}
       className={[styles.button, className].filter(Boolean).join(' ')}
     >

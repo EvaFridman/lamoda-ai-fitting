@@ -137,6 +137,8 @@ export type { SizeSelectorOption, SizeSelectorProps } from './size-selector/size
 export { SizeSelector } from './size-selector/size-selector';
 export type { SkeletonProps } from './skeleton/skeleton';
 export { Skeleton } from './skeleton/skeleton';
+export type { SoonChipProps } from './soon-chip/soon-chip';
+export { SoonChip } from './soon-chip/soon-chip';
 export type {
   SortFilterOption,
   SortFilterPanelProps,

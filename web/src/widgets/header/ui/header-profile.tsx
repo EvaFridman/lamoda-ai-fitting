@@ -76,14 +76,19 @@ export function HeaderProfile() {
 
   if (session.status === 'pending') {
     return (
-      <IconButton aria-label="Профиль" aria-disabled="true" className={styles.iconButton}>
+      <IconButton
+        aria-label="Профиль"
+        aria-disabled="true"
+        variant="plain"
+        className={styles.iconButton}
+      >
         <ProfileIcon />
       </IconButton>
     );
   }
 
   const trigger = (
-    <IconButton ref={iconRef} aria-label="Профиль" className={styles.iconButton}>
+    <IconButton ref={iconRef} aria-label="Профиль" variant="plain" className={styles.iconButton}>
       <ProfileIcon />
     </IconButton>
   );

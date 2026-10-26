@@ -21,6 +21,7 @@ import { ProgressSection } from './progress-section';
 import { ScrollRowSection } from './scroll-row-section';
 import { SelectSection } from './select-section';
 import { SizesColorsSection } from './sizes-colors-section';
+import { SoonSection } from './soon-section';
 import { SpinnerSection } from './spinner-section';
 import { TokensSection } from './tokens-section';
 
@@ -56,6 +57,7 @@ export const sections: UiKitSection[] = [
   { id: 'overlays', title: 'Окна и подсказки', Content: OverlaysSection },
   { id: 'feedback', title: 'Уведомления и загрузка', Content: FeedbackSection },
   { id: 'progress', title: 'Прогресс и счётчик', Content: ProgressSection },
+  { id: 'soon', title: 'Скоро', Content: SoonSection },
   { id: 'file-input', title: 'Выбор файла', Content: FileInputSection },
   { id: 'notices', title: 'Сообщения и состояния', Content: NoticesSection },
 ];

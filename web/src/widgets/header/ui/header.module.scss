@@ -185,14 +185,26 @@
   margin-right: calc(-1 * var(--space-3));
 }
 
-// Inert (L5): no outline and no hover change.
+// Inert (L5): no hover change.
 .userNav .iconButton[aria-disabled] {
   &,
   &:hover {
     cursor: default;
-    border-color: transparent;
     color: var(--color-text);
   }
+}
+
+// «скоро» over the icon's top right (spec 0023 C4, C5): about 40px wide, so it sits above the 24px
+// icon, 4px over the button's top (the phone row's 56px leave 4px above the 48px button), and ends
+// at the button's right edge, within the header's side padding, never past the screen's edge.
+.soonButton {
+  position: relative;
+}
+
+.soon {
+  position: absolute;
+  top: -4px;
+  right: 0;
 }
 
 // Keeps its height without categories, so the header does not jump when they arrive (plan §2):
