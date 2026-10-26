@@ -203,9 +203,14 @@ mode, which calls any tool on Sentry's own model) joins them. The agent gets six
 session is not needed and would bring their personal data in; web records no replays today);
 `get_sentry_resource` also opens a replay by id, which only the agent's text forbids. Failing
 monitors are found as their issues (`search_issues`; a missed or failed check-in opens one).
-The OAuth grant of the first connection (Sentry's Authorized Applications, owner, 2026-10-26)
-holds `org:read`, `project:write`, `team:write`, `event:write` and `alerts:write`: `?skills=inspect`
-narrows the tool list, not the token, so the write boundary is the client's deny list and the
-permission prompt on every call, not Sentry's scopes.
+The OAuth consent screen offers four skills, all checked by default: «Inspect Issues & Events»,
+«Seer», «Triage Issues» and «Manage Projects & Teams»; only Inspect is chosen. The grant (Sentry's
+Authorized Applications, owner, 2026-10-26) holds `org:read`, `project:write`, `team:write`,
+`event:write` and `alerts:write` whatever is chosen (the same after a revoke and a connection with
+Inspect alone): the skills limit the session's tools on the server, not the token. So the write
+boundary is the skill the server applies, the client's deny list and the permission prompt on
+every call, not the token's scopes. Weighed: the local `@sentry/mcp-server` with a read-only user
+token (Sentry itself refuses writes; the token sits in `.env` on the development machine, its
+stdio transport is marked work in progress).
 Weighed: all ten for the agent (the four return nothing here), and no deny for `search_replays`
 (it returns nothing today).
