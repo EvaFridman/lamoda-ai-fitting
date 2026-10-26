@@ -6,6 +6,7 @@ import { Link, MastercardMark, PhoneIcon, VisaMark, VkIcon } from '@/shared/ui';
 
 import { footerColumns } from '../config/items';
 import styles from './footer.module.scss';
+import { FooterLink } from './footer-link';
 
 // The version is read at request time: read during prerendering, the build's value would be
 // baked into the static shell forever.
@@ -15,7 +16,8 @@ async function AppVersion() {
 }
 
 // Lamoda's site footer (spec 0008 J22, J36): four columns of items, then a bottom row with VK, the
-// card marks, "Мобильная версия" and the deployed version. Only items with a page are links.
+// card marks, "Мобильная версия" and the deployed version. Only items with a page are links; a
+// tracked one is `FooterLink` (spec 0022 X18).
 export function Footer() {
   return (
     <footer className={styles.footer}>
@@ -27,8 +29,25 @@ export function Footer() {
               <ul className={styles.list}>
                 {column.items.map((item) => (
                   <li key={item.label} className={styles.item}>
-                    {item.href ? (
-                      <Link href={item.href} className={styles.link}>
+                    {item.href && item.track ? (
+                      // Tracking reads the path, so the shell holds the same link untracked.
+                      <Suspense
+                        fallback={
+                          <Link href={item.href} fullLoad={item.fullLoad} className={styles.link}>
+                            {item.label}
+                          </Link>
+                        }
+                      >
+                        <FooterLink
+                          href={item.href}
+                          label={item.label}
+                          fullLoad={item.fullLoad}
+                          track={item.track}
+                          className={styles.link}
+                        />
+                      </Suspense>
+                    ) : item.href ? (
+                      <Link href={item.href} fullLoad={item.fullLoad} className={styles.link}>
                         {item.label}
                       </Link>
                     ) : (

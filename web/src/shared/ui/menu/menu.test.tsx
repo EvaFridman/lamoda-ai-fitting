@@ -325,6 +325,70 @@ describe('MenuLinkItem', () => {
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
+  describe('fullLoad', () => {
+    function FullLoadLinks({ onClick }: { onClick?: () => void }) {
+      return (
+        <Menu trigger={<button type="button">Действия</button>}>
+          <MenuLinkItem href="/customer/stores" fullLoad onClick={onClick}>
+            Магазины
+          </MenuLinkItem>
+          <MenuLinkItem href="/customer/orders">Мои заказы</MenuLinkItem>
+        </Menu>
+      );
+    }
+
+    // Records whether the click was already cancelled by the link, then cancels it for jsdom.
+    function watchClicks() {
+      const cancelled: boolean[] = [];
+      const listener = (event: Event) => {
+        cancelled.push(event.defaultPrevented);
+        event.preventDefault();
+      };
+      document.addEventListener('click', listener);
+      return { cancelled, stop: () => document.removeEventListener('click', listener) };
+    }
+
+    it('renders a plain anchor with role="menuitem" and its href', async () => {
+      render(<FullLoadLinks />);
+
+      await open(setup(), 'click');
+
+      const link = screen.getByRole('menuitem', { name: 'Магазины' });
+      expect(link.tagName).toBe('A');
+      expect(link).toHaveAttribute('href', '/customer/stores');
+      expect(link).not.toHaveAttribute('fullload');
+    });
+
+    it('leaves the click to the browser, closes the menu and calls onClick', async () => {
+      const user = setup();
+      const onClick = vi.fn();
+      render(<FullLoadLinks onClick={onClick} />);
+
+      await open(user, 'click');
+      const watch = watchClicks();
+      await user.click(screen.getByRole('menuitem', { name: 'Магазины' }));
+      watch.stop();
+
+      await vi.waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
+      expect(onClick).toHaveBeenCalledTimes(1);
+      expect(navigated).not.toHaveBeenCalled();
+      expect(watch.cancelled).toEqual([false]);
+    });
+
+    it('keeps next/link for an item without it', async () => {
+      const user = setup();
+      render(<FullLoadLinks />);
+
+      await open(user, 'click');
+      const watch = watchClicks();
+      await user.click(screen.getByRole('menuitem', { name: 'Мои заказы' }));
+      watch.stop();
+
+      expect(navigated).toHaveBeenCalledExactlyOnceWith('/customer/orders');
+      expect(watch.cancelled).toEqual([true]);
+    });
+  });
+
   it('passes onPointerEnter through to the anchor', async () => {
     const user = setup();
     const onPointerEnter = vi.fn();

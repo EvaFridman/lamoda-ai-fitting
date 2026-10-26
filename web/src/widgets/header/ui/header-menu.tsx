@@ -28,24 +28,20 @@ interface Row {
   close: () => void;
 }
 
-function SectionRow({ section, title, href, close }: AccountSection & Row) {
+// A plain <a> for a section that loads in full (spec 0022 X16).
+function SectionRow({ section, title, href, fullLoad, close }: AccountSection & Row) {
   const tracked = useTrackedElement('profile-menu.section', { section, surface: 'burger' });
-  return (
-    <li>
-      <NextLink
-        href={href}
-        className={styles.row}
-        onClick={() => {
-          tracked.onClick();
-          close();
-        }}
-        onPointerEnter={tracked.onPointerEnter}
-        onPointerLeave={tracked.onPointerLeave}
-      >
-        {title}
-      </NextLink>
-    </li>
-  );
+  const props = {
+    href,
+    className: styles.row,
+    onClick: () => {
+      tracked.onClick();
+      close();
+    },
+    onPointerEnter: tracked.onPointerEnter,
+    onPointerLeave: tracked.onPointerLeave,
+  };
+  return <li>{fullLoad ? <a {...props}>{title}</a> : <NextLink {...props}>{title}</NextLink>}</li>;
 }
 
 function SignOutRow({ control, label, close }: { control: SignOutControl; label: string } & Row) {

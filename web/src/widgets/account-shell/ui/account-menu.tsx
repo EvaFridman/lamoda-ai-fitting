@@ -6,13 +6,21 @@ import { Link } from '@/shared/ui';
 
 import styles from './account-shell.module.scss';
 
-// A section of the menu (spec 0017 U6): a link, its clicks and hovers tracked by section (U14).
-function MenuLink({ section, title, href, current }: AccountSection & { current: boolean }) {
+// A section of the menu (spec 0017 U6): a link, its clicks and hovers tracked by section (U14);
+// a plain <a> for a section that loads in full (spec 0022 X16).
+function MenuLink({
+  section,
+  title,
+  href,
+  fullLoad,
+  current,
+}: AccountSection & { current: boolean }) {
   const tracked = useTrackedElement('account-menu.section', { section });
   return (
     <li>
       <Link
         href={href}
+        fullLoad={fullLoad}
         aria-current={current ? 'page' : undefined}
         className={styles.item}
         onClick={tracked.onClick}

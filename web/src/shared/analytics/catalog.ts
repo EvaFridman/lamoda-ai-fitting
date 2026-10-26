@@ -159,6 +159,12 @@ export const catalog = defineCatalog({
       description:
         'Страница `/customer/stores` (спека 0022), открытая всем: поиск, список карточек магазинов и их подробности. Ни одно свойство не называет магазин: ни город, ни место карточки, ни тип магазина. Пункт «Магазины» в меню кабинета — `account-menu.section` с `section: stores`.',
     },
+    footer: {
+      title: 'Подвал',
+      areas: ['footer'],
+      description:
+        'Подвал сайта (спека 0008 J22): колонки пунктов, как у Lamoda. Отслеживаются пункты со страницей, кроме политики по работе с персональными данными; пока это «Магазины Lamoda Sport» (спека 0022 X18).',
+    },
   },
   commonEvents: {
     'Element Clicked': {
@@ -1047,6 +1053,15 @@ export const catalog = defineCatalog({
         '«Проложить маршрут» в подробностях магазина: маршрут Яндекс Карт в новой вкладке. Координаты не отправляются; клик тепловой карты теряет ссылку (`strip-attributes.ts`).',
       clicksPerVisit: 0.01,
       hoversPerVisit: 0.01,
+    },
+    'footer.link': {
+      zone: 'footer',
+      type: 'navigation',
+      description:
+        'Пункт подвала со страницей. `link` — какой: `stores` — «Магазины Lamoda Sport» (`/customer/stores`, загружается целиком).',
+      clicksPerVisit: 0.01,
+      hoversPerVisit: 0.02,
+      properties: { link: { kind: 'enum', values: ['stores'] } },
     },
   },
 });

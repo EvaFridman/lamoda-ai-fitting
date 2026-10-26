@@ -261,6 +261,35 @@ describe('HeaderProfile', () => {
     });
   });
 
+  // The mocked next/link cancels its click, as the real one does to navigate on the client; a plain
+  // anchor leaves it to the browser (spec 0022 X16).
+  it.each([
+    ['Магазины', 'stores', false],
+    ['Мои данные', 'data', true],
+  ])('follows «%s» %s: cancelled by next/link is %s', async (name, section, cancelledByLink) => {
+    signedIn(NAME);
+    render(<HeaderProfile />);
+    const { user, menu } = await openMenu();
+    const cancelled: boolean[] = [];
+    const listener = (event: Event) => {
+      cancelled.push(event.defaultPrevented);
+      event.preventDefault();
+    };
+    document.addEventListener('click', listener);
+    await user.click(within(menu).getByRole('menuitem', { name }));
+    document.removeEventListener('click', listener);
+
+    expect(cancelled).toEqual([cancelledByLink]);
+    expect(mocks.track).toHaveBeenCalledExactlyOnceWith('Element Clicked', {
+      element: 'profile-menu.section',
+      zone: 'auth',
+      type: 'navigation',
+      section,
+      surface: 'menu',
+    });
+    await vi.waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
+  });
+
   it('opens from the keyboard, moves over the section links and follows one with Enter', async () => {
     signedIn(NAME);
     const user = userEvent.setup({ pointerEventsCheck: 0 });

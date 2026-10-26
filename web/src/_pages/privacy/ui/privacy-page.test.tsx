@@ -47,6 +47,21 @@ describe('PrivacyPage', () => {
     expect(paragraph).toHaveTextContent('при удалении аккаунта удаляются все фото');
   });
 
+  it('says the stores map is Yandex: it gets the device address and may keep its cookies (AC14)', () => {
+    render(<PrivacyPage />);
+    const paragraph = screen.getByText(/На странице магазинов показана карта Яндекса/);
+    expect(paragraph).toHaveTextContent('Яндекс получает адрес вашего устройства');
+    expect(paragraph).toHaveTextContent('может сохранять свои cookie');
+  });
+
+  it('links the Yandex Maps terms in a new tab without opener or referrer', () => {
+    render(<PrivacyPage />);
+    const link = screen.getByRole('link', { name: 'условия использования API Яндекс Карт' });
+    expect(link).toHaveAttribute('href', 'https://yandex.ru/legal/maps_api/');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+
   it('reopens the consent banner with "Настройки cookies" after an answer', async () => {
     const user = userEvent.setup();
     window.localStorage.setItem(

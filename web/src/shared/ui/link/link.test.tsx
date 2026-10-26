@@ -85,6 +85,71 @@ describe('Link', () => {
     expect(screen.getByRole('link', { name: 'Размеры' })).toHaveClass('mine');
   });
 
+  describe('fullLoad', () => {
+    // Records whether the click was already cancelled by the link (next/link cancels it to navigate
+    // on the client), then cancels it so jsdom does not try to navigate.
+    function watchClicks() {
+      const cancelled: boolean[] = [];
+      const listener = (event: Event) => {
+        cancelled.push(event.defaultPrevented);
+        event.preventDefault();
+      };
+      document.addEventListener('click', listener);
+      return { cancelled, stop: () => document.removeEventListener('click', listener) };
+    }
+
+    it('is a plain anchor with the same classes, href and handlers', async () => {
+      const user = userEvent.setup();
+      const onClick = vi.fn();
+      render(
+        <Link
+          href="/customer/stores"
+          fullLoad
+          className="mine"
+          variant="secondary"
+          onClick={onClick}
+        >
+          Магазины
+        </Link>,
+      );
+
+      const link = screen.getByRole('link', { name: 'Магазины' });
+      expect(link).toHaveAttribute('href', '/customer/stores');
+      expect(link).toHaveClass('link', 'secondary', 'mine');
+      expect(link).not.toHaveAttribute('fullload');
+      expect(link).not.toHaveAttribute('fullLoad');
+
+      const watch = watchClicks();
+      await user.click(link);
+      watch.stop();
+
+      expect(onClick).toHaveBeenCalledTimes(1);
+      expect(watch.cancelled).toEqual([false]);
+    });
+
+    it('is primary by default', () => {
+      render(
+        <Link href="/a" fullLoad>
+          A
+        </Link>,
+      );
+
+      expect(screen.getByRole('link')).toHaveClass('link', 'primary');
+    });
+
+    it('passes the attributes of another site link', () => {
+      render(
+        <Link href="https://example.com/" fullLoad target="_blank" rel="noopener noreferrer">
+          A
+        </Link>,
+      );
+
+      const link = screen.getByRole('link');
+      expect(link).toHaveAttribute('target', '_blank');
+      expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    });
+  });
+
   it('is reached by Tab', async () => {
     const user = userEvent.setup();
     render(<Link href="/a">A</Link>);

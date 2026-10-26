@@ -241,6 +241,46 @@ describe('HeaderMenu', () => {
       await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     });
 
+    // The mocked next/link cancels its click, as the real one does to navigate on the client; a
+    // plain anchor leaves it to the browser (spec 0022 X16).
+    it('links «Магазины» as a plain anchor, sends its click with surface burger and closes', async () => {
+      const { user, dialog } = await openMenu();
+      mocks.track.mockClear();
+      const cancelled: boolean[] = [];
+      const listener = (event: Event) => {
+        cancelled.push(event.defaultPrevented);
+        event.preventDefault();
+      };
+      document.addEventListener('click', listener);
+      await user.click(within(dialog).getByRole('link', { name: 'Магазины' }));
+      document.removeEventListener('click', listener);
+
+      expect(cancelled).toEqual([false]);
+      expect(mocks.track).toHaveBeenCalledExactlyOnceWith(
+        'Element Clicked',
+        expect.objectContaining({
+          element: 'profile-menu.section',
+          section: 'stores',
+          surface: 'burger',
+        }),
+      );
+      await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    });
+
+    it('keeps next/link for the other sections', async () => {
+      const { user, dialog } = await openMenu();
+      const cancelled: boolean[] = [];
+      const listener = (event: Event) => {
+        cancelled.push(event.defaultPrevented);
+        event.preventDefault();
+      };
+      document.addEventListener('click', listener);
+      await user.click(within(dialog).getByRole('link', { name: 'Мои фото' }));
+      document.removeEventListener('click', listener);
+
+      expect(cancelled).toEqual([true]);
+    });
+
     it.each([
       ['Выйти', 'signOut', 'profile-menu.sign-out'],
       ['Выйти со всех устройств', 'signOutEverywhere', 'profile-menu.sign-out-everywhere'],

@@ -26,12 +26,14 @@ import {
 import styles from './header.module.scss';
 import { BURGER_ID } from './header-menu';
 
-// A section of the account (spec 0017 U6, AC2): a link, its clicks and hovers tracked by section.
-function SectionLink({ section, title, href }: AccountSection) {
+// A section of the account (spec 0017 U6, AC2): a link, its clicks and hovers tracked by section;
+// a plain <a> for a section that loads in full (spec 0022 X16).
+function SectionLink({ section, title, href, fullLoad }: AccountSection) {
   const tracked = useTrackedElement('profile-menu.section', { section, surface: 'menu' });
   return (
     <MenuLinkItem
       href={href}
+      fullLoad={fullLoad}
       onClick={tracked.onClick}
       onPointerEnter={tracked.onPointerEnter}
       onPointerLeave={tracked.onPointerLeave}
