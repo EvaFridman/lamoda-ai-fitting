@@ -114,6 +114,12 @@ instead of doing their job in the main context.
   project id, `4073843`). Every such question goes to it: the main session and the built-in agents
   never query the data through Mixpanel themselves (spec 0015 R25).
   Not a step of `finish-task`.
+- `investigator`: investigates a production failure (a Sentry issue link, a request id, a
+  symptom) or reviews what broke `since <release tag | N days>`, from both Sentry projects, the
+  production logs over `ssh ai-fitting` in the shapes of its guard, the release's code
+  (`git show <tag>:<path>`) and the code index; only reports, in Russian (spec 0021 plan §5).
+  Every Sentry call and ssh asks the owner. Not a step of `finish-task`, never after a deploy or
+  from CI.
 
 What each agent may do, how the guard hooks work, the owner's decisions and the accepted risks:
 [.claude/README.md](.claude/README.md). Working rules:

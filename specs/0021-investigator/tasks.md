@@ -88,7 +88,7 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       `guards.test.mjs` (AC8); `.claude/README.md`'s hooks section.
       Check: `node --test .claude/hooks/guards.test.mjs`; `npm run verify`.
       Commit: `feat(tooling): add the investigator agent's shell guard`
-- [ ] **T10. The agent.** `.claude/agents/investigator.md` (plan §5); the guards test that its
+- [x] **T10. The agent.** `.claude/agents/investigator.md` (plan §5); the guards test that its
       `tools:` are exactly the plan's list (AC7); `.claude/README.md` (the agents' table, the
       servers' section, the decisions, the risks) and `CLAUDE.md` (agents, commands, structure).
       Check: the guards tests; after a restart, the agent called by hand on a Sentry issue link
