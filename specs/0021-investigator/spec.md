@@ -2,7 +2,8 @@
 
 Status: draft (2026-10-25); amended 2026-10-25 at the plan (Q6: the index's store), at the tasks
 (Q15: three pull requests), at the review of PR 1 (AC3's source list, AC9's record, the
-region assumption) and on 2026-10-26 at T4 (AC1's referer and length, Q16).
+region assumption) and on 2026-10-26 at T4 (AC1's referer and length, Q16) and at T12 (AC9's
+input, Q23).
 
 Issue #44. Decisions: `clarifications.md` (Q1–Q17).
 
@@ -91,7 +92,9 @@ through a vector index of the repository, not only by name.
   the request id(s), the log lines of the copy that served them, the place in the code of that
   release (`path:line`), the cause, a proposed fix and a test. The report holds no personal data
   (no email, name, token, cookie or signed link; the owner reads it). Recorded in `tasks.md` after
-  the owner's reading, its request urls without their query: the repository is public.
+  the owner's reading, its request urls without their query: the repository is public. With no
+  issue of a release the logs still hold, two runs stand for it, one by a request id and one by an
+  older issue, together covering every part (Q23).
 - **AC10.** `/investigate since <release tag>` lists the unresolved issues of both Sentry projects
   first seen since that release, grouped by cause, most important first.
 - **AC11.** In those runs every Sentry call and every ssh asked for permission; the index's calls

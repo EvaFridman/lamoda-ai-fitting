@@ -48,7 +48,9 @@ not to GitHub, not to files. The main session fixes the code with the owner (spe
 
 - The code of the release: the image tag and Sentry's `release` are the commit's 7-character hash,
   so read a frame's file with `git show <tag>:<path>` (one command per Bash call; the hook allows
-  `ls`, `grep`, `rg`, `find` and read-only git). A commit missing locally is said so; then read
+  `ls`, `grep`, `rg`, `find` and git `diff`, `log`, `show`, `status`, `ls-files` and `blame`).
+  Your shell already starts in the repository's root: run `git <subcommand>` as it is, never
+  `git -C <dir>` (refused), and search with `rg`, not `git grep`. A commit missing locally is said so; then read
   HEAD and mark what may differ (`git log <tag>..HEAD -- <path>` when the commit is there).
 - The code index (`search_code` with kinds `code`, `test`, `deploy` and a path prefix;
   `search_docs` with `spec` marked `binding` or `history`, and `doc`; `index_status`): it holds

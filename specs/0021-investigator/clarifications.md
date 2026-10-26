@@ -3,7 +3,7 @@
 Status: draft (2026-10-25); amended 2026-10-25 at the plan (Q6: SQLite instead of LanceDB), at
 the tasks (Q15: three pull requests), at the review of PR 1 (Q2: the US region; Q7: the plan's
 §3.2 holds the exact rules) and on 2026-10-26 at T4 (Q16, Q17), at T6 (Q18, Q19), at T7
-(Q20), at T8 (Q21) and at T9 (Q22).
+(Q20), at T8 (Q21), at T9 (Q22) and at T12 (Q23).
 
 The owner's decisions for this spec. Ids `Q1`, `Q2`, … are referred to by the spec, the plan and
 code comments. All decisions below: owner, 2026-10-25, while the spec was written, except where a
@@ -116,6 +116,21 @@ request line and address. And every `docker logs` takes `--tail` (at most 5 000)
 narrow the window, since `--since 100000h` alone would bring the whole log (up to 30 MB) into the
 agent's context. Weighed: a bare 32 hex for nginx (a query could hold one) and capping `--since`
 at 72 hours (a duration is easy to cap, a stamp needs the clock).
+
+**Q23. The production run's input (owner, at T10 and T12).** AC9 takes a real issue of a release
+the logs still hold (`TAG` or `PREVIOUS_TAG` of the deploy state); when there is none, two runs
+stand for it: one by the `X-Request-Id` of a `curl` to the site from the development machine (nginx's
+32-hex id, which the api logs as `req.id`, so the run reads both nginx's and the api's lines) and
+one by a real issue of an older release (`LAMODA-AI-FITTING-API-3`), whose logs are gone and are
+said so. On 2026-10-26 neither `41039ce` nor `ae05815` had an issue in either project, so the two
+runs were made. Q22's question (is nginx's upstream error missed) stays open: no 502 or 504 came
+up; it is answered by the first real one. The agent's three runs each tried `git -C <dir>` once,
+which the read-only rules refuse (only a subcommand of their list may follow `git`, and `-C`
+could leave the repository), and repeated the command without it:
+the agent's text now says its shell starts in the repository's root, and the refusal says the
+same (owner, at T12, without a task of its own). Weighed: waiting for a real failure of the live
+release (none may come before the pull request) and causing one on production (a 5xx on purpose
+would also reach Sentry's quota and the owner's alerts).
 
 ## The index (RAG)
 
