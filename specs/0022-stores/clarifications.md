@@ -1,6 +1,6 @@
 # 0022 stores: Lamoda Sport stores on a Yandex map: clarifications
 
-Status: accepted (2026-10-26); amended 2026-10-26 at the review of PR 1 (X16, X19–X22), at T9
+Status: done (2026-10-26); amended 2026-10-26 at the review of PR 1 (X16, X19–X22), at T9
 (X23, X24), after the owner read Yandex's terms (X6, X14, X21) and at T10 (X25, X26).
 
 The owner's decisions for this spec. Ids `X1`, `X2`, … are referred to by the spec, the plan and
