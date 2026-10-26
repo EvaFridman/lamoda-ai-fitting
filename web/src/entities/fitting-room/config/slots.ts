@@ -19,36 +19,24 @@ export function bySlot<T extends { slot: OutfitSlot | null }>(items: readonly T[
   return [...items].sort((a, b) => order(a) - order(b));
 }
 
-// Board 2's names of the slots: the row's caption, the toasts' «… в примерочной: верх» and
-// «Заменили верх: …» (the same in the accusative), the phone's empty cells.
+// The slots' names (spec 0023 Y5): the row's caption. The toasts name no slot, which no longer
+// fits a sentence (Y15).
 export const SLOT_TITLES: Readonly<Record<OutfitSlot, string>> = {
-  top: 'Верх',
-  bottom: 'Низ',
+  top: 'Верхний слой и платья',
+  bottom: 'Нижний слой',
   outerwear: 'Верхняя одежда',
   shoes: 'Обувь',
-  accessory: 'Аксессуар',
+  accessory: 'Аксессуары',
 };
 
-export const SLOT_ACCUSATIVE: Readonly<Record<OutfitSlot, string>> = {
-  top: 'верх',
-  bottom: 'низ',
-  outerwear: 'верхнюю одежду',
-  shoes: 'обувь',
-  accessory: 'аксессуар',
-};
-
+// The phone's empty cells (board 2.3, Y15).
 export const SLOT_SHORT: Readonly<Record<OutfitSlot, string>> = {
-  top: 'верх',
-  bottom: 'низ',
+  top: 'верхний',
+  bottom: 'нижний',
   outerwear: 'пальто',
   shoes: 'обувь',
   accessory: 'аксесс.',
 };
-
-// An empty slot's caption (A62): the accessory's names what goes there.
-export function emptySlotCaption(slot: OutfitSlot): string {
-  return slot === 'accessory' ? 'Слот свободен: сумка, шарф или головной убор' : 'Слот свободен';
-}
 
 // «Рубашка Annen»: how the room and its toasts name an item (board 2).
 export function roomItemName(product: { name: string; brand: { name: string } }): string {

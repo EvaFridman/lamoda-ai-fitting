@@ -484,6 +484,7 @@ describe('analytics catalog', () => {
       'compare.add-to-cart': ['fitting', 'interaction'],
       'room.open': ['fitting', 'interaction'],
       'room.fill': ['fitting', 'navigation'],
+      'room.favourite': ['fitting', 'interaction'],
       'room.remove': ['fitting', 'interaction'],
       'room.undo': ['fitting', 'interaction'],
       'room.clear': ['fitting', 'interaction'],

@@ -402,22 +402,20 @@ describe('FittingRoomDrawer states', () => {
     );
     expect(within(dialog).getByRole('button', { name: 'Примерить образ' })).toBeDisabled();
     expect(within(dialog).queryByRole('button', { name: 'Очистить примерочную' })).toBeNull();
-    expect(within(dialog).queryByRole('button', { name: 'Всё в корзину' })).toBeNull();
+    expect(within(dialog).queryByRole('button', { name: 'Добавить образ в корзину' })).toBeNull();
   });
 });
 
 describe('FittingRoomDrawer filled (desktop)', () => {
-  it('counts the items in the subtitle', async () => {
+  it('has no counter line under the title (AC7)', async () => {
     const { dialog } = await openDrawer();
+    await within(dialog).findByText('Рубашка Annen');
 
-    expect(
-      await within(dialog).findByText(
-        '2 из 5 вещей · по одной в каждом слоте. Образ целиком — одна примерка.',
-      ),
-    ).toBeInTheDocument();
+    expect(within(dialog).queryByText(/из 5/)).toBeNull();
+    expect(within(dialog).queryByText(/по одной в каждом слоте/)).toBeNull();
   });
 
-  it('lists the five slots in order, filled ones with their item and empty ones free', async () => {
+  it('lists the five slots in order, filled ones with their item and empty ones with no caption', async () => {
     const { dialog } = await openDrawer();
     await within(dialog).findByText('Рубашка Annen');
 
@@ -425,15 +423,72 @@ describe('FittingRoomDrawer filled (desktop)', () => {
       .getAllByRole('listitem')
       .map((row) => row.textContent ?? '');
     expect(slots).toHaveLength(5);
-    expect(slots[0]).toContain('Верх');
+    expect(slots[0]).toContain('Верхний слой и платья');
     expect(slots[0]).toContain('Рубашка Annen');
-    expect(slots[1]).toContain('Низ');
+    expect(slots[1]).toContain('Нижний слой');
     expect(slots[1]).toContain('Джинсы Annen');
     expect(slots[2]).toContain('Верхняя одежда');
-    expect(slots[2]).toContain('Слот свободен');
     expect(slots[3]).toContain('Обувь');
-    expect(slots[4]).toContain('Аксессуар');
-    expect(slots[4]).toContain('Слот свободен: сумка, шарф или головной убор');
+    expect(slots[4]).toContain('Аксессуары');
+    expect(within(dialog).queryByText(/Слот свободен/)).toBeNull();
+  });
+
+  it('opens the same catalog page from an empty slot’s «+» as from the text link, and closes', async () => {
+    const { dialog } = await openDrawer();
+    await waitFor(() =>
+      expect(within(dialog).getAllByRole('link', { name: 'Подобрать в каталоге' })).toHaveLength(2),
+    );
+    const plus = dialog.querySelector<HTMLAnchorElement>(
+      'a[aria-hidden="true"][href="/catalog/shoes"]',
+    );
+    expect(plus).not.toBeNull();
+    expect(plus).toHaveTextContent('+');
+    expect(plus).toHaveAttribute('tabindex', '-1');
+
+    await setup().click(keepPage(plus!));
+
+    await waitFor(() => expect(useRoomStore.getState().open).toBe(false));
+    expect(clicks()).toEqual([
+      { element: 'room.fill', zone: 'fitting', type: 'navigation', slot: 'shoes' },
+    ]);
+  });
+
+  it('gives the accessory slot a «+» that is not a link', async () => {
+    const { dialog } = await openDrawer();
+    await within(dialog).findByText('Рубашка Annen');
+    await waitFor(() =>
+      expect(within(dialog).getAllByRole('link', { name: 'Подобрать в каталоге' })).toHaveLength(2),
+    );
+    const accessory = within(dialog).getAllByRole('listitem')[4] as HTMLElement;
+
+    expect(accessory.querySelector('a')).toBeNull();
+    expect(accessory).toHaveTextContent('+');
+  });
+
+  it('has a heart «В избранное» on a filled slot that shows the stub toast and sends room.favourite', async () => {
+    const { dialog } = await openDrawer();
+    await within(dialog).findByText('Рубашка Annen');
+    const hearts = within(dialog).getAllByRole('button', { name: 'В избранное' });
+    expect(hearts).toHaveLength(2);
+
+    await setup().click(hearts[1]!);
+
+    expect(mocks.showToast).toHaveBeenCalledExactlyOnceWith({
+      title: 'В прототипе нет корзины и избранного',
+    });
+    expect(clicks()).toEqual([
+      expect.objectContaining({ element: 'room.favourite', zone: 'fitting', slot: 'bottom' }),
+    ]);
+  });
+
+  it('puts the heart next to the row’s «В корзину»', async () => {
+    const { dialog } = await openDrawer();
+    await within(dialog).findByText('Рубашка Annen');
+    const heart = within(dialog).getAllByRole('button', { name: 'В избранное' })[0]!;
+    const cart = within(dialog).getAllByRole('button', { name: 'В корзину' })[0]!;
+
+    expect(heart.parentElement).toBe(cart.parentElement);
+    expect(heart.compareDocumentPosition(cart) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('links empty slots to the first active category with that slot, and the accessory to none', async () => {
@@ -523,11 +578,12 @@ describe('FittingRoomDrawer filled (desktop)', () => {
     expect(within(dialog).getByRole('button', { name: 'Примерить образ' })).toBeEnabled();
   });
 
-  it('answers «Всё в корзину» with the prototype toast and sends room.add-to-cart-all with the count', async () => {
+  it('answers «Добавить образ в корзину» with the prototype toast and sends room.add-to-cart-all with the count', async () => {
     const { dialog } = await openDrawer();
     await within(dialog).findByText('Рубашка Annen');
+    expect(within(dialog).queryByRole('button', { name: 'Всё в корзину' })).toBeNull();
 
-    await setup().click(within(dialog).getByRole('button', { name: 'Всё в корзину' }));
+    await setup().click(within(dialog).getByRole('button', { name: 'Добавить образ в корзину' }));
 
     expect(mocks.showToast).toHaveBeenCalledExactlyOnceWith({
       title: 'В прототипе нет корзины и избранного',
@@ -556,11 +612,6 @@ describe('FittingRoomDrawer filled (desktop)', () => {
     expect(clicks()).toEqual([
       { element: 'room.remove', zone: 'fitting', type: 'interaction', slot: 'top' },
     ]);
-    expect(
-      await within(dialog).findByText(
-        '1 из 5 вещей · по одной в каждом слоте. Образ целиком — одна примерка.',
-      ),
-    ).toBeInTheDocument();
     expect(within(dialog).getByText('Сумма образа').nextElementSibling).toHaveTextContent(
       /^4\s000/,
     );
@@ -710,6 +761,14 @@ describe('FittingRoomDrawer wishes (A16, A90.5)', () => {
     expect(field.closest('.mp-block')).not.toBeNull();
     expect(field).toHaveAttribute('maxlength', '200');
     expect(within(dialog).getByText('0 / 200')).toBeInTheDocument();
+  });
+
+  it('is labelled exactly «Пожелания к образу», with no «по желанию» and no hint (AC7)', async () => {
+    const { dialog } = await openDrawer();
+
+    expect(await within(dialog).findByLabelText('Пожелания к образу')).toBeInTheDocument();
+    expect(within(dialog).queryByText(/по желанию/)).toBeNull();
+    expect(within(dialog).queryByText(/Учтём при генерации/)).toBeNull();
   });
 
   it('counts what is typed and keeps it in the store for this user', async () => {
@@ -1033,18 +1092,52 @@ describe('FittingRoomDrawer on a phone (board 2.1–2.3)', () => {
     expect(await within(dialog).findByRole('heading', { name: 'Пока пусто' })).toBeInTheDocument();
     expect(within(dialog).getByRole('link', { name: 'Перейти в каталог' })).toBeInTheDocument();
     expect(
-      within(dialog).getByText(/Добавляйте вещи кнопкой «Добавить к образу» — до пяти/),
+      within(dialog).getByText(
+        'Добавляйте вещи кнопкой «Добавить к образу» — до пяти вещей: верхний слой и платья, нижний слой, верхняя одежда, обувь и аксессуары.',
+      ),
     ).toBeInTheDocument();
-    expect(dialog.querySelectorAll('ul[aria-hidden="true"] li')).toHaveLength(5);
+    const cells = dialog.querySelectorAll('ul[aria-hidden="true"] li');
+    expect([...cells].map((cell) => cell.textContent)).toEqual([
+      'верхний',
+      'нижний',
+      'пальто',
+      'обувь',
+      'аксесс.',
+    ]);
   });
 
-  it('shortens the subtitle and the sum caption', async () => {
+  it('has no counter line, and shortens the sum caption', async () => {
     const { dialog } = await openDrawer();
+    await within(dialog).findByText('Рубашка Annen');
 
-    expect(
-      await within(dialog).findByText('2 из 5 · образ целиком — одна примерка'),
-    ).toBeInTheDocument();
+    expect(within(dialog).queryByText(/из 5/)).toBeNull();
     expect(within(dialog).getByText('Сумма образа · 2 вещи')).toBeInTheDocument();
+  });
+
+  it('puts the heart «В избранное» next to the ×, shows the stub toast and sends room.favourite', async () => {
+    const { dialog } = await openDrawer();
+    await within(dialog).findByText('Рубашка Annen');
+    const heart = within(dialog).getAllByRole('button', { name: 'В избранное' })[0]!;
+    const remove = within(dialog).getByRole('button', { name: 'Убрать «Рубашка Annen»' });
+    expect(heart.parentElement).toBe(remove.parentElement);
+    expect(heart.compareDocumentPosition(remove) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    await setup().click(heart);
+
+    expect(mocks.showToast).toHaveBeenCalledExactlyOnceWith({
+      title: 'В прототипе нет корзины и избранного',
+    });
+    expect(clicks()).toEqual([
+      expect.objectContaining({ element: 'room.favourite', zone: 'fitting', slot: 'top' }),
+    ]);
+  });
+
+  it('reads the new slot titles', async () => {
+    const { dialog } = await openDrawer();
+    await within(dialog).findByText('Рубашка Annen');
+
+    expect(within(dialog).getByText('Верхний слой и платья')).toBeInTheDocument();
+    expect(within(dialog).getByText('Нижний слой')).toBeInTheDocument();
   });
 
   it('keeps «Очистить примерочную» in the «…» menu and not in the footer', async () => {

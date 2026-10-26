@@ -12,7 +12,7 @@ import {
 } from '@/entities/fitting-room';
 import { type ProductDetail, productColours, sortSizes, useProduct } from '@/entities/product';
 import { useRoomActions } from '@/features/fitting-room';
-import { CartStubButton } from '@/features/product-stubs';
+import { CartStubButton, FavoriteStub } from '@/features/product-stubs';
 import { useTrackedElement } from '@/shared/analytics';
 import {
   Button,
@@ -50,13 +50,15 @@ export interface RoomSlotProps {
 }
 
 // A filled slot of board 2: the entity's row with the colour (A90.3: circles, no photo per
-// colour), the size stub (A63.3: sent nowhere, A8), «В корзину» (A33) and «Убрать». The colours
-// and sizes are the product's own, read once per item. On a phone (2.1, 2.2) one field «<цвет>,
-// <размер>» opens the sheet «Цвет …» with «Готово», and × takes the item out.
+// colour), the size stub (A63.3: sent nowhere, A8), the heart and «В корзину» (A33, spec 0023
+// P12) and «Убрать». The colours and sizes are the product's own, read once per item. On a phone
+// (2.1, 2.2) one field «<цвет>, <размер>» opens the sheet «Цвет …» with «Готово», and × under
+// the heart takes the item out.
 export function RoomSlot({ item, phone }: RoomSlotProps) {
   const product = useProduct(item.product.id);
   const actions = useRoomActions();
   const removeEvents = useTrackedElement('room.remove', { slot: item.slot });
+  const favouriteEvents = useTrackedElement('room.favourite', { slot: item.slot });
   const [size, setSize] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [draft, setDraft] = useState<string | null>(null);
@@ -102,6 +104,8 @@ export function RoomSlot({ item, phone }: RoomSlotProps) {
       В корзину
     </CartStubButton>
   );
+  // The stub's heart (spec 0023 P12, Y3).
+  const favourite = <FavoriteStub size={32} events={favouriteEvents} />;
 
   if (phone) {
     const colourName = colours.find((colour) => colour.id === shownColour)?.value;
@@ -159,17 +163,20 @@ export function RoomSlot({ item, phone }: RoomSlotProps) {
           </>
         }
         aside={
-          <IconButton
-            aria-label={`Убрать «${name}»`}
-            variant="plain"
-            size={44}
-            disabled={actions.pending}
-            onClick={remove}
-            onPointerEnter={removeEvents.onPointerEnter}
-            onPointerLeave={removeEvents.onPointerLeave}
-          >
-            <CloseIcon />
-          </IconButton>
+          <>
+            {favourite}
+            <IconButton
+              aria-label={`Убрать «${name}»`}
+              variant="plain"
+              size={44}
+              disabled={actions.pending}
+              onClick={remove}
+              onPointerEnter={removeEvents.onPointerEnter}
+              onPointerLeave={removeEvents.onPointerLeave}
+            >
+              <CloseIcon />
+            </IconButton>
+          </>
         }
       />
     );
@@ -199,7 +206,10 @@ export function RoomSlot({ item, phone }: RoomSlotProps) {
       }
       aside={
         <>
-          {cart}
+          <div className={styles.asideRow}>
+            {favourite}
+            {cart}
+          </div>
           <LinkButton
             variant="secondary"
             className={styles.remove}

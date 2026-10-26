@@ -23,10 +23,10 @@ export type StubEvents = Pick<
 > & { onClick?: () => void };
 
 export interface CartStubButtonProps {
-  // «Добавить в корзину», «В корзину», «Всё в корзину».
+  // «Добавить в корзину», «В корзину», «Добавить образ в корзину», «Всё в корзину».
   children: ReactNode;
   size?: ButtonSize;
-  // `outline`: the fitting room's «Всё в корзину» (board 2).
+  // `outline`: the fitting room's «Добавить образ в корзину» (board 2, spec 0023 P21).
   variant?: ButtonVariant;
   textSize?: 'body-m' | 'body-s';
   className?: string;

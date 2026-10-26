@@ -2,11 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import {
   bySlot,
-  emptySlotCaption,
   OUTFIT_SLOTS,
   ROOM_CAPACITY,
   roomItemName,
-  SLOT_ACCUSATIVE,
   SLOT_SHORT,
   SLOT_TITLES,
 } from './slots';
@@ -17,14 +15,24 @@ describe('the slots', () => {
     expect(ROOM_CAPACITY).toBe(5);
   });
 
-  it.each(OUTFIT_SLOTS)('have a title, an accusative and a short name for %s', (slot) => {
-    expect(SLOT_TITLES[slot]).not.toBe('');
-    expect(SLOT_ACCUSATIVE[slot]).not.toBe('');
-    expect(SLOT_SHORT[slot]).not.toBe('');
+  it('are titled as Y5 says', () => {
+    expect(SLOT_TITLES).toEqual({
+      top: 'Верхний слой и платья',
+      bottom: 'Нижний слой',
+      outerwear: 'Верхняя одежда',
+      shoes: 'Обувь',
+      accessory: 'Аксессуары',
+    });
   });
 
-  it('name the outerwear in the accusative for the replace toast', () => {
-    expect(SLOT_ACCUSATIVE.outerwear).toBe('верхнюю одежду');
+  it('have the short names of the phone’s cells', () => {
+    expect(SLOT_SHORT).toEqual({
+      top: 'верхний',
+      bottom: 'нижний',
+      outerwear: 'пальто',
+      shoes: 'обувь',
+      accessory: 'аксесс.',
+    });
   });
 });
 
@@ -83,17 +91,6 @@ describe('bySlot', () => {
 
   it('answers an empty list for an empty one', () => {
     expect(bySlot([])).toEqual([]);
-  });
-});
-
-describe('emptySlotCaption', () => {
-  it('says what goes into the accessory slot', () => {
-    expect(emptySlotCaption('accessory')).toBe('Слот свободен: сумка, шарф или головной убор');
-  });
-
-  it('is short for the others', () => {
-    expect(emptySlotCaption('top')).toBe('Слот свободен');
-    expect(emptySlotCaption('shoes')).toBe('Слот свободен');
   });
 });
 

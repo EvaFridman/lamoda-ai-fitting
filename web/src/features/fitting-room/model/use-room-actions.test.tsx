@@ -211,11 +211,11 @@ describe('put', () => {
     });
 
     expect(mocks.showToast).toHaveBeenCalledOnce();
-    expect(lastToast().title).toBe('«Рубашка Annen» в примерочной: верх');
+    expect(lastToast().title).toBe('«Рубашка Annen» в примерочной');
     expect(lastToast().actionLabel).toBe('Открыть');
   });
 
-  it('names the slot in lower case in that toast', async () => {
+  it('names no slot in that toast, whatever the slot', async () => {
     fetchMock.mockImplementation(() =>
       json({ room: roomOf(entry('outerwear', shirt)), replaced: null }),
     );
@@ -225,7 +225,7 @@ describe('put', () => {
       await result.current.put({ product: shirt, slot: 'outerwear' });
     });
 
-    expect(lastToast().title).toBe('«Рубашка Annen» в примерочной: верхняя одежда');
+    expect(lastToast().title).toBe('«Рубашка Annen» в примерочной');
   });
 
   it('«Открыть» opens the room and sends room.open from the toast with the items now', async () => {
@@ -255,11 +255,11 @@ describe('put', () => {
       await result.current.put({ product: blouse, slot: 'top' });
     });
 
-    expect(lastToast().title).toBe('Заменили верх: «Блузка Annen» вместо «Рубашка Annen»');
+    expect(lastToast().title).toBe('Заменили «Рубашка Annen» на «Блузка Annen»');
     expect(lastToast().actionLabel).toBe('Вернуть');
   });
 
-  it('uses the accusative of the slot in the replace toast', async () => {
+  it('names no slot in the replace toast either', async () => {
     fetchMock.mockImplementation(() =>
       json({ room: roomOf(entry('outerwear', blouse)), replaced: entry('outerwear', shirt) }),
     );
@@ -269,7 +269,7 @@ describe('put', () => {
       await result.current.put({ product: blouse, slot: 'outerwear' });
     });
 
-    expect(lastToast().title).toMatch(/^Заменили верхнюю одежду: /);
+    expect(lastToast().title).toBe('Заменили «Рубашка Annen» на «Блузка Annen»');
   });
 
   it('«Вернуть» puts the previous item back in its colour, silently, and sends room.undo', async () => {

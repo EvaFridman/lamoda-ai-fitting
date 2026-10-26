@@ -13,7 +13,6 @@ import {
   OUTFIT_SLOTS,
   type OutfitSlot,
   SlotRowSkeleton,
-  ROOM_CAPACITY,
   SLOT_SHORT,
   useFittingRoom,
   useRoomStore,
@@ -62,6 +61,7 @@ function EmptySlot({ slot, href }: { slot: OutfitSlot; href: string | undefined 
     <EmptySlotRow
       slot={slot}
       href={href}
+      // The «+» box and «Подобрать в каталоге» alike (spec 0023 P16, Y11.7).
       linkEvents={{
         ...fill,
         onClick: () => {
@@ -145,7 +145,7 @@ function EmptyRoom({ phone }: { phone: boolean }) {
     >
       <p className={styles.muted}>
         {phone
-          ? 'Добавляйте вещи кнопкой «Добавить к образу» — до пяти: верх, низ, верхняя одежда, обувь и аксессуар.'
+          ? 'Добавляйте вещи кнопкой «Добавить к образу» — до пяти вещей: верхний слой и платья, нижний слой, верхняя одежда, обувь и аксессуары.'
           : 'Нажмите «Добавить к образу» на товаре — вещи соберутся здесь, и вы примерите их вместе за одну примерку.'}
       </p>
       {phone && (
@@ -164,7 +164,8 @@ interface FooterProps {
   phone: boolean;
 }
 
-// Board 2's footer: the look's sum, «Примерить образ» and «Всё в корзину» (A33), then the month's
+// Board 2's footer: the look's sum, «Примерить образ» and «Добавить образ в корзину» (A33, spec
+// 0023 P21), then the month's
 // meter and «Очистить примерочную» (on a phone it is in «…», A90.4).
 function RoomFooter({ room, phone }: FooterProps) {
   const quota = useFittingQuota();
@@ -181,10 +182,10 @@ function RoomFooter({ room, phone }: FooterProps) {
         </span>
         <b>{formatPrice(room.sum)}</b>
       </p>
-      <div className={styles.buttons}>
+      <div className={[styles.buttons, styles.footerButtons].join(' ')}>
         <TryOnLook count={room.count} />
         <CartStubButton size={48} variant="outline" className={styles.grow} events={cartAll}>
-          Всё в корзину
+          Добавить образ в корзину
         </CartStubButton>
       </div>
       {/* Why «Примерить образ» is off with one item (A92.4). */}
@@ -239,9 +240,9 @@ function RoomMenu({ room }: { room: FittingRoom | undefined }) {
 
 // The fitting room (spec 0019 board 2, AC13, A62, A90): one per account, read in the browser
 // (A12). A side drawer from the right on every width, the whole window on a phone with its own
-// «‹ Примерочная …» (A90.4): the subtitle, the five slots in their order (filled ones with the
-// colour, the size stub and the item's actions; empty ones with «Подобрать в каталоге»), the
-// wishes, then the footer. Mounted once in the root layout and opened through the room's store,
+// «‹ Примерочная …» (A90.4): the five slots in their order (filled ones with the colour, the size
+// stub and the item's actions; empty ones with «Подобрать в каталоге»), the wishes, then the
+// footer, with no counter line (spec 0023 P13). Mounted once in the root layout and opened through the room's store,
 // for a signed-in user only; a new page closes it (its links lead away).
 export function FittingRoomDrawer() {
   const session = useSession();
@@ -299,11 +300,6 @@ export function FittingRoomDrawer() {
   } else {
     content = (
       <>
-        <p className={styles.subtitle}>
-          {phone
-            ? `${data.count} из ${ROOM_CAPACITY} · образ целиком — одна примерка`
-            : `${data.count} из ${ROOM_CAPACITY} вещей · по одной в каждом слоте. Образ целиком — одна примерка.`}
-        </p>
         <RoomSlots room={data} phone={phone} />
         <RoomWishes userId={user.id} phone={phone} />
       </>

@@ -36,7 +36,7 @@ describe('OutfitSlotRow', () => {
   it('names the slot, the item and links the name to the product', () => {
     render(<OutfitSlotRow item={item()} href={`/products/${ID}`} />);
 
-    expect(screen.getByText('Верх')).toBeInTheDocument();
+    expect(screen.getByText('Верхний слой и платья')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Рубашка Annen' })).toHaveAttribute(
       'href',
       `/products/${ID}`,
@@ -88,17 +88,38 @@ describe('OutfitSlotRow', () => {
 });
 
 describe('EmptySlotRow', () => {
-  it('names the slot and says it is free', () => {
+  it('names the slot and has no caption', () => {
     render(<EmptySlotRow slot="shoes" />);
 
     expect(screen.getByText('Обувь')).toBeInTheDocument();
-    expect(screen.getByText('Слот свободен')).toBeInTheDocument();
+    expect(screen.queryByText(/Слот свободен/)).not.toBeInTheDocument();
   });
 
-  it('says what goes into the accessory slot', () => {
+  it('has no caption for the accessory either, and no link', () => {
     render(<EmptySlotRow slot="accessory" />);
 
-    expect(screen.getByText('Слот свободен: сумка, шарф или головной убор')).toBeInTheDocument();
+    expect(screen.getByText('Аксессуары')).toBeInTheDocument();
+    expect(screen.queryByText(/Слот свободен/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { hidden: true })).not.toBeInTheDocument();
+  });
+
+  it('makes the «+» box a link to the same address, out of the tab order and hidden', () => {
+    render(<EmptySlotRow slot="top" href="/catalog/shirts" />);
+
+    const box = screen.getByText('+').closest('a');
+    expect(box).toHaveAttribute('href', '/catalog/shirts');
+    expect(box).toHaveAttribute('aria-hidden', 'true');
+    expect(box).toHaveAttribute('tabindex', '-1');
+    expect(screen.getAllByRole('link')).toHaveLength(1);
+  });
+
+  it('gives the «+» box the same link events', async () => {
+    const onClick = vi.fn((event: { preventDefault: () => void }) => event.preventDefault());
+    render(<EmptySlotRow slot="top" href="/catalog/shirts" linkEvents={{ onClick }} />);
+
+    await userEvent.setup().click(screen.getByText('+'));
+
+    expect(onClick).toHaveBeenCalledOnce();
   });
 
   it('links «Подобрать в каталоге» only with an address', () => {
