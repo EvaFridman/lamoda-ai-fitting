@@ -2,8 +2,8 @@
 
 Status: draft (2026-10-25); amended 2026-10-25 at the plan (Q6: SQLite instead of LanceDB), at
 the tasks (Q15: three pull requests), at the review of PR 1 (Q2: the US region; Q7: the plan's
-§3.2 holds the exact rules) and on 2026-10-26 at T4 (Q16, Q17), at T6 (Q18, Q19) and at T7
-(Q20).
+§3.2 holds the exact rules) and on 2026-10-26 at T4 (Q16, Q17), at T6 (Q18, Q19), at T7
+(Q20) and at T8 (Q21).
 
 The owner's decisions for this spec. Ids `Q1`, `Q2`, … are referred to by the spec, the plan and
 code comments. All decisions below: owner, 2026-10-25, while the spec was written, except where a
@@ -181,3 +181,31 @@ a query that looks like a secret (`findSecretLine`), or holds an email, a uuid, 
 more digits, `X-Amz-` or `/keep/users/` is answered as a tool error and nothing is sent. It is a
 net for a pasted log line, not a filter of every personal datum. Weighed: the rule and the tools'
 description alone (no false refusals, but a pasted line leaves the machine unseen).
+
+**Q21. Sentry's live tools (owner, at T8).** Connected with `?skills=inspect` on 2026-10-26, with
+the plan's deny list already in place (Claude Code hides a denied tool), the hosted server shows ten
+tools: `find_projects`, `search_issues`, `get_sentry_resource`, `search_errors`, `search_traces`,
+`search_logs`, `search_metrics`, `search_profiles`, `search_replays` and `find_dropped_events`. Of
+the plan's fourteen only `find_projects`, `search_issues`, `search_errors` and `search_traces`
+remain; `get_sentry_resource` (a Sentry link, or a type and an id: an issue with its latest event's
+stack trace, tags and context, an event, a trace, a monitor) stands for the details, stack trace,
+breadcrumbs, tags, trace and monitor tools, and `search_errors` with Sentry's syntax and explicit
+`fields` (`issue:<short id>`, `timestamp`, `release`, `request_id`) for the issue's events and
+their request ids (tried on a real issue). Asked in words, `search_errors`' own model chose the
+fields itself and added `user.email`, so the agent passes Sentry's syntax and the fields. The
+server's answers still name other tools ("the Sentry tool `update_issue`", `search_issue_events`),
+reached through a dispatcher; whether the server would also list the write tools is not visible
+behind the deny, so every name of the plan stays denied, and `use_sentry` (the server's agent
+mode, which calls any tool on Sentry's own model) joins them. The agent gets six: those five and
+`find_dropped_events` (why an event is missing: sampling, quota, filters); not `search_logs`,
+`search_metrics` or `search_profiles` (this project sends Sentry no logs, metrics or profiles).
+`search_replays` joins the deny list, as Mixpanel's `Get-User-Replays-Data` (a single visitor's
+session is not needed and would bring their personal data in; web records no replays today);
+`get_sentry_resource` also opens a replay by id, which only the agent's text forbids. Failing
+monitors are found as their issues (`search_issues`; a missed or failed check-in opens one).
+The OAuth grant of the first connection (Sentry's Authorized Applications, owner, 2026-10-26)
+holds `org:read`, `project:write`, `team:write`, `event:write` and `alerts:write`: `?skills=inspect`
+narrows the tool list, not the token, so the write boundary is the client's deny list and the
+permission prompt on every call, not Sentry's scopes.
+Weighed: all ten for the agent (the four return nothing here), and no deny for `search_replays`
+(it returns nothing today).

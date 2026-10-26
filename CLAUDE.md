@@ -181,8 +181,9 @@ and the full `verify` once at the phase's end (as spec 0019 A58 did).
 
 - Root: shared tooling (Prettier, ESLint, commitlint, lint-staged, gitleaks), `.githooks/`,
   `.claude/`, `.mcp.json` (the Mixpanel MCP server: the main session, which leaves data questions
-  to the `analytics` agent, and that agent's four aggregate tools, `.claude/README.md`; and
-  `code-rag`, the code index's server, whose three tools are the only `allow` rules of
+  to the `analytics` agent, and that agent's four aggregate tools, `.claude/README.md`; Sentry's
+  hosted server, read-only: its write tools, dispatchers, Seer, `whoami` and replays denied by
+  name in `.claude/settings.json`, spec 0021 Q2, Q21; and `code-rag`, the code index's server, whose three tools are the only `allow` rules of
   `.claude/settings.json`), `specs/`.
 - `api/src/<module>/`: controller (thin) → service (logic) → Prisma. Imports go downward only.
   Generated Prisma client in `api/src/generated/` (git-ignored, never edited by hand).

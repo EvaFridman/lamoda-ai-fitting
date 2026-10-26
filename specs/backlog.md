@@ -160,6 +160,11 @@ removes it from this list. Found by the agents' first security audit and trial r
   breadcrumbs, the page's address and pageload names (`sentry.options.ts` filters only signed
   links and the socket's `sid`). An id alone opens nothing (someone else's answers 404); drop them
   the way `strip-attributes.ts` does.
+- **Search text in Sentry's breadcrumbs.** web's Sentry drops the query of request urls
+  (`urlQueryParams`), but navigation breadcrumbs and the page's address may keep the catalog's
+  `q`, which the analytics drop (0014 O104); since 0021 such text also reaches the model through
+  Sentry's MCP server. Check a catalog search's event and cut `q` in `beforeBreadcrumb` and the
+  event's url, together with the item above (0021 T8's security review).
 - **Avatar teaser.** «Создать свой аватар · скоро» on the photo picker is not rendered by 0019
   (A41); the digital twin's spec (0016 item 5) adds the real button.
 - **Lowest price after the discount in the counts.** `GET /products/facets` answers `price.min`

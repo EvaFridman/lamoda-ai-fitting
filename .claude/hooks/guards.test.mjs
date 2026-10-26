@@ -812,6 +812,73 @@ describe('agent files', () => {
     assert.doesNotMatch(frontmatter, /^["']?(hooks|permissionMode)["']?\s*:/m);
   });
 
+  // Spec 0021 Q2, Q11, Q21, AC7: Sentry's server is read-only for every session and agent. A deny
+  // binds subagents too, so only the write tools, the dispatcher that runs hidden tools, its
+  // catalog, the agent mode's `use_sentry`, Seer, `whoami` (the owner's email) and a visitor's
+  // replays are denied; the read tools ask on every call.
+  const SENTRY_DENIED = [
+    'execute_sentry_tool',
+    'search_sentry_tools',
+    'update_issue',
+    'add_issue_note',
+    'link_issue',
+    'unlink_issue',
+    'onboarding_status_update',
+    'create_project',
+    'create_team',
+    'create_dsn',
+    'create_alert_rule',
+    'create_metric_monitor',
+    'create_uptime_monitor',
+    'update_project',
+    'update_dsn',
+    'update_alert_rule',
+    'update_metric_monitor',
+    'update_uptime_monitor',
+    'delete_alert_rule',
+    'delete_metric_monitor',
+    'delete_monitor_environment',
+    'delete_uptime_monitor',
+    'add_team_to_project',
+    'remove_team_from_project',
+    'analyze_issue_with_seer',
+    'whoami',
+    'search_replays',
+    'use_sentry',
+  ];
+
+  it('mcp.json declares Sentry once, as `sentry` with the read skill only (spec 0021 Q2)', () => {
+    // The deny names hold only for the server key `sentry`; another key or skill would open them.
+    const { mcpServers } = JSON.parse(fs.readFileSync(path.join(ROOT, '.mcp.json'), 'utf8'));
+    const sentry = Object.entries(mcpServers).filter(
+      ([, server]) => server.url && new URL(server.url).hostname.endsWith('sentry.dev'),
+    );
+    assert.deepEqual(
+      sentry.map(([key]) => key),
+      ['sentry'],
+    );
+    const url = new URL(sentry[0][1].url);
+    assert.deepEqual(url.searchParams.getAll('skills'), ['inspect']);
+    assert.deepEqual([...url.searchParams.keys()], ['skills']);
+  });
+
+  it('settings deny every Sentry write tool, the dispatcher and Seer by name (spec 0021 AC7)', () => {
+    const settings = JSON.parse(fs.readFileSync(path.join(ROOT, '.claude/settings.json'), 'utf8'));
+    const denied = settings.permissions.deny.filter((rule) => rule.startsWith('mcp__sentry__'));
+    assert.deepEqual(
+      [...denied].sort(),
+      SENTRY_DENIED.map((tool) => `mcp__sentry__${tool}`).sort(),
+    );
+  });
+
+  it('no agent mentions Sentry in its frontmatter (spec 0021 AC7; investigator joins in T10)', () => {
+    const naming = agentFiles.filter(({ frontmatter }) => /sentry/i.test(frontmatter));
+    assert.deepEqual(
+      naming.map(({ file }) => file),
+      [],
+    );
+  });
+
   it('only qa-tester declares an MCP server, and only playwright', () => {
     for (const { file, frontmatter } of agentFiles) {
       const declares = /^["']?mcpServers["']?\s*:/m.test(frontmatter);
