@@ -57,6 +57,36 @@ export function words(cmd) {
 }
 
 /**
+ * The stages of a pipeline: the command cut at every `|` outside quotes, following `words()`'s
+ * quoting (a `|` inside single or double quotes stays in its stage). Each stage still has to pass
+ * `words()`, which refuses every other operator. More than `max` stages, an empty one (`||`, a
+ * leading or trailing `|`) or an unbalanced quote is Blocked.
+ */
+export function splitPipeline(cmd, max) {
+  if (typeof cmd !== 'string') throw new Blocked('no command');
+  const stages = [];
+  let stage = '';
+  let quote = null;
+  for (const ch of cmd) {
+    if (quote) {
+      if (ch === quote) quote = null;
+    } else if (ch === "'" || ch === '"') {
+      quote = ch;
+    } else if (ch === '|') {
+      stages.push(stage);
+      stage = '';
+      continue;
+    }
+    stage += ch;
+  }
+  if (quote) throw new Blocked('unbalanced quote');
+  stages.push(stage);
+  if (stages.some((s) => s.trim() === '')) throw new Blocked('empty stage in the pipeline');
+  if (stages.length > max) throw new Blocked(`at most ${max} stages in a pipeline`);
+  return stages;
+}
+
+/**
  * True if any path part of the word names a secret file. Parts are split at / = : and a leading @
  * (curl reads @file), and compared case-insensitively (macOS file systems ignore case). A value
  * glued to a short flag (-S.env) is checked too.
