@@ -77,6 +77,20 @@ describe('loadYmaps', () => {
     await expect(retry).resolves.toMatchObject({ clusterByGrid });
   });
 
+  it('rejects when the script loads but defines no ymaps3, removes the tag and adds a fresh one next time', async () => {
+    const { loadYmaps } = await freshLoader();
+    const failed = loadYmaps('the-key');
+    const remove = vi.spyOn(scripts[0] as HTMLScriptElement, 'remove');
+    scripts[0]?.dispatchEvent(new Event('load'));
+    await expect(failed).rejects.toThrow('Yandex Maps did not load');
+    expect(remove).toHaveBeenCalled();
+
+    const retry = loadYmaps('the-key');
+    expect(scripts).toHaveLength(2);
+    loaded(scripts[1]);
+    await expect(retry).resolves.toMatchObject({ clusterByGrid });
+  });
+
   it('adds no second script when ymaps3 is already there', async () => {
     vi.stubGlobal('ymaps3', ymaps3);
     const { loadYmaps } = await freshLoader();
@@ -96,5 +110,54 @@ describe('loadYmaps', () => {
 
     void loadYmaps('the-key').catch(() => undefined);
     expect(scripts).toHaveLength(2);
+  });
+
+  it('waits for the tag still loading after a timeout instead of adding a second one', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    // This case needs the tag really in the document, for the next call to find it.
+    append.mockRestore();
+    const realAppend = Node.prototype.appendChild;
+    const insert = vi.spyOn(document.head, 'append').mockImplementation((...nodes) => {
+      for (const node of nodes) realAppend.call(document.head, node as Node);
+    });
+    try {
+      const { loadYmaps, LOAD_TIMEOUT_MS } = await freshLoader();
+      const stuck = loadYmaps('the-key');
+      const rejected = expect(stuck).rejects.toThrow(/timed out/);
+      await vi.advanceTimersByTimeAsync(LOAD_TIMEOUT_MS);
+      await rejected;
+      expect(insert).toHaveBeenCalledTimes(1);
+      const script = document.head.querySelector<HTMLScriptElement>(
+        'script[src^="https://api-maps.yandex.ru/v3/"]',
+      );
+      expect(script).not.toBeNull();
+
+      const retry = loadYmaps('the-key');
+      expect(insert).toHaveBeenCalledTimes(1);
+      expect(
+        document.head.querySelectorAll('script[src^="https://api-maps.yandex.ru/v3/"]'),
+      ).toHaveLength(1);
+
+      // The timed-out call still waits for the same tag; its modules load first, so the two
+      // imports of the clusterer do not run side by side.
+      let reads = 0;
+      let release: () => void = () => undefined;
+      const later = new Promise<void>((resolve) => (release = resolve));
+      vi.stubGlobal('ymaps3', {
+        ...ymaps3,
+        get ready() {
+          reads += 1;
+          return reads === 1 ? Promise.resolve() : later;
+        },
+      });
+      script?.dispatchEvent(new Event('load'));
+      await vi.waitFor(() => expect(reads).toBe(2));
+      release();
+      await expect(retry).resolves.toMatchObject({ clusterByGrid });
+      expect(insert).toHaveBeenCalledTimes(1);
+    } finally {
+      insert.mockRestore();
+      document.head.querySelectorAll('script').forEach((tag) => tag.remove());
+    }
   });
 });

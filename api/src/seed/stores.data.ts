@@ -2,7 +2,11 @@
 // order: Moscow, its region, Saint Petersburg, then the other cities alphabetically. A store's
 // place in this list is its `position`. Only the kept fields, cleaned: `&nbsp;` as a space, runs of
 // spaces as one, trimmed; phones keep Lamoda's text. The seed only adds a missing code (X2), so a
-// store changed or closed after it is loaded is fixed by a migration, not here.
+// store changed after it is loaded is fixed by a migration, not here, and a closed one is deleted
+// by a migration and removed from this list in the same commit (else the seed adds it back). A
+// deletion, or a store added anywhere but the end, needs a migration that sets every row's
+// `position` to its place in this list, through a temporary offset (`position + 10000`), since
+// `stores_position_key` is checked per row: else the seed skips the new store and stops the deploy.
 
 import type { StoreType } from '../generated/prisma/enums.js';
 
