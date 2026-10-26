@@ -65,7 +65,7 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       summary (files, chunks, tokens, time) and a second run that embeds nothing, in the
       acceptance record (AC3); `npm run verify` with no key in the environment (AC6).
       Commit: `feat(tooling): index the repository with voyage embeddings in sqlite`
-- [ ] **T7. The index's MCP server.** `server.ts` with `search_code`, `search_docs`,
+- [x] **T7. The index's MCP server.** `server.ts` with `search_code`, `search_docs`,
       `index_status` and its tests (plan §3.7–3.8); `code-rag` in `.mcp.json`; its three tools in
       `settings.json`'s `allow` and the guards test that `allow` holds nothing else; `README.md`'s
       section on the key and the index.

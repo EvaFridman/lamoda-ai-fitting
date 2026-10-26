@@ -3,6 +3,11 @@
     "mixpanel": {
       "type": "http",
       "url": "https://mcp-eu.mixpanel.com/mcp"
+    },
+    "code-rag": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["tools/code-rag/src/server.ts"]
     }
   }
 }

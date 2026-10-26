@@ -823,8 +823,14 @@ describe('agent files', () => {
     assert.deepEqual(servers.match(/^ {2}\S.*$/gm), ['  - playwright:']);
   });
 
-  it('no allow rule opens Mixpanel tools', () => {
+  it('allow holds only the three tools of the code index (spec 0021 Q10, AC7)', () => {
     const settings = JSON.parse(fs.readFileSync(path.join(ROOT, '.claude/settings.json'), 'utf8'));
-    for (const rule of settings.permissions.allow ?? []) assert.doesNotMatch(rule, /mixpanel/i);
+    // The index's server reads only this repository; every other tool, Mixpanel's and Sentry's
+    // among them, asks.
+    assert.deepEqual([...(settings.permissions.allow ?? [])].sort(), [
+      'mcp__code-rag__index_status',
+      'mcp__code-rag__search_code',
+      'mcp__code-rag__search_docs',
+    ]);
   });
 });

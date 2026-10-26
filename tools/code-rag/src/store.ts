@@ -293,6 +293,14 @@ export class Store {
     });
   }
 
+  /**
+   * Forgets the indexed commit while a run changes the files, so a run that stops halfway (on
+   * another branch, say) answers "no run has finished" instead of a commit the index no longer is.
+   */
+  clearIndexed(): void {
+    this.#db.prepare("delete from meta where key in ('indexedCommit', 'indexedAt')").run();
+  }
+
   setIndexed(commit: string, at: Date): void {
     this.#transaction(() => {
       const upsert = this.#db.prepare(

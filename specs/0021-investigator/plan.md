@@ -6,7 +6,7 @@ the US region, the pull request numbers of §8 and §10) and on 2026-10-26 at T4
 length, Q16; §6's nginx filter, Q17; §2's tests) and at T5 (§3.2's modes, stages, `.env*` and
 secret patterns; §3.3's windows, imports, directives, lists and empty headings) and at T6
 (§3.4's batches, pace and backoff and §3.6's first run, Q18; §3.2's committed files, Q19; §3.5's
-and §12's `DatabaseSync`).
+and §12's `DatabaseSync`) and at T7 (§3.7's git commands and its query check, Q20).
 
 Implements [spec.md](spec.md) with the decisions of [clarifications.md](clarifications.md)
 (Q1–Q17). Sections name the decisions and criteria they carry out.
@@ -196,13 +196,21 @@ what is indexed; Q7 names it (owner, at the review of PR 1):
     `deploy`;
   - `search_docs({ query, limit = 8 })` over `spec` and `doc`, each result with its `specStatus`;
   - `index_status()`: model, `indexedCommit`, `indexedAt`, counts, and the stale files: the paths of
-    `git diff --name-only <indexedCommit>` plus `git status --porcelain`, kept to the include rules;
+    `git diff-tree --name-only <indexedCommit> HEAD` plus `git status --porcelain` (amended at
+    T7, from `git diff --name-only <indexedCommit>`, which writes `.git/index`), kept to the
+    include rules;
     an `indexedCommit` not in the current history (after a rebase) is reported as "built on a
     commit not in this history, run `npm run rag:index`".
 - Every search answer starts with the status line (the commit's short hash, the number of stale
   files and up to ten names) and lists results as `path:start-end · symbol · kind[/status] ·
-score` with a snippet of at most 40 lines. The query is embedded with `input_type: 'query'`.
-- The server never writes the index, shells out only to the three read-only git commands, reads
+score` with a snippet of at most 40 lines. The query is embedded with `input_type: 'query'`;
+  one that looks like a secret or holds an email, a uuid, 10 or more digits, `X-Amz-` or
+  `/keep/users/` is refused before anything is sent (Q20, amended at T7).
+- The server never writes the index, shells out only to read-only git commands (`rev-parse`,
+  `merge-base --is-ancestor` and `cat-file -e` for the history check, `diff-tree <indexedCommit>
+HEAD` and `status` for the stale files, all with `--no-optional-locks`, so none takes
+  `.git/index.lock` from a commit running at the same time; `git diff <commit>` writes the index
+  even so; amended at T7), reads
   `.env` only for the key (§3.4) and answers a missing key or index as a tool error, not a crash.
   It finds the repository root with `git rev-parse --show-toplevel` from its working directory.
 - `.mcp.json`: `"code-rag": { "type": "stdio", "command": "node", "args":

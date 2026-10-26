@@ -191,6 +191,11 @@ export function selectFiles(files: TrackedFile[]): Selection {
   return selection;
 }
 
+/** Whether a path falls under the include rules, whatever its mode or size (the server's stale files). */
+export function isIndexablePath(path: string): boolean {
+  return isIncluded(path) && !isExcluded(path) && hasReadableType(path);
+}
+
 /** The files of a commit (by default `HEAD`), never the staged or working tree's ones. */
 export function listTrackedFiles(root: string, commit = 'HEAD'): TrackedFile[] {
   const output = execFileSync('git', lsTreeArgs(commit), {
