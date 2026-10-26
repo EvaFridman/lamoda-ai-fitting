@@ -35,7 +35,7 @@ X19–X21).
 
 ### api
 
-- [ ] **T4. The stores table and seed (X1, X2; plan §2.1, §2.2).** `StoreType`, `Store` in
+- [x] **T4. The stores table and seed (X1, X2; plan §2.1, §2.2).** `StoreType`, `Store` in
       `schema.prisma`; migration `…_stores` with its CHECKs; rows in `constraint-fields.ts`;
       `seed/stores.data.ts` (48 stores, cleaned); `seedStores()` in `SeedService`.
       Check: the one-off comparison with the source JSON (X22, result in the summary);

@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { MEDIA_CACHE_CONTROL, mediaKey } from '../storage/keys.js';
 import { StorageService } from '../storage/storage.service.js';
 import { CATALOG, imageKeys, type SeedCatalog, type SeedProduct } from './catalog.data.js';
+import { STORES, type SeedStore } from './stores.data.js';
 
 // The catalog's photos, `<key>` under this folder (spec 0011 M13): `api/seed-media/` from the
 // sources and `/app/seed-media/` next to `dist/` in the image, both two levels above this file.
@@ -67,6 +68,29 @@ export class SeedService {
       `Seed done: ${result.productsCreated} products created, ${result.productsSkipped} already there, ${result.photosUploaded} photos uploaded`,
     );
     return result;
+  }
+
+  // Lamoda's stores (spec 0022 X1, X2), run after the catalog: adds a store whose code is missing
+  // and never changes one that is there. Returns how many were added. A new store whose place in
+  // the list another row holds is skipped by the position key too, so a code still missing after
+  // the insert throws: the deploy stops instead of losing the store quietly.
+  async seedStores(stores: readonly SeedStore[] = STORES): Promise<number> {
+    const codes = stores.map((s) => s.code);
+    const { count } = await this.prisma.store.createMany({
+      data: stores.map((store, position) => ({ ...store, position })),
+      skipDuplicates: true,
+    });
+    const found = await this.prisma.store.findMany({
+      where: { code: { in: codes } },
+      select: { code: true },
+    });
+    const foundCodes = new Set(found.map((s) => s.code));
+    const missing = codes.filter((code) => !foundCodes.has(code));
+    if (missing.length > 0) {
+      throw new Error(`Seed stores ${missing.join(', ')}: their positions are taken by other rows`);
+    }
+    this.logger.log(`Stores done: ${count} created, ${stores.length - count} already there`);
+    return count;
   }
 
   // Every photo of the catalog, whether its product was created now or earlier: a bucket that is

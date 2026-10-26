@@ -7,15 +7,17 @@ import { SeedModule } from './seed.module.js';
 import { SeedService } from './seed.service.js';
 
 // Entry point of the seed: same image as the api, different command (`npm run seed`, or
-// `npm run seed:dev` from sources). Loads the demo catalog and exits: 0 when done, 1 on an error,
-// so a deploy that runs it stops on a failure (spec 0002, C16).
+// `npm run seed:dev` from sources). Loads the demo catalog, then Lamoda's stores (spec 0022), and
+// exits: 0 when done, 1 on an error, so a deploy that runs it stops on a failure (spec 0002, C16).
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.createApplicationContext(SeedModule, { bufferLogs: true });
   const logger = app.get(Logger);
   app.useLogger(logger);
 
   try {
-    await app.get(SeedService).run();
+    const seed = app.get(SeedService);
+    await seed.run();
+    await seed.seedStores();
   } catch (error) {
     logger.error(error);
     process.exitCode = 1;

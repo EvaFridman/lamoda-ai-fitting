@@ -335,7 +335,7 @@ else
     || seed_status=$?
   case "$seed_status" in
     0)
-      log "seeding the demo catalog with $tag"
+      log "seeding the demo catalog and the stores with $tag"
       app "$target" "$tag" run --rm --no-deps -T api node dist/seed/main.js >&2 \
         || fail "the seed failed; ${active:-nothing} keeps serving"
       ;;
