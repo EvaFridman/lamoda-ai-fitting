@@ -15,7 +15,3 @@ function AccountStub({ section }: { section: AccountSection['section'] }) {
 export function OrdersPage() {
   return <AccountStub section="orders" />;
 }
-
-export function StoresPage() {
-  return <AccountStub section="stores" />;
-}

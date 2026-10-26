@@ -666,15 +666,17 @@ and the full `verify` once at the phase's end (as spec 0019 A58 did).
   `account` ("Мои данные"), `fittings` and `photos` ("Мои фото", spec 0019 A19: `_pages/photos`,
   `widgets/my-photos`, `features/upload-photo`) (`web/app/customer/`, whose layout holds only the
   metadata: `noindex`, the titles; `robots.ts` disallows `/customer`). Every page is
-  `AccountShell({ section, aside, title, back })` (`widgets/account-shell`; `aside`, a block under
-  the menu shown signed in on a wide screen, is the history's `LimitMeter`; `title` and `back`, a
-  page's own title and way back on every width, are the compare page's): the side menu of
+  `AccountShell({ section, public, aside, title, back })` (`widgets/account-shell`; `aside`, a
+  block under the menu shown signed in on a wide screen, is the history's `LimitMeter`; `title` and
+  `back`, a page's own title and way back on every width, are the compare page's; `public` shows
+  the section to everyone at once, the stores', spec 0022 X4, X15): the side menu of
   `shared/config/account-sections.ts` (the header reads the same list, since a widget imports no
   widget), `Skeleton`s while the session loads, signed out (a failed read too) an invitation whose
   button is a second `LoginModal` (no redirect), signed in the section. Below 1024 px `/customer`
   is the list of sections and a section shows "‹ Личный кабинет" in place of the menu, one DOM
-  switched by CSS. `_pages/customer` has no section, `_pages/account-stubs` holds the two
-  stubs, `_pages/fittings` the history («Мои примерки», spec 0019 T16: `widgets/fitting-history`,
+  switched by CSS. `_pages/customer` has no section, `_pages/account-stubs` holds the one stub
+  (orders), `_pages/stores` «Магазины Lamoda Sport» (spec 0022: the legend, the search and the
+  list of `entities/store`'s cards; `server.ts` only), `_pages/fittings` the history («Мои примерки», spec 0019 T16: `widgets/fitting-history`,
   `features/delete-fitting`, `entities/fitting`'s `HistoryCard`; a card opens its fitting through
   `?fitting=<id>` in T15's try-on window; «Примерить ещё раз» is `useRepeatFitting` with the
   entry's `repeatBody`, disabled once its photo is gone, a repeat's answer the toast «Такая
@@ -954,7 +956,8 @@ and the full `verify` once at the phase's end (as spec 0019 A58 did).
   (or both) and on an entry no file backs (but a `redirect` one, `/`, which must be a source of
   `redirects()` in `next.config.ts`), so a new page route is added there in the same commit.
   Warm up what a visitor reaches without signing in; exclude what reads the user's data or is not
-  for visitors (`/customer/*`, `/ui-kit`). A dynamic route names its source (`/catalog/[slug]`:
+  for visitors (the account's pages one by one, `/ui-kit`; `/customer/stores`, open to everyone,
+  is warmed up, spec 0022 X4). A dynamic route names its source (`/catalog/[slug]`:
   the first 50 active categories, V16; `/products/[id]`: the newest product of each of the first
   25, read one at a time at most 5 a second, spec 0019 A81). `/healthz/warmup` (re-exported from `@/_app/server`)
   answers `{ paths, skipped }`, resolved at request time, the categories read past the page cache

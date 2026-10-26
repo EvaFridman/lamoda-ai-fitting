@@ -150,6 +150,72 @@ describe('AccountShell', () => {
     });
   });
 
+  describe('public section', () => {
+    it.each([
+      ['pending', { status: 'pending' }],
+      ['signed out', { status: 'signed-out', failed: false }],
+      ['a failed read', { status: 'signed-out', failed: true }],
+    ] as [string, SessionState][])(
+      'renders the children at once, with no placeholder or invitation, when %s',
+      (_name, session) => {
+        mocks.session = session;
+        render(
+          <AccountShell section="stores" public>
+            {CHILD}
+          </AccountShell>,
+        );
+        expect(screen.getByText(CHILD)).toBeInTheDocument();
+        expect(screen.getByRole('heading', { level: 1, name: 'Магазины' })).toBeInTheDocument();
+        expect(document.querySelector('[aria-busy="true"]')).toBeNull();
+        expect(screen.queryByText(INVITE)).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Войти' })).not.toBeInTheDocument();
+      },
+    );
+
+    it('renders the children and the menu when signed in', () => {
+      signedIn();
+      render(
+        <AccountShell section="stores" public>
+          {CHILD}
+        </AccountShell>,
+      );
+      expect(screen.getByText(CHILD)).toBeInTheDocument();
+      const nav = screen.getByRole('navigation', { name: 'Личный кабинет' });
+      expect(within(nav).getByRole('link', { name: 'Магазины' })).toHaveAttribute(
+        'aria-current',
+        'page',
+      );
+    });
+
+    it('keeps the menu beside a public section for a visitor', () => {
+      render(
+        <AccountShell section="stores" public>
+          {CHILD}
+        </AccountShell>,
+      );
+      const nav = screen.getByRole('navigation', { name: 'Личный кабинет' });
+      expect(within(nav).getAllByRole('link')).toHaveLength(5);
+    });
+
+    it('takes a title of its own', () => {
+      render(
+        <AccountShell section="stores" public title="Магазины Lamoda Sport">
+          {CHILD}
+        </AccountShell>,
+      );
+      expect(
+        screen.getByRole('heading', { level: 1, name: 'Магазины Lamoda Sport' }),
+      ).toBeInTheDocument();
+    });
+
+    it('still hides a section that is not public from a visitor', () => {
+      mocks.session = { status: 'signed-out', failed: false };
+      render(<AccountShell section="stores">{CHILD}</AccountShell>);
+      expect(screen.queryByText(CHILD)).not.toBeInTheDocument();
+      expect(screen.getByText(INVITE)).toBeInTheDocument();
+    });
+  });
+
   describe('aside', () => {
     const ASIDE = 'Лимит под меню';
 

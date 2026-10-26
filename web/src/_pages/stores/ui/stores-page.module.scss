@@ -1,0 +1,34 @@
+// The legend above the list (spec 0022 X0, X9): each kind's logo with Lamoda's text beside it, the
+// text under the logo where the line is too narrow.
+
+.legend {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-6);
+}
+
+.kind {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  align-items: center;
+
+  dt,
+  dd {
+    margin: 0;
+  }
+
+  dd {
+    font-size: var(--font-size-body-m);
+    line-height: var(--line-height-body-m);
+    color: var(--color-text-secondary);
+  }
+}
+
+// Lamoda's 16px high logos.
+.logo {
+  display: block;
+  width: auto;
+  height: 16px;
+  color: var(--color-text);
+}

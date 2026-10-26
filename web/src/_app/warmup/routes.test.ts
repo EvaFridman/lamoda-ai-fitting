@@ -146,7 +146,7 @@ describe('the warm-up list', () => {
 
   it('gives a reason for each exclusion', () => {
     expect(Object.keys(EXCLUDED)).toEqual(
-      expect.arrayContaining(['/customer/*', '/ui-kit', '/healthz', '/healthz/warmup']),
+      expect.arrayContaining(['/customer', '/ui-kit', '/healthz', '/healthz/warmup']),
     );
     for (const reason of Object.values(EXCLUDED)) expect(reason.trim()).not.toBe('');
   });
@@ -307,6 +307,7 @@ describe('warmupList', () => {
         `/catalog/${encodeURIComponent('платья')}`,
         '/catalog/opengraph-image',
         '/catalog/twitter-image',
+        '/customer/stores',
         '/privacy',
         '/sitemap.xml',
         '/robots.txt',
@@ -538,6 +539,7 @@ describe('warmupList', () => {
         '/catalog',
         '/catalog/opengraph-image',
         '/catalog/twitter-image',
+        '/customer/stores',
         '/privacy',
         '/sitemap.xml',
         '/robots.txt',

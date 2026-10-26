@@ -18,6 +18,8 @@ export const WARMUP = [
   { route: '/catalog/[slug]', source: 'categories' },
   { route: '/catalog/opengraph-image', source: 'static' },
   { route: '/catalog/twitter-image', source: 'static' },
+  // The one account page open to everyone (spec 0022 X4).
+  { route: '/customer/stores', source: 'static' },
   { route: '/privacy', source: 'static' },
   { route: '/products/[id]', source: 'products' },
   { route: '/sitemap.xml', source: 'static' },
@@ -29,7 +31,12 @@ export const WARMUP = [
 
 // Never warmed up, each with its reason. `/x/*` stands for `/x` and every route under it.
 export const EXCLUDED: Readonly<Record<string, string>> = {
-  '/customer/*': 'the account (spec 0017): the user’s data, read in the browser only',
+  // The account's pages one by one (spec 0017), since `/customer/stores` is warmed up.
+  '/customer': 'the account (spec 0017): the list of its sections, for the signed-in user',
+  '/customer/account': 'the account (spec 0017): the user’s data, read in the browser only',
+  '/customer/orders': 'the account (spec 0017): a stub, for the signed-in user',
+  '/customer/fittings/*': 'the account (spec 0019): the user’s fittings, read in the browser only',
+  '/customer/photos': 'the account (spec 0019): the user’s photos, read in the browser only',
   '/ui-kit': 'the kit’s examples, not for visitors',
   '/healthz': 'the container’s health check',
   '/healthz/warmup': 'this list itself',

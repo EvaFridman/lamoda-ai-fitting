@@ -14,13 +14,17 @@ export interface AccountShellProps {
   // The section shown beside the menu; none on `/customer`, which shows only the menu (spec 0017
   // U5).
   section?: AccountSection['section'];
-  // The section's content under its title, shown signed in only.
+  // The section's content under its title, shown signed in only, unless `public`.
   children?: ReactNode;
+  // A section for everyone (the stores, spec 0022 X4, X15): its content renders at once, whatever
+  // the session, with no placeholder and no invitation; the menu stays as for everyone.
+  public?: boolean;
   // A block under the side menu, signed in only and on a wide screen, where the menu shows: the
   // history's `LimitMeter` (spec 0019 board 9, A78).
   aside?: ReactNode;
   // A page inside a section: its own title in place of the section's, and its own way back on
-  // every width in place of «‹ Личный кабинет» (the compare page, spec 0019 A93).
+  // every width in place of «‹ Личный кабинет» (the compare page, spec 0019 A93). A section may
+  // take a title of its own without a way back (the stores, spec 0022 X3).
   title?: string;
   back?: ReactNode;
 }
@@ -29,8 +33,15 @@ export interface AccountShellProps {
 // marked, and the section's title and content. Below 1024px `/customer` is the list of sections and
 // a section is shown alone, with a way back to the list; one DOM, switched by CSS. The session is
 // read in the browser (U11): while it loads the content is a placeholder, signed out (a failed
-// read too) it is the invitation to sign in.
-export function AccountShell({ section, children, aside, title, back }: AccountShellProps) {
+// read too) it is the invitation to sign in; a `public` section skips both.
+export function AccountShell({
+  section,
+  children,
+  public: isPublic = false,
+  aside,
+  title,
+  back,
+}: AccountShellProps) {
   const current = accountSections.find((entry) => entry.section === section);
 
   return (
@@ -44,7 +55,7 @@ export function AccountShell({ section, children, aside, title, back }: AccountS
         <div className={styles.section}>
           {back ? <div className={styles.ownBack}>{back}</div> : <AccountBackLink />}
           <h1 className={styles.title}>{title ?? current.title}</h1>
-          <SectionContent>{children}</SectionContent>
+          {isPublic ? children : <SectionContent>{children}</SectionContent>}
         </div>
       )}
     </main>
