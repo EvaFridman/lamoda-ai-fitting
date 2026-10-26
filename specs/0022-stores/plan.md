@@ -1,7 +1,8 @@
 # 0022 stores: plan
 
 Status: accepted (2026-10-26); amended 2026-10-26 at the tasks (no header change: X7) and at the
-review of PR 1 (§2.2: X22; §3.3: X19, X20; §3.5, §5: X16).
+review of PR 1 (§2.2: X22; §3.3: X19, X20; §3.5, §5: X16) and after the owner read Yandex's
+terms (§3.6: the cabinet's menu).
 
 How [spec.md](spec.md) is built. Decisions: [clarifications.md](clarifications.md) (X0–X18).
 
@@ -202,8 +203,8 @@ variable in `.github/workflows/images.yml` (publish only) → `scripts/ci-build-
 (`yandexMapsApiKey`, a literal `process.env.` access) ; `.env.example` with a comment;
 `docker-compose.yml`'s web environment. It is public: not in `check:web-bundle`'s list.
 
-The owner's key (spec, owner actions): developer.tech.yandex.ru → «Подключить API» → «JavaScript
-API и HTTP Геокодер» → the key's «Ограничение по HTTP Referer»: `lamoda-ai-fitting.ru` and
+The owner's key (spec, owner actions): developer.tech.yandex.ru → «Все продукты» → «JavaScript
+API» (its «Подключить», shown on hover) → the free plan → the key's «Ограничение по HTTP Referer»: `lamoda-ai-fitting.ru` and
 `localhost`, one per line (version 3 refuses a key without it); it works 15 minutes later. Then
 GitHub → Settings → Secrets and variables → Actions → Variables → `NEXT_PUBLIC_YANDEX_MAPS_API_KEY`,
 and the same line in the local `.env` (then `docker compose up -d --build web`).

@@ -1,6 +1,7 @@
 # 0022 stores: Lamoda Sport stores on a Yandex map: clarifications
 
-Status: accepted (2026-10-26); amended 2026-10-26 at the review of PR 1 (X16, X19–X22).
+Status: accepted (2026-10-26); amended 2026-10-26 at the review of PR 1 (X16, X19–X22), at T9
+(X23, X24) and after the owner read Yandex's terms (X6, X14, X21).
 
 The owner's decisions for this spec. Ids `X1`, `X2`, … are referred to by the spec, the plan and
 code comments. All of them are the owner's answers given on 2026-10-26 while the spec was written;
@@ -49,7 +50,10 @@ script) and holds the owner's personal data, so it is not used and never committ
 - **X6. The map loads at once, no consent.** It is the page's function, not analytics, so it does
   not wait for the cookie banner. `/privacy` gets a paragraph: the stores page shows Yandex's map,
   and Yandex receives the visitor's address and its own cookies. Weighed: a «Показать карту» button,
-  or the map only after the cookie consent.
+  or the map only after the cookie consent. Re-confirmed by the owner on 2026-10-26 after reading
+  Yandex's terms (`yandex.ru/legal/maps_api`, p. 8.1: Yandex collects the visitor's address, device
+  id and geolocation, and the site guarantees the visitors' consents): the map still loads at once
+  and the `/privacy` paragraph is the notice.
 - **X7. One list, Moscow first, local search.** Every store is in one list and on one map, which
   opens on Moscow. The search filters the list and the map by store name, mall, city, street and
   metro station, in the browser, and fits the map to what is left; nothing matching shows «Ничего не
@@ -90,9 +94,12 @@ script) and holds the owner's personal data, so it is not used and never committ
   (`yandex.ru/dev/commercial/doc/ru/`, `yandex.ru/maps-api/tariffs`): only for a site any visitor
   can reach, its registration open to all (so it is); not for a solution made for resale; data got
   through the API is never stored (the page uses no geocoder: its coordinates are Lamoda's, X1);
-  Yandex's copyright, logo and «Открыть в Картах» always visible on the map; up to 500 requests a
-  day (what counts as one is not stated), and a key regularly over it is blocked for good; the map
-  may show Yandex's ads (the paid «Базовый» plan, 2 000 ₽ a month, removes them). The deploy's
+  Yandex's copyright, logo, «Открыть в Картах» and the terms' link always visible on the map, never
+  covered (p. 4.1.3; the phone's card over the map, X19, keeps clear of them); no daily request
+  limit for the JavaScript API in the terms (corrected 2026-10-26 after the owner read
+  `yandex.ru/legal/maps_api`: the 500 a day of the first draft is not there; the one daily limit,
+  Panoramas' 100, is for a product the page does not use), but Yandex may limit or block a key at
+  its discretion (p. 4.5, 6.7); the map may show Yandex's ads (the paid «Базовый» plan, 2 000 ₽ a month, removes them). The deploy's
   warm-up renders the page on the server and loads no map. The owner takes the free plan and
   accepts the risk that a demo shown to Lamoda could be read as made for resale, which would need a
   paid licence.
@@ -140,7 +147,8 @@ script) and holds the owner's personal data, so it is not used and never committ
   one with no phone has none in its details (description and route only). As on Lamoda. Weighed:
   a line saying there is none.
 - **X21. Watching the key's counter.** The owner looks at the key's request statistics in Yandex's
-  cabinet daily for the first week after the deploy (the free plan's 500 a day, X14); then a
+  cabinet daily for the first week after the deploy (no stated daily limit, but Yandex may limit or
+  block a key, X14); then a
   backlog item keeps the watch and the paid plan in view.
 - **X22. The seed's data is the canon.** `stores.data.ts` is checked against
   `source/lamoda-stores.json` once, at T4, by a script outside the repository, its result in the
