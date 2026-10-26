@@ -78,6 +78,13 @@ export const colorGroups: ColorGroup[] = [
     ],
   },
   {
+    title: 'Просмотр фото',
+    tokens: [
+      { token: '--color-viewer', name: 'Фон', value: '#000' },
+      { token: '--color-viewer-text', name: 'Текст', value: '#fff' },
+    ],
+  },
+  {
     title: 'Фильтр по цвету',
     tokens: [
       { token: '--color-swatch-black', name: 'Черный', value: '#000' },
