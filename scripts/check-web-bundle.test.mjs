@@ -96,6 +96,13 @@ describe('check-web-bundle', () => {
     assert.match(result.stderr, /fitting\.js: OPENAI_PROXY_URL/);
   });
 
+  it('fails on the env name VOYAGE_API_KEY (spec 0021 AC12)', () => {
+    put('chunks/rag.js', 'process.env.VOYAGE_API_KEY');
+    const result = check();
+    assert.equal(result.status, 1, result.stderr);
+    assert.match(result.stderr, /rag\.js: VOYAGE_API_KEY/);
+  });
+
   it('passes the other fitting settings', () => {
     put('chunks/fitting.js', 'process.env.FITTING_MODEL+process.env.FITTING_MONTHLY_LIMIT');
     const result = check();

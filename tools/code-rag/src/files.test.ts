@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
@@ -7,7 +8,9 @@ import {
   findSecretLine,
   listTrackedFiles,
   MAX_FILE_BYTES,
+  parseCatFileBatch,
   parseLsFiles,
+  readBlobs,
   selectFiles,
   type TrackedFile,
 } from './files.ts';
@@ -56,6 +59,51 @@ describe('parseLsFiles', () => {
 
   it('refuses an entry of another shape', () => {
     assert.throws(() => parseLsFiles('CLAUDE.md\0'), /Unexpected git ls-files entry/);
+  });
+});
+
+describe('parseCatFileBatch', () => {
+  it("reads each blob's text by its hash, newlines and UTF-8 included", () => {
+    const text = 'Привет\nworld\n';
+    const output = Buffer.concat([
+      Buffer.from(`${HASH} blob ${Buffer.byteLength(text)}\n${text}\n`),
+      Buffer.from(`${'b'.repeat(40)} blob 0\n\n`),
+    ]);
+    assert.deepEqual(
+      parseCatFileBatch(output),
+      new Map([
+        [HASH, text],
+        ['b'.repeat(40), ''],
+      ]),
+    );
+  });
+
+  it('refuses a missing object and a cut output', () => {
+    assert.throws(() => parseCatFileBatch(Buffer.from(`${HASH} missing\n`)), /Unexpected/);
+    assert.throws(() => parseCatFileBatch(Buffer.from(`${HASH} blob 10\nshort\n`)), /Truncated/);
+  });
+});
+
+describe('readBlobs', () => {
+  it("reads the commit's content, not the index's or the working tree's", () => {
+    const root = fileURLToPath(new URL('../../..', import.meta.url));
+    const claude = listTrackedFiles(root).find((f) => f.path === 'CLAUDE.md')!;
+    const committed = execFileSync('git', ['show', 'HEAD:CLAUDE.md'], {
+      cwd: root,
+      encoding: 'utf8',
+    });
+    const blobs = readBlobs(root, [claude.blobHash, claude.blobHash]);
+    assert.equal(blobs.size, 1);
+    assert.equal(blobs.get(claude.blobHash), committed);
+  });
+
+  it('refuses a hash git does not have', () => {
+    const root = fileURLToPath(new URL('../../..', import.meta.url));
+    assert.throws(() => readBlobs(root, ['0'.repeat(40)]), /Unexpected git cat-file header/);
+  });
+
+  it('reads nothing for no hashes', () => {
+    assert.deepEqual(readBlobs('/nonexistent', []), new Map());
   });
 });
 

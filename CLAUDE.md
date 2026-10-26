@@ -148,6 +148,9 @@ Pinned on purpose; each "not newer" has a reason and a condition to move on.
   as one block when it ends, and the run fails if either does.
 - `npm run verify`: format check, lint, typecheck, tests and build in one command. The pre-push
   hook and CI run exactly this, so the list of checks lives in one place (root `package.json`).
+- `npm run rag:index`: brings the code index `.rag/index.sqlite` up to the tracked files, embedding
+  only files whose blob changed (needs `VOYAGE_API_KEY`, else it exits 1 and sends nothing);
+  `-- --full` rebuilds it, `-- --dry-run` lists what would be indexed and skipped, with no key.
 
 `verify` covers `api` (lint, typecheck, tests, build), `web` (lint, Stylelint, typecheck, tests,
 `next build`), the agents' guard hooks and root `scripts/*.mjs` (lint, `node --test`), and
@@ -155,7 +158,7 @@ Pinned on purpose; each "not newer" has a reason and a condition to move on.
 `build`, `check:web-bundle` (`scripts/check-web-bundle.mjs`) fails when a file under
 `web/.next/static` (the browser bundle) contains `x-proxy-secret` (any case), `PROXY_SECRET`,
 `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_SECRET`,
-`OPENAI_API_KEY`, `OPENAI_PROXY_URL` or the
+`OPENAI_API_KEY`, `OPENAI_PROXY_URL`, `VOYAGE_API_KEY` or the
 backup job's `BACKUP_{READ,WRITE}_{ACCESS_KEY_ID,SECRET_ACCESS_KEY}`, or when that directory is
 missing or empty; the one exception is Better Auth's env getter of `BETTER_AUTH_SECRET` in its
 browser client, cut out in exactly its shape (spec 0013 N53). Then `check:web-shells`
@@ -217,13 +220,24 @@ and the full `verify` once at the phase's end (as spec 0019 A58 did).
 - `tools/code-rag/`: the code index for the agents (spec 0021), a package of its own whose
   TypeScript Node runs as it is (type stripping: only erasable syntax, relative imports end in
   `.ts`), tested by `node --test`. `verify` (so the pre-push hook) needs `npm ci` in it, as in
-  `api` and `web`. `files.ts` picks the tracked regular files it reads (`git ls-files`; the
+  `api` and `web`. `files.ts` picks the committed regular files it reads (`git ls-tree` of `HEAD`,
+  spec 0021 Q19: never a staged or working tree change; the
   included places and the exclusions are spec 0021 plan §3.2; never a `.env*` but the root
   `.env.example`, a symlink or an unmerged path) and `findSecretLine` tells a piece that looks
   like a secret; `chunk.ts` cuts TypeScript and JavaScript by top-level statement (a class over
   80 lines by member), Markdown by heading section, the rest and anything too long by windows of
-  at most 60 lines and 6000 characters. The index lives in the git-ignored `.rag/`; the images'
-  build contexts (`api`, `web`) reach neither.
+  at most 60 lines and 6000 characters. The indexer reads a file's content by its blob hash
+  (`git cat-file`, `readBlobs`), never the working tree, and leaves out a chunk whose embedded text
+  (`<path> <symbol>` and the chunk) looks like a secret (`indexer.ts`). `embed.ts` posts to
+  Voyage's `voyage-code-4` (1024 dimensions) through `fetch` (no SDK; `FakeEmbedder` in tests)
+  at the pace of Voyage's free tier, 3 requests and 10 K tokens a minute (spec 0021 Q18: batches of
+  about 5 K estimated tokens, at least 20 s apart, a batch refused twice with 429 split in
+  halves, so the first full index takes hours);
+  `voyageKey()` takes `VOYAGE_API_KEY` from the environment, else only that one variable from the
+  repository's `.env`. `store.ts` keeps `.rag/index.sqlite` with `node:sqlite` (`DatabaseSync`)
+  and the `sqlite-vec` extension: the chunks, a `vec0` table and FTS5, searched by both merged by
+  reciprocal rank fusion; another schema version, model or dimension rebuilds it. The index lives
+  in the git-ignored `.rag/`; the images' build contexts (`api`, `web`) reach neither.
 - `web/`: `app/` holds routing only and re-exports pages from `src/_pages`. FSD layers in `web/src/`,
   imports only downward: `_app → _pages → widgets → features → entities → shared`. A slice or a
   `shared` segment exposes `index.ts` (browser-safe) and/or `server.ts`, which starts with

@@ -6,7 +6,8 @@
 // getter (`ALLOWED`, N53), or the backup job's four
 // `BACKUP_{READ,WRITE}_{ACCESS_KEY_ID,SECRET_ACCESS_KEY}` (spec 0012 P25), or the OpenAI key's name
 // `OPENAI_API_KEY` (spec 0019 AC27, plan §10) and its proxy's, `OPENAI_PROXY_URL` (A73), whose value
-// holds a password. Importing `server-only` from
+// holds a password, or the code index's `VOYAGE_API_KEY` (spec 0021 AC12), a development tool's
+// key no image or bundle should name. Importing `server-only` from
 // a client component already fails `next build`; this catches the rest, e.g. a client file that
 // copies the header by hand.
 // Root `verify` runs it after `build`. A missing or empty directory fails too, so the check never
@@ -32,6 +33,7 @@ const PATTERNS = [
   /BACKUP_WRITE_SECRET_ACCESS_KEY/,
   /OPENAI_API_KEY/,
   /OPENAI_PROXY_URL/,
+  /VOYAGE_API_KEY/,
 ];
 
 // The one place a name may stand, cut out before the search (spec 0013 N53): Better Auth's browser
