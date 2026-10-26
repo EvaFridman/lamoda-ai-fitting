@@ -11,7 +11,8 @@ export interface RoomWishesProps {
   phone: boolean;
 }
 
-// Board 2's PromptField «Пожелания к образу» (A16, A62): up to 200 characters, kept in the tab's
+// Board 2's PromptField «Пожелания к образу» (A16, A62), with no «· по желанию» or hint, only the
+// counter (spec 0023 Y6): up to 200 characters, kept in the tab's
 // memory for this user (A90.5) and sent with the look's try-on (T26). The text is personal: the
 // block is `mp-block`, and the text stays out of attributes (recordings keep them).
 export function RoomWishes({ userId, phone }: RoomWishesProps) {
@@ -22,7 +23,7 @@ export function RoomWishes({ userId, phone }: RoomWishesProps) {
   return (
     <div className={['mp-block', styles.wishes].join(' ')}>
       <label htmlFor={id} className={styles.wishesLabel}>
-        Пожелания к образу <span className={styles.muted}>· по желанию</span>
+        Пожелания к образу
       </label>
       <textarea
         id={id}
@@ -38,7 +39,6 @@ export function RoomWishes({ userId, phone }: RoomWishesProps) {
         onChange={(event) => setWishes(userId, event.target.value)}
       />
       <div id={metaId} className={styles.wishesMeta}>
-        <span>Учтём при генерации. Не меняет вещи и их цвета.</span>
         <span>
           {wishes.length} / {ROOM_WISHES_MAX}
         </span>

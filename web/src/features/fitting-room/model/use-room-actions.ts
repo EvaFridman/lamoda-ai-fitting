@@ -14,8 +14,6 @@ import {
   putRoomItem,
   removeRoomItem,
   roomItemName,
-  SLOT_ACCUSATIVE,
-  SLOT_TITLES,
   withoutSlot,
 } from '@/entities/fitting-room';
 import type { ProductListItem } from '@/entities/product';
@@ -24,8 +22,8 @@ import { trackElementClick } from '@/shared/analytics';
 import { errorText, reportFailure } from '@/shared/api';
 import { showToast } from '@/shared/ui';
 
-// What a put says when it is done (A62, A90.10): `add` — «… в примерочной: <слот>» with
-// «Открыть», or the replace toast with «Вернуть»; `silent` — nothing (a colour change, a
+// What a put says when it is done (A62, A90.10, spec 0023 Y15): `add` — ««…» в примерочной» with
+// «Открыть», or «Заменили «…» на «…»» with «Вернуть»; `silent` — nothing (a colour change, a
 // «Вернуть»).
 export type PutAnnounce = 'add' | 'silent';
 
@@ -203,13 +201,13 @@ export function useRoomActions() {
     if (replaced !== null && replaced.product.id !== request.product.id) {
       const previous = replaced;
       showToast({
-        title: `Заменили ${SLOT_ACCUSATIVE[request.slot]}: ${quoted(request.product)} вместо ${quoted(previous.product)}`,
+        title: `Заменили ${quoted(previous.product)} на ${quoted(request.product)}`,
         actionLabel: 'Вернуть',
         onAction: own(owner, () => undo(previous, 'replace')),
       });
     } else if (replaced === null && !already) {
       showToast({
-        title: `${quoted(request.product)} в примерочной: ${SLOT_TITLES[request.slot].toLocaleLowerCase('ru-RU')}`,
+        title: `${quoted(request.product)} в примерочной`,
         actionLabel: 'Открыть',
         onAction: own(owner, () => {
           const room = queryClient.getQueryData<FittingRoom>(fittingRoomKeys.all);

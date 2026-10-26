@@ -837,7 +837,7 @@ and the full `verify` once at the phase's end (as spec 0019 A58 did).
   plan §9, A60), the product page's the zone `product` (areas `buy-box` and `related`, seven
   elements with the row's arrows `related.scroll`, A87.8, and `buy-box.to-look`, `related.to-look`,
   A90.9, and `gallery`, the photos' `gallery.photo` by `position`, spec 0023 Y11), the fitting room's the zone `fitting`, area `room` (`room.open`, `.remove`, `.undo`,
-  `.fill`, `.clear`, `.add-to-cart-all`, A90.9, `.try-on`, T26; `.open`'s `source` `picker` and
+  `.fill`, `.clear`, `.add-to-cart-all`, A90.9, `.try-on`, T26, `.favourite`, spec 0023 P12; `.open`'s `source` `picker` and
   `result` from the look's try-on, A94; a toast's action sends its click through
   `trackElementClick`, `@/shared/analytics`), the history's and the compare page's the zone
   `fitting`, areas `history` and `compare` (`history.repeat`, `.compare`, `.compare-open`,
@@ -913,18 +913,22 @@ and the full `verify` once at the phase's end (as spec 0019 A58 did).
   (`openRoom()`, also from a toast's action) and the wishes of one user in the tab's memory only
   (A90.5). `features/fitting-room`'s `useRoomActions` puts, removes and clears, answering the cache
   with the write's answer (writes that overlap or fail, a write answered while the room is being
-  read and a remove over a room waiting for a read read it again instead, A97), and shows the toasts (names in quotes, A90.10): «Заменили <слот>: «…»
-  вместо «…»» and «Убрали «…» из примерочной» with «Вернуть» (a `PUT` of the item back), ««…» в
-  примерочной: <слот>» with «Открыть»; `useLookToggle` is the hanger's, the buy box's
+  read and a remove over a room waiting for a read read it again instead, A97), and shows the toasts (names in quotes, A90.10; no slot's name, spec 0023 Y15): «Заменили «<прежняя>»
+  на «<новая>»» and «Убрали «…» из примерочной» with «Вернуть» (a `PUT` of the item back), ««…» в
+  примерочной» with «Открыть»; `useLookToggle` is the hanger's, the buy box's
   «Добавить к образу»'s and the result's tile «К образу»'s (A90.11). `widgets/fitting-room-drawer` (`FittingRoomDrawer`, mounted once in
   `app/layout.tsx` inside its `<Suspense>`, signed in only, closed by a new path or the session's
   end) is the kit's wide `Drawer`, on phones the whole window with «‹» and «…» («Очистить
-  примерочную»): the five slots (`OutfitSlotRow` with the colour `Select` of `swatch` circles, the
-  size stub, «В корзину», «Убрать»; on phones one field opening the `Sheet` «Цвет «…»» of
-  `MiniSwatches`; `EmptySlotRow` with «Подобрать в каталоге» to the slot's first active
-  category, none for the accessory), the wishes, the sum, «Примерить образ» (from two items;
-  `openLookTryOn()` closes the drawer and opens the store's `lookOpen`, `room.try-on`), «Всё в
-  корзину», `LimitMeter` and «Очистить примерочную». `widgets/try-on`'s `LookTryOn`, mounted
+  примерочную»), with no counter line: the five slots, named by `SLOT_TITLES` («Верхний слой и
+  платья», «Нижний слой», «Верхняя одежда», «Обувь», «Аксессуары», spec 0023 Y5) (`OutfitSlotRow`
+  with the colour `Select` of `swatch` circles, the size stub, the heart stub `room.favourite`,
+  «В корзину», «Убрать»; on phones one field opening the `Sheet` «Цвет «…»» of `MiniSwatches`;
+  `EmptySlotRow`, with no caption, whose «+» box, out of the tab order, and «Подобрать в
+  каталоге» both lead to the slot's first active category, none for the accessory), the wishes
+  (only the counter under them, Y6), the sum, «Примерить образ» (from two items;
+  `openLookTryOn()` closes the drawer and opens the store's `lookOpen`, `room.try-on`),
+  «Добавить образ в корзину» (the row wraps when both do not fit), `LimitMeter` and «Очистить
+  примерочную». `widgets/try-on`'s `LookTryOn`, mounted
   beside the drawer and closed the same way, is `TryOn` with `look` (T26, A92): the picker with
   the room's items, its sum and «Изменить» (back to the room), started with the store's wishes;
   a look's result (`LookResult`, also from the history's `?fitting=`) lists the items in the

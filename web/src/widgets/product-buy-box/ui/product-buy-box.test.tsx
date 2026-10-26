@@ -695,7 +695,7 @@ describe('ProductBuyBox: «Добавить к образу» (A18, A82, AC13, A
     );
     expect(mocks.showToast).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({
-        title: `${NAME} в примерочной: верх`,
+        title: `${NAME} в примерочной`,
         actionLabel: 'Открыть',
       }),
     );
@@ -756,7 +756,7 @@ describe('ProductBuyBox: «Добавить к образу» (A18, A82, AC13, A
       actionLabel: string;
       onAction: () => void;
     };
-    expect(toast.title).toBe(`Заменили верх: ${NAME} вместо «Блузка Annen»`);
+    expect(toast.title).toBe(`Заменили «Блузка Annen» на ${NAME}`);
     expect(toast.actionLabel).toBe('Вернуть');
 
     toast.onAction();

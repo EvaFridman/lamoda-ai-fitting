@@ -37,7 +37,7 @@ the deployed site.
 - [x] **T5. The gallery's full screen and magnifier (P2).** Plan §2.4 P2: `photoEvents`, `GalleryViewer`,
       the magnifier under `MOUSE_QUERY`, `gallery.photo` (new area `gallery`). About 3 h. Commit:
       `feat(web): open product photos full screen and magnify on hover`.
-- [ ] **T6. The fitting room drawer (P12–P21, P35, P36).** Plan §2.5: slot names and toasts, no
+- [x] **T6. The fitting room drawer (P12–P21, P35, P36).** Plan §2.5: slot names and toasts, no
       subtitle, captions or wishes' hint, «+» as a link, the slot's heart (`room.favourite`),
       «Добавить образ в корзину»; `room.fill`'s estimate and descriptions. `qa-tester` on AC1–AC7.
       About 2.5 h. Commit: `feat(web): tidy the fitting room drawer`.

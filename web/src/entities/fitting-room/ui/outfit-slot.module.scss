@@ -49,6 +49,13 @@
 
   font-size: var(--font-size-headline-s);
   color: var(--color-text-disabled);
+  text-decoration: none;
+}
+
+@media (hover: hover) {
+  a.placeholder:hover {
+    color: var(--color-text-secondary);
+  }
 }
 
 .body {
@@ -61,16 +68,10 @@
   min-width: 0;
 }
 
-.kind,
-.caption {
+.kind {
   font-size: var(--font-size-caption);
   line-height: var(--line-height-caption);
   color: var(--color-text-secondary);
-}
-
-.caption {
-  font-size: var(--font-size-body-s);
-  line-height: var(--line-height-body-s);
 }
 
 .name {

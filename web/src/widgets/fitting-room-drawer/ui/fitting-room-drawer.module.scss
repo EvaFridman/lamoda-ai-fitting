@@ -1,4 +1,4 @@
-// Board 2: the room's subtitle, slots, wishes and footer inside the kit's wide Drawer; on a phone
+// Board 2: the room's loading line, slots, wishes and footer inside the kit's wide Drawer; on a phone
 // (2.1–2.4) the same, smaller.
 
 .subtitle,
@@ -41,6 +41,13 @@
 
   font-size: var(--font-size-body-s);
   line-height: var(--line-height-body-s);
+}
+
+// A desktop row's heart before «В корзину» (spec 0023 P12).
+.asideRow {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
 }
 
 .remove {
@@ -131,10 +138,10 @@
   }
 }
 
+// The counter alone, on the right.
 .wishesMeta {
   display: flex;
-  gap: var(--space-2);
-  justify-content: space-between;
+  justify-content: flex-end;
 
   font-size: var(--font-size-caption);
   line-height: var(--line-height-caption);
@@ -172,6 +179,16 @@
 .grow {
   flex: 1;
   min-width: 0;
+}
+
+// The footer's two buttons share the row while their labels fit, else each takes its own
+// (spec 0023 P21: «Добавить образ в корзину»).
+.footerButtons {
+  flex-wrap: wrap;
+
+  > .grow {
+    flex: 1 1 max-content;
+  }
 }
 
 .meterRow {

@@ -3,11 +3,9 @@ export { fittingRoomQueryOptions, useFittingRoom } from './api/queries';
 export { clearRoom, putRoomItem, removeRoomItem } from './api/room-requests';
 export {
   bySlot,
-  emptySlotCaption,
   OUTFIT_SLOTS,
   ROOM_CAPACITY,
   roomItemName,
-  SLOT_ACCUSATIVE,
   SLOT_SHORT,
   SLOT_TITLES,
 } from './config/slots';
