@@ -1,6 +1,7 @@
 # 0023 ui-feedback: clarifications
 
-Status: in progress (2026-10-27). Decision ids `Y1`, `Y2`, …; the notes are `C1`–`C7` and
+Status: accepted (2026-10-27) with Y1–Y15; Y16, Y17 added at the review of PR 1; later decisions
+are added below as they are made. Decision ids `Y1`, `Y2`, …; the notes are `C1`–`C7` and
 `P1`–`P36` of [source/agentation-notes.md](source/agentation-notes.md).
 
 ## The canvas
@@ -72,7 +73,8 @@ change. Budget: about 118 K events a month after the change, against 800 K.
 
 ## Settled at the second answers (2026-10-27)
 
-**Y2. OpenAI's refusal reasons are mapped to texts (P27).** No refusal rule of our own is added
+**Y2. OpenAI's refusal reasons are mapped to texts (P27).** _Its sentence on a refusal with no
+category is superseded by the amended Y2 below: no text names who refused._ No refusal rule of our own is added
 (the owner declined a "public figure" reason in the photo check). Instead every place where OpenAI
 refuses keeps the reason OpenAI gives and the visitor reads a text per reason: the moderation
 endpoint's flagged categories on the photo and on the texts, the image model's
@@ -125,3 +127,15 @@ only in a browser before this release sees the consents once more. (4) The photo
 photo contained on a light grey, its size set by the window only. (5) The success screen lasts
 1.5 s and follows a colour change and a regeneration too. (6) The refusal texts are the plan's §4.5
 tables.
+
+## Added at the review of PR 1 (2026-10-27)
+
+**Y16. The text check knows the chosen items.** The classification of the wishes and of the comment
+gets the chosen items' catalog names and categories (never the user's data) in its instructions,
+so «сделай мою футболку синей» passes when no T-shirt is tried on and is refused (`unrelated`)
+when one is: the tried-on items' colour is the colour choice (Y12).
+
+**Y17. The api requires the consents.** `POST /me/photos` by a user with no stored consent of the
+current version, and no `consent` field in the request, answers 400 with the detail
+`CONSENT_REQUIRED` on `consent` and stores nothing. The server holds every consent the site relies
+on (Y1); web's screen stays the way the user gives them.

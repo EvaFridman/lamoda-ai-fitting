@@ -1,6 +1,7 @@
 # 0023 ui-feedback: plan
 
-Status: accepted (2026-10-27); its own choices confirmed as Y15.
+Status: accepted (2026-10-27); its own choices confirmed as Y15; amended at the review of PR 1
+(§3.1: Y17, the fields' order; §3.2: timeouts; §3.4: Y16; §3.5: the detail's shape, the CHECK).
 
 Decisions: `Y1`… of [clarifications.md](clarifications.md); notes `C1`–`C7`, `P1`–`P36` of
 [source/agentation-notes.md](source/agentation-notes.md). Paths: `web` = `web/src`, `api` =
@@ -111,13 +112,17 @@ magnifier, the slot names; `catalog.ts`'s descriptions as §6.
 
 - Migration `…_photo_consent`: `users.photo_consent_at timestamptz NULL` and
   `users.photo_consent_version smallint NULL`, a CHECK that both are null or both set.
-- `me/photos/photo-upload.ts` reads an optional multipart field `consent` before the file; its value
-  must be `PHOTO_CONSENT_VERSION` (`me/photos/consent.ts`, `1` now; another value answers 400 with
-  the detail `IS_IN` on `consent`). When it is sent and the user's stored version is lower (or
-  none), the service writes the time and the version first, in a statement of its own before the
-  check, so a refused photo still keeps the consent the user gave. An upload without `consent` by
-  a user with no consent is not refused by the api (the consent is web's screen, as before; the
-  api only records it).
+- `me/photos/photo-upload.ts` reads an optional multipart field `consent` with the other fields:
+  the parser gathers every field until the body ends, so its place before or after the file does
+  not matter (`fields: 4` still holds `save` and `consent`); web appends it before the file anyway.
+  Its value must be `PHOTO_CONSENT_VERSION` (`me/photos/consent.ts`, `1` now; another value answers
+  400 with the detail `IS_IN` on `consent`). When it is sent and the user's stored version is lower
+  (or none), the service writes the time and the version once the body is read, in a statement of
+  its own before the check, so a refused photo still keeps the consent the user gave.
+- Y17: with no `consent` in the request and no stored consent of the current version, the upload
+  answers 400 with the detail `CONSENT_REQUIRED` on `consent` before the check, storing nothing.
+  `CONSENT_REQUIRED` is a detail code of its own; web's `DETAIL_TEXTS` gets «Подтвердите согласия
+  перед загрузкой фото» and the upload shows the consents again (a stale tab).
 - `UserResponseDto` (`GET /me`, `PATCH /me`) gains `photoConsentVersion: number | null` (the time
   stays in the database). `openapi.json` and `validation-codes.json` are rewritten.
 - Account deletion deletes the row, so nothing else changes.
@@ -130,8 +135,11 @@ image/webp`, `Content-Disposition: attachment; filename="primerka-<YYYY-MM-DD-HH
 (Moscow time of `finishedAt`), `Cache-Control: private, no-store`; someone else's, a missing one or
 one without a result answers 404; a storage failure 503. Swagger declares the binary answer; the
 snapshot is rewritten; `access-markers` lists it under `SIGNED_IN_HANDLERS`. nginx's `/api/` serves
-it as is (an answer, not a body limit). The request timeout holds: a result is 1–3 MB from the
-same region's storage.
+it as is (an answer, not a body limit); its `send_timeout 10s` is between two writes, not the whole
+answer, so a slow client is not cut while bytes flow. T8 checks how `TimeoutInterceptor`
+(`REQUEST_TIMEOUT_MS`, 6 s and more) treats a streamed answer to a slow client: the handler returns
+once the stream starts, and an e2e reads a result slowly past the timeout to prove the file arrives
+whole; if it does not, the route gets the timeout of its own the plan is then amended for.
 
 ### 3.3 Regeneration without reasons (Y9, P33)
 
@@ -155,6 +163,10 @@ lines then. web stops sending them (its retry's `['other']` too). Snapshots rewr
   wishes do not ask for". The wishes' and the comment's lead lines say they may change the scene,
   the pose, the person's own clothes and add small items, never the person or the items' cut or
   colour; `TEXT_LIMITS` says the same. The prompt's unit tests follow.
+- Y16: `checkPrompt(text, { items })` takes the chosen items as `{ name, category }` (the catalog's,
+  as `PromptItem`); the classification's input names them, so "the person's own clothes" means
+  clothes that are not one of these, and changing one of their colours is `unrelated`.
+  `POST /fittings` passes its items, `/regenerate` the parent's.
 
 ### 3.5 Safety categories (Y2, P27)
 
@@ -171,15 +183,18 @@ lines then. web stops sending them (its retry's `['other']` too). Snapshots rewr
 - **A photo (`POST /me/photos`).** A moderation refusal answers the detail `PHOTO_REFUSED` with the
   message `photo was refused: moderation:<category>` (the photo check's own reasons unchanged).
 - **A text (`POST /fittings`, `/regenerate`).** `PROMPT_REFUSED` keeps its code and message and gains
-  one detail `{ field: 'promptText' | 'comment', code: 'PROMPT_REFUSED', message: <reason> }`, the
-  reason one of the classification's or `moderation:<category>`; `DETAIL_TEXTS` keeps a general
-  text for it by hand (it is not a DTO rule's code).
+  one detail `{ field: 'promptText' | 'comment', code: 'PROMPT_REFUSED', message: '<field> was
+refused: <reason>' }`, an English sentence in the shape the photo's detail already has (spec 0019
+  A55), the reason one of the classification's or `moderation:<category>`. web takes the reason
+  after `was refused: ` as `refusal.ts` does, an unknown one falling to the general text; a
+  `*.contract.test.ts` pins the shape against an api e2e's answer of each kind. `DETAIL_TEXTS`
+  keeps a general text for it by hand (it is not a DTO rule's code).
 - **A generation.** `generate` answers `{ ok: false, reason: 'moderation', stage, category }` from
   the image model's refusal (stage from `moderation_details`, else `input`), and the `moderate`
   activity's refusal of the result is stage `output` with its category. Migration
   `…_fitting_failure_category`: an enum `safety_category` and `ai_generations.failure_category
 safety_category NULL`, `failure_stage` (enum `moderation_stage`: `input`, `output`) NULL, a CHECK
-  that both are set only with `failure_code = 'moderation'`. `endFitting` writes them; `FittingDto`
+  that both are null or both set, and set only with `failure_code = 'moderation'`. `endFitting` writes them; `FittingDto`
   gains `failureCategory` and `failureStage` (null otherwise). Older rows have none and read as
   `unknown`.
 - **The fake provider.** A photo of one of the new solid colours of `REFUSAL_COLOURS` refuses as
@@ -353,20 +368,20 @@ and its descriptions; part 2 the rest.
 
 ## 7. Acceptance criteria → checks
 
-| AC             | Check                                                                                                                                                                           |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| AC1, AC2, AC3  | `qa-tester` at 1386 px with a mouse (hover states, the header signed in, the list's pitch); `header.test.tsx` names                                                             |
-| AC4            | `to-look-button.test.tsx`, `product-buy-box.test.tsx`                                                                                                                           |
-| AC5            | `gallery.test.tsx` (open at a photo, arrows, Escape); `qa-tester` with a mouse and with touch emulation                                                                         |
-| AC6            | `qa-tester` at 1024, 1100, 1200, 1279 px: no button's text overflows (`scrollWidth`), nothing overlaps                                                                          |
-| AC7            | `fitting-room-drawer.test.tsx`, `outfit-slot.test.tsx`, `slots.test.ts`, `use-room-actions.test.tsx`                                                                            |
-| AC8, AC9, AC10 | `upload-photo` and `try-on` tests (a drop event with a file, a wrong type, consents first, the replace window); `qa-tester` with a real drag in the browser and touch emulation |
-| AC11           | `try-on-look.test.tsx`, `try-on.test.tsx`                                                                                                                                       |
-| AC12           | `qa-tester`: a landscape and a square photo shown whole; the frame's box equal in picker, wait and result; the modal's height transitions                                       |
-| AC13           | `try-on.test.tsx` (a running fitting ends: the success screen, then the result; `?fitting=` shows the result at once)                                                           |
-| AC14           | api e2e of `GET /fittings/:id/image` (owner, another user, missing, no result); `result-media` and `card-actions` tests; `qa-tester`: a file saved, no tab                      |
-| AC15, AC16     | `look-result.test.tsx`, `regenerate-sheet.test.tsx`; api e2e of a regeneration without `reasons`                                                                                |
-| AC17           | `prompt-checker` and `prompts` unit tests for the instructions; the owner on the site                                                                                           |
-| AC18           | api unit tests of `safetyCategory` and the client's `moderation_details`; e2e with the fake's markers for each category and stage; web tests of every text                      |
-| AC19           | api e2e (consent stored, answered by `GET /me`, a wrong version 400); `upload-photo-first.test.tsx`                                                                             |
-| AC20           | `catalog.test.ts`, `npm run verify`                                                                                                                                             |
+| AC             | Check                                                                                                                                                                                 |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AC1, AC2, AC3  | `qa-tester` at 1386 px with a mouse (hover states, the header signed in, the list's pitch); `header.test.tsx` names                                                                   |
+| AC4            | `to-look-button.test.tsx`, `product-buy-box.test.tsx`                                                                                                                                 |
+| AC5            | `gallery.test.tsx` (open at a photo, arrows, Escape); `qa-tester` with a mouse and with touch emulation                                                                               |
+| AC6            | `qa-tester` at 1024, 1100, 1200, 1279 px: no button's text overflows (`scrollWidth`), nothing overlaps                                                                                |
+| AC7            | `fitting-room-drawer.test.tsx`, `outfit-slot.test.tsx`, `slots.test.ts`, `use-room-actions.test.tsx`                                                                                  |
+| AC8, AC9, AC10 | `upload-photo` and `try-on` tests (a drop event with a file, a wrong type, consents first, the replace window); `qa-tester` with a real drag in the browser and touch emulation       |
+| AC11           | `try-on-look.test.tsx`, `try-on.test.tsx`                                                                                                                                             |
+| AC12           | `qa-tester`: a landscape and a square photo shown whole; the frame's box equal in picker, wait and result; the modal's height transitions                                             |
+| AC13           | `try-on.test.tsx` (a running fitting ends: the success screen, then the result; `?fitting=` shows the result at once)                                                                 |
+| AC14           | api e2e of `GET /fittings/:id/image` (owner, another user, missing, no result); `result-media` and `card-actions` tests; `qa-tester`: a file saved, no tab                            |
+| AC15, AC16     | `look-result.test.tsx`, `regenerate-sheet.test.tsx`; api e2e of a regeneration without `reasons`                                                                                      |
+| AC17           | `prompt-checker` (the items in the classification's input, Y16) and `prompts` unit tests; the owner on the site                                                                       |
+| AC18           | api unit tests of `safetyCategory` and the client's `moderation_details`; e2e with the fake's markers for each category and stage; web tests of every text                            |
+| AC19           | api e2e (consent stored, answered by `GET /me`, a wrong version 400, `consent` after the file, none at all 400 `CONSENT_REQUIRED` with nothing stored); `upload-photo-first.test.tsx` |
+| AC20           | `catalog.test.ts`, `npm run verify`                                                                                                                                                   |

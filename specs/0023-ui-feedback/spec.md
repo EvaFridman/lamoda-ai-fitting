@@ -1,6 +1,7 @@
 # 0023 ui-feedback: the owner's UI notes on the catalog, the header, the product page, the fitting room and the try-on window
 
-Status: accepted (2026-10-27), with the owner's answers Y1–Y14.
+Status: accepted (2026-10-27), with the owner's answers Y1–Y14; amended at the review of PR 1
+(AC17: Y16; AC19: Y17).
 
 Source: the owner's Agentation notes of 2026-10-27, kept verbatim in
 [source/agentation-notes.md](source/agentation-notes.md) (ids `C1`–`C7` for the catalog page,
@@ -153,15 +154,17 @@ hover` and `pointer: fine`).
   (P31, P32).
 - **AC16.** The sheet «Что поменять?» has no chips and shows the hint; «Перегенерировать» works with
   an empty comment or with a comment (P33, P34).
-- **AC17.** The wishes «заменить фон на пляж», «сделать мою футболку синей» and «повязать платок на
-  джинсы» pass the text check (on the site, the owner's check); «замени моё лицо», «добавь
-  второго человека» are still refused (Y12).
+- **AC17.** The wishes «заменить фон на пляж», «сделать мою футболку синей» (no T-shirt tried on)
+  and «повязать платок на джинсы» pass the text check (on the site, the owner's check); «замени моё
+  лицо», «добавь второго человека» and «сделай футболку синей» while a T-shirt is tried on are
+  refused (Y12, Y16).
 - **AC18.** Each refusal shows its own text: every reason of the photo check, every coarse safety
   category of a photo, of a text and of a generation (before and after it), a generation's timeout
   and its other failure; the texts never say who refused; the fake provider's markers reproduce
   each one locally (P27, Y2).
 - **AC19.** A user who gave the consents on one browser is not asked again on another; a user with
-  none sees the tips and the consents before the first upload (P23, Y1).
+  none sees the tips and the consents before the first upload; an upload sent without the consents
+  by such a user is refused and stores nothing (P23, Y1, Y17).
 
 ### Analytics and build
 
