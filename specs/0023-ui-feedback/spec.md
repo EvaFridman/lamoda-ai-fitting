@@ -91,7 +91,8 @@ or works against the visitor. This spec turns those notes into observable change
   reasons, and the safety refusals grouped into a few coarse categories (Y2). No text says who
   refused it.
 - **Consents (P23).** The two consents of the first upload are recorded on the server with the
-  user, so the tips and the consents show once per account (Y1).
+  user, so the tips and the consents show once per account (Y1); an upload without them is
+  refused (Y17).
 
 ## Non-goals
 
