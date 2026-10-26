@@ -16,16 +16,10 @@
   min-width: 0;
 }
 
-// A63.1: on a pointer device the card is lifted by the kit's box shadow and its photo grows inside
-// its frame; the duration tokens are 0 under prefers-reduced-motion.
+// With a mouse (MOUSE_QUERY, spec 0023 Y13) the photo grows inside its frame, the card's one hover
+// effect (C7: no shadow); the duration tokens are 0 under prefers-reduced-motion.
 .card {
-  transition: box-shadow var(--duration-slow);
-
-  @media (hover: hover) {
-    &:hover {
-      box-shadow: var(--shadow-box);
-    }
-
+  @media (hover: hover) and (pointer: fine) {
     &:hover .image {
       transform: scale(1.03);
     }

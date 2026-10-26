@@ -1,5 +1,7 @@
 // Board 13's `.n-look`: a 32px button with the 24px hanger, grey, black on hover and when pressed;
-// disabled as the kit's FavoriteToggle (opacity .4).
+// disabled as the kit's FavoriteToggle (opacity .4). With a mouse the hovered hanger also gets a
+// white outline, the colour of the heart's fill (spec 0023 C1), so it reads on a dark photo: the
+// line art has no fill to stroke, so two 1px drop shadows draw a 1–2px halo around it.
 
 .toggle {
   cursor: pointer;
@@ -19,7 +21,9 @@
 
   background-color: transparent;
 
-  transition: color var(--duration-fast);
+  transition:
+    color var(--duration-fast),
+    filter var(--duration-fast);
 
   &:focus-visible {
     outline: 2px solid var(--color-border-active);
@@ -36,9 +40,11 @@
     opacity: 0.4;
   }
 
-  @media (hover: hover) {
+  @media (hover: hover) and (pointer: fine) {
     &:hover:not(:disabled, [aria-disabled='true']) {
       color: var(--color-text);
+      filter: drop-shadow(0 0 1px var(--color-background))
+        drop-shadow(0 0 1px var(--color-background));
     }
   }
 }

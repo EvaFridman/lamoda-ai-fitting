@@ -40,8 +40,8 @@ export interface CatalogProductCardProps {
 
 // Lamoda's catalog card: the photo 236:341 with the "−N%" badge, then the price, the brand, the
 // name in two lines and the rating. The link covers the photo and the text; the corners and the
-// footer are its siblings, not inside it, so a click on them does not follow the link (AC5). On a
-// pointer device the card is lifted by a shadow and its photo grows inside its frame (A63.1).
+// footer are its siblings, not inside it, so a click on them does not follow the link (AC5). With a
+// mouse its photo grows inside its frame, with no shadow (spec 0023 C7).
 export function CatalogProductCard({
   product,
   variant = 'catalog',

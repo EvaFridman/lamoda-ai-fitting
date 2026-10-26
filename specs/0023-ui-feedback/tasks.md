@@ -25,7 +25,7 @@ the deployed site.
 
 ## PR 2 · feat/0023-look-and-labels · part 1 (web)
 
-- [ ] **T2. The catalog card and the header (C1–C5).** Plan §2.1, §2.2: the hanger's outline, no card
+- [x] **T2. The catalog card and the header (C1–C5).** Plan §2.1, §2.2: the hanger's outline, no card
       shadow, `variant="plain"` on the profile and the room's icon, the kit's `SoonChip` (with its
       `/ui-kit` section) on «Избранное» and «Корзина»; `COARSE_POINTER_QUERY` and `MOUSE_QUERY` in
       `@/shared/config`. About 1.5 h. Commit: `feat(web): calmer catalog card and header icons`.

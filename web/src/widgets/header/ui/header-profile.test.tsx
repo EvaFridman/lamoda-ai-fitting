@@ -163,6 +163,17 @@ describe('HeaderProfile', () => {
     expect(mocks.replace).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ['loading', () => undefined],
+    ['signed out', () => (mocks.session = { status: 'signed-out', failed: false })],
+    ['signed in', () => signedIn(NAME)],
+  ])('draws the profile icon with no frame while %s', (_state, setUp) => {
+    setUp();
+    render(<HeaderProfile />);
+    const button = screen.getByRole('button', { name: /Профиль|Анна/ });
+    expect(button).toHaveClass('plain');
+  });
+
   it('draws an inert icon while the session loads', async () => {
     const user = userEvent.setup();
     render(<HeaderProfile />);

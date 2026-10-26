@@ -156,6 +156,25 @@ describe('Header', () => {
     expect(room.compareDocumentPosition(cart) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
+  it('marks favourites and the cart «скоро» without changing their names', () => {
+    render(<Header />);
+    for (const name of ['Избранное', 'Корзина']) {
+      const button = screen.getByRole('button', { name });
+      const chip = within(button).getByText('скоро');
+      expect(chip).toHaveAttribute('aria-hidden', 'true');
+    }
+    expect(screen.getAllByText('скоро')).toHaveLength(2);
+    expect(screen.getByRole('button', { name: 'Профиль' })).not.toHaveTextContent('скоро');
+    expect(screen.getByRole('button', { name: 'Примерочная' })).not.toHaveTextContent('скоро');
+  });
+
+  it('draws the header icons with no frame', () => {
+    render(<Header />);
+    for (const name of ['Профиль', 'Избранное', 'Примерочная', 'Корзина']) {
+      expect(screen.getByRole('button', { name })).toHaveClass('plain');
+    }
+  });
+
   it('has the search field', () => {
     render(<Header />);
     const banner = screen.getByRole('banner');

@@ -670,7 +670,8 @@ and the full `verify` once at the phase's end (as spec 0019 A58 did).
   next person at the tab never sees `/me` (spec 0017 U22); another user signed in with no end
   seen in between resets them, so a page reads them again as that user. Below 600px the header is
   Lamoda's phone row (spec 0019 A87.4–7): the burger and the loupe, the logo (still `/`, A89),
-  «Избранное», the fitting room and «Корзина»; the gender switch, the city, the profile icon and the category row
+  «Избранное», the fitting room and «Корзина» (on every width the icons have no frame, and the
+  inert «Избранное» and «Корзина» carry «скоро», spec 0023 C2–C5); the gender switch, the city, the profile icon and the category row
   are hidden by CSS, not unmounted, so `HeaderProfile`, its hooks and its `LoginModal` (the one
   that answers a returned sign-in error) run once on every width. The loupe (`HeaderLoupe`)
   opens and closes the search row (`HeaderSearchRow`, kept mounted while closed); the row is open
@@ -728,6 +729,8 @@ and the full `verify` once at the phase's end (as spec 0019 A58 did).
   takes `description`, `media` (a picture left of the heading, which then has no "‹" or header
   action), `grip`, `closable` and `initialFocus`; `Sheet` is it with a grip and no ×),
   `ProgressBar`, `CountBadge` (nothing at 0; its parent places it and names the count),
+  `SoonChip` (board 3's «скоро», placed by its parent as `CountBadge`, hidden from screen readers:
+  the header's inert «Избранное» and «Корзина», spec 0023 C4, C5),
   `Chip`/`ChipGroup` (Base UI's Toggle and ToggleGroup; spec 0019 plan §7), `Select`'s option
   `swatch` (a colour circle in place of a thumbnail, spec 0019 A90.3) and `Gallery` (a
   product's photos, board 1: from 600px two large and up to three small with «Показать ещё фото»,
@@ -745,7 +748,10 @@ and the full `verify` once at the phase's end (as spec 0019 A58 did).
   `Drawer side="left"` is the side modal from the left edge (the header's burger, with
   `MenuIcon`, spec 0019 A87.6).
   Phones are below 600px: `PHONE_QUERY` (`@/shared/config`) with `useMediaQuery` (`@/shared/lib`,
-  a client module) where the DOM must differ, else CSS. Tracking handlers reach the kit and entity
+  a client module) where the DOM must differ, else CSS. Where the device kind decides a control
+  (the camera, the magnifier, hover effects), the primary pointer does, not the width (spec 0023
+  Y13): `COARSE_POINTER_QUERY` (a finger) and `MOUSE_QUERY` (`@/shared/config`), the same way.
+  Tracking handlers reach the kit and entity
   components as props, from the widget or page that calls `useTrackedElement`: `FilterDropdown`'s
   and the catalog filters' `chipEvents` (on the chip's trigger, not its ×), `FileInput`'s and
   `Chip`'s `events`, `ScrollRow`'s `events` (by direction), `MiniSwatches`' `events` (hovers of its row), `CatalogProductCard`'s and `CatalogCategoryList`'s `linkEvents`,
@@ -890,8 +896,8 @@ and the full `verify` once at the phase's end (as spec 0019 A58 did).
   избранного» (`showStubToast`, A33). The catalog card has two corners (A63.1): the hanger
   `LookToggle` top left, only for a product whose category has a slot (`categorySlots` of the
   active categories, `@/entities/category`), live through `RoomLookToggle` (A90.1), and the
-  heart stub top right (untracked, A83.10); on `@media (hover: hover)` it lifts with
-  `--shadow-box` and the photo grows to 1.03. A visitor's hanger opens the grid's or the row's
+  heart stub top right (untracked, A83.10); with a mouse (`MOUSE_QUERY`) the photo grows to 1.03,
+  with no shadow, and the hovered hanger gets a white outline (spec 0023 C1, C7). A visitor's hanger opens the grid's or the row's
   one `LoginModal`, opened through its `open` (no trigger).
 - `web` fitting room (spec 0019 board 2, AC13, A12, A90): `entities/fitting-room` reads
   `GET /me/fitting-room` in the browser (`useFittingRoom`) under `fittingRoomKeys.all`, which

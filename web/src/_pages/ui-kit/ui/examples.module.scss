@@ -237,6 +237,17 @@
   right: -8px;
 }
 
+// As the header places «скоро».
+.soonButton {
+  position: relative;
+}
+
+.soonCorner {
+  position: absolute;
+  top: -4px;
+  right: 0;
+}
+
 // The product page's gallery at its 888px.
 .gallery {
   width: 100%;

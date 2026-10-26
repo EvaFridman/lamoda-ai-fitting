@@ -35,6 +35,12 @@ describe('FittingRoomButton', () => {
     expect(button).toHaveTextContent('3');
   });
 
+  it('has no frame: the kit’s plain variant', () => {
+    render(<FittingRoomButton count={1} />);
+
+    expect(screen.getByRole('button', { name: 'Примерочная, 1 вещь' })).toHaveClass('plain');
+  });
+
   it('hands its handlers to the button', async () => {
     const onClick = vi.fn();
     render(<FittingRoomButton count={2} onClick={onClick} />);
