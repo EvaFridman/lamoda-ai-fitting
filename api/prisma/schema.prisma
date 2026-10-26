@@ -502,3 +502,38 @@ model FittingRoomItem {
   @@index([productId, attributeValueId])
   @@map("fitting_room_items")
 }
+
+// Lamoda Sport's three kinds of store (spec 0022 X9).
+enum StoreType {
+  sport
+  urban
+  outlet
+
+  @@map("store_type")
+}
+
+// Lamoda's own stores (spec 0022 X1, X2), loaded only by the seed and read by `GET /stores`; no
+// route writes them, and a changed or closed store is fixed by a migration. `code` is Lamoda's
+// store code, `[a-z0-9]{4}`, and the seed's natural key; `position` is Lamoda's order, from 0.
+// Every text column is trimmed and not empty, coordinates in range (CHECKs in the migration
+// 20261026120000_stores). A store may have no metro station or phone (X20).
+model Store {
+  id            String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  code          String    @unique
+  position      Int       @unique
+  name          String
+  type          StoreType
+  city          String
+  street        String
+  house         String
+  mall          String
+  latitude      Float
+  longitude     Float
+  metroStations String[]  @default([]) @map("metro_stations")
+  workTime      String    @map("work_time")
+  description   String
+  phones        String[]  @default([])
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@map("stores")
+}

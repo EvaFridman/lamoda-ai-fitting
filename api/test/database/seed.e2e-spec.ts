@@ -14,11 +14,13 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { PrismaClient } from '../../src/generated/prisma/client.js';
 import { CATALOG, COLOUR, imageKeys } from '../../src/seed/catalog.data.js';
 import { SEED_MEDIA_DIR, SeedService } from '../../src/seed/seed.service.js';
+import { STORES, type SeedStore } from '../../src/seed/stores.data.js';
 import { MEDIA_CACHE_CONTROL } from '../../src/storage/keys.js';
 import { StorageError } from '../../src/storage/storage.error.js';
 import type { StorageService } from '../../src/storage/storage.service.js';
 import { startTcpProxy, type TcpProxy } from '../support/tcp-proxy.js';
 import { createTestDatabase } from '../support/test-database.js';
+import { expectViolation } from '../support/violation.js';
 import {
   createTestS3Client,
   createTestStorageService,
@@ -511,6 +513,114 @@ describe('SeedService on a throwaway database', () => {
     expect(await db.category.count({ where: { slug: 'unused-category' } })).toBe(0);
     expect(await db.attributeValue.count({ where: { value: 'used' } })).toBe(1);
     expect(await db.attributeValue.count({ where: { value: 'unused' } })).toBe(0);
+  });
+});
+
+// A database of its own; the tests run in the order written (spec 0022 X1, X2).
+describe('SeedService stores', () => {
+  let storesDb: PrismaClient;
+  let storesSeed: SeedService;
+
+  beforeAll(async () => {
+    storesDb = await createTestDatabase();
+    storesSeed = new SeedService(storesDb, {} as StorageService);
+  });
+
+  afterAll(async () => {
+    await storesDb.$disconnect();
+  });
+
+  const inOrder = () => storesDb.store.findMany({ orderBy: { position: 'asc' } });
+
+  it('adds every store of the list, in its order', async () => {
+    expect(await storesSeed.seedStores()).toBe(STORES.length);
+
+    const rows = await inOrder();
+    expect(rows).toHaveLength(STORES.length);
+    expect(rows.map((r) => r.position)).toEqual(STORES.map((_, i) => i));
+    rows.forEach((row, i) => {
+      const { id, position, createdAt, ...fields } = row;
+      expect(id).toEqual(expect.any(String));
+      expect(createdAt).toBeInstanceOf(Date);
+      expect(position).toBe(i);
+      expect(fields).toEqual(STORES[i]);
+    });
+  });
+
+  it('adds nothing on a second run', async () => {
+    const before = await inOrder();
+
+    expect(await storesSeed.seedStores()).toBe(0);
+
+    expect(await inOrder()).toEqual(before);
+  });
+
+  it('does not overwrite a store edited by hand', async () => {
+    const first = STORES[0];
+    if (!first) throw new Error('no stores');
+    await storesDb.store.update({
+      where: { code: first.code },
+      data: { name: 'Edited by hand', phones: [] },
+    });
+    const before = await inOrder();
+
+    expect(await storesSeed.seedStores()).toBe(0);
+
+    expect(await inOrder()).toEqual(before);
+    const edited = await storesDb.store.findUniqueOrThrow({ where: { code: first.code } });
+    expect(edited.name).toBe('Edited by hand');
+    expect(edited.phones).toEqual([]);
+  });
+
+  it('adds a store whose code is missing and leaves the others', async () => {
+    const last = STORES.at(-1);
+    if (!last) throw new Error('no stores');
+    await storesDb.store.delete({ where: { code: last.code } });
+
+    expect(await storesSeed.seedStores()).toBe(1);
+
+    const restored = await storesDb.store.findUniqueOrThrow({ where: { code: last.code } });
+    expect(restored.position).toBe(STORES.length - 1);
+    expect(await storesDb.store.count()).toBe(STORES.length);
+  });
+
+  it('fails naming a new code whose position another row holds, and stores nothing for it', async () => {
+    const before = await inOrder();
+    const [first, ...rest] = STORES;
+    if (!first) throw new Error('no stores');
+    const list = [{ ...first, code: 'zz03' }, ...rest];
+
+    await expect(storesSeed.seedStores(list)).rejects.toThrow(/Seed stores zz03: /);
+
+    expect(await storesDb.store.count({ where: { code: 'zz03' } })).toBe(0);
+    expect(await inOrder()).toEqual(before);
+  });
+
+  describe('constraints', () => {
+    const row = (code: string, position: number) => ({
+      ...(STORES[0] as SeedStore),
+      code,
+      position,
+    });
+
+    it.each([
+      ['an untrimmed name', { name: ' Store' }, 'stores_name_check'],
+      ['an empty city', { city: '' }, 'stores_city_check'],
+      ['a code of the wrong shape', { code: 'ABCD' }, 'stores_code_check'],
+      ['a negative position', { position: -1 }, 'stores_position_check'],
+      ['a latitude over 90', { latitude: 91 }, 'stores_latitude_check'],
+      ['a longitude under -180', { longitude: -181 }, 'stores_longitude_check'],
+    ])('refuses %s', async (_name, change, constraint) => {
+      await expectViolation(
+        storesDb.store.create({ data: { ...row('zz01', 9000), ...change } }),
+        constraint,
+      );
+    });
+
+    it('refuses a second store with the same code or position', async () => {
+      await expectViolation(storesDb.store.create({ data: row('c022', 9001) }), 'stores_code_key');
+      await expectViolation(storesDb.store.create({ data: row('zz02', 0) }), 'stores_position_key');
+    });
   });
 });
 
