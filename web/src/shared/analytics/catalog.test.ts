@@ -445,6 +445,7 @@ describe('analytics catalog', () => {
       'buy-box.tried-on': ['product', 'navigation'],
       'buy-box.to-look': ['product', 'interaction'],
       'related.card': ['product', 'navigation'],
+      'gallery.photo': ['product', 'interaction'],
       'related.add-to-cart': ['product', 'interaction'],
       'related.scroll': ['product', 'interaction'],
       'related.to-look': ['product', 'interaction'],
