@@ -23,7 +23,7 @@ import styles from './product-buy-box.module.scss';
 
 export interface ProductBuyBoxProps {
   product: ProductDetail;
-  // The slot of the fitting room of the product's category: none shows no «К образу» (A18).
+  // The slot of the fitting room of the product's category: none shows no «Добавить к образу» (A18).
   slot: OutfitSlot | null;
   // «Примерить» of a signed-in user: the page opens the try-on window (a widget of its own).
   onTryOn: () => void;
@@ -46,16 +46,16 @@ function colourOptions(product: ProductDetail): SelectOption[] {
 
 // The product page's buy box (spec 0019 T20, boards 1, 11 and 13; A33, A62, A63.2, A82): the
 // rating, the brand and name, the price and discount, «Вы это примеряли», the colour and size (kept
-// on the screen only, A8; the colour goes into the fitting room with «К образу»), the cart and
-// favourite stubs, board 13's TryOnButton with «К образу» («В образе» once in the room, A82.2)
-// beside it, and the limit meter. The visitor's data (the session, the quota, the last fitting) is
+// on the screen only, A8; the colour goes into the fitting room with «Добавить к образу»), the cart
+// and favourite stubs, board 13's TryOnButton with «Добавить к образу» («В образе» once in the
+// room, A82.2; spec 0023 P1) beside it or under it, and the limit meter. The visitor's data (the session, the quota, the last fitting) is
 // read in the browser only (AC23). Signed out, «Примерить» opens the sign-in window (A12). On a
 // phone it stays in the page's flow in the same order, nothing fixed to the window (A87.2).
 export function ProductBuyBox({ product, slot, onTryOn }: ProductBuyBoxProps) {
   const session = useSession();
-  // The colour chosen: «К образу» puts the product in it (A90.1).
+  // The colour chosen: «Добавить к образу» puts the product in it (A90.1).
   const [colour, setColour] = useState<string | null>(null);
-  // The sign-in window of a visitor's «К образу» (A12, AC16).
+  // The sign-in window of a visitor's «Добавить к образу» (A12, AC16).
   const [signIn, setSignIn] = useState(false);
   const signedIn = session.status === 'signed-in';
   const quota = useFittingQuota(signedIn);

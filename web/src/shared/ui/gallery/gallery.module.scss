@@ -1,5 +1,6 @@
 // Board 1's gallery. From 600px a grid of six columns: a large photo spans three (432×624 at the
-// page's 888px), a small one two (200px high), 24px apart across, 8px down. Below 600px (spec 0019
+// page's 888px), a small one two (280×200 there), 24px apart across, 8px down; both keep these
+// proportions in a narrower gallery (spec 0023 P11). Below 600px (spec 0019
 // A87.1, A88, as Lamoda's) the list is a strip of whole-width slides with scroll snap, each as high
 // as the window less `--gallery-offset` (what the page keeps above it, 0 unless set), the photo
 // covering it; black dots sit at its bottom left, the current one larger, above
@@ -53,11 +54,10 @@
 
 .small {
   grid-column: span 2;
-  aspect-ratio: auto;
-  height: 200px;
+  aspect-ratio: 280 / 200;
 
   @media (width < 600px) {
-    height: calc(100svh - var(--gallery-offset, 0px));
+    aspect-ratio: auto;
   }
 }
 

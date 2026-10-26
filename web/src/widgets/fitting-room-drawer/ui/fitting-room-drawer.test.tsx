@@ -1032,6 +1032,9 @@ describe('FittingRoomDrawer on a phone (board 2.1–2.3)', () => {
 
     expect(await within(dialog).findByRole('heading', { name: 'Пока пусто' })).toBeInTheDocument();
     expect(within(dialog).getByRole('link', { name: 'Перейти в каталог' })).toBeInTheDocument();
+    expect(
+      within(dialog).getByText(/Добавляйте вещи кнопкой «Добавить к образу» — до пяти/),
+    ).toBeInTheDocument();
     expect(dialog.querySelectorAll('ul[aria-hidden="true"] li')).toHaveLength(5);
   });
 

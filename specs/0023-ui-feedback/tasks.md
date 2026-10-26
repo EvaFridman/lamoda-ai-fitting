@@ -31,7 +31,7 @@ the deployed site.
       `@/shared/config`. About 1.5 h. Commit: `feat(web): calmer catalog card and header icons`.
 - [x] **T3. The category list's spacing (C6).** Plan §2.3, the list and its placeholder. About
       0.5 h. Commit: `style(web): more space between catalog categories`.
-- [ ] **T4. The buy box (P1, P11).** Plan §2.4 P1 and P11: «Добавить к образу», the page's flex, the
+- [x] **T4. The buy box (P1, P11).** Plan §2.4 P1 and P11: «Добавить к образу», the page's flex, the
       `Gallery`'s aspect-ratio sizing, the buy box's wrapping rows; descriptions in `catalog.ts`.
       About 2 h. Commit: `fix(web): keep the buy box usable on large tablets`.
 - [ ] **T5. The gallery's full screen and magnifier (P2).** Plan §2.4 P2: `onOpen`, `GalleryViewer`,

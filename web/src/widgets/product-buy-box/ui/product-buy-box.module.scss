@@ -1,6 +1,6 @@
 // Board 1's buy box beside the gallery: the rating, the brand (24px) and the name, the price, the
 // note, the two selects, then the cart row and the try-on row (A63.2: board 13's TryOnButton, 56px,
-// with «К образу» beside it) and the limit meter. Below 600px the same order in the page's flow,
+// with «Добавить к образу» beside it or under it) and the limit meter. Below 600px the same order in the page's flow,
 // closer together (A87.2: not board 1.1's bar fixed to the bottom).
 
 .box {
@@ -74,9 +74,13 @@
   }
 }
 
+// A row too narrow for both buttons' labels (the buy box's 280px, a phone) stacks them instead of
+// squeezing a label out of its button (spec 0023 P11): «Примерить» and «Добавить к образу» each
+// across the box; the cart row fits 280px and wraps only with a much larger font.
 .cart,
 .fitting {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2);
 }
 
@@ -84,5 +88,5 @@
 .tryOn,
 .toLook {
   flex: 1;
-  min-width: 0;
+  min-width: max-content;
 }

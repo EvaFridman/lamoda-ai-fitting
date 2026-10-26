@@ -61,7 +61,7 @@ export function Gallery({ images, 'aria-label': label, className }: GalleryProps
                 src={image.src}
                 alt={image.alt}
                 fill
-                sizes="(max-width: 600px) 100vw, 432px"
+                sizes="(max-width: 600px) 100vw, (max-width: 1280px) 50vw, 432px"
                 loading={index < LARGE ? 'eager' : 'lazy'}
                 unoptimized
                 className={styles.image}

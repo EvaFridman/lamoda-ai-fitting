@@ -334,7 +334,7 @@ describe('ProductBuyBox: the actions (A87)', () => {
     expect(document.querySelector('[data-fixed-bar]')).toBeNull();
     const cart = screen.getByRole('button', { name: 'Добавить в корзину' });
     const tryOn = screen.getByRole('button', { name: 'Примерить' });
-    const look = screen.getByRole('button', { name: 'К образу' });
+    const look = screen.getByRole('button', { name: 'Добавить к образу' });
     const follows = (a: Node, b: Node) =>
       Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
     expect(follows(cart, tryOn)).toBe(true);
@@ -639,7 +639,7 @@ describe('ProductBuyBox: tracked elements (A84)', () => {
   });
 });
 
-describe('ProductBuyBox: «К образу» (A18, A82, AC13, AC16)', () => {
+describe('ProductBuyBox: «Добавить к образу» (A18, A82, AC13, AC16)', () => {
   const NAME = '«Рубашка Design collection Annen»';
   const clicks = () =>
     vi
@@ -647,7 +647,7 @@ describe('ProductBuyBox: «К образу» (A18, A82, AC13, AC16)', () => {
       .mock.calls.filter(([name]) => name === 'Element Clicked')
       .map(([, event]) => event);
 
-  async function readyLook(name = 'К образу') {
+  async function readyLook(name = 'Добавить к образу') {
     const button = await screen.findByRole('button', { name });
     await vi.waitFor(() => expect(button).not.toHaveAttribute('aria-busy', 'true'));
     return button;
@@ -655,21 +655,24 @@ describe('ProductBuyBox: «К образу» (A18, A82, AC13, AC16)', () => {
 
   it('is not shown without a slot, signed in or out (AC16)', () => {
     setup({ slot: null });
-    expect(screen.queryByRole('button', { name: 'К образу' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Добавить к образу' })).not.toBeInTheDocument();
   });
 
   it('is not shown without a slot for a visitor either', () => {
     mocks.session = { status: 'signed-out', failed: false };
     setup({ slot: null });
-    expect(screen.queryByRole('button', { name: 'К образу' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Добавить к образу' })).not.toBeInTheDocument();
   });
 
   it('waits while the room loads and reads it', async () => {
     setup();
 
-    expect(screen.getByRole('button', { name: 'К образу' })).toHaveAttribute('aria-busy', 'true');
+    expect(screen.getByRole('button', { name: 'Добавить к образу' })).toHaveAttribute(
+      'aria-busy',
+      'true',
+    );
     await readyLook();
-    expect(screen.getByRole('button', { name: 'К образу' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: 'Добавить к образу' })).toHaveAttribute(
       'aria-pressed',
       'false',
     );
@@ -704,7 +707,7 @@ describe('ProductBuyBox: «К образу» (A18, A82, AC13, AC16)', () => {
 
     await user.click(screen.getByRole('combobox', { name: 'Цвет' }));
     await user.click(await screen.findByRole('option', { name: 'Чёрный' }));
-    await user.click(screen.getByRole('button', { name: 'К образу' }));
+    await user.click(screen.getByRole('button', { name: 'Добавить к образу' }));
 
     await vi.waitFor(() => expect(writes()).toHaveLength(1));
     expect(writes()[0]?.body).toEqual({ productId: ID, attributeValueId: BLACK });
@@ -722,7 +725,7 @@ describe('ProductBuyBox: «К образу» (A18, A82, AC13, AC16)', () => {
       path: '/api/me/fitting-room/top',
       body: undefined,
     });
-    expect(await screen.findByRole('button', { name: 'К образу' })).toHaveAttribute(
+    expect(await screen.findByRole('button', { name: 'Добавить к образу' })).toHaveAttribute(
       'aria-pressed',
       'false',
     );
@@ -789,7 +792,7 @@ describe('ProductBuyBox: «К образу» (A18, A82, AC13, AC16)', () => {
     await vi.waitFor(() =>
       expect(mocks.showToast).toHaveBeenCalledWith(expect.objectContaining({ tone: 'error' })),
     );
-    expect(screen.getByRole('button', { name: 'К образу' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: 'Добавить к образу' })).toHaveAttribute(
       'aria-pressed',
       'false',
     );
@@ -814,7 +817,7 @@ describe('ProductBuyBox: «К образу» (A18, A82, AC13, AC16)', () => {
     mocks.session = { status: 'signed-out', failed: false };
     const { user } = setup();
 
-    await user.click(screen.getByRole('button', { name: 'К образу' }));
+    await user.click(screen.getByRole('button', { name: 'Добавить к образу' }));
 
     expect(await screen.findByRole('dialog', { name: 'Вход' })).toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
@@ -833,7 +836,10 @@ describe('ProductBuyBox: «К образу» (A18, A82, AC13, AC16)', () => {
     mocks.session = { status: 'pending' };
     setup();
 
-    expect(screen.getByRole('button', { name: 'К образу' })).toHaveAttribute('aria-busy', 'true');
+    expect(screen.getByRole('button', { name: 'Добавить к образу' })).toHaveAttribute(
+      'aria-busy',
+      'true',
+    );
   });
 });
 

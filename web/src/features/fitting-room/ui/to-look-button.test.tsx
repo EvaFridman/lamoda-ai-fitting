@@ -93,10 +93,10 @@ afterEach(() => {
 });
 
 describe('ToLookButton', () => {
-  it('is «К образу», not pressed, while the product is not in the room', () => {
+  it('is «Добавить к образу», not pressed, while the product is not in the room', () => {
     setup(empty);
 
-    expect(screen.getByRole('button', { name: 'К образу' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: 'Добавить к образу' })).toHaveAttribute(
       'aria-pressed',
       'false',
     );
@@ -109,7 +109,7 @@ describe('ToLookButton', () => {
       'aria-pressed',
       'true',
     );
-    expect(screen.queryByRole('button', { name: 'К образу' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Добавить к образу' })).not.toBeInTheDocument();
   });
 
   it('puts the product with the colour beside it', async () => {
@@ -123,7 +123,7 @@ describe('ToLookButton', () => {
     );
     const { user } = setup(empty);
 
-    await user.click(screen.getByRole('button', { name: 'К образу' }));
+    await user.click(screen.getByRole('button', { name: 'Добавить к образу' }));
 
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'В образе' })).toHaveAttribute(
@@ -142,7 +142,7 @@ describe('ToLookButton', () => {
     await user.click(screen.getByRole('button', { name: 'В образе' }));
 
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'К образу' })).toHaveAttribute(
+      expect(screen.getByRole('button', { name: 'Добавить к образу' })).toHaveAttribute(
         'aria-pressed',
         'false',
       ),
@@ -154,7 +154,7 @@ describe('ToLookButton', () => {
     mocks.session = { status: 'signed-out', failed: false };
     const { user, onSignIn } = setup(empty);
 
-    await user.click(screen.getByRole('button', { name: 'К образу' }));
+    await user.click(screen.getByRole('button', { name: 'Добавить к образу' }));
 
     expect(onSignIn).toHaveBeenCalledOnce();
     expect(fetchMock).not.toHaveBeenCalled();
@@ -180,7 +180,7 @@ describe('ToLookButton', () => {
     mocks.session = { status: 'signed-out', failed: false };
     const { user } = setup(empty);
 
-    await user.click(screen.getByRole('button', { name: 'К образу' }));
+    await user.click(screen.getByRole('button', { name: 'Добавить к образу' }));
 
     expect(mocks.track).not.toHaveBeenCalled();
   });
@@ -189,6 +189,9 @@ describe('ToLookButton', () => {
     mocks.session = { status: 'pending' };
     setup(empty);
 
-    expect(screen.getByRole('button', { name: 'К образу' })).toHaveAttribute('aria-busy', 'true');
+    expect(screen.getByRole('button', { name: 'Добавить к образу' })).toHaveAttribute(
+      'aria-busy',
+      'true',
+    );
   });
 });

@@ -881,8 +881,10 @@ and the full `verify` once at the phase's end (as spec 0019 A58 did).
   (rating, price, colour and size, `features/product-stubs`, the primary «Примерить», its own
   button, through which `ProductPurchase` opens `widgets/try-on` in place (the window's start is
   `features/start-fitting`), signed out the second
-  `LoginModal`; `features/fitting-room`'s `ToLookButton` «К образу», «В образе» while the
-  product is in the room, with the colour chosen beside it, A82.2, A90.1; `entities/fitting`'s
+  `LoginModal`; `features/fitting-room`'s `ToLookButton` «Добавить к образу», «В образе» while
+  the product is in the room, with the colour chosen beside it, A82.2, A90.1, spec 0023 P1; from
+  1024 px the buy box keeps board 1's 280 px and the gallery narrows below 1280 px, its photos
+  keeping their proportions; a row too narrow for its two buttons stacks them, spec 0023 P11, Y18; `entities/fitting`'s
   `LimitMeter`, at the limit only «Закончились · снова с <date>» under the disabled «Примерить»,
   A82.5; its `TriedOnNote` from `/products/:id/fittings/last`, whose «Смотреть» opens
   `/customer/fittings?fitting=<id>`; on phones in the page's flow in the same order, nothing
@@ -907,8 +909,8 @@ and the full `verify` once at the phase's end (as spec 0019 A58 did).
   with the write's answer (writes that overlap or fail, a write answered while the room is being
   read and a remove over a room waiting for a read read it again instead, A97), and shows the toasts (names in quotes, A90.10): «Заменили <слот>: «…»
   вместо «…»» and «Убрали «…» из примерочной» with «Вернуть» (a `PUT` of the item back), ««…» в
-  примерочной: <слот>» with «Открыть»; `useLookToggle` is the hanger's, «К образу»'s and the
-  result's tile's (A90.11). `widgets/fitting-room-drawer` (`FittingRoomDrawer`, mounted once in
+  примерочной: <слот>» with «Открыть»; `useLookToggle` is the hanger's, the buy box's
+  «Добавить к образу»'s and the result's tile «К образу»'s (A90.11). `widgets/fitting-room-drawer` (`FittingRoomDrawer`, mounted once in
   `app/layout.tsx` inside its `<Suspense>`, signed in only, closed by a new path or the session's
   end) is the kit's wide `Drawer`, on phones the whole window with «‹» and «…» («Очистить
   примерочную»): the five slots (`OutfitSlotRow` with the colour `Select` of `swatch` circles, the

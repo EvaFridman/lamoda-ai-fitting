@@ -1,5 +1,6 @@
 // The product page on the desktop (board 1): the header's 1200px column; the breadcrumbs, then the
-// gallery (888px) and the buy box side by side, 32px apart. Below 600px the breadcrumbs go (board
+// gallery (888px) and the buy box (280px) side by side, 32px apart; from 1024px to 1279px the
+// gallery narrows, the buy box does not (spec 0023 P11). Below 600px the breadcrumbs go (board
 // 1.1 has none) and the blocks stack edge to edge: the photo fills the window under the header and
 // the buy box overlaps its bottom as a panel with rounded top corners, as Lamoda's (A88).
 
@@ -45,7 +46,7 @@
   // A phone's slide leaves the header's one row of 56px on the screen (A87.1, A87.4).
   --gallery-offset: 56px;
 
-  flex: 0 1 888px;
+  flex: 1 1 888px;
   min-width: 0;
 
   // In the column the basis would be its height.
@@ -54,11 +55,13 @@
   }
 }
 
-// The skeleton's gallery: the first large photo's height, on a phone the slide's (A88).
+// The skeleton's gallery: about the first large photo's height at its width (888 → 624), on a
+// phone the slide's (A88).
 .gallerySkeleton {
-  height: 624px;
+  aspect-ratio: 888 / 624;
 
   @media (width < 600px) {
+    aspect-ratio: auto;
     height: calc(100svh - var(--gallery-offset, 0px));
   }
 }
@@ -95,10 +98,15 @@
   }
 }
 
-// The buy box itself pads its phone layout; on a phone this is its panel over the photo.
+// The buy box itself pads its phone layout; on a phone this is its panel over the photo. Beside the
+// gallery it keeps board 1's 280px and the gallery gives way below 1280px (spec 0023 P11, Y18).
 .purchase {
   flex: 1;
   min-width: 0;
+
+  @media (width >= 1024px) {
+    flex: 0 0 280px;
+  }
 
   @media (width < 600px) {
     position: relative;
