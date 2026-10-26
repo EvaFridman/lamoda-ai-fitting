@@ -147,3 +147,19 @@ script) and holds the owner's personal data, so it is not used and never committ
   task's summary; the permanent test checks only what holds for any list (unique codes, ranges,
   trimmed text, known types), so no api test reads `specs/`, which becomes history at the close.
   Weighed: moving the JSON into `api/`; a test reading `specs/` for good.
+
+## Added at T9 (2026-10-26)
+
+- **X23. `script-src` narrowed to version 3, if the map allows it.** The security review of T9
+  found that the whole host `https://api-maps.yandex.ru` in `script-src`, with `'unsafe-eval'`,
+  lets an injected tag load the old 2.1 loader (its `onload` calls a global function), a known
+  way around a policy. T10 tries `https://api-maps.yandex.ru/v3/` in its place with the owner's key
+  and keeps it if the map loads with no violation in the console; else the host stays and the
+  summary says why. A path is checked only before a redirect, so this is defence in depth.
+  (owner, 2026-10-26.)
+- **X24. The stores page is left in full.** X16's accepted risk also keeps Yandex's loaded code
+  running in the tab after a client navigation, beside the profile and the photos' signed links.
+  So the account's side menu and «‹ Личный кабинет» on the stores page are plain links that load
+  their page in full (`AccountShell`: a section with `fullLoad` is left in full too); the header's
+  and the footer's links stay client navigations, as X16 accepted. Weighed: only noting it in X16.
+  (owner, 2026-10-26, on the security review's proposal.)

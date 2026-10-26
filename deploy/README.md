@@ -1101,10 +1101,12 @@ PROXY_SECRET»), ничего не меняя. Пока сайт на верси
 ### Уровень репозитория (GitHub)
 
 Переменные джоба сборки образов: он работает и для pull request, без окружения.
-`NEXT_PUBLIC_SENTRY_DSN` (DSN проекта web) и `NEXT_PUBLIC_MIXPANEL_TOKEN` (токен проекта Mixpanel)
-публичные: они уходят в браузер. Пустое значение выключает Sentry в браузере или аналитику. Токен
-Mixpanel попадает только в образы, опубликованные из `main`: образы pull request собираются без
-него.
+`NEXT_PUBLIC_SENTRY_DSN` (DSN проекта web), `NEXT_PUBLIC_MIXPANEL_TOKEN` (токен проекта Mixpanel)
+и `NEXT_PUBLIC_YANDEX_MAPS_API_KEY` (ключ «JavaScript API и HTTP Геокодер» Яндекса, ограниченный по
+HTTP Referer сайтом и `localhost`, спека 0022 X13) публичные: они уходят в браузер. Пустое значение
+выключает Sentry в браузере или аналитику, а на странице магазинов вместо карты показывает
+заглушку. Токен Mixpanel и ключ Яндекса попадают только в образы, опубликованные из `main`: образы
+pull request собираются без них.
 
 ```bash
 gh variable set SENTRY_ORG --body "<slug организации>"
@@ -1112,6 +1114,7 @@ gh variable set SENTRY_PROJECT --body "lamoda-ai-fitting"
 gh variable set SENTRY_PROJECT_API --body "lamoda-ai-fitting-api"
 gh variable set NEXT_PUBLIC_SENTRY_DSN --body "<DSN>"
 gh variable set NEXT_PUBLIC_MIXPANEL_TOKEN --body "<токен проекта>"
+gh variable set NEXT_PUBLIC_YANDEX_MAPS_API_KEY --body "<ключ>"
 ```
 
 ### Проверка
@@ -1135,7 +1138,7 @@ gh variable list
    (и `SKIP_OPENAI_CHECK`, только во время сбоя OpenAI или прокси, «Прокси к OpenAI»).
 3. Пусто.
 4. `SENTRY_ORG`, `SENTRY_PROJECT`, `SENTRY_PROJECT_API`, `NEXT_PUBLIC_SENTRY_DSN`,
-   `NEXT_PUBLIC_MIXPANEL_TOKEN`.
+   `NEXT_PUBLIC_MIXPANEL_TOKEN`, `NEXT_PUBLIC_YANDEX_MAPS_API_KEY`.
 
 Секрет или переменную сверх списка (от прошлых версий: CD их не читает) удалить после деплоя,
 которому они уже не нужны: `gh secret delete <имя> --env production`.

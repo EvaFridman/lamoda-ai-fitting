@@ -58,6 +58,9 @@ jobs:
           # Only images that can be deployed send analytics: a pull request's image, run anywhere,
           # must not reach the production project (spec 0008 J24).
           NEXT_PUBLIC_MIXPANEL_TOKEN: ${{ inputs.publish && vars.NEXT_PUBLIC_MIXPANEL_TOKEN || '' }}
+          # The stores' map: a pull request's image, run anywhere, must not spend the key's daily
+          # quota (spec 0022 X13, X14); without it the map's place shows a placeholder.
+          NEXT_PUBLIC_YANDEX_MAPS_API_KEY: ${{ inputs.publish && vars.NEXT_PUBLIC_YANDEX_MAPS_API_KEY || '' }}
           SENTRY_ORG: ${{ vars.SENTRY_ORG }}
           SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT }}
           SENTRY_PROJECT_API: ${{ vars.SENTRY_PROJECT_API }}

@@ -929,7 +929,12 @@ and the full `verify` once at the phase's end (as spec 0019 A58 did).
   since the storage's host serves every client's buckets), everything else only `'self'`:
   a page that loads from another origin (a connection) adds it to the policy. Styles allow
   `'unsafe-inline'` (Next, Base UI), workers `blob:` (the recorder, O45), `next dev` adds
-  `'unsafe-eval'`. nginx adds its `frame-ancestors 'none'` to every answer except one whose CSP
+  `'unsafe-eval'`. The stores page `/customer/stores` alone (the exact path) adds Yandex Maps'
+  origins for version 3 and `'unsafe-eval'` (`yandexMaps`, spec 0022 X16; `https://yastatic.net`
+  only in `style-src` and `img-src`), so every link to it loads it in full, and its account side
+  menu and «‹ Личный кабинет» load theirs in full (`AccountShell`, X24); its key
+  `NEXT_PUBLIC_YANDEX_MAPS_API_KEY` (`yandexMapsApiKey`, `@/shared/config`) is public and, like
+  Mixpanel's token, only in images published from `main` (X13). nginx adds its `frame-ancestors 'none'` to every answer except one whose CSP
   already says `frame-ancestors 'none'` (`$edge_csp`), so a page carries one policy.
 - `web` routes (spec 0014): `/` redirects to `/catalog` (307, `redirects()` in `next.config.ts`);
   `/healthz` answers 200 without calling the api. The root layout's title template is

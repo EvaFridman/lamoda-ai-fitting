@@ -335,6 +335,8 @@ services:
       PROXY_SECRET: ${PROXY_SECRET?add PROXY_SECRET to .env (openssl rand -hex 32), see README}
       # Empty turns analytics off; a dummy token in .env is for local checks only.
       NEXT_PUBLIC_MIXPANEL_TOKEN: ${NEXT_PUBLIC_MIXPANEL_TOKEN:-}
+      # The stores' map (spec 0022 X13); empty shows a placeholder in its place.
+      NEXT_PUBLIC_YANDEX_MAPS_API_KEY: ${NEXT_PUBLIC_YANDEX_MAPS_API_KEY:-}
       # `next dev` forwards /media/ to the emulator's media/ (spec 0011 plan §6); no keys: the
       # emulator lets anyone read media/ (M15).
       S3_ENDPOINT: http://s3:8333

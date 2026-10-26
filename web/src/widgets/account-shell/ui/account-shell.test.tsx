@@ -387,6 +387,94 @@ describe('AccountShell', () => {
       });
     });
 
+    // Spec 0022 X24: leaving the stores page loads the next one in full.
+    describe('on the stores page', () => {
+      async function clickedCancelled(links: HTMLElement[]) {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+        const cancelled: Record<string, boolean> = {};
+        let name = '';
+        const listener = (event: Event) => {
+          cancelled[name] = event.defaultPrevented;
+          event.preventDefault();
+        };
+        document.addEventListener('click', listener);
+        for (const link of links) {
+          name = link.getAttribute('href') ?? '';
+          await user.click(link);
+        }
+        document.removeEventListener('click', listener);
+        return cancelled;
+      }
+
+      it.each([false, true])(
+        'makes every menu link and the back link plain anchors (public: %s)',
+        async (isPublic) => {
+          signedIn();
+          render(<AccountShell section="stores" public={isPublic} />);
+          const nav = screen.getByRole('navigation', { name: 'Личный кабинет' });
+          const back = backLink();
+          expect(back).toBeDefined();
+          const links = [...within(nav).getAllByRole('link'), back as HTMLElement];
+          expect(await clickedCancelled(links)).toEqual({
+            '/customer/orders': false,
+            '/customer/stores': false,
+            '/customer/account': false,
+            '/customer/fittings': false,
+            '/customer/photos': false,
+            '/customer': false,
+          });
+        },
+      );
+
+      it('still sends the clicks of a menu link and of the back link', async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+        render(<AccountShell section="stores" public />);
+        const listener = (event: Event) => event.preventDefault();
+        document.addEventListener('click', listener);
+        await user.click(screen.getByRole('link', { name: 'Мои заказы' }));
+        await user.click(backLink() as HTMLElement);
+        document.removeEventListener('click', listener);
+        expect(mocks.track).toHaveBeenNthCalledWith(1, 'Element Clicked', {
+          element: 'account-menu.section',
+          zone: 'account',
+          type: 'navigation',
+          section: 'orders',
+        });
+        expect(mocks.track).toHaveBeenNthCalledWith(2, 'Element Clicked', {
+          element: 'account-menu.back',
+          zone: 'account',
+          type: 'navigation',
+        });
+      });
+
+      it('keeps the back link of another section on next/link, with only «Магазины» plain', async () => {
+        render(<AccountShell section="orders" />);
+        const nav = screen.getByRole('navigation', { name: 'Личный кабинет' });
+        const back = backLink();
+        expect(back).toBeDefined();
+        const cancelled = await clickedCancelled([
+          within(nav).getByRole('link', { name: 'Магазины' }),
+          within(nav).getByRole('link', { name: 'Мои заказы' }),
+          back as HTMLElement,
+        ]);
+        expect(cancelled).toEqual({
+          '/customer/stores': false,
+          '/customer/orders': true,
+          '/customer': true,
+        });
+      });
+
+      it('renders no back link of the menu when the page has its own back', () => {
+        render(
+          <AccountShell section="stores" back={<a href="/customer/stores">← Магазины</a>}>
+            {CHILD}
+          </AccountShell>,
+        );
+        expect(screen.getByRole('link', { name: '← Магазины' })).toBeInTheDocument();
+        expect(backLink()).toBeUndefined();
+      });
+    });
+
     it('sends the click on the back link', async () => {
       const user = userEvent.setup({ pointerEventsCheck: 0 });
       render(<AccountShell section="orders" />);
