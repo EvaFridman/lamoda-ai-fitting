@@ -1,0 +1,79 @@
+// The list and the map side by side (spec 0022 X0, plan §3.3): the list scrolls on its own at the
+// map's height, 640px, and the search field lies over the map's top. Below 1200px, where the map
+// beside the account menu is too narrow to hold it, the search goes above both. Below 600px one column: the search, then
+// the list at its full height; the map's place is hidden (the tabs come with the map, X10).
+
+.view {
+  display: grid;
+  grid-template-areas: 'list map';
+  grid-template-columns: minmax(0, 360px) minmax(0, 1fr);
+  gap: var(--space-4);
+
+  @media (width < 1200px) {
+    grid-template-areas:
+      'search search'
+      'list map';
+  }
+
+  @media (width < 600px) {
+    grid-template-areas:
+      'search'
+      'list';
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.search {
+  z-index: 1;
+
+  grid-area: map;
+  align-self: start;
+
+  width: min(360px, calc(100% - 2 * var(--space-4)));
+  margin: var(--space-4);
+
+  @media (width < 1200px) {
+    grid-area: search;
+    width: auto;
+    margin: 0;
+  }
+}
+
+.list {
+  overflow-y: auto;
+  grid-area: list;
+  height: 640px;
+
+  @media (width < 600px) {
+    overflow-y: visible;
+    height: auto;
+  }
+}
+
+.cards {
+  display: grid;
+  gap: var(--space-2);
+
+  margin: 0;
+  padding: 0;
+
+  list-style: none;
+}
+
+.message {
+  margin: 0;
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+  color: var(--color-text-secondary);
+}
+
+.map {
+  grid-area: map;
+  height: 640px;
+  border-radius: var(--radius-m);
+  background-color: var(--color-background-secondary);
+
+  @media (width < 600px) {
+    display: none;
+  }
+}

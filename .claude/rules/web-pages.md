@@ -20,7 +20,8 @@ Why: spec 0018 (V8, V15, V16, V24, V30). The list and its check: `web/src/_app/w
   `npm run verify` on a route in neither or in both, and on an entry no file backs (but a
   `redirect` one, which must be a source of `redirects()` in `next.config.ts`).
 - Warm up what a visitor reaches without signing in. Exclude, with its reason, what reads the
-  user's data or is not for visitors: the account (`/customer/*`), `/ui-kit`, `/healthz` and each
+  user's data or is not for visitors: the account's pages (one entry each, since
+  `/customer/stores` is for everyone and warmed up, spec 0022 X4), `/ui-kit`, `/healthz` and each
   route under it (one entry each), a sign-in or development page (`/dev/*`) once a file backs it.
 - A dynamic route names where its addresses come from, as `/catalog/[slug]` takes the active
   categories (`source: 'categories'`, at most `WARMUP_CATEGORY_MAX`, 50) and `/products/[id]` the

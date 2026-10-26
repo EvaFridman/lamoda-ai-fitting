@@ -379,6 +379,7 @@ describe('analytics catalog', () => {
       'Photo Uploaded',
       'Signed In',
       'Signed Out',
+      'Stores Searched',
     ]);
     expect(Object.keys(catalog.commonEvents).sort()).toEqual([
       'Element Clicked',
@@ -406,6 +407,7 @@ describe('analytics catalog', () => {
       'Fitting Completed': ['fitting', 'conversion'],
       'Fitting Failed': ['fitting', 'interaction'],
       'Fitting Refused': ['fitting', 'interaction'],
+      'Stores Searched': ['stores', 'interaction'],
     });
   });
 
@@ -489,6 +491,10 @@ describe('analytics catalog', () => {
       'header.burger': ['header', 'interaction'],
       'header.search': ['header', 'interaction'],
       'burger.category': ['header', 'navigation'],
+      'stores.card': ['stores', 'interaction'],
+      'stores.details': ['stores', 'interaction'],
+      'stores.phone': ['stores', 'navigation'],
+      'stores.route': ['stores', 'navigation'],
     });
   });
 

@@ -56,7 +56,7 @@ X19–X21).
       Check: Vitest (contract, `matchStores` cases of AC7, `telHref`, `routeHref`, the card's
       details, links and `aria-expanded`); AC4.
       Commit: `feat(web): add the store entity`
-- [ ] **T7. The stores page with its list (X3, X4, X7, X8, X9, X15, X17; plan §3.3, §3.4, §4).**
+- [x] **T7. The stores page with its list (X3, X4, X7, X8, X9, X15, X17; plan §3.3, §3.4, §4).**
       Needs the owner's SVGs (spec, owner actions). `AccountShell`'s `public`; `_pages/stores`
       (heading, legend, `SearchField`, list, «Ничего не нашлось», the map's place left empty);
       the route; `account-stubs` without `StoresPage`; the warm-up entry; the zone `stores` with

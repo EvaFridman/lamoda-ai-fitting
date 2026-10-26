@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { OrdersPage, StoresPage } from './account-stubs';
+import { OrdersPage } from './account-stubs';
 
 vi.mock('@/entities/session', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/entities/session')>()),
@@ -34,12 +34,9 @@ function renderPage(Page: () => React.ReactNode) {
 }
 
 describe('account stubs', () => {
-  it.each([
-    ['orders', OrdersPage, 'Мои заказы'],
-    ['stores', StoresPage, 'Магазины'],
-  ] as const)('the %s stub shows its title and that it is coming', (_name, Page, title) => {
-    renderPage(Page);
-    expect(screen.getByRole('heading', { level: 1, name: title })).toBeInTheDocument();
+  it('the orders stub shows its title and that it is coming', () => {
+    renderPage(OrdersPage);
+    expect(screen.getByRole('heading', { level: 1, name: 'Мои заказы' })).toBeInTheDocument();
     expect(screen.getByText('Раздел скоро появится')).toBeInTheDocument();
   });
 });
