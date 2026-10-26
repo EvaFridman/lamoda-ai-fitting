@@ -50,7 +50,7 @@ X19–X21).
 
 ### web: the page without the map
 
-- [ ] **T6. The store entity (X7, X8, X20; plan §3.1).** `entities/store`: schemas and contract test,
+- [x] **T6. The store entity (X7, X8, X20; plan §3.1).** `entities/store`: schemas and contract test,
       keys, `getStores` (page cache), `storeListOptions`, `useStores`, `lib/search.ts`,
       `lib/links.ts`, `ui/store-card`.
       Check: Vitest (contract, `matchStores` cases of AC7, `telHref`, `routeHref`, the card's

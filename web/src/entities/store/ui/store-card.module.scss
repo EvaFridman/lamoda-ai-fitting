@@ -1,0 +1,145 @@
+// A store of the stores page (spec 0022 X0, X8): the name in bold, the address, the metro and the
+// hours in grey under it, «›» on the right, which turns down while the details are open. The
+// selected store has a black border.
+
+.card {
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-m);
+
+  background-color: var(--color-background);
+
+  transition: border-color var(--duration-fast);
+
+  &[data-selected] {
+    border-color: var(--color-border-active);
+  }
+}
+
+.head {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+}
+
+.main {
+  cursor: pointer;
+
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-1);
+
+  min-width: 0;
+  padding: 0;
+  border: 0;
+
+  font: inherit;
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+  color: var(--color-text);
+  text-align: left;
+  overflow-wrap: anywhere;
+
+  background: none;
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: 2px;
+  }
+}
+
+.name {
+  font-weight: 600;
+}
+
+.line,
+.secondary {
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+}
+
+.secondary {
+  display: inline-flex;
+  gap: var(--space-1);
+  align-items: center;
+  color: var(--color-text-secondary);
+}
+
+.icon {
+  flex-shrink: 0;
+}
+
+.toggle {
+  cursor: pointer;
+
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+
+  width: 44px;
+  height: 44px;
+  margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-2)) 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-full);
+
+  color: var(--color-text);
+
+  background: none;
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: -2px;
+  }
+
+  @media (hover: hover) {
+    &:hover {
+      background-color: var(--color-background-secondary);
+    }
+  }
+}
+
+.chevron {
+  transition: transform var(--duration-fast);
+
+  [aria-expanded='true'] > & {
+    transform: rotate(90deg);
+  }
+}
+
+.details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+}
+
+.description {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.phones {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+
+  margin: 0;
+  padding: 0;
+
+  list-style: none;
+
+  li {
+    display: inline-flex;
+    gap: var(--space-2);
+    align-items: center;
+  }
+}
