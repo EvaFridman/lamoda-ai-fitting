@@ -64,10 +64,14 @@ same pitch. The phone's rows already have 12 px padding and hairlines: unchanged
   narrower gallery keeps its proportions; its `sizes` follow. In `widgets/product-buy-box` the
   rows of two buttons wrap (`flex-wrap`, each button `min-width: max-content`), so «Примерить» and
   «Добавить к образу» stack when 280 px cannot hold both.
-- **P2.** The kit's `Gallery` gains `onOpen(index)` and a full-screen viewer of its own,
-  `GalleryViewer` (the kit's `Modal`, the whole window, black background): the photo whole
-  (`object-fit: contain`), «‹» «›» and the arrow keys on a mouse device, a swiped strip on a touch
-  device (scroll snap), «N из M», a close button and Escape. A click on any photo (the strip's
+- **P2.** The kit's `Gallery` gains a full-screen viewer of its own, `GalleryViewer` (Base UI's
+  Dialog, as the kit's `Modal`, whose white frame, heading and 1000 px it does not take: the whole
+  window, black background): the photo whole (`object-fit: contain`), a swiped strip (scroll
+  snap), «‹» «›» on a mouse device, the arrow keys on any, «N из M», a close button and Escape;
+  it opens with the focus on the close button and gives it back to the photo it opened from. Each
+  photo is a button «Открыть фото N из M» (with the photo's text); its click and hover reach the
+  page through `photoEvents(index)`, made by a new `useTrackedElements` of `@/shared/analytics`
+  (the props of any number of copies of one element, by their properties; T5). A click on any photo (the strip's
   slides too) opens it at that photo. The magnifier (Y14): under `MOUSE_QUERY`, while the pointer
   is over a large or small photo, the cursor is hidden (`cursor: none`) and a round lens of 160 px
   (a 2 px white border, the kit's `--shadow-box`) is centred on the pointer; inside it the part of

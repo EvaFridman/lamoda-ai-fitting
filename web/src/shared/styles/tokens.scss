@@ -54,6 +54,10 @@
   --color-footer-divider: #3a3a3c;
   --color-vk: #07f;
 
+  // Colour: the gallery's full screen (spec 0023 P2): its black window and the text on it
+  --color-viewer: #000;
+  --color-viewer-text: #fff;
+
   // Colour: the swatches of the colour filter, Lamoda's FilterValue palette (ColorSwatch, D7o).
   // Multicolor is a gradient: these tokens go into `background`, not `background-color`.
   --color-swatch-black: #000;

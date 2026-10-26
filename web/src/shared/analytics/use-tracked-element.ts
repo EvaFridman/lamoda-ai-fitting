@@ -126,3 +126,39 @@ function useTrackedElementOf(
  * and own properties (spec 0015 R5).
  */
 export const useTrackedElement: UseTrackedElementOf<typeof catalog> = useTrackedElementOf;
+
+/** `useTrackedElements` for a catalog. */
+export type UseTrackedElementsOf<C extends Catalog> = <E extends ElementsOf<C>>(
+  element: E,
+) => (...properties: ElementArgumentsOf<C, E>) => TrackedElementProps;
+
+function useTrackedElementsOf(
+  element: string,
+): (properties?: PropertyValues) => TrackedElementProps {
+  const pathname = usePathname();
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  useEffect(() => () => clearTimeout(timerRef.current), [pathname]);
+
+  return (properties = {}) => {
+    const event = elementEvent(element, properties);
+    const key = hoverKey<Catalog, string>(element, properties, catalog);
+    return {
+      onClick: () => track('Element Clicked', event),
+      onPointerEnter: (pointer: PointerEvent) => {
+        if (pointer.pointerType !== 'mouse') return;
+        clearTimeout(timerRef.current);
+        timerRef.current = setTimeout(() => sendHover(key, event, pathname), HOVER_MS);
+      },
+      onPointerLeave: () => clearTimeout(timerRef.current),
+    };
+  };
+}
+
+/**
+ * `useTrackedElement` for copies of one element that a kit component renders in a list of any
+ * length, where no hook runs per copy (the gallery's photos by position): a function giving each
+ * copy's props from its properties. The copies share one hover timer, as one pointer is over one
+ * of them at a time.
+ */
+export const useTrackedElements: UseTrackedElementsOf<typeof catalog> = useTrackedElementsOf;

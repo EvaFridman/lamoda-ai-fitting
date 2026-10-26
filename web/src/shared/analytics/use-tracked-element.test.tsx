@@ -7,6 +7,7 @@ import {
   trackElementClick,
   useHoverReset,
   useTrackedElement,
+  useTrackedElements,
 } from './use-tracked-element';
 
 const pathname = vi.hoisted(() => ({ current: '/a' }));
@@ -77,6 +78,98 @@ describe('trackElementClick', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe('useTrackedElements', () => {
+  function Photos() {
+    const photo = useTrackedElements('gallery.photo');
+    return (
+      <>
+        {[1, 2].map((position) => (
+          <button key={position} type="button" {...photo({ position })}>
+            photo {position}
+          </button>
+        ))}
+      </>
+    );
+  }
+
+  const event = (position: number) => ({
+    element: 'gallery.photo',
+    zone: 'product',
+    type: 'interaction',
+    position,
+  });
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.mocked(track).mockClear();
+    testNumber += 1;
+    pathname.current = `/photos-${testNumber}`;
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('sends a click with the properties of that copy', () => {
+    render(<Photos />);
+    fireEvent.click(screen.getByRole('button', { name: 'photo 2' }));
+    expect(track).toHaveBeenCalledExactlyOnceWith('Element Clicked', event(2));
+  });
+
+  it('sends a hover of a mouse after 500 ms, once per set of properties', () => {
+    render(<Photos />);
+    hover('mouse', 0);
+    act(() => vi.advanceTimersByTime(HOVER_MS - 1));
+    expect(track).not.toHaveBeenCalled();
+    act(() => vi.advanceTimersByTime(1));
+    expect(track).toHaveBeenCalledExactlyOnceWith('Element Hovered', event(1));
+
+    hover('mouse', 0);
+    act(() => vi.advanceTimersByTime(HOVER_MS));
+    expect(track).toHaveBeenCalledTimes(1);
+
+    hover('mouse', 1);
+    act(() => vi.advanceTimersByTime(HOVER_MS));
+    expect(track).toHaveBeenCalledTimes(2);
+    expect(track).toHaveBeenLastCalledWith('Element Hovered', event(2));
+  });
+
+  it('shares one timer: moving to the next copy cancels the first hover', () => {
+    render(<Photos />);
+    hover('mouse', 0);
+    act(() => vi.advanceTimersByTime(HOVER_MS - 1));
+    hover('mouse', 1);
+    act(() => vi.advanceTimersByTime(HOVER_MS));
+    expect(track).toHaveBeenCalledExactlyOnceWith('Element Hovered', event(2));
+  });
+
+  it('cancels the hover when the pointer leaves early', () => {
+    render(<Photos />);
+    hover('mouse');
+    act(() => vi.advanceTimersByTime(HOVER_MS - 1));
+    fireEvent.pointerLeave(screen.getAllByRole('button')[0]!, { pointerType: 'mouse' });
+    act(() => vi.advanceTimersByTime(HOVER_MS));
+    expect(track).not.toHaveBeenCalled();
+  });
+
+  it('ignores a touch pointer', () => {
+    render(<Photos />);
+    hover('touch');
+    act(() => vi.advanceTimersByTime(HOVER_MS * 2));
+    expect(track).not.toHaveBeenCalled();
+  });
+
+  it('sends the hover again after the path changes', () => {
+    const { rerender } = render(<Photos />);
+    hover('mouse');
+    act(() => vi.advanceTimersByTime(HOVER_MS));
+    pathname.current += '/next';
+    rerender(<Photos />);
+    hover('mouse');
+    act(() => vi.advanceTimersByTime(HOVER_MS));
+    expect(track).toHaveBeenCalledTimes(2);
   });
 });
 

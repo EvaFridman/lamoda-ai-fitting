@@ -68,8 +68,66 @@
   }
 }
 
+// The whole frame is the button that opens the full screen.
+.open {
+  cursor: zoom-in;
+
+  position: absolute;
+  inset: 0;
+
+  margin: 0;
+  padding: 0;
+  border: 0;
+
+  background: none;
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: -2px;
+  }
+}
+
+// With a mouse the lens is the cursor (spec 0023 Y14).
+.magnified {
+  @media (hover: hover) and (pointer: fine) {
+    cursor: none;
+  }
+}
+
 .image {
   object-fit: cover;
+}
+
+// The magnifier: a round lens centred on the pointer (its `transform`), the photo enlarged inside
+// it (its `background-*`, set as the pointer moves); the item's `overflow: hidden` keeps it inside
+// the frame. Shown while the pointer is over the photo (`data-on`), with a mouse only.
+.lens {
+  pointer-events: none;
+
+  position: absolute;
+  top: 0;
+  left: 0;
+
+  display: none;
+
+  box-sizing: border-box;
+  width: 160px;
+  height: 160px;
+  border: 2px solid var(--color-background);
+  border-radius: 50%;
+
+  background-color: var(--color-background-secondary);
+  background-repeat: no-repeat;
+
+  // Its position counts from the outer edge, so the lens's centre is the point it enlarges.
+  background-origin: border-box;
+  box-shadow: var(--shadow-box);
+
+  &[data-on] {
+    @media (hover: hover) and (pointer: fine) {
+      display: block;
+    }
+  }
 }
 
 // Board 1: the kit's secondary button 40, white, centred over the last small photo.
@@ -77,6 +135,7 @@
   cursor: pointer;
 
   position: absolute;
+  z-index: 1;
   bottom: var(--space-3);
   left: 50%;
   transform: translateX(-50%);

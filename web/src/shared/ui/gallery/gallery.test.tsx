@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Gallery, type GalleryImage } from './gallery';
 
@@ -161,6 +161,180 @@ describe('Gallery', () => {
     expect(dots(container)).toHaveLength(2);
     expect(error).not.toHaveBeenCalled();
     error.mockRestore();
+  });
+
+  it('opens the full screen at the clicked photo and closes it', async () => {
+    const user = userEvent.setup();
+    render(<Gallery images={photos(4)} aria-label="Фото товара" />);
+
+    await user.click(screen.getByRole('button', { name: 'Открыть фото 3 из 4' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Фото товара' });
+    expect(within(dialog).getByText('3 из 4')).toBeInTheDocument();
+
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('names every photo button by its position and, when it has one, its description', () => {
+    render(<Gallery images={photos(3)} aria-label="Фото товара" />);
+
+    expect(
+      screen.getByRole('button', { name: 'Открыть фото 1 из 3: Худи, спереди' }),
+    ).toBeInTheDocument();
+    for (const position of [2, 3]) {
+      expect(
+        screen.getByRole('button', { name: `Открыть фото ${position} из 3` }),
+      ).toBeInTheDocument();
+    }
+  });
+
+  it('moves the focus to «Закрыть» when the full screen opens', async () => {
+    render(<Gallery images={photos(4)} aria-label="Фото товара" />);
+
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Открыть фото 2 из 4' }));
+
+    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Закрыть' })).toHaveFocus());
+  });
+
+  it.each([
+    ['Escape', async (user: ReturnType<typeof userEvent.setup>) => user.keyboard('{Escape}')],
+    [
+      '×',
+      async (user: ReturnType<typeof userEvent.setup>) =>
+        user.click(screen.getByRole('button', { name: 'Закрыть' })),
+    ],
+  ])(
+    'returns the focus to the photo it opened from after %s, though the click did not focus it',
+    async (_, close) => {
+      render(<Gallery images={photos(4)} aria-label="Фото товара" />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Открыть фото 2 из 4' }));
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+      await close(userEvent.setup());
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      await vi.waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Открыть фото 2 из 4' })).toHaveFocus(),
+      );
+    },
+  );
+
+  it('calls the photo events with the photo index and still opens the full screen', async () => {
+    const events = {
+      onClick: vi.fn(),
+      onPointerEnter: vi.fn(),
+      onPointerLeave: vi.fn(),
+    };
+    const photoEvents = vi.fn((index: number) => {
+      void index;
+      return events;
+    });
+    const user = userEvent.setup();
+    render(<Gallery images={photos(3)} aria-label="Фото товара" photoEvents={photoEvents} />);
+    expect(photoEvents.mock.calls.map(([index]) => index)).toEqual([0, 1, 2]);
+    const second = screen.getByRole('button', { name: 'Открыть фото 2 из 3' });
+
+    fireEvent.pointerEnter(second, { pointerType: 'mouse' });
+    fireEvent.pointerLeave(second, { pointerType: 'mouse' });
+    expect(events.onPointerEnter).toHaveBeenCalledTimes(1);
+    expect(events.onPointerLeave).toHaveBeenCalledTimes(1);
+    expect(events.onClick).not.toHaveBeenCalled();
+
+    await user.click(second);
+
+    expect(events.onClick).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(within(screen.getByRole('dialog')).getByText('2 из 3')).toBeInTheDocument();
+  });
+
+  it('keeps «Показать ещё фото» a separate button that does not open the full screen', async () => {
+    render(<Gallery images={photos(7)} aria-label="Фото товара" />);
+
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Показать ещё фото' }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('draws no lens without a mouse', () => {
+    const { container } = render(<Gallery images={photos(3)} aria-label="Фото товара" />);
+
+    expect(container.querySelectorAll('.lens')).toHaveLength(0);
+  });
+
+  describe('with a mouse', () => {
+    beforeEach(() => {
+      vi.stubGlobal('matchMedia', (query: string) => ({
+        matches: true,
+        media: query,
+        onchange: null,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        addListener: () => {},
+        removeListener: () => {},
+        dispatchEvent: () => false,
+      }));
+    });
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    function frameOf(button: HTMLElement, width: number, height: number) {
+      button.getBoundingClientRect = () =>
+        ({ left: 0, top: 0, width, height, right: width, bottom: height, x: 0, y: 0 }) as DOMRect;
+    }
+
+    it('draws one lens per photo with the photo as its background, hidden from assistive technology', () => {
+      const { container } = render(<Gallery images={photos(2)} aria-label="Фото товара" />);
+
+      const lenses = Array.from(container.querySelectorAll<HTMLElement>('.lens'));
+      expect(lenses).toHaveLength(2);
+      expect(lenses[1]).toHaveAttribute('aria-hidden', 'true');
+      expect(lenses[1]?.style.backgroundImage).toContain('/media/p/2.webp');
+      expect(lenses[0]).not.toHaveAttribute('data-on');
+    });
+
+    it('moves the lens under the pointer, enlarged by the covered photo, and hides it on leave', () => {
+      const { container } = render(<Gallery images={photos(1)} aria-label="Фото товара" />);
+      const button = screen.getByRole('button', { name: /^Открыть фото 1 из 1/ });
+      const lens = container.querySelector<HTMLElement>('.lens')!;
+      frameOf(button, 200, 300);
+      const img = button.querySelector('img')!;
+      Object.defineProperty(img, 'naturalWidth', { configurable: true, value: 400 });
+      Object.defineProperty(img, 'naturalHeight', { configurable: true, value: 400 });
+
+      fireEvent.pointerMove(button, { pointerType: 'mouse', clientX: 100, clientY: 150 });
+
+      expect(lens).toHaveAttribute('data-on');
+      // Covered: 300 x 300 drawn in a 200 x 300 frame, offset -50 px; lens 160 px, zoom 2.5.
+      expect(lens.style.transform).toBe('translate(20px, 70px)');
+      expect(lens.style.backgroundSize).toBe('750px 750px');
+      expect(lens.style.backgroundPosition).toBe('-295px -295px');
+
+      fireEvent.pointerLeave(button, { pointerType: 'mouse' });
+      expect(lens).not.toHaveAttribute('data-on');
+    });
+
+    it('shows the lens on pointer enter', () => {
+      const { container } = render(<Gallery images={photos(1)} aria-label="Фото товара" />);
+      const button = screen.getByRole('button', { name: /^Открыть фото 1 из 1/ });
+      frameOf(button, 200, 300);
+
+      fireEvent.pointerEnter(button, { pointerType: 'mouse', clientX: 10, clientY: 10 });
+
+      expect(container.querySelector('.lens')).toHaveAttribute('data-on');
+    });
+
+    it('ignores a touch pointer', () => {
+      const { container } = render(<Gallery images={photos(1)} aria-label="Фото товара" />);
+      const button = screen.getByRole('button', { name: /^Открыть фото 1 из 1/ });
+      frameOf(button, 200, 300);
+
+      fireEvent.pointerMove(button, { pointerType: 'touch', clientX: 10, clientY: 10 });
+
+      expect(container.querySelector('.lens')).not.toHaveAttribute('data-on');
+    });
   });
 
   it('passes the class name to the root', () => {

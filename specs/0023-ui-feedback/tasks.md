@@ -34,7 +34,7 @@ the deployed site.
 - [x] **T4. The buy box (P1, P11).** Plan §2.4 P1 and P11: «Добавить к образу», the page's flex, the
       `Gallery`'s aspect-ratio sizing, the buy box's wrapping rows; descriptions in `catalog.ts`.
       About 2 h. Commit: `fix(web): keep the buy box usable on large tablets`.
-- [ ] **T5. The gallery's full screen and magnifier (P2).** Plan §2.4 P2: `onOpen`, `GalleryViewer`,
+- [x] **T5. The gallery's full screen and magnifier (P2).** Plan §2.4 P2: `photoEvents`, `GalleryViewer`,
       the magnifier under `MOUSE_QUERY`, `gallery.photo` (new area `gallery`). About 3 h. Commit:
       `feat(web): open product photos full screen and magnify on hover`.
 - [ ] **T6. The fitting room drawer (P12–P21, P35, P36).** Plan §2.5: slot names and toasts, no

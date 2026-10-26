@@ -1,7 +1,17 @@
 import { render, screen, within } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import userEvent from '@testing-library/user-event';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { track } from '@/shared/analytics/client';
 
 import { ProductGallery } from './product-gallery';
+
+vi.mock('next/navigation', () => ({ usePathname: () => '/products/1' }));
+vi.mock('@/shared/analytics/client', () => ({ track: vi.fn() }));
+
+beforeEach(() => {
+  vi.mocked(track).mockClear();
+});
 
 type Product = Parameters<typeof ProductGallery>[0]['product'];
 
@@ -62,6 +72,20 @@ describe('ProductGallery', () => {
     const named = screen.getByRole('img', { name: 'Brooks Худи' });
     expect(named).toHaveAttribute('src', 'https://lamoda.test/media/p2.webp');
     expect(screen.getAllByRole('img')).toHaveLength(1);
+  });
+
+  it('sends gallery.photo with the photo position from 1 on a click', async () => {
+    render(<ProductGallery product={{ ...base, images: [image(1, 0), image(2, 1)] }} />);
+
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Открыть фото 2 из 2' }));
+
+    expect(track).toHaveBeenCalledExactlyOnceWith('Element Clicked', {
+      element: 'gallery.photo',
+      zone: 'product',
+      type: 'interaction',
+      position: 2,
+    });
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 
   it('does not reorder the product it was given', () => {

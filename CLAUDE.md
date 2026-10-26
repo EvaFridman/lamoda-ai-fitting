@@ -736,7 +736,12 @@ and the full `verify` once at the phase's end (as spec 0019 A58 did).
   product's photos, board 1: from 600px two large and up to three small with «Показать ещё фото»,
   below it a swiped strip whose slides, the photo covering them, are as high as the window less
   the page's `--gallery-offset`, with Lamoda's dots above the page's `--gallery-overlap`, spec
-  0019 A87.1, A88; one list switched by CSS, `unoptimized`) and `ScrollRow` (one row of `<li>`s scrolling sideways with snapping, as many in
+  0019 A87.1, A88; one list switched by CSS, `unoptimized`; spec 0023 P2: a photo is a button
+  that opens `GalleryViewer`, its full screen, at it: black, each photo whole, a swiped strip,
+  «‹» «›» with a mouse, the arrow keys, «N из M», × and Escape; with a mouse, `MOUSE_QUERY`, the
+  cursor over a photo is a round lens of 160 px showing the part under it 2.5 times larger, the
+  photo unchanged, Y14; catalog photos only, since the lens puts the address in an inline style)
+  and `ScrollRow` (one row of `<li>`s scrolling sideways with snapping, as many in
   view as the parent's `--scroll-row-visible` and `--scroll-row-gap`; from 600px «‹» «›»,
   disabled at the ends, gone while everything fits, taking `events`; A87.3). For the
   catalog's sheet (spec 0020) `Drawer` takes `fullHeight` (a bottom sheet as high as it can be, so
@@ -756,7 +761,8 @@ and the full `verify` once at the phase's end (as spec 0019 A58 did).
   and the catalog filters' `chipEvents` (on the chip's trigger, not its ×), `FileInput`'s and
   `Chip`'s `events`, `ScrollRow`'s `events` (by direction), `MiniSwatches`' `events` (hovers of its row), `CatalogProductCard`'s and `CatalogCategoryList`'s `linkEvents`,
   `SavedPhotoCard`'s `makeDefaultEvents`, `HistoryCard`'s `openEvents`, `StoresMap`'s
-  `pinEvents`. The kit's `Tabs` with no `panel` on its items only switch: the page shows what they
+  `pinEvents`, `Gallery`'s `photoEvents` (by index, from `useTrackedElements`, which gives the
+  props of any number of copies of one element by their properties). The kit's `Tabs` with no `panel` on its items only switch: the page shows what they
   choose (the stores page's list and map, spec 0022 X25).
 
 - `web` photos (spec 0019 plan §7): `entities/user-photo` reads `GET /me/photos` in the browser
@@ -830,7 +836,7 @@ and the full `verify` once at the phase's end (as spec 0019 A58 did).
   0014 plan §3.6, O97–O103), the fitting photos' the zone `fitting`, area `photos` (spec 0019
   plan §9, A60), the product page's the zone `product` (areas `buy-box` and `related`, seven
   elements with the row's arrows `related.scroll`, A87.8, and `buy-box.to-look`, `related.to-look`,
-  A90.9), the fitting room's the zone `fitting`, area `room` (`room.open`, `.remove`, `.undo`,
+  A90.9, and `gallery`, the photos' `gallery.photo` by `position`, spec 0023 Y11), the fitting room's the zone `fitting`, area `room` (`room.open`, `.remove`, `.undo`,
   `.fill`, `.clear`, `.add-to-cart-all`, A90.9, `.try-on`, T26; `.open`'s `source` `picker` and
   `result` from the look's try-on, A94; a toast's action sends its click through
   `trackElementClick`, `@/shared/analytics`), the history's and the compare page's the zone
