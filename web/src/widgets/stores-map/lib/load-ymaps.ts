@@ -49,7 +49,7 @@ async function load(apiKey: string): Promise<YmapsComponents> {
     const url = new URL(YMAPS_SCRIPT);
     url.searchParams.set('apikey', apiKey);
     url.searchParams.set('lang', 'ru_RU');
-    await appendScript(url.href);
+    await loadScript(url.href);
   }
   await ymaps3.ready;
   const [reactifyModule, clustererModule] = await Promise.all([
@@ -64,12 +64,23 @@ async function load(apiKey: string): Promise<YmapsComponents> {
   };
 }
 
-function appendScript(src: string): Promise<void> {
+// Adds the script, or waits for the one still loading after an earlier try timed out, so a tab
+// never holds two.
+function loadScript(src: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = src;
-    script.async = true;
-    script.addEventListener('load', () => resolve(), { once: true });
+    const pending = document.querySelector<HTMLScriptElement>(`script[src^="${YMAPS_SCRIPT}"]`);
+    const script = pending ?? document.createElement('script');
+    // A script that loads but fails as it runs (a refused key) defines no `ymaps3`: it goes too,
+    // so the next try does not wait for a tag that will fire nothing again.
+    script.addEventListener(
+      'load',
+      () => {
+        if (typeof ymaps3 !== 'undefined') return resolve();
+        script.remove();
+        reject(new Error('Yandex Maps did not load'));
+      },
+      { once: true },
+    );
     script.addEventListener(
       'error',
       () => {
@@ -78,6 +89,9 @@ function appendScript(src: string): Promise<void> {
       },
       { once: true },
     );
+    if (pending !== null) return;
+    script.src = src;
+    script.async = true;
     document.head.append(script);
   });
 }
