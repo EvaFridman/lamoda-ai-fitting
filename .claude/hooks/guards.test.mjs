@@ -1042,12 +1042,55 @@ describe('agent files', () => {
     );
   });
 
-  it('no agent mentions Sentry in its frontmatter (spec 0021 AC7; investigator joins in T10)', () => {
-    const naming = agentFiles.filter(({ frontmatter }) => /sentry/i.test(frontmatter));
-    assert.deepEqual(
-      naming.map(({ file }) => file),
-      [],
+  it('only investigator mentions Sentry or the code index in its frontmatter (spec 0021 AC7)', () => {
+    for (const pattern of [/sentry/i, /code-rag/i]) {
+      const naming = agentFiles.filter(({ frontmatter }) => pattern.test(frontmatter));
+      assert.deepEqual(
+        naming.map(({ file }) => file),
+        ['investigator.md'],
+        String(pattern),
+      );
+    }
+  });
+
+  it('investigator lists exactly the plan’s tools and runs its own guard (spec 0021 AC7)', () => {
+    const { frontmatter, tools } = agentFiles.find(({ file }) => file === 'investigator.md');
+    const sentry = [
+      'find_projects',
+      'search_issues',
+      'get_sentry_resource',
+      'search_errors',
+      'search_traces',
+      'find_dropped_events',
+    ];
+    assert.deepEqual([...tools].sort(), [
+      ...[
+        'Read',
+        'Grep',
+        'Glob',
+        'Bash',
+        ...sentry.map((tool) => `mcp__sentry__${tool}`),
+        ...['search_code', 'search_docs', 'index_status'].map((tool) => `mcp__code-rag__${tool}`),
+      ].sort(),
+    ]);
+    // None of its tools is one the settings deny: a denied tool would only be hidden from it.
+    for (const tool of sentry) assert.ok(!SENTRY_DENIED.includes(tool), tool);
+    // Q13: the session's model; the servers come from the main session's .mcp.json.
+    assert.doesNotMatch(frontmatter, /^["']?(model|mcpServers|permissionMode)["']?\s*:/m);
+    // The whole block, so the guard cannot move to another event (PostToolUse blocks nothing),
+    // lose its matcher or gain a second hook.
+    assert.equal(
+      frontmatter.slice(frontmatter.search(/^hooks:/m)),
+      [
+        'hooks:',
+        '  PreToolUse:',
+        "    - matcher: 'Bash'",
+        '      hooks:',
+        '        - type: command',
+        `          command: 'node "$CLAUDE_PROJECT_DIR"/.claude/hooks/guard.mjs investigator || exit 2'`,
+      ].join('\n'),
     );
+    assert.equal(frontmatter.match(/^["']?hooks["']?\s*:/gm).length, 1);
   });
 
   it('only qa-tester declares an MCP server, and only playwright', () => {
