@@ -9,7 +9,7 @@ import { TryOn } from '@/widgets/try-on';
 
 export interface ProductPurchaseProps {
   product: ProductDetail;
-  // The product's slot of the fitting room; none shows no «К образу».
+  // The product's slot of the fitting room; none shows no «Добавить к образу».
   slot: OutfitSlot | null;
 }
 

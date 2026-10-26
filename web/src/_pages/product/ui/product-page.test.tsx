@@ -183,15 +183,15 @@ describe('ProductPage', () => {
     expect(screen.getByRole('button', { name: 'Примерить' })).toBeInTheDocument();
   });
 
-  it('shows «К образу» when the category has a slot and not when it has none (A18)', async () => {
+  it('shows «Добавить к образу» when the category has a slot and not when it has none (A18)', async () => {
     load.mockResolvedValue(loaded(product, 'top'));
     const view = renderBoundary(await resolveContent());
-    expect(screen.getByRole('button', { name: 'К образу' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Добавить к образу' })).toBeEnabled();
     view.unmount();
 
     load.mockResolvedValue(loaded(product, null));
     renderBoundary(await resolveContent());
-    expect(screen.queryByRole('button', { name: 'К образу' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Добавить к образу' })).not.toBeInTheDocument();
   });
 
   it('shows «О товаре» with the description and the article (AC21)', async () => {

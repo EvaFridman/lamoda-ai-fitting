@@ -7,7 +7,7 @@ import { useTrackedElement } from '@/shared/analytics';
 
 import { useRoomActions } from './use-room-actions';
 
-// The tracked places of the hanger, «К образу» (A90.9) and the result's tile (A94.1).
+// The tracked places of the hanger, the buy box's «Добавить к образу» (A90.9) and the result's tile (A94.1).
 export type LookToggleElement =
   'catalog.to-look' | 'related.to-look' | 'buy-box.to-look' | 'result.to-look';
 
@@ -36,7 +36,7 @@ export interface UseLookToggleOptions {
   onSignIn: () => void;
 }
 
-// The hanger of a card, «К образу» of the buy box and the result's tile (spec 0019 AC13): pressed
+// The hanger of a card, «Добавить к образу» of the buy box and the result's tile «К образу» (spec 0019 AC13): pressed
 // while the product is in the room; a click puts it into its slot (replacing the slot's item) or
 // takes it out. Off while the session or the room loads, and while a click's write runs.
 export function useLookToggle({

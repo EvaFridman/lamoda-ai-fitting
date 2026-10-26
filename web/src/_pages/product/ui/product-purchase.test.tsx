@@ -83,14 +83,14 @@ function setup(slot: OutfitSlot | null = 'top') {
 }
 
 describe('ProductPurchase', () => {
-  it('hands the slot to the buy box: «К образу» with a slot, none without (AC16)', () => {
+  it('hands the slot to the buy box: «Добавить к образу» with a slot, none without (AC16)', () => {
     setup('top');
-    expect(screen.getByRole('button', { name: 'К образу' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Добавить к образу' })).toBeInTheDocument();
   });
 
-  it('shows no «К образу» for a product without a slot', () => {
+  it('shows no «Добавить к образу» for a product without a slot', () => {
     setup(null);
-    expect(screen.queryByRole('button', { name: 'К образу' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Добавить к образу' })).not.toBeInTheDocument();
   });
 
   it('shows the buy box and no try-on window at first', () => {

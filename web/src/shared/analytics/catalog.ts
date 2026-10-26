@@ -92,7 +92,7 @@ const slot = {
   kind: 'enum',
   values: ['top', 'bottom', 'outerwear', 'shoes', 'accessory'],
 } as const;
-// What a hanger's or «К образу»'s click does, from the room already read (spec 0019 A90.9).
+// What a hanger's, «Добавить к образу»'s or the result's «К образу»'s click does, from the room already read (spec 0019 A90.9).
 const lookAction = { kind: 'enum', values: ['add', 'replace', 'remove'] } as const;
 const toLookNote =
   '`slot` — слот вещи. `action` — что делает клик: `add` кладёт вещь в пустой слот, `replace` заменяет вещь слота (придёт уведомление с «Вернуть»), `remove` убирает эту вещь. `signed_in` — вошёл ли посетитель: `false` открывает окно входа (придёт и `Login Opened`), `action` тогда `add`. Пока загружаются сессия и примерочная, кнопка отключена и ничего не шлёт. Id товара и цвет не отправляются.';
@@ -145,7 +145,7 @@ export const catalog = defineCatalog({
       title: 'Страница товара',
       areas: ['buy-box', 'related'],
       description:
-        'Страница `/products/<id>` (спека 0019). `buy-box` — блок покупки справа от галереи (на телефоне под ней): «Добавить в корзину», «В избранное», «Примерить», «К образу» («В образе»), «Вы это примеряли». `related` — «С этим товаром выбирают» под ним: один ряд компактных карточек, их вешалка, «В корзину» и стрелки ряда. Галерея, «О товаре» и хлебные крошки не отслеживаются; окно примерки, открытое отсюда, шлёт элементы и события зоны `fitting`.',
+        'Страница `/products/<id>` (спека 0019). `buy-box` — блок покупки справа от галереи (на телефоне под ней): «Добавить в корзину», «В избранное», «Примерить», «Добавить к образу» («В образе»), «Вы это примеряли». `related` — «С этим товаром выбирают» под ним: один ряд компактных карточек, их вешалка, «В корзину» и стрелки ряда. Галерея, «О товаре» и хлебные крошки не отслеживаются; окно примерки, открытое отсюда, шлёт элементы и события зоны `fitting`.',
     },
     fitting: {
       title: 'Примерка',
@@ -625,7 +625,7 @@ export const catalog = defineCatalog({
     'buy-box.to-look': {
       zone: 'product',
       type: 'interaction',
-      description: `«К образу» / «В образе» в блоке покупки (только у товаров со слотом). ${toLookNote}`,
+      description: `«Добавить к образу» / «В образе» в блоке покупки (только у товаров со слотом; до спеки 0023 подпись была «К образу»). ${toLookNote}`,
       clicksPerVisit: 0.04,
       hoversPerVisit: 0.06,
       properties: { slot, action: lookAction, signed_in: { kind: 'boolean' } },

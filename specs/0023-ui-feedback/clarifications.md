@@ -139,3 +139,11 @@ when one is: the tried-on items' colour is the colour choice (Y12).
 current version, and no `consent` field in the request, answers 400 with the detail
 `CONSENT_REQUIRED` on `consent` and stores nothing. The server holds every consent the site relies
 on (Y1); web's screen stays the way the user gives them.
+
+## Settled during part 1 (2026-10-27)
+
+**Y18. The buy box keeps board 1's 280 px (P11, T4).** Board 1 (1440) draws a 1200 px column: the
+gallery 888 px, 32 px, the buy box 280 px. From 1024 px the buy box is `flex: 0 0 280px` and the
+gallery `flex: 1 1 888px`, so from 1280 px the page is board 1 as it is and below that only the
+photos shrink. The plan's 360 px misread the board and would have narrowed the desktop's gallery
+to 808 px.

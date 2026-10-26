@@ -9,7 +9,7 @@ import { getProductById } from '@/entities/product/server';
 
 export interface LoadedProduct {
   product: ProductDetail;
-  // The fitting room's slot of the product's category; null shows no «К образу» (spec 0019 A18).
+  // The fitting room's slot of the product's category; null shows no «Добавить к образу» (spec 0019 A18).
   slot: OutfitSlot | null;
 }
 

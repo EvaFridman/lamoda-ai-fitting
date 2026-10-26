@@ -58,12 +58,12 @@ same pitch. The phone's rows already have 12 px padding and hairlines: unchanged
   says «Добавить к образу». Tests that query the name, `catalog.ts` descriptions of
   `buy-box.to-look` and of the zone `product`, `EVENTS.md`, `CLAUDE.md` and `README.md` follow.
 - **P11.** `_pages/product/ui/product-page.module.scss`: from 1024 px `.gallery` becomes
-  `flex: 1 1 888px` and `.purchase` `flex: 0 0 360px` (the buy box's width on the canvas's
-  1440 board less what 1280 px takes away), so the gallery gives way first. The kit's `Gallery`
+  `flex: 1 1 888px` and `.purchase` `flex: 0 0 280px` (the buy box's width on board 1, Y18), so
+  the gallery gives way first. The kit's `Gallery`
   sizes its items by `aspect-ratio` (large 432:624, small 280:200) instead of fixed heights, so a
   narrower gallery keeps its proportions; its `sizes` follow. In `widgets/product-buy-box` the
   rows of two buttons wrap (`flex-wrap`, each button `min-width: max-content`), so «Примерить» and
-  «Добавить к образу» stack when 360 px cannot hold both.
+  «Добавить к образу» stack when 280 px cannot hold both.
 - **P2.** The kit's `Gallery` gains `onOpen(index)` and a full-screen viewer of its own,
   `GalleryViewer` (the kit's `Modal`, the whole window, black background): the photo whole
   (`object-fit: contain`), «‹» «›» and the arrow keys on a mouse device, a swiped strip on a touch
