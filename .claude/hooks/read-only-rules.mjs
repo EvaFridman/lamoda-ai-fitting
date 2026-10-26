@@ -74,7 +74,10 @@ const GIT_BANNED_SHORT = ['-S', '-O', '-X'];
 
 function checkGit(args) {
   if (!GIT_SUBCOMMANDS.includes(args[0]))
-    throw new Blocked(`git: only ${GIT_SUBCOMMANDS.join(', ')}`);
+    throw new Blocked(
+      `git: only ${GIT_SUBCOMMANDS.join(', ')}, as the first word after git` +
+        (args[0] === '-C' ? ' (no -C: the shell already starts in the repository root)' : ''),
+    );
   // `git log -S<string>` (pickaxe) is useful; only blame reads a file with -S.
   const bannedShort = args[0] === 'blame' ? GIT_BANNED_SHORT : ['-O', '-X'];
   for (const a of args.slice(1)) {
