@@ -1,7 +1,8 @@
 # 0022 stores: Lamoda Sport stores on a Yandex map
 
 Status: accepted (2026-10-26); amended 2026-10-26 at the tasks (AC12 removed: X7) and at the
-review of PR 1 (AC4: X20; AC6, AC9: X19; owner actions: X21).
+review of PR 1 (AC4: X20; AC6, AC9: X19; owner actions: X21) and after the owner read Yandex's
+terms (owner actions: the key's product name).
 
 Decisions: `clarifications.md` (X0–X22).
 
@@ -95,7 +96,7 @@ part of it.
 
 - Send the SVG (DevTools → the element → Copy outerHTML) of the logos «lamoda sport», «lamoda sport
   outlet» and of the map pin «la» from Lamoda's stores page (X9).
-- Get the key of «JavaScript API и HTTP Геокодер» in Yandex's developer cabinet, restricted by HTTP
+- Get the key of «JavaScript API» (free plan) in Yandex's developer cabinet, restricted by HTTP
   Referer to `lamoda-ai-fitting.ru` and `localhost`; put it into the local `.env` and the GitHub
   repository variable the plan names (X13).
 - Check the page on a real phone after the deploy.
