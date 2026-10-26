@@ -107,9 +107,9 @@ export const catalog = defineCatalog({
   // 5 page views and 7 heatmap clicks a visit (`autocapture` is off; the catalog's categories are
   // paths of their own, spec 0014 O102); «Мои фото» adds about one more, «Мои примерки» another,
   // the product page another, the fittings' compare page another (spec 0019 plan §9, A78, A84,
-  // A93).
+  // A93), the stores page another (spec 0022 X17).
   visitsPerMonth: 3_000,
-  sdkPerVisit: 16,
+  sdkPerVisit: 17,
   zones: {
     service: {
       title: 'Служебное',
@@ -157,7 +157,7 @@ export const catalog = defineCatalog({
       title: 'Магазины Lamoda Sport',
       areas: ['stores'],
       description:
-        'Страница `/customer/stores` (спека 0022), открытая всем: поиск, список карточек магазинов и их подробности. Ни одно свойство не называет магазин: ни город, ни место карточки, ни тип магазина. Пункт «Магазины» в меню кабинета — `account-menu.section` с `section: stores`.',
+        'Страница `/customer/stores` (спека 0022), открытая всем: поиск, список карточек магазинов и их подробности, карта Яндекса с пинами, на экране уже 1024 px вкладки «Список» и «Карта». Ни одно свойство не называет магазин: ни город, ни место карточки, ни тип магазина. Пункт «Магазины» в меню кабинета — `account-menu.section` с `section: stores`.',
     },
     footer: {
       title: 'Подвал',
@@ -1053,6 +1053,23 @@ export const catalog = defineCatalog({
         '«Проложить маршрут» в подробностях магазина: маршрут Яндекс Карт в новой вкладке. Координаты не отправляются; клик тепловой карты теряет ссылку (`strip-attributes.ts`).',
       clicksPerVisit: 0.01,
       hoversPerVisit: 0.01,
+    },
+    'stores.pin': {
+      zone: 'stores',
+      type: 'interaction',
+      description:
+        'Пин «la» магазина на карте: отмечает магазин и прокручивает к нему список, на экране уже 1024 px показывает его карточку поверх карты. Магазин не отправляется; клики по кругу с числом, масштаб и сдвиг карты не отслеживаются.',
+      clicksPerVisit: 0.05,
+      hoversPerVisit: 0.02,
+    },
+    'stores.tab': {
+      zone: 'stores',
+      type: 'interaction',
+      description:
+        'Вкладки «Список» и «Карта» на экране уже 1024 px. `tab` — выбранная вкладка; переход на «Карта» по клику на карточку не отправляется.',
+      clicksPerVisit: 0.03,
+      hoversPerVisit: 0,
+      properties: { tab: { kind: 'enum', values: ['list', 'map'] } },
     },
     'footer.link': {
       zone: 'footer',

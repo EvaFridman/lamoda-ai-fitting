@@ -1,0 +1,90 @@
+// The map's box fills its place on the page, which sets the height; grey until the map draws.
+// Pins are Lamoda's black «la» drops, the marked one larger; a circle with a count stands for
+// pins that overlap (spec 0022 X5).
+
+.map {
+  position: relative;
+
+  overflow: hidden;
+
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-m);
+
+  background-color: var(--color-background-secondary);
+}
+
+.placeholder {
+  display: grid;
+  place-items: center;
+
+  height: 100%;
+  margin: 0;
+
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+  color: var(--color-text-secondary);
+}
+
+// A marker's content is placed by its top-left corner on the point: a circle is centred there, a
+// pin stands on it by its tip.
+.pin,
+.cluster {
+  cursor: pointer;
+
+  display: block;
+
+  margin: 0;
+  padding: 0;
+  border: 0;
+
+  background: none;
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: 2px;
+  }
+}
+
+.pin {
+  transform: translate(-50%, -100%);
+
+  width: 34px;
+  height: 42.5px;
+
+  color: var(--color-text);
+
+  transition:
+    width var(--duration-fast),
+    height var(--duration-fast);
+
+  &[data-selected] {
+    width: 44px;
+    height: 55px;
+  }
+}
+
+.pinIcon {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.cluster {
+  transform: translate(-50%, -50%);
+
+  display: grid;
+  place-items: center;
+
+  width: 40px;
+  height: 40px;
+  border: 2px solid var(--color-background);
+  border-radius: 50%;
+
+  font-size: var(--font-size-body-m);
+  font-weight: 500;
+  line-height: 1;
+  color: var(--color-background);
+
+  background-color: var(--color-text);
+}

@@ -136,7 +136,7 @@ describe('contentSecurityPolicy with Yandex Maps (spec 0022 X16)', () => {
     const policy = policyOf({ nonce: 'abc==', yandexMaps: true });
     expect(directives(policy)).toEqual([
       "default-src 'self'",
-      `script-src 'self' 'nonce-abc==' ${hashes} ${maps} 'unsafe-eval'`,
+      `script-src 'self' 'nonce-abc==' ${hashes} https://api-maps.yandex.ru/v3/ https://yastatic.net/s3/front-maps-static/maps-front-jsapi-3/ 'unsafe-eval'`,
       `style-src 'self' 'unsafe-inline' ${maps} https://yastatic.net`,
       `img-src 'self' data: blob: ${maps} https://*.maps.yandex.net https://yastatic.net`,
       `connect-src 'self' https://api-eu.mixpanel.com ${maps} https://*.maps.yandex.net`,
@@ -149,9 +149,12 @@ describe('contentSecurityPolicy with Yandex Maps (spec 0022 X16)', () => {
     ]);
   });
 
-  it('keeps yastatic.net out of script-src and worker-src', () => {
+  it("allows only the map's folder of yastatic.net in script-src, none of it in worker-src", () => {
     const policy = directives(policyOf({ yandexMaps: true }));
-    expect(policy.find((d) => d.startsWith('script-src'))).not.toContain('yastatic');
+    const scripts = policy.find((d) => d.startsWith('script-src'))?.split(' ') ?? [];
+    expect(scripts.filter((source) => source.includes('yastatic'))).toEqual([
+      'https://yastatic.net/s3/front-maps-static/maps-front-jsapi-3/',
+    ]);
     expect(policy.find((d) => d.startsWith('worker-src'))).not.toContain('yastatic');
   });
 

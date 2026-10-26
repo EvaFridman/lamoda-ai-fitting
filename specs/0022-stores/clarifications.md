@@ -1,7 +1,7 @@
 # 0022 stores: Lamoda Sport stores on a Yandex map: clarifications
 
 Status: accepted (2026-10-26); amended 2026-10-26 at the review of PR 1 (X16, X19–X22), at T9
-(X23, X24) and after the owner read Yandex's terms (X6, X14, X21).
+(X23, X24), after the owner read Yandex's terms (X6, X14, X21) and at T10 (X25, X26).
 
 The owner's decisions for this spec. Ids `X1`, `X2`, … are referred to by the spec, the plan and
 code comments. All of them are the owner's answers given on 2026-10-26 while the spec was written;
@@ -164,10 +164,23 @@ script) and holds the owner's personal data, so it is not used and never committ
   way around a policy. T10 tries `https://api-maps.yandex.ru/v3/` in its place with the owner's key
   and keeps it if the map loads with no violation in the console; else the host stays and the
   summary says why. A path is checked only before a redirect, so this is defence in depth.
-  (owner, 2026-10-26.)
+  (owner, 2026-10-26.) Outcome at T10, in the owner's browser with the key: the loader takes its
+  bundle from `https://yastatic.net/s3/front-maps-static/maps-front-jsapi-3/`, which is added as
+  that folder only (X16's host stays out); no script comes from a subdomain, so
+  `https://*.api-maps.yandex.ru` leaves `script-src` too (the security review of T10: its loader
+  2.1 would get round the path). `script-src` holds `https://api-maps.yandex.ru/v3/` and that
+  folder; the console is clean.
 - **X24. The stores page is left in full.** X16's accepted risk also keeps Yandex's loaded code
   running in the tab after a client navigation, beside the profile and the photos' signed links.
   So the account's side menu and «‹ Личный кабинет» on the stores page are plain links that load
   their page in full (`AccountShell`: a section with `fullLoad` is left in full too); the header's
   and the footer's links stay client navigations, as X16 accepted. Weighed: only noting it in X16.
   (owner, 2026-10-26, on the security review's proposal.)
+- **X25. Tabs below 1024 px.** X10's tabs «Список» / «Карта», with X19's card over the map on a
+  pin's click, hold below 1024 px, not only below 600 px: between 600 and 1023 px the 360 px list
+  beside the map left the map a narrow strip. From 1024 px the list and the map stay side by side.
+  Weighed: the map in the strip as it is; the map above the list at full width below 1024 px.
+  (owner, 2026-10-26, at T10.)
+- **X26. The map is not recorded.** The map's container has `mp-block`: Mixpanel's recordings
+  would hold Yandex's map DOM, which is no personal data but only noise (its tiles are images,
+  already blocked). The pins' clicks are still sent (`stores.pin`). (owner, 2026-10-26, at T10.)
