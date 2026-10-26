@@ -42,7 +42,7 @@ X19–X21).
       `stores.data.spec.ts` (invariants); the seed e2e (twice → 48 rows); the
       migration applied locally (`prisma migrate dev`, `seed:dev`).
       Commit: `feat(api): add lamoda sport stores to the database`
-- [ ] **T5. `GET /stores` (X2; plan §2.3).** `stores/` module, controller, service,
+- [x] **T5. `GET /stores` (X2; plan §2.3).** `stores/` module, controller, service,
       `StoreResponseDto`; `PUBLIC_HANDLERS`; `openapi.json` (`-u`).
       Check: database e2e (no cookie, 200, 48 rows in order, fields, no `code`/`position`);
       access and throttle marker tests; OpenAPI snapshot; AC1, AC2.

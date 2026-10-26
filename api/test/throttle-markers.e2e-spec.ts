@@ -20,6 +20,7 @@ import { Public } from '../src/common/auth/access.decorators.js';
 import { BrandsController } from '../src/brands/brands.controller.js';
 import { HealthController } from '../src/health/health.controller.js';
 import { RealtimeGateway } from '../src/realtime/realtime.gateway.js';
+import { StoresController } from '../src/stores/stores.controller.js';
 import {
   Expensive,
   throttlerName,
@@ -204,6 +205,12 @@ describe('throttle markers', () => {
           (r) => r.type === BrandsController && r.name === 'create' && r.tier === 'write',
         ),
       ).toHaveLength(1);
+
+      // Spec 0022 AC2: the stores list counts in the read tier, not skipped.
+      expect(
+        routes.filter((r) => r.type === StoresController && r.name === 'list' && r.tier === 'read'),
+      ).toHaveLength(1);
+      expect(throttleProblemsOf(wrap(StoresController))).toEqual([]);
 
       expect(throttleProblemsOf(wrappers)).toEqual([]);
     } finally {

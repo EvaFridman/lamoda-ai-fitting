@@ -21,6 +21,7 @@ import { ProductsModule } from './products/products.module.js';
 import { RealtimeModule } from './realtime/realtime.module.js';
 import { RedisModule } from './redis/redis.module.js';
 import { StorageModule } from './storage/storage.module.js';
+import { StoresModule } from './stores/stores.module.js';
 import { TemporalClientModule } from './temporal/temporal-client.module.js';
 import { TieredThrottlerGuard } from './throttling/tiered-throttler.guard.js';
 import { ThrottlingModule } from './throttling/throttling.module.js';
@@ -56,6 +57,8 @@ import { UsersModule } from './users/users.module.js';
     FittingSessionsModule,
     AiGenerationsModule,
     FittingsModule,
+    // Lamoda Sport's stores (spec 0022).
+    StoresModule,
   ],
   providers: [
     // Every HTTP error answers one format with a code (spec 0004 E18–E22).
