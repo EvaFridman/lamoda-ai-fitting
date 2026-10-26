@@ -554,7 +554,8 @@ and the full `verify` once at the phase's end (as spec 0019 A58 did).
   `getRelatedProducts` once the product page has read it as the visitor (`getProductById`, never
   cached) and found it in an active category, and the sitemap's batches of products
   (`getSitemapProducts`, cursors the api answered, at most 10 keys, one batch every 200 ms so their background refreshes
-  stay under web's per-second quota of `GET /products`; spec 0019 A80, A81); anything
+  stay under web's per-second quota of `GET /products`; spec 0019 A80, A81), and the stores'
+  list (`getStores`, `entities/store`, no parameters, spec 0022 plan §3.1); anything
   else goes through `apiFetch` as the visitor. `getCategoryBySlug` (the page's) takes an active category from the
   cached list of active ones and reads any other slug as the visitor, as `proxy.ts`'s
   `findCategoryBySlug` does, so no slug a visitor types becomes a key or spends web's quota (V24);

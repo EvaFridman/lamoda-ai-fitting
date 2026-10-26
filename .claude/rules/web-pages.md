@@ -47,8 +47,10 @@ Why: spec 0018 (V8, V15, V16, V24, V30). The list and its check: `web/src/_app/w
   visitor and found in an active category (`getRelatedProducts`), and the sitemap's batches of
   products, whose cursors the api answered, never the visitor (`getSitemapProducts`, at most 10
   keys, one batch every `SITEMAP_BATCH_INTERVAL_MS`, 200 ms, so their background refreshes stay
-  under web's per-second quota of `GET /products`). Any other read goes through `apiFetch` as the visitor. The user's data is read only in the browser (`clientFetch`),
-  never on the server (`CLAUDE.md`, "`web` sign-in"). Page markup is not cached (V14).
+  under web's per-second quota of `GET /products`). A third (spec 0022 plan §3.1): Lamoda Sport's
+  stores (`getStores`), a public read with no parameters, one key. Any other read goes through
+  `apiFetch` as the visitor. The user's data is read only in the browser (`clientFetch`), never on
+  the server (`CLAUDE.md`, "`web` sign-in"). Page markup is not cached (V14).
 - No other form of cache: not `'use cache'` (the in-memory default handler) or
   `'use cache: private'`, not `unstable_cache`, not `fetch`'s `cache` or `next.revalidate`. They
   skip the handler's key, size bound and `pageCacheOpen()`, and a cached `apiFetch` would key on the
