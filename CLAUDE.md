@@ -262,8 +262,8 @@ and the full `verify` once at the phase's end (as spec 0019 A58 did).
   run that stopped halfway says no run has finished. Every answer starts with the indexed commit and the
   indexable files changed since, committed or not (`git diff-tree` of the indexed commit and
   `HEAD`, and `git status`; never `git diff <commit>`, which writes `.git/index`), or says the commit is not in this history (a rebase). A query that
-  looks like data (`queryData`: a secret, an email, a uuid, 10+ digits, `X-Amz-`, `/keep/users/`;
-  spec 0021 Q20) is refused before anything is sent; any other is embedded by a `VoyageEmbedder` with `retry: false` (one attempt, no pace: it shares the
+  looks like data (`queryData`: a secret, an email, a uuid, a request id of exactly 32 hex, 10+ digits, `X-Amz-`,
+  `/keep/users/`; spec 0021 Q20, the request id added at PR 3's review) is refused before anything is sent; any other is embedded by a `VoyageEmbedder` with `retry: false` (one attempt, no pace: it shares the
   minute's limits with a running index, so a 429 answers at once); a missing key, a missing or
   mismatched index and any other failure answer as a tool error, never a crash.
 - `web/`: `app/` holds routing only and re-exports pages from `src/_pages`. FSD layers in `web/src/`,

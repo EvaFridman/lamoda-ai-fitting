@@ -210,6 +210,8 @@ const QUERY_NOTE =
 const DATA_PATTERNS: [RegExp, string][] = [
   [/[^\s@]+@[^\s@]+\.[^\s@]+/, 'an email'],
   [/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i, 'a uuid'],
+  // Exactly 32: a commit hash (40) or a sha256 (64) is a word of a query about a release.
+  [/(?<![0-9a-f])[0-9a-f]{32}(?![0-9a-f])/i, 'a request id'],
   [/\d{10,}/, 'a run of 10 or more digits'],
   [/x-amz-/i, 'a signed link'],
   [/keep\/users\//i, "a user's storage key"],

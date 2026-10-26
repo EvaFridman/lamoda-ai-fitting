@@ -398,6 +398,8 @@ describe('the code index server', () => {
     for (const [query, what] of [
       ['upload failed for anna.ivanova@example.com', 'an email'],
       ['fitting 3f2b8c1e-9a4d-4e7b-8c2a-1b2c3d4e5f60 not found', 'a uuid'],
+      ['404 for 4244292fc225e61ef99fcacb67b4db44', 'a request id'],
+      ['404 on /trace/4244292FC225E61EF99FCACB67B4DB44/spans', 'a request id'],
       ['phone 79161234567 refused', 'a run of 10 or more digits'],
       ['GET /photo.webp?X-Amz-Signature=abc 403', 'a signed link'],
       ['keep/users/u1/photos/a.webp missing', "a user's storage key"],
@@ -421,6 +423,8 @@ describe('the code index server', () => {
       'PHOTO_REFUSED 400 on POST /me/photos after 2026-10-26',
       'redactStorageKeys sentry.options.ts',
       'fitting timeout 120000 ms',
+      'what changed in release 151c54827c0674663e76a3c3e02451cd0159fb4f',
+      `which chunk has the sha256 ${'a1b2c3d4e5f6a7b8'.repeat(4)}`,
     ]) {
       assert.equal(queryData(query), null, query);
     }
