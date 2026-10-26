@@ -326,6 +326,42 @@ describe('Gallery', () => {
       expect(container.querySelector('.lens')).toHaveAttribute('data-on');
     });
 
+    it('stops at the last photo on ArrowRight and turns the next arrow off', async () => {
+      const user = userEvent.setup();
+      render(<Gallery images={photos(3)} aria-label="Фото товара" />);
+
+      await user.click(screen.getByRole('button', { name: 'Открыть фото 2 из 3' }));
+      const dialog = screen.getByRole('dialog');
+      const next = within(dialog).getByRole('button', { name: 'Следующее фото' });
+      expect(next).toHaveAttribute('aria-disabled', 'false');
+      await vi.waitFor(() =>
+        expect(within(dialog).getByRole('button', { name: 'Закрыть' })).toHaveFocus(),
+      );
+
+      await user.keyboard('{ArrowRight}');
+      expect(within(dialog).getByText('3 из 3')).toBeInTheDocument();
+      expect(next).toHaveAttribute('aria-disabled', 'true');
+
+      await user.keyboard('{ArrowRight}');
+      expect(within(dialog).getByText('3 из 3')).toBeInTheDocument();
+    });
+
+    it('returns the focus to the opening photo after moving to another and pressing Escape', async () => {
+      const user = userEvent.setup();
+      render(<Gallery images={photos(4)} aria-label="Фото товара" />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Открыть фото 2 из 4' }));
+      await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Закрыть' })).toHaveFocus());
+      await user.keyboard('{ArrowRight}');
+      expect(within(screen.getByRole('dialog')).getByText('3 из 4')).toBeInTheDocument();
+      await user.keyboard('{Escape}');
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      await vi.waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Открыть фото 2 из 4' })).toHaveFocus(),
+      );
+    });
+
     it('ignores a touch pointer', () => {
       const { container } = render(<Gallery images={photos(1)} aria-label="Фото товара" />);
       const button = screen.getByRole('button', { name: /^Открыть фото 1 из 1/ });
