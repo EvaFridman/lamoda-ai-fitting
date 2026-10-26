@@ -115,6 +115,11 @@ export interface VoyageOptions {
   sleep?: (ms: number) => Promise<void>;
   /** Milliseconds of a clock `sleep` moves. */
   now?: () => number;
+  /**
+   * `false`: one attempt, no pace and no split, so a refusal answers at once (the server, which
+   * shares the minute's limits with a running index).
+   */
+  retry?: boolean;
 }
 
 export class VoyageEmbedder implements Embedder {
@@ -124,6 +129,7 @@ export class VoyageEmbedder implements Embedder {
   readonly #fetch: typeof fetch;
   readonly #sleep: (ms: number) => Promise<void>;
   readonly #now: () => number;
+  readonly #retry: boolean;
   /** When the next request may go, on `#now`'s clock. */
   #nextAt = 0;
 
@@ -132,10 +138,12 @@ export class VoyageEmbedder implements Embedder {
     this.#fetch = options.fetch ?? fetch;
     this.#sleep = options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
     this.#now = options.now ?? (() => performance.now());
+    this.#retry = options.retry ?? true;
   }
 
   /** Waits for the pace after the last request. */
   async #paced(): Promise<void> {
+    if (!this.#retry) return;
     const wait = this.#nextAt - this.#now();
     if (wait > 0) await this.#sleep(wait);
   }
@@ -158,9 +166,9 @@ export class VoyageEmbedder implements Embedder {
    */
   async #send(input: string[], inputType: InputType): Promise<Float32Array[]> {
     try {
-      return await this.#embedBatch(input, inputType, input.length > 1);
+      return await this.#embedBatch(input, inputType, this.#retry && input.length > 1);
     } catch (error) {
-      if (!(error instanceof RateLimitError) || input.length < 2) throw error;
+      if (!(error instanceof RateLimitError) || !this.#retry || input.length < 2) throw error;
       const half = Math.ceil(input.length / 2);
       return [
         ...(await this.#send(input.slice(0, half), inputType)),
@@ -211,10 +219,12 @@ export class VoyageEmbedder implements Embedder {
       // waits the pace's floor.
       if (response.status === 429) this.#nextAt = this.#now() + MIN_REQUEST_INTERVAL_MS;
       const retryable = response.status === 429 || response.status >= 500;
-      const delay = RETRY_DELAYS_MS[attempt];
+      const delay = this.#retry ? RETRY_DELAYS_MS[attempt] : undefined;
       const split = splittable && response.status === 429 && attempt >= SPLIT_AFTER_ATTEMPTS - 1;
       if (!retryable || delay === undefined || split) {
-        const message = `Voyage answered ${response.status}: ${(await response.text()).slice(0, 200)}`;
+        // The body goes into the server's tool answer: never the key, should Voyage echo it.
+        const body = (await response.text()).replaceAll(this.#apiKey, '<key>').slice(0, 200);
+        const message = `Voyage answered ${response.status}: ${body}`;
         throw response.status === 429 ? new RateLimitError(message) : new EmbeddingError(message);
       }
       await response.body?.cancel();

@@ -2,7 +2,8 @@
 
 Status: draft (2026-10-25); amended 2026-10-25 at the plan (Q6: SQLite instead of LanceDB), at
 the tasks (Q15: three pull requests), at the review of PR 1 (Q2: the US region; Q7: the plan's
-§3.2 holds the exact rules) and on 2026-10-26 at T4 (Q16, Q17) and at T6 (Q18, Q19).
+§3.2 holds the exact rules) and on 2026-10-26 at T4 (Q16, Q17), at T6 (Q18, Q19) and at T7
+(Q20).
 
 The owner's decisions for this spec. Ids `Q1`, `Q2`, … are referred to by the spec, the plan and
 code comments. All decisions below: owner, 2026-10-25, while the spec was written, except where a
@@ -172,3 +173,11 @@ files of `HEAD` (`git ls-tree`), the commit it records as `indexedCommit`, not t
 uncommitted change is not in the index; the server names such files as stale (`git status`, plan
 §3.7). Weighed: the staged files (the index sees the work in progress, but a staged token may be
 sent before gitleaks sees it).
+
+**Q20. The server refuses a query that looks like data (owner, at T7's security review).** A
+search's query goes to Voyage under `allow`, with no question asked, so the rule of plan §5 (code
+terms and the symptom in the agent's own words, never a quote) gets a check in the server too:
+a query that looks like a secret (`findSecretLine`), or holds an email, a uuid, a run of 10 or
+more digits, `X-Amz-` or `/keep/users/` is answered as a tool error and nothing is sent. It is a
+net for a pasted log line, not a filter of every personal datum. Weighed: the rule and the tools'
+description alone (no false refusals, but a pasted line leaves the machine unseen).

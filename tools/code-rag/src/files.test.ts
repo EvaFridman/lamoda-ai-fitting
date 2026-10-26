@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { chunkFile } from './chunk.ts';
 import {
   findSecretLine,
+  isIndexablePath,
   listTrackedFiles,
   MAX_FILE_BYTES,
   parseCatFileBatch,
@@ -252,6 +253,24 @@ describe('selectFiles', () => {
       ['api/src/b.ts'],
     );
     assert.deepEqual(skipped, [{ path: 'api/src/a.ts', reason: 'unmerged' }]);
+  });
+});
+
+describe('isIndexablePath', () => {
+  it('takes the include rules by path alone', () => {
+    for (const path of ['api/src/a.ts', 'specs/0001-a/plan.md', 'CLAUDE.md', '.env.example']) {
+      assert.equal(isIndexablePath(path), true, path);
+    }
+    for (const path of [
+      'notes.txt',
+      '.env',
+      '.rag/index.sqlite',
+      'api/src/generated/client.ts',
+      'api/openapi.json',
+      'web/src/logo.png',
+    ]) {
+      assert.equal(isIndexablePath(path), false, path);
+    }
   });
 });
 

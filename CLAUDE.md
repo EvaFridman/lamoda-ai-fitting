@@ -181,7 +181,9 @@ and the full `verify` once at the phase's end (as spec 0019 A58 did).
 
 - Root: shared tooling (Prettier, ESLint, commitlint, lint-staged, gitleaks), `.githooks/`,
   `.claude/`, `.mcp.json` (the Mixpanel MCP server: the main session, which leaves data questions
-  to the `analytics` agent, and that agent's four aggregate tools, `.claude/README.md`), `specs/`.
+  to the `analytics` agent, and that agent's four aggregate tools, `.claude/README.md`; and
+  `code-rag`, the code index's server, whose three tools are the only `allow` rules of
+  `.claude/settings.json`), `specs/`.
 - `api/src/<module>/`: controller (thin) → service (logic) → Prisma. Imports go downward only.
   Generated Prisma client in `api/src/generated/` (git-ignored, never edited by hand).
 - `api/prisma/`: `schema.prisma` and migrations. CHECK constraints live only in the migrations'
@@ -238,6 +240,20 @@ and the full `verify` once at the phase's end (as spec 0019 A58 did).
   and the `sqlite-vec` extension: the chunks, a `vec0` table and FTS5, searched by both merged by
   reciprocal rank fusion; another schema version, model or dimension rebuilds it. The index lives
   in the git-ignored `.rag/`; the images' build contexts (`api`, `web`) reach neither.
+  `server.ts` is the MCP server `code-rag` of `.mcp.json` (stdio, `@modelcontextprotocol/sdk`):
+  `search_code` (kinds `code`, `test`, `deploy`, a path prefix), `search_docs` (`spec` with its
+  binding or history, `doc`) and `index_status`, `limit` at most 50 (`MAX_LIMIT`; `Store` caps
+  `k` at sqlite-vec's 4096). It opens the index read-only for each call (`Store`'s `readOnly`: a
+  missing index or another schema, model or dimension is `IndexMismatchError`), never indexes
+  and runs only read-only git commands with `--no-optional-locks` (so `git status` never takes
+  `.git/index.lock` from a commit); `rag:index` forgets the indexed commit while it runs, so a
+  run that stopped halfway says no run has finished. Every answer starts with the indexed commit and the
+  indexable files changed since, committed or not (`git diff-tree` of the indexed commit and
+  `HEAD`, and `git status`; never `git diff <commit>`, which writes `.git/index`), or says the commit is not in this history (a rebase). A query that
+  looks like data (`queryData`: a secret, an email, a uuid, 10+ digits, `X-Amz-`, `/keep/users/`;
+  spec 0021 Q20) is refused before anything is sent; any other is embedded by a `VoyageEmbedder` with `retry: false` (one attempt, no pace: it shares the
+  minute's limits with a running index, so a 429 answers at once); a missing key, a missing or
+  mismatched index and any other failure answer as a tool error, never a crash.
 - `web/`: `app/` holds routing only and re-exports pages from `src/_pages`. FSD layers in `web/src/`,
   imports only downward: `_app → _pages → widgets → features → entities → shared`. A slice or a
   `shared` segment exposes `index.ts` (browser-safe) and/or `server.ts`, which starts with

@@ -140,6 +140,26 @@ describe('rag:index', () => {
     store.close();
   });
 
+  it('forgets the indexed commit when a run stops halfway', async () => {
+    write('api/src/a.ts', 'export const later = 1;\n');
+    git('add', '-A');
+    git('commit', '-q', '-m', 'later');
+    mock.method(globalThis, 'fetch', () =>
+      Promise.resolve(new Response('bad request', { status: 400 })),
+    );
+    const env = { VOYAGE_API_KEY: 'test-key' };
+    assert.equal(await main(['index'], { cwd: root, env, print }), 1);
+
+    const store = new Store(
+      indexFile(root),
+      { model: 'voyage-code-4', dimension: 1024 },
+      { readOnly: true },
+    );
+    assert.equal(store.meta().indexedCommit, null);
+    assert.equal(store.meta().indexedAt, null);
+    store.close();
+  });
+
   it('refuses a run whose flag npm took as its own, before any request', async () => {
     const { fetch } = stubVoyage();
     for (const env of [{ npm_config_dry_run: 'true' }, { npm_config_full: 'true' }]) {

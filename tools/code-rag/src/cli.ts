@@ -78,6 +78,7 @@ async function index(
       encoding: 'utf8',
     }).trim();
     const files = selectFiles(listTrackedFiles(root, commit)).included;
+    store.clearIndexed();
     const summary = await updateIndex({
       files,
       readBlobs: (hashes) => readBlobs(root, hashes),

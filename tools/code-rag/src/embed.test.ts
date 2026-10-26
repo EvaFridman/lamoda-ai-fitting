@@ -51,13 +51,14 @@ function fakeFetch(responses: ((body: { input: string[] }) => Response)[]) {
   return { calls, fetch: fetch as typeof globalThis.fetch };
 }
 
-function embedder(responses: ((body: { input: string[] }) => Response)[]) {
+function embedder(responses: ((body: { input: string[] }) => Response)[], retry?: boolean) {
   const sleeps: number[] = [];
   let clock = 1_000_000;
   const fake = fakeFetch(responses);
   const voyage = new VoyageEmbedder({
     apiKey: KEY,
     fetch: fake.fetch,
+    ...(retry === undefined ? {} : { retry }),
     sleep: (ms) => {
       sleeps.push(ms);
       clock += ms;
@@ -215,6 +216,44 @@ describe('VoyageEmbedder', () => {
     });
     assert.equal(calls.length, 5);
     assert.deepEqual(sleeps, RETRY_DELAYS_MS);
+  });
+
+  it('keeps the key out of the message should Voyage echo it', async () => {
+    const { voyage } = embedder([() => new Response(`bad key ${KEY}`, { status: 401 })]);
+    await assert.rejects(voyage.embed(['a'], 'query'), (error: Error) => {
+      assert.equal(error.message, 'Voyage answered 401: bad key <key>');
+      return true;
+    });
+  });
+
+  describe('with retry: false (the server)', () => {
+    it('answers a 429 at once with a RateLimitError, one request and no wait', async () => {
+      const { voyage, calls, sleeps } = embedder(
+        [() => new Response('rate limited', { status: 429 })],
+        false,
+      );
+      await assert.rejects(voyage.embed(['a', 'b'], 'query'), RateLimitError);
+      assert.equal(calls.length, 1);
+      assert.deepEqual(sleeps, []);
+    });
+
+    it('answers a 5xx at once', async () => {
+      const { voyage, calls, sleeps } = embedder(
+        [() => new Response('down', { status: 503 })],
+        false,
+      );
+      await assert.rejects(voyage.embed(['a'], 'query'), /Voyage answered 503: down/);
+      assert.equal(calls.length, 1);
+      assert.deepEqual(sleeps, []);
+    });
+
+    it('keeps no pace between requests', async () => {
+      const { voyage, calls, sleeps } = embedder([ok], false);
+      await voyage.embed(['a'], 'query');
+      await voyage.embed(['b'], 'query');
+      assert.equal(calls.length, 2);
+      assert.deepEqual(sleeps, []);
+    });
   });
 
   it('fails at once on another status, without the key in the message', async () => {
