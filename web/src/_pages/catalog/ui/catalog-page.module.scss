@@ -214,10 +214,12 @@
   min-height: 100dvh;
 }
 
+// The category list's 44px pitch (spec 0023 C6): its gap plus `.link`'s 2 × 4px padding between
+// the 24px rows.
 .skeletonCategories {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: calc(var(--space-3) + 2 * var(--space-1));
   padding: var(--space-1) var(--space-2);
 }
 
