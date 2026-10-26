@@ -2,7 +2,7 @@
 
 Status: accepted (2026-10-26); amended 2026-10-26 at the tasks (no header change: X7) and at the
 review of PR 1 (§2.2: X22; §3.3: X19, X20; §3.5, §5: X16) and after the owner read Yandex's
-terms (§3.6: the cabinet's menu).
+terms (§3.6: the cabinet's menu) and at T10 (§3.3: X25, X26).
 
 How [spec.md](spec.md) is built. Decisions: [clarifications.md](clarifications.md) (X0–X18).
 
@@ -149,11 +149,12 @@ A client component, `StoresMap({ stores, selectedId, onSelect, fit, pinEvents })
   placeholder «Магазин, адрес или метро»; nothing in the URL: `strip-attributes` drops only `q`
   from event addresses), the selected id, the expanded ids, the phone tab. Desktop: list (its own
   scroll, the height of the map, 640 px) beside the map; a pin's click scrolls its card into view.
-  Below 600 px: the kit's `Tabs` «Список» / «Карта» under the search; a card's click selects and
+  Below 1024 px (X25): the kit's `Tabs` «Список» / «Карта» under the search; a card's click selects and
   switches to «Карта» (X10); on «Карта» a pin's click shows the store's `StoreCard` over the
   map's bottom with a close button (X19), above Yandex's copyright block, which stays visible.
   «Ничего не нашлось» for no match. Both panels stay mounted (the map is
-  not reloaded on a tab switch); the hidden one is `hidden` by CSS.
+  not reloaded on a tab switch); the hidden one is `hidden` by CSS. The map's container is
+  `mp-block` (X26).
 - `Stores Searched` (X17) from a 1 s debounce of the text, not for empty or unchanged text.
 - `web/app/customer/stores/page.tsx` re-exports `StoresPage` from `@/_pages/stores`;
   `_pages/account-stubs` keeps `OrdersPage` and `FittingsPage` only. The metadata stays

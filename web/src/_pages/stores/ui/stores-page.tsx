@@ -16,8 +16,8 @@ import styles from './stores-page.module.scss';
 
 // `/customer/stores` (spec 0022 X3, X4, X15, plan §3.3): Lamoda's «Магазины Lamoda Sport» inside the
 // account's frame, for everyone, signed in or not: the legend, then the search, the list and the
-// map's place. The stores render per request from the page cache (`getStores`); the map comes
-// with spec 0022 T10.
+// map. The stores render per request from the page cache (`getStores`); the map loads in the
+// browser only.
 export function StoresPage() {
   return (
     <AccountShell section="stores" public title="Магазины Lamoda Sport">

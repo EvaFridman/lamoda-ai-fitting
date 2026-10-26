@@ -83,7 +83,7 @@ X19–X21).
       `/customer`, `/customer/stores/x` do not); `npm run verify` (`check:web-shells`,
       `check:web-bundle` unchanged).
       Commit: `feat(web): allow yandex maps on the stores page`
-- [ ] **T10. The map (X5, X10, X12, X14, X16, X17, X19; plan §3.2, §3.3, §4).**
+- [x] **T10. The map (X5, X10, X12, X14, X16, X17, X19; plan §3.2, §3.3, §4).**
       `@yandex/ymaps3-clusterer`, `@yandex/ymaps3-types` (versions checked, CONTRIBUTING);
       `widgets/stores-map` (loader, pins, clusters, selection, fit, placeholder); the page's map,
       phone tabs and the card over the map on a pin's click; `stores.pin`, `stores.tab`,

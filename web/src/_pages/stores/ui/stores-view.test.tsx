@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   track: vi.fn(),
   clientFetch: vi.fn(),
   reportFailure: vi.fn(),
+  fits: [] as unknown[],
 }));
 
 vi.mock('@/shared/analytics/client', () => ({
@@ -24,6 +25,46 @@ vi.mock('@/shared/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/shared/api')>()),
   clientFetch: mocks.clientFetch,
   reportFailure: mocks.reportFailure,
+}));
+
+// The map is Yandex's script: a stub that shows the fit's kind and the number of stores it was
+// given, with a button per store that is a pin's click.
+vi.mock('@/widgets/stores-map', () => ({
+  StoresMap: ({
+    stores,
+    fit,
+    selectedId,
+    onSelect,
+    pinEvents,
+  }: {
+    stores: readonly { id: string; name: string }[];
+    fit: { kind: string; store?: { id: string }; stores?: readonly unknown[] };
+    selectedId: string | null;
+    onSelect: (id: string) => void;
+    pinEvents?: { onClick?: () => void };
+  }) => {
+    mocks.fits.push(fit);
+    return (
+      <div data-testid="map">
+        <span data-testid="fit">{fit.kind}</span>
+        <span data-testid="fit store">{fit.store?.id ?? ''}</span>
+        <span data-testid="fit stores">{fit.stores?.length ?? ''}</span>
+        <span data-testid="selected">{selectedId ?? ''}</span>
+        {stores.map((store) => (
+          <button
+            key={store.id}
+            type="button"
+            onClick={() => {
+              onSelect(store.id);
+              pinEvents?.onClick?.();
+            }}
+          >
+            Пин {store.name}
+          </button>
+        ))}
+      </div>
+    );
+  },
 }));
 
 import { SEARCH_PAUSE_MS, StoresView } from './stores-view';
@@ -121,6 +162,9 @@ describe('StoresView', () => {
     mocks.track.mockReset();
     mocks.clientFetch.mockReset();
     mocks.reportFailure.mockReset();
+    mocks.fits.length = 0;
+    // jsdom has no scrolling; a pin's click scrolls the list to its card.
+    Element.prototype.scrollIntoView = vi.fn();
   });
 
   describe('list', () => {
@@ -251,11 +295,9 @@ describe('StoresView', () => {
       await renderLoaded();
       const [first, second] = screen.getAllByRole('button', { pressed: false });
       await user.click(first as HTMLElement);
-      expect(screen.getAllByRole('button', { pressed: true })).toHaveLength(1);
+      expect(screen.getAllByRole('button', { pressed: true })).toEqual([first]);
       await user.click(second as HTMLElement);
-      const pressed = screen.getAllByRole('button', { pressed: true });
-      expect(pressed).toHaveLength(1);
-      expect(pressed[0]).toBe(second);
+      expect(screen.getAllByRole('button', { pressed: true })).toEqual([second]);
     });
 
     it('selects a card with Enter', async () => {
@@ -353,6 +395,163 @@ describe('StoresView', () => {
       await user.click(openDetails(OKHTA));
       await user.click(screen.getByRole('link', { name: 'Проложить маршрут' }));
       expect(JSON.stringify(mocks.track.mock.calls)).not.toContain('Охта');
+    });
+  });
+
+  describe('tabs and the map', () => {
+    const cancel = (event: Event) => event.preventDefault();
+    beforeEach(() => document.addEventListener('click', cancel));
+    afterEach(() => document.removeEventListener('click', cancel));
+
+    function out(name: string) {
+      return screen.getByTestId(name);
+    }
+
+    // The tab list is `display: none` from the base rule, so its tabs are found by `hidden`.
+    function tab(name: string) {
+      return screen.getByRole('tab', { name, hidden: true });
+    }
+
+    function view() {
+      return field().closest('[data-tab]');
+    }
+
+    function overCard() {
+      return screen.queryByRole('button', { name: 'Закрыть карточку магазина' })?.parentElement;
+    }
+
+    function tabClicks() {
+      return mocks.track.mock.calls
+        .filter(([event, props]) => event === 'Element Clicked' && props.element === 'stores.tab')
+        .map(([, props]) => props as Record<string, unknown>);
+    }
+
+    function pin(store: Store) {
+      return screen.getByRole('button', { name: `Пин ${store.name}`, hidden: true });
+    }
+
+    it('opens on «Список» with the list and the map both in the DOM', async () => {
+      await renderLoaded();
+      expect(tab('Список')).toHaveAttribute('aria-selected', 'true');
+      expect(tab('Карта')).toHaveAttribute('aria-selected', 'false');
+      expect(view()).toHaveAttribute('data-tab', 'list');
+      expect(screen.queryByRole('tabpanel', { hidden: true })).not.toBeInTheDocument();
+      expect(screen.getByRole('list', { name: 'Магазины' })).toBeInTheDocument();
+      expect(screen.getByTestId('map')).toBeInTheDocument();
+      expect(out('fit')).toHaveTextContent('start');
+    });
+
+    it('shows the map when a card is clicked, centred on its store', async () => {
+      const user = userEvent.setup();
+      await renderLoaded();
+      await user.click(screen.getAllByRole('button', { pressed: false })[1] as HTMLElement);
+      expect(tab('Карта')).toHaveAttribute('aria-selected', 'true');
+      expect(view()).toHaveAttribute('data-tab', 'map');
+      expect(out('fit')).toHaveTextContent('store');
+      expect(out('fit store')).toHaveTextContent(EKB_1.id);
+      expect(out('selected')).toHaveTextContent(EKB_1.id);
+    });
+
+    it('sends stores.tab with the tab picked, and none for a card switching to the map', async () => {
+      const user = userEvent.setup();
+      await renderLoaded();
+      await user.click(tab('Карта'));
+      await user.click(tab('Список'));
+      expect(view()).toHaveAttribute('data-tab', 'list');
+      expect(tabClicks()).toEqual([
+        expect.objectContaining({ element: 'stores.tab', tab: 'map' }),
+        expect.objectContaining({ element: 'stores.tab', tab: 'list' }),
+      ]);
+      mocks.track.mockClear();
+      await user.click(screen.getAllByRole('button', { pressed: false })[0] as HTMLElement);
+      expect(tabClicks()).toEqual([]);
+    });
+
+    it('fits the map again, to the same place, when «Карта» is picked', async () => {
+      const user = userEvent.setup();
+      await renderLoaded();
+      const before = new Set(mocks.fits).size;
+      await user.click(tab('Карта'));
+      expect(new Set(mocks.fits).size).toBe(before + 1);
+      expect(out('fit')).toHaveTextContent('start');
+      expect(mocks.fits.at(-1)).toEqual(mocks.fits.at(-2));
+    });
+
+    it('selects a store on a pin click and shows its card over the map', async () => {
+      const user = userEvent.setup();
+      await renderLoaded();
+      expect(overCard()).toBeUndefined();
+      await user.click(pin(MOSCOW));
+      expect(out('selected')).toHaveTextContent(MOSCOW.id);
+      expect(out('fit')).toHaveTextContent('start');
+      expect(view()).toHaveAttribute('data-tab', 'list');
+      const card = within(overCard() as HTMLElement).getByRole('article');
+      expect(card).toHaveTextContent(MOSCOW.name);
+    });
+
+    it('closes the card over the map with its button, keeping the selection', async () => {
+      const user = userEvent.setup();
+      await renderLoaded();
+      await user.click(pin(MOSCOW));
+      await user.click(screen.getByRole('button', { name: 'Закрыть карточку магазина' }));
+      expect(overCard()).toBeUndefined();
+      expect(out('selected')).toHaveTextContent(MOSCOW.id);
+    });
+
+    it('only centres the map on the store when the card over it is clicked, and keeps it open', async () => {
+      const user = userEvent.setup();
+      await renderLoaded();
+      await user.click(pin(MOSCOW));
+      await user.click(within(overCard() as HTMLElement).getByRole('button', { pressed: true }));
+      expect(out('fit')).toHaveTextContent('store');
+      expect(out('fit store')).toHaveTextContent(MOSCOW.id);
+      expect(view()).toHaveAttribute('data-tab', 'list');
+      expect(overCard()).toBeDefined();
+    });
+
+    it('drops the card over the map when the search leaves its store out, for good', async () => {
+      const user = userEvent.setup();
+      await renderLoaded();
+      await user.click(pin(MOSCOW));
+      await user.type(field(), 'Ладожская');
+      expect(overCard()).toBeUndefined();
+      await user.click(screen.getByRole('button', { name: 'Очистить' }));
+      expect(overCard()).toBeUndefined();
+      expect(screen.getAllByRole('article')).toHaveLength(4);
+    });
+
+    it('sends stores.pin for a pin click, naming no store', async () => {
+      const user = userEvent.setup();
+      await renderLoaded();
+      mocks.track.mockClear();
+      await user.click(pin(OKHTA));
+      expect(mocks.track.mock.calls.map(([event, props]) => [event, props.element])).toEqual([
+        ['Element Clicked', 'stores.pin'],
+      ]);
+      expect(JSON.stringify(mocks.track.mock.calls)).not.toContain('Охта');
+    });
+
+    it('gives the map the stores the search left and fits them once per set', async () => {
+      const user = userEvent.setup();
+      await renderLoaded();
+      await user.type(field(), 'Екат');
+      expect(out('fit')).toHaveTextContent('stores');
+      expect(out('fit stores')).toHaveTextContent('2');
+      expect(
+        screen.queryByRole('button', { name: `Пин ${OKHTA.name}`, hidden: true }),
+      ).not.toBeInTheDocument();
+      const afterFirst = new Set(mocks.fits).size;
+      await user.type(field(), 'е');
+      expect(new Set(mocks.fits).size).toBe(afterFirst);
+    });
+
+    it('goes back to the start when the text is cleared', async () => {
+      const user = userEvent.setup();
+      await renderLoaded();
+      await user.type(field(), 'Ладожская');
+      expect(out('fit stores')).toHaveTextContent('1');
+      await user.click(screen.getByRole('button', { name: 'Очистить' }));
+      expect(out('fit')).toHaveTextContent('start');
     });
   });
 

@@ -13,7 +13,9 @@ export interface TabItem {
   // A number after the label, in the same style: "Отзывы 54".
   count?: number;
   disabled?: boolean;
-  panel: ReactNode;
+  // None on every item: the tabs only switch, and the page shows what they choose (the stores
+  // page's list and map, which must stay mounted and, on a wide screen, both show).
+  panel?: ReactNode;
 }
 
 export interface TabsProps {
@@ -61,11 +63,13 @@ export function Tabs({
           </BaseTabs.Tab>
         ))}
       </BaseTabs.List>
-      {items.map((item) => (
-        <BaseTabs.Panel key={item.value} value={item.value} className={styles.panel}>
-          {item.panel}
-        </BaseTabs.Panel>
-      ))}
+      {items.map((item) =>
+        item.panel === undefined ? null : (
+          <BaseTabs.Panel key={item.value} value={item.value} className={styles.panel}>
+            {item.panel}
+          </BaseTabs.Panel>
+        ),
+      )}
     </BaseTabs.Root>
   );
 }

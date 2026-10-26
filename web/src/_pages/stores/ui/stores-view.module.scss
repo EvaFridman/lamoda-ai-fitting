@@ -1,7 +1,8 @@
 // The list and the map side by side (spec 0022 X0, plan §3.3): the list scrolls on its own at the
 // map's height, 640px, and the search field lies over the map's top. Below 1200px, where the map
-// beside the account menu is too narrow to hold it, the search goes above both. Below 600px one column: the search, then
-// the list at its full height; the map's place is hidden (the tabs come with the map, X10).
+// beside the account menu is too narrow to hold it, the search goes above both. Below 1024px one
+// column (X25): the search, the tabs «Список» and «Карта», then the one `data-tab` names; the
+// other is hidden, still mounted. From 1024px the tabs are hidden and both show.
 
 .view {
   display: grid;
@@ -15,11 +16,30 @@
       'list map';
   }
 
-  @media (width < 600px) {
+  @media (width < 1024px) {
     grid-template-areas:
       'search'
-      'list';
+      'tabs'
+      'panel';
     grid-template-columns: minmax(0, 1fr);
+    row-gap: 0;
+  }
+}
+
+.tabs {
+  display: none;
+  grid-area: tabs;
+
+  @media (width < 1024px) {
+    display: block;
+    margin-top: var(--space-4);
+  }
+}
+
+@media (width < 1024px) {
+  .view[data-tab='map'] .list,
+  .view[data-tab='list'] .map {
+    display: none;
   }
 }
 
@@ -44,8 +64,9 @@
   grid-area: list;
   height: 640px;
 
-  @media (width < 600px) {
+  @media (width < 1024px) {
     overflow-y: visible;
+    grid-area: panel;
     height: auto;
   }
 }
@@ -68,12 +89,49 @@
 }
 
 .map {
+  position: relative;
   grid-area: map;
   height: 640px;
+
+  @media (width < 1024px) {
+    grid-area: panel;
+    height: min(640px, 70svh);
+  }
+}
+
+// The store's card over the map's bottom after a pin's click, below 1024px only (X19). It keeps
+// clear of Yandex's logo, copyright and «Открыть в Картах» along the map's bottom edge (X14).
+.over {
+  position: absolute;
+  z-index: 1;
+  right: var(--space-2);
+  bottom: 48px;
+  left: var(--space-2);
+
+  overflow-y: auto;
+  display: grid;
+
+  max-height: calc(100% - 64px);
+  border-radius: var(--radius-m);
+
+  background-color: var(--color-background);
+  box-shadow: var(--shadow-box);
+
+  @media (width >= 1024px) {
+    display: none;
+  }
+}
+
+// × in its own row above the card, clear of the card's «›».
+.close {
+  justify-self: end;
+}
+
+.skeletonMap {
   border-radius: var(--radius-m);
   background-color: var(--color-background-secondary);
 
-  @media (width < 600px) {
+  @media (width < 1024px) {
     display: none;
   }
 }

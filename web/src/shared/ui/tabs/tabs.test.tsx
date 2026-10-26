@@ -31,6 +31,24 @@ describe('Tabs', () => {
     expect(screen.queryByText('Про бренд')).toBeNull();
   });
 
+  it('renders no tabpanel for items without a panel, and the tabs still switch', async () => {
+    const user = userEvent.setup();
+    const onValueChange = vi.fn();
+    const bare = [
+      { value: 'list', label: 'Список' },
+      { value: 'map', label: 'Карта' },
+    ];
+    render(<Tabs items={bare} value="list" onValueChange={onValueChange} />);
+
+    expect(screen.queryByRole('tabpanel')).not.toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Список' })).toHaveAttribute('aria-selected', 'true');
+
+    await user.click(screen.getByRole('tab', { name: 'Карта' }));
+
+    expect(onValueChange).toHaveBeenCalledWith('map');
+    expect(screen.queryByRole('tabpanel')).not.toBeInTheDocument();
+  });
+
   it('selects the first enabled tab by default when the first item is disabled', () => {
     const firstDisabled = items.map((item) =>
       item.value === 'about' ? { ...item, disabled: true } : item,

@@ -12,6 +12,14 @@ const MIXPANEL_ORIGIN = 'https://api-eu.mixpanel.com';
 // the stores page only (spec 0022 X16). Yandex also lists `https://yastatic.net` in script-src and
 // worker-src: its shared CDN with `'unsafe-eval'` is a known way around a policy, so it stays out.
 const YANDEX_MAPS = ['https://api-maps.yandex.ru', 'https://*.api-maps.yandex.ru'];
+// Scripts from the main host only under version 3's path: the whole host would let an injected tag
+// load the old 2.1 loader, whose `onload` calls a global function (X23). A path is checked only
+// before a redirect, so this is defence in depth.
+// Version 3's loader takes its bundles from Yandex's shared CDN: only that folder of it, not the
+// whole host (X16), seen blocked in the browser at T10. No script comes from a subdomain of
+// api-maps.yandex.ru, whose loader 2.1 the wildcard would let in again.
+const YANDEX_MAPS_BUNDLES = 'https://yastatic.net/s3/front-maps-static/maps-front-jsapi-3/';
+const YANDEX_MAPS_SCRIPTS = ['https://api-maps.yandex.ru/v3/', YANDEX_MAPS_BUNDLES];
 const YANDEX_TILES = 'https://*.maps.yandex.net';
 const YANDEX_STATIC = 'https://yastatic.net';
 
@@ -69,7 +77,7 @@ export function contentSecurityPolicy({
       "script-src 'self'",
       `'nonce-${nonce}'`,
       ...shellScriptHashes.map((hash) => `'${hash}'`),
-      ...(yandexMaps ? YANDEX_MAPS : []),
+      ...(yandexMaps ? YANDEX_MAPS_SCRIPTS : []),
       ...(dev || yandexMaps ? ["'unsafe-eval'"] : []),
     ].join(' '),
     [

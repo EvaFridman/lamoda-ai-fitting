@@ -496,6 +496,8 @@ describe('analytics catalog', () => {
       'stores.details': ['stores', 'interaction'],
       'stores.phone': ['stores', 'navigation'],
       'stores.route': ['stores', 'navigation'],
+      'stores.pin': ['stores', 'interaction'],
+      'stores.tab': ['stores', 'interaction'],
     });
   });
 
