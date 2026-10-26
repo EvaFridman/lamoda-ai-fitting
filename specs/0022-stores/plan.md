@@ -237,7 +237,8 @@ entry. A pin is not a React element of ours only if reactify fails; then `trackE
 - **A client navigation keeps the old policy.** Every link to the page is plain (X16); a link
   missed would show the placeholder until a reload: the menus' and footer's tests pin it. The other
   way, a link away from the stores page keeps the loosened policy in the tab until its next full
-  load (accepted, X16).
+  load (accepted, X16), but for the account's side menu and «‹ Личный кабинет», which load their
+  page in full (X24).
 - **The free plan** (X14): a key over its limit for long is blocked for good; ads may appear.
 - **Young packages**: both Yandex packages were six days old on 2026-10-26; the task takes the
   latest one at least a few days old.

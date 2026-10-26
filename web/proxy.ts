@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 import { categoryProxy, isCategoryPath } from '@/_pages/catalog/server';
 import { isProductPath, productProxy } from '@/_pages/product/server';
-import { sentryDsn } from '@/shared/config';
+import { sentryDsn, STORES_HREF } from '@/shared/config';
 import { getServerEnv } from '@/shared/config/server';
 import { contentSecurityPolicy, newNonce, NONCE_HEADER } from '@/shared/csp/server';
 
@@ -14,16 +14,18 @@ import { contentSecurityPolicy, newNonce, NONCE_HEADER } from '@/shared/csp/serv
 export async function proxy(request: NextRequest) {
   const nonce = newNonce();
   const storage = storageImages();
+  const { pathname } = request.nextUrl;
   const policy = contentSecurityPolicy({
     nonce,
     dev: process.env.NODE_ENV === 'development',
     sentryDsn,
     ...storage,
+    // The stores page alone allows Yandex Maps (spec 0022 X16).
+    yandexMaps: pathname === STORES_HREF,
   });
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set(NONCE_HEADER, nonce);
   requestHeaders.set('content-security-policy', policy);
-  const { pathname } = request.nextUrl;
   const response = isCategoryPath(pathname)
     ? await categoryProxy(request, requestHeaders)
     : isProductPath(pathname)

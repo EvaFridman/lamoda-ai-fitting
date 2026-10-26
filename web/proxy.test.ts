@@ -161,6 +161,39 @@ describe('proxy', () => {
     expect(dev.headers.get('content-security-policy')).toContain("'unsafe-eval'");
     expect(prod.headers.get('content-security-policy')).not.toContain("'unsafe-eval'");
   });
+
+  it('allows Yandex Maps on the stores page, with eval, in production (spec 0022 X16)', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    const response = await proxy(request('/customer/stores'));
+    vi.unstubAllEnvs();
+    const policy = response.headers.get('content-security-policy');
+    expect(policy).toContain(
+      "connect-src 'self' https://api-eu.mixpanel.com https://api-maps.yandex.ru",
+    );
+    expect(policy).toContain("'unsafe-eval'");
+    expect(forwarded(response, 'content-security-policy')).toBe(policy);
+  });
+
+  it('allows Yandex Maps on the stores page with a query, and eval once in development', async () => {
+    vi.stubEnv('NODE_ENV', 'development');
+    const response = await proxy(request('/customer/stores?x=1'));
+    vi.unstubAllEnvs();
+    const policy = response.headers.get('content-security-policy') ?? '';
+    expect(policy).toContain('https://api-maps.yandex.ru');
+    expect(policy.match(/'unsafe-eval'/g)).toHaveLength(1);
+  });
+
+  it.each(['/catalog', '/customer', '/customer/stores/x', '/customer/storesx', '/stores'])(
+    'allows no Yandex Maps on %s',
+    async (path) => {
+      vi.stubEnv('NODE_ENV', 'production');
+      const response = await proxy(request(path));
+      vi.unstubAllEnvs();
+      const policy = response.headers.get('content-security-policy');
+      expect(policy).not.toContain('yandex');
+      expect(policy).not.toContain("'unsafe-eval'");
+    },
+  );
 });
 
 describe('config.matcher', () => {

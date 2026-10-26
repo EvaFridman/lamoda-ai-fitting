@@ -43,17 +43,23 @@ export function AccountShell({
   back,
 }: AccountShellProps) {
   const current = accountSections.find((entry) => entry.section === section);
+  // A section that loads in full is left in full too (spec 0022 X24).
+  const fullLoad = current?.fullLoad ?? false;
 
   return (
     <main className={`${styles.shell} ${current ? styles.inSection : styles.atMenu}`}>
       {!current && <h1 className={styles.menuTitle}>Личный кабинет</h1>}
       <div className={styles.side}>
-        <AccountMenu current={current?.section} />
+        <AccountMenu current={current?.section} fullLoad={fullLoad} />
         {aside && <SignedInAside>{aside}</SignedInAside>}
       </div>
       {current && (
         <div className={styles.section}>
-          {back ? <div className={styles.ownBack}>{back}</div> : <AccountBackLink />}
+          {back ? (
+            <div className={styles.ownBack}>{back}</div>
+          ) : (
+            <AccountBackLink fullLoad={fullLoad} />
+          )}
           <h1 className={styles.title}>{title ?? current.title}</h1>
           {isPublic ? children : <SectionContent>{children}</SectionContent>}
         </div>

@@ -8,6 +8,13 @@ export const NONCE_HEADER = 'x-nonce';
 // bundled, so no script origin is needed.
 const MIXPANEL_ORIGIN = 'https://api-eu.mixpanel.com';
 
+// Yandex Maps' origins for version 3 (`yandex.ru/dev/jsapi30/doc/ru/common/connection/csp`), on
+// the stores page only (spec 0022 X16). Yandex also lists `https://yastatic.net` in script-src and
+// worker-src: its shared CDN with `'unsafe-eval'` is a known way around a policy, so it stays out.
+const YANDEX_MAPS = ['https://api-maps.yandex.ru', 'https://*.api-maps.yandex.ru'];
+const YANDEX_TILES = 'https://*.maps.yandex.net';
+const YANDEX_STATIC = 'https://yastatic.net';
+
 export interface PolicyInput {
   nonce: string;
   // `next dev`: React uses `eval` there to rebuild server error stacks.
@@ -19,6 +26,9 @@ export interface PolicyInput {
   // Either empty: no image from the storage loads.
   storageEndpoint: string | undefined;
   storageBucket: string | undefined;
+  // The stores page's map (spec 0022 X16): Yandex's origins, and `'unsafe-eval'`, which its vector
+  // engine needs to parse tiles.
+  yandexMaps: boolean;
 }
 
 /** A fresh nonce for one request: 16 random bytes in base64. */
@@ -34,7 +44,8 @@ export function newNonce(): string {
  * 'strict-dynamic': it would drop 'self' and the shell's scripts with it. Styles allow inline:
  * Next and Base UI set style attributes. The recorder runs in a `blob:` worker (O45). Images also
  * load from the users' folders of our bucket, where a user's photo is a signed link (spec 0019): a
- * path, not the whole origin, which the storage shares with every other bucket of its host.
+ * path, not the whole origin, which the storage shares with every other bucket of its host. The
+ * stores page alone adds Yandex Maps' list (spec 0022 X16).
  */
 export function contentSecurityPolicy({
   nonce,
@@ -42,6 +53,7 @@ export function contentSecurityPolicy({
   sentryDsn,
   storageEndpoint,
   storageBucket,
+  yandexMaps,
 }: PolicyInput): string {
   const sentry = httpOrigin(sentryDsn);
   const storageOrigin = httpOrigin(storageEndpoint);
@@ -57,13 +69,26 @@ export function contentSecurityPolicy({
       "script-src 'self'",
       `'nonce-${nonce}'`,
       ...shellScriptHashes.map((hash) => `'${hash}'`),
-      ...(dev ? ["'unsafe-eval'"] : []),
+      ...(yandexMaps ? YANDEX_MAPS : []),
+      ...(dev || yandexMaps ? ["'unsafe-eval'"] : []),
     ].join(' '),
-    "style-src 'self' 'unsafe-inline'",
-    ["img-src 'self' data: blob:", ...(storage ? [storage] : [])].join(' '),
-    ["connect-src 'self'", MIXPANEL_ORIGIN, ...(sentry ? [sentry] : [])].join(' '),
+    [
+      "style-src 'self' 'unsafe-inline'",
+      ...(yandexMaps ? [...YANDEX_MAPS, YANDEX_STATIC] : []),
+    ].join(' '),
+    [
+      "img-src 'self' data: blob:",
+      ...(storage ? [storage] : []),
+      ...(yandexMaps ? [...YANDEX_MAPS, YANDEX_TILES, YANDEX_STATIC] : []),
+    ].join(' '),
+    [
+      "connect-src 'self'",
+      MIXPANEL_ORIGIN,
+      ...(sentry ? [sentry] : []),
+      ...(yandexMaps ? [...YANDEX_MAPS, YANDEX_TILES] : []),
+    ].join(' '),
     "font-src 'self'",
-    "worker-src 'self' blob:",
+    ["worker-src 'self' blob:", ...(yandexMaps ? ['data:', ...YANDEX_MAPS] : [])].join(' '),
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",

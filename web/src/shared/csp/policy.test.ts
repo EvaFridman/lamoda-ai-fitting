@@ -16,6 +16,7 @@ function policyOf(input: Partial<PolicyInput>): string {
     sentryDsn: undefined,
     storageEndpoint: undefined,
     storageBucket: undefined,
+    yandexMaps: false,
     ...input,
   });
 }
@@ -125,6 +126,57 @@ describe('contentSecurityPolicy', () => {
   ])('adds no origin for a %s storage endpoint', (_name, storageEndpoint) => {
     const policy = policyOf({ storageEndpoint, storageBucket: 'ai-fitting' });
     expect(directives(policy)).toContain("img-src 'self' data: blob:");
+  });
+});
+
+describe('contentSecurityPolicy with Yandex Maps (spec 0022 X16)', () => {
+  const maps = 'https://api-maps.yandex.ru https://*.api-maps.yandex.ru';
+
+  it("adds Yandex's origins and eval, and keeps every other directive", () => {
+    const policy = policyOf({ nonce: 'abc==', yandexMaps: true });
+    expect(directives(policy)).toEqual([
+      "default-src 'self'",
+      `script-src 'self' 'nonce-abc==' ${hashes} ${maps} 'unsafe-eval'`,
+      `style-src 'self' 'unsafe-inline' ${maps} https://yastatic.net`,
+      `img-src 'self' data: blob: ${maps} https://*.maps.yandex.net https://yastatic.net`,
+      `connect-src 'self' https://api-eu.mixpanel.com ${maps} https://*.maps.yandex.net`,
+      "font-src 'self'",
+      `worker-src 'self' blob: data: ${maps}`,
+      "frame-ancestors 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "object-src 'none'",
+    ]);
+  });
+
+  it('keeps yastatic.net out of script-src and worker-src', () => {
+    const policy = directives(policyOf({ yandexMaps: true }));
+    expect(policy.find((d) => d.startsWith('script-src'))).not.toContain('yastatic');
+    expect(policy.find((d) => d.startsWith('worker-src'))).not.toContain('yastatic');
+  });
+
+  it('has eval once in development', () => {
+    const policy = policyOf({ dev: true, yandexMaps: true });
+    expect(policy.match(/'unsafe-eval'/g)).toHaveLength(1);
+  });
+
+  it('keeps the storage and Sentry sources beside them', () => {
+    const policy = policyOf({
+      yandexMaps: true,
+      sentryDsn: 'https://k@o1.ingest.de.sentry.io/2',
+      storageEndpoint: 'http://localhost:8335',
+      storageBucket: 'ai-fitting',
+    });
+    expect(directives(policy)).toContain(
+      `img-src 'self' data: blob: http://localhost:8335/ai-fitting/keep/users/ ${maps} https://*.maps.yandex.net https://yastatic.net`,
+    );
+    expect(directives(policy)).toContain(
+      `connect-src 'self' https://api-eu.mixpanel.com https://o1.ingest.de.sentry.io ${maps} https://*.maps.yandex.net`,
+    );
+  });
+
+  it('adds nothing of Yandex without the flag', () => {
+    expect(policyOf({ yandexMaps: false })).not.toContain('yandex');
   });
 });
 

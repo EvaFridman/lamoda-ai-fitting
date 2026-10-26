@@ -36,6 +36,8 @@ ARG NEXT_PUBLIC_SENTRY_DSN
 ARG NEXT_PUBLIC_SENTRY_ENVIRONMENT
 # Mixpanel's project token, public by design; empty turns analytics off.
 ARG NEXT_PUBLIC_MIXPANEL_TOKEN
+# Yandex Maps' key, public (restricted by HTTP Referer); empty shows a placeholder for the map.
+ARG NEXT_PUBLIC_YANDEX_MAPS_API_KEY
 # Source map upload (only when the token secret is given; see next.config.ts).
 ARG SENTRY_ORG
 ARG SENTRY_PROJECT

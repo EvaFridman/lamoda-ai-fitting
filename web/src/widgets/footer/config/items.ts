@@ -1,3 +1,5 @@
+import { STORES_HREF } from '@/shared/config';
+
 // The footer's columns, copied from Lamoda's site footer (spec 0008 J22). An item without `href`
 // has no page yet and renders as plain text; it gets one when its page appears (backlog, "Footer
 // links").
@@ -22,7 +24,7 @@ export const footerColumns: FooterColumn[] = [
     items: [
       { label: 'Мои заказы' },
       { label: 'Условия доставки' },
-      { label: 'Магазины Lamoda Sport', href: '/customer/stores', fullLoad: true, track: 'stores' },
+      { label: 'Магазины Lamoda Sport', href: STORES_HREF, fullLoad: true, track: 'stores' },
       { label: 'Возврат' },
       { label: 'Как оформить заказ' },
       { label: 'Как выбрать размер' },

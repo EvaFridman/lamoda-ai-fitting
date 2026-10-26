@@ -74,10 +74,11 @@ X19–X21).
 
 ### web: the map
 
-- [ ] **T9. The map's policy and key (X13, X16; plan §3.5, §3.6).** `policy.ts`'s `yandexMaps`,
-      `proxy.ts` by path; `NEXT_PUBLIC_YANDEX_MAPS_API_KEY` through `images.yml`,
-      `ci-build-images.sh`, `web/Dockerfile`, `public-env.ts`, `docker-compose.yml`,
-      `.env.example`. The owner puts the key into the local `.env`.
+- [x] **T9. The map's policy and key (X13, X16, X24; plan §3.5, §3.6).** `policy.ts`'s
+      `yandexMaps`, `proxy.ts` by path (`STORES_HREF`); `NEXT_PUBLIC_YANDEX_MAPS_API_KEY` through
+      `images.yml`, `ci-build-images.sh`, `web/Dockerfile`, `public-env.ts`, `docker-compose.yml`,
+      `.env.example`, `deploy/README.md`; `AccountShell` leaves the stores page in full (X24).
+      The owner puts the key into the local `.env`.
       Check: `policy.test.ts` and `proxy.test.ts` (the stores path has Yandex's list, `/catalog`,
       `/customer`, `/customer/stores/x` do not); `npm run verify` (`check:web-shells`,
       `check:web-bundle` unchanged).
@@ -87,7 +88,8 @@ X19–X21).
       `widgets/stores-map` (loader, pins, clusters, selection, fit, placeholder); the page's map,
       phone tabs and the card over the map on a pin's click; `stores.pin`, `stores.tab`,
       `sdkPerVisit` 17; `EVENTS.md`. `yastatic.net`, fonts or frames go into the policy only after
-      the browser shows them blocked (plan §3.5).
+      the browser shows them blocked (plan §3.5); `script-src`'s `https://api-maps.yandex.ru`
+      narrowed to `/v3/` if the map loads with it (X23).
       Check: Vitest (placeholder without a key, the loader once, `fit.ts`, tabs, switch on select,
       the card over the map and its close); `npm run verify`; qa-tester with the owner's key AC5, AC6, AC8, AC9, AC10 and the
       console free of CSP violations, at 375 and 1280 px.
