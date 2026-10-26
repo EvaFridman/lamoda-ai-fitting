@@ -7,6 +7,8 @@ import { AnalyticsGate, ConsentBanner } from '@/features/cookie-consent';
 import { retryDelay, shouldRetry } from '@/shared/api';
 import { ToastProvider } from '@/shared/ui';
 
+import { DevAnnotations } from './dev-annotations';
+
 // Catalog data counts as fresh for 60 s (H7). No refetch when the window regains focus: the catalog
 // changes rarely and each refetch counts against the read quota; a refetch when the network comes
 // back, so an error or old data does not stay on screen (H22). Retries: `shouldRetry` (H10).
@@ -43,6 +45,7 @@ export function Providers({ children }: { children: ReactNode }) {
         </Suspense>
         <ConsentBanner />
         {children}
+        <DevAnnotations />
       </ToastProvider>
     </QueryClientProvider>
   );
