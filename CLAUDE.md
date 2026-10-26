@@ -119,7 +119,10 @@ instead of doing their job in the main context.
   production logs over `ssh ai-fitting` in the shapes of its guard, the release's code
   (`git show <tag>:<path>`) and the code index; only reports, in Russian (spec 0021 plan §5).
   Every Sentry call and ssh asks the owner. Not a step of `finish-task`, never after a deploy or
-  from CI.
+  from CI. It is started by the skill `/investigate <link | request id | symptom | since …>`
+  (`.claude/skills/investigate/`: refreshes the index with `rag:index`, runs the agent, relays
+  its report as it came and proposes the next step, spec 0021 plan §7) or from the owner's plain
+  words, with the same steps; no code changes in the same turn without the owner's OK.
 
 What each agent may do, how the guard hooks work, the owner's decisions and the accepted risks:
 [.claude/README.md](.claude/README.md). Working rules:

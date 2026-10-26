@@ -95,7 +95,7 @@ Implements [plan.md](plan.md). 👤 marks a step only the owner can do.
       reads the issue, the logs and the index and returns the report's six parts (a dry run of
       AC9, not yet recorded); `npm run verify`.
       Commit: `feat(tooling): add the investigator agent`
-- [ ] **T11. The skill `/investigate`.** `.claude/skills/investigate/SKILL.md` (plan §7);
+- [x] **T11. The skill `/investigate`.** `.claude/skills/investigate/SKILL.md` (plan §7);
       `README.md`'s section «Расследование ошибок прода»; `CLAUDE.md`'s mention.
       Check: `/investigate` with a link refreshes the index, runs the agent and relays the report;
       `npm run verify`.
