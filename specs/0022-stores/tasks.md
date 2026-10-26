@@ -65,7 +65,7 @@ X19–X21).
       Check: Vitest (signed out and in, search, details, debounce of `Stores Searched`),
       `routes.test.ts`, `catalog.test.ts`; qa-tester AC3, AC4, AC7, AC15 at 375 and 1280 px.
       Commit: `feat(web): list the lamoda sport stores on the stores page`
-- [ ] **T8. Footer, menus and privacy (X6, X11, X16, X18; plan §3.4).** The footer's link with `footer.link` (zone `footer`); `fullLoad` in
+- [x] **T8. Footer, menus and privacy (X6, X11, X16, X18; plan §3.4).** The footer's link with `footer.link` (zone `footer`); `fullLoad` in
       `account-sections.ts` and plain links in the side menu, the profile menu and the burger menu;
       the `/privacy` paragraph.
       Check: Vitest (footer href and plain anchor, each menu's anchor, privacy text,

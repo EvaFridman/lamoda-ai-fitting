@@ -8,6 +8,14 @@ vi.mock('@/shared/config/server', () => ({
   getServerEnv: () => ({ APP_VERSION: '1.2.3-test' }),
 }));
 
+// The mocked next/link marks its anchor, so a plain <a> (a full load) is told from it.
+vi.mock('next/link', async () => {
+  const { createElement } = await import('react');
+  return {
+    default: (props: { href: string }) => createElement('a', { ...props, 'data-next-link': '' }),
+  };
+});
+
 import { footerColumns } from '../config/items';
 import { Footer } from './footer';
 
@@ -100,13 +108,25 @@ describe('Footer', () => {
     expect(screen.getByText('Публичная оферта')).toBeInTheDocument();
   });
 
-  it('has exactly one link, to the privacy policy', async () => {
+  it('has exactly two links, to the stores and to the privacy policy', async () => {
     await renderFooter();
 
     const links = screen.getAllByRole('link');
-    expect(links).toHaveLength(1);
-    expect(links[0]).toHaveAccessibleName('Политика по работе с персональными данными');
-    expect(links[0]).toHaveAttribute('href', '/privacy');
+    expect(links.map((link) => [link.textContent, link.getAttribute('href')])).toEqual([
+      ['Магазины Lamoda Sport', '/customer/stores'],
+      ['Политика по работе с персональными данными', '/privacy'],
+    ]);
+  });
+
+  it('loads the stores page in full and links the privacy policy through next/link', async () => {
+    await renderFooter();
+
+    const stores = screen.getByRole('link', { name: 'Магазины Lamoda Sport' });
+    expect(stores).not.toHaveAttribute('data-next-link');
+    const privacy = screen.getByRole('link', {
+      name: 'Политика по работе с персональными данными',
+    });
+    expect(privacy).toHaveAttribute('data-next-link');
   });
 
   it('shows other payment methods and the mobile version as text, not links', async () => {

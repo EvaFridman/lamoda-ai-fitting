@@ -342,6 +342,51 @@ describe('AccountShell', () => {
       });
     });
 
+    // The mocked next/link cancels its click, as the real one does to navigate on the client; a
+    // plain anchor leaves it to the browser (spec 0022 X16).
+    it('links only the stores section as a plain anchor, the others through next/link', async () => {
+      const user = userEvent.setup();
+      render(<AccountShell section="orders" />);
+      const nav = screen.getByRole('navigation', { name: 'Личный кабинет' });
+      const cancelled: Record<string, boolean> = {};
+      let name = '';
+      const listener = (event: Event) => {
+        cancelled[name] = event.defaultPrevented;
+        event.preventDefault();
+      };
+      document.addEventListener('click', listener);
+      for (const link of within(nav).getAllByRole('link')) {
+        name = link.textContent ?? '';
+        await user.click(link);
+      }
+      document.removeEventListener('click', listener);
+
+      expect(cancelled).toEqual({
+        'Мои заказы': true,
+        Магазины: false,
+        'Мои данные': true,
+        'Мои примерки': true,
+        'Мои фото': true,
+      });
+    });
+
+    it('still sends the stores click and marks it current', async () => {
+      const user = userEvent.setup();
+      render(<AccountShell section="stores" />);
+      const stores = screen.getByRole('link', { name: 'Магазины' });
+      expect(stores).toHaveAttribute('aria-current', 'page');
+      const listener = (event: Event) => event.preventDefault();
+      document.addEventListener('click', listener);
+      await user.click(stores);
+      document.removeEventListener('click', listener);
+      expect(mocks.track).toHaveBeenCalledExactlyOnceWith('Element Clicked', {
+        element: 'account-menu.section',
+        zone: 'account',
+        type: 'navigation',
+        section: 'stores',
+      });
+    });
+
     it('sends the click on the back link', async () => {
       const user = userEvent.setup({ pointerEventsCheck: 0 });
       render(<AccountShell section="orders" />);

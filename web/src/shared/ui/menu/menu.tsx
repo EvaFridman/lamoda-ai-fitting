@@ -76,17 +76,29 @@ export interface MenuLinkItemProps extends Omit<
 > {
   // A page of the site: next/link navigates without a full page load.
   href: string;
+  // A plain <a> instead: the page loads in full (the stores page's own policy, spec 0022 X16).
+  fullLoad?: boolean;
   children: ReactNode;
 }
 
 // One link of the menu: an <a> with role="menuitem". Enter or a click opens the page and closes the
 // menu, which would otherwise stay open over the next page (the layout keeps it mounted).
-export function MenuLinkItem({ href, children, ...props }: MenuLinkItemProps) {
+export function MenuLinkItem({ href, fullLoad = false, children, ...props }: MenuLinkItemProps) {
   return (
     <BaseMenu.LinkItem
       className={styles.item}
       closeOnClick
-      render={<NextLink href={href} />}
+      render={
+        fullLoad ? (
+          (linkProps) => (
+            <a {...linkProps} href={href}>
+              {linkProps.children}
+            </a>
+          )
+        ) : (
+          <NextLink href={href} />
+        )
+      }
       {...props}
     >
       {children}

@@ -22,6 +22,12 @@ describe('accountSections', () => {
     ]);
   });
 
+  it('loads only the stores page in full', () => {
+    expect(
+      accountSections.filter(({ fullLoad }) => fullLoad).map(({ section }) => section),
+    ).toEqual(['stores']);
+  });
+
   it('has the same keys as the values of the profile menu section property', () => {
     const property = catalog.elements['profile-menu.section'].properties.section;
     expect(accountSections.map(({ section }) => section)).toEqual(property.values);

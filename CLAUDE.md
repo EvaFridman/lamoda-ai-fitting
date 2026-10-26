@@ -647,7 +647,9 @@ and the full `verify` once at the phase's end (as spec 0019 A58 did).
   loads, opens `LoginModal` signed out (a failed read too) and, signed in, the kit's `Menu`: a circle
   with the first letter of the name (or of the email) and the name or "Профиль" (no email or avatar,
   N6; `user-label.ts`) in a `MenuHeader` with `mp-block`, the account's five sections as
-  `MenuLinkItem`s (`shared/config/account-sections.ts`, spec 0017 AC2), a separator and `SignOutItems` ("Выйти", "Выйти со всех устройств"; a
+  `MenuLinkItem`s (`shared/config/account-sections.ts`, spec 0017 AC2; a section with `fullLoad`,
+  the stores', is a plain `<a>` there, in the burger, the side menu and the footer, so its page
+  loads in full with its own policy, spec 0022 X16), a separator and `SignOutItems` ("Выйти", "Выйти со всех устройств"; a
   failure shows a toast). It also mounts `useDropUserQueries` (`features/auth`): whenever the
   session is `signed-out` and not `failed`, the queries of `userKeys.all` leave the cache, so the
   next person at the tab never sees `/me` (spec 0017 U22); another user signed in with no end
@@ -676,7 +678,8 @@ and the full `verify` once at the phase's end (as spec 0019 A58 did).
   is the list of sections and a section shows "‹ Личный кабинет" in place of the menu, one DOM
   switched by CSS. `_pages/customer` has no section, `_pages/account-stubs` holds the one stub
   (orders), `_pages/stores` «Магазины Lamoda Sport» (spec 0022: the legend, the search and the
-  list of `entities/store`'s cards; `server.ts` only), `_pages/fittings` the history («Мои примерки», spec 0019 T16: `widgets/fitting-history`,
+  list of `entities/store`'s cards; `server.ts` only; `/privacy` says it shows Yandex's map, which
+  receives the visitor's address and its cookies, X6), `_pages/fittings` the history («Мои примерки», spec 0019 T16: `widgets/fitting-history`,
   `features/delete-fitting`, `entities/fitting`'s `HistoryCard`; a card opens its fitting through
   `?fitting=<id>` in T15's try-on window; «Примерить ещё раз» is `useRepeatFitting` with the
   entry's `repeatBody`, disabled once its photo is gone, a repeat's answer the toast «Такая
@@ -695,7 +698,9 @@ and the full `verify` once at the phase's end (as spec 0019 A58 did).
   401 (the session already gone, U25) does the same without the event, any other failure keeps
   the modal open with its text.
 - The kit (`web/src/shared/ui`, its examples on `/ui-kit`) has, besides its controls,
-  `MenuLinkItem` (Base UI's `Menu.LinkItem` rendering `next/link`; `MenuItem` has no link form),
+  `MenuLinkItem` (Base UI's `Menu.LinkItem` rendering `next/link`, with `fullLoad` a plain `<a>`,
+  as the kit's `Link` with `fullLoad`, for a page that loads in full or another site's; `MenuItem`
+  has no link form),
   `LinkButton` (a `<button>` styled as the kit's `Link`, for an action that is not navigation),
   `Modal`'s `finalFocus` (a function giving the element focused when it closes, `true` for the
   trigger; `LoginModal` passes it through, so the header's modal returns the focus to the burger
@@ -811,7 +816,8 @@ and the full `verify` once at the phase's end (as spec 0019 A58 did).
   `.item-colour`, `.add-to-cart-all`, `.add-to-cart`'s `kind` and
   `.regenerate`'s `with_item` (A94), the grid's hanger `catalog.to-look` in the zone
   `catalog` (A90.9), the phone header's the zone `header` (areas `header` and
-  `burger`: `header.burger`, `header.search`, `burger.category`, A87.8); `profile-menu.*` take
+  `burger`: `header.burger`, `header.search`, `burger.category`, A87.8), the footer's
+  `footer.link` in the zone `footer` (`link`: `stores`, spec 0022 X18); `profile-menu.*` take
   `surface` (`menu`, `burger`; older sends have none).
   `Signed In` is sent once, on the page a sign-in of this tab came back to: `markSignInStarted()`
   (`features/auth`) puts the time in `sessionStorage` (`sign-in-started`, not an `mp_`/`__mp` key

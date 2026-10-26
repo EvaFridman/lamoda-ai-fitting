@@ -491,6 +491,7 @@ describe('analytics catalog', () => {
       'header.burger': ['header', 'interaction'],
       'header.search': ['header', 'interaction'],
       'burger.category': ['header', 'navigation'],
+      'footer.link': ['footer', 'navigation'],
       'stores.card': ['stores', 'interaction'],
       'stores.details': ['stores', 'interaction'],
       'stores.phone': ['stores', 'navigation'],

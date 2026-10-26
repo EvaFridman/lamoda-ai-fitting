@@ -5,6 +5,10 @@
 export interface FooterItem {
   label: string;
   href?: string;
+  // A plain <a>: the page loads in full (the stores page's own policy, spec 0022 X16).
+  fullLoad?: boolean;
+  // The value of `footer.link`'s `link`: such an item is tracked (spec 0022 X18).
+  track?: 'stores';
 }
 
 export interface FooterColumn {
@@ -18,7 +22,7 @@ export const footerColumns: FooterColumn[] = [
     items: [
       { label: 'Мои заказы' },
       { label: 'Условия доставки' },
-      { label: 'Магазины Lamoda Sport' },
+      { label: 'Магазины Lamoda Sport', href: '/customer/stores', fullLoad: true, track: 'stores' },
       { label: 'Возврат' },
       { label: 'Как оформить заказ' },
       { label: 'Как выбрать размер' },

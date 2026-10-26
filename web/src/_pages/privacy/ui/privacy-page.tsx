@@ -1,10 +1,14 @@
 import { CookieSettingsButton } from '@/features/cookie-consent';
+import { Link } from '@/shared/ui';
 
 import styles from './privacy-page.module.scss';
 
+const YANDEX_MAPS_TERMS = 'https://yandex.ru/legal/maps_api/';
+
 // Static: it builds into the shell. The text is a placeholder until the owner supplies the real one
 // (spec 0008, J10, J34), with a line about the Google account data kept at sign-in (spec 0013
-// plan §10); the button renders only with an analytics token (J17).
+// plan §10), the fitting photos (spec 0019 A46) and the stores page's Yandex map (spec 0022 X6);
+// the button renders only with an analytics token (J17).
 export function PrivacyPage() {
   return (
     <main className={styles.page}>
@@ -26,6 +30,14 @@ export function PrivacyPage() {
         Удалённое фото исчезает из хранилища в течение нескольких минут, а при удалении аккаунта
         удаляются все фото и результаты примерок. Резервные копии хранятся до 7 дней, затем
         удаляются и они.
+      </p>
+      <p className={styles.text}>
+        На странице магазинов показана карта Яндекса: Яндекс получает адрес вашего устройства и
+        может сохранять свои cookie. Условия:{' '}
+        <Link href={YANDEX_MAPS_TERMS} fullLoad target="_blank" rel="noopener noreferrer">
+          условия использования API Яндекс Карт
+        </Link>
+        .
       </p>
       <div>
         <CookieSettingsButton />
