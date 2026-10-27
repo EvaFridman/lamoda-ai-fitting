@@ -203,6 +203,23 @@ function failure(status: number, code: string) {
 function route(url: string, init?: RequestInit): Response {
   const { pathname } = new URL(url);
   const method = init?.method ?? 'GET';
+  if (pathname === '/api/me' && method === 'GET') {
+    return json(200, {
+      id: '00000000-0000-4000-8000-000000000001',
+      phone: null,
+      email: 'a@example.com',
+      firstName: null,
+      lastName: null,
+      patronymic: null,
+      dateOfBirth: null,
+      gender: null,
+      fittingProfileImageKey: null,
+      fittingProfileImageUrl: null,
+      photoConsentVersion: 1,
+      createdAt: DATE,
+      updatedAt: DATE,
+    });
+  }
   if (pathname === '/api/me/photos' && method === 'GET') return json(200, api.photos);
   if (pathname.startsWith('/api/me/photos/transient/')) return new Response(null, { status: 204 });
   if (pathname === '/api/me/fitting-quota') return json(200, api.quota);
@@ -291,7 +308,6 @@ beforeEach(() => {
   );
   vi.stubGlobal('fetch', fetchMock);
   mocks.session = { status: 'signed-in', user: { id: USER, email: 'a@example.com', name: 'A' } };
-  window.localStorage.setItem(`fitting-photo-consent:${USER}`, '1');
 });
 
 afterEach(() => {
@@ -313,6 +329,45 @@ describe('TryOn of a look: the picker (board 3.2)', () => {
       'src',
       expect.stringContaining(PHOTO_B),
     );
+  });
+
+  it('lists every item of the look as a card with its name, colour and price, no strip (AC11)', async () => {
+    renderTryOn({ look: true });
+    await screen.findByText('Образ · 3 вещи');
+
+    const names = ['Рубашка', 'Джинсы', 'Кеды'];
+    const colours = ['Белый', 'Синий', null];
+    const prices = [/5\s000/, /4\s000/, /3\s000/];
+    names.forEach((name, index) => {
+      const card = screen.getByText(name).closest('li') as HTMLElement;
+      expect(card).toHaveTextContent(prices[index]!);
+      const colour = colours[index];
+      if (colour) expect(within(card).getByText(colour)).toBeInTheDocument();
+      expect(within(card).getByRole('button', { name: 'В корзину' })).toBeEnabled();
+      expect(within(card).getByRole('button', { name: 'В избранное' })).toBeInTheDocument();
+    });
+    expect(screen.getAllByRole('button', { name: 'В избранное' })).toHaveLength(3);
+  });
+
+  it('tracks each look item’s heart as try-on.favourite of kind look', async () => {
+    const user = setup();
+    renderTryOn({ look: true });
+    await screen.findByText('Образ · 3 вещи');
+
+    const card = screen.getByText('Джинсы').closest('li') as HTMLElement;
+    await user.click(within(card).getByRole('button', { name: 'В избранное' }));
+
+    expect(mocks.track).toHaveBeenCalledWith(
+      'Element Clicked',
+      expect.objectContaining({ element: 'try-on.favourite', kind: 'look' }),
+    );
+  });
+
+  it('has no subtitle about an approximate picture (AC10)', async () => {
+    renderTryOn({ look: true });
+    await screen.findByText('Образ · 3 вещи');
+
+    expect(screen.queryByText(/Изображение приблизительное/)).not.toBeInTheDocument();
   });
 
   it('closes the window and opens the fitting room from «Изменить»', async () => {

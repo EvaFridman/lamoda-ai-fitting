@@ -1,6 +1,13 @@
-// Board 3.2: the strip, the look's count and sum, «Изменить» on the right.
+// Board 3.2's head (the look's count and sum, «Изменить» on the right), then the item cards one
+// under another (spec 0023 P22).
 
 .subject {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.head {
   display: flex;
   gap: var(--space-3);
   align-items: center;
@@ -15,4 +22,15 @@
 
   font-size: var(--font-size-body-s);
   line-height: var(--line-height-body-s);
+}
+
+.items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+
+  margin: 0;
+  padding: 0;
+
+  list-style: none;
 }

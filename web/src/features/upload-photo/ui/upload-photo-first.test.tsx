@@ -3,27 +3,13 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { SessionState } from '@/entities/session';
+import { userKeys, type User } from '@/entities/user';
 
 import { UploadPhoto } from './upload-photo';
 
-// The consent is kept in the module for the tab once given, so the first upload has a file to itself.
-const mocks = vi.hoisted(() => ({
-  track: vi.fn(),
-  session: {
-    status: 'signed-in',
-    user: { id: 'user-first', email: 'first@example.com', name: 'First' },
-  } as SessionState,
-}));
+const mocks = vi.hoisted(() => ({ track: vi.fn() }));
 
 vi.mock('@sentry/nextjs', () => ({ captureException: vi.fn() }));
-
-vi.mock('@/entities/session', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/entities/session')>()),
-  useSession: () => mocks.session,
-}));
-
-const KEY = 'fitting-photo-consent:user-first';
 
 vi.mock('@/shared/analytics/client', () => ({
   identify: vi.fn(),
@@ -32,6 +18,22 @@ vi.mock('@/shared/analytics/client', () => ({
 }));
 
 const fetchMock = vi.fn();
+
+const USER: User = {
+  id: '00000000-0000-4000-8000-000000000002',
+  phone: null,
+  email: 'boris@example.com',
+  firstName: null,
+  lastName: null,
+  patronymic: null,
+  dateOfBirth: null,
+  gender: null,
+  fittingProfileImageKey: null,
+  fittingProfileImageUrl: null,
+  photoConsentVersion: null,
+  createdAt: '2026-10-01T10:00:00.000Z',
+  updatedAt: '2026-10-01T10:00:00.000Z',
+};
 
 const PHOTO = {
   id: '3f0c1b0e-8d52-4a57-9d6c-0c9f6d1d4a11',
@@ -47,18 +49,24 @@ function tracked(name: string) {
   return mocks.track.mock.calls.filter(([event]) => event === name);
 }
 
+function bodies() {
+  return fetchMock.mock.calls
+    .filter(([, init]) => (init as RequestInit | undefined)?.method === 'POST')
+    .map(([, init]) => (init as RequestInit).body as FormData);
+}
+
 beforeEach(() => {
-  window.localStorage.clear();
+  vi.clearAllMocks();
+  fetchMock.mockReset();
   vi.stubGlobal('fetch', fetchMock);
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
-  window.localStorage.clear();
 });
 
 describe('UploadPhoto first upload', () => {
-  it('records the consent when a file is chosen and marks only that upload as the first', async () => {
+  it('gives the consents with a refused first photo, then is never asked again by a remount', async () => {
     fetchMock.mockImplementationOnce(() =>
       Promise.resolve(
         new Response(
@@ -79,46 +87,38 @@ describe('UploadPhoto first upload', () => {
       Promise.resolve(new Response(JSON.stringify(PHOTO), { status: 201 })),
     );
     const user = userEvent.setup({ pointerEventsCheck: 0 });
-    const queryClient = new QueryClient();
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+    queryClient.setQueryData(userKeys.me, USER);
     const onUploaded = vi.fn();
-    render(
+    const tree = (
       <QueryClientProvider client={queryClient}>
         <UploadPhoto place="photos" onUploaded={onUploaded} />
-      </QueryClientProvider>,
+      </QueryClientProvider>
     );
+    const view = render(tree);
 
     await user.click(screen.getByRole('button', { name: 'Добавить фото' }));
     const tips = await screen.findByRole('dialog', { name: 'Какое фото подойдёт' });
     await user.click(within(tips).getByRole('checkbox', { name: 'На фото — я' }));
     await user.click(within(tips).getByRole('checkbox', { name: /OpenAI/ }));
-    expect(window.localStorage.getItem(KEY)).toBeNull();
-
-    const file = new File(['x'], 'me.jpg', { type: 'image/jpeg' });
     await user.upload(
       tips.querySelector<HTMLInputElement>('input[type="file"]:not([capture])')!,
-      file,
+      new File(['x'], 'me.jpg', { type: 'image/jpeg' }),
     );
 
-    const refused = await screen.findByRole('dialog', { name: 'Фото слишком тёмное' });
-    expect(window.localStorage.getItem(KEY)).toBe('1');
-    expect(window.localStorage).toHaveLength(1);
+    await screen.findByRole('dialog', { name: 'Фото слишком тёмное' });
+    expect(bodies()[0]?.get('consent')).toBe('1');
+    expect(queryClient.getQueryData<User>(userKeys.me)?.photoConsentVersion).toBe(1);
     expect(tracked('Photo Refused')).toEqual([
       ['Photo Refused', { reason: 'dark', source: 'file', place: 'photos', first: true }],
     ]);
 
-    await user.upload(
-      refused.querySelector<HTMLInputElement>('input[type="file"]:not([capture])')!,
-      new File(['y'], 'second.jpg', { type: 'image/jpeg' }),
-    );
+    view.unmount();
+    render(tree);
 
-    await vi.waitFor(() => expect(onUploaded).toHaveBeenCalledTimes(1));
-    expect(tracked('Photo Uploaded')).toEqual([
-      ['Photo Uploaded', { saved: true, source: 'file', place: 'photos', first: false }],
-    ]);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    // Both pickers now sit on the page, the consent screen is not shown again.
-    expect(screen.getByRole('button', { name: 'Добавить фото' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Сделать фото' })).toBeEnabled();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });

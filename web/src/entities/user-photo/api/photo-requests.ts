@@ -10,18 +10,23 @@ export interface UploadPhotoOptions {
   // `false` makes a one-time photo, not among the saved ones (spec 0019 A24). The api's default is
   // `true`.
   save?: boolean;
+  // The version of the consents the user has just given (spec 0023 Y1); left out once the api
+  // keeps them.
+  consent?: number;
   signal?: AbortSignal;
 }
 
-// POST /me/photos: the stored photo. The body is multipart with the parts `photo` and `save`; the
-// browser sets its Content-Type with the boundary. Errors are `ApiError`s, already reported; the
-// caller shows them (the details `IS_IMAGE` and `PHOTO_REFUSED`, 409 `LIMIT_REACHED`).
+// POST /me/photos: the stored photo. The body is multipart with the parts `save`, `consent` and
+// `photo`, the file last; the browser sets its Content-Type with the boundary. Errors are
+// `ApiError`s, already reported; the caller shows them (the details `IS_IMAGE`, `PHOTO_REFUSED`
+// and `CONSENT_REQUIRED`, 409 `LIMIT_REACHED`).
 export function uploadPhoto(
   photo: Blob,
-  { save = true, signal }: UploadPhotoOptions = {},
+  { save = true, consent, signal }: UploadPhotoOptions = {},
 ): Promise<UserPhoto> {
   const body = new FormData();
   body.append('save', String(save));
+  if (consent !== undefined) body.append('consent', String(consent));
   body.append('photo', photo);
   return clientFetch(
     buildPath('/me/photos'),

@@ -24,7 +24,6 @@ import { openRoom, useFittingRoom, useRoomWishes } from '@/entities/fitting-room
 import { productOptions } from '@/entities/product';
 import { useSession } from '@/entities/session';
 import { deleteTransientPhoto, useMyPhotos, type UserPhoto } from '@/entities/user-photo';
-import { showStubToast } from '@/features/product-stubs';
 import {
   FittingErrorCard,
   FittingWait,
@@ -42,6 +41,7 @@ import { ItemRow } from './item-row';
 import { LookResult } from './look-result';
 import { type LookItems, LookSubject, roomLook } from './look-subject';
 import { PhotoPicker } from './photo-picker';
+import { PickerItemActions } from './picker-item-actions';
 
 import styles from './try-on.module.scss';
 
@@ -266,7 +266,6 @@ export function TryOn({
   };
 
   let content;
-  let description: string | undefined;
   if (limited || (picking && quota.data?.left === 0)) {
     content = quota.data ? (
       <LimitCard quota={quota.data} historyHref={FITTINGS_HREF} onOpenRoom={toRoom} />
@@ -274,16 +273,19 @@ export function TryOn({
       <Skeleton height={320} />
     );
   } else if (picking && isLook) {
-    description = 'Изображение приблизительное: модель ещё учится';
     // A look shown here (another photo for it, its failure, the history's) is tried on as it was,
     // with its colours and wishes, as one item keeps its colour (A77.3); else the room's.
     const shownLook = fitting?.kind === 'look' ? fitting : null;
     const pickerLook: LookItems | undefined = shownLook
       ? {
-          items: shownLook.items.map(({ productId: id, imageUrl, attributeValueId }) => ({
-            productId: id,
-            imageUrl,
-            attributeValueId,
+          items: shownLook.items.map((item) => ({
+            productId: item.productId,
+            name: item.name,
+            imageUrl: item.imageUrl,
+            price: item.price,
+            finalPrice: item.finalPrice,
+            attributeValueId: item.attributeValueId,
+            colour: item.colour,
           })),
           sum: shownLook.items.reduce((total, item) => total + item.finalPrice, 0),
         }
@@ -326,7 +328,6 @@ export function TryOn({
         />
       );
   } else if (picking) {
-    description = 'Изображение приблизительное: модель ещё учится';
     content = productQuery.isError ? (
       <div className={styles.failed}>
         <Notice tone="error" role="alert">
@@ -347,11 +348,7 @@ export function TryOn({
               details={pickerColour?.value}
               price={product.price}
               finalPrice={product.finalPrice}
-              action={
-                <Button variant="outline" size={32} textSize="body-s" onClick={showStubToast}>
-                  В корзину
-                </Button>
-              }
+              action={<PickerItemActions kind="single" />}
             />
           ) : (
             <Skeleton height={80} />
@@ -463,11 +460,7 @@ export function TryOn({
   if (foreign) return null;
 
   return (
-    <TryOnModal
-      title={isLook ? 'Примерка образа' : 'Онлайн-примерка'}
-      description={description}
-      onClose={onClose}
-    >
+    <TryOnModal title={isLook ? 'Примерка образа' : 'Онлайн-примерка'} onClose={onClose}>
       {content}
     </TryOnModal>
   );
@@ -475,7 +468,6 @@ export function TryOn({
 
 interface TryOnModalProps {
   title: string;
-  description?: string;
   onClose: () => void;
   children: ReactNode;
 }
@@ -485,7 +477,7 @@ interface TryOnModalProps {
 // page's body, out of the window: then it moves to the window, so the keyboard and a screen reader
 // stay inside. Checked a moment after the focus leaves or the page's nodes change (a browser may
 // drop the focus of a removed node without a `focusout`), once the browser has settled it.
-function TryOnModal({ title, description, onClose, children }: TryOnModalProps) {
+function TryOnModal({ title, onClose, children }: TryOnModalProps) {
   const bodyRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -516,7 +508,6 @@ function TryOnModal({ title, description, onClose, children }: TryOnModalProps) 
       wide
       animateSize
       title={title}
-      description={description}
       onOpenChange={(next) => {
         if (!next) onClose();
       }}

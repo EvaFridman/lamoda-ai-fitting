@@ -1,13 +1,11 @@
-// Board 3: on a wide screen the photo (the try-on's frame, spec 0023 P24) left of a column (the
-// item, the photos, the switch, then the meter and «Примерить» at the bottom); on a phone (3.1) the
-// item, the photo, the strip, the switch and the button at the bottom, one under the other.
+// Board 3: on a wide screen the photo (the try-on's frame, spec 0023 P24) and «Заменить фото» under
+// it, left of a column (the item, then the meter and «Примерить» at the bottom); on a phone (3.1)
+// the item, the photo and the button at the bottom, one under the other.
 
 .picker {
   display: grid;
   grid-template:
     'photo item' auto
-    'photo photos' auto
-    'photo save' auto
     'photo footer' 1fr / auto minmax(0, 1fr);
   gap: var(--space-6) var(--space-8);
 
@@ -17,17 +15,30 @@
     grid-template:
       'item' auto
       'photo' auto
-      'photos' auto
-      'save' auto
       'footer' auto / minmax(0, 1fr);
     gap: var(--space-4);
   }
 }
 
-// Centred over the column in 600–799px; a phone's is the whole width.
+// The frame and «Заменить фото» under it, the frame's width; centred over the column in
+// 600–799px, a phone's the whole width.
 .photo {
+  display: flex;
   grid-area: photo;
+  flex-direction: column;
+  gap: var(--space-3);
   justify-self: center;
+
+  @media (width < 600px) {
+    justify-self: stretch;
+  }
+}
+
+// In «Заменить фото»'s window, under the switch.
+.myPhotos {
+  align-self: flex-start;
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
 }
 
 .dimmed {
@@ -51,21 +62,6 @@
   justify-content: center;
 
   font-size: var(--font-size-body-s);
-}
-
-.empty {
-  position: absolute;
-  inset: 0;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  padding: var(--space-6);
-
-  font-size: var(--font-size-body-s);
-  color: var(--color-text-secondary);
-  text-align: center;
 }
 
 // «Видите только вы»: a white plate in the photo's top left corner.
@@ -97,21 +93,7 @@
   }
 }
 
-.photos {
-  display: flex;
-  grid-area: photos;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-.photosHead {
-  display: flex;
-  justify-content: space-between;
-  font-size: var(--font-size-body-m);
-  line-height: var(--line-height-body-m);
-}
-
-// A saved photo of the strip, 64×86 (56×75 on a phone), outlined when chosen.
+// A saved photo of «Заменить фото»'s window, 64×86 (56×75 on a phone), outlined when chosen.
 .thumb {
   cursor: pointer;
 
@@ -159,13 +141,6 @@
 
     background-color: rgb(0 0 0 / 72%);
   }
-}
-
-.save {
-  display: flex;
-  grid-area: save;
-  flex-direction: column;
-  gap: var(--space-2);
 }
 
 .caption {

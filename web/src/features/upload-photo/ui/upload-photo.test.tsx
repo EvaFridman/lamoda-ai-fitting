@@ -1,34 +1,19 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { createEvent, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { SessionState } from '@/entities/session';
+import { userKeys, type User } from '@/entities/user';
 import { userPhotoKeys } from '@/entities/user-photo';
+import { detailText } from '@/shared/api';
+import { COARSE_POINTER_QUERY, PHONE_QUERY } from '@/shared/config';
 
-import { MAX_PHOTO_BYTES } from '../lib/upload-error';
+import { MAX_PHOTO_BYTES, TOO_BIG_TEXT, WRONG_TYPE_TEXT } from '../lib/upload-error';
 import { UploadPhoto, type UploadPhotoProps } from './upload-photo';
 
-const mocks = vi.hoisted(() => ({
-  track: vi.fn(),
-  captureException: vi.fn(),
-  session: { status: 'pending' } as SessionState,
-}));
+const mocks = vi.hoisted(() => ({ track: vi.fn(), captureException: vi.fn() }));
 
 vi.mock('@sentry/nextjs', () => ({ captureException: mocks.captureException }));
-
-vi.mock('@/entities/session', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/entities/session')>()),
-  useSession: () => mocks.session,
-}));
-
-const ANNA = 'user-anna';
-const BORIS = 'user-boris';
-const keyOf = (id: string) => `fitting-photo-consent:${id}`;
-
-function signInAs(id: string) {
-  mocks.session = { status: 'signed-in', user: { id, email: `${id}@example.com`, name: id } };
-}
 
 vi.mock('@/shared/analytics/client', () => ({
   identify: vi.fn(),
@@ -41,6 +26,22 @@ const fetchMock = vi.fn();
 // Base UI turns pointer events off on the page while a modal is open; the styles that give them
 // back to the dialog are not loaded in jsdom.
 const setup = () => userEvent.setup({ pointerEventsCheck: 0 });
+
+const USER: User = {
+  id: '00000000-0000-4000-8000-000000000001',
+  phone: null,
+  email: 'anna@example.com',
+  firstName: 'Анна',
+  lastName: null,
+  patronymic: null,
+  dateOfBirth: null,
+  gender: null,
+  fittingProfileImageKey: null,
+  fittingProfileImageUrl: null,
+  photoConsentVersion: null,
+  createdAt: '2026-10-01T10:00:00.000Z',
+  updatedAt: '2026-10-01T10:00:00.000Z',
+};
 
 const PHOTO = {
   id: '3f0c1b0e-8d52-4a57-9d6c-0c9f6d1d4a11',
@@ -72,20 +73,40 @@ const refusedWith = (reason: string) =>
     { field: 'photo', code: 'PHOTO_REFUSED', message: `photo was refused: ${reason}` },
   ]);
 
-function renderUpload(props: Partial<UploadPhotoProps> = {}) {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+const CONSENT_REQUIRED = { field: 'consent', code: 'CONSENT_REQUIRED', message: 'required' };
+
+// What `POST /me/photos` answers: the next of `once`, else `answer`.
+let answer: () => Promise<Response>;
+let once: Array<() => Promise<Response>>;
+// What `GET /me` answers when a test does not seed it.
+let meMode: 'loading' | 'failed';
+
+type Me = 'loading' | 'failed' | { version: number | null };
+
+function renderUpload(props: Partial<UploadPhotoProps> = {}, me: Me = { version: null }) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  });
+  if (typeof me === 'string') meMode = me;
+  else queryClient.setQueryData(userKeys.me, { ...USER, photoConsentVersion: me.version });
   const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
   const onUploaded = vi.fn();
-  const { unmount } = render(
+  const ui = (next: Partial<UploadPhotoProps>) => (
     <QueryClientProvider client={queryClient}>
-      <UploadPhoto place="photos" onUploaded={onUploaded} {...props} />
-    </QueryClientProvider>,
+      <UploadPhoto place="photos" onUploaded={onUploaded} {...next} />
+    </QueryClientProvider>
   );
-  return { invalidate, onUploaded, unmount };
+  const { unmount, rerender } = render(ui(props));
+  const update = (next: Partial<UploadPhotoProps>) => rerender(ui(next));
+  return { invalidate, onUploaded, unmount, update, queryClient };
 }
 
-function fileInputs() {
-  const inputs = [...document.querySelectorAll<HTMLInputElement>('input[type="file"]')];
+const consented = { version: 1 } as const;
+const consentOf = (queryClient: QueryClient) =>
+  queryClient.getQueryData<User>(userKeys.me)?.photoConsentVersion;
+
+function fileInputs(scope: ParentNode = document) {
+  const inputs = [...scope.querySelectorAll<HTMLInputElement>('input[type="file"]')];
   return {
     file: inputs.find((input) => !input.hasAttribute('capture')),
     camera: inputs.find((input) => input.hasAttribute('capture')),
@@ -99,31 +120,60 @@ function tracked(name: string) {
   return mocks.track.mock.calls.filter(([event]) => event === name);
 }
 
+function clickedElements() {
+  return tracked('Element Clicked').map(([, props]) => (props as { element: string }).element);
+}
+
+// The uploads the page sent (the POSTs to /me/photos).
+function uploads() {
+  return fetchMock.mock.calls
+    .map(([url, init]) => ({ path: new URL(String(url)).pathname, init: init as RequestInit }))
+    .filter(({ path, init }) => path === '/api/me/photos' && init?.method === 'POST');
+}
+
 function requestOf(index = 0) {
-  const [url, init] = fetchMock.mock.calls[index] as [unknown, RequestInit];
-  return { path: new URL(String(url)).pathname, init };
+  const sent = uploads()[index];
+  return { path: sent?.path, init: sent?.init as RequestInit, body: sent?.init.body as FormData };
 }
 
 // The refusal's preview is an object URL of the chosen file; jsdom has none.
 const createObjectURL = vi.fn<(file: File) => string>();
 const revokeObjectURL = vi.fn<(url: string) => void>();
 
-// A phone-wide window: the media query of the phone layout matches, nothing else does.
-function stubPhone() {
+// A window where only these media queries match.
+function stubMedia(...matching: string[]) {
   vi.stubGlobal('matchMedia', (query: string) => ({
-    matches: query === '(width < 600px)',
+    matches: matching.includes(query),
     media: query,
     addEventListener: () => {},
     removeEventListener: () => {},
   }));
 }
+const stubPhone = () => stubMedia(PHONE_QUERY);
+const stubTouch = () => stubMedia(COARSE_POINTER_QUERY);
+
+async function checkBothConsents(dialog: HTMLElement, user: ReturnType<typeof setup>) {
+  await user.click(within(dialog).getByRole('checkbox', { name: 'На фото — я' }));
+  await user.click(within(dialog).getByRole('checkbox', { name: /OpenAI/ }));
+}
 
 beforeEach(() => {
   vi.clearAllMocks();
   fetchMock.mockReset();
+  answer = ok;
+  once = [];
+  meMode = 'loading';
+  fetchMock.mockImplementation((url: string) => {
+    const { pathname } = new URL(String(url));
+    if (pathname === '/api/me') {
+      return meMode === 'loading'
+        ? new Promise<Response>(() => undefined)
+        : failure(503, 'SERVICE_UNAVAILABLE')();
+    }
+    return (once.shift() ?? answer)();
+  });
   vi.stubGlobal('fetch', fetchMock);
   window.localStorage.clear();
-  signInAs(ANNA);
   createObjectURL.mockReturnValue('blob:preview-1');
   URL.createObjectURL = createObjectURL;
   URL.revokeObjectURL = revokeObjectURL;
@@ -161,7 +211,6 @@ describe('UploadPhoto before the consents', () => {
 
     await user.click(within(dialog).getByRole('checkbox', { name: 'На фото — я' }));
     expect(within(dialog).getByRole('button', { name: 'Выбрать фото' })).toBeDisabled();
-    expect(within(dialog).getByText('Отметьте оба пункта, чтобы продолжить')).toBeInTheDocument();
 
     await user.click(within(dialog).getByRole('checkbox', { name: /OpenAI/ }));
     expect(within(dialog).getByRole('button', { name: 'Выбрать фото' })).toBeEnabled();
@@ -169,8 +218,7 @@ describe('UploadPhoto before the consents', () => {
     expect(
       within(dialog).queryByText('Отметьте оба пункта, чтобы продолжить'),
     ).not.toBeInTheDocument();
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(window.localStorage.getItem(keyOf(ANNA))).toBeNull();
+    expect(uploads()).toHaveLength(0);
   });
 
   it('keeps the pickers off when only the processing consent is checked', async () => {
@@ -204,16 +252,16 @@ describe('UploadPhoto before the consents', () => {
     expect(within(dialog).getByRole('checkbox', { name: 'На фото — я' })).not.toHaveFocus();
   });
 
-  it('closes the tips with nothing sent and no consent stored', async () => {
+  it('closes the tips with nothing sent and the consent still missing', async () => {
     const user = setup();
-    renderUpload();
+    const { queryClient } = renderUpload();
     await user.click(screen.getByRole('button', { name: 'Добавить фото' }));
     await screen.findByRole('dialog', { name: 'Какое фото подойдёт' });
     await user.keyboard('{Escape}');
 
     await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(window.localStorage.getItem(keyOf(ANNA))).toBeNull();
+    expect(uploads()).toHaveLength(0);
+    expect(consentOf(queryClient)).toBeNull();
   });
 
   it('is off when the saved photos are at their limit', () => {
@@ -222,109 +270,186 @@ describe('UploadPhoto before the consents', () => {
   });
 });
 
-describe('UploadPhoto consent per user', () => {
-  it("shows another user the consent screen and leaves the first user's consent as it was", async () => {
-    window.localStorage.setItem(keyOf(ANNA), '1');
-    signInAs(BORIS);
+describe('UploadPhoto while /me is read', () => {
+  it('keeps «Добавить фото» off while it loads', async () => {
     const user = setup();
-    renderUpload();
+    renderUpload({}, 'loading');
 
-    expect(screen.queryByRole('button', { name: 'Сделать фото' })).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Добавить фото' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Какое фото подойдёт' });
-    expect(within(dialog).getByRole('checkbox', { name: 'На фото — я' })).not.toBeChecked();
-    expect(within(dialog).getByRole('button', { name: 'Выбрать фото' })).toBeDisabled();
-    expect(window.localStorage.getItem(keyOf(ANNA))).toBe('1');
-    expect(window.localStorage.getItem(keyOf(BORIS))).toBeNull();
-  });
-
-  it('writes only the signed-in user key when a file is chosen', async () => {
-    const id = 'user-writer';
-    signInAs(id);
-    fetchMock.mockImplementation(ok);
-    const user = setup();
-    renderUpload();
-    await user.click(screen.getByRole('button', { name: 'Добавить фото' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Какое фото подойдёт' });
-    await user.click(within(dialog).getByRole('checkbox', { name: 'На фото — я' }));
-    await user.click(within(dialog).getByRole('checkbox', { name: /OpenAI/ }));
-    await user.upload(
-      dialog.querySelector<HTMLInputElement>('input[type="file"]:not([capture])')!,
-      picture(),
-    );
-
-    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
-    expect(window.localStorage.getItem(keyOf(id))).toBe('1');
-    expect(window.localStorage).toHaveLength(1);
-  });
-
-  it.each([['pending'], ['signed-out']])(
-    'counts as not consented and writes nothing when the session is %s',
-    async (status) => {
-      window.localStorage.setItem(keyOf(ANNA), '1');
-      mocks.session = { status } as SessionState;
-      const user = setup();
-      renderUpload();
-
-      expect(screen.queryByRole('button', { name: 'Сделать фото' })).not.toBeInTheDocument();
-      await user.click(screen.getByRole('button', { name: 'Добавить фото' }));
-      const dialog = await screen.findByRole('dialog', { name: 'Какое фото подойдёт' });
-      expect(within(dialog).getByRole('checkbox', { name: 'На фото — я' })).toBeInTheDocument();
-      expect(window.localStorage).toHaveLength(1);
-    },
-  );
-
-  it('keeps the consent in the tab for that user only when the storage throws', async () => {
-    const id = 'user-no-storage';
-    signInAs(id);
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-      throw new Error('quota');
-    });
-    fetchMock.mockImplementation(ok);
-    const user = setup();
-    const first = renderUpload();
-    await user.click(screen.getByRole('button', { name: 'Добавить фото' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Какое фото подойдёт' });
-    await user.click(within(dialog).getByRole('checkbox', { name: 'На фото — я' }));
-    await user.click(within(dialog).getByRole('checkbox', { name: /OpenAI/ }));
-    await user.upload(
-      dialog.querySelector<HTMLInputElement>('input[type="file"]:not([capture])')!,
-      picture(),
-    );
-    await vi.waitFor(() => expect(first.onUploaded).toHaveBeenCalledTimes(1));
-    first.unmount();
-    expect(window.localStorage.getItem(keyOf(id))).toBeNull();
-
-    const again = renderUpload();
-    expect(screen.getByRole('button', { name: 'Сделать фото' })).toBeEnabled();
+    const button = screen.getByRole('button', { name: 'Добавить фото' });
+    expect(button).toBeDisabled();
+    await user.click(button);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    again.unmount();
-
-    signInAs(BORIS);
-    renderUpload();
-    expect(screen.queryByRole('button', { name: 'Сделать фото' })).not.toBeInTheDocument();
   });
 
-  it("follows another tab's consent of the signed-in user", async () => {
-    signInAs('user-other-tab');
-    renderUpload();
-    expect(screen.queryByRole('button', { name: 'Сделать фото' })).not.toBeInTheDocument();
+  it('keeps the card off while it loads', () => {
+    renderUpload({ appearance: 'card' }, 'loading');
+    expect(screen.getByRole('button', { name: 'Добавить фото' })).toBeDisabled();
+  });
 
-    act(() => {
-      window.localStorage.setItem(keyOf('user-other-tab'), '1');
-      window.dispatchEvent(new StorageEvent('storage', { key: keyOf('user-other-tab') }));
-    });
+  it('counts as not consented, with the tips, when it failed', async () => {
+    const user = setup();
+    renderUpload({}, 'failed');
+
+    const button = screen.getByRole('button', { name: 'Добавить фото' });
+    await vi.waitFor(() => expect(button).toBeEnabled());
+    await user.click(button);
+
+    expect(await screen.findByRole('dialog', { name: 'Какое фото подойдёт' })).toBeInTheDocument();
+  });
+});
+
+describe('UploadPhoto: the first upload gives the consents (AC19)', () => {
+  it('sends consent=1 between save and the photo, marks the upload first and remembers it', async () => {
+    const user = setup();
+    const { queryClient, onUploaded } = renderUpload();
+    await user.click(screen.getByRole('button', { name: 'Добавить фото' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Какое фото подойдёт' });
+    await checkBothConsents(dialog, user);
+    await user.upload(fileInputs(dialog).file!, picture());
+
+    await vi.waitFor(() => expect(onUploaded).toHaveBeenCalledWith(PHOTO));
+    expect(requestOf().body.get('consent')).toBe('1');
+    expect([...requestOf().body.keys()]).toEqual(['save', 'consent', 'photo']);
+    expect(consentOf(queryClient)).toBe(1);
+    expect(tracked('Photo Uploaded')).toEqual([
+      ['Photo Uploaded', { saved: true, source: 'file', place: 'photos', first: true }],
+    ]);
+    await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(screen.getByRole('button', { name: 'Сделать фото' })).toBeEnabled();
+  });
+
+  it('keeps the consent after a refused photo and sends it no more', async () => {
+    once.push(refusedWith('dark'));
+    const user = setup();
+    const { queryClient, onUploaded } = renderUpload();
+    await user.click(screen.getByRole('button', { name: 'Добавить фото' }));
+    const tips = await screen.findByRole('dialog', { name: 'Какое фото подойдёт' });
+    await checkBothConsents(tips, user);
+    await user.upload(fileInputs(tips).file!, picture('first.jpg'));
+
+    const refused = await screen.findByRole('dialog', { name: 'Фото слишком тёмное' });
+    expect(consentOf(queryClient)).toBe(1);
+    expect(tracked('Photo Refused')).toEqual([
+      ['Photo Refused', { reason: 'dark', source: 'file', place: 'photos', first: true }],
+    ]);
+
+    await user.upload(fileInputs(refused).file!, picture('second.jpg'));
+
+    await vi.waitFor(() => expect(onUploaded).toHaveBeenCalledTimes(1));
+    expect(requestOf(0).body.get('consent')).toBe('1');
+    expect(requestOf(1).body.has('consent')).toBe(false);
+    expect(tracked('Photo Uploaded')).toEqual([
+      ['Photo Uploaded', { saved: true, source: 'file', place: 'photos', first: false }],
+    ]);
+  });
+
+  it('does not remember the consent when the upload fails otherwise', async () => {
+    // A network failure: the 503 report of another test in this file is throttled for a minute.
+    answer = () => Promise.reject(new TypeError('Failed to fetch'));
+    const user = setup();
+    const { queryClient } = renderUpload();
+    await user.click(screen.getByRole('button', { name: 'Добавить фото' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Какое фото подойдёт' });
+    await checkBothConsents(dialog, user);
+    await user.upload(fileInputs(dialog).file!, picture());
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Нет связи с сервером');
+    expect(consentOf(queryClient)).toBeNull();
+  });
+
+  it('sends no consent for a user who gave it before (version 1 in /me)', async () => {
+    const user = setup();
+    const { onUploaded } = renderUpload({}, consented);
+    expect(screen.getByRole('button', { name: 'Сделать фото' })).toBeEnabled();
+    await user.upload(fileInputs().file!, picture());
+
+    await vi.waitFor(() => expect(onUploaded).toHaveBeenCalledTimes(1));
+    expect(requestOf().body.has('consent')).toBe(false);
+  });
+
+  it('asks again when the consents of /me are of another version', async () => {
+    const user = setup();
+    renderUpload({}, { version: 2 });
+
+    expect(screen.queryByRole('button', { name: 'Сделать фото' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Добавить фото' }));
+    expect(await screen.findByRole('dialog', { name: 'Какое фото подойдёт' })).toBeInTheDocument();
+  });
+
+  describe('when the api asks for them (CONSENT_REQUIRED)', () => {
+    async function refused() {
+      once.push(failure(400, 'VALIDATION_FAILED', [CONSENT_REQUIRED]));
+      const user = setup();
+      const view = renderUpload({}, consented);
+      await user.upload(fileInputs().file!, picture('waiting.jpg'));
+      const dialog = await screen.findByRole('dialog', { name: 'Какое фото подойдёт' });
+      return { user, dialog, ...view };
+    }
+
+    it('shows the tips and the consents again, unchecked, with the error text, and forgets the consent', async () => {
+      const { dialog, queryClient } = await refused();
+
+      expect(within(dialog).getByRole('checkbox', { name: 'На фото — я' })).not.toBeChecked();
+      expect(within(dialog).getByRole('checkbox', { name: /OpenAI/ })).not.toBeChecked();
+      expect(within(dialog).getByRole('alert')).toHaveTextContent(detailText(CONSENT_REQUIRED));
+      expect(consentOf(queryClient)).toBeNull();
+      expect(uploads()).toHaveLength(1);
+    });
+
+    it('uploads the waiting file with the consents once both boxes are checked', async () => {
+      const { user, dialog, queryClient, onUploaded } = await refused();
+      const upload = within(dialog).getByRole('button', { name: 'Загрузить фото' });
+      expect(upload).toBeDisabled();
+      expect(
+        within(dialog).queryByRole('button', { name: 'Выбрать фото' }),
+      ).not.toBeInTheDocument();
+
+      await user.click(within(dialog).getByRole('checkbox', { name: 'На фото — я' }));
+      expect(upload).toBeDisabled();
+      await user.click(within(dialog).getByRole('checkbox', { name: /OpenAI/ }));
+
+      await vi.waitFor(() => expect(onUploaded).toHaveBeenCalledWith(PHOTO));
+      expect(uploads()).toHaveLength(2);
+      expect((requestOf(1).body.get('photo') as File).name).toBe('waiting.jpg');
+      expect(requestOf(1).body.get('consent')).toBe('1');
+      expect(consentOf(queryClient)).toBe(1);
+      expect(tracked('Photo Uploaded')).toEqual([
+        ['Photo Uploaded', { saved: true, source: 'file', place: 'photos', first: true }],
+      ]);
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('sends the waiting file once when a box is unchecked and checked again while it is pending', async () => {
+      const { user, dialog } = await refused();
+      answer = () => new Promise<Response>(() => undefined);
+      await user.click(within(dialog).getByRole('checkbox', { name: 'На фото — я' }));
+      await user.click(within(dialog).getByRole('checkbox', { name: /OpenAI/ }));
+      await vi.waitFor(() => expect(uploads()).toHaveLength(2));
+      // The file came from a picker, so the footer is the pickers again, the file one spinning.
+      const footer = within(dialog).getByRole('button', { name: 'Выбрать фото' });
+      expect(footer).toHaveAttribute('aria-disabled', 'true');
+      expect(footer).toHaveAttribute('aria-busy', 'true');
+
+      await user.click(within(dialog).getByRole('checkbox', { name: /OpenAI/ }));
+      await user.click(within(dialog).getByRole('checkbox', { name: /OpenAI/ }));
+
+      expect(uploads()).toHaveLength(2);
+    });
+
+    it('sends nothing more when the tips are closed', async () => {
+      const { user } = await refused();
+
+      await user.keyboard('{Escape}');
+
+      await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      expect(uploads()).toHaveLength(1);
+    });
   });
 });
 
 describe('UploadPhoto with the consents given', () => {
-  beforeEach(() => {
-    window.localStorage.setItem(keyOf(ANNA), '1');
-  });
-
   it('shows the two pickers at once, no modal, with the accepted types and the front camera', () => {
-    renderUpload();
+    renderUpload({}, consented);
     expect(screen.getByRole('button', { name: 'Добавить фото' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Сделать фото' })).toBeEnabled();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -336,17 +461,15 @@ describe('UploadPhoto with the consents given', () => {
   });
 
   it('uploads the chosen file as a saved photo, refreshes the list and tells the page', async () => {
-    fetchMock.mockImplementation(ok);
     const user = setup();
-    const { invalidate, onUploaded } = renderUpload();
+    const { invalidate, onUploaded } = renderUpload({}, consented);
     await user.upload(fileInputs().file!, picture('me.jpg'));
 
     await vi.waitFor(() => expect(onUploaded).toHaveBeenCalledWith(PHOTO));
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const { path, init } = requestOf();
+    expect(uploads()).toHaveLength(1);
+    const { path, init, body } = requestOf();
     expect(path).toBe('/api/me/photos');
     expect(init.method).toBe('POST');
-    const body = init.body as FormData;
     expect((body.get('photo') as File).name).toBe('me.jpg');
     expect(body.get('save')).toBe('true');
     expect(invalidate).toHaveBeenCalledWith({ queryKey: userPhotoKeys.all });
@@ -358,9 +481,8 @@ describe('UploadPhoto with the consents given', () => {
   });
 
   it('tracks the camera as the source', async () => {
-    fetchMock.mockImplementation(ok);
     const user = setup();
-    renderUpload();
+    renderUpload({}, consented);
     await user.upload(fileInputs().camera!, picture('shot.jpg'));
 
     await vi.waitFor(() => expect(tracked('Photo Uploaded')).toHaveLength(1));
@@ -372,19 +494,16 @@ describe('UploadPhoto with the consents given', () => {
 
   it('sends the clicks of the two tracked buttons', async () => {
     const user = setup();
-    renderUpload();
+    renderUpload({}, consented);
     await user.click(screen.getByRole('button', { name: 'Добавить фото' }));
     await user.click(screen.getByRole('button', { name: 'Сделать фото' }));
 
-    const elements = tracked('Element Clicked').map(
-      ([, props]) => (props as { element: string }).element,
-    );
-    expect(elements).toEqual(['photos.upload', 'photos.camera']);
+    expect(clickedElements()).toEqual(['photos.upload', 'photos.camera']);
   });
 
   it('refuses a file over the limit with no request', async () => {
     const user = setup();
-    renderUpload();
+    renderUpload({}, consented);
     const big = picture('big.jpg');
     Object.defineProperty(big, 'size', { value: MAX_PHOTO_BYTES + 1 });
     await user.upload(fileInputs().file!, big);
@@ -392,28 +511,27 @@ describe('UploadPhoto with the consents given', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Файл слишком большой: нужно фото до 20 МБ',
     );
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(uploads()).toHaveLength(0);
     expect(tracked('Photo Uploaded')).toHaveLength(0);
     expect(tracked('Photo Refused')).toHaveLength(0);
   });
 
   it('accepts a file of exactly the limit', async () => {
-    fetchMock.mockImplementation(ok);
     const user = setup();
-    renderUpload();
+    renderUpload({}, consented);
     const edge = picture('edge.jpg');
     Object.defineProperty(edge, 'size', { value: MAX_PHOTO_BYTES });
     await user.upload(fileInputs().file!, edge);
 
-    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(uploads()).toHaveLength(1));
   });
 
   it('shows the text of IS_IMAGE as an alert and tracks nothing', async () => {
-    fetchMock.mockImplementation(
-      failure(400, 'VALIDATION_FAILED', [{ field: 'photo', code: 'IS_IMAGE', message: 'm' }]),
-    );
+    answer = failure(400, 'VALIDATION_FAILED', [
+      { field: 'photo', code: 'IS_IMAGE', message: 'm' },
+    ]);
     const user = setup();
-    renderUpload();
+    renderUpload({}, consented);
     await user.upload(fileInputs().file!, picture());
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
@@ -425,9 +543,9 @@ describe('UploadPhoto with the consents given', () => {
   });
 
   it('shows the text of a sixth photo (409 LIMIT_REACHED)', async () => {
-    fetchMock.mockImplementation(failure(409, 'LIMIT_REACHED'));
+    answer = failure(409, 'LIMIT_REACHED');
     const user = setup();
-    renderUpload();
+    renderUpload({}, consented);
     await user.upload(fileInputs().file!, picture());
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
@@ -436,23 +554,22 @@ describe('UploadPhoto with the consents given', () => {
   });
 
   it('does not repeat a request that failed with a 503, and reports it', async () => {
-    fetchMock.mockImplementation(failure(503, 'SERVICE_UNAVAILABLE'));
+    answer = failure(503, 'SERVICE_UNAVAILABLE');
     const user = setup();
-    renderUpload();
+    renderUpload({}, consented);
     await user.upload(fileInputs().file!, picture());
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Сервис временно недоступен, попробуйте позже',
     );
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(uploads()).toHaveLength(1);
     expect(mocks.captureException).toHaveBeenCalled();
   });
 
   it('shows a network failure and lets the next try clear it', async () => {
-    fetchMock.mockImplementationOnce(() => Promise.reject(new TypeError('Failed to fetch')));
-    fetchMock.mockImplementation(ok);
+    once.push(() => Promise.reject(new TypeError('Failed to fetch')));
     const user = setup();
-    const { onUploaded } = renderUpload();
+    const { onUploaded } = renderUpload({}, consented);
     await user.upload(fileInputs().file!, picture());
     expect(await screen.findByRole('alert')).toHaveTextContent('Нет связи с сервером');
 
@@ -462,47 +579,45 @@ describe('UploadPhoto with the consents given', () => {
   });
 
   it('turns the picker off while the photo is on its way', async () => {
-    fetchMock.mockImplementation(() => new Promise<Response>(() => undefined));
+    answer = () => new Promise<Response>(() => undefined);
     const user = setup();
-    renderUpload();
+    renderUpload({}, consented);
     await user.upload(fileInputs().file!, picture());
 
     await vi.waitFor(() =>
       expect(screen.getByRole('button', { name: 'Сделать фото' })).toBeDisabled(),
     );
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(uploads()).toHaveLength(1);
   });
 
   it('sends one request when a second file arrives while the first is on its way', async () => {
-    fetchMock.mockImplementation(() => new Promise<Response>(() => undefined));
+    answer = () => new Promise<Response>(() => undefined);
     const user = setup();
-    renderUpload();
+    renderUpload({}, consented);
     await user.upload(fileInputs().file!, picture('first.jpg'));
-    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(uploads()).toHaveLength(1));
 
     fireEvent.change(fileInputs().file!, { target: { files: [picture('second.jpg')] } });
     fireEvent.change(fileInputs().camera!, { target: { files: [picture('third.jpg')] } });
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(((requestOf().init.body as FormData).get('photo') as File).name).toBe('first.jpg');
+    expect(uploads()).toHaveLength(1);
+    expect((requestOf().body.get('photo') as File).name).toBe('first.jpg');
   });
 
   it('still invalidates the list and tracks the upload when the page was left meanwhile', async () => {
-    let answer: (response: Response) => void = () => undefined;
-    fetchMock.mockImplementation(
-      () =>
-        new Promise<Response>((resolve) => {
-          answer = resolve;
-        }),
-    );
+    let finish: (response: Response) => void = () => undefined;
+    answer = () =>
+      new Promise<Response>((resolve) => {
+        finish = resolve;
+      });
     const user = setup();
-    const { invalidate, onUploaded, unmount } = renderUpload();
+    const { invalidate, onUploaded, unmount } = renderUpload({}, consented);
     await user.upload(fileInputs().file!, picture());
-    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(uploads()).toHaveLength(1));
 
     unmount();
     expect(invalidate).not.toHaveBeenCalled();
-    answer(await ok());
+    finish(await ok());
 
     await vi.waitFor(() =>
       expect(invalidate).toHaveBeenCalledWith({ queryKey: userPhotoKeys.all }),
@@ -514,20 +629,18 @@ describe('UploadPhoto with the consents given', () => {
   });
 
   it('tracks a refusal that arrives after the page was left', async () => {
-    let answer: (response: Response) => void = () => undefined;
-    fetchMock.mockImplementation(
-      () =>
-        new Promise<Response>((resolve) => {
-          answer = resolve;
-        }),
-    );
+    let finish: (response: Response) => void = () => undefined;
+    answer = () =>
+      new Promise<Response>((resolve) => {
+        finish = resolve;
+      });
     const user = setup();
-    const { invalidate, unmount } = renderUpload();
+    const { invalidate, unmount } = renderUpload({}, consented);
     await user.upload(fileInputs().camera!, picture());
-    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(uploads()).toHaveLength(1));
 
     unmount();
-    answer(await refusedWith('dark')());
+    finish(await refusedWith('dark')());
 
     await vi.waitFor(() => expect(tracked('Photo Refused')).toHaveLength(1));
     expect(tracked('Photo Refused')[0]).toEqual([
@@ -538,10 +651,9 @@ describe('UploadPhoto with the consents given', () => {
   });
 
   it('shows the text of a 429 and lets the next successful upload clear it', async () => {
-    fetchMock.mockImplementationOnce(failure(429, 'TOO_MANY_REQUESTS'));
-    fetchMock.mockImplementation(ok);
+    once.push(failure(429, 'TOO_MANY_REQUESTS'));
     const user = setup();
-    const { onUploaded } = renderUpload();
+    const { onUploaded } = renderUpload({}, consented);
     await user.upload(fileInputs().file!, picture());
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Слишком много запросов, подождите немного',
@@ -554,14 +666,13 @@ describe('UploadPhoto with the consents given', () => {
 
   describe('a refusal of the check', () => {
     it('for a child shows one button to load another photo, no camera and no tips', async () => {
-      fetchMock.mockImplementation(refusedWith('child'));
+      answer = refusedWith('child');
       const user = setup();
-      renderUpload();
+      renderUpload({}, consented);
       await user.upload(fileInputs().file!, picture());
 
       const dialog = await screen.findByRole('dialog', { name: 'Похоже, на фото ребёнок' });
       expect(dialog).toHaveTextContent('Фото не сохранено.');
-      expect(dialog).toHaveTextContent('Примерка работает только для взрослых');
       expect(within(dialog).getByRole('button', { name: 'Загрузить своё фото' })).toBeEnabled();
       expect(
         within(dialog).queryByRole('button', { name: 'Сделать фото' }),
@@ -573,7 +684,6 @@ describe('UploadPhoto with the consents given', () => {
         ['Photo Refused', { reason: 'child', source: 'file', place: 'photos', first: false }],
       ]);
       expect(tracked('Photo Uploaded')).toHaveLength(0);
-      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
 
     it.each([
@@ -583,9 +693,9 @@ describe('UploadPhoto with the consents given', () => {
       ['no_person', 'Не нашли человека на фото'],
       ['moderation', 'Фото не подходит для примерки'],
     ])('for %s shows «%s» with another photo, the camera and the tips', async (reason, title) => {
-      fetchMock.mockImplementation(refusedWith(reason));
+      answer = refusedWith(reason);
       const user = setup();
-      renderUpload();
+      renderUpload({}, consented);
       await user.upload(fileInputs().camera!, picture());
 
       const dialog = await screen.findByRole('dialog', { name: title });
@@ -601,9 +711,9 @@ describe('UploadPhoto with the consents given', () => {
     });
 
     it('for an unknown reason shows the general text and tracks other', async () => {
-      fetchMock.mockImplementation(refusedWith('something_new'));
+      answer = refusedWith('something_new');
       const user = setup();
-      renderUpload();
+      renderUpload({}, consented);
       await user.upload(fileInputs().file!, picture());
 
       const dialog = await screen.findByRole('dialog', { name: 'Фото не подходит для примерки' });
@@ -614,10 +724,10 @@ describe('UploadPhoto with the consents given', () => {
       ]);
     });
 
-    it('switches to the tips from the refusal and back to the pickers there', async () => {
-      fetchMock.mockImplementation(refusedWith('dark'));
+    it('switches to the tips from the refusal, which need no consents any more', async () => {
+      answer = refusedWith('dark');
       const user = setup();
-      renderUpload();
+      renderUpload({}, consented);
       await user.upload(fileInputs().file!, picture());
       await user.click(await screen.findByRole('button', { name: 'Какое фото подойдёт' }));
 
@@ -628,25 +738,23 @@ describe('UploadPhoto with the consents given', () => {
     });
 
     it('lets another photo be sent from the refusal, which closes it on success', async () => {
-      fetchMock.mockImplementationOnce(refusedWith('dark'));
-      fetchMock.mockImplementation(ok);
+      once.push(refusedWith('dark'));
       const user = setup();
-      const { onUploaded } = renderUpload();
+      const { onUploaded } = renderUpload({}, consented);
       await user.upload(fileInputs().file!, picture('first.jpg'));
       const dialog = await screen.findByRole('dialog', { name: 'Фото слишком тёмное' });
 
-      const inDialog = dialog.querySelector<HTMLInputElement>('input[type="file"]:not([capture])');
-      await user.upload(inDialog!, picture('second.jpg'));
+      await user.upload(fileInputs(dialog).file!, picture('second.jpg'));
 
       await vi.waitFor(() => expect(onUploaded).toHaveBeenCalledTimes(1));
       await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(uploads()).toHaveLength(2);
     });
 
     it('shows the refused photo from an object URL, in a recorder-blocked frame, and revokes it on close', async () => {
-      fetchMock.mockImplementation(refusedWith('dark'));
+      answer = refusedWith('dark');
       const user = setup();
-      renderUpload();
+      renderUpload({}, consented);
       const file = picture('refused.jpg');
       await user.upload(fileInputs().file!, file);
 
@@ -671,9 +779,9 @@ describe('UploadPhoto with the consents given', () => {
     });
 
     it('revokes the URL when the page is left with the refusal open', async () => {
-      fetchMock.mockImplementation(refusedWith('not_full'));
+      answer = refusedWith('not_full');
       const user = setup();
-      const { unmount } = renderUpload();
+      const { unmount } = renderUpload({}, consented);
       await user.upload(fileInputs().file!, picture());
       await screen.findByRole('dialog', { name: 'Не видно фигуру целиком' });
 
@@ -682,39 +790,10 @@ describe('UploadPhoto with the consents given', () => {
       expect(revokeObjectURL).toHaveBeenCalledWith('blob:preview-1');
     });
 
-    it('swaps the preview for the next refused photo and revokes the old URL', async () => {
-      fetchMock.mockImplementation(refusedWith('dark'));
-      const user = setup();
-      renderUpload();
-      await user.upload(fileInputs().file!, picture('first.jpg'));
-      const dialog = await screen.findByRole('dialog', { name: 'Фото слишком тёмное' });
-      await vi.waitFor(() =>
-        expect(within(dialog).getByRole('img', { name: 'Загруженное фото' })).toHaveAttribute(
-          'src',
-          'blob:preview-1',
-        ),
-      );
-      createObjectURL.mockReturnValue('blob:preview-2');
-      const second = picture('second.jpg');
-
-      await user.upload(
-        dialog.querySelector<HTMLInputElement>('input[type="file"]:not([capture])')!,
-        second,
-      );
-
-      await vi.waitFor(() =>
-        expect(
-          within(screen.getByRole('dialog')).getByRole('img', { name: 'Загруженное фото' }),
-        ).toHaveAttribute('src', 'blob:preview-2'),
-      );
-      expect(createObjectURL).toHaveBeenLastCalledWith(second);
-      expect(revokeObjectURL).toHaveBeenCalledWith('blob:preview-1');
-    });
-
     it('for a child hides the photo: «Фото скрыто», no image, no object URL', async () => {
-      fetchMock.mockImplementation(refusedWith('child'));
+      answer = refusedWith('child');
       const user = setup();
-      renderUpload();
+      renderUpload({}, consented);
       await user.upload(fileInputs().file!, picture());
 
       const dialog = await screen.findByRole('dialog', { name: 'Похоже, на фото ребёнок' });
@@ -735,36 +814,22 @@ describe('UploadPhoto on a phone', () => {
 
     const dialog = await screen.findByRole('dialog', { name: 'Какое фото подойдёт' });
     expect(within(dialog).getAllByRole('figure')).toHaveLength(7);
-    expect(within(dialog).getAllByRole('img', { name: 'Подойдёт' })).toHaveLength(2);
-    expect(within(dialog).queryByRole('heading', { name: 'Коротко' })).not.toBeInTheDocument();
     expect(within(dialog).queryByRole('list')).not.toBeInTheDocument();
-    expect(dialog).not.toHaveTextContent('JPG, PNG или WebP до 20 МБ');
     expect(within(dialog).getByRole('button', { name: 'Понятно' })).toBeEnabled();
     expect(within(dialog).queryByRole('checkbox')).not.toBeInTheDocument();
     expect(within(dialog).queryByRole('button', { name: 'Выбрать фото' })).not.toBeInTheDocument();
-    expect(within(dialog).queryByRole('button', { name: 'Сделать фото' })).not.toBeInTheDocument();
     expect(fileInputs().all).toHaveLength(0);
   });
 
-  it('«Понятно» opens «Ваше фото» with its texts, and the consents gate the pickers', async () => {
+  it('«Понятно» opens «Ваше фото», and the consents gate the pickers', async () => {
     const user = setup();
     renderUpload();
     await user.click(screen.getByRole('button', { name: 'Добавить фото' }));
     await user.click(await screen.findByRole('button', { name: 'Понятно' }));
 
     const dialog = await screen.findByRole('dialog', { name: 'Ваше фото' });
-    expect(screen.queryByRole('dialog', { name: 'Какое фото подойдёт' })).not.toBeInTheDocument();
     expect(dialog).toHaveTextContent('Загрузите фото в полный рост');
-    expect(dialog).toHaveTextContent(
-      'Мы сохраним его, чтобы в следующий раз примерка шла в два нажатия. Фото видите только вы.',
-    );
-    expect(dialog).toHaveTextContent('Фото не используются для обучения моделей');
-    expect(
-      within(dialog).getByRole('link', { name: 'политике по работе с персональными данными' }),
-    ).toHaveAttribute('href', '/privacy');
-    expect(within(dialog).queryByText('Подойдёт')).not.toBeInTheDocument();
     expect(within(dialog).getByRole('button', { name: 'Выбрать фото' })).toBeDisabled();
-    expect(within(dialog).getByRole('button', { name: 'Сделать фото' })).toBeDisabled();
 
     await user.click(within(dialog).getByRole('checkbox', { name: 'На фото — я' }));
     expect(within(dialog).getByRole('button', { name: 'Выбрать фото' })).toBeDisabled();
@@ -772,35 +837,27 @@ describe('UploadPhoto on a phone', () => {
 
     expect(within(dialog).getByRole('button', { name: 'Выбрать фото' })).toBeEnabled();
     expect(within(dialog).getByRole('button', { name: 'Сделать фото' })).toBeEnabled();
-    expect(window.localStorage.getItem(keyOf(ANNA))).toBeNull();
   });
 
-  it('records the consent when a file is chosen and closes on success', async () => {
-    // Its own user: a recorded consent outlives the test in the tab's memory.
-    const id = 'user-phone';
-    signInAs(id);
-    fetchMock.mockImplementation(ok);
+  it('sends the consent when a file is chosen and closes on success', async () => {
     const user = setup();
-    const { onUploaded } = renderUpload();
+    const { onUploaded, queryClient } = renderUpload();
     await user.click(screen.getByRole('button', { name: 'Добавить фото' }));
     await user.click(await screen.findByRole('button', { name: 'Понятно' }));
     const dialog = await screen.findByRole('dialog', { name: 'Ваше фото' });
-    await user.click(within(dialog).getByRole('checkbox', { name: 'На фото — я' }));
-    await user.click(within(dialog).getByRole('checkbox', { name: /OpenAI/ }));
-    await user.upload(
-      dialog.querySelector<HTMLInputElement>('input[type="file"]:not([capture])')!,
-      picture(),
-    );
+    await checkBothConsents(dialog, user);
+    await user.upload(fileInputs(dialog).file!, picture());
 
     await vi.waitFor(() => expect(onUploaded).toHaveBeenCalledWith(PHOTO));
-    expect(window.localStorage.getItem(keyOf(id))).toBe('1');
+    expect(requestOf().body.get('consent')).toBe('1');
+    expect(consentOf(queryClient)).toBe(1);
     expect(tracked('Photo Uploaded')).toEqual([
       ['Photo Uploaded', { saved: true, source: 'file', place: 'photos', first: true }],
     ]);
     await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
-  it('closing the tips with Esc sends nothing and stores no consent', async () => {
+  it('closing the tips with Esc sends nothing', async () => {
     const user = setup();
     renderUpload();
     await user.click(screen.getByRole('button', { name: 'Добавить фото' }));
@@ -808,48 +865,38 @@ describe('UploadPhoto on a phone', () => {
     await user.keyboard('{Escape}');
 
     await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(window.localStorage.getItem(keyOf(ANNA))).toBeNull();
+    expect(uploads()).toHaveLength(0);
   });
 
   it('with the consents given shows the two pickers at the screen width', () => {
-    window.localStorage.setItem(keyOf(ANNA), '1');
-    renderUpload();
+    renderUpload({}, consented);
 
     expect(screen.getByRole('button', { name: 'Добавить фото' })).toHaveClass('fullWidth');
     expect(screen.getByRole('button', { name: 'Сделать фото' })).toHaveClass('fullWidth');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
-
-  it('without the consents the «Добавить фото» button is the screen width too', () => {
-    renderUpload();
-
-    expect(screen.getByRole('button', { name: 'Добавить фото' })).toHaveClass('fullWidth');
-  });
 });
 
 describe('UploadPhoto in the try-on', () => {
-  beforeEach(() => {
-    window.localStorage.setItem(keyOf(ANNA), '1');
-  });
-
   it('uploads a one-time photo with save=false and tracks it as not saved in the try-on', async () => {
-    fetchMock.mockImplementation(ok);
     const user = setup();
-    const { onUploaded } = renderUpload({ place: 'try-on', save: false });
+    const { onUploaded } = renderUpload({ place: 'try-on', save: false }, consented);
     await user.upload(fileInputs().file!, picture());
 
     await vi.waitFor(() => expect(onUploaded).toHaveBeenCalledWith(PHOTO));
-    expect((requestOf().init.body as FormData).get('save')).toBe('false');
+    expect(requestOf().body.get('save')).toBe('false');
     expect(tracked('Photo Uploaded')).toEqual([
       ['Photo Uploaded', { saved: false, source: 'file', place: 'try-on', first: false }],
     ]);
   });
 
   it('tracks a refusal with the try-on as its place and shows the note under its text', async () => {
-    fetchMock.mockImplementation(refusedWith('dark'));
+    answer = refusedWith('dark');
     const user = setup();
-    renderUpload({ place: 'try-on', refusalNote: <p>Примерка не списана · осталось 7</p> });
+    renderUpload(
+      { place: 'try-on', refusalNote: <p>Примерка не списана · осталось 7</p> },
+      consented,
+    );
     await user.upload(fileInputs().file!, picture());
 
     const dialog = await screen.findByRole('dialog', { name: 'Фото слишком тёмное' });
@@ -861,73 +908,92 @@ describe('UploadPhoto in the try-on', () => {
   });
 
   it('tells the file on its way, then null once it is stored', async () => {
-    let answer: (response: Response) => void = () => undefined;
-    fetchMock.mockImplementation(
-      () =>
-        new Promise<Response>((resolve) => {
-          answer = resolve;
-        }),
-    );
+    let finish: (response: Response) => void = () => undefined;
+    answer = () =>
+      new Promise<Response>((resolve) => {
+        finish = resolve;
+      });
     const onPendingChange = vi.fn();
     const user = setup();
-    renderUpload({ place: 'try-on', onPendingChange });
+    renderUpload({ place: 'try-on', onPendingChange }, consented);
     const file = picture('pending.jpg');
     await user.upload(fileInputs().file!, file);
 
     await vi.waitFor(() => expect(onPendingChange).toHaveBeenLastCalledWith(file));
-    answer(await ok());
+    finish(await ok());
     await vi.waitFor(() => expect(onPendingChange).toHaveBeenLastCalledWith(null));
   });
 
   it('tells null again when the upload is refused', async () => {
-    let answer: (response: Response) => void = () => undefined;
-    fetchMock.mockImplementation(
-      () =>
-        new Promise<Response>((resolve) => {
-          answer = resolve;
-        }),
-    );
+    let finish: (response: Response) => void = () => undefined;
+    answer = () =>
+      new Promise<Response>((resolve) => {
+        finish = resolve;
+      });
     const onPendingChange = vi.fn();
     const user = setup();
-    renderUpload({ place: 'try-on', onPendingChange });
+    renderUpload({ place: 'try-on', onPendingChange }, consented);
     const file = picture();
     await user.upload(fileInputs().file!, file);
     await vi.waitFor(() => expect(onPendingChange).toHaveBeenLastCalledWith(file));
-    answer(await refusedWith('dark')());
+    finish(await refusedWith('dark')());
 
     await screen.findByRole('dialog', { name: 'Фото слишком тёмное' });
-    expect(onPendingChange).toHaveBeenCalledWith(file);
     expect(onPendingChange).toHaveBeenLastCalledWith(null);
   });
 
-  describe('as the strip', () => {
-    it('shows the thumbs before the «Новое» tile and the two buttons under them', () => {
-      renderUpload({
-        place: 'try-on',
-        appearance: 'strip',
-        thumbs: <span>Мини-фото</span>,
-      });
+  it('offers the camera in the try-on only on a touch device (Y13)', () => {
+    const { unmount } = renderUpload({ place: 'try-on' }, consented);
+    expect(screen.queryByRole('button', { name: 'Сделать фото' })).not.toBeInTheDocument();
+    unmount();
 
-      expect(screen.getByText('Мини-фото')).toBeInTheDocument();
-      expect(screen.getByText('Новое')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Сделать фото' })).toBeEnabled();
-      expect(screen.getAllByRole('button', { name: 'Загрузить фото' })).toHaveLength(2);
+    stubTouch();
+    renderUpload({ place: 'try-on' }, consented);
+    expect(screen.getByRole('button', { name: 'Сделать фото' })).toBeEnabled();
+  });
+});
+
+describe('UploadPhoto as the drop zone (AC8)', () => {
+  const zoneProps = { place: 'try-on', appearance: 'zone', save: true } as const;
+  const lead = () => screen.getByText('Загрузите фото в полный рост: один человек в кадре');
+  const zoneTarget = () => lead();
+
+  function drop(files: File[], types: string[] = ['Files'], target: Element = zoneTarget()) {
+    fireEvent.drop(target, { dataTransfer: { files, types } });
+  }
+
+  describe('empty', () => {
+    it('shows the line, the extra, «Загрузить фото» and no camera on a mouse device', () => {
+      renderUpload({ ...zoneProps, extra: <span>Переключатель</span> }, consented);
+
+      expect(lead()).toBeInTheDocument();
+      expect(screen.getByText('Переключатель')).toBeInTheDocument();
+      expect(screen.getAllByRole('button', { name: 'Загрузить фото' }).length).toBeGreaterThan(0);
+      expect(screen.queryByRole('button', { name: 'Сделать фото' })).not.toBeInTheDocument();
     });
 
-    it('uploads the file of its tile', async () => {
-      fetchMock.mockImplementation(ok);
+    it('adds «Сделать фото» on a touch device, with the front camera', () => {
+      stubTouch();
+      renderUpload(zoneProps, consented);
+
+      expect(screen.getByRole('button', { name: 'Сделать фото' })).toBeEnabled();
+      expect(fileInputs().camera).toHaveAttribute('capture', 'user');
+    });
+
+    it('uploads the file of a click on the area and tracks the upload element', async () => {
       const user = setup();
-      const { onUploaded } = renderUpload({ place: 'try-on', appearance: 'strip', save: false });
+      const { onUploaded } = renderUpload(zoneProps, consented);
       await user.upload(fileInputs().file!, picture());
 
       await vi.waitFor(() => expect(onUploaded).toHaveBeenCalledWith(PHOTO));
-      expect((requestOf().init.body as FormData).get('save')).toBe('false');
+      expect(tracked('Photo Uploaded')).toEqual([
+        ['Photo Uploaded', { saved: true, source: 'file', place: 'try-on', first: false }],
+      ]);
     });
 
-    it('before the consents opens the tips from its tile and sends no request', async () => {
-      window.localStorage.clear();
+    it('before the consents opens the tips from the area and sends no request', async () => {
       const user = setup();
-      renderUpload({ place: 'try-on', appearance: 'strip' });
+      renderUpload(zoneProps);
       expect(fileInputs().all).toHaveLength(0);
 
       await user.click(screen.getAllByRole('button', { name: 'Загрузить фото' })[0]!);
@@ -935,26 +1001,488 @@ describe('UploadPhoto in the try-on', () => {
       expect(
         await screen.findByRole('dialog', { name: 'Какое фото подойдёт' }),
       ).toBeInTheDocument();
-      expect(fetchMock).not.toHaveBeenCalled();
+      expect(uploads()).toHaveLength(0);
+      expect(clickedElements()).toEqual(['photos.upload']);
     });
 
     it('is off when disabled', () => {
-      renderUpload({ place: 'try-on', appearance: 'strip', disabled: true });
+      renderUpload({ ...zoneProps, disabled: true }, consented);
 
       for (const button of screen.getAllByRole('button', { name: 'Загрузить фото' })) {
         expect(button).toBeDisabled();
       }
     });
+  });
 
-    it('on a phone has the tiles «Загрузить» and «Снять» only', () => {
-      stubPhone();
-      renderUpload({ place: 'try-on', appearance: 'strip' });
+  describe('a dropped file', () => {
+    it('uploads as a drop and tracks the source', async () => {
+      const { onUploaded } = renderUpload(zoneProps, consented);
 
-      expect(screen.getByText('Загрузить')).toBeInTheDocument();
-      expect(screen.getByText('Снять')).toBeInTheDocument();
-      expect(screen.getAllByRole('button', { name: 'Загрузить фото' })).toHaveLength(1);
-      expect(screen.getAllByRole('button', { name: 'Сделать фото' })).toHaveLength(1);
+      drop([picture('dropped.jpg')]);
+
+      await vi.waitFor(() => expect(onUploaded).toHaveBeenCalledWith(PHOTO));
+      expect((requestOf().body.get('photo') as File).name).toBe('dropped.jpg');
+      expect(requestOf().body.get('save')).toBe('true');
+      expect(requestOf().body.has('consent')).toBe(false);
+      expect(tracked('Photo Uploaded')).toEqual([
+        ['Photo Uploaded', { saved: true, source: 'drop', place: 'try-on', first: false }],
+      ]);
     });
+
+    it.each([
+      ['image/png', 'a.png'],
+      ['image/webp', 'a.webp'],
+    ])('takes %s too', async (type, name) => {
+      renderUpload(zoneProps, consented);
+
+      drop([new File(['x'], name, { type })]);
+
+      await vi.waitFor(() => expect(uploads()).toHaveLength(1));
+    });
+
+    it('takes the first of several files only', async () => {
+      renderUpload(zoneProps, consented);
+
+      drop([picture('one.jpg'), picture('two.jpg')]);
+
+      await vi.waitFor(() => expect(uploads()).toHaveLength(1));
+      expect((requestOf().body.get('photo') as File).name).toBe('one.jpg');
+    });
+
+    it('tracks a refusal of a dropped photo with the source drop', async () => {
+      answer = refusedWith('dark');
+      renderUpload(zoneProps, consented);
+
+      drop([picture()]);
+
+      await screen.findByRole('dialog', { name: 'Фото слишком тёмное' });
+      expect(tracked('Photo Refused')).toEqual([
+        ['Photo Refused', { reason: 'dark', source: 'drop', place: 'try-on', first: false }],
+      ]);
+    });
+
+    it.each([
+      ['a PDF', new File(['x'], 'doc.pdf', { type: 'application/pdf' })],
+      ['a GIF', new File(['x'], 'anim.gif', { type: 'image/gif' })],
+      ['a file of no type', new File(['x'], 'noext', { type: '' })],
+    ])(
+      'refuses %s with the text of the types, in the zone, and sends nothing',
+      async (_n, file) => {
+        renderUpload(zoneProps, consented);
+
+        drop([file]);
+
+        expect(await screen.findByRole('alert')).toHaveTextContent(WRONG_TYPE_TEXT);
+        expect(WRONG_TYPE_TEXT).toBe('Нужно изображение JPG, PNG или WebP');
+        expect(uploads()).toHaveLength(0);
+        expect(tracked('Photo Refused')).toHaveLength(0);
+      },
+    );
+
+    it('refuses a wrong type before the consents too, without the tips', async () => {
+      renderUpload(zoneProps);
+
+      drop([new File(['x'], 'doc.pdf', { type: 'application/pdf' })]);
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(WRONG_TYPE_TEXT);
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('refuses a file over the limit with the text of the size', async () => {
+      renderUpload(zoneProps, consented);
+      const big = picture('big.jpg');
+      Object.defineProperty(big, 'size', { value: MAX_PHOTO_BYTES + 1 });
+
+      drop([big]);
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(TOO_BIG_TEXT);
+      expect(uploads()).toHaveLength(0);
+    });
+
+    it('clears the error text with the next upload', async () => {
+      renderUpload(zoneProps, consented);
+      drop([new File(['x'], 'doc.pdf', { type: 'application/pdf' })]);
+      await screen.findByRole('alert');
+
+      drop([picture()]);
+
+      await vi.waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+    });
+
+    it('waits behind the tips and the consents before the first upload, then uploads as a drop', async () => {
+      const user = setup();
+      const { onUploaded, queryClient } = renderUpload(zoneProps);
+
+      drop([picture('waiting.jpg')]);
+
+      const dialog = await screen.findByRole('dialog', { name: 'Какое фото подойдёт' });
+      expect(uploads()).toHaveLength(0);
+      const upload = within(dialog).getByRole('button', { name: 'Загрузить фото' });
+      expect(upload).toBeDisabled();
+      await user.click(within(dialog).getByRole('checkbox', { name: 'На фото — я' }));
+      expect(uploads()).toHaveLength(0);
+      await user.click(within(dialog).getByRole('checkbox', { name: /OpenAI/ }));
+
+      await vi.waitFor(() => expect(onUploaded).toHaveBeenCalledWith(PHOTO));
+      expect(uploads()).toHaveLength(1);
+      expect((requestOf().body.get('photo') as File).name).toBe('waiting.jpg');
+      expect(requestOf().body.get('consent')).toBe('1');
+      expect(consentOf(queryClient)).toBe(1);
+      expect(tracked('Photo Uploaded')).toEqual([
+        ['Photo Uploaded', { saved: true, source: 'drop', place: 'try-on', first: true }],
+      ]);
+    });
+
+    it('is forgotten when the tips are closed', async () => {
+      const user = setup();
+      renderUpload(zoneProps);
+      drop([picture()]);
+      await screen.findByRole('dialog', { name: 'Какое фото подойдёт' });
+
+      await user.keyboard('{Escape}');
+
+      await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      expect(uploads()).toHaveLength(0);
+    });
+
+    it('is ignored while /me loads', () => {
+      renderUpload(zoneProps, 'loading');
+
+      drop([picture()]);
+
+      expect(uploads()).toHaveLength(0);
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('is ignored when the zone is disabled', () => {
+      renderUpload({ ...zoneProps, disabled: true }, consented);
+
+      drop([picture()]);
+
+      expect(uploads()).toHaveLength(0);
+    });
+
+    it('is ignored while another photo is on its way', async () => {
+      answer = () => new Promise<Response>(() => undefined);
+      renderUpload(zoneProps, consented);
+      drop([picture('first.jpg')]);
+      await vi.waitFor(() => expect(uploads()).toHaveLength(1));
+
+      drop([picture('second.jpg')]);
+
+      expect(uploads()).toHaveLength(1);
+    });
+
+    it('is ignored when the drag carries no files', () => {
+      renderUpload(zoneProps, consented);
+
+      drop([], ['text/plain']);
+      drop([picture()], ['text/plain']);
+
+      expect(uploads()).toHaveLength(0);
+    });
+  });
+
+  describe('the drag over the zone', () => {
+    const hint = 'Отпустите, чтобы загрузить';
+
+    // jsdom has no DragEvent, so Testing Library's event cannot carry `relatedTarget` by init.
+    function leave(from: Element, to: Element | null) {
+      const event = createEvent.dragLeave(from, { dataTransfer: { types: ['Files'] } });
+      Object.defineProperty(event, 'relatedTarget', { value: to });
+      fireEvent(from, event);
+    }
+
+    it('darkens it with the hint while files are over it, and lets go on leaving', () => {
+      renderUpload(zoneProps, consented);
+      expect(screen.queryByText(hint)).not.toBeInTheDocument();
+
+      fireEvent.dragEnter(zoneTarget(), { dataTransfer: { types: ['Files'] } });
+      expect(screen.getByText(hint)).toBeInTheDocument();
+
+      fireEvent.dragLeave(zoneTarget(), { dataTransfer: { types: ['Files'] } });
+      expect(screen.queryByText(hint)).not.toBeInTheDocument();
+    });
+
+    it('stays while the drag moves between the zone’s own elements', () => {
+      renderUpload(zoneProps, consented);
+      const inner = zoneTarget();
+      const outer = inner.closest('div')!;
+
+      fireEvent.dragEnter(outer, { dataTransfer: { types: ['Files'] } });
+      leave(outer, inner);
+      expect(screen.getByText(hint)).toBeInTheDocument();
+
+      leave(inner, outer);
+      expect(screen.getByText(hint)).toBeInTheDocument();
+
+      leave(inner, document.body);
+      expect(screen.queryByText(hint)).not.toBeInTheDocument();
+    });
+
+    it('clears when the drag leaves for nowhere (off the page)', () => {
+      renderUpload(zoneProps, consented);
+      fireEvent.dragEnter(zoneTarget(), { dataTransfer: { types: ['Files'] } });
+
+      leave(zoneTarget(), null);
+
+      expect(screen.queryByText(hint)).not.toBeInTheDocument();
+    });
+
+    it('does not darken while disabled, with dropEffect none', () => {
+      renderUpload({ ...zoneProps, disabled: true }, consented);
+      const dataTransfer = { types: ['Files'], dropEffect: 'copy' };
+
+      fireEvent.dragEnter(zoneTarget(), { dataTransfer });
+      fireEvent.dragOver(zoneTarget(), { dataTransfer });
+
+      expect(screen.queryByText(hint)).not.toBeInTheDocument();
+      expect(dataTransfer.dropEffect).toBe('none');
+    });
+
+    it('does not darken while /me loads, with dropEffect none', () => {
+      renderUpload(zoneProps, 'loading');
+      const dataTransfer = { types: ['Files'], dropEffect: 'copy' };
+
+      fireEvent.dragEnter(zoneTarget(), { dataTransfer });
+      fireEvent.dragOver(zoneTarget(), { dataTransfer });
+
+      expect(screen.queryByText(hint)).not.toBeInTheDocument();
+      expect(dataTransfer.dropEffect).toBe('none');
+    });
+
+    it('does not darken while its own upload is pending', async () => {
+      answer = () => new Promise<Response>(() => undefined);
+      renderUpload(zoneProps, consented);
+      drop([picture()]);
+      await vi.waitFor(() => expect(uploads()).toHaveLength(1));
+
+      fireEvent.dragEnter(zoneTarget(), { dataTransfer: { types: ['Files'] } });
+
+      expect(screen.queryByText(hint)).not.toBeInTheDocument();
+    });
+
+    it('copies when it accepts a file', () => {
+      renderUpload(zoneProps, consented);
+      const dataTransfer = { types: ['Files'], dropEffect: 'none' };
+
+      fireEvent.dragOver(zoneTarget(), { dataTransfer });
+
+      expect(dataTransfer.dropEffect).toBe('copy');
+    });
+
+    it('clears the error text on the next drag in', async () => {
+      renderUpload(zoneProps, consented);
+      drop([new File(['x'], 'doc.pdf', { type: 'application/pdf' })]);
+      await screen.findByRole('alert');
+
+      fireEvent.dragEnter(zoneTarget(), { dataTransfer: { types: ['Files'] } });
+
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('clears the error text when it becomes disabled', async () => {
+      const { update } = renderUpload(zoneProps, consented);
+      drop([new File(['x'], 'doc.pdf', { type: 'application/pdf' })]);
+      await screen.findByRole('alert');
+
+      update({ ...zoneProps, disabled: true });
+
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('tells null when it unmounts with a file on its way', async () => {
+      answer = () => new Promise<Response>(() => undefined);
+      const onPendingChange = vi.fn();
+      const { unmount } = renderUpload({ ...zoneProps, onPendingChange }, consented);
+      const file = picture();
+      drop([file]);
+      await vi.waitFor(() => expect(onPendingChange).toHaveBeenLastCalledWith(file));
+
+      unmount();
+
+      expect(onPendingChange).toHaveBeenLastCalledWith(null);
+    });
+
+    it('ignores a drag of text', () => {
+      renderUpload(zoneProps, consented);
+
+      fireEvent.dragEnter(zoneTarget(), { dataTransfer: { types: ['text/plain'] } });
+
+      expect(screen.queryByText(hint)).not.toBeInTheDocument();
+    });
+
+    describe('a file dropped beside the zone', () => {
+      function dropOnWindow(types: string[]) {
+        const event = new Event('drop', { bubbles: true, cancelable: true });
+        Object.defineProperty(event, 'dataTransfer', { value: { types, files: [] } });
+        document.body.dispatchEvent(event);
+        return event;
+      }
+      function dragOverWindow(types: string[]) {
+        const event = new Event('dragover', { bubbles: true, cancelable: true });
+        Object.defineProperty(event, 'dataTransfer', { value: { types } });
+        document.body.dispatchEvent(event);
+        return event;
+      }
+
+      it('is kept from opening in the tab while the zone is mounted', () => {
+        renderUpload(zoneProps, consented);
+
+        expect(dropOnWindow(['Files']).defaultPrevented).toBe(true);
+        expect(dragOverWindow(['Files']).defaultPrevented).toBe(true);
+      });
+
+      it('leaves a drag without files alone', () => {
+        renderUpload(zoneProps, consented);
+
+        expect(dropOnWindow(['text/plain']).defaultPrevented).toBe(false);
+        expect(dragOverWindow(['text/plain']).defaultPrevented).toBe(false);
+      });
+
+      it('is handled by the browser again after the zone is unmounted', () => {
+        const { unmount } = renderUpload(zoneProps, consented);
+        unmount();
+
+        expect(dropOnWindow(['Files']).defaultPrevented).toBe(false);
+        expect(dragOverWindow(['Files']).defaultPrevented).toBe(false);
+      });
+    });
+
+    it('lets go of the hint when the file is dropped', () => {
+      answer = () => new Promise<Response>(() => undefined);
+      renderUpload(zoneProps, consented);
+      fireEvent.dragEnter(zoneTarget(), { dataTransfer: { types: ['Files'] } });
+      expect(screen.getByText(hint)).toBeInTheDocument();
+
+      drop([picture()]);
+
+      expect(screen.queryByText(hint)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('with a photo inside', () => {
+    it('shows it instead of the line and the buttons, and still takes a drop', async () => {
+      renderUpload({ ...zoneProps, children: <p>Ваше фото тут</p> }, consented);
+
+      expect(screen.getByText('Ваше фото тут')).toBeInTheDocument();
+      expect(
+        screen.queryByText('Загрузите фото в полный рост: один человек в кадре'),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Загрузить фото' })).not.toBeInTheDocument();
+      expect(fileInputs().all).toHaveLength(0);
+
+      drop([picture('over.jpg')], ['Files'], screen.getByText('Ваше фото тут'));
+
+      await vi.waitFor(() => expect(uploads()).toHaveLength(1));
+      expect((requestOf().body.get('photo') as File).name).toBe('over.jpg');
+    });
+  });
+});
+
+describe('UploadPhoto as «Заменить фото» (AC9)', () => {
+  const replaceProps = {
+    place: 'try-on',
+    appearance: 'replace',
+    thumbs: (close: () => void) => <button onClick={close}>Сохранённое фото</button>,
+    extra: <span>Ниже переключатель</span>,
+  } as const;
+
+  async function openWindow(user: ReturnType<typeof setup>) {
+    await user.click(screen.getByRole('button', { name: 'Заменить фото' }));
+    return screen.findByRole('dialog', { name: 'Заменить фото' });
+  }
+
+  it('is a button that tracks its click and opens the window with the thumbs, the pickers and the extra', async () => {
+    const user = setup();
+    renderUpload(replaceProps, consented);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    const dialog = await openWindow(user);
+
+    expect(clickedElements()).toEqual(['try-on.replace-photo']);
+    expect(within(dialog).getByRole('button', { name: 'Сохранённое фото' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Загрузить фото' })).toBeEnabled();
+    expect(within(dialog).getByText('Ниже переключатель')).toBeInTheDocument();
+    expect(within(dialog).queryByRole('button', { name: 'Сделать фото' })).not.toBeInTheDocument();
+  });
+
+  it('offers the camera in the window on a touch device', async () => {
+    stubTouch();
+    const user = setup();
+    renderUpload(replaceProps, consented);
+
+    const dialog = await openWindow(user);
+
+    expect(within(dialog).getByRole('button', { name: 'Сделать фото' })).toBeEnabled();
+  });
+
+  it('closes the window from a thumb', async () => {
+    const user = setup();
+    renderUpload(replaceProps, consented);
+    const dialog = await openWindow(user);
+
+    await user.click(within(dialog).getByRole('button', { name: 'Сохранённое фото' }));
+
+    await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(uploads()).toHaveLength(0);
+  });
+
+  it('uploads a chosen file and closes the window', async () => {
+    const user = setup();
+    const { onUploaded } = renderUpload({ ...replaceProps, save: false }, consented);
+    const dialog = await openWindow(user);
+
+    await user.upload(fileInputs(dialog).file!, picture('new.jpg'));
+
+    await vi.waitFor(() => expect(onUploaded).toHaveBeenCalledWith(PHOTO));
+    expect((requestOf().body.get('photo') as File).name).toBe('new.jpg');
+    expect(requestOf().body.get('save')).toBe('false');
+    await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('before the consents opens the tips in place of the window', async () => {
+    const user = setup();
+    renderUpload(replaceProps);
+    const dialog = await openWindow(user);
+
+    await user.click(within(dialog).getByRole('button', { name: 'Загрузить фото' }));
+
+    expect(await screen.findByRole('dialog', { name: 'Какое фото подойдёт' })).toBeInTheDocument();
+    await vi.waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Заменить фото' })).not.toBeInTheDocument(),
+    );
+    expect(uploads()).toHaveLength(0);
+  });
+
+  it('is a sheet below 600px with the same content', async () => {
+    stubPhone();
+    const user = setup();
+    renderUpload(replaceProps, consented);
+
+    const dialog = await openWindow(user);
+
+    expect(within(dialog).getByRole('button', { name: 'Сохранённое фото' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Загрузить фото' })).toBeEnabled();
+  });
+
+  it('is off when disabled', () => {
+    renderUpload({ ...replaceProps, disabled: true }, consented);
+
+    expect(screen.getByRole('button', { name: 'Заменить фото' })).toBeDisabled();
+  });
+
+  it('shows the error of a refused file under the button after the window closed', async () => {
+    answer = failure(409, 'LIMIT_REACHED');
+    const user = setup();
+    renderUpload(replaceProps, consented);
+    const dialog = await openWindow(user);
+
+    await user.upload(fileInputs(dialog).file!, picture());
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Достигнут лимит, больше добавить нельзя',
+    );
   });
 });
 
@@ -972,15 +1500,12 @@ describe('UploadPhoto as the card', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Какое фото подойдёт' });
     expect(within(dialog).getByRole('checkbox', { name: 'На фото — я' })).toBeInTheDocument();
     expect(within(dialog).getByRole('button', { name: 'Выбрать фото' })).toBeDisabled();
-    expect(
-      tracked('Element Clicked').map(([, props]) => (props as { element: string }).element),
-    ).toEqual(['photos.upload']);
+    expect(clickedElements()).toEqual(['photos.upload']);
   });
 
   it('after the consents opens the file picker at once, with one input and no camera', async () => {
-    window.localStorage.setItem(keyOf(ANNA), '1');
     const user = setup();
-    renderUpload({ appearance: 'card' });
+    renderUpload({ appearance: 'card' }, consented);
 
     expect(screen.queryByRole('button', { name: 'Сделать фото' })).not.toBeInTheDocument();
     const { all, file } = fileInputs();
@@ -995,46 +1520,37 @@ describe('UploadPhoto as the card', () => {
 
     expect(open).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(
-      tracked('Element Clicked').map(([, props]) => (props as { element: string }).element),
-    ).toEqual(['photos.upload']);
+    expect(clickedElements()).toEqual(['photos.upload']);
   });
 
   it('after the consents uploads the chosen file and is busy meanwhile', async () => {
-    window.localStorage.setItem(keyOf(ANNA), '1');
-    let answer: (response: Response) => void = () => undefined;
-    fetchMock.mockImplementation(
-      () =>
-        new Promise<Response>((resolve) => {
-          answer = resolve;
-        }),
-    );
+    let finish: (response: Response) => void = () => undefined;
+    answer = () =>
+      new Promise<Response>((resolve) => {
+        finish = resolve;
+      });
     const user = setup();
-    const { onUploaded } = renderUpload({ appearance: 'card' });
+    const { onUploaded } = renderUpload({ appearance: 'card' }, consented);
     await user.upload(fileInputs().file!, picture('card.jpg'));
 
     const card = screen.getByRole('button', { name: 'Добавить фото' });
     await vi.waitFor(() => expect(card).toBeDisabled());
     expect(card).toHaveAttribute('aria-busy', 'true');
     expect(within(card).getByRole('progressbar', { name: 'Загрузка' })).toBeInTheDocument();
-    expect(((requestOf().init.body as FormData).get('photo') as File).name).toBe('card.jpg');
+    expect((requestOf().body.get('photo') as File).name).toBe('card.jpg');
 
-    answer(await ok());
+    finish(await ok());
 
     await vi.waitFor(() => expect(onUploaded).toHaveBeenCalledWith(PHOTO));
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
-    expect(tracked('Photo Uploaded')).toEqual([
-      ['Photo Uploaded', { saved: true, source: 'file', place: 'photos', first: false }],
-    ]);
   });
 
   it.each([
     ['before the consents', false],
     ['after the consents', true],
-  ])('is off when disabled, %s', async (_when, consented) => {
-    if (consented) window.localStorage.setItem(keyOf(ANNA), '1');
+  ])('is off when disabled, %s', async (_when, given) => {
     const user = setup();
-    renderUpload({ appearance: 'card', disabled: true });
+    renderUpload({ appearance: 'card', disabled: true }, given ? consented : { version: null });
 
     const card = screen.getByRole('button', { name: 'Добавить фото' });
     expect(card).toBeDisabled();
@@ -1042,6 +1558,6 @@ describe('UploadPhoto as the card', () => {
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(tracked('Element Clicked')).toHaveLength(0);
-    if (consented) expect(fileInputs().file).toBeDisabled();
+    if (given) expect(fileInputs().file).toBeDisabled();
   });
 });

@@ -1,60 +1,48 @@
-import { useSyncExternalStore } from 'react';
+import type { QueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 
-// The two consents of the first upload (spec 0019 AC2, A46), kept in `localStorage` (plan §7) per
-// user, `fitting-photo-consent:<userId>`: once given, the same user's later uploads in this browser
-// skip the screen, and another person signed in on the same device gives their own (A60). Not an
-// `mp_`/`__mp` key, which the analytics' clearing removes.
-export const CONSENT_KEY_PREFIX = 'fitting-photo-consent:';
-const GIVEN = '1';
+import { type User, userKeys, useMe } from '@/entities/user';
 
-export function consentKey(userId: string): string {
-  return `${CONSENT_KEY_PREFIX}${userId}`;
-}
+// The version of the two consents' text the api takes (`PHOTO_CONSENT_VERSION` of
+// `me/photos/consent.ts`): a new text raises both, and everyone gives the new one once.
+export const PHOTO_CONSENT_VERSION = 1;
 
-const listeners = new Set<() => void>();
-// A consent the browser would not store counts for this tab until it reloads, as a cookie answer
-// does (spec 0008).
-const givenInTab = new Set<string>();
+// Where spec 0019 kept the consents per user in this browser (A60). Spec 0023 Y1 keeps them on the
+// server, so these keys are no longer read: a stale one is removed on sight.
+export const STALE_CONSENT_PREFIX = 'fitting-photo-consent:';
 
-function read(userId: string | undefined): boolean {
-  if (!userId) return false;
-  if (givenInTab.has(userId)) return true;
+let staleRemoved = false;
+
+function removeStaleConsents(): void {
+  if (staleRemoved) return;
+  staleRemoved = true;
   try {
-    return window.localStorage.getItem(consentKey(userId)) === GIVEN;
+    const storage = window.localStorage;
+    const stale: string[] = [];
+    for (let index = 0; index < storage.length; index += 1) {
+      const key = storage.key(index);
+      if (key?.startsWith(STALE_CONSENT_PREFIX)) stale.push(key);
+    }
+    for (const key of stale) storage.removeItem(key);
   } catch {
-    return false;
+    // Storage the browser refuses holds none.
   }
 }
 
-function subscribe(listener: () => void): () => void {
-  listeners.add(listener);
-  // Another tab's consent counts here too.
-  const onStorage = (event: StorageEvent) => {
-    if (event.key === null || event.key.startsWith(CONSENT_KEY_PREFIX)) listener();
-  };
-  window.addEventListener('storage', onStorage);
-  return () => {
-    listeners.delete(listener);
-    window.removeEventListener('storage', onStorage);
-  };
-}
-
-/** Records both consents of this user: the first upload's screen does not show them again here. */
-export function givePhotoConsent(userId: string): void {
-  givenInTab.add(userId);
-  try {
-    window.localStorage.setItem(consentKey(userId), GIVEN);
-  } catch {
-    // Kept for the tab only.
-  }
-  for (const listener of listeners) listener();
-}
-
-/** Whether this user gave both consents in this browser; `false` with no user and on the server. */
-export function usePhotoConsent(userId: string | undefined): boolean {
-  return useSyncExternalStore(
-    subscribe,
-    () => read(userId),
-    () => false,
+/** Puts the consents' version into the cached `/me`: given after an upload that sent them, null
+ * after the api asked for them (`CONSENT_REQUIRED`, a stale tab). */
+export function setPhotoConsent(queryClient: QueryClient, given: boolean): void {
+  queryClient.setQueryData<User>(
+    userKeys.me,
+    (user) => user && { ...user, photoConsentVersion: given ? PHOTO_CONSENT_VERSION : null },
   );
+}
+
+/** Whether the signed-in user gave both consents of the current text (spec 0023 Y1), from
+ * `GET /me`: `undefined` while it loads, `false` when it failed (the upload then sends them). */
+export function usePhotoConsent(): boolean | undefined {
+  const me = useMe();
+  useEffect(removeStaleConsents, []);
+  if (me.data) return me.data.photoConsentVersion === PHOTO_CONSENT_VERSION;
+  return me.isError ? false : undefined;
 }

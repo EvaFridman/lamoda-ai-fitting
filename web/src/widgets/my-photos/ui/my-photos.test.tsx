@@ -3,6 +3,8 @@ import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { userKeys, type User } from '@/entities/user';
+
 import { MyPhotos } from './my-photos';
 
 const mocks = vi.hoisted(() => ({ track: vi.fn(), captureException: vi.fn() }));
@@ -75,8 +77,28 @@ function calls(method: string) {
     .filter((call) => call.method === method);
 }
 
-function renderPhotos() {
+const USER: User = {
+  id: '00000000-0000-4000-8000-000000000001',
+  phone: null,
+  email: 'anna@example.com',
+  firstName: 'Анна',
+  lastName: null,
+  patronymic: null,
+  dateOfBirth: null,
+  gender: null,
+  fittingProfileImageKey: null,
+  fittingProfileImageUrl: null,
+  photoConsentVersion: null,
+  createdAt: '2026-10-01T10:00:00.000Z',
+  updatedAt: '2026-10-01T10:00:00.000Z',
+};
+
+// The user's consents come from `GET /me` (spec 0023 Y1): seeded here, so the upload knows at once
+// whether to show the tips. The photos' list stays fresh-less as before.
+function renderPhotos(photoConsentVersion: number | null = null) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  queryClient.setQueryData(userKeys.me, { ...USER, photoConsentVersion });
+  queryClient.setQueryDefaults(userKeys.me, { staleTime: Infinity });
   return render(
     <QueryClientProvider client={queryClient}>
       <MyPhotos />
@@ -400,6 +422,28 @@ describe('MyPhotos on a wide screen', () => {
     for (const cell of cells.slice(0, 3)) {
       expect(within(cell).queryByRole('button', { name: 'Добавить фото' })).not.toBeInTheDocument();
     }
+  });
+
+  it('asks a user with no stored consents for them before the first upload (AC19)', async () => {
+    api(() => photos(2));
+    const user = setup();
+    renderPhotos(null);
+
+    await user.click(await screen.findByRole('button', { name: 'Добавить фото' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Какое фото подойдёт' });
+    expect(within(dialog).getByRole('checkbox', { name: 'На фото — я' })).not.toBeChecked();
+  });
+
+  it('opens no tips for a user whose /me holds the consents (version 1)', async () => {
+    api(() => photos(2));
+    const user = setup();
+    renderPhotos(1);
+
+    await user.click(await screen.findByRole('button', { name: 'Добавить фото' }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(document.querySelector('input[type="file"]')).not.toBeNull();
   });
 
   it('keeps the card last and off at five photos', async () => {

@@ -8,6 +8,14 @@ export const TOO_BIG_TEXT = 'Файл слишком большой: нужно 
 
 // The file types the picker offers (A31): no HEIC, so iOS hands over a JPEG.
 export const PHOTO_ACCEPT = 'image/jpeg,image/png,image/webp';
+export const WRONG_TYPE_TEXT = 'Нужно изображение JPG, PNG или WebP';
+
+const PHOTO_TYPES = new Set(PHOTO_ACCEPT.split(','));
+
+/** A dropped file of the types the picker offers (the picker's own `accept` filters the rest). */
+export function isPhotoType(file: File): boolean {
+  return PHOTO_TYPES.has(file.type);
+}
 
 /** The text of a failed upload: a detail's own text (`IS_IMAGE`) when the api named one. */
 export function uploadErrorText(error: unknown): string {

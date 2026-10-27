@@ -8,71 +8,148 @@
   align-items: flex-start;
 }
 
-// In the grid of saved photos the card is the cell's width; the picker's strip is its column's.
+// In the grid of saved photos the card is the cell's width; «Заменить фото» is its column's.
 .inCard {
   align-items: stretch;
 }
 
-// Board 3: the saved photos and the dashed tiles in one row, 64×86 (56×75 on a phone).
-.strip {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
+// The drop zone fills the try-on's photo frame.
+.inZone {
+  position: absolute;
+  inset: 0;
 }
 
-.tile {
-  cursor: pointer;
+// Spec 0023 P3: the frame itself takes a dropped file; with no photo it is a dashed area, the «+»
+// and the line in its middle, the pickers and the save switch at its bottom.
+.zone {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
 
+.zoneEmpty {
   display: flex;
-  flex: none;
   flex-direction: column;
-  gap: var(--space-1);
-  align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
 
   box-sizing: border-box;
-  width: 64px;
-  height: 86px;
-  margin: 0;
-  padding: 0;
+  padding: var(--space-4);
   border: var(--border-width) dashed var(--color-border-control);
 
-  font: inherit;
-  font-size: var(--font-size-caption);
-  line-height: 14px;
-  color: var(--color-text);
+  transition: border-color var(--duration-fast);
 
-  background-color: var(--color-background);
+  @media (hover: hover) {
+    &:has(.zoneArea:hover:not(:disabled)) {
+      border-color: var(--color-border-active);
+    }
+  }
+}
+
+// A button over the whole area, under the pickers.
+.zoneArea {
+  cursor: pointer;
+
+  position: absolute;
+  inset: 0;
+
+  margin: 0;
+  padding: 0;
+  border: 0;
+
+  background: none;
 
   &:focus-visible {
     outline: 2px solid var(--color-border-active);
-    outline-offset: 2px;
+    outline-offset: -2px;
   }
 
   &:disabled {
     cursor: default;
-    opacity: 0.4;
-  }
-
-  @media (hover: hover) {
-    &:hover:not(:disabled) {
-      border-color: var(--color-border-active);
-    }
-  }
-
-  @media (width < 600px) {
-    width: 56px;
-    height: 75px;
   }
 }
 
-.stripActions {
+.zoneLead {
+  pointer-events: none;
+
+  position: absolute;
+  inset: 0 var(--space-6) 40%;
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: flex-end;
+
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.zoneBottom {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.zoneActions {
   display: flex;
   gap: var(--space-2);
 
   > * {
     flex: 1;
   }
+}
+
+// A file dragged over the frame darkens it.
+.dragging::after {
+  pointer-events: none;
+  content: '';
+
+  position: absolute;
+  inset: 0;
+
+  background-color: rgb(0 0 0 / 56%);
+}
+
+.dropHint {
+  pointer-events: none;
+
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: var(--space-6);
+
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+  color: #fff;
+  text-align: center;
+}
+
+// A dropped file the zone does not take: its text over the frame's top.
+.zoneError {
+  position: absolute;
+  z-index: 1;
+  inset: var(--space-3) var(--space-3) auto;
+}
+
+// «Заменить фото»'s window: the saved photos, the pickers, the switch and the link.
+.replace {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
 .actions {

@@ -1,16 +1,16 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { type ReactNode, useEffect, useId, useRef, useState } from 'react';
+import { type DragEvent, type ReactNode, useEffect, useId, useRef, useState } from 'react';
 
-import { useSession } from '@/entities/session';
 import { uploadPhoto, userPhotoKeys, type UserPhoto } from '@/entities/user-photo';
 import { track, useTrackedElement } from '@/shared/analytics';
-import { reportFailure } from '@/shared/api';
-import { PHONE_QUERY } from '@/shared/config';
+import { ApiError, reportFailure } from '@/shared/api';
+import { COARSE_POINTER_QUERY, PHONE_QUERY } from '@/shared/config';
 import { useMediaQuery } from '@/shared/lib';
 import {
   Button,
+  type ButtonVariant,
   CameraIcon,
   Checkbox,
   FileInput,
@@ -20,19 +20,27 @@ import {
   Modal,
   Notice,
   PlusIcon,
+  Sheet,
   Spinner,
   UploadIcon,
 } from '@/shared/ui';
 
 import { REFUSAL_TEXTS, refusalReason, type RefusalReason } from '../lib/refusal';
-import { MAX_PHOTO_BYTES, PHOTO_ACCEPT, TOO_BIG_TEXT, uploadErrorText } from '../lib/upload-error';
-import { givePhotoConsent, usePhotoConsent } from '../model/consent';
+import {
+  isPhotoType,
+  MAX_PHOTO_BYTES,
+  PHOTO_ACCEPT,
+  TOO_BIG_TEXT,
+  uploadErrorText,
+  WRONG_TYPE_TEXT,
+} from '../lib/upload-error';
+import { PHOTO_CONSENT_VERSION, setPhotoConsent, usePhotoConsent } from '../model/consent';
 import { PhotoTips } from './photo-tips';
 import { RefusedPreview } from './refused-preview';
 
 import styles from './upload-photo.module.scss';
 
-type Source = 'file' | 'camera';
+type Source = 'file' | 'camera' | 'drop';
 // `choose` is the phone's screen 4.2 after the tips' «Понятно»; on a wide screen the tips hold it.
 type Screen = 'closed' | 'tips' | 'choose' | 'refused';
 
@@ -41,13 +49,28 @@ interface Upload {
   source: Source;
   // Saved among «Мои фото», or a one-time photo.
   save: boolean;
-  // The upload that gave the consents (the analytics' `first`).
+  // The upload that gave the consents (the analytics' `first`): it sends them to the api.
   first: boolean;
+}
+
+// A file chosen or dropped before the consents: it uploads once they are given.
+interface Waiting {
+  file: File;
+  source: Source;
 }
 
 interface Refusal {
   file: File;
   reason: RefusalReason;
+}
+
+// The api asked for the consents: it keeps none of this user's (a tab older than its consent).
+function consentRequired(failure: unknown): boolean {
+  return (
+    failure instanceof ApiError &&
+    failure.kind === 'http' &&
+    failure.details.some((detail) => detail.code === 'CONSENT_REQUIRED')
+  );
 }
 
 export interface UploadPhotoProps {
@@ -57,12 +80,17 @@ export interface UploadPhotoProps {
   disabled?: boolean;
   // `card`: board 10's dashed «Добавить фото» card in the grid of saved photos, which opens the
   // file picker at once once the consents are given. `buttons` (the default): the pickers in a row.
-  // `strip`: board 3's photo picker: the dashed tiles closing the strip of `thumbs` («+ Новое»; on
-  // a phone «Загрузить» and «Снять») and, on a wide screen, «Загрузить фото» and «Сделать фото»
-  // under it.
-  appearance?: 'buttons' | 'card' | 'strip';
-  // The strip's saved photos, before its tiles (`strip` only).
-  thumbs?: ReactNode;
+  // `zone`: the try-on's drop zone, filling the photo's frame (spec 0023 P3, P8, P9): a file
+  // dropped on it uploads; with no `children` it is a dashed area a click on which picks a file,
+  // with «Загрузить фото» (and «Сделать фото» on a touch device) and `extra` at its bottom; with
+  // `children` (the chosen photo, the one on its way) it shows them and only takes a drop.
+  // `replace`: «Заменить фото» and its window (P25): `thumbs`, the pickers and `extra`.
+  appearance?: 'buttons' | 'card' | 'zone' | 'replace';
+  children?: ReactNode;
+  // The window's saved photos (`replace` only), given the window's close: a choice closes it.
+  thumbs?: (close: () => void) => ReactNode;
+  // Under the pickers (`zone` and `replace`): the try-on's save switch, the link to «Мои фото».
+  extra?: ReactNode;
   // `false` uploads a one-time photo, not among the saved ones (spec 0019 A24).
   save?: boolean;
   // Under the refusal's text: the try-on's «Примерка не списана · осталось N» (A62, board 5).
@@ -72,52 +100,67 @@ export interface UploadPhotoProps {
   onUploaded?: (photo: UserPhoto) => void;
 }
 
-// Uploading a saved photo (spec 0019 board 4, board 5, AC1, AC2). A user's first upload in a
-// browser opens the tips and the two consents, «На фото — я» and the processing one naming OpenAI
-// (A46): the pickers stay off until both are checked, and choosing a file records them for this
-// user (plan §7, A60), so their later uploads open the picker at once. On a phone the tips are a
-// screen of their own ending in «Понятно», then the consents and the pickers (board 4.2, A63.8).
-// «Сделать фото» is the same input with `capture` (A30). A refusal of the check opens its screen
-// with the chosen photo and the reason's advice; any other failure shows its text.
+// Uploading a photo (spec 0019 board 4, board 5, AC1, AC2; spec 0023 board 3's drop zone and
+// «Заменить фото»). A user's first upload opens the tips and the two consents, «На фото — я» and
+// the processing one naming OpenAI (A46): the pickers stay off until both are checked, and the
+// upload then sends them, so the api keeps them with the user and the tips show once per account
+// (spec 0023 Y1); while `/me` loads, the pickers wait. A file dropped before the consents waits
+// for them. On a phone the tips are a screen of their own ending in «Понятно», then the consents
+// and the pickers (board 4.2, A63.8). «Сделать фото» is the same input with `capture` (A30); in
+// the try-on it shows only on a touch device (Y13). A refusal of the check opens its screen with
+// the chosen photo and the reason's advice; any other failure shows its text.
 // The upload is a mutation with no retry, its file and answer not kept (`gcTime: 0`): a write is
 // not repeated by itself, and both are personal data.
 export function UploadPhoto({
   place,
   disabled = false,
   appearance = 'buttons',
+  children,
   thumbs,
+  extra,
   save = true,
   refusalNote,
   onPendingChange,
   onUploaded,
 }: UploadPhotoProps) {
   const queryClient = useQueryClient();
-  const session = useSession();
-  const userId = session.status === 'signed-in' ? session.user.id : undefined;
-  const consented = usePhotoConsent(userId);
+  const consented = usePhotoConsent();
   const phone = useMediaQuery(PHONE_QUERY);
+  const coarse = useMediaQuery(COARSE_POINTER_QUERY);
+  // The try-on offers the camera only to a finger; «Мои фото» everywhere, as before.
+  const camera = place === 'photos' || coarse;
   const [screen, setScreen] = useState<Screen>('closed');
+  const [replacing, setReplacing] = useState(false);
+  const [waiting, setWaiting] = useState<Waiting | null>(null);
   const [refusal, setRefusal] = useState<Refusal | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [mine, setMine] = useState(false);
   const [agreed, setAgreed] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const uploadElement = useTrackedElement('photos.upload');
   const cameraElement = useTrackedElement('photos.camera');
+  const replaceElement = useTrackedElement('try-on.replace-photo');
   const cardHintId = useId();
 
-  // The list and the events run here, not in `mutate`'s callbacks: they run after the page is left
-  // during an upload too.
+  // The list, the consents and the events run here, not in `mutate`'s callbacks: they run after
+  // the page is left during an upload too. The api keeps the sent consents before its check, so a
+  // refused photo keeps them as well (plan §3.1).
   const upload = useMutation({
-    mutationFn: ({ file, save: saved }: Upload) => uploadPhoto(file, { save: saved }),
+    mutationFn: ({ file, save: saved, first }: Upload) =>
+      uploadPhoto(file, { save: saved, consent: first ? PHOTO_CONSENT_VERSION : undefined }),
     retry: false,
     gcTime: 0,
     onSuccess: (_photo, { source, first, save: saved }) => {
+      if (first) setPhotoConsent(queryClient, true);
       track('Photo Uploaded', { saved, source, place, first });
       return queryClient.invalidateQueries({ queryKey: userPhotoKeys.all });
     },
     onError: (failure, { source, first }) => {
       const refused = refusalReason(failure);
-      if (refused) track('Photo Refused', { reason: refused, source, place, first });
+      if (refused) {
+        if (first) setPhotoConsent(queryClient, true);
+        track('Photo Refused', { reason: refused, source, place, first });
+      } else if (consentRequired(failure)) setPhotoConsent(queryClient, false);
       else reportFailure(failure);
     },
   });
@@ -133,59 +176,154 @@ export function UploadPhoto({
   useEffect(() => {
     pendingChangeRef.current?.(pendingFile);
   }, [pendingFile]);
+  // Unmounted with a file on its way (the chosen photo gone under «Заменить фото»): the page
+  // shows it no longer.
+  useEffect(() => () => pendingChangeRef.current?.(null), []);
+  // A photo on its way elsewhere makes this one's last text stale.
+  const [wasDisabled, setWasDisabled] = useState(disabled);
+  if (disabled !== wasDisabled) {
+    setWasDisabled(disabled);
+    if (disabled) setError(null);
+  }
+
+  // A file dropped beside the zone would open in the tab and leave the try-on: while the zone is
+  // shown, such a drop does nothing.
+  useEffect(() => {
+    if (appearance !== 'zone') return;
+    // The zone's own handlers come first and keep their `copy`; elsewhere the cursor says no.
+    const guard = (event: globalThis.DragEvent) => {
+      if (event.defaultPrevented || !event.dataTransfer?.types.includes('Files')) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'none';
+    };
+    window.addEventListener('dragover', guard);
+    window.addEventListener('drop', guard);
+    return () => {
+      window.removeEventListener('dragover', guard);
+      window.removeEventListener('drop', guard);
+    };
+  }, [appearance]);
+
+  function openTips() {
+    setError(null);
+    setReplacing(false);
+    setScreen('tips');
+  }
+
+  function send(file: File, source: Source) {
+    // One photo at a time: the inputs are off while one is on its way, and a change that comes
+    // before they are (or past them) is dropped.
+    if (upload.isPending) return;
+    setError(null);
+    setReplacing(false);
+    if (file.size > MAX_PHOTO_BYTES) {
+      setError(TOO_BIG_TEXT);
+      return;
+    }
+    setWaiting(null);
+    upload.mutate(
+      { file, source, first: !consented, save },
+      {
+        onSuccess: (photo) => {
+          setScreen('closed');
+          setRefusal(null);
+          onUploaded?.(photo);
+        },
+        onError: (failure) => {
+          const refused = refusalReason(failure);
+          if (refused) {
+            setRefusal({ file, reason: refused });
+            setScreen('refused');
+            return;
+          }
+          if (consentRequired(failure)) {
+            // The consents again, then this file.
+            setMine(false);
+            setAgreed(false);
+            setWaiting({ file, source });
+            openTips();
+          }
+          setError(uploadErrorText(failure));
+        },
+      },
+    );
+  }
 
   function choose(source: Source) {
-    return (file: File) => {
-      // One photo at a time: the inputs are off while one is on its way, and a change that comes
-      // before they are (or past them) is dropped.
-      if (upload.isPending) return;
-      setError(null);
-      if (file.size > MAX_PHOTO_BYTES) {
-        setError(TOO_BIG_TEXT);
-        return;
-      }
-      const first = !consented;
-      if (first && userId) givePhotoConsent(userId);
-      upload.mutate(
-        { file, source, first, save },
-        {
-          onSuccess: (photo) => {
-            setScreen('closed');
-            setRefusal(null);
-            onUploaded?.(photo);
-          },
-          onError: (failure) => {
-            const refused = refusalReason(failure);
-            if (refused) {
-              setRefusal({ file, reason: refused });
-              setScreen('refused');
-              return;
-            }
-            setError(uploadErrorText(failure));
-          },
-        },
-      );
-    };
+    return (file: File) => send(file, source);
   }
+
+  // A file dropped on the zone: the first one, of the types the picker offers; before the
+  // consents it waits for them.
+  function drop(file: File) {
+    if (upload.isPending || disabled || consented === undefined) return;
+    if (!isPhotoType(file)) {
+      setError(WRONG_TYPE_TEXT);
+      return;
+    }
+    if (file.size > MAX_PHOTO_BYTES) {
+      setError(TOO_BIG_TEXT);
+      return;
+    }
+    if (consented) {
+      send(file, 'drop');
+      return;
+    }
+    setWaiting({ file, source: 'drop' });
+    openTips();
+  }
+
+  // Only a drag that carries files, while the zone takes one, darkens it and may be dropped; the
+  // rest is refused by the cursor.
+  const carriesFiles = (event: DragEvent) => event.dataTransfer.types.includes('Files');
+  const accepting = !disabled && !pending && consented !== undefined;
+  const dropHandlers = {
+    onDragEnter: (event: DragEvent) => {
+      if (!carriesFiles(event)) return;
+      event.preventDefault();
+      if (!accepting) return;
+      setError(null);
+      setDragging(true);
+    },
+    onDragOver: (event: DragEvent) => {
+      if (!carriesFiles(event)) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = accepting ? 'copy' : 'none';
+      // A browser that names no `relatedTarget` on a leave between the zone's own nodes darkens it
+      // again here, as the drag goes on.
+      if (accepting && !dragging) setDragging(true);
+    },
+    // Left for a node outside the zone (or none: off the page), not for one of its own.
+    onDragLeave: (event: DragEvent) => {
+      const next = event.relatedTarget;
+      if (next instanceof Node && event.currentTarget.contains(next)) return;
+      setDragging(false);
+    },
+    onDrop: (event: DragEvent) => {
+      if (!carriesFiles(event)) return;
+      event.preventDefault();
+      setDragging(false);
+      const file = event.dataTransfer.files[0];
+      if (file) drop(file);
+    },
+  };
 
   function changeOpen(next: boolean) {
     // The upload on its way keeps the screen: it ends in the list or in a refusal.
     if (next || pending) return;
     setScreen('closed');
+    setWaiting(null);
     setRefusal(null);
     setError(null);
   }
 
-  function openTips() {
-    setError(null);
-    setScreen('tips');
-  }
+  const ready = consented === true || (mine && agreed);
 
   // The two pickers; off until both consents are given, and while a photo is on its way. On a
   // phone's screen they are the screen's width, one under the other.
-  // `quiet`: both secondary with their icons, under board 3's strip.
-  function pickers(label: string, { camera = true, wide = false, quiet = false } = {}) {
-    const off = disabled || (!consented && !(mine && agreed));
+  // `quiet`: both secondary with their icons. `withCamera: false`: the file picker alone.
+  function pickers(label: string, { withCamera = camera, wide = false, quiet = false } = {}) {
+    const off = disabled || !ready;
     return (
       <>
         <FileInput
@@ -200,7 +338,7 @@ export function UploadPhoto({
           {quiet && <UploadIcon />}
           {label}
         </FileInput>
-        {camera && (
+        {withCamera && (
           <FileInput
             accept={PHOTO_ACCEPT}
             capture="user"
@@ -219,6 +357,77 @@ export function UploadPhoto({
     );
   }
 
+  // A box checked or unchecked; the second one checked uploads the file waiting for them (plan
+  // §4.2).
+  function check(nextMine: boolean, nextAgreed: boolean) {
+    setMine(nextMine);
+    setAgreed(nextAgreed);
+    if (nextMine && nextAgreed && waiting) send(waiting.file, waiting.source);
+  }
+
+  // The screen's footer: with a file waiting for the consents, «Загрузить фото», which says what
+  // the boxes do (the second one uploads it) and spins while it goes.
+  function screenFooter(label: string, options: { withCamera?: boolean; wide?: boolean } = {}) {
+    if (!waiting && !(pending && pendingSource === 'drop')) return pickers(label, options);
+    return (
+      <Button
+        fullWidth={options.wide}
+        disabled={disabled || !ready || pending}
+        loading={pending}
+        onClick={() => waiting && send(waiting.file, waiting.source)}
+      >
+        Загрузить фото
+      </Button>
+    );
+  }
+
+  // A picker outside the screens: the file input once the consents are given, else a button that
+  // opens the tips; off while `/me` loads (`consented` unknown).
+  function picker(
+    source: 'file' | 'camera',
+    {
+      label,
+      variant,
+      fullWidth,
+      icon,
+    }: { label: string; variant?: ButtonVariant; fullWidth?: boolean; icon?: ReactNode },
+  ) {
+    const element = source === 'file' ? uploadElement : cameraElement;
+    if (consented) {
+      return (
+        <FileInput
+          accept={PHOTO_ACCEPT}
+          capture={source === 'camera' ? 'user' : undefined}
+          onFileChange={choose(source)}
+          disabled={disabled || (pending && pendingSource !== source)}
+          loading={pendingSource === source}
+          variant={variant}
+          fullWidth={fullWidth}
+          events={element}
+        >
+          {icon}
+          {label}
+        </FileInput>
+      );
+    }
+    return (
+      <Button
+        variant={variant}
+        fullWidth={fullWidth}
+        disabled={disabled || consented === undefined}
+        onClick={() => {
+          element.onClick();
+          openTips();
+        }}
+        onPointerEnter={element.onPointerEnter}
+        onPointerLeave={element.onPointerLeave}
+      >
+        {icon}
+        {label}
+      </Button>
+    );
+  }
+
   const failure = error && (
     <Notice tone="error" role="alert">
       {error}
@@ -227,10 +436,10 @@ export function UploadPhoto({
 
   const consents = !consented && (
     <div className={styles.consents}>
-      <Checkbox checked={mine} onCheckedChange={setMine}>
+      <Checkbox checked={mine} onCheckedChange={(checked) => check(checked, agreed)}>
         На фото — я
       </Checkbox>
-      <Checkbox checked={agreed} onCheckedChange={setAgreed}>
+      <Checkbox checked={agreed} onCheckedChange={(checked) => check(mine, checked)}>
         Даю согласие на обработку фото для примерки: фото передаётся в OpenAI (США) для проверки и
         создания примерки
       </Checkbox>
@@ -252,112 +461,110 @@ export function UploadPhoto({
     </p>
   );
 
-  // A dashed tile of board 3's strip: the picker, or before the consents the tips.
-  function tile(source: Source, label: string, name: string) {
-    const element = source === 'file' ? uploadElement : cameraElement;
-    const content = (
-      <>
-        {pendingSource === source ? (
-          <Spinner size={24} />
-        ) : source === 'file' ? (
-          phone ? (
-            <UploadIcon />
-          ) : (
-            <PlusIcon />
-          )
-        ) : (
-          <CameraIcon />
-        )}
-        <span>{label}</span>
-      </>
-    );
-    return consented ? (
+  // The try-on's pickers: «Загрузить фото» and, on a touch device, «Сделать фото», side by side.
+  const tryOnPickers = (
+    <div className={styles.zoneActions}>
+      {picker('file', { label: 'Загрузить фото', variant: 'secondary', icon: <UploadIcon /> })}
+      {camera &&
+        picker('camera', { label: 'Сделать фото', variant: 'secondary', icon: <CameraIcon /> })}
+    </div>
+  );
+
+  // The entry: the try-on's drop zone or «Заменить фото», board 10's dashed card, or the buttons.
+  // Before the consents it opens the tips.
+  let entry;
+  if (appearance === 'zone') {
+    const empty = children === undefined || children === null;
+    // The whole area picks a file: a click, Enter or Space.
+    const area = consented ? (
       <FileInput
         bare
         accept={PHOTO_ACCEPT}
-        capture={source === 'camera' ? 'user' : undefined}
-        onFileChange={choose(source)}
-        disabled={disabled || (pending && pendingSource !== source)}
-        loading={pendingSource === source}
-        className={styles.tile}
-        aria-label={name}
-        events={element}
+        onFileChange={choose('file')}
+        disabled={disabled || pending}
+        loading={pendingSource === 'file'}
+        className={styles.zoneArea}
+        aria-label="Загрузить фото"
+        events={uploadElement}
       >
-        {content}
+        {null}
       </FileInput>
     ) : (
       <button
         type="button"
-        className={styles.tile}
-        disabled={disabled}
-        aria-label={name}
+        className={styles.zoneArea}
+        disabled={disabled || consented === undefined}
+        aria-label="Загрузить фото"
         onClick={() => {
-          element.onClick();
+          uploadElement.onClick();
           openTips();
         }}
-        onPointerEnter={element.onPointerEnter}
-        onPointerLeave={element.onPointerLeave}
-      >
-        {content}
-      </button>
+        onPointerEnter={uploadElement.onPointerEnter}
+        onPointerLeave={uploadElement.onPointerLeave}
+      />
     );
-  }
-
-  // The entry: board 10's dashed card, board 3's strip, or the buttons. Before the consents it
-  // opens the tips.
-  let entry;
-  if (appearance === 'strip') {
+    entry = (
+      <div
+        className={[styles.zone, empty && styles.zoneEmpty, dragging && styles.dragging]
+          .filter(Boolean)
+          .join(' ')}
+        {...dropHandlers}
+      >
+        {empty ? (
+          <>
+            {area}
+            <span className={styles.zoneLead} aria-hidden>
+              <PlusIcon />
+              <span>Загрузите фото в полный рост: один человек в кадре</span>
+            </span>
+            <div className={styles.zoneBottom}>
+              {tryOnPickers}
+              {extra}
+            </div>
+          </>
+        ) : (
+          children
+        )}
+        {dragging && <span className={styles.dropHint}>Отпустите, чтобы загрузить</span>}
+        {screen === 'closed' && error && <div className={styles.zoneError}>{failure}</div>}
+      </div>
+    );
+  } else if (appearance === 'replace') {
+    const close = () => setReplacing(false);
+    const windowContent = (
+      <div className={styles.replace}>
+        {thumbs && <div className={styles.thumbs}>{thumbs(close)}</div>}
+        {tryOnPickers}
+        {extra}
+      </div>
+    );
+    const title = 'Заменить фото';
     entry = (
       <>
-        <div className={styles.strip}>
-          {thumbs}
-          {phone ? (
-            <>
-              {tile('file', 'Загрузить', 'Загрузить фото')}
-              {tile('camera', 'Снять', 'Сделать фото')}
-            </>
-          ) : (
-            tile('file', 'Новое', 'Загрузить фото')
-          )}
-        </div>
-        {!phone && (
-          <div className={styles.stripActions}>
-            {consented ? (
-              pickers('Загрузить фото', { wide: true, quiet: true })
-            ) : (
-              <>
-                <Button
-                  variant="secondary"
-                  fullWidth
-                  disabled={disabled}
-                  onClick={() => {
-                    uploadElement.onClick();
-                    openTips();
-                  }}
-                  onPointerEnter={uploadElement.onPointerEnter}
-                  onPointerLeave={uploadElement.onPointerLeave}
-                >
-                  <UploadIcon />
-                  Загрузить фото
-                </Button>
-                <Button
-                  variant="secondary"
-                  fullWidth
-                  disabled={disabled}
-                  onClick={() => {
-                    cameraElement.onClick();
-                    openTips();
-                  }}
-                  onPointerEnter={cameraElement.onPointerEnter}
-                  onPointerLeave={cameraElement.onPointerLeave}
-                >
-                  <CameraIcon />
-                  Сделать фото
-                </Button>
-              </>
-            )}
-          </div>
+        <Button
+          variant="outline"
+          fullWidth
+          disabled={disabled || pending}
+          onClick={() => {
+            replaceElement.onClick();
+            setError(null);
+            setReplacing(true);
+          }}
+          onPointerEnter={replaceElement.onPointerEnter}
+          onPointerLeave={replaceElement.onPointerLeave}
+        >
+          Заменить фото
+        </Button>
+        {phone ? (
+          <Sheet open={replacing} onOpenChange={setReplacing} title={title}>
+            {windowContent}
+          </Sheet>
+        ) : (
+          <Modal open={replacing} onOpenChange={setReplacing} title={title}>
+            {windowContent}
+          </Modal>
         )}
+        {screen === 'closed' && failure}
       </>
     );
   } else if (appearance === 'card') {
@@ -390,7 +597,7 @@ export function UploadPhoto({
       <button
         type="button"
         className={styles.card}
-        disabled={disabled}
+        disabled={disabled || consented === undefined}
         {...named}
         onClick={() => {
           uploadElement.onClick();
@@ -409,7 +616,7 @@ export function UploadPhoto({
           pickers('Добавить фото', { wide: phone })
         ) : (
           <Button
-            disabled={disabled}
+            disabled={disabled || consented === undefined}
             fullWidth={phone}
             onClick={() => {
               uploadElement.onClick();
@@ -431,12 +638,16 @@ export function UploadPhoto({
 
   return (
     <div
-      className={[styles.upload, appearance !== 'buttons' && styles.inCard]
+      className={[
+        styles.upload,
+        appearance !== 'buttons' && styles.inCard,
+        appearance === 'zone' && styles.inZone,
+      ]
         .filter(Boolean)
         .join(' ')}
     >
       {entry}
-      {screen === 'closed' && failure}
+      {screen === 'closed' && appearance !== 'zone' && appearance !== 'replace' && failure}
 
       {phoneTips && (
         <Modal
@@ -460,7 +671,7 @@ export function UploadPhoto({
           wide
           onOpenChange={changeOpen}
           title="Ваше фото"
-          footer={pickers('Выбрать фото', { wide: true })}
+          footer={screenFooter('Выбрать фото', { wide: true })}
         >
           <div className={styles.screen}>
             <div className={styles.lead}>
@@ -491,7 +702,7 @@ export function UploadPhoto({
           onOpenChange={changeOpen}
           title="Какое фото подойдёт"
           description="Хорошее фото — точнее примерка. Проверим автоматически и подскажем, если что-то не так."
-          footer={pickers('Выбрать фото')}
+          footer={screenFooter('Выбрать фото')}
           // The focus starts on the frame, not on the first checkbox far down, which would scroll
           // the description and the tips out of sight.
           initialFocus="popup"
@@ -516,7 +727,7 @@ export function UploadPhoto({
           footer={
             <>
               {refusal.reason === 'child'
-                ? pickers('Загрузить своё фото', { camera: false, wide: true })
+                ? pickers('Загрузить своё фото', { withCamera: false, wide: true })
                 : pickers('Выбрать другое фото', { wide: true })}
               {refusal.reason !== 'child' && (
                 <LinkButton className={styles.tipsLink} onClick={openTips}>
