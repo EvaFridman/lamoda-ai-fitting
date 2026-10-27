@@ -147,3 +147,16 @@ gallery 888 px, 32 px, the buy box 280 px. From 1024 px the buy box is `flex: 0 
 gallery `flex: 1 1 888px`, so from 1280 px the page is board 1 as it is and below that only the
 photos shrink. The plan's 360 px misread the board and would have narrowed the desktop's gallery
 to 808 px.
+
+## Settled during part 2 (2026-10-27)
+
+**Y19. An unreadable verdict of the text check is no answer (T9's review).** Until now the
+classification of the wishes and of the comment counted an answer it could not read (an
+incomplete one, a refusal, no JSON) as allowed with a warning (spec 0019 A16, A45). After Y12 a
+text let through so may change the scene, the pose and the person's own clothes, and the result's
+moderation does not see other people or a made-up inscription. So such an answer is now the check
+not answering: 503 `SERVICE_UNAVAILABLE` with nothing stored or spent, as a timeout already is,
+and it reaches Sentry as a dependency's 503 does. Its `max_output_tokens` goes from 200 to 500, so
+a reasoning model's hidden tokens rarely cut the verdict. The photo check keeps counting an
+unreadable verdict as accepted: the photo and the result both pass the moderation, and a refused
+photo costs the user a new upload. A try-on with no wishes is never affected.
