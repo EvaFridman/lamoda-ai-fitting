@@ -77,6 +77,9 @@ function renderSheet(props: Partial<RegenerateSheetProps> = {}) {
 // Base UI turns pointer events off on the page while a modal is open.
 const setup = () => userEvent.setup({ pointerEventsCheck: 0 });
 const submit = () => screen.getByRole('button', { name: /Перегенерировать/ });
+const comment = () => screen.getByLabelText('Что поменять');
+const HINT =
+  'Можно попросить: изменить посадку, длину, заправить вещь, другую позу или фон. Нельзя: заменить вещь или её цвет — для этого выберите другой цвет или вещь.';
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -89,28 +92,25 @@ afterEach(() => {
 });
 
 describe('RegenerateSheet', () => {
-  it('asks what to change with the five reasons, a comment field and the button off', async () => {
+  it('has no reason chips, shows the hint and an enabled button (AC16)', async () => {
     renderSheet();
 
     expect(await screen.findByRole('dialog', { name: 'Что поменять?' })).toBeInTheDocument();
     for (const reason of ['Лицо', 'Фигура', 'Вещь', 'Фон', 'Другое']) {
-      expect(screen.getByRole('button', { name: reason })).toHaveAttribute('aria-pressed', 'false');
+      expect(screen.queryByRole('button', { name: reason })).not.toBeInTheDocument();
     }
-    expect(screen.getByLabelText('Комментарий, по желанию')).toHaveValue('');
+    expect(screen.queryByText(/Отметьте, что получилось неточно/)).not.toBeInTheDocument();
+    expect(screen.getByText(HINT)).toBeInTheDocument();
+    expect(comment()).toHaveValue('');
     expect(screen.getByText('0 / 300')).toBeInTheDocument();
-    expect(submit()).toBeDisabled();
+    expect(submit()).toBeEnabled();
   });
 
-  it('turns the button on from the first reason and off again when it is unchecked', async () => {
-    const user = setup();
+  it('names the field «Что поменять» and describes it by the hint and the counter', async () => {
     renderSheet();
+    const area = await screen.findByLabelText('Что поменять');
 
-    await user.click(await screen.findByRole('button', { name: 'Лицо' }));
-    expect(screen.getByRole('button', { name: 'Лицо' })).toHaveAttribute('aria-pressed', 'true');
-    expect(submit()).toBeEnabled();
-
-    await user.click(screen.getByRole('button', { name: 'Лицо' }));
-    expect(submit()).toBeDisabled();
+    expect(area).toHaveAccessibleDescription(`${HINT} 0 / 300`);
   });
 
   it('says the first regeneration is free', async () => {
@@ -131,31 +131,38 @@ describe('RegenerateSheet', () => {
   it('counts the comment and stops at the limit', async () => {
     const user = setup();
     renderSheet();
-    const area = await screen.findByLabelText('Комментарий, по желанию');
+    const area = await screen.findByLabelText('Что поменять');
 
     await user.type(area, 'Светлее');
     expect(screen.getByText('7 / 300')).toBeInTheDocument();
     expect(area).toHaveAttribute('maxlength', String(MAX_COMMENT_LENGTH));
   });
 
-  it('sends the reasons and the trimmed comment, then passes the new fitting on (AC8)', async () => {
+  it('sends the trimmed comment alone, then passes the new fitting on (AC8, AC16)', async () => {
     fetchMock.mockImplementation(answer(201, startedBody()));
     const user = setup();
     const { onStarted } = renderSheet();
 
-    await user.click(await screen.findByRole('button', { name: 'Лицо' }));
-    await user.click(screen.getByRole('button', { name: 'Фон' }));
-    await user.type(screen.getByLabelText('Комментарий, по желанию'), '  Светлее  ');
+    await user.type(await screen.findByLabelText('Что поменять'), '  Светлее  ');
     await user.click(submit());
 
     await vi.waitFor(() => expect(onStarted).toHaveBeenCalledTimes(1));
     const [url, init] = fetchMock.mock.calls[0] as [unknown, RequestInit];
     expect(new URL(String(url)).pathname).toBe(`/api/fittings/${PARENT}/regenerate`);
-    expect(JSON.parse(String(init.body))).toEqual({
-      reasons: ['face', 'background'],
-      comment: 'Светлее',
-    });
+    expect(JSON.parse(String(init.body))).toEqual({ comment: 'Светлее' });
     expect(onStarted.mock.calls[0]?.[0]).toMatchObject({ parentId: PARENT });
+  });
+
+  it('sends an empty body when the comment is empty (AC16)', async () => {
+    fetchMock.mockImplementation(answer(201, startedBody()));
+    const user = setup();
+    const { onStarted } = renderSheet();
+
+    await user.click(await screen.findByRole('button', { name: /Перегенерировать/ }));
+
+    await vi.waitFor(() => expect(onStarted).toHaveBeenCalledTimes(1));
+    const [, init] = fetchMock.mock.calls[0] as [unknown, RequestInit];
+    expect(JSON.parse(String(init.body))).toEqual({});
   });
 
   it('leaves the comment out when it is blank', async () => {
@@ -163,22 +170,12 @@ describe('RegenerateSheet', () => {
     const user = setup();
     renderSheet();
 
-    await user.click(await screen.findByRole('button', { name: 'Вещь' }));
-    await user.type(screen.getByLabelText('Комментарий, по желанию'), '   ');
+    await user.type(await screen.findByLabelText('Что поменять'), '   ');
     await user.click(submit());
 
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     const [, init] = fetchMock.mock.calls[0] as [unknown, RequestInit];
-    expect(JSON.parse(String(init.body))).toEqual({ reasons: ['item'] });
-  });
-
-  it('sends nothing without a reason', async () => {
-    const user = setup();
-    renderSheet();
-
-    await user.click(await screen.findByRole('button', { name: /Перегенерировать/ }));
-
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(JSON.parse(String(init.body))).toEqual({});
   });
 
   it('sends one request when the button is clicked twice', async () => {
@@ -186,7 +183,7 @@ describe('RegenerateSheet', () => {
     const user = setup();
     renderSheet();
 
-    await user.click(await screen.findByRole('button', { name: 'Лицо' }));
+    await screen.findByRole('dialog', { name: 'Что поменять?' });
     await user.dblClick(submit());
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -197,16 +194,12 @@ describe('RegenerateSheet', () => {
     const user = setup();
     const { onLimit, onStarted } = renderSheet();
 
-    await user.click(await screen.findByRole('button', { name: 'Другое' }));
-    await user.type(screen.getByLabelText('Комментарий, по желанию'), 'плохой текст');
+    await user.type(await screen.findByLabelText('Что поменять'), 'плохой текст');
     await user.click(submit());
 
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Текст не подходит для примерки');
-    expect(screen.getByLabelText('Комментарий, по желанию')).toHaveAttribute(
-      'aria-invalid',
-      'true',
-    );
+    expect(comment()).toHaveAttribute('aria-invalid', 'true');
     expect(onStarted).not.toHaveBeenCalled();
     expect(onLimit).not.toHaveBeenCalled();
     expect(mocks.track).toHaveBeenCalledWith('Fitting Refused', {
@@ -220,7 +213,7 @@ describe('RegenerateSheet', () => {
     const user = setup();
     const { onLimit } = renderSheet({ fitting: fitting({ regenerationFree: false }) });
 
-    await user.click(await screen.findByRole('button', { name: 'Лицо' }));
+    await screen.findByRole('dialog', { name: 'Что поменять?' });
     await user.click(submit());
 
     await vi.waitFor(() => expect(onLimit).toHaveBeenCalledTimes(1));
@@ -232,33 +225,36 @@ describe('RegenerateSheet', () => {
     const user = setup();
     renderSheet();
 
-    await user.click(await screen.findByRole('button', { name: 'Лицо' }));
+    await screen.findByRole('dialog', { name: 'Что поменять?' });
     await user.click(submit());
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Фото этой примерки удалено — выберите фото и примерьте заново',
     );
-    expect(screen.getByLabelText('Комментарий, по желанию')).not.toHaveAttribute('aria-invalid');
+    expect(comment()).not.toHaveAttribute('aria-invalid');
   });
 
-  it('tracks the regenerate click with its reasons count, comment flag and freeness', async () => {
+  it('tracks the regenerate click with the comment flag and freeness, no reasons', async () => {
     fetchMock.mockImplementation(answer(201, startedBody()));
     const user = setup();
     renderSheet({ fitting: fitting({ regenerationFree: false }) });
 
-    await user.click(await screen.findByRole('button', { name: 'Лицо' }));
-    await user.click(screen.getByRole('button', { name: 'Фигура' }));
+    await screen.findByRole('dialog', { name: 'Что поменять?' });
     await user.click(submit());
 
     expect(mocks.track).toHaveBeenCalledWith(
       'Element Clicked',
       expect.objectContaining({
         element: 'result.regenerate',
-        reasons: 2,
         with_comment: false,
+        with_item: false,
         free: false,
       }),
     );
+    const props = mocks.track.mock.calls.find(
+      (call) => (call[1] as { element?: string }).element === 'result.regenerate',
+    )?.[1] as object;
+    expect(props).not.toHaveProperty('reasons');
   });
 
   it('asks the page to close when the dialog is dismissed', async () => {
@@ -292,37 +288,34 @@ describe('RegenerateSheet', () => {
     const look = (items = [lookItem(1, 'Тренч Nord'), lookItem(2, 'Брюки Lux')]) =>
       fitting({ kind: 'look', items });
 
-    it('is not shown until «Вещь» is checked', async () => {
-      const user = setup();
+    it('is offered at once, with every item unchosen (AC16)', async () => {
       renderSheet({ fitting: look() });
 
-      await user.click(await screen.findByRole('button', { name: 'Лицо' }));
-      expect(screen.queryByText('Какая именно?')).not.toBeInTheDocument();
-
-      await user.click(screen.getByRole('button', { name: 'Вещь' }));
-      expect(screen.getByText('Какая именно?')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Тренч Nord' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Брюки Lux' })).toBeInTheDocument();
+      expect(await screen.findByText('Какая именно?')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Тренч Nord' })).toHaveAttribute(
+        'aria-pressed',
+        'false',
+      );
+      expect(screen.getByRole('button', { name: 'Брюки Lux' })).toHaveAttribute(
+        'aria-pressed',
+        'false',
+      );
     });
 
     it('lists the items in the slots’ order, not the api’s', async () => {
-      const user = setup();
       const shoes = { ...lookItem(3, 'Туфли Vero'), slot: 'shoes' as const };
       const bottom = lookItem(2, 'Брюки Lux');
       const top = lookItem(1, 'Тренч Nord');
       renderSheet({ fitting: look([bottom, top, shoes]) });
 
-      await user.click(await screen.findByRole('button', { name: 'Вещь' }));
-
-      const group = screen.getByText('Какая именно?').parentElement as HTMLElement;
+      const group = (await screen.findByText('Какая именно?')).parentElement as HTMLElement;
       const names = within(group)
         .getAllByRole('button')
         .map((button) => button.textContent);
       expect(names).toEqual(['Тренч Nord', 'Брюки Lux', 'Туфли Vero']);
     });
 
-    it('is never shown for a single fitting or a look of one item', async () => {
-      const user = setup();
+    it('is never shown for a single fitting', async () => {
       renderSheet({
         fitting: fitting({
           kind: 'single',
@@ -330,15 +323,14 @@ describe('RegenerateSheet', () => {
         }),
       });
 
-      await user.click(await screen.findByRole('button', { name: 'Вещь' }));
+      await screen.findByRole('dialog', { name: 'Что поменять?' });
       expect(screen.queryByText('Какая именно?')).not.toBeInTheDocument();
     });
 
     it('is not shown for a look of one item', async () => {
-      const user = setup();
       renderSheet({ fitting: look([lookItem(1, 'Тренч Nord')]) });
 
-      await user.click(await screen.findByRole('button', { name: 'Вещь' }));
+      await screen.findByRole('dialog', { name: 'Что поменять?' });
       expect(screen.queryByText('Какая именно?')).not.toBeInTheDocument();
     });
 
@@ -347,8 +339,7 @@ describe('RegenerateSheet', () => {
       const user = setup();
       renderSheet({ fitting: look() });
 
-      await user.click(await screen.findByRole('button', { name: 'Вещь' }));
-      await user.click(screen.getByRole('button', { name: 'Тренч Nord' }));
+      await user.click(await screen.findByRole('button', { name: 'Тренч Nord' }));
       await user.click(screen.getByRole('button', { name: 'Брюки Lux' }));
       expect(screen.getByRole('button', { name: 'Тренч Nord' })).toHaveAttribute(
         'aria-pressed',
@@ -358,16 +349,13 @@ describe('RegenerateSheet', () => {
         'aria-pressed',
         'true',
       );
-      await user.type(screen.getByLabelText('Комментарий, по желанию'), 'короче');
+      await user.type(comment(), 'короче');
       await user.click(submit());
 
       await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
       const [url, init] = fetchMock.mock.calls[0] as [unknown, RequestInit];
       expect(new URL(String(url)).pathname).toBe(`/api/fittings/${PARENT}/regenerate`);
-      expect(JSON.parse(String(init.body))).toEqual({
-        reasons: ['item'],
-        comment: 'Брюки Lux: короче',
-      });
+      expect(JSON.parse(String(init.body))).toEqual({ comment: 'Брюки Lux: короче' });
     });
 
     it('sends the name alone when there is no comment', async () => {
@@ -375,50 +363,56 @@ describe('RegenerateSheet', () => {
       const user = setup();
       renderSheet({ fitting: look() });
 
-      await user.click(await screen.findByRole('button', { name: 'Вещь' }));
-      await user.click(screen.getByRole('button', { name: 'Тренч Nord' }));
+      await user.click(await screen.findByRole('button', { name: 'Тренч Nord' }));
       await user.click(submit());
 
       await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
       const [, init] = fetchMock.mock.calls[0] as [unknown, RequestInit];
-      expect(JSON.parse(String(init.body))).toEqual({ reasons: ['item'], comment: 'Тренч Nord' });
+      expect(JSON.parse(String(init.body))).toEqual({ comment: 'Тренч Nord' });
     });
 
-    it('sends only the comment when no item is chosen', async () => {
+    it('sends only the comment, with no prefix, when no item is chosen (AC16)', async () => {
       fetchMock.mockImplementation(answer(201, startedBody()));
       const user = setup();
       renderSheet({ fitting: look() });
 
-      await user.click(await screen.findByRole('button', { name: 'Вещь' }));
-      await user.type(screen.getByLabelText('Комментарий, по желанию'), 'короче');
+      await user.type(await screen.findByLabelText('Что поменять'), 'короче');
       await user.click(submit());
 
       await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
       const [, init] = fetchMock.mock.calls[0] as [unknown, RequestInit];
-      expect(JSON.parse(String(init.body))).toEqual({ reasons: ['item'], comment: 'короче' });
+      expect(JSON.parse(String(init.body))).toEqual({ comment: 'короче' });
+    });
+
+    it('sends an empty body when nothing is chosen or typed', async () => {
+      fetchMock.mockImplementation(answer(201, startedBody()));
+      const user = setup();
+      renderSheet({ fitting: look() });
+
+      await screen.findByText('Какая именно?');
+      await user.click(submit());
+
+      await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+      const [, init] = fetchMock.mock.calls[0] as [unknown, RequestInit];
+      expect(JSON.parse(String(init.body))).toEqual({});
     });
 
     it('shrinks the comment field and its counter by the name and the colon', async () => {
       const user = setup();
       renderSheet({ fitting: look() });
 
-      await user.click(await screen.findByRole('button', { name: 'Вещь' }));
-      expect(screen.getByLabelText('Комментарий, по желанию')).toHaveAttribute('maxlength', '300');
+      expect(await screen.findByLabelText('Что поменять')).toHaveAttribute('maxlength', '300');
       await user.click(screen.getByRole('button', { name: 'Тренч Nord' }));
 
       const prefix = 'Тренч Nord'.length + 2;
-      expect(screen.getByLabelText('Комментарий, по желанию')).toHaveAttribute(
-        'maxlength',
-        String(300 - prefix),
-      );
+      expect(comment()).toHaveAttribute('maxlength', String(300 - prefix));
       expect(screen.getByText(`0 / ${300 - prefix}`)).toBeInTheDocument();
     });
 
     it('trims a typed comment at once to what the name leaves when an item is chosen', async () => {
       const user = setup();
       renderSheet({ fitting: look() });
-      await user.click(await screen.findByRole('button', { name: 'Вещь' }));
-      const area = screen.getByLabelText('Комментарий, по желанию');
+      const area = await screen.findByLabelText('Что поменять');
       fireEvent.change(area, { target: { value: 'я'.repeat(295) } });
       expect(area).toHaveValue('я'.repeat(295));
 
@@ -433,8 +427,7 @@ describe('RegenerateSheet', () => {
       fetchMock.mockImplementation(answer(201, startedBody()));
       const user = setup();
       renderSheet({ fitting: look() });
-      await user.click(await screen.findByRole('button', { name: 'Вещь' }));
-      fireEvent.change(screen.getByLabelText('Комментарий, по желанию'), {
+      fireEvent.change(await screen.findByLabelText('Что поменять'), {
         target: { value: 'я'.repeat(300) },
       });
       await user.click(screen.getByRole('button', { name: 'Тренч Nord' }));
@@ -447,11 +440,11 @@ describe('RegenerateSheet', () => {
       expect(comment.startsWith('Тренч Nord: я')).toBe(true);
     });
 
-    it('tracks with_item false while «Вещь» is checked and no item is chosen (A94.5)', async () => {
+    it('tracks with_item false while no item is chosen (A94.5)', async () => {
       fetchMock.mockImplementation(answer(201, startedBody()));
       const user = setup();
       renderSheet({ fitting: look() });
-      await user.click(await screen.findByRole('button', { name: 'Вещь' }));
+      await screen.findByText('Какая именно?');
 
       await user.click(submit());
       expect(mocks.track).toHaveBeenCalledWith(
@@ -464,8 +457,7 @@ describe('RegenerateSheet', () => {
       fetchMock.mockImplementation(answer(201, startedBody()));
       const user = setup();
       renderSheet({ fitting: look() });
-      await user.click(await screen.findByRole('button', { name: 'Вещь' }));
-      await user.click(screen.getByRole('button', { name: 'Тренч Nord' }));
+      await user.click(await screen.findByRole('button', { name: 'Тренч Nord' }));
 
       await user.click(submit());
 
@@ -479,8 +471,7 @@ describe('RegenerateSheet', () => {
       fetchMock.mockImplementation(answer(201, startedBody()));
       const user = setup();
       renderSheet({ fitting: look() });
-      await user.click(await screen.findByRole('button', { name: 'Вещь' }));
-      await user.click(screen.getByRole('button', { name: 'Тренч Nord' }));
+      await user.click(await screen.findByRole('button', { name: 'Тренч Nord' }));
       await user.click(submit());
 
       await vi.waitFor(() =>
@@ -495,9 +486,8 @@ describe('RegenerateSheet', () => {
       fetchMock.mockImplementation(answer(201, startedBody()));
       const user = setup();
       renderSheet({ fitting: look() });
-      await user.click(await screen.findByRole('button', { name: 'Вещь' }));
-      await user.click(screen.getByRole('button', { name: 'Тренч Nord' }));
-      await user.type(screen.getByLabelText('Комментарий, по желанию'), 'короче');
+      await user.click(await screen.findByRole('button', { name: 'Тренч Nord' }));
+      await user.type(comment(), 'короче');
       await user.click(submit());
 
       await vi.waitFor(() =>
@@ -524,7 +514,7 @@ describe('RegenerateSheet', () => {
     });
   });
 
-  it('is a bottom sheet on a phone with the same reasons', async () => {
+  it('is a bottom sheet on a phone with the same hint and field', async () => {
     vi.stubGlobal('matchMedia', (query: string) => ({
       matches: query === '(width < 600px)',
       media: query,
@@ -534,6 +524,7 @@ describe('RegenerateSheet', () => {
     renderSheet();
 
     expect(await screen.findByRole('dialog', { name: 'Что поменять?' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Лицо' })).toBeInTheDocument();
+    expect(screen.getByText(HINT)).toBeInTheDocument();
+    expect(comment()).toBeInTheDocument();
   });
 });

@@ -75,7 +75,7 @@ the deployed site.
       §4.3: `FittingSuccess`, `SavedNote`, `clientFetch`'s blob, `downloadFittingImage` in the result
       and the history, the labels; `result.history`. About 3.5 h. Commit:
       `feat(web): success screen, saved note and real download`.
-- [ ] **T14. The regeneration sheet (P33, P34).** Plan §4.4; analytics removals. About 1.5 h.
+- [x] **T14. The regeneration sheet (P33, P34).** Plan §4.4; analytics removals. About 1.5 h.
       Commit: `feat(web): regeneration sheet without chips`.
 - [ ] **T15. Refusal texts (P27).** Plan §4.5: the three tables, the schema's new fields,
       `Fitting Refused.prompt_reason`. `qa-tester` on AC8–AC19 with the fake provider. About 3 h.

@@ -801,27 +801,14 @@ export const catalog = defineCatalog({
       clicksPerVisit: 0.006,
       hoversPerVisit: 0.006,
     },
-    'result.reason': {
-      zone: 'fitting',
-      type: 'interaction',
-      description:
-        'Причина в шторке «Что поменять?». `reason` — какая: лицо, фигура, вещь, фон, другое; `checked` — отмечена ли после нажатия.',
-      clicksPerVisit: 0.008,
-      hoversPerVisit: 0.006,
-      properties: {
-        reason: { kind: 'enum', values: ['face', 'figure', 'item', 'background', 'other'] },
-        checked: { kind: 'boolean' },
-      },
-    },
     'result.regenerate': {
       zone: 'fitting',
       type: 'interaction',
       description:
-        '«Перегенерировать» в шторке «Что поменять?». `reasons` — сколько причин отмечено, `with_comment` — есть ли набранный комментарий (сам текст не отправляется), `with_item` — выбрана ли вещь в «Какая именно?» (только у образа с причиной «Вещь»; отправки до этого свойства его не имеют, поэтому отчёт фильтрует `with_item == true`, а не `!= false`), `free` — бесплатна ли эта перегенерация.',
+        '«Перегенерировать» в шторке «Что поменять?». `with_comment` — есть ли набранный комментарий (сам текст не отправляется), `with_item` — выбрана ли вещь образа в «Какая именно?» (отправки до этого свойства его не имеют, поэтому отчёт фильтрует `with_item == true`, а не `!= false`; до релиза спеки 0023 выбор был только после причины «Вещь», так что отчёты режутся по дате релиза), `free` — бесплатна ли эта перегенерация. До спеки 0023 отправки несли ещё `reasons`, число отмеченных причин; чипов причин больше нет.',
       clicksPerVisit: 0.004,
       hoversPerVisit: 0.003,
       properties: {
-        reasons: { kind: 'number' },
         with_comment: { kind: 'boolean' },
         with_item: { kind: 'boolean' },
         free: { kind: 'boolean' },

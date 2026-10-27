@@ -212,7 +212,7 @@ export function TryOn({
   }
 
   // «Попробовать ещё раз» of a failed fitting: a try-on starts again with its photo, item and
-  // colour; a regeneration regenerates its result again (its reasons are not kept, so «Другое»).
+  // colour; a regeneration regenerates its result again, with no comment (it is not kept).
   // With its photo gone it goes back to the picker.
   function retry(failed: Fitting) {
     const item = failed.items[0];
@@ -226,7 +226,7 @@ export function TryOn({
     }
     if (failed.parentId !== null) {
       regenerate.mutate(
-        { parentId: failed.parentId, kind: failed.kind, reasons: ['other'], source: 'retry' },
+        { parentId: failed.parentId, kind: failed.kind, source: 'retry' },
         { onSuccess: (next) => started(next), onError },
       );
       return;

@@ -145,12 +145,12 @@ export function useRepeatFitting() {
   });
 }
 
-// Regenerates a result with the reasons and the comment of «Что поменять?».
+// Regenerates a result with the comment of «Что поменять?», if any.
 export function useRegenerateFitting() {
   const started = useStarted();
   return useMutation({
-    mutationFn: ({ parentId, reasons, comment }: RegenerateRequest) =>
-      regenerateFitting(parentId, comment ? { reasons, comment } : { reasons }),
+    mutationFn: ({ parentId, comment }: RegenerateRequest) =>
+      regenerateFitting(parentId, comment ? { comment } : {}),
     retry: false,
     gcTime: 0,
     onSuccess: (fitting, { comment, withComment, source }) => {

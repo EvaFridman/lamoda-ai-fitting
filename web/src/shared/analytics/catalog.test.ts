@@ -462,7 +462,6 @@ describe('analytics catalog', () => {
       'try-on.close': ['fitting', 'interaction'],
       'try-on.other-photo': ['fitting', 'interaction'],
       'result.try-colour': ['fitting', 'interaction'],
-      'result.reason': ['fitting', 'interaction'],
       'result.regenerate': ['fitting', 'interaction'],
       'result.regenerate-open': ['fitting', 'interaction'],
       'result.download': ['fitting', 'interaction'],

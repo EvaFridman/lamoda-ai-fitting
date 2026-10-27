@@ -20,16 +20,16 @@ describe('chips section', () => {
       name: sections.find((s) => s.id === 'chips')!.title,
     });
 
-    expect(within(region).getByRole('group', { name: 'Что поменять?' })).toBeInTheDocument();
+    expect(within(region).getByRole('group', { name: 'Какая именно?' })).toBeInTheDocument();
     const pressed = within(region).getByRole('group', { name: 'Нажатый' });
-    expect(within(pressed).getByRole('button', { name: 'Вещь' })).toHaveAttribute(
+    expect(within(pressed).getByRole('button', { name: 'Тренч' })).toHaveAttribute(
       'aria-pressed',
       'true',
     );
     const disabled = within(region).getByRole('group', { name: 'Недоступный' });
-    expect(within(disabled).getByRole('button', { name: 'Фон' })).toBeDisabled();
+    expect(within(disabled).getByRole('button', { name: 'Юбка' })).toBeDisabled();
     const plain = within(region).getByRole('group', { name: 'Обычный' });
-    expect(within(plain).getByRole('button', { name: 'Лицо' })).toHaveAttribute(
+    expect(within(plain).getByRole('button', { name: 'Рубашка' })).toHaveAttribute(
       'aria-pressed',
       'false',
     );

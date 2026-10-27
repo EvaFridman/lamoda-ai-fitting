@@ -1,5 +1,5 @@
-// Board 7.3: the chips, the comment (the canvas's kit.css `.n-area`, 88px high) with its counter
-// on the right, then «Перегенерировать» and its caption.
+// Board 7.3 without its chips (spec 0023 P33, P34): the hint, the comment (the canvas's kit.css
+// `.n-area`, 88px high) with its counter on the right, then «Перегенерировать» and its caption.
 
 .body {
   display: flex;
@@ -24,6 +24,31 @@
 
 .counter {
   text-align: right;
+}
+
+// The hint stands where the label was: the board's muted body text above the field.
+.hint {
+  margin: 0;
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  color: var(--color-text-secondary);
+}
+
+// «Что поменять» names the field for screen readers only; the hint is its visible caption.
+.hiddenLabel {
+  position: absolute;
+
+  overflow: hidden;
+
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+
+  white-space: nowrap;
+
+  clip-path: inset(50%);
 }
 
 // Board 8.3: an item's chip carries its catalog picture, 24×32.
