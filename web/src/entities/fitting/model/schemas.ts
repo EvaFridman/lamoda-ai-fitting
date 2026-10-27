@@ -118,14 +118,8 @@ export interface StartFittingBody {
   promptText?: string;
 }
 
-// RegenerateFittingDto's reasons («Что поменять?», board 7).
-export const REGENERATE_REASONS = ['face', 'figure', 'item', 'background', 'other'] as const;
-export type RegenerateReason = (typeof REGENERATE_REASONS)[number];
-
-// RegenerateFittingDto.
+// RegenerateFittingDto. web sends no `reasons` (spec 0023 Y9): an empty body is one more attempt.
 export interface RegenerateFittingBody {
-  // 1 to 5, each once.
-  reasons: RegenerateReason[];
   // At most 300 characters; blank is none.
   comment?: string;
 }

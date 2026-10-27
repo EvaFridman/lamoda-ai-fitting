@@ -430,20 +430,18 @@ describe('useRepeatFitting', () => {
 describe('useRegenerateFitting', () => {
   const PARENT = '00000000-0000-4000-8000-0000000000b1';
 
-  it('sends the reasons with the comment', async () => {
+  it('sends the comment alone', async () => {
     requests.regenerateFitting.mockResolvedValue(started({ parentId: PARENT }));
     const { result } = renderHook(() => useRegenerateFitting(), { wrapper });
     await act(() =>
       result.current.mutateAsync({
         parentId: PARENT,
         kind: 'single',
-        reasons: ['face', 'other'],
         comment: 'Светлее',
         source: 'regenerate',
       }),
     );
     expect(requests.regenerateFitting).toHaveBeenCalledExactlyOnceWith(PARENT, {
-      reasons: ['face', 'other'],
       comment: 'Светлее',
     });
     expect(track).toHaveBeenCalledWith(
@@ -452,19 +450,18 @@ describe('useRegenerateFitting', () => {
     );
   });
 
-  it('leaves the comment out when it is blank', async () => {
+  it('sends an empty body when the comment is blank', async () => {
     requests.regenerateFitting.mockResolvedValue(started({ parentId: PARENT }));
     const { result } = renderHook(() => useRegenerateFitting(), { wrapper });
     await act(() =>
       result.current.mutateAsync({
         parentId: PARENT,
         kind: 'single',
-        reasons: ['item'],
         comment: '',
         source: 'regenerate',
       }),
     );
-    expect(requests.regenerateFitting).toHaveBeenCalledWith(PARENT, { reasons: ['item'] });
+    expect(requests.regenerateFitting).toHaveBeenCalledWith(PARENT, {});
     expect(track).toHaveBeenCalledWith(
       'Fitting Started',
       expect.objectContaining({ with_prompt: false }),
@@ -478,7 +475,6 @@ describe('useRegenerateFitting', () => {
       result.current.mutateAsync({
         parentId: PARENT,
         kind: 'single',
-        reasons: ['face'],
         source: 'regenerate',
       }),
     );
@@ -490,7 +486,6 @@ describe('useRegenerateFitting', () => {
         .mutateAsync({
           parentId: PARENT,
           kind: 'single',
-          reasons: ['face'],
           source: 'regenerate',
         })
         .catch(() => undefined),
@@ -506,7 +501,6 @@ describe('useRegenerateFitting', () => {
         .mutateAsync({
           parentId: PARENT,
           kind: 'look',
-          reasons: ['other'],
           comment: 'плохо',
           source: 'regenerate',
         })
@@ -526,7 +520,6 @@ describe('useRegenerateFitting', () => {
       result.current.mutateAsync({
         parentId: PARENT,
         kind: 'single',
-        reasons: ['other'],
         source: 'retry',
       }),
     );

@@ -1,7 +1,7 @@
 import { ChipsDemo, ChipStates } from './chips-demo';
 import styles from './examples.module.scss';
 
-// Chips: the reasons of a regeneration (board 7) and the item to change in a look (board 8).
+// Chips: the item to change in a look (board 8.3's «Какая именно?»).
 export function ChipsSection() {
   return (
     <>

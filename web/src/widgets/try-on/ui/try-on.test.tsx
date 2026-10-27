@@ -1221,7 +1221,7 @@ describe('TryOn with a fitting', () => {
 
     await screen.findByText('Примеряем…');
     expect(posts()[0]?.path).toBe(`/api/fittings/${PARENT}/regenerate`);
-    expect(bodyOf(0)).toEqual({ reasons: ['other'] });
+    expect(bodyOf(0)).toEqual({});
     expect(mocks.track).toHaveBeenCalledWith(
       'Fitting Started',
       expect.objectContaining({ source: 'retry' }),
@@ -1340,12 +1340,11 @@ describe('TryOn with a fitting', () => {
     await user.click(
       await screen.findByRole('button', { name: 'Хотите что-то поменять в образе?' }),
     );
-    await user.click(await screen.findByRole('button', { name: 'Лицо' }));
-    await user.click(screen.getByRole('button', { name: /Перегенерировать/ }));
+    await user.click(await screen.findByRole('button', { name: /Перегенерировать/ }));
 
     expect(await screen.findByText('Примеряем…')).toBeInTheDocument();
     expect(posts()[0]?.path).toBe(`/api/fittings/${RUNNING}/regenerate`);
-    expect(bodyOf(0)).toEqual({ reasons: ['face'] });
+    expect(bodyOf(0)).toEqual({});
     expect(screen.queryByText(/Примеряем Красный/)).not.toBeInTheDocument();
   });
 });
@@ -1644,8 +1643,7 @@ describe('TryOn focus', () => {
     await user.click(
       await screen.findByRole('button', { name: 'Хотите что-то поменять в образе?' }),
     );
-    await user.click(await screen.findByRole('button', { name: 'Лицо' }));
-    await user.click(screen.getByRole('button', { name: /Перегенерировать/ }));
+    await user.click(await screen.findByRole('button', { name: /Перегенерировать/ }));
 
     await screen.findByText('Примеряем…');
 
@@ -1697,7 +1695,7 @@ describe('TryOn focus', () => {
     await user.click(
       await screen.findByRole('button', { name: 'Хотите что-то поменять в образе?' }),
     );
-    await screen.findByRole('button', { name: 'Лицо' });
+    await screen.findByRole('dialog', { name: 'Что поменять?' });
     await vi.waitFor(() => expect(outerPopup()).toHaveAttribute('data-nested-dialog-open'));
 
     (document.activeElement as HTMLElement).blur();

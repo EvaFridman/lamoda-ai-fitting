@@ -105,9 +105,9 @@ describe('startFitting', () => {
 });
 
 describe('regenerateFitting', () => {
-  it('posts the reasons to /api/fittings/<id>/regenerate', async () => {
+  it('posts the comment to /api/fittings/<id>/regenerate', async () => {
     fetchMock.mockResolvedValue(new Response(JSON.stringify(started), { status: 201 }));
-    const body = { reasons: ['face' as const, 'item' as const], comment: 'ближе' };
+    const body = { comment: 'ближе' };
     await expect(regenerateFitting(ID, body)).resolves.toEqual(started);
     const { url, init } = call();
     expect(url.pathname).toBe(`/api/fittings/${ID}/regenerate`);
@@ -117,13 +117,13 @@ describe('regenerateFitting', () => {
   });
 
   it('refuses an id that is not one path segment, before any request', () => {
-    expect(() => regenerateFitting('..', { reasons: ['face'] })).toThrow(ApiError);
+    expect(() => regenerateFitting('..', {})).toThrow(ApiError);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('rejects 409 NOT_COMPLETED', async () => {
     fetchMock.mockResolvedValue(errorResponse(409, 'NOT_COMPLETED'));
-    await expect(regenerateFitting(ID, { reasons: ['face'] })).rejects.toMatchObject({
+    await expect(regenerateFitting(ID, {})).rejects.toMatchObject({
       kind: 'http',
       status: 409,
       code: 'NOT_COMPLETED',

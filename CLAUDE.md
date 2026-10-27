@@ -889,7 +889,8 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   `fitting`, areas `history` and `compare` (`history.repeat`, `.compare`, `.compare-open`,
   `compare.open`, `.add-to-cart`, `source: history`, A93.6), the result's `result.to-look`,
   `.item-colour`, `.add-to-cart-all`, `.add-to-cart`'s `kind` and
-  `.regenerate`'s `with_item` (A94) and `result.history` (the link of «Сохранено в «Мои
+  `.regenerate`'s `with_item` (A94; a look's item chosen, its `reasons` and `result.reason`
+  gone, spec 0023 Y11) and `result.history` (the link of «Сохранено в «Мои
   примерки»», spec 0023 Y7), the grid's hanger `catalog.to-look` in the zone
   `catalog` (A90.9), the phone header's the zone `header` (areas `header` and
   `burger`: `header.burger`, `header.search`, `burger.category`, A87.8), the footer's
@@ -980,8 +981,10 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   the room's items, its sum and «Изменить» (back to the room), started with the store's wishes;
   a look's result (`LookResult`, also from the history's `?fitting=`) lists the items in the
   slots' order with `MiniSwatches`, and another colour is `POST /fittings` with the result's
-  photo, items and `promptText`, run over the result; «Что поменять?» asks «Какая именно?»,
-  whose item goes before the comment. The header's `HeaderRoom`
+  photo, items and `promptText`, run over the result; «Что поменять?» (no reasons' chips: the
+  hint of what may change, an optional comment, `POST /fittings/:id/regenerate` with no
+  `reasons`, spec 0023 Y9) asks a look «Какая именно?», an optional item that goes before the
+  comment. The header's `HeaderRoom`
   (`FittingRoomButton` with `CountBadge`, between «Избранное» and «Корзина», per request inside
   `<Suspense>`) opens it, or a visitor's `LoginModal`; so do the limit card's «Перейти в
   примерочную», after the try-on window closes (A90.12), and the add toast's «Открыть». The

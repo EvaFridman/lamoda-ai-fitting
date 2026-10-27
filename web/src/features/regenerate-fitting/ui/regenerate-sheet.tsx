@@ -6,8 +6,6 @@ import { useId, useState } from 'react';
 import {
   type Fitting,
   fittingRefusal,
-  REGENERATE_REASONS,
-  type RegenerateReason,
   type StartedFitting,
   useRegenerateFitting,
 } from '@/entities/fitting';
@@ -23,23 +21,9 @@ import styles from './regenerate-sheet.module.scss';
 // The comment's limit (A16, A70).
 export const MAX_COMMENT_LENGTH = 300;
 
-const REASON_TEXTS: Readonly<Record<RegenerateReason, string>> = {
-  face: 'Лицо',
-  figure: 'Фигура',
-  item: 'Вещь',
-  background: 'Фон',
-  other: 'Другое',
-};
-
-// A reason's chip: its click and hover carry the reason and whether it is checked after the click.
-function ReasonChip({ reason, checked }: { reason: RegenerateReason; checked: boolean }) {
-  const tracked = useTrackedElement('result.reason', { reason, checked: !checked });
-  return (
-    <Chip value={reason} events={tracked}>
-      {REASON_TEXTS[reason]}
-    </Chip>
-  );
-}
+// What the comment may ask, in place of its label (spec 0023 Y9; the text check allows it, Y12).
+const COMMENT_HINT =
+  'Можно попросить: изменить посадку, длину, заправить вещь, другую позу или фон. Нельзя: заменить вещь или её цвет — для этого выберите другой цвет или вещь.';
 
 // The comment with the item of «Какая именно?» before it (A92.2): «Тренч Nord: короче, чем…»,
 // within the comment's limit; none chosen leaves the comment as it is.
@@ -59,7 +43,8 @@ export interface RegenerateSheetProps {
   onLimit: () => void;
 }
 
-// «Что поменять?» (board 7.3, spec 0019 AC8, AC9): the reasons, a comment and «Перегенерировать».
+// «Что поменять?» (board 7.3, spec 0019 AC8, AC9; no chips, spec 0023 P33, P34): the hint, an
+// optional comment and «Перегенерировать», which an empty comment sends too (one more attempt, Y9).
 // The new result is a new entry of the history; a try-on's own result regenerates once for free,
 // any other regeneration spends a try-on (A6, A70). A comment the check refuses is said under it
 // (PROMPT_REFUSED) and spends nothing. A bottom sheet on a phone, a modal elsewhere.
@@ -71,14 +56,13 @@ export function RegenerateSheet({
   onLimit,
 }: RegenerateSheetProps) {
   const phone = useMediaQuery(PHONE_QUERY);
-  const [reasons, setReasons] = useState<RegenerateReason[]>([]);
   const [comment, setComment] = useState('');
   const [itemId, setItemId] = useState<string | null>(null);
   const regenerate = useRegenerateFitting();
-  // «Какая именно?» (board 8.3): a look's items in the slots' order, as its result lists them,
-  // once «Вещь» is checked.
+  // «Какая именно?» (board 8.3): a look's items in the slots' order, as its result lists them, an
+  // optional choice of every look (Y9).
   const lookItems = fitting.kind === 'look' ? bySlot(fitting.items) : [];
-  const asksItem = lookItems.length > 1 && reasons.includes('item');
+  const asksItem = lookItems.length > 1;
   const itemName = asksItem
     ? (lookItems.find((item) => item.productId === itemId)?.name ?? null)
     : null;
@@ -86,12 +70,12 @@ export function RegenerateSheet({
   const commentMax =
     itemName === null ? MAX_COMMENT_LENGTH : MAX_COMMENT_LENGTH - itemName.length - 2;
   const tracked = useTrackedElement('result.regenerate', {
-    reasons: reasons.length,
     with_comment: comment.trim() !== '',
     with_item: itemName !== null,
     free: fitting.regenerationFree,
   });
   const commentId = useId();
+  const hintId = useId();
   const counterId = useId();
   const itemsId = useId();
 
@@ -108,13 +92,12 @@ export function RegenerateSheet({
 
   function submit() {
     tracked.onClick();
-    if (reasons.length === 0 || regenerate.isPending) return;
+    if (regenerate.isPending) return;
     const text = commentWithItem(comment, itemName);
     regenerate.mutate(
       {
         parentId: fitting.id,
         kind: fitting.kind,
-        reasons,
         comment: text || undefined,
         // The comment the user typed, not the item's name alone (`with_prompt`).
         withComment: comment.trim() !== '',
@@ -122,7 +105,6 @@ export function RegenerateSheet({
       },
       {
         onSuccess: (started) => {
-          setReasons([]);
           setComment('');
           setItemId(null);
           onStarted(started);
@@ -136,18 +118,6 @@ export function RegenerateSheet({
 
   const body = (
     <div className={styles.body}>
-      <ChipGroup
-        value={reasons}
-        onValueChange={(next) =>
-          setReasons(next.filter((reason) => REGENERATE_REASONS.includes(reason)))
-        }
-        aria-label="Что получилось неточно"
-        disabled={regenerate.isPending}
-      >
-        {REGENERATE_REASONS.map((reason) => (
-          <ReasonChip key={reason} reason={reason} checked={reasons.includes(reason)} />
-        ))}
-      </ChipGroup>
       {asksItem && (
         <div className={styles.field}>
           <span className={styles.label} id={itemsId}>
@@ -187,9 +157,12 @@ export function RegenerateSheet({
         </div>
       )}
       <div className={styles.field}>
-        <label className={styles.label} htmlFor={commentId}>
-          Комментарий, по желанию
+        <label className={styles.hiddenLabel} htmlFor={commentId}>
+          Что поменять
         </label>
+        <p id={hintId} className={styles.hint}>
+          {COMMENT_HINT}
+        </p>
         {/* The text stays out of attributes: recordings keep them (spec 0008), and the whole
             sheet is `mp-block`. */}
         <textarea
@@ -197,7 +170,7 @@ export function RegenerateSheet({
           className={[styles.area, commentError && styles.invalid].filter(Boolean).join(' ')}
           value={comment}
           maxLength={commentMax}
-          aria-describedby={counterId}
+          aria-describedby={`${hintId} ${counterId}`}
           aria-invalid={commentError ? true : undefined}
           disabled={regenerate.isPending}
           onChange={(event) => setComment(event.target.value)}
@@ -223,7 +196,6 @@ export function RegenerateSheet({
     <div className={styles.footer}>
       <Button
         fullWidth
-        disabled={reasons.length === 0}
         loading={regenerate.isPending}
         onClick={submit}
         onPointerEnter={tracked.onPointerEnter}
@@ -240,25 +212,12 @@ export function RegenerateSheet({
     </div>
   );
 
-  const description = 'Отметьте, что получилось неточно — учтём при новой попытке.';
   return phone ? (
-    <Sheet
-      title="Что поменять?"
-      description={description}
-      open={open}
-      onOpenChange={changeOpen}
-      footer={footer}
-    >
+    <Sheet title="Что поменять?" open={open} onOpenChange={changeOpen} footer={footer}>
       <div className="mp-block">{body}</div>
     </Sheet>
   ) : (
-    <Modal
-      title="Что поменять?"
-      description={description}
-      open={open}
-      onOpenChange={changeOpen}
-      footer={footer}
-    >
+    <Modal title="Что поменять?" open={open} onOpenChange={changeOpen} footer={footer}>
       <div className="mp-block">{body}</div>
     </Modal>
   );

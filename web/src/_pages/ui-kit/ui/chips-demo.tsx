@@ -6,29 +6,35 @@ import { Chip, ChipGroup } from '@/shared/ui';
 
 import styles from './examples.module.scss';
 
-// The reasons of board 7's «Что поменять?».
-const reasons = [
-  { value: 'face', label: 'Лицо' },
-  { value: 'figure', label: 'Фигура' },
-  { value: 'item', label: 'Вещь' },
-  { value: 'background', label: 'Фон' },
-  { value: 'other', label: 'Другое' },
+// The look's items of board 8.3's «Какая именно?» (the reasons' chips of board 7.3 are gone, spec
+// 0023 P33).
+const items = [
+  { value: 'shirt', label: 'Рубашка' },
+  { value: 'skirt', label: 'Юбка' },
+  { value: 'trench', label: 'Тренч' },
+  { value: 'boots', label: 'Ботильоны' },
 ];
 
-// The live example of a chip group: several chips may be pressed; the choice shows under it.
+// The live example of a chip group: one chip at a time may be pressed, as «Какая именно?»; the
+// choice shows under it.
 export function ChipsDemo() {
   const headingId = useId();
-  const [value, setValue] = useState<string[]>(['item']);
+  const [value, setValue] = useState<string[]>(['trench']);
 
   return (
     <div className={styles.example}>
       <p id={headingId} className={styles.groupLabel}>
-        Что поменять?
+        Какая именно?
       </p>
-      <ChipGroup aria-labelledby={headingId} value={value} onValueChange={setValue}>
-        {reasons.map((reason) => (
-          <Chip key={reason.value} value={reason.value}>
-            {reason.label}
+      <ChipGroup
+        aria-labelledby={headingId}
+        value={value}
+        multiple={false}
+        onValueChange={setValue}
+      >
+        {items.map((item) => (
+          <Chip key={item.value} value={item.value}>
+            {item.label}
           </Chip>
         ))}
       </ChipGroup>
@@ -48,19 +54,19 @@ export function ChipStates() {
     <ul className={styles.row}>
       <li className={styles.example}>
         <ChipGroup aria-label="Обычный" value={[]} onValueChange={keep}>
-          <Chip value="face">Лицо</Chip>
+          <Chip value="shirt">Рубашка</Chip>
         </ChipGroup>
         <code className={styles.props}>обычный</code>
       </li>
       <li className={styles.example}>
-        <ChipGroup aria-label="Нажатый" value={['item']} onValueChange={keep}>
-          <Chip value="item">Вещь</Chip>
+        <ChipGroup aria-label="Нажатый" value={['trench']} onValueChange={keep}>
+          <Chip value="trench">Тренч</Chip>
         </ChipGroup>
         <code className={styles.props}>нажатый</code>
       </li>
       <li className={styles.example}>
         <ChipGroup aria-label="Недоступный" value={[]} onValueChange={keep} disabled>
-          <Chip value="background">Фон</Chip>
+          <Chip value="skirt">Юбка</Chip>
         </ChipGroup>
         <code className={styles.props}>disabled</code>
       </li>

@@ -62,7 +62,6 @@ export {
   fittingStageSchema,
   fittingStatusSchema,
   isFittingRunning,
-  REGENERATE_REASONS,
   startedFittingSchema,
   type Fitting,
   type FittingFailure,
@@ -73,7 +72,6 @@ export {
   type FittingStage,
   type FittingStatus,
   type RegenerateFittingBody,
-  type RegenerateReason,
   type StartedFitting,
   type StartFittingBody,
 } from './model/schemas';

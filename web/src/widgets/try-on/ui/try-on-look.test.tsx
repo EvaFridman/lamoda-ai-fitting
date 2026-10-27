@@ -851,13 +851,12 @@ describe('TryOn of a look: «Что поменять?» and the retry', () => {
       await screen.findByRole('button', { name: 'Хотите что-то поменять в образе?' }),
     );
     const sheet = await screen.findByRole('dialog', { name: 'Что поменять?' });
-    await user.click(within(sheet).getByRole('button', { name: 'Вещь' }));
     await user.click(within(sheet).getByRole('button', { name: 'Рубашка' }));
     await user.click(within(sheet).getByRole('button', { name: /Перегенерировать/ }));
 
     expect(await screen.findByText('Примеряем…')).toBeInTheDocument();
     expect(posts()[0]?.path).toBe(`/api/fittings/${RESULT}/regenerate`);
-    expect(bodyOf(0)).toEqual({ reasons: ['item'], comment: 'Рубашка' });
+    expect(bodyOf(0)).toEqual({ comment: 'Рубашка' });
     expect(mocks.track).toHaveBeenCalledWith(
       'Fitting Started',
       expect.objectContaining({ kind: 'look', source: 'regenerate' }),

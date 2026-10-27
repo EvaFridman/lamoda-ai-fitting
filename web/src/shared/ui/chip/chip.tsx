@@ -21,7 +21,7 @@ export interface ChipProps {
   events?: ChipEvents;
 }
 
-// One choice of a ChipGroup (board 7's reasons «Что поменять?»): Base UI's Toggle, a button with
+// One choice of a ChipGroup (board 8's «Какая именно?» of «Что поменять?»): Base UI's Toggle, a button with
 // aria-pressed. Pressed, it turns black with white text.
 export function Chip({ value, children, disabled, events }: ChipProps) {
   return (
