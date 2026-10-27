@@ -7,6 +7,11 @@ import { GPT_IMAGE_SIZE } from '../../ai/image-models/gpt-image-2.js';
 import type { FittingItem, FittingJob } from '../../ai/image-models/image-model.js';
 import type { ImageInput } from '../../ai/image-input.js';
 import { REGENERATION_REASONS, type RegenerationReason } from '../../ai/prompts.js';
+import {
+  type SafetyCategory,
+  safetyCategory,
+  type SafetyRefusal,
+} from '../../ai/safety-category.js';
 import { endFitting, type FittingOutcome, RUNNING_STATUSES } from '../../fittings/end-fitting.js';
 import type { PrismaClient } from '../../generated/prisma/client.js';
 import type { FittingFailure, GenerationStatus } from '../../generated/prisma/enums.js';
@@ -44,10 +49,11 @@ const RESULT_QUALITY = 90;
 const ERROR_MESSAGE_MAX = 1000;
 
 // What `generate` gives back when the call ended with an answer: the result is in the bucket, or
-// the model refused (A15). A timeout and a failure are thrown (FittingFailureType).
+// the model refused (A15), with the refusal's stage and category (spec 0023 plan §3.5). A timeout
+// and a failure are thrown (FittingFailureType).
 export type GenerateOutcome =
   | { ok: true; requestId: string | null }
-  | { ok: false; failureCode: 'moderation'; requestId: string | null };
+  | ({ ok: false; failureCode: 'moderation'; requestId: string | null } & SafetyRefusal);
 
 // The `type` of the ApplicationFailure a fitting's activity throws for a failure that ends it: the
 // workflow writes it as the row's `failure_code`. Any other failure is `provider_error`.
@@ -114,7 +120,13 @@ export function createFittingActivities(
           // The deadline the workflow's time limit was built from, not this worker's own setting.
           const result = await ai.generate(job, { signal, timeoutMs: timeoutSeconds * 1000 });
           if (!result.ok) {
-            return { ok: false, failureCode: 'moderation', requestId: result.requestId };
+            return {
+              ok: false,
+              failureCode: 'moderation',
+              stage: result.stage,
+              category: result.category,
+              requestId: result.requestId,
+            };
           }
           const image = await toResultImage(result.image, result.requestId);
           signal.throwIfAborted();
@@ -133,21 +145,24 @@ export function createFittingActivities(
       });
     },
 
-    // The result's moderation (plan §4): flagged is a failed fitting with `moderation`. A
+    // The result's moderation (plan §4): flagged is a failed fitting with `moderation`, stage
+    // `output` and the coarse category of the flagged names (spec 0023 plan §3.5). A
     // transient failure (no answer, a 429, a 5xx, the storage) is retried by the workflow's
     // policy; another one of OpenAI fails at once as `provider_error`.
-    async moderate(generationId: string): Promise<{ flagged: boolean }> {
+    async moderate(
+      generationId: string,
+    ): Promise<{ flagged: boolean; category: SafetyCategory | null }> {
       const context = Context.current();
       const signal = context.cancellationSignal;
       return withHeartbeats(context, async () => {
         try {
           const userId = await generationUser(prisma, generationId);
           const bytes = await storage.get(generationResultKey(userId, generationId), signal);
-          const { flagged } = await ai.moderateImage(
+          const { flagged, categories } = await ai.moderateImage(
             { bytes, mimeType: 'image/webp' },
             { signal, timeoutMs: MODERATION_BUDGET_MS, retry: false },
           );
-          return { flagged };
+          return { flagged, category: flagged ? safetyCategory(categories) : null };
         } catch (error) {
           if (signal.aborted) {
             throw signal.reason ?? error;

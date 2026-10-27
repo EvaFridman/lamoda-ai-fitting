@@ -11,6 +11,7 @@ import sharp from 'sharp';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { FakeAiProvider } from '../../src/ai/ai-provider.js';
+import { SAFETY_CATEGORIES } from '../../src/ai/safety-category.js';
 import { quotaMonth } from '../../src/fittings/quota-month.js';
 import type { PrismaClient } from '../../src/generated/prisma/client.js';
 import {
@@ -373,19 +374,76 @@ describe('generateFitting with the real activities (spec 0019 T11)', () => {
       expect(errorMessage).toBe('OpenAI edit_image: http 500 server_error');
     }, 60_000);
 
-    it('discards a result the moderation flagged and gives the unit back', async () => {
-      const s = await seed({ photo: await refusedPhoto('moderation', { format: 'webp' }) });
+    it.each(SAFETY_CATEGORIES)(
+      'discards a result the moderation flagged as %s and gives the unit back',
+      async (category) => {
+        const s = await seed({
+          photo: await refusedPhoto(`moderation:${category}`, { format: 'webp' }),
+        });
+
+        await run(s.generationId);
+
+        expect(await rowOf(s.generationId)).toMatchObject({
+          status: 'failed',
+          failureCode: 'moderation',
+          failureStage: 'output',
+          failureCategory: category,
+          countsAgainstLimit: false,
+          resultImageKey: null,
+        });
+        expect(await keysUnder(generationFolder(s.userId, s.generationId))).toEqual([]);
+        expect(await usedOf(s.userId, s.month)).toBe(0);
+      },
+      60_000,
+    );
+
+    it.each([
+      ['fail:moderation:output:sexual', 'output', 'sexual'],
+      ['fail:moderation:input:minors', 'input', 'minors'],
+      ['fail:moderation', 'input', 'unknown'],
+    ] as const)(
+      'keeps the stage and category of the generation refusal %s',
+      async (promptText, failureStage, failureCategory) => {
+        const s = await seed({ promptText });
+
+        await run(s.generationId);
+
+        expect(await rowOf(s.generationId)).toMatchObject({
+          status: 'failed',
+          failureCode: 'moderation',
+          failureStage,
+          failureCategory,
+        });
+      },
+      60_000,
+    );
+
+    it.each(['fail:provider_error', 'fail:timeout'])(
+      'leaves the stage and category empty for %s',
+      async (promptText) => {
+        const s = await seed({ promptText });
+
+        await run(s.generationId);
+
+        expect(await rowOf(s.generationId)).toMatchObject({
+          status: 'failed',
+          failureStage: null,
+          failureCategory: null,
+        });
+      },
+      60_000,
+    );
+
+    it('leaves the stage and category empty for a completed fitting', async () => {
+      const s = await seed();
 
       await run(s.generationId);
 
       expect(await rowOf(s.generationId)).toMatchObject({
-        status: 'failed',
-        failureCode: 'moderation',
-        countsAgainstLimit: false,
-        resultImageKey: null,
+        status: 'completed',
+        failureStage: null,
+        failureCategory: null,
       });
-      expect(await keysUnder(generationFolder(s.userId, s.generationId))).toEqual([]);
-      expect(await usedOf(s.userId, s.month)).toBe(0);
     }, 60_000);
 
     it('takes nothing back for a fitting that did not count (a regeneration without a unit)', async () => {

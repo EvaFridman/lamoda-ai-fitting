@@ -101,8 +101,8 @@ function checkItem(product: { name: string; category: { name: string } }): Promp
   return { name: product.name, category: product.category.name };
 }
 
-// The text check did not answer (A45): its deadline passed, or OpenAI is down or refused the
-// call. A 503 with nothing stored, so the user retries; AppExceptionFilter reports it as an
+// The text check did not answer (A45): its deadline passed, OpenAI is down or refused the call,
+// or its model answered no verdict it could read (spec 0023 Y19). A 503 with nothing stored, so the user retries; AppExceptionFilter reports it as an
 // outage (once per route and minute).
 export class TextCheckUnavailableError extends AppException {
   constructor(cause: AiProviderError) {
@@ -522,7 +522,7 @@ export class FittingsService {
   }
 
   // The text check (A16, A45): refused is 400 PROMPT_REFUSED with the reason's code in the
-  // message, spending nothing; one that does not answer is 503 with nothing stored.
+  // message and in its one detail, spending nothing; one that does not answer is 503 with nothing stored.
   // `items` are the fitting's chosen items, named for the check (spec 0023 Y16).
   private async checkText(
     text: string,
@@ -539,7 +539,12 @@ export class FittingsService {
       throw error;
     }
     if (!check.allowed) {
-      throw new AppException('PROMPT_REFUSED', `${field} was refused: ${check.reason}`);
+      // The detail names the field and the reason (`moderation:<category>` too) in the shape of
+      // the photo's (spec 0023 plan §3.5): web picks the text by it.
+      const message = `${field} was refused: ${check.reason}`;
+      throw new AppException('PROMPT_REFUSED', message, [
+        { field, code: 'PROMPT_REFUSED', message },
+      ]);
     }
   }
 
@@ -664,6 +669,9 @@ export class FittingsService {
       status: row.status,
       stage: stageOf(row.status),
       failureCode: row.failureCode,
+      // A moderation failure from before plan §3.5 kept neither.
+      failureCategory: row.failureCode === 'moderation' ? (row.failureCategory ?? 'unknown') : null,
+      failureStage: row.failureCode === 'moderation' ? (row.failureStage ?? 'input') : null,
       countsAgainstLimit: row.countsAgainstLimit,
       regenerationFree:
         row.status === 'completed' && !row.freeRegenerationUsed && row.photoId !== null,

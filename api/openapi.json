@@ -10045,6 +10045,27 @@
           "provider_error"
         ]
       },
+      "SafetyCategory": {
+        "type": "string",
+        "enum": [
+          "sexual",
+          "minors",
+          "violence",
+          "self_harm",
+          "hate",
+          "illicit",
+          "unknown"
+        ],
+        "description": "A moderation refusal's coarse category (spec 0023 Y2); `unknown` when none was given or for a fitting from before; null unless `failureCode` is `moderation`."
+      },
+      "ModerationStage": {
+        "type": "string",
+        "enum": [
+          "input",
+          "output"
+        ],
+        "description": "Where the moderation refused: the photo and the items (`input`, also for a fitting from before) or the picture made (`output`); null unless `failureCode` is `moderation`."
+      },
       "FittingItemResponseDto": {
         "type": "object",
         "properties": {
@@ -10149,6 +10170,24 @@
               }
             ]
           },
+          "failureCategory": {
+            "nullable": true,
+            "description": "A moderation refusal's coarse category (spec 0023 Y2); `unknown` when none was given or for a fitting from before; null unless `failureCode` is `moderation`.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SafetyCategory"
+              }
+            ]
+          },
+          "failureStage": {
+            "nullable": true,
+            "description": "Where the moderation refused: the photo and the items (`input`, also for a fitting from before) or the picture made (`output`); null unless `failureCode` is `moderation`.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ModerationStage"
+              }
+            ]
+          },
           "countsAgainstLimit": {
             "type": "boolean",
             "description": "Whether it spent a try-on of the month's limit: false for a free regeneration and for one that failed."
@@ -10218,6 +10257,8 @@
           "status",
           "stage",
           "failureCode",
+          "failureCategory",
+          "failureStage",
           "countsAgainstLimit",
           "regenerationFree",
           "model",
@@ -10272,6 +10313,24 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/FittingFailure"
+              }
+            ]
+          },
+          "failureCategory": {
+            "nullable": true,
+            "description": "A moderation refusal's coarse category (spec 0023 Y2); `unknown` when none was given or for a fitting from before; null unless `failureCode` is `moderation`.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SafetyCategory"
+              }
+            ]
+          },
+          "failureStage": {
+            "nullable": true,
+            "description": "Where the moderation refused: the photo and the items (`input`, also for a fitting from before) or the picture made (`output`); null unless `failureCode` is `moderation`.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ModerationStage"
               }
             ]
           },
@@ -10340,6 +10399,8 @@
           "status",
           "stage",
           "failureCode",
+          "failureCategory",
+          "failureStage",
           "countsAgainstLimit",
           "regenerationFree",
           "model",

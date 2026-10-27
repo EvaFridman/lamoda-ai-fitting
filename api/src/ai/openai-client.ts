@@ -1,7 +1,7 @@
 import { ProxyAgent, FormData as UndiciFormData, fetch as undiciFetch } from 'undici';
 import { z } from 'zod';
 
-import { type AiOperation, AiProviderError } from './ai-provider.error.js';
+import { type AiOperation, AiProviderError, type ModerationDetails } from './ai-provider.error.js';
 import { abortKind, sleep } from './deadline.js';
 import { OPENAI_ORIGIN } from './openai-origin.js';
 import type { OpenAiProxy } from '../config/openai-proxy-url.js';
@@ -23,6 +23,9 @@ const REGION_BLOCK_LOG_INTERVAL_MS = 60_000;
 // the log and Sentry.
 const ERROR_CODE_FORMAT = /^[a-z0-9_.-]{1,64}$/i;
 const REQUEST_ID_MAX_LENGTH = 64;
+// A moderation stage or category label (`input`, `sexual/minors`, `self-harm`).
+const MODERATION_LABEL_FORMAT = /^[a-z][a-z_/-]{0,39}$/i;
+const MAX_MODERATION_CATEGORIES = 10;
 
 // The log lines the client writes: pino's logger, or a stub in tests.
 export interface AiLogger {
@@ -283,12 +286,14 @@ export class OpenAiClient {
         };
       }
 
+      const { code, moderation } = await errorOf(response, signal, operation);
       const failure = new AiProviderError(
         operation,
         'http',
         response.status,
-        await errorCode(response, signal, operation),
+        code,
         requestId,
+        moderation,
       );
       if (failure.code === REGION_BLOCK_CODE) this.logRegionBlock(failure);
       if (!failure.isTransient || attempt >= attempts) throw failure;
@@ -360,24 +365,57 @@ function requestIdOf(response: Response): string | null {
   return id === null || id === '' ? null : id.slice(0, REQUEST_ID_MAX_LENGTH);
 }
 
-// `error.code` of an error answer; null when the body is not OpenAI's JSON (a proxy's page) or
-// the code is not in OpenAI's shape.
-async function errorCode(
+// An error answer's `error.code` and `error.moderation_details` (spec 0023 plan §3.5: every field
+// optional, unknown values kept as strings).
+const errorAnswer = z.object({
+  error: z.object({
+    code: z.string().nullable().optional(),
+    moderation_details: z
+      .object({
+        moderation_stage: z.string().nullable().optional(),
+        categories: z.array(z.unknown()).nullable().optional(),
+      })
+      .nullable()
+      .optional()
+      // A malformed one is dropped, not the whole error.
+      .catch(null),
+  }),
+});
+
+// What of `error.code` and of an error answer's `error.moderation_details` is kept: null when the
+// body is not OpenAI's JSON (a proxy's page) or a field is not in OpenAI's shape. A stage or a
+// category is kept only as a label of OpenAI's shape, at most MAX_MODERATION_CATEGORIES of them.
+async function errorOf(
   response: Response,
   signal: AbortSignal,
   operation: AiOperation,
-): Promise<string | null> {
+): Promise<{ code: string | null; moderation: ModerationDetails | null }> {
   let body: unknown;
   try {
     body = await response.json();
   } catch (error) {
     const kind = abortKind(error, signal);
     if (kind !== null) throw new AiProviderError(operation, kind, null, null, null);
-    return null;
+    return { code: null, moderation: null };
   }
-  const parsed = z
-    .object({ error: z.object({ code: z.string().nullable().optional() }) })
-    .safeParse(body);
-  const code = parsed.success ? parsed.data.error.code : null;
-  return typeof code === 'string' && ERROR_CODE_FORMAT.test(code) ? code : null;
+  const parsed = errorAnswer.safeParse(body);
+  if (!parsed.success) return { code: null, moderation: null };
+  const { code, moderation_details: details } = parsed.data.error;
+  return {
+    code: typeof code === 'string' && ERROR_CODE_FORMAT.test(code) ? code : null,
+    moderation:
+      details == null
+        ? null
+        : {
+            stage: label(details.moderation_stage),
+            categories: (details.categories ?? [])
+              .map(label)
+              .filter((name): name is string => name !== null)
+              .slice(0, MAX_MODERATION_CATEGORIES),
+          },
+  };
+}
+
+function label(value: unknown): string | null {
+  return typeof value === 'string' && MODERATION_LABEL_FORMAT.test(value) ? value : null;
 }

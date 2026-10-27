@@ -13,6 +13,7 @@ import type {
   FittingFailureType,
   FittingOutcome,
 } from '../activities/fitting.activities.js';
+import type { SafetyCategory, SafetyRefusal } from '../../ai/safety-category.js';
 import { generateTimeLimitSeconds } from '../fitting-workflow-id.js';
 
 // The database steps: short writes, retried until the database answers (as completeFileDeletion),
@@ -101,12 +102,22 @@ export async function generateFitting({
     userId = running.userId;
     const generated = await generate(generationId, timeoutSeconds);
     requestId = generated.requestId;
+    // The refusal's stage and category (spec 0023 plan §3.5); an activity of the previous release,
+    // whose result a history started then still holds, answered neither.
     if (!generated.ok) {
-      outcome = failed(generated.failureCode, null, requestId);
+      const refusal: Partial<SafetyRefusal> = generated;
+      outcome = {
+        ...failed(generated.failureCode, null, requestId),
+        safety: { stage: refusal.stage ?? 'input', category: refusal.category ?? 'unknown' },
+      };
     } else {
-      const { flagged } = await moderate(generationId);
-      outcome = flagged
-        ? failed('moderation', null, requestId)
+      const moderated: { flagged: boolean; category?: SafetyCategory | null } =
+        await moderate(generationId);
+      outcome = moderated.flagged
+        ? {
+            ...failed('moderation', null, requestId),
+            safety: { stage: 'output', category: moderated.category ?? 'unknown' },
+          }
         : { status: 'completed', providerRequestId: requestId };
     }
   } catch (error) {

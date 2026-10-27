@@ -60,6 +60,28 @@ enum FittingFailure {
   @@map("fitting_failure")
 }
 
+// The coarse category of a safety refusal (spec 0023 plan §3.5, Y2): `safetyCategory` in
+// `api/src/ai/safety-category.ts` maps OpenAI's names to it.
+enum SafetyCategory {
+  sexual
+  minors
+  violence
+  self_harm
+  hate
+  illicit
+  unknown
+
+  @@map("safety_category")
+}
+
+// Where a generation's moderation refused (spec 0023 plan §3.5): its inputs or its picture.
+enum ModerationStage {
+  input
+  output
+
+  @@map("moderation_stage")
+}
+
 // Better Auth writes users through its model `user` (api/src/auth/auth.ts): its `name` is
 // `firstName`, `null` unless Google's given name passes the name rule (spec 0013 N5). Google gives
 // no phone, so `phone` is unique only among the users that have one.
@@ -347,6 +369,10 @@ model AiGeneration {
   // This result's free regeneration (A6) has started; a failed one clears it (A70).
   freeRegenerationUsed Boolean          @default(false) @map("free_regeneration_used")
   failureCode          FittingFailure?  @map("failure_code")
+  // A moderation refusal's category and stage (spec 0023 plan §3.5): both or neither, and only
+  // with `failureCode` `moderation` (a CHECK). Rows from before have neither.
+  failureCategory      SafetyCategory?  @map("failure_category")
+  failureStage         ModerationStage? @map("failure_stage")
   providerRequestId    String?          @map("provider_request_id") @db.VarChar(100)
   // sha256 hex of the photo, the items and the text (A7, A32).
   fingerprint          String?          @db.Char(64)

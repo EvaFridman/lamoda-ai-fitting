@@ -7,11 +7,15 @@ import {
   deadlineMs,
   FakeAiProvider,
   OpenAiProvider,
+  REFUSAL_COLOURS,
   solidColourReason,
 } from './ai-provider.js';
 import { AiProviderError } from './ai-provider.error.js';
 import type { AiSettings } from './ai-settings.js';
 import { OpenAiClient } from './openai-client.js';
+import { SAFETY_CATEGORIES, safetyCategory } from './safety-category.js';
+
+const MODERATION_REASONS = SAFETY_CATEGORIES.map((category) => `moderation:${category}` as const);
 
 const logger = { warn: vi.fn(), error: vi.fn() };
 const bytes = (text: string) => ({
@@ -58,7 +62,7 @@ describe('FakeAiProvider', () => {
     expect(await fake().checkPrompt('tuck it in', NO_ITEMS)).toEqual({ allowed: true });
   });
 
-  it.each(['dark', 'not_full', 'many_people', 'child', 'no_person', 'moderation'])(
+  it.each(['dark', 'not_full', 'many_people', 'child', 'no_person', ...MODERATION_REASONS])(
     'refuses a photo marked refuse:%s',
     async (reason) => {
       expect(await fake().checkPhoto(bytes(`\u0000\u0001refuse:${reason}\u0002`))).toEqual({
@@ -68,12 +72,23 @@ describe('FakeAiProvider', () => {
     },
   );
 
+  it('refuses a photo marked with a bare refuse:moderation as moderation:unknown', async () => {
+    expect(await fake().checkPhoto(bytes('refuse:moderation'))).toEqual({
+      ok: false,
+      reason: 'moderation:unknown',
+    });
+  });
+
+  it('passes a photo marked with an unknown moderation category', async () => {
+    expect(await fake().checkPhoto(bytes('refuse:moderation:spam'))).toEqual({ ok: true });
+  });
+
   it('passes a photo marked with an unknown reason, or a prompt reason', async () => {
     expect(await fake().checkPhoto(bytes('refuse:blurry'))).toEqual({ ok: true });
     expect(await fake().checkPhoto(bytes('refuse:politics'))).toEqual({ ok: true });
   });
 
-  it.each(['other_people', 'nudity', 'minors', 'violence', 'politics', 'unrelated', 'moderation'])(
+  it.each(['other_people', 'nudity', 'minors', 'violence', 'politics', 'unrelated'])(
     'refuses a prompt marked refuse:%s',
     async (reason) => {
       expect(await fake().checkPrompt(`please refuse:${reason} now`, NO_ITEMS)).toEqual({
@@ -83,6 +98,35 @@ describe('FakeAiProvider', () => {
     },
   );
 
+  it.each(MODERATION_REASONS)('refuses a prompt marked refuse:%s', async (reason) => {
+    expect(await fake().checkPrompt(`please refuse:${reason} now`, NO_ITEMS)).toEqual({
+      allowed: false,
+      reason,
+    });
+  });
+
+  it('refuses a prompt marked with a bare refuse:moderation as moderation:unknown', async () => {
+    expect(await fake().checkPrompt('refuse:moderation', NO_ITEMS)).toEqual({
+      allowed: false,
+      reason: 'moderation:unknown',
+    });
+  });
+
+  it('throws unreadable_verdict for fail:unreadable_verdict in the text', async () => {
+    const error = await failureOf(fake().checkPrompt('wish fail:unreadable_verdict', NO_ITEMS));
+
+    expect(error).toMatchObject({
+      operation: 'check_prompt',
+      reason: 'unreadable_verdict',
+      code: 'no_verdict',
+    });
+  });
+
+  it('lets other fail markers pass the text check, and the photo check ignores them', async () => {
+    expect(await fake().checkPrompt('fail:moderation', NO_ITEMS)).toEqual({ allowed: true });
+    expect(await fake().checkPhoto(bytes('fail:unreadable_verdict'))).toEqual({ ok: true });
+  });
+
   it('passes a prompt marked with an unknown reason or a photo reason', async () => {
     expect(await fake().checkPrompt('refuse:spam', NO_ITEMS)).toEqual({
       allowed: true,
@@ -90,10 +134,20 @@ describe('FakeAiProvider', () => {
     expect(await fake().checkPrompt('refuse:child', NO_ITEMS)).toEqual({ allowed: true });
   });
 
-  it('flags an image only on refuse:moderation', async () => {
+  it.each(SAFETY_CATEGORIES)(
+    'flags an image marked refuse:moderation:%s with names that map back',
+    async (category) => {
+      const result = await fake().moderateImage(bytes(`refuse:moderation:${category}`));
+
+      expect(result.flagged).toBe(true);
+      expect(safetyCategory(result.categories)).toBe(category);
+    },
+  );
+
+  it('flags an image only on a moderation marker', async () => {
     expect(await fake().moderateImage(bytes('refuse:moderation'))).toEqual({
       flagged: true,
-      categories: ['sexual'],
+      categories: [],
     });
     expect(await fake().moderateImage(bytes('refuse:child'))).toEqual({
       flagged: false,
@@ -199,7 +253,14 @@ describe('FakeAiProvider', () => {
 });
 
 describe('solidColourReason and the colour refusals', () => {
-  const REASONS = ['dark', 'not_full', 'many_people', 'child', 'no_person', 'moderation'] as const;
+  const REASONS = [
+    'dark',
+    'not_full',
+    'many_people',
+    'child',
+    'no_person',
+    ...MODERATION_REASONS,
+  ] as const;
   const image = (buffer: Buffer, mimeType: 'image/jpeg' | 'image/webp' = 'image/jpeg') => ({
     bytes: new Uint8Array(buffer),
     mimeType,
@@ -258,11 +319,25 @@ describe('solidColourReason and the colour refusals', () => {
     expect(await fake().checkPhoto(bytes('refuse:dark'))).toEqual({ ok: false, reason: 'dark' });
   });
 
-  it('moderateImage flags only the magenta image', async () => {
-    expect(await fake().moderateImage(image(await refusedPhoto('moderation')))).toEqual({
-      flagged: true,
-      categories: ['sexual'],
-    });
+  it('gives every refusal a colour of its own', () => {
+    const colours = Object.values(REFUSAL_COLOURS).map((colour) => colour.join(','));
+
+    expect(new Set(colours).size).toBe(colours.length);
+  });
+
+  it.each(SAFETY_CATEGORIES)(
+    'moderateImage flags the %s image by its category',
+    async (category) => {
+      const result = await fake().moderateImage(
+        image(await refusedPhoto(`moderation:${category}`)),
+      );
+
+      expect(result.flagged).toBe(true);
+      expect(safetyCategory(result.categories)).toBe(category);
+    },
+  );
+
+  it('moderateImage flags only the moderation images', async () => {
     expect(await fake().moderateImage(image(await refusedPhoto('child')))).toEqual({
       flagged: false,
       categories: [],
@@ -541,20 +616,59 @@ describe('OpenAiProvider generate', () => {
     expect(await generator(fetch).generate(job)).toEqual({
       ok: false,
       reason: 'moderation',
+      stage: 'input',
+      category: 'unknown',
       requestId: 'req_empty',
     });
   });
 
-  it('counts a 400 moderation_blocked as moderation, with the error request id', async () => {
+  it('counts a 400 moderation_blocked without details as input and unknown', async () => {
     const fetch = answering(() => failure(400, 'moderation_blocked', 'req_blocked'));
 
     expect(await generator(fetch).generate(job)).toEqual({
       ok: false,
       reason: 'moderation',
+      stage: 'input',
+      category: 'unknown',
       requestId: 'req_blocked',
     });
     expect(fetch).toHaveBeenCalledTimes(1);
   });
+
+  it.each([
+    ['output', ['sexual'], 'output', 'sexual'],
+    ['input', ['sexual', 'sexual/minors'], 'input', 'minors'],
+    ['input', ['violence/graphic', 'self-harm'], 'input', 'violence'],
+    ['unknown', ['hate'], 'input', 'hate'],
+    [null, ['harassment'], 'input', 'hate'],
+    ['output', ['something-new'], 'output', 'unknown'],
+    ['output', [], 'output', 'unknown'],
+  ])(
+    'reads moderation_details (%s, %j) as stage %s, category %s',
+    async (moderation_stage, categories, stage, category) => {
+      const fetch = answering(
+        () =>
+          new Response(
+            JSON.stringify({
+              error: {
+                code: 'moderation_blocked',
+                message: 'm',
+                moderation_details: { moderation_stage, categories },
+              },
+            }),
+            { status: 400, headers: { 'x-request-id': 'req_d' } },
+          ),
+      );
+
+      expect(await generator(fetch).generate(job)).toEqual({
+        ok: false,
+        reason: 'moderation',
+        stage,
+        category,
+        requestId: 'req_d',
+      });
+    },
+  );
 
   it('throws another 400 as an error', async () => {
     const fetch = answering(() => failure(400, 'invalid_value'));
@@ -768,19 +882,57 @@ describe('FakeAiProvider generate', () => {
     expect(first).toEqual(second);
   });
 
-  it('refuses on fail:moderation in the wishes', async () => {
+  it('refuses on a bare fail:moderation in the wishes as input and unknown', async () => {
     expect(await fake().generate(await jobOf('please fail:moderation'))).toEqual({
       ok: false,
       reason: 'moderation',
+      stage: 'input',
+      category: 'unknown',
       requestId: null,
     });
   });
+
+  it.each([
+    ['fail:moderation:output:sexual', 'output', 'sexual'],
+    ['fail:moderation:input:minors', 'input', 'minors'],
+    ['fail:moderation:input:self_harm', 'input', 'self_harm'],
+    ['fail:moderation:output', 'output', 'unknown'],
+  ])('refuses on %s with that stage and category', async (marker, stage, category) => {
+    expect(await fake().generate(await jobOf(`wish ${marker}`))).toEqual({
+      ok: false,
+      reason: 'moderation',
+      stage,
+      category,
+      requestId: null,
+    });
+  });
+
+  it.each(['fail:moderation:middle', 'fail:moderation:input:spam'])(
+    'ignores the malformed marker %s',
+    async (marker) => {
+      expect((await fake().generate(await jobOf(marker))).ok).toBe(true);
+    },
+  );
 
   it('throws a transient 500 on fail:provider_error', async () => {
     const error = await failureOf(fake().generate(await jobOf('fail:provider_error')));
 
     expect(error).toMatchObject({ operation: 'edit_image', reason: 'http', status: 500 });
     expect(error.isTransient).toBe(true);
+  });
+
+  it('keeps fail:timeout:x a timeout and fail:provider_error:x a provider error', async () => {
+    const timeout = await failureOf(fake().generate(await jobOf('fail:timeout:x')));
+    const provider = await failureOf(fake().generate(await jobOf('fail:provider_error:x')));
+
+    expect(timeout.isTimeout).toBe(true);
+    expect(provider).toMatchObject({ reason: 'http', status: 500 });
+  });
+
+  it('takes no more than two segments after fail:moderation', async () => {
+    expect(await fake().generate(await jobOf('fail:moderation:input:minors:extra'))).toMatchObject({
+      ok: false,
+    });
   });
 
   it('throws a timeout on fail:timeout', async () => {
@@ -796,8 +948,13 @@ describe('FakeAiProvider generate', () => {
     expect(await fake().generate(job)).toEqual({
       ok: false,
       reason: 'moderation',
+      stage: 'input',
+      category: 'unknown',
       requestId: null,
     });
+    expect(await fake().generate({ ...job, comment: 'fail:moderation:output:hate' })).toMatchObject(
+      { stage: 'output', category: 'hate' },
+    );
     const error = await failureOf(fake().generate({ ...job, comment: 'fail:provider_error' }));
     expect(error.status).toBe(500);
   });

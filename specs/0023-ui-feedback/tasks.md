@@ -56,7 +56,7 @@ the deployed site.
 - [x] **T9. Regeneration without reasons and freer wishes (Y9, Y12).** Plan §3.3, §3.4: the DTO, the
       text check's instructions, the prompt, their tests and snapshots. About 2 h. Commit:
       `feat(api): optional regeneration reasons and freer wishes`.
-- [ ] **T10. Safety categories (Y2).** Plan §3.5: `safetyCategory`, the client's
+- [x] **T10. Safety categories (Y2).** Plan §3.5: `safetyCategory`, the client's
       `moderation_details`, the photo's and the text's details, the migration and `FittingDto`'s
       `failureCategory`/`failureStage`, the fake provider's markers and colours, the text check's
       unreadable verdict as 503 (Y19), tests. About 4.5 h.

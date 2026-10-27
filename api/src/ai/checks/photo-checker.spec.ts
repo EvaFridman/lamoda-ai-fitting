@@ -74,13 +74,29 @@ describe('PhotoChecker', () => {
   it('lets moderation win over the vision verdict', async () => {
     const { checker } = setup(message('{"ok":false,"reason":"child"}'), { sexual: true });
 
-    expect(await checker.check(image, options)).toEqual({ ok: false, reason: 'moderation' });
+    expect(await checker.check(image, options)).toEqual({
+      ok: false,
+      reason: 'moderation:sexual',
+    });
   });
 
   it('refuses by moderation when the vision verdict is ok', async () => {
     const { checker } = setup(message('{"ok":true,"reason":"none"}'), { violence: true });
 
-    expect(await checker.check(image, options)).toEqual({ ok: false, reason: 'moderation' });
+    expect(await checker.check(image, options)).toEqual({
+      ok: false,
+      reason: 'moderation:violence',
+    });
+  });
+
+  it.each([
+    [{ 'sexual/minors': true, sexual: true }, 'moderation:minors'],
+    [{ 'self-harm': true }, 'moderation:self_harm'],
+    [{ 'violence/graphic': true }, 'moderation:violence'],
+  ])('names the category of the flagged %j', async (flagged, reason) => {
+    const { checker } = setup(message('{"ok":true,"reason":"none"}'), flagged);
+
+    expect(await checker.check(image, options)).toEqual({ ok: false, reason });
   });
 
   it.each([

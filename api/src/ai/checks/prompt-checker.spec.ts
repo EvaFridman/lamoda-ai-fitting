@@ -26,9 +26,18 @@ function setup(
   else respond.mockResolvedValue({ output, ...state });
   const moderate = vi.fn().mockResolvedValue({ results: [moderation] });
   const client = { respond, moderate } as unknown as OpenAiClient;
-  const logger = { warn: vi.fn(), error: vi.fn() };
-  const checker = new PromptChecker(client, new ModerationChecker(client), 'vision-model', logger);
-  return { checker, respond, moderate, logger };
+  const checker = new PromptChecker(client, new ModerationChecker(client), 'vision-model');
+  return { checker, respond, moderate };
+}
+
+async function failureOf(promise: Promise<unknown>): Promise<AiProviderError> {
+  try {
+    await promise;
+  } catch (error) {
+    expect(error).toBeInstanceOf(AiProviderError);
+    return error as AiProviderError;
+  }
+  throw new Error('expected a failure');
 }
 
 const items = [{ name: 'Linen shirt', category: 'Shirts' }];
@@ -97,10 +106,9 @@ describe('PromptChecker', () => {
   });
 
   it('allows a wish the model accepts', async () => {
-    const { checker, logger } = setup(message('{"allowed":true,"reason":"none"}'));
+    const { checker } = setup(message('{"allowed":true,"reason":"none"}'));
 
     expect(await checker.check('x', items, options)).toEqual({ allowed: true });
-    expect(logger.warn).not.toHaveBeenCalled();
   });
 
   it.each(['other_people', 'nudity', 'minors', 'violence', 'politics', 'unrelated'])(
@@ -112,7 +120,7 @@ describe('PromptChecker', () => {
     },
   );
 
-  it('lets a flagged moderation win with the reason moderation', async () => {
+  it('lets a flagged moderation win with the reason moderation:<category>', async () => {
     const { checker } = setup(message('{"allowed":false,"reason":"politics"}'), {
       flagged: true,
       categories: { hate: true },
@@ -120,11 +128,23 @@ describe('PromptChecker', () => {
 
     expect(await checker.check('x', items, options)).toEqual({
       allowed: false,
-      reason: 'moderation',
+      reason: 'moderation:hate',
     });
   });
 
-  it('refuses by moderation when only the top-level flag is set', async () => {
+  it('names the category with the highest priority among the flagged', async () => {
+    const { checker } = setup(message('{"allowed":true,"reason":"none"}'), {
+      flagged: true,
+      categories: { violence: true, 'sexual/minors': true, sexual: true },
+    });
+
+    expect(await checker.check('x', items, options)).toEqual({
+      allowed: false,
+      reason: 'moderation:minors',
+    });
+  });
+
+  it('refuses by moderation:unknown when only the top-level flag is set', async () => {
     const { checker } = setup(message('{"allowed":true,"reason":"none"}'), {
       flagged: true,
       categories: {},
@@ -132,61 +152,97 @@ describe('PromptChecker', () => {
 
     expect(await checker.check('x', items, options)).toEqual({
       allowed: false,
-      reason: 'moderation',
+      reason: 'moderation:unknown',
     });
   });
 
   it.each([
-    ['text that is not JSON', message('nope')],
-    ['an unknown reason', message('{"allowed":false,"reason":"spam"}')],
-    ['a refusal item', [{ type: 'message', content: [{ type: 'refusal', refusal: 'no' }] }]],
-    ['no output', []],
-  ] as const)('allows with one warning for %s', async (_name, output) => {
-    const { checker, logger } = setup(output as Output);
+    ['text that is not JSON', message('nope'), 'no_verdict'],
+    ['an unknown reason', message('{"allowed":false,"reason":"spam"}'), 'no_verdict'],
+    ['a missing field', message('{"allowed":false}'), 'no_verdict'],
+    [
+      'a refusal part',
+      [{ type: 'message', content: [{ type: 'refusal', refusal: 'no' }] }],
+      'refusal',
+    ],
+    ['no output', [], 'no_verdict'],
+  ] as const)('throws unreadable_verdict for %s (Y19)', async (_name, output, code) => {
+    const { checker } = setup(output as Output);
 
-    expect(await checker.check('x', items, options)).toEqual({ allowed: true });
-    expect(logger.warn).toHaveBeenCalledTimes(1);
+    const error = await failureOf(checker.check('x', items, options));
+
+    expect(error).toMatchObject({
+      operation: 'check_prompt',
+      reason: 'unreadable_verdict',
+      code,
+      status: null,
+    });
+    expect(error.isTransient).toBe(false);
   });
 
-  it('asks for 200 output tokens', async () => {
+  it('refuses a flagged text with moderation:<category> even when the verdict is unreadable', async () => {
+    const { checker } = setup(message('nope'), { flagged: true, categories: { illicit: true } });
+
+    expect(await checker.check('x', items, options)).toEqual({
+      allowed: false,
+      reason: 'moderation:illicit',
+    });
+  });
+
+  it('rethrows the unreadable verdict when the text is not flagged', async () => {
+    const { checker } = setup(message('nope'));
+
+    const error = await failureOf(checker.check('x', items, options));
+
+    expect(error).toMatchObject({ reason: 'unreadable_verdict', code: 'no_verdict' });
+  });
+
+  it('rejects at once on another classification failure, without waiting for the moderation', async () => {
+    const failure = new AiProviderError('respond', 'http', 500, null, null);
+    const { checker, moderate } = setup(failure);
+    moderate.mockReturnValue(new Promise(() => {}));
+
+    await expect(checker.check('x', items, options)).rejects.toBe(failure);
+  });
+
+  it('asks for 500 output tokens', async () => {
     const { checker, respond } = setup(message('{"allowed":true,"reason":"none"}'));
 
     await checker.check('x', items, options);
 
     expect((respond.mock.calls[0] as [Record<string, unknown>])[0]).toMatchObject({
-      max_output_tokens: 200,
+      max_output_tokens: 500,
     });
   });
 
-  it('names an incomplete answer in the warning', async () => {
-    const { checker, logger } = setup(
+  it('throws unreadable_verdict with the incomplete reason as its code', async () => {
+    const { checker } = setup(
       [],
       { flagged: false, categories: {} },
       { status: 'incomplete', incomplete_details: { reason: 'max_output_tokens' } },
     );
 
-    expect(await checker.check('x', items, options)).toEqual({ allowed: true });
-    expect(logger.warn).toHaveBeenCalledTimes(1);
-    expect(String(logger.warn.mock.calls[0]?.[0])).toContain(
-      'status=incomplete, reason=max_output_tokens',
-    );
+    const error = await failureOf(checker.check('x', items, options));
+
+    expect(error).toMatchObject({ reason: 'unreadable_verdict', code: 'max_output_tokens' });
   });
 
-  it('names a completed answer and an unknown one in the warning', async () => {
-    const completed = setup(
-      message('nope'),
+  it('never puts the text or the answer into the unreadable verdict error', async () => {
+    const { checker } = setup(message('SECRET-ANSWER'));
+
+    const error = await failureOf(checker.check('SECRET-WISH', items, options));
+
+    expect(error.message).not.toContain('SECRET');
+  });
+
+  it('keeps only a word of OpenAI shape as the incomplete code', async () => {
+    const { checker } = setup(
+      [],
       { flagged: false, categories: {} },
-      {
-        status: 'completed',
-      },
+      { status: 'incomplete', incomplete_details: { reason: 'Some user text: hello!' } },
     );
-    const unknown = setup(message('nope'));
 
-    await completed.checker.check('x', items, options);
-    await unknown.checker.check('x', items, options);
-
-    expect(String(completed.logger.warn.mock.calls[0]?.[0])).toContain('status=completed');
-    expect(String(unknown.logger.warn.mock.calls[0]?.[0])).toContain('status=unknown');
+    expect((await failureOf(checker.check('x', items, options))).code).toBe('no_verdict');
   });
 
   it('propagates a failed call', async () => {

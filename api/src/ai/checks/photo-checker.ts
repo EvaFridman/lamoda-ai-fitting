@@ -8,10 +8,12 @@ import {
   type OpenAiClient,
   outputText,
 } from '../openai-client.js';
+import { type ModerationRefusalReason, moderationRefusal } from '../safety-category.js';
 import type { ModerationChecker } from './moderation-checker.js';
 
 // The five reasons of the canvas (A15), in the code form the api answers (plan §5: the detail
-// `PHOTO_REFUSED` carries the reason in its message), and `moderation` for a flagged photo.
+// `PHOTO_REFUSED` carries the reason in its message), and `moderation:<category>` for a flagged
+// photo (spec 0023 plan §3.5).
 export const PHOTO_VISION_REASONS = [
   'dark',
   'not_full',
@@ -20,7 +22,7 @@ export const PHOTO_VISION_REASONS = [
   'no_person',
 ] as const;
 export type PhotoVisionReason = (typeof PHOTO_VISION_REASONS)[number];
-export type PhotoRefusalReason = PhotoVisionReason | 'moderation';
+export type PhotoRefusalReason = PhotoVisionReason | ModerationRefusalReason;
 
 export type PhotoCheck = { ok: true } | { ok: false; reason: PhotoRefusalReason };
 
@@ -52,7 +54,7 @@ export const PHOTO_INSTRUCTIONS =
   'in the photo). Otherwise set ok to true and reason to none. When in doubt, answer ok.';
 
 // The photo check (spec 0019 A15, A45): the vision model's verdict and the moderation endpoint, in
-// parallel under the caller's one deadline. A flagged photo answers `moderation` whatever the
+// parallel under the caller's one deadline. A flagged photo answers `moderation:<category>` whatever the
 // model said; a malformed answer of the model counts as ok with a warning, since a check must
 // never block an honest photo.
 export class PhotoChecker {
@@ -68,7 +70,7 @@ export class PhotoChecker {
       this.classify(image, options),
       this.moderation.checkImage(image, options),
     ]);
-    if (moderation.flagged) return { ok: false, reason: 'moderation' };
+    if (moderation.flagged) return { ok: false, reason: moderationRefusal(moderation.categories) };
     return vision;
   }
 

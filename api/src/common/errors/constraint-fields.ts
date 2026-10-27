@@ -6,6 +6,7 @@ export const CONSTRAINT_FIELDS: Readonly<Record<string, readonly string[]>> = {
   // CHECK
   ai_generations_comment_check: ['comment'],
   ai_generations_error_message_check: ['errorMessage'],
+  ai_generations_failure_safety_check: ['failureCategory', 'failureStage'],
   ai_generations_fingerprint_check: ['fingerprint'],
   ai_generations_owner_check: ['userId'],
   ai_generations_prompt_text_check: ['promptText'],

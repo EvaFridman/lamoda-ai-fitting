@@ -1,3 +1,4 @@
+import type { SafetyRefusal } from '../ai/safety-category.js';
 import type { PrismaClient } from '../generated/prisma/client.js';
 import type { FittingFailure, GenerationStatus } from '../generated/prisma/enums.js';
 import { generationResultKey } from '../storage/keys.js';
@@ -8,7 +9,8 @@ export const RUNNING_STATUSES = ['pending', 'processing'] as const satisfies Gen
 
 // How a fitting ended, as `endFitting` writes it. Only codes and OpenAI's request id: no input of
 // the user goes through the workflow's history. `keepUnit`: a cancelled fitting stays spent
-// (A47), since the paid call may have been made.
+// (A47), since the paid call may have been made. `safety`: a moderation refusal's stage and
+// category (spec 0023 plan §3.5), only with `failureCode` `moderation` (the table's CHECK).
 export type FittingOutcome =
   | { status: 'completed'; providerRequestId: string | null }
   | {
@@ -17,6 +19,7 @@ export type FittingOutcome =
       errorMessage: string | null;
       providerRequestId: string | null;
       keepUnit?: boolean;
+      safety?: SafetyRefusal;
     };
 
 // Ends a fitting (plan §4, A20): moves the row out of `pending`/`processing` with a conditional
@@ -66,6 +69,12 @@ export async function endFitting(
           ? {
               failureCode: outcome.failureCode,
               errorMessage: outcome.errorMessage,
+              ...(outcome.failureCode === 'moderation' && outcome.safety !== undefined
+                ? {
+                    failureStage: outcome.safety.stage,
+                    failureCategory: outcome.safety.category,
+                  }
+                : {}),
               ...(refund ? { countsAgainstLimit: false } : {}),
             }
           : { resultImageKey: generationResultKey(userId, generationId) }),

@@ -8,6 +8,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { AI_PROVIDER, type FakeAiProvider } from '../../src/ai/ai-provider.js';
 import { AI_SETTINGS, aiSettings } from '../../src/ai/ai-settings.js';
+import { SAFETY_CATEGORIES } from '../../src/ai/safety-category.js';
 import type { Auth } from '../../src/auth/auth.js';
 import { AUTH } from '../../src/auth/auth.module.js';
 import type { Env } from '../../src/config/env.js';
@@ -47,7 +48,14 @@ interface PhotoBody {
   createdAt: string;
 }
 
-const REASONS = ['dark', 'not_full', 'many_people', 'child', 'no_person', 'moderation'] as const;
+const REASONS = [
+  'dark',
+  'not_full',
+  'many_people',
+  'child',
+  'no_person',
+  ...SAFETY_CATEGORIES.map((category) => `moderation:${category}` as const),
+] as const;
 
 describe('POST /me/photos (spec 0019 AC1, AC3, AC4, A45)', () => {
   const { bucket } = testStorageSettings();
@@ -279,7 +287,7 @@ describe('POST /me/photos (spec 0019 AC1, AC3, AC4, A45)', () => {
       expect(errorOf(response).details).toEqual([
         expect.objectContaining({ field: 'photo', code: 'PHOTO_REFUSED' }),
       ]);
-      expect(errorOf(response).details[0]?.message).toContain(reason);
+      expect(errorOf(response).details[0]?.message).toBe(`photo was refused: ${reason}`);
       await expectNothingStored(who);
     });
   });

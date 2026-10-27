@@ -1,14 +1,25 @@
 // What the client was doing when the request failed.
-// `list_models` is the deploy's check only (A73).
-export type AiOperation = 'edit_image' | 'respond' | 'moderate' | 'list_models';
+// `list_models` is the deploy's check only (A73); `check_prompt` is the text check reading its
+// verdict (spec 0023 Y19).
+export type AiOperation = 'edit_image' | 'respond' | 'moderate' | 'list_models' | 'check_prompt';
 
 // Why it failed: the deadline passed (`timeout`), the caller cancelled (`aborted`), no answer
-// came (`network`) or the answer was an error or unreadable (`http`, with its status).
-export type AiFailureReason = 'timeout' | 'aborted' | 'network' | 'http';
+// came (`network`), the answer was an error or unreadable (`http`, with its status), or the text
+// check's model answered no verdict it could read (`unreadable_verdict`, Y19).
+export type AiFailureReason = 'timeout' | 'aborted' | 'network' | 'http' | 'unreadable_verdict';
+
+// An error answer's `error.moderation_details` (spec 0023 plan §3.5): OpenAI's stage (`input`,
+// `output`, `unknown`) and its coarse category labels, as OpenAI wrote them (only words of its
+// shape are kept: labels, never the input).
+export interface ModerationDetails {
+  stage: string | null;
+  categories: string[];
+}
 
 // A failed request to OpenAI (spec 0019 plan §3). Carries the operation, the reason, the answer's
-// status and `error.code` and OpenAI's request id for their support; never the input, an image,
-// a prompt or the key, so a log line or a Sentry event of it holds no personal data (AC27).
+// status and `error.code`, its moderation details and OpenAI's request id for their support; never
+// the input, an image, a prompt or the key, so a log line or a Sentry event of it holds no personal
+// data (AC27).
 export class AiProviderError extends Error {
   constructor(
     readonly operation: AiOperation,
@@ -16,11 +27,15 @@ export class AiProviderError extends Error {
     readonly status: number | null,
     readonly code: string | null,
     readonly requestId: string | null,
+    readonly moderation: ModerationDetails | null = null,
   ) {
     super(
       `OpenAI ${operation}: ${reason}` +
         (status === null ? '' : ` ${status}`) +
         (code === null ? '' : ` ${code}`) +
+        (moderation === null
+          ? ''
+          : ` [moderation ${moderation.stage ?? 'none'}: ${moderation.categories.join(', ') || 'none'}]`) +
         (requestId === null ? '' : ` (request ${requestId})`),
     );
     this.name = 'AiProviderError';
