@@ -80,7 +80,7 @@ the deployed site.
 - [x] **T15. Refusal texts (P27).** Plan §4.5: the three tables, the schema's new fields,
       `Fitting Refused.prompt_reason`. `qa-tester` on AC8–AC19 with the fake provider. About 3 h.
       Commit: `feat(web): clear reasons for refused photos, texts and fittings`.
-- [ ] **Phase end.** Clean install, `npm run verify`, push, PR 3, stop with the summary.
+- [x] **Phase end.** Clean install, `npm run verify`, push, PR 3, stop with the summary.
 
 ## PR 4 · docs/0023-close · closing
 
