@@ -10368,19 +10368,16 @@
                 "other"
               ]
             },
-            "minItems": 1,
             "maxItems": 5,
-            "uniqueItems": true
+            "uniqueItems": true,
+            "description": "Absent is none."
           },
           "comment": {
             "type": "string",
             "maxLength": 300,
             "description": "The comment on the result, trimmed; blank is none."
           }
-        },
-        "required": [
-          "reasons"
-        ]
+        }
       },
       "FittingQuotaDto": {
         "type": "object",

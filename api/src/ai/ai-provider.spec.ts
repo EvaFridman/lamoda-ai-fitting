@@ -19,6 +19,8 @@ const bytes = (text: string) => ({
   mimeType: 'image/jpeg' as const,
 });
 
+const NO_ITEMS = { items: [] };
+
 const FAKE_SETTINGS = { model: 'gpt-image-2', timeoutSeconds: 180 };
 const OPENAI_SETTINGS = { model: 'gpt-image-2', timeoutSeconds: 180 };
 
@@ -53,7 +55,7 @@ describe('FakeAiProvider', () => {
 
   it('passes a photo and a prompt with no marker', async () => {
     expect(await fake().checkPhoto(bytes('plain jpeg'))).toEqual({ ok: true });
-    expect(await fake().checkPrompt('tuck it in')).toEqual({ allowed: true });
+    expect(await fake().checkPrompt('tuck it in', NO_ITEMS)).toEqual({ allowed: true });
   });
 
   it.each(['dark', 'not_full', 'many_people', 'child', 'no_person', 'moderation'])(
@@ -74,7 +76,7 @@ describe('FakeAiProvider', () => {
   it.each(['other_people', 'nudity', 'minors', 'violence', 'politics', 'unrelated', 'moderation'])(
     'refuses a prompt marked refuse:%s',
     async (reason) => {
-      expect(await fake().checkPrompt(`please refuse:${reason} now`)).toEqual({
+      expect(await fake().checkPrompt(`please refuse:${reason} now`, NO_ITEMS)).toEqual({
         allowed: false,
         reason,
       });
@@ -82,8 +84,10 @@ describe('FakeAiProvider', () => {
   );
 
   it('passes a prompt marked with an unknown reason or a photo reason', async () => {
-    expect(await fake().checkPrompt('refuse:spam')).toEqual({ allowed: true });
-    expect(await fake().checkPrompt('refuse:child')).toEqual({ allowed: true });
+    expect(await fake().checkPrompt('refuse:spam', NO_ITEMS)).toEqual({
+      allowed: true,
+    });
+    expect(await fake().checkPrompt('refuse:child', NO_ITEMS)).toEqual({ allowed: true });
   });
 
   it('flags an image only on refuse:moderation', async () => {
@@ -111,14 +115,16 @@ describe('FakeAiProvider', () => {
     const provider = new FakeAiProvider({ ...FAKE_SETTINGS, checkTimeoutMs: 1000 });
     provider.delayMs = 5;
 
-    expect(await provider.checkPrompt('plain')).toEqual({ allowed: true });
+    expect(await provider.checkPrompt('plain', NO_ITEMS)).toEqual({ allowed: true });
   });
 
   it('falls back to checkTimeoutMs for a timeoutMs of 0', async () => {
     const provider = new FakeAiProvider({ ...FAKE_SETTINGS, checkTimeoutMs: 1000 });
     provider.delayMs = 5;
 
-    expect(await provider.checkPrompt('plain', { timeoutMs: 0 })).toEqual({ allowed: true });
+    expect(await provider.checkPrompt('plain', NO_ITEMS, { timeoutMs: 0 })).toEqual({
+      allowed: true,
+    });
   });
 
   it('throws aborted for an already aborted caller signal', async () => {
@@ -127,7 +133,7 @@ describe('FakeAiProvider', () => {
 
     for (const call of [
       fake().checkPhoto(bytes('plain'), { signal: controller.signal }),
-      fake().checkPrompt('plain', { signal: controller.signal }),
+      fake().checkPrompt('plain', NO_ITEMS, { signal: controller.signal }),
       fake().moderateImage(bytes('plain'), { signal: controller.signal }),
     ]) {
       const error = await failureOf(call);
@@ -151,7 +157,9 @@ describe('FakeAiProvider', () => {
     const provider = new FakeAiProvider({ ...FAKE_SETTINGS, checkTimeoutMs: 5000 });
     provider.delayMs = 5000;
     const controller = new AbortController();
-    const result = failureOf(provider.checkPrompt('plain', { signal: controller.signal }));
+    const result = failureOf(
+      provider.checkPrompt('plain', NO_ITEMS, { signal: controller.signal }),
+    );
     const reason = new Error('activity cancelled');
     reason.name = 'CancelledFailure';
 
@@ -167,7 +175,9 @@ describe('FakeAiProvider', () => {
     provider.delayMs = 100;
 
     expect(await provider.checkPhoto(bytes('plain'), { timeoutMs: 500 })).toEqual({ ok: true });
-    expect(await provider.checkPrompt('plain', { timeoutMs: 500 })).toEqual({ allowed: true });
+    expect(await provider.checkPrompt('plain', NO_ITEMS, { timeoutMs: 500 })).toEqual({
+      allowed: true,
+    });
     expect(await provider.moderateImage(bytes('plain'), { timeoutMs: 500 })).toEqual({
       flagged: false,
       categories: [],
@@ -180,7 +190,7 @@ describe('FakeAiProvider', () => {
 
     for (const call of [
       provider.checkPhoto(bytes('plain'), { timeoutMs: 20 }),
-      provider.checkPrompt('plain', { timeoutMs: 20 }),
+      provider.checkPrompt('plain', NO_ITEMS, { timeoutMs: 20 }),
       provider.moderateImage(bytes('plain'), { timeoutMs: 20 }),
     ]) {
       expect((await failureOf(call)).isTimeout).toBe(true);
@@ -300,7 +310,7 @@ describe('OpenAiProvider', () => {
       const fetch = unavailable();
       const openai = provider(fetch as unknown as ReturnType<typeof hangingFetch>, 4000);
 
-      const error = await failureOf(openai.checkPrompt('plain', { retry: false }));
+      const error = await failureOf(openai.checkPrompt('plain', NO_ITEMS, { retry: false }));
 
       expect(error).toMatchObject({ reason: 'http', status: 503 });
       expect(fetch).toHaveBeenCalledTimes(2);
@@ -310,7 +320,7 @@ describe('OpenAiProvider', () => {
       const fetch = unavailable();
       const openai = provider(fetch as unknown as ReturnType<typeof hangingFetch>, 4000);
 
-      await failureOf(openai.checkPrompt('plain'));
+      await failureOf(openai.checkPrompt('plain', NO_ITEMS));
 
       // The check fails when the first of the two calls does; the other may still be retrying.
       await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(6));
@@ -323,7 +333,7 @@ describe('OpenAiProvider', () => {
 
     for (const call of [
       openai.checkPhoto(bytes('plain')),
-      openai.checkPrompt('plain'),
+      openai.checkPrompt('plain', NO_ITEMS),
       openai.moderateImage(bytes('plain')),
     ]) {
       const error = await failureOf(call);
@@ -358,7 +368,39 @@ describe('OpenAiProvider', () => {
     );
     const openai = provider(answering as unknown as ReturnType<typeof hangingFetch>, 20);
 
-    expect(await openai.checkPrompt('plain', { timeoutMs: 2000 })).toEqual({ allowed: true });
+    expect(await openai.checkPrompt('plain', NO_ITEMS, { timeoutMs: 2000 })).toEqual({
+      allowed: true,
+    });
+  });
+
+  it('sends the chosen items in the text check instructions', async () => {
+    const bodies: string[] = [];
+    const fetch = vi.fn((url: string, init: RequestInit) => {
+      if (url.endsWith('/v1/responses')) bodies.push(String(init.body));
+      return Promise.resolve(
+        new Response(
+          JSON.stringify(
+            url.endsWith('/v1/moderations')
+              ? { results: [{ flagged: false, categories: {} }] }
+              : {
+                  output: [
+                    {
+                      type: 'message',
+                      content: [{ type: 'output_text', text: '{"allowed":true,"reason":"none"}' }],
+                    },
+                  ],
+                },
+          ),
+          { status: 200 },
+        ),
+      );
+    });
+    const openai = provider(fetch as unknown as ReturnType<typeof hangingFetch>, 4000);
+
+    await openai.checkPrompt('x', { items: [{ name: 'Linen shirt', category: 'Shirts' }] });
+
+    const body = JSON.parse(bodies[0] ?? '{}') as { instructions: string };
+    expect(body.instructions).toContain('- "Linen shirt", category "Shirts"');
   });
 
   it('times out under a shorter options.timeoutMs than the settings deadline', async () => {
@@ -366,7 +408,7 @@ describe('OpenAiProvider', () => {
 
     for (const call of [
       openai.checkPhoto(bytes('plain'), { timeoutMs: 20 }),
-      openai.checkPrompt('plain', { timeoutMs: 20 }),
+      openai.checkPrompt('plain', NO_ITEMS, { timeoutMs: 20 }),
       openai.moderateImage(bytes('plain'), { timeoutMs: 20 }),
     ]) {
       expect((await failureOf(call)).isTimeout).toBe(true);
@@ -376,7 +418,7 @@ describe('OpenAiProvider', () => {
   it('is aborted when the caller cancels with a CancelledFailure', async () => {
     const openai = provider(hangingFetch(), 60_000);
     const controller = new AbortController();
-    const result = failureOf(openai.checkPrompt('plain', { signal: controller.signal }));
+    const result = failureOf(openai.checkPrompt('plain', NO_ITEMS, { signal: controller.signal }));
     const reason = new Error('activity cancelled');
     reason.name = 'CancelledFailure';
 
@@ -388,7 +430,7 @@ describe('OpenAiProvider', () => {
   it('ends a call at once when the caller cancels', async () => {
     const openai = provider(hangingFetch(), 60_000);
     const controller = new AbortController();
-    const result = failureOf(openai.checkPrompt('plain', { signal: controller.signal }));
+    const result = failureOf(openai.checkPrompt('plain', NO_ITEMS, { signal: controller.signal }));
 
     controller.abort(new DOMException('stop', 'AbortError'));
 

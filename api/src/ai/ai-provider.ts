@@ -13,6 +13,7 @@ import {
   PROMPT_CLASSIFICATION_REASONS,
   type PromptCheck,
   PromptChecker,
+  type PromptCheckItem,
 } from './checks/prompt-checker.js';
 import { abortKind, sleep, withDeadline } from './deadline.js';
 import { gptImage2 } from './image-models/gpt-image-2.js';
@@ -61,7 +62,13 @@ export interface AiProvider {
   // The image model's short name, what `aiModel` stores (A43): `FITTING_MODEL`.
   readonly model: string;
   checkPhoto(image: ImageInput, options?: AiCallOptions): Promise<PhotoCheck>;
-  checkPrompt(text: string, options?: AiCallOptions): Promise<PromptCheck>;
+  // `items`: the fitting's chosen items (spec 0023 Y16), so a wish about the person's own clothes
+  // passes and one changing a chosen item's colour does not.
+  checkPrompt(
+    text: string,
+    context: { items: readonly PromptCheckItem[] },
+    options?: AiCallOptions,
+  ): Promise<PromptCheck>;
   moderateImage(image: ImageInput, options?: AiCallOptions): Promise<ModerationResult>;
   // The one paid call (A28): one generation, one payment (A67). Whatever `retry` says, only a
   // request that surely never reached OpenAI is sent again (the client's `unsent`), and the
@@ -121,8 +128,12 @@ export class OpenAiProvider implements AiProvider {
     return this.photos.check(image, this.callOptions(options));
   }
 
-  checkPrompt(text: string, options: AiCallOptions = {}): Promise<PromptCheck> {
-    return this.prompts.check(text, this.callOptions(options));
+  checkPrompt(
+    text: string,
+    { items }: { items: readonly PromptCheckItem[] },
+    options: AiCallOptions = {},
+  ): Promise<PromptCheck> {
+    return this.prompts.check(text, items, this.callOptions(options));
   }
 
   moderateImage(image: ImageInput, options: AiCallOptions = {}): Promise<ModerationResult> {
@@ -233,7 +244,11 @@ export class FakeAiProvider implements AiProvider {
     return { ok: true };
   }
 
-  async checkPrompt(text: string, options: AiCallOptions = {}): Promise<PromptCheck> {
+  async checkPrompt(
+    text: string,
+    _context: { items: readonly PromptCheckItem[] },
+    options: AiCallOptions = {},
+  ): Promise<PromptCheck> {
     await this.wait(options);
     const reason = marker(text);
     if (reason === 'moderation') return { allowed: false, reason };

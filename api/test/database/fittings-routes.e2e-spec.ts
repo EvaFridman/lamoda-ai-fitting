@@ -791,6 +791,31 @@ describe('the fittings routes (spec 0019 T12: AC5-AC9, A6, A7, A20, A32, A45, A4
       expect(response.status).toBe(201);
     });
 
+    it('checks the wishes with the names of the products and their categories (Y16)', async () => {
+      const who = await actor();
+      const shirt = await product('top');
+      const jeans = await product('bottom');
+      const names = await prisma().category.findMany({
+        where: { id: { in: [categories.top, categories.bottom] } },
+      });
+      const nameOf = (id: string) => names.find((category) => category.id === id)?.name;
+      const check = vi.spyOn(fake, 'checkPrompt');
+
+      await started(who, look(who, [shirt, jeans], { promptText: 'tucked in' }));
+
+      const calls = [...check.mock.calls];
+      check.mockRestore();
+      expect(calls).toHaveLength(1);
+      expect(calls[0]?.[0]).toBe('tucked in');
+      const items = calls[0]?.[1].items ?? [];
+      expect([...items].sort((a, b) => a.name.localeCompare(b.name))).toEqual(
+        [
+          { name: shirt.name, category: nameOf(categories.top) },
+          { name: jeans.name, category: nameOf(categories.bottom) },
+        ].sort((a, b) => a.name.localeCompare(b.name)),
+      );
+    });
+
     it('works again once the check answers', async () => {
       const who = await actor();
 
@@ -1384,7 +1409,54 @@ describe('the fittings routes (spec 0019 T12: AC5-AC9, A6, A7, A20, A32, A45, A4
     });
 
     it.each([
-      ['no reasons', { reasons: [] }, 'reasons', 'ARRAY_MIN_SIZE'],
+      ['an empty body', {}],
+      ['empty reasons', { reasons: [] }],
+    ])('takes %s and stores no reasons (Y9)', async (_name, body) => {
+      const who = await actor();
+      const { parent } = await completed(who);
+
+      const response = await regenerate(who, parent.id, body);
+
+      expect(response.status, JSON.stringify(response.body)).toBe(201);
+      const stored = await row(bodyOf(response).id);
+      expect(stored.regenerationReasons).toEqual([]);
+      expect(stored.comment).toBeNull();
+    });
+
+    it('stores the reasons it is given and still refuses six of them', async () => {
+      const who = await actor();
+      const { parent } = await completed(who);
+
+      const given = await regenerate(who, parent.id, { reasons: ['face'] });
+      expect(given.status, JSON.stringify(given.body)).toBe(201);
+      expect((await row(bodyOf(given).id)).regenerationReasons).toEqual(['face']);
+
+      expectError(
+        await regenerate(who, parent.id, {
+          reasons: ['face', 'figure', 'item', 'background', 'other', 'face'],
+        }),
+        400,
+        'VALIDATION_FAILED',
+        { field: 'reasons', code: 'ARRAY_MAX_SIZE' },
+      );
+    });
+
+    it('checks the comment with the parent’s product and category names', async () => {
+      const who = await actor();
+      const { parent, dress } = await completed(who);
+      const category = await prisma().category.findUniqueOrThrow({ where: { id: categories.top } });
+      const check = vi.spyOn(fake, 'checkPrompt');
+
+      await regenerate(who, parent.id, { comment: 'brighter' }).expect(201);
+
+      const calls = [...check.mock.calls];
+      check.mockRestore();
+      expect(calls).toHaveLength(1);
+      expect(calls[0]?.[0]).toBe('brighter');
+      expect(calls[0]?.[1]).toEqual({ items: [{ name: dress.name, category: category.name }] });
+    });
+
+    it.each([
       ['a reason that is not one', { reasons: ['hair'] }, 'reasons', 'IS_IN'],
       ['the same reason twice', { reasons: ['face', 'face'] }, 'reasons', 'ARRAY_UNIQUE'],
       [
