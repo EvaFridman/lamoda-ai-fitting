@@ -111,9 +111,14 @@
   }
 }
 
-// Board 8: a look's three tiles, no «К образу».
+// Board 8: a look's three tiles, no «К образу»; in a frame under about 300px wide (a window under
+// 690px high, the frame near its 320px floor, Y20) two to a row.
 .threeTiles {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+
+  @media (width >= 600px) and (height < 690px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .tile {

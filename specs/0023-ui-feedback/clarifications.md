@@ -160,3 +160,11 @@ and it reaches Sentry as a dependency's 503 does. Its `max_output_tokens` goes f
 a reasoning model's hidden tokens rarely cut the verdict. The photo check keeps counting an
 unreadable verdict as accepted: the photo and the result both pass the moderation, and a refused
 photo costs the user a new upload. A try-on with no wishes is never affected.
+
+**Y20. The photo frame's height on a low window (T11's review).** The frame keeps the plan's 240 px
+reserve, so it is one size through the picker, the wait and the result (P24, AC12): a result whose
+caption and tiles do not fit under the frame scrolls inside the window, the photo whole in view. A
+window from 600 px wide never makes it lower than 320 px (`max(320px, min(640px, 100svh - 240px))`,
+560 px the same): on a low window (a phone turned sideways) the window scrolls instead of the photo
+shrinking to nothing. `PhotoFrame` lives in `entities/fitting`, not `widgets/try-on`: the feature
+`start-fitting`'s `TryOnLoader` uses it, and a feature imports no widget.

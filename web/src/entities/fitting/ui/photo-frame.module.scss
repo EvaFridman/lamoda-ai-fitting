@@ -1,6 +1,6 @@
 // Spec 0023 plan §4.1: 2:3, from 1024px up to 640px high, 600–1023px up to 560px, both leaving the
-// window 240px for the heading and the margins; on a phone the whole width, up to 60% of the
-// window's height.
+// window 240px for the heading and the margins but never lower than 320px, where the window
+// scrolls instead (Y20); on a phone the whole width, up to 60% of the window's height.
 
 .frame {
   position: relative;
@@ -10,7 +10,7 @@
 
   box-sizing: border-box;
   aspect-ratio: 2 / 3;
-  height: min(640px, 100svh - 240px);
+  height: max(320px, min(640px, 100svh - 240px));
 
   background-color: var(--color-background-secondary);
 
@@ -35,7 +35,7 @@
   }
 
   @media (width < 1024px) {
-    height: min(560px, 100svh - 240px);
+    height: max(320px, min(560px, 100svh - 240px));
   }
 
   @media (width < 600px) {
