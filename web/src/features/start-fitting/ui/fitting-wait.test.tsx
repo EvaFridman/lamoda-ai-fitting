@@ -19,6 +19,8 @@ function fitting(patch: Partial<Fitting> = {}): Fitting {
     status: 'processing',
     stage: 'generating',
     failureCode: null,
+    failureCategory: null,
+    failureStage: null,
     countsAgainstLimit: true,
     regenerationFree: true,
     model: 'gpt-image-2',

@@ -25,7 +25,7 @@ import {
   UploadIcon,
 } from '@/shared/ui';
 
-import { REFUSAL_TEXTS, refusalReason, type RefusalReason } from '../lib/refusal';
+import { isChildRefusal, photoRefusal, type Refusal, refusalText } from '../lib/refusal';
 import {
   isPhotoType,
   MAX_PHOTO_BYTES,
@@ -59,9 +59,9 @@ interface Waiting {
   source: Source;
 }
 
-interface Refusal {
+interface RefusedPhoto {
   file: File;
-  reason: RefusalReason;
+  refusal: Refusal;
 }
 
 // The api asked for the consents: it keeps none of this user's (a tab older than its consent).
@@ -132,7 +132,7 @@ export function UploadPhoto({
   const [screen, setScreen] = useState<Screen>('closed');
   const [replacing, setReplacing] = useState(false);
   const [waiting, setWaiting] = useState<Waiting | null>(null);
-  const [refusal, setRefusal] = useState<Refusal | null>(null);
+  const [refusal, setRefusal] = useState<RefusedPhoto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [mine, setMine] = useState(false);
   const [agreed, setAgreed] = useState(false);
@@ -156,10 +156,10 @@ export function UploadPhoto({
       return queryClient.invalidateQueries({ queryKey: userPhotoKeys.all });
     },
     onError: (failure, { source, first }) => {
-      const refused = refusalReason(failure);
+      const refused = photoRefusal(failure);
       if (refused) {
         if (first) setPhotoConsent(queryClient, true);
-        track('Photo Refused', { reason: refused, source, place, first });
+        track('Photo Refused', { reason: refused.reason, source, place, first });
       } else if (consentRequired(failure)) setPhotoConsent(queryClient, false);
       else reportFailure(failure);
     },
@@ -230,9 +230,9 @@ export function UploadPhoto({
           onUploaded?.(photo);
         },
         onError: (failure) => {
-          const refused = refusalReason(failure);
+          const refused = photoRefusal(failure);
           if (refused) {
-            setRefusal({ file, reason: refused });
+            setRefusal({ file, refusal: refused });
             setScreen('refused');
             return;
           }
@@ -721,15 +721,15 @@ export function UploadPhoto({
           open
           wide
           onOpenChange={changeOpen}
-          title={REFUSAL_TEXTS[refusal.reason].title}
-          description={REFUSAL_TEXTS[refusal.reason].advice}
-          media={<RefusedPreview file={refusal.file} hidden={refusal.reason === 'child'} />}
+          title={refusalText(refusal.refusal).title}
+          description={refusalText(refusal.refusal).advice}
+          media={<RefusedPreview file={refusal.file} hidden={isChildRefusal(refusal.refusal)} />}
           footer={
             <>
-              {refusal.reason === 'child'
+              {isChildRefusal(refusal.refusal)
                 ? pickers('Загрузить своё фото', { withCamera: false, wide: true })
                 : pickers('Выбрать другое фото', { wide: true })}
-              {refusal.reason !== 'child' && (
+              {!isChildRefusal(refusal.refusal) && (
                 <LinkButton className={styles.tipsLink} onClick={openTips}>
                   Какое фото подойдёт
                 </LinkButton>

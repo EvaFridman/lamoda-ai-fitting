@@ -38,6 +38,8 @@ Names, sizes, areas, zone keys, the estimates' sign and the budget are checked b
   `type` not counted); `element`, `zone`, `type` on an element and `time`, `token`,
   `distinct_id`, `mp_…` anywhere are refused. A value is an enum (at most 50 values, no
   duplicates, each `^[a-z0-9]+([_-][a-z0-9]+)*$`), a number or a boolean; there is no free text.
+  A property sent with only some sends of its event is marked `optional: true`, and the event's
+  description says when it is sent (`Fitting Refused.prompt_reason`).
 - Element ids: `area.element`, each part kebab-case (`login.google`). The area is one of its
   zone's `areas`; an area belongs to one zone, matches `^[a-z0-9]+(-[a-z0-9]+)*$` and is declared
   in the zone before use. A zone's key matches the same pattern, and every zone has at least one

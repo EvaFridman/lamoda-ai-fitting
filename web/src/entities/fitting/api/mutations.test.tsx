@@ -39,6 +39,8 @@ function started(patch: Partial<StartedFitting> = {}): StartedFitting {
     status: 'pending',
     stage: 'queued',
     failureCode: null,
+    failureCategory: null,
+    failureStage: null,
     countsAgainstLimit: true,
     regenerationFree: true,
     model: 'gpt-image-2',
@@ -509,6 +511,7 @@ describe('useRegenerateFitting', () => {
     expect(track).toHaveBeenCalledExactlyOnceWith('Fitting Refused', {
       kind: 'look',
       reason: 'prompt_refused',
+      prompt_reason: 'off_topic',
     });
     expect(reportFailure).not.toHaveBeenCalled();
   });

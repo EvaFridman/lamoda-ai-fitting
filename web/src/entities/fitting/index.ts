@@ -37,6 +37,14 @@ export {
 export { fittingDate, historyDate, renewalDate } from './lib/dates';
 export { itemWord } from './lib/item-word';
 export {
+  fittingErrorText,
+  PROMPT_REFUSAL_REASONS,
+  PROMPT_REFUSAL_TEXTS,
+  type PromptRefusalReason,
+  promptRefusalReason,
+  promptRefusalText,
+} from './lib/prompt-refusal';
+export {
   FITTING_STEPS,
   fittingProgress,
   type FittingProgress,
@@ -62,6 +70,8 @@ export {
   fittingStageSchema,
   fittingStatusSchema,
   isFittingRunning,
+  moderationStageSchema,
+  safetyCategorySchema,
   startedFittingSchema,
   type Fitting,
   type FittingFailure,
@@ -71,7 +81,9 @@ export {
   type FittingQuota,
   type FittingStage,
   type FittingStatus,
+  type ModerationStage,
   type RegenerateFittingBody,
+  type SafetyCategory,
   type StartedFitting,
   type StartFittingBody,
 } from './model/schemas';

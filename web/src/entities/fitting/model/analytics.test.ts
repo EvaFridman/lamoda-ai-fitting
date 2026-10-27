@@ -25,6 +25,8 @@ function fitting(patch: Partial<Fitting> = {}): Fitting {
     status: 'completed',
     stage: 'done',
     failureCode: null,
+    failureCategory: null,
+    failureStage: null,
     countsAgainstLimit: true,
     regenerationFree: true,
     model: 'gpt-image-2',
@@ -55,6 +57,17 @@ function httpError(code: string): ApiError {
     method: 'POST',
     status: 409,
     code,
+  });
+}
+
+function promptRefused(message: string): ApiError {
+  return new ApiError('refused', {
+    kind: 'http',
+    template: '/fittings',
+    method: 'POST',
+    status: 400,
+    code: 'PROMPT_REFUSED',
+    details: [{ field: 'promptText', code: 'PROMPT_REFUSED', message }],
   });
 }
 
@@ -241,5 +254,41 @@ describe('fittingRefusal and trackFittingRefused', () => {
     track.mockReset();
     expect(trackFittingRefused(httpError('INTERNAL'), 'look')).toBeNull();
     expect(track).not.toHaveBeenCalled();
+  });
+
+  it('sends no prompt_reason for the limit', () => {
+    trackFittingRefused(httpError('LIMIT_REACHED'), 'look');
+    expect(track.mock.calls[0]?.[1]).not.toHaveProperty('prompt_reason');
+  });
+
+  it.each([
+    ['other_people', 'other_people'],
+    ['minors', 'minors'],
+    ['moderation:minors', 'minors'],
+    ['nudity', 'unsafe'],
+    ['violence', 'unsafe'],
+    ['moderation:violence', 'unsafe'],
+    ['moderation:sexual', 'unsafe'],
+    ['moderation:self_harm', 'unsafe'],
+    ['moderation:hate', 'unsafe'],
+    ['moderation:illicit', 'unsafe'],
+    ['unrelated', 'off_topic'],
+    ['politics', 'off_topic'],
+    ['moderation:unknown', 'off_topic'],
+    ['something_else', 'off_topic'],
+  ])('groups the text reason %s as %s', (reason, group) => {
+    expect(trackFittingRefused(promptRefused(`promptText was refused: ${reason}`), 'single')).toBe(
+      'prompt_refused',
+    );
+    expect(track).toHaveBeenCalledExactlyOnceWith('Fitting Refused', {
+      kind: 'single',
+      reason: 'prompt_refused',
+      prompt_reason: group,
+    });
+  });
+
+  it('groups a refusal with no detail as off_topic', () => {
+    trackFittingRefused(httpError('PROMPT_REFUSED'), 'single');
+    expect(track.mock.calls[0]?.[1]).toMatchObject({ prompt_reason: 'off_topic' });
   });
 });

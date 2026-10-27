@@ -17,6 +17,8 @@ const started = {
   status: 'pending',
   stage: 'queued',
   failureCode: null,
+  failureCategory: null,
+  failureStage: null,
   countsAgainstLimit: true,
   regenerationFree: true,
   model: 'gpt-image-2',

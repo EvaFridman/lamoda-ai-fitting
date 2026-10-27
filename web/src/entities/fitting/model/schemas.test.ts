@@ -30,6 +30,8 @@ const fitting = {
   status: 'completed',
   stage: 'done',
   failureCode: null,
+  failureCategory: null,
+  failureStage: null,
   countsAgainstLimit: true,
   regenerationFree: true,
   model: 'gpt-image-2',
@@ -84,6 +86,34 @@ describe('fittingSchema', () => {
     for (const failureCode of ['photo_dark', 'moderation', 'model_timeout', 'provider_error']) {
       expect(fittingSchema.safeParse({ ...fitting, failureCode }).success).toBe(true);
     }
+  });
+
+  it('reads the failure category and stage', () => {
+    for (const failureCategory of [
+      'sexual',
+      'minors',
+      'violence',
+      'self_harm',
+      'hate',
+      'illicit',
+      'unknown',
+    ]) {
+      const parsed = fittingSchema.parse({
+        ...fitting,
+        failureCode: 'moderation',
+        failureCategory,
+        failureStage: 'output',
+      });
+      expect(parsed).toMatchObject({ failureCategory, failureStage: 'output' });
+    }
+    expect(fittingSchema.safeParse({ ...fitting, failureStage: 'input' }).success).toBe(true);
+  });
+
+  it.each([
+    ['failureCategory', 'weapons'],
+    ['failureStage', 'middle'],
+  ])('fails on an unknown %s', (field, value) => {
+    expect(fittingSchema.safeParse({ ...fitting, [field]: value }).success).toBe(false);
   });
 
   it('fails on a javascript: result link', () => {

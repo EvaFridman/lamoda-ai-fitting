@@ -40,14 +40,17 @@ afterEach(() => {
 });
 
 describe('FittingErrorCard for a timeout', () => {
-  it.each(['model_timeout', 'provider_error'] as const)(
-    'shows card А for %s: not answered in time, nothing spent, retry and close',
-    (failure) => {
+  it.each([
+    ['model_timeout', 'Не получилось примерить', /Сервис примерки не ответил вовремя/],
+    ['provider_error', 'Сервис примерки недоступен', /Попробуйте ещё раз через несколько минут\./],
+  ] as const)(
+    'shows card А for %s: its title and text, nothing spent, retry and close',
+    (failure, title, text) => {
       renderCard({ failure });
 
       expect(screen.getByRole('alert')).toBeInTheDocument();
-      expect(screen.getByRole('heading', { name: 'Не получилось примерить' })).toBeInTheDocument();
-      expect(screen.getByText(/Сервис примерки не ответил вовремя/)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: title })).toBeInTheDocument();
+      expect(screen.getByText(text)).toBeInTheDocument();
       expect(screen.getByText('Примерка не списана · осталось 7')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Попробовать ещё раз' })).toBeEnabled();
       expect(screen.getByRole('button', { name: 'Закрыть' })).toBeInTheDocument();
@@ -110,18 +113,35 @@ describe('FittingErrorCard for a timeout', () => {
 });
 
 describe('FittingErrorCard for a moderation failure', () => {
-  it('shows card Б: the result is hidden, with retry and another photo, no close', () => {
-    renderCard({ failure: 'moderation' });
+  it('shows card Б for an output refusal: the result is hidden, with retry and another photo, no close', () => {
+    renderCard({ failure: 'moderation', stage: 'output', category: 'violence' });
 
     expect(screen.getByText('Результат скрыт')).toBeInTheDocument();
     expect(
       screen.getByRole('heading', { name: 'Не можем показать результат' }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Изображение не прошло автоматическую проверку/)).toBeInTheDocument();
+    expect(screen.getByText(/Изображение не прошло проверку безопасности\./)).toBeInTheDocument();
     expect(screen.getByText('Примерка не списана · осталось 7')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Попробовать ещё раз' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Другое фото' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Закрыть' })).not.toBeInTheDocument();
+  });
+
+  it('names an input refusal by its category', () => {
+    renderCard({ failure: 'moderation', stage: 'input', category: 'violence' });
+
+    expect(screen.getByRole('heading', { name: 'Не можем сделать примерку' })).toBeInTheDocument();
+    expect(screen.getByText(/На фото или в вещах есть оружие или насилие/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Другое фото' })).toBeInTheDocument();
+  });
+
+  it('reads no category and no stage as an unknown input refusal', () => {
+    renderCard({ failure: 'moderation', category: null, stage: null });
+
+    expect(screen.getByRole('heading', { name: 'Не можем сделать примерку' })).toBeInTheDocument();
+    expect(
+      screen.getByText(/Фото или выбранные вещи не прошли проверку безопасности/),
+    ).toBeInTheDocument();
   });
 
   it('goes back to the photo picker from «Другое фото» and tracks it', async () => {

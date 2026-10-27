@@ -28,6 +28,22 @@ export const fittingFailureSchema = z.enum([
   'provider_error',
 ]);
 
+// SafetyCategory: what a `moderation` failure was flagged for (spec 0023 Y2); `unknown` for a label
+// the api does not map and for a row older than the category.
+export const safetyCategorySchema = z.enum([
+  'sexual',
+  'minors',
+  'violence',
+  'self_harm',
+  'hate',
+  'illicit',
+  'unknown',
+]);
+
+// ModerationStage: whether the person's photo and items (`input`) or the result (`output`) was
+// refused.
+export const moderationStageSchema = z.enum(['input', 'output']);
+
 // An http(s) link only, so a broken answer never becomes a `javascript:` link.
 const httpUrl = z.url({ protocol: /^https?$/ });
 
@@ -54,6 +70,9 @@ export const fittingSchema = z.object({
   status: fittingStatusSchema,
   stage: fittingStageSchema,
   failureCode: fittingFailureSchema.nullable(),
+  // Both set only with `failureCode` `moderation`, else null.
+  failureCategory: safetyCategorySchema.nullable(),
+  failureStage: moderationStageSchema.nullable(),
   // Whether it spent a try-on of the month: false for a free regeneration and a failed one.
   countsAgainstLimit: z.boolean(),
   // Whether this result's next regeneration is free (A6, A70).
@@ -95,6 +114,8 @@ export type FittingKind = z.infer<typeof fittingKindSchema>;
 export type FittingStatus = z.infer<typeof fittingStatusSchema>;
 export type FittingStage = z.infer<typeof fittingStageSchema>;
 export type FittingFailure = z.infer<typeof fittingFailureSchema>;
+export type SafetyCategory = z.infer<typeof safetyCategorySchema>;
+export type ModerationStage = z.infer<typeof moderationStageSchema>;
 export type FittingItem = z.infer<typeof fittingItemSchema>;
 export type Fitting = z.infer<typeof fittingSchema>;
 export type StartedFitting = z.infer<typeof startedFittingSchema>;

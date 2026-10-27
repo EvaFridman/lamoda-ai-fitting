@@ -2,16 +2,21 @@
 
 import Image from 'next/image';
 
-import type { FittingFailure } from '@/entities/fitting';
+import type { FittingFailure, ModerationStage, SafetyCategory } from '@/entities/fitting';
 import { useTrackedElement } from '@/shared/analytics';
 import { PHONE_QUERY } from '@/shared/config';
 import { useMediaQuery } from '@/shared/lib';
 import { Button, InfoIcon, Notice } from '@/shared/ui';
 
+import { failureText } from '../lib/failure-text';
+
 import styles from './fitting-error-card.module.scss';
 
 export interface FittingErrorCardProps {
   failure: FittingFailure;
+  // A `moderation` failure's category and stage (spec 0023 Y2); null reads as `unknown`, `input`.
+  category?: SafetyCategory | null;
+  stage?: ModerationStage | null;
   // A failed fitting spends none (A20), but a cancelled or stuck one stays spent (A47, A68): then
   // the card does not say «Примерка не списана» (A79.3).
   spent: boolean;
@@ -30,9 +35,12 @@ export interface FittingErrorCardProps {
 }
 
 // Board 12 (spec 0019 AC11): card А when the model did not answer (or failed), card Б when the
-// result did not pass the moderation; both say the try-on was not spent, unless it was.
+// moderation refused, its text by the stage and category (spec 0023 plan §4.5); both say the
+// try-on was not spent, unless it was.
 export function FittingErrorCard({
   failure,
+  category = null,
+  stage = null,
   spent,
   left,
   photoUrl,
@@ -47,6 +55,7 @@ export function FittingErrorCard({
   const close = useTrackedElement('try-on.close', { screen: 'error' });
   const otherPhoto = useTrackedElement('try-on.other-photo');
   const moderated = failure === 'moderation';
+  const text = failureText(failure, category, stage);
 
   return (
     <div className={styles.card} role="alert">
@@ -64,14 +73,8 @@ export function FittingErrorCard({
           <InfoIcon size={16} />
           Ошибка
         </p>
-        <h3 className={styles.title}>
-          {moderated ? 'Не можем показать результат' : 'Не получилось примерить'}
-        </h3>
-        <p className={styles.text}>
-          {moderated
-            ? 'Изображение не прошло автоматическую проверку. Чаще всего помогает другое фото — в полный рост и в простой одежде.'
-            : 'Сервис примерки не ответил вовремя. Так бывает при большой нагрузке — попробуйте ещё раз через минуту.'}
-        </p>
+        <h3 className={styles.title}>{text.title}</h3>
+        <p className={styles.text}>{text.text}</p>
         {!spent && (
           <Notice tone="success">
             Примерка не списана{left === undefined ? '' : ` · осталось ${left}`}

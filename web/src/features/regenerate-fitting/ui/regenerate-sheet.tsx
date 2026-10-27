@@ -5,6 +5,7 @@ import { useId, useState } from 'react';
 
 import {
   type Fitting,
+  fittingErrorText,
   fittingRefusal,
   type StartedFitting,
   useRegenerateFitting,
@@ -80,7 +81,7 @@ export function RegenerateSheet({
   const itemsId = useId();
 
   const refusal = regenerate.isError ? fittingRefusal(regenerate.error) : null;
-  const commentError = refusal === 'prompt_refused' ? errorText(regenerate.error) : null;
+  const commentError = refusal === 'prompt_refused' ? fittingErrorText(regenerate.error) : null;
   const failure = regenerate.isError && refusal === null ? errorText(regenerate.error) : null;
 
   function changeOpen(next: boolean) {

@@ -7,8 +7,11 @@
 export type EntryType = 'navigation' | 'interaction' | 'conversion' | 'service';
 
 /** A property is a closed list, a number or a boolean: never free text (R7, AC6). */
-export type Property =
-  { kind: 'enum'; values: readonly string[] } | { kind: 'number' } | { kind: 'boolean' };
+// `optional`: sent only with some sends of its event (its description says which); every other
+// property goes with every send.
+export type Property = (
+  { kind: 'enum'; values: readonly string[] } | { kind: 'number' } | { kind: 'boolean' }
+) & { optional?: true };
 
 export type Properties = Readonly<Record<string, Property>>;
 
@@ -348,11 +351,16 @@ export const catalog = defineCatalog({
       zone: 'fitting',
       type: 'interaction',
       description:
-        'Api не запустил примерку или перегенерацию: `limit_reached` — примерки месяца закончились, `prompt_refused` — пожелания или комментарий не прошли проверку. Генерации не было, примерка не списана.',
+        'Api не запустил примерку или перегенерацию: `limit_reached` — примерки месяца закончились, `prompt_refused` — пожелания или комментарий не прошли проверку. Генерации не было, примерка не списана. `prompt_reason` — только с `prompt_refused`, грубая группа причины: `other_people` — другие люди, `minors` — дети, `unsafe` — тело, насилие, оскорбления или запрещённое, `off_topic` — не про образ, политика или причина не распознана.',
       perVisit: 0.003,
       properties: {
         kind: { kind: 'enum', values: ['single', 'look'] },
         reason: { kind: 'enum', values: ['limit_reached', 'prompt_refused'] },
+        prompt_reason: {
+          kind: 'enum',
+          values: ['other_people', 'minors', 'unsafe', 'off_topic'],
+          optional: true,
+        },
       },
     },
     'Stores Searched': {
