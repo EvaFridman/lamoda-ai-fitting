@@ -417,7 +417,13 @@ and the full `verify` once at the phase's end (as spec 0019 A58 did).
   refused by the whitelist; an empty body answers 200 unchanged. It is the `write` tier and goes
   through `signOutWhenGone` (`me/sign-out-when-gone.ts`), as `GET` and `DELETE /me` do.
 - `api` `POST /me/photos` (spec 0019 plan §5, `me/photos/`, `@Expensive()`): the multipart body
-  (`photo`, `save` = `true` by default) read by `busboy`, `sharp` turns the JPG, PNG or WebP into a
+  (`photo`, `save` = `true` by default, `consent`) read by `busboy`. The photo consents live on the
+  user's row (spec 0023 Y1, Y17: `photo_consent_at` and `photo_consent_version`, both or neither;
+  `UserResponseDto`'s `photoConsentVersion`, the time not answered): `consent` must be
+  `PHOTO_CONSENT_VERSION` (`me/photos/consent.ts`, else the detail `IS_IN`); a user with no stored
+  consent of that version who sends none gets 400 with the detail `CONSENT_REQUIRED` before
+  anything else is spent; a sent one is written in a statement of its own after sharp and before
+  the check, so a refused photo keeps it. `sharp` turns the JPG, PNG or WebP into a
   WebP of at most 2048 px without metadata (anything else: 400 with the detail `IS_IMAGE`), the
   check `checkPhoto` runs on that WebP (a refusal: the detail `PHOTO_REFUSED`, its reason in the
   message; a failed or timed-out check: 503, nothing stored), then one transaction locks the user's

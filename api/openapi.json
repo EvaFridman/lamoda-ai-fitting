@@ -5530,6 +5530,13 @@
                     "type": "boolean",
                     "default": true,
                     "description": "`false` stores a one-time photo: not among the saved ones (at most 5), deleted when the try-on closes or an hour after its last fitting (unused, after its upload)."
+                  },
+                  "consent": {
+                    "type": "integer",
+                    "enum": [
+                      1
+                    ],
+                    "description": "The photo consents' version, given with the first upload; kept with the user even when the check refuses the photo. Without it, a user with no stored consent of this version gets 400 `CONSENT_REQUIRED`."
                   }
                 }
               }
@@ -9237,6 +9244,12 @@
             "nullable": true,
             "description": "Reads the photo for S3_SIGNED_URL_TTL_SECONDS (15 minutes); null with no photo or when the key is outside the owner's folder."
           },
+          "photoConsentVersion": {
+            "type": "integer",
+            "nullable": true,
+            "example": 1,
+            "description": "The version of the photo consents the user gave with an upload; null with none. Web shows them again while it is below the current one."
+          },
           "createdAt": {
             "format": "date-time",
             "type": "string"
@@ -9257,6 +9270,7 @@
           "gender",
           "fittingProfileImageKey",
           "fittingProfileImageUrl",
+          "photoConsentVersion",
           "createdAt",
           "updatedAt"
         ]

@@ -101,9 +101,11 @@ export class UsersService {
     await this.fileDeletion.start(queued);
   }
 
-  // `emailVerified` is Better Auth's (always true from Google), not part of the answer.
+  // `emailVerified` is Better Auth's (always true from Google), not part of the answer, nor is the
+  // consents' time (spec 0023 plan §3.1).
   private async toResponse({
     emailVerified: _emailVerified,
+    photoConsentAt: _photoConsentAt,
     ...user
   }: User): Promise<UserResponseDto> {
     return {

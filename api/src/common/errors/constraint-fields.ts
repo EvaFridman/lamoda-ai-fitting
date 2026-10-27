@@ -54,6 +54,7 @@ export const CONSTRAINT_FIELDS: Readonly<Record<string, readonly string[]>> = {
   users_last_name_check: ['lastName'],
   users_patronymic_check: ['patronymic'],
   users_phone_check: ['phone'],
+  users_photo_consent_check: ['consent'],
   user_photos_height_check: ['height'],
   user_photos_image_key_check: ['imageKey'],
   user_photos_width_check: ['width'],

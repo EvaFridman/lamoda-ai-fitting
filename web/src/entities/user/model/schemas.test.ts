@@ -13,6 +13,7 @@ const user = {
   gender: 'female',
   fittingProfileImageKey: null,
   fittingProfileImageUrl: null,
+  photoConsentVersion: null,
   createdAt: '2026-10-15T08:00:00.000Z',
   updatedAt: '2026-10-15T08:00:00.000Z',
 };
@@ -42,6 +43,16 @@ describe('userSchema', () => {
     const { fittingProfileImageUrl: _link, ...rest } = user;
 
     expect(userSchema.safeParse(rest).success).toBe(false);
+  });
+
+  it('accepts a consent version number and refuses a missing one or a string', () => {
+    const { photoConsentVersion: _version, ...rest } = user;
+
+    expect(userSchema.parse({ ...user, photoConsentVersion: 1 })).toMatchObject({
+      photoConsentVersion: 1,
+    });
+    expect(userSchema.safeParse(rest).success).toBe(false);
+    expect(userSchema.safeParse({ ...user, photoConsentVersion: '1' }).success).toBe(false);
   });
 
   it('fails on an unknown gender', () => {

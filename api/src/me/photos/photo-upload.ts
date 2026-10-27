@@ -12,21 +12,25 @@ import {
   MAX_FIELD_LENGTH,
   MAX_MESSAGE_LENGTH,
 } from '../../common/validation/validation-pipe.js';
+import { CONSENT_FIELD, PHOTO_CONSENT_VERSION } from './consent.js';
 
 // The multipart body of `POST /me/photos` (spec 0019 plan §5), read by busboy on this route only:
 // the api's own parsers stay off (spec 0006 F26), so nothing else reads a form body. One file
-// field `photo` and an optional `save` (`true` by default; `false` marks the photo one-time, A24).
+// field `photo`, an optional `save` (`true` by default; `false` marks the photo one-time, A24) and
+// an optional `consent` (the consents' version, spec 0023 plan §3.1), before or after the file.
 // Any other part is an unknown field, as the DTOs' whitelist answers (WHITELIST_VALIDATION).
 export interface PhotoUpload {
   photo: Buffer;
   save: boolean;
+  // PHOTO_CONSENT_VERSION when sent, else null.
+  consent: number | null;
 }
 
 export const PHOTO_FIELD = 'photo';
 export const SAVE_FIELD = 'save';
 
 // What a multipart body holds beyond the file: the boundary lines, the parts' headers and the
-// `save` field. A Content-Length above the file limit and this is refused before a byte is read.
+// `save` and `consent` fields. A Content-Length above the file limit and this is refused before a byte is read.
 const MULTIPART_OVERHEAD = 16 * 1024;
 
 // The detail of a missing photo or of a file that is not a JPG, PNG or WebP image (A31); the
@@ -95,6 +99,7 @@ export function readPhotoUpload(req: IncomingMessage, maxBytes: number): Promise
     let fileSeen = false;
     let photo: Buffer | undefined;
     let save = true;
+    let consent: number | null = null;
     let settled = false;
     // Once: the rest of the body is drained, so the answer goes out on a readable connection.
     const settle = (end: () => void): void => {
@@ -126,6 +131,18 @@ export function readPhotoUpload(req: IncomingMessage, maxBytes: number): Promise
       });
     });
     parser.on('field', (name, value, info) => {
+      if (name === CONSENT_FIELD) {
+        if (info.valueTruncated || value !== String(PHOTO_CONSENT_VERSION)) {
+          details.push({
+            field: CONSENT_FIELD,
+            code: 'IS_IN',
+            message: `${CONSENT_FIELD} must be ${PHOTO_CONSENT_VERSION}`,
+          });
+          return;
+        }
+        consent = PHOTO_CONSENT_VERSION;
+        return;
+      }
       if (name !== SAVE_FIELD) {
         details.push(unknownField(name));
         return;
@@ -157,7 +174,7 @@ export function readPhotoUpload(req: IncomingMessage, maxBytes: number): Promise
           reject(new ValidationError(details));
           return;
         }
-        resolve({ photo, save });
+        resolve({ photo, save, consent });
       }),
     );
     req.on('error', () => fail(unreadable()));

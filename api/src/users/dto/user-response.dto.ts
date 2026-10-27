@@ -48,6 +48,16 @@ export class UserResponseDto {
   })
   fittingProfileImageUrl: string | null;
 
+  // The time of the consents stays in the database (spec 0023 plan §3.1).
+  @ApiProperty({
+    type: 'integer',
+    nullable: true,
+    example: 1,
+    description:
+      'The version of the photo consents the user gave with an upload; null with none. Web shows them again while it is below the current one.',
+  })
+  photoConsentVersion: number | null;
+
   @ApiProperty()
   createdAt: Date;
 

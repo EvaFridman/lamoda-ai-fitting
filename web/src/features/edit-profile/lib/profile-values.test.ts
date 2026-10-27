@@ -15,6 +15,7 @@ const user: User = {
   gender: 'female',
   fittingProfileImageKey: null,
   fittingProfileImageUrl: null,
+  photoConsentVersion: null,
   createdAt: '2026-10-01T12:00:00.000Z',
   updatedAt: '2026-10-01T12:00:00.000Z',
 };

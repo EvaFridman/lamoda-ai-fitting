@@ -29,6 +29,7 @@ import { UuidParam } from '../../common/pipes/uuid.pipe.js';
 import { Expensive } from '../../throttling/tiered-throttler.guard.js';
 import { MeService } from '../me.service.js';
 import { signOutWhenGone } from '../sign-out-when-gone.js';
+import { CONSENT_FIELD, PHOTO_CONSENT_VERSION } from './consent.js';
 import { SetDefaultPhotoDto } from './dto/set-default-photo.dto.js';
 import { UserPhotoDto } from './dto/user-photo.dto.js';
 import { MePhotosService } from './me-photos.service.js';
@@ -79,6 +80,12 @@ export class MePhotosController {
           default: true,
           description:
             '`false` stores a one-time photo: not among the saved ones (at most 5), deleted when the try-on closes or an hour after its last fitting (unused, after its upload).',
+        },
+        [CONSENT_FIELD]: {
+          type: 'integer',
+          enum: [PHOTO_CONSENT_VERSION],
+          description:
+            "The photo consents' version, given with the first upload; kept with the user even when the check refuses the photo. Without it, a user with no stored consent of this version gets 400 `CONSENT_REQUIRED`.",
         },
       },
     },

@@ -44,6 +44,7 @@ const user: User = {
   gender: 'female',
   fittingProfileImageKey: null,
   fittingProfileImageUrl: null,
+  photoConsentVersion: null,
   createdAt: DATE,
   updatedAt: DATE,
 };

@@ -107,7 +107,8 @@ export function errorText(error: unknown): string {
 // (ai-generations/generation-triple.ts), `IN_OWNER_FOLDER` of a file key outside the owner's
 // folder (storage/owner-check.ts, spec 0011 M8), `IS_IMAGE` and `PHOTO_REFUSED` of a fitting
 // photo (me/photos, spec 0019 plan §5: a file that is not a JPG, PNG or WebP, and a photo the
-// check refused, its reason in the message), `HAS_SLOT` and `DISTINCT_SLOTS` of a fitting's items
+// check refused, its reason in the message; `CONSENT_REQUIRED` of an upload with no consents, spec
+// 0023 Y17), `HAS_SLOT` and `DISTINCT_SLOTS` of a fitting's items
 // (fittings, spec 0019 A70: an item outside the fitting room's slots, two items of a look in one
 // slot), `MATCHES_SLOT` of a fitting room's item (me/fitting-room, A86: a product of another slot)
 // and `TOO_MANY_ERRORS` of a cut list (spec 0006 F14).
@@ -145,6 +146,7 @@ export const DETAIL_TEXTS = {
   IN_OWNER_FOLDER: 'Файл принадлежит другому пользователю или ещё не загружен',
   IS_IMAGE: 'Нужно изображение JPG, PNG или WebP',
   PHOTO_REFUSED: 'Фото не подходит для примерки',
+  CONSENT_REQUIRED: 'Подтвердите согласия перед загрузкой фото',
   HAS_SLOT: 'Эту вещь пока нельзя примерить',
   DISTINCT_SLOTS: 'В образе может быть только одна вещь каждого типа',
   MATCHES_SLOT: 'Эта вещь для другого слота',
