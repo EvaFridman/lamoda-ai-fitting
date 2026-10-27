@@ -71,7 +71,7 @@ export function FittingWait({ fitting, photoUrl, onClose }: FittingWaitProps) {
 
   return (
     <div className={styles.wait} aria-busy="true">
-      <TryOnLoader photoUrl={photoUrl} className={styles.loader} />
+      <TryOnLoader photoUrl={photoUrl} />
       <div className={styles.side}>
         {item && !phone && (
           <div className={styles.item}>

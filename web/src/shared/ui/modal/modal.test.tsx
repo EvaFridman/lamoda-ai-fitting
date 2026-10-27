@@ -1,7 +1,7 @@
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useRef } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { Button, Modal, ModalClose } from '@/shared/ui';
 
@@ -289,6 +289,96 @@ describe('Modal', () => {
     const close = outer.querySelector('button[aria-label="Закрыть"]');
     expect(close).toHaveClass('close');
     expect(close?.parentElement).toBe(outer);
+  });
+
+  describe('animateSize', () => {
+    class FakeObserver {
+      static instances: FakeObserver[] = [];
+      observed: Element[] = [];
+      disconnect = vi.fn();
+      constructor(public callback: (entries: unknown[]) => void) {
+        FakeObserver.instances.push(this);
+      }
+      observe(element: Element) {
+        this.observed.push(element);
+      }
+      emit(blockSize: number) {
+        this.callback([{ borderBoxSize: [{ blockSize }] }]);
+      }
+    }
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      FakeObserver.instances = [];
+    });
+
+    it('sets the content height variable from the inner box and follows it', async () => {
+      vi.stubGlobal('ResizeObserver', FakeObserver);
+      render(
+        <Modal open animateSize title="Окно" description="Подпись">
+          <p>Содержимое</p>
+        </Modal>,
+      );
+      await screen.findByRole('dialog');
+
+      const inner = screen.getByText('Содержимое').parentElement as HTMLElement;
+      const content = inner.parentElement as HTMLElement;
+      expect(inner).toContainElement(screen.getByText('Подпись'));
+      const observer = FakeObserver.instances[0]!;
+      expect(observer.observed).toEqual([inner]);
+
+      act(() => observer.emit(321));
+      expect(content.style.getPropertyValue('--modal-content-height')).toBe('321px');
+
+      act(() => observer.emit(100));
+      expect(content.style.getPropertyValue('--modal-content-height')).toBe('100px');
+    });
+
+    it('disconnects the observer when it closes', async () => {
+      vi.stubGlobal('ResizeObserver', FakeObserver);
+      const { rerender } = render(
+        <Modal open animateSize title="Окно">
+          <p>Содержимое</p>
+        </Modal>,
+      );
+      await screen.findByRole('dialog');
+      const observer = FakeObserver.instances[0]!;
+
+      rerender(
+        <Modal open={false} animateSize title="Окно">
+          <p>Содержимое</p>
+        </Modal>,
+      );
+
+      await vi.waitFor(() => expect(observer.disconnect).toHaveBeenCalled());
+    });
+
+    it('renders without ResizeObserver', async () => {
+      vi.stubGlobal('ResizeObserver', undefined);
+      render(
+        <Modal open animateSize title="Окно">
+          <p>Содержимое</p>
+        </Modal>,
+      );
+
+      await screen.findByRole('dialog');
+      expect(screen.getByText('Содержимое')).toBeInTheDocument();
+    });
+
+    it('has no inner box and no variable without it', async () => {
+      vi.stubGlobal('ResizeObserver', FakeObserver);
+      render(
+        <Modal open title="Окно">
+          <p>Содержимое</p>
+        </Modal>,
+      );
+      await screen.findByRole('dialog');
+
+      const content = screen.getByText('Содержимое').parentElement as HTMLElement;
+      expect(content.style.getPropertyValue('--modal-content-height')).toBe('');
+      expect(content.parentElement).toBe(screen.getByRole('dialog'));
+      expect(FakeObserver.instances).toHaveLength(0);
+    });
   });
 
   it('stays closed while controlled open is false', () => {

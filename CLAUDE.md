@@ -749,7 +749,9 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   while its icon is hidden, spec 0019 A87.7),
   `Modal`'s `initialFocus` (a ref of the element focused when it opens, `'popup'` for the frame
   itself, else the first focusable one), `Modal`'s `wide` (up to 1000px, the whole window below 600px) and `media` (a picture's
-  column), `FileInput` (a kit `Button` that clicks a hidden `<input type="file">`, one file, with
+  column), `Modal`'s `animateSize` (the frame's height follows its content over `--duration-slow`,
+  a `ResizeObserver` on a box around the children; not on a phone's `wide`; the try-on's window,
+  spec 0023 P10), `FileInput` (a kit `Button` that clicks a hidden `<input type="file">`, one file, with
   `accept` and `capture`, spec 0019 A30; `bare` is a plain button the page styles), `IconButton`'s
   `plain` and `Sheet` (spec 0019 A64: the kit's one bottom sheet is `Drawer side="bottom"`, which
   takes `description`, `media` (a picture left of the heading, which then has no "‹" or header
@@ -963,7 +965,12 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   whose item goes before the comment. The header's `HeaderRoom`
   (`FittingRoomButton` with `CountBadge`, between «Избранное» and «Корзина», per request inside
   `<Suspense>`) opens it, or a visitor's `LoginModal`; so do the limit card's «Перейти в
-  примерочную», after the try-on window closes (A90.12), and the add toast's «Открыть».
+  примерочную», after the try-on window closes (A90.12), and the add toast's «Открыть». The
+  try-on shows the photo in one frame, `PhotoFrame` (`entities/fitting`, spec 0023 P24, Y15):
+  the picker's photo, an upload, `TryOnLoader`'s wait and both results, 2:3, every image in it
+  `contain` on the light grey, its size from the window only (up to 640 px high from 1024 px,
+  560 px at 600–1023 px, never more than the window's height less 240 px; on a phone the whole
+  width up to 60svh); «Во весь экран» opens that frame, black and whole (P29).
 - `web` stores page (spec 0022, `_pages/stores`): `useStores` (`entities/store`) starts from the
   page cache's `getStores`; the search (`matchStores`: every word the start of a word of the
   name, mall, city, street or a metro station, X7) runs in the browser, its text never in an

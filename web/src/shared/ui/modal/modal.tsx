@@ -35,7 +35,26 @@ export interface ModalProps {
   // A picture in a column left of the heading, the content and the buttons (board 5's photo); on top
   // of them below 600px.
   media?: ReactNode;
+  // The frame's height follows its content smoothly, over `--duration-slow` (none under
+  // `prefers-reduced-motion`), for a window whose screens change in place (spec 0023 P10). Not on
+  // a phone's `wide`, which is the whole window.
+  animateSize?: boolean;
   children?: ReactNode;
+}
+
+// `animateSize`'s box around the content's children: its height, set as `--modal-content-height`
+// on the content (its parent), which the content's height follows. The first measure is not
+// animated (from `auto`), every later one is. A ref callback, since the portal mounts the frame
+// after the modal's own effects.
+function observeContentHeight(inner: HTMLDivElement | null) {
+  const content = inner?.parentElement;
+  if (!inner || !content || typeof ResizeObserver === 'undefined') return;
+  const observer = new ResizeObserver(([entry]) => {
+    const height = entry?.borderBoxSize[0]?.blockSize ?? inner.offsetHeight;
+    content.style.setProperty('--modal-content-height', `${height}px`);
+  });
+  observer.observe(inner);
+  return () => observer.disconnect();
 }
 
 // Lamoda's modal (d-modal): a white frame in the middle of a dark overlay, a 24/28 heading, the
@@ -54,11 +73,20 @@ export function Modal({
   finalFocus,
   wide = false,
   media,
+  animateSize = false,
   children,
 }: ModalProps) {
   // `media={cond && picture}` with a false `cond` is no picture.
   const hasMedia = media !== undefined && media !== null && media !== false;
   const popupRef = useRef<HTMLDivElement>(null);
+  const body = (
+    <>
+      {description && (
+        <Dialog.Description className={styles.description}>{description}</Dialog.Description>
+      )}
+      {children}
+    </>
+  );
   return (
     <Dialog.Root
       open={open}
@@ -81,13 +109,16 @@ export function Modal({
           >
             {hasMedia && <div className={styles.media}>{media}</div>}
             <Dialog.Title className={styles.title}>{title}</Dialog.Title>
-            <div className={styles.content}>
-              {description && (
-                <Dialog.Description className={styles.description}>
-                  {description}
-                </Dialog.Description>
+            <div
+              className={[styles.content, animateSize && styles.animated].filter(Boolean).join(' ')}
+            >
+              {animateSize ? (
+                <div ref={observeContentHeight} className={styles.inner}>
+                  {body}
+                </div>
+              ) : (
+                body
               )}
-              {children}
             </div>
             {footer && <div className={styles.footer}>{footer}</div>}
             <Dialog.Close className={styles.close} aria-label="Закрыть">

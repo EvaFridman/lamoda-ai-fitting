@@ -8,6 +8,7 @@ import {
   type Fitting,
   fittingProgress,
   type FittingProgress,
+  PhotoFrame,
   timeLeftText,
 } from '@/entities/fitting';
 import { TryOnLoader } from '@/features/start-fitting';
@@ -52,8 +53,8 @@ export interface ResultPictureProps {
   pictureRef: RefObject<HTMLDivElement | null>;
 }
 
-// The result's picture with «Сгенерировано ИИ» (boards 7, 8): only an image's `src`, in an
-// `mp-block` container (A37).
+// The result's picture with «Сгенерировано ИИ» (boards 7, 8) in the try-on's one frame (spec 0023
+// P24), which «Во весь экран» opens (P29): only an image's `src` (A37).
 export function ResultPicture({
   fitting,
   running,
@@ -64,7 +65,7 @@ export function ResultPicture({
 }: ResultPictureProps) {
   if (running) {
     return (
-      <TryOnLoader photoUrl={fitting.resultUrl} className={styles.picture}>
+      <TryOnLoader photoUrl={fitting.resultUrl}>
         {progress && runningLabel && (
           <div className={styles.runningBox}>
             <p className={styles.runningHead}>
@@ -79,19 +80,12 @@ export function ResultPicture({
     );
   }
   return (
-    <div ref={pictureRef} className={['mp-block', styles.picture].join(' ')}>
+    <PhotoFrame ref={pictureRef}>
       {fitting.resultUrl && (
-        <Image
-          className={styles.image}
-          src={fitting.resultUrl}
-          alt={alt}
-          fill
-          sizes="540px"
-          unoptimized
-        />
+        <Image src={fitting.resultUrl} alt={alt} fill sizes="480px" unoptimized />
       )}
       <AiLabel />
-    </div>
+    </PhotoFrame>
   );
 }
 

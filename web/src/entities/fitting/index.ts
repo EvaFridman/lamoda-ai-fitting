@@ -93,4 +93,5 @@ export {
   triesLeftOfText,
   triesLeftText,
 } from './ui/limit-meter';
+export { PhotoFrame, type PhotoFrameProps } from './ui/photo-frame';
 export { TriedOnNote, type TriedOnNoteEvents, type TriedOnNoteProps } from './ui/tried-on-note';

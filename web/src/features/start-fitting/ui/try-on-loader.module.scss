@@ -1,16 +1,9 @@
 // Board 6's loader (the canvas's kit.css `.n-loader`): the photo blurred 14px and scaled 1.1, dots
-// of 2.2px every 14px masked to a band that sweeps across in 2.4 s.
-
-.loader {
-  position: relative;
-  overflow: hidden;
-  aspect-ratio: 3 / 4;
-  background-color: var(--color-background-secondary);
-}
+// of 2.2px every 14px masked to a band that sweeps across in 2.4 s. The frame (`PhotoFrame`) keeps
+// the photo whole.
 
 .photo {
   transform: scale(1.1);
-  object-fit: cover;
   filter: blur(14px) saturate(0.8);
 }
 

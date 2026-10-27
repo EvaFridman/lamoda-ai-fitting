@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 
-import { LimitMeter, type FittingQuota } from '@/entities/fitting';
+import { LimitMeter, type FittingQuota, PhotoFrame } from '@/entities/fitting';
 import { PhotoThumb, type UserPhoto } from '@/entities/user-photo';
 import { UploadPhoto } from '@/features/upload-photo';
 import { useTrackedElement } from '@/shared/analytics';
@@ -91,9 +91,10 @@ export interface PhotoPickerProps {
   quota: FittingQuota | undefined;
 }
 
-// Board 3, the photo picker (spec 0019 AC3, AC5, AC6, A62): the chosen photo with «Видите только
-// вы», the item, the strip of saved photos (the default marked) closed by the upload's tiles, the
-// switch «Сохранить фото для следующих примерок» for a new photo, the month's meter and
+// Board 3, the photo picker (spec 0019 AC3, AC5, AC6, A62): the chosen photo, whole in the try-on's
+// frame (spec 0023 P24), with «Видите только вы», the item, the strip of saved photos (the default
+// marked) closed by the upload's tiles, the switch «Сохранить фото для следующих примерок» for a
+// new photo, the month's meter and
 // «Примерить». A new photo shows dimmed while it uploads (3.3) and is chosen once stored; a refusal
 // opens board 5 with the note that the try-on was not spent.
 export function PhotoPicker({
@@ -143,11 +144,11 @@ export function PhotoPicker({
 
   return (
     <div className={styles.picker}>
-      <div className={['mp-block', styles.photo].join(' ')}>
+      <PhotoFrame className={styles.photo}>
         {pendingFile ? (
           <PendingPhoto file={pendingFile} />
         ) : chosen?.url ? (
-          <Image className={styles.image} src={chosen.url} alt="Ваше фото" fill unoptimized />
+          <Image src={chosen.url} alt="Ваше фото" fill sizes="480px" unoptimized />
         ) : photos === undefined && !photosFailed ? (
           <Skeleton height="100%" />
         ) : (
@@ -159,7 +160,7 @@ export function PhotoPicker({
             Видите только вы
           </span>
         )}
-      </div>
+      </PhotoFrame>
 
       <div className={styles.item}>{subject}</div>
 
