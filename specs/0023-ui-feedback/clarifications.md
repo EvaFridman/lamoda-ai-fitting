@@ -168,3 +168,19 @@ window from 600 px wide never makes it lower than 320 px (`max(320px, min(640px,
 560 px the same): on a low window (a phone turned sideways) the window scrolls instead of the photo
 shrinking to nothing. `PhotoFrame` lives in `entities/fitting`, not `widgets/try-on`: the feature
 `start-fitting`'s `TryOnLoader` uses it, and a feature imports no widget.
+
+**Y21. Two pickers in the drop zone are tiles (PR 3's review, the owner's screenshots).** On a touch
+device the zone's «Загрузить фото» and «Сделать фото» were two grey buttons side by side that
+merged with the grey zone and did not fit a phone's or a tablet's frame. They become two equal
+white tiles with a frame, the icon over the label, as board 3's «Загрузить» and «Снять» (the
+owner's choice of three); «Заменить фото»'s window shares them. With a mouse the one «Загрузить
+фото» button stays.
+
+**Y22. Leaving the product page closes its try-on (PR 3's review).** Next keeps a page left by a
+link hidden with its state, so the try-on window opened from the product page stayed mounted after
+«Перейти в «Мои фото»» and came back open on Back (the owner read it as the link not working). The
+window now closes when the page is hidden or left, as the look's try-on already did.
+
+**Y23. «Мои фото» offers the camera only on a touch device (PR 3's review).** T12 kept «Сделать
+фото» on «Мои фото» on every device; with a mouse it only opens the file picker again, so it goes,
+as in the try-on (Y13).

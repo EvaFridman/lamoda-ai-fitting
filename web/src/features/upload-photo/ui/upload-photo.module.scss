@@ -102,6 +102,56 @@
   }
 }
 
+// On a touch device: «Загрузить фото» and «Сделать фото» as two equal tiles, white on the grey
+// zone, the icon over the label (board 3's «Загрузить» and «Снять»), so both fit a phone's frame.
+.zoneTiles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+}
+
+.tile {
+  cursor: pointer;
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  align-items: center;
+  justify-content: center;
+
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 72px;
+  margin: 0;
+  padding: var(--space-3) var(--space-2);
+  border: var(--border-width) solid var(--color-border-control);
+  border-radius: var(--radius-s);
+
+  font-family: inherit;
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  color: var(--color-text);
+  text-align: center;
+
+  background-color: var(--color-background);
+
+  transition: border-color var(--duration-fast);
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: 2px;
+  }
+
+  &:active:not(:disabled) {
+    border-color: var(--color-border-active);
+  }
+
+  &:disabled {
+    cursor: default;
+    color: var(--color-text-secondary);
+  }
+}
+
 // A file dragged over the frame darkens it.
 .dragging::after {
   pointer-events: none;

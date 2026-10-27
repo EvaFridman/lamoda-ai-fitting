@@ -118,7 +118,9 @@ describe('UploadPhoto first upload', () => {
     view.unmount();
     render(tree);
 
-    expect(screen.getByRole('button', { name: 'Сделать фото' })).toBeEnabled();
+    // The pickers are shown at once (no tips); with a mouse there is no camera among them.
+    expect(screen.getByRole('button', { name: 'Добавить фото' })).toBeEnabled();
+    expect(screen.queryByRole('button', { name: 'Сделать фото' })).not.toBeInTheDocument();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });

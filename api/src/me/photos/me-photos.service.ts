@@ -3,6 +3,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { AiProviderError } from '../../ai/ai-provider.error.js';
 import { AI_PROVIDER, type AiProvider } from '../../ai/ai-provider.js';
 import type { PhotoCheck } from '../../ai/checks/photo-checker.js';
+import { refusalMessage } from '../../ai/refusal-message.js';
 import { AppException, ValidationError } from '../../common/errors/app.exception.js';
 import type { Prisma, UserPhoto } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
@@ -178,7 +179,7 @@ export class MePhotosService {
           field: PHOTO_FIELD,
           code: 'PHOTO_REFUSED',
           // The reason in its code form (plan §5): web picks the screen by it.
-          message: `${PHOTO_FIELD} was refused: ${check.reason}`,
+          message: refusalMessage(PHOTO_FIELD, check.reason),
         },
       ]);
     }

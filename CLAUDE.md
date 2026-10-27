@@ -396,7 +396,12 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   metadata after importing `AppModule`, rewritten with `-u`, spec 0017 plan §3), and web's
   `error-text.contract.test.ts` fails on a code there with no text in `DETAIL_TEXTS`. Codes from
   elsewhere (an unknown field, a database rule, a path id, the owner check) are not in the
-  snapshot; their texts in `DETAIL_TEXTS` are kept by hand. A name
+  snapshot; their texts in `DETAIL_TEXTS` are kept by hand. A refusal's detail message
+  (`PHOTO_REFUSED`, `PROMPT_REFUSED`) is built only by `refusalMessage` (`ai/refusal-message.ts`),
+  and every one the api can answer is the snapshot `api/refusal-messages.json`
+  (`test/refusal-messages.e2e-spec.ts`, rewritten with `-u`), against which web's
+  `refusal.contract.test.ts` and `prompt-refusal.contract.test.ts` check its parsers through
+  `refusalMessages()` (`@/shared/contract`). A name
   (`IsPersonName`, `common/validation/rules.ts`, one `ValidateBy`) answers the one code
   `IS_PERSON_NAME` for any failure (U19); its check is the exported `isPersonName`, which
   `auth/auth-hooks.ts` uses for Google's given name.
@@ -817,11 +822,12 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   upload off at five saved photos. In the try-on (spec 0023 P3–P9, P25) `UploadPhoto`'s `zone`
   fills the photo frame: a file dropped on it (not JPG, PNG or WebP: «Нужно изображение JPG, PNG
   или WebP») uploads as `source: drop`, before the consents once they are given; with no photo it
-  is a dashed area a click on which picks a file, «Загрузить фото», «Сделать фото» only under
-  `COARSE_POINTER_QUERY` and the save switch at its bottom; with a photo chosen, `replace` is
+  is a dashed area a click on which picks a file, «Загрузить фото» (under `COARSE_POINTER_QUERY`
+  it and «Сделать фото» as two white tiles, Y21) and the save switch at its bottom; with a photo
+  chosen, `replace` is
   «Заменить фото» under the frame, whose window (a `Sheet` on a phone) holds the saved photos, the
   pickers, the switch and «Перейти в «Мои фото»». «Мои фото» keeps `card` and `buttons`, the
-  camera on every device. `/privacy` says the photos go to OpenAI and are not used for
+  camera, as in the try-on, only under `COARSE_POINTER_QUERY` (Y23). `/privacy` says the photos go to OpenAI and are not used for
   training (A46). The screens follow the canvas's boards 4, 5 and 10 (A63.8): `PhotoTips` draws
   the canvas's seven example pictures as inline SVG components (`ui/pictograms.tsx`, web keeps no
   files); a refusal shows the chosen file from an object URL set on the `<img>` by an effect and
@@ -940,7 +946,8 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   skipped, A81); «С этим товаром выбирают» is prefetched through the page cache only after that.
   The page joins `widgets/product-gallery` (the kit's `Gallery`), `widgets/product-buy-box`
   (rating, price, colour and size, `features/product-stubs`, the primary «Примерить», its own
-  button, through which `ProductPurchase` opens `widgets/try-on` in place (the window's start is
+  button, through which `ProductPurchase` opens `widgets/try-on` in place, closed when the page is
+  left or hidden by Next's kept routes, spec 0023 Y22 (the window's start is
   `features/start-fitting`), signed out the second
   `LoginModal`; `features/fitting-room`'s `ToLookButton` «Добавить к образу», «В образе» while
   the product is in the room, with the colour chosen beside it, A82.2, A90.1, spec 0023 P1; from

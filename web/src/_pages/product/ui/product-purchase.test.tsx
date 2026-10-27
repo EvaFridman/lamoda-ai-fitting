@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { Activity } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { OutfitSlot } from '@/entities/category';
@@ -123,6 +124,61 @@ describe('ProductPurchase', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Примерить' }));
+    expect(screen.getByRole('dialog', { name: 'Онлайн-примерка' })).toBeInTheDocument();
+  });
+});
+
+// Next keeps a page left by a link hidden in an <Activity> with its state (spec 0023 Y22).
+describe('ProductPurchase in a page Next hides', () => {
+  function renderIn(mode: 'visible' | 'hidden', queryClient: QueryClient) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <Activity mode={mode}>
+          <ProductPurchase product={product} slot="top" />
+        </Activity>
+      </QueryClientProvider>
+    );
+  }
+
+  async function openTryOn() {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const view = render(renderIn('visible', queryClient));
+    const user = userEvent.setup();
+    const button = screen.getByRole('button', { name: 'Примерить' });
+    await vi.waitFor(() => expect(button).toBeEnabled());
+    await user.click(button);
+    expect(screen.getByRole('dialog', { name: 'Онлайн-примерка' })).toBeInTheDocument();
+    return {
+      user,
+      rerender: (mode: 'visible' | 'hidden') => view.rerender(renderIn(mode, queryClient)),
+    };
+  }
+
+  it('keeps the window while the page stays shown', async () => {
+    const { rerender } = await openTryOn();
+
+    rerender('visible');
+
+    expect(screen.getByRole('dialog', { name: 'Онлайн-примерка' })).toBeInTheDocument();
+  });
+
+  it('closes the window once the page is hidden, so Back shows the page without it', async () => {
+    const { rerender } = await openTryOn();
+
+    act(() => rerender('hidden'));
+    act(() => rerender('visible'));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Примерить' })).toBeInTheDocument();
+  });
+
+  it('opens the window again after coming back', async () => {
+    const { user, rerender } = await openTryOn();
+    act(() => rerender('hidden'));
+    act(() => rerender('visible'));
+
+    await user.click(screen.getByRole('button', { name: 'Примерить' }));
+
     expect(screen.getByRole('dialog', { name: 'Онлайн-примерка' })).toBeInTheDocument();
   });
 });

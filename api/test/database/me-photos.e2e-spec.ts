@@ -8,6 +8,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { AI_PROVIDER, type FakeAiProvider } from '../../src/ai/ai-provider.js';
 import { AI_SETTINGS, aiSettings } from '../../src/ai/ai-settings.js';
+import { refusalMessage } from '../../src/ai/refusal-message.js';
 import { SAFETY_CATEGORIES } from '../../src/ai/safety-category.js';
 import type { Auth } from '../../src/auth/auth.js';
 import { AUTH } from '../../src/auth/auth.module.js';
@@ -287,7 +288,7 @@ describe('POST /me/photos (spec 0019 AC1, AC3, AC4, A45)', () => {
       expect(errorOf(response).details).toEqual([
         expect.objectContaining({ field: 'photo', code: 'PHOTO_REFUSED' }),
       ]);
-      expect(errorOf(response).details[0]?.message).toBe(`photo was refused: ${reason}`);
+      expect(errorOf(response).details[0]?.message).toBe(refusalMessage('photo', reason));
       await expectNothingStored(who);
     });
   });

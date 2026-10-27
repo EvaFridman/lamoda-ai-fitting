@@ -6,6 +6,7 @@ import { AiProviderError } from '../ai/ai-provider.error.js';
 import { AI_PROVIDER, type AiProvider } from '../ai/ai-provider.js';
 import { AI_SETTINGS, type AiSettings } from '../ai/ai-settings.js';
 import type { PromptCheckItem } from '../ai/checks/prompt-checker.js';
+import { refusalMessage } from '../ai/refusal-message.js';
 import {
   AppException,
   type ErrorDetail,
@@ -541,7 +542,7 @@ export class FittingsService {
     if (!check.allowed) {
       // The detail names the field and the reason (`moderation:<category>` too) in the shape of
       // the photo's (spec 0023 plan §3.5): web picks the text by it.
-      const message = `${field} was refused: ${check.reason}`;
+      const message = refusalMessage(field, check.reason);
       throw new AppException('PROMPT_REFUSED', message, [
         { field, code: 'PROMPT_REFUSED', message },
       ]);
