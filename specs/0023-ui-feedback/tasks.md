@@ -53,7 +53,7 @@ the deployed site.
 - [x] **T8. The result's picture for a download (Y8).** Plan §3.2: `GET /fittings/:id/image`,
       Swagger, the access lists, e2e. About 1.5 h. Commit:
       `feat(api): serve a fitting's result as a download`.
-- [ ] **T9. Regeneration without reasons and freer wishes (Y9, Y12).** Plan §3.3, §3.4: the DTO, the
+- [x] **T9. Regeneration without reasons and freer wishes (Y9, Y12).** Plan §3.3, §3.4: the DTO, the
       text check's instructions, the prompt, their tests and snapshots. About 2 h. Commit:
       `feat(api): optional regeneration reasons and freer wishes`.
 - [ ] **T10. Safety categories (Y2).** Plan §3.5: `safetyCategory`, the client's

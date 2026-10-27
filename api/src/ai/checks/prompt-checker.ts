@@ -7,6 +7,7 @@ import {
   type OpenAiClient,
   outputText,
 } from '../openai-client.js';
+import { type PromptItem, quote } from '../prompts.js';
 import type { ModerationChecker } from './moderation-checker.js';
 
 // Why a wish or a regeneration comment is refused (A16): the classification's reasons, and
@@ -40,17 +41,32 @@ const VERDICT_SCHEMA = {
   additionalProperties: false,
 } as const;
 
-// A16: allowed are wishes about the fit, the styling and the chosen items; refused is anything
-// about other people, nudity, minors, violence, politics or unrelated to the try-on.
+// The chosen items as the text check names them (spec 0023 Y16): the catalog's names, never the
+// user's.
+export type PromptCheckItem = Pick<PromptItem, 'name' | 'category'>;
+
+// Spec 0023 Y12 (replacing spec 0019 A16's limits): allowed besides the fit and the styling of the
+// chosen items are the scene, the pose, the person's own clothes and small additions; refused are
+// other people, nudity, minors, violence, politics, and changing the person, adding text or
+// changing the chosen items, whose colour is the colour choice.
 export const PROMPT_INSTRUCTIONS =
   'You classify a short wish a user typed for a virtual clothes try-on, where a photo of the user ' +
-  'is edited so that the user wears the chosen items of clothing. Answer only with JSON. Allowed, ' +
-  'with reason none: wishes about the fit and the styling of the chosen items (how they sit, ' +
-  'tucked in or loose, sleeves rolled up, buttoned or open, the mood of the look). Refused, with ' +
-  'the matching reason: other_people (another person, or changing who is in the photo), nudity ' +
-  '(nudity or sexual content), minors (children), violence (violence or harm), politics ' +
-  '(politics, religion or ideology), unrelated (anything else that is not about the fit or the ' +
-  'styling of the items: changing the face or the body, adding text, another scene or background).';
+  'is edited so that the user wears the chosen items of clothing, listed below. Answer only with ' +
+  'JSON. Allowed, with reason none: wishes about the fit and the styling of the chosen items (how ' +
+  'they sit, their length on the body, tucked in or loose, sleeves rolled up, buttoned or open, ' +
+  'the mood of the look), the background or the scene, the pose, the colour and style of the ' +
+  "person's own clothes that are not one of the chosen items, and small additions to the look (a " +
+  'scarf, a belt, a bag in hand). Refused, with the matching reason: other_people (another ' +
+  'person, or changing who is in the photo), nudity (nudity or sexual content), minors ' +
+  '(children), violence (violence or harm), politics (politics, religion or ideology), unrelated ' +
+  '(changing the face, the body or the identity, adding text or logos, changing the cut or the ' +
+  'colour of a chosen item, or anything that is not about the look of the photo).';
+
+// The instructions with the chosen items, each quoted as a JSON string as the prompt quotes them.
+export function promptInstructions(items: readonly PromptCheckItem[]): string {
+  const list = items.map((item) => `- ${quote(item.name)}, category ${quote(item.category)}`);
+  return [PROMPT_INSTRUCTIONS, 'The chosen items:', ...list].join('\n');
+}
 
 // The text check (spec 0019 A16, A45): the moderation endpoint (any flagged category refuses) and
 // the small model's classification, in parallel under the caller's one deadline. A malformed
@@ -65,20 +81,28 @@ export class PromptChecker {
     private readonly logger: AiLogger,
   ) {}
 
-  async check(text: string, options: CallOptions): Promise<PromptCheck> {
+  async check(
+    text: string,
+    items: readonly PromptCheckItem[],
+    options: CallOptions,
+  ): Promise<PromptCheck> {
     const [classification, moderation] = await Promise.all([
-      this.classify(text, options),
+      this.classify(text, items, options),
       this.moderation.checkText(text, options),
     ]);
     if (moderation.flagged) return { allowed: false, reason: 'moderation' };
     return classification;
   }
 
-  private async classify(text: string, options: CallOptions): Promise<PromptCheck> {
+  private async classify(
+    text: string,
+    items: readonly PromptCheckItem[],
+    options: CallOptions,
+  ): Promise<PromptCheck> {
     const answer = await this.client.respond(
       {
         model: this.visionModel,
-        instructions: PROMPT_INSTRUCTIONS,
+        instructions: promptInstructions(items),
         input: [{ role: 'user', content: [{ type: 'input_text', text }] }],
         text: {
           format: {

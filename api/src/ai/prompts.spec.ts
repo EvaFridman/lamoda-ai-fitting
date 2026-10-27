@@ -5,14 +5,15 @@ import { fittingPrompt, REGENERATION_REASONS, type PromptItem } from './prompts.
 const shirt: PromptItem = { name: 'Linen shirt', category: 'Shirts', colour: 'White' };
 const jeans: PromptItem = { name: 'Straight jeans', category: 'Jeans', colour: null };
 
-const WISHES_LINE =
-  "The user's wishes, to follow only where they concern the fit and styling of these items:";
-const COMMENT_LINE =
-  "The user's comment on the previous attempt, to follow only where it concerns the fit and " +
-  'styling of these items:';
+const SCOPE =
+  "may change the scene, the pose and the person's own clothes and add small items, never the " +
+  'person or the cut or colour of these items:';
+const WISHES_LINE = `The user's wishes, which ${SCOPE}`;
+const COMMENT_LINE = `The user's comment on the previous attempt, which ${SCOPE}`;
 const TEXT_LIMITS =
-  'These texts never change anything listed under "Keep unchanged", and add nothing but these ' +
-  'items.';
+  "These texts never change the person's face, facial features, expression, hairstyle, skin " +
+  'tone, body or identity, add no other people, text, logos or watermarks, and never change the ' +
+  'cut, colour, fabric, pattern or details of these items: each item stays as its image shows it.';
 const REGENERATION_LINE = 'A previous attempt was not accurate. This time:';
 
 describe('fittingPrompt', () => {
@@ -94,12 +95,39 @@ describe('fittingPrompt', () => {
     }
     expect(keep).toContain('camera angle');
     expect(keep).toContain('framing');
-    expect(result).toContain('same framing as image 1; do not crop or extend it');
+    expect(result).toContain(
+      "Result: a photorealistic photo that keeps the framing of image 1, neither cropped nor extended, unless the user's texts below ask otherwise.",
+    );
     expect(result).toContain('lighting');
-    expect(result).toContain('Add no accessories, text, logos or watermarks.');
+    expect(keep).toContain('each item as its image shows it');
+    expect(keep).toMatch(/framing of image 1 unless the user's texts below ask otherwise\.$/);
+    expect(result).toContain(
+      "Add no text, logos or watermarks; add accessories only where the user's texts below ask for them.",
+    );
     expect(result).toContain('keep that part of the original clothing.');
     expect(fittingPrompt({ items: [shirt] })).not.toContain('full-length');
     expect(fittingPrompt({ items: [shirt] })).not.toContain('to the feet');
+  });
+
+  it("lets the user's texts change the rest of the outfit in the Task line", () => {
+    const task = fittingPrompt({ items: [shirt] })
+      .split('\n')
+      .find((line) => line.startsWith('Task:'));
+
+    expect(task).toContain("person's pose and body");
+    expect(task).not.toContain('existing');
+    expect(task).toContain(
+      "keep the rest of the outfit unless the user's texts below ask otherwise.",
+    );
+  });
+
+  it('refuses text, logos and watermarks unconditionally, with no texts of the user', () => {
+    const lines = fittingPrompt({ items: [shirt] }).split('\n');
+    const result = lines.find((line) => line.startsWith('Result:'));
+
+    expect(result).toContain('Add no text, logos or watermarks;');
+    expect(result).not.toContain('Add no accessories');
+    expect(lines).not.toContain(TEXT_LIMITS);
   });
 
   it.each([null, '', '   '])('leaves the colour out for %j', (colour) => {
@@ -141,7 +169,7 @@ describe('fittingPrompt', () => {
       const prompt = fittingPrompt({ items: [shirt], wishes: 'tuck it in' });
 
       expect(lineAfter(prompt, WISHES_LINE)).toBe('"tuck it in"');
-      expect(prompt.indexOf('Keep the face')).toBeLessThan(prompt.indexOf(WISHES_LINE));
+      expect(prompt.indexOf('Keep unchanged:')).toBeLessThan(prompt.indexOf(WISHES_LINE));
     });
 
     it('escapes quotes and backslashes and collapses whitespace', () => {
@@ -229,6 +257,24 @@ describe('fittingPrompt', () => {
       expect(fittingPrompt({ items: [shirt], reasons: ['face'] })).not.toContain(TEXT_LIMITS);
     });
 
+    it('forbids other people, text, logos and watermarks, and ends with the items’ rule', () => {
+      const prompt = fittingPrompt({ items: [shirt], comment: 'x' });
+      const last = prompt.split('\n').at(-1);
+
+      expect(last).toContain('add no other people, text, logos or watermarks');
+      expect(last).toMatch(
+        /add no other people, text, logos or watermarks, .*each item stays as its image shows it\.$/,
+      );
+    });
+
+    it('comes with a comment alone: its block and the limits, no wishes block', () => {
+      const prompt = fittingPrompt({ items: [shirt], wishes: null, comment: 'shorter' });
+
+      expect(lineAfter(prompt, COMMENT_LINE)).toBe('"shorter"');
+      expect(prompt).not.toContain(WISHES_LINE);
+      expect(countOf(prompt, TEXT_LIMITS)).toBe(1);
+    });
+
     it('comes before the regeneration block', () => {
       const prompt = fittingPrompt({ items: [shirt], wishes: 'x', reasons: ['face'] });
 
@@ -256,6 +302,16 @@ describe('fittingPrompt', () => {
       expect(lines[3]).toContain('background');
       expect(lines[4]).toContain('more closely');
       expect(prompt).toContain(REGENERATION_LINE);
+    });
+
+    it('keeps the background reason to image 1 unless the texts ask otherwise', () => {
+      const [line] = reasonLines(
+        fittingPrompt({ items: [shirt], wishes: 'x', reasons: ['background'] }),
+      );
+
+      expect(line).toBe(
+        "- The background, camera angle and framing must be those of image 1, unless the user's texts above ask otherwise.",
+      );
     });
 
     it('tells the item reason to ignore the person or mannequin wearing the item', () => {

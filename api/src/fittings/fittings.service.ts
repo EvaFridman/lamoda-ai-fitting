@@ -5,6 +5,7 @@ import * as Sentry from '@sentry/nestjs';
 import { AiProviderError } from '../ai/ai-provider.error.js';
 import { AI_PROVIDER, type AiProvider } from '../ai/ai-provider.js';
 import { AI_SETTINGS, type AiSettings } from '../ai/ai-settings.js';
+import type { PromptCheckItem } from '../ai/checks/prompt-checker.js';
 import {
   AppException,
   type ErrorDetail,
@@ -93,6 +94,13 @@ interface ItemRow {
   slot: OutfitSlot;
 }
 
+// What the text check names of a product (spec 0023 Y16): the catalog's name and category.
+const PRODUCT_NAMES = { name: true, category: { select: { name: true } } } as const;
+
+function checkItem(product: { name: string; category: { name: string } }): PromptCheckItem {
+  return { name: product.name, category: product.category.name };
+}
+
 // The text check did not answer (A45): its deadline passed, or OpenAI is down or refused the
 // call. A 503 with nothing stored, so the user retries; AppExceptionFilter reports it as an
 // outage (once per route and minute).
@@ -157,7 +165,7 @@ export class FittingsService {
   // session (A23) and the row. The workflow starts after the commit.
   async start(userId: string, dto: StartFittingDto): Promise<StartResult> {
     await this.assertUser(userId);
-    const items = await this.checkItems(dto);
+    const { items, named } = await this.checkItems(dto);
     await this.assertPhoto(this.prisma, userId, dto.photoId);
     const promptText = dto.promptText ?? null;
     const fingerprint = fittingFingerprint({ photoId: dto.photoId, items, promptText });
@@ -175,7 +183,7 @@ export class FittingsService {
     }
     await this.quota.assertLeft(userId);
     if (promptText !== null) {
-      await this.checkText(promptText, 'promptText');
+      await this.checkText(promptText, 'promptText', named);
     }
     const result = await this.prisma.$transaction(async (tx) => {
       await lockUser(tx, userId);
@@ -214,9 +222,15 @@ export class FittingsService {
     await this.assertUser(userId);
     const parent = await this.prisma.aiGeneration.findFirst({
       where: { ...fittingsOf(userId), id },
-      select: { status: true, photoId: true, fingerprint: true, freeRegenerationUsed: true },
+      select: {
+        status: true,
+        photoId: true,
+        fingerprint: true,
+        freeRegenerationUsed: true,
+        products: { select: { product: { select: PRODUCT_NAMES } } },
+      },
     });
-    const { fingerprint } = checkParent(parent);
+    const { fingerprint, products } = checkParent(parent);
     const running = await this.findRunning(this.prisma, userId, fingerprint);
     if (running !== null) {
       return { fitting: await this.toStarted(running, false), created: false };
@@ -226,7 +240,11 @@ export class FittingsService {
     }
     const comment = dto.comment ?? null;
     if (comment !== null) {
-      await this.checkText(comment, 'comment');
+      await this.checkText(
+        comment,
+        'comment',
+        products.map(({ product }) => checkItem(product)),
+      );
     }
     const result = await this.prisma.$transaction(async (tx) => {
       await lockUser(tx, userId);
@@ -263,7 +281,7 @@ export class FittingsService {
           parentId: id,
           promptText: kept.promptText,
           comment,
-          regenerationReasons: dto.reasons,
+          regenerationReasons: dto.reasons ?? [],
           fingerprint: kept.fingerprint,
           countsAgainstLimit: free.count === 0,
           // Only a try-on's own result has a free regeneration (A70): this one's spend a try-on.
@@ -440,12 +458,15 @@ export class FittingsService {
   // attribute (RELATED_NOT_FOUND, A76, A91: a season or a material is no colour); each category
   // has a slot (HAS_SLOT) and a look's slots differ (DISTINCT_SLOTS, A18, A70). A regeneration
   // copies its parent's items unchecked: a parent from before this rule keeps its value.
-  private async checkItems(dto: StartFittingDto): Promise<ItemRow[]> {
+  private async checkItems(
+    dto: StartFittingDto,
+  ): Promise<{ items: ItemRow[]; named: PromptCheckItem[] }> {
     const products = await this.prisma.product.findMany({
       where: { id: { in: dto.items.map((item) => item.productId) } },
       select: {
         id: true,
-        category: { select: { slot: true } },
+        name: true,
+        category: { select: { slot: true, name: true } },
         attributeValues: {
           where: { attributeValue: COLOUR_VALUE },
           select: { attributeValueId: true },
@@ -494,15 +515,23 @@ export class FittingsService {
     if (slots.length > 0) {
       throw new ValidationError(slots);
     }
-    return items.filter((item): item is ItemRow => item !== null);
+    return {
+      items: items.filter((item): item is ItemRow => item !== null),
+      named: products.map(checkItem),
+    };
   }
 
   // The text check (A16, A45): refused is 400 PROMPT_REFUSED with the reason's code in the
   // message, spending nothing; one that does not answer is 503 with nothing stored.
-  private async checkText(text: string, field: 'promptText' | 'comment'): Promise<void> {
+  // `items` are the fitting's chosen items, named for the check (spec 0023 Y16).
+  private async checkText(
+    text: string,
+    field: 'promptText' | 'comment',
+    items: readonly PromptCheckItem[],
+  ): Promise<void> {
     let check;
     try {
-      check = await this.ai.checkPrompt(text);
+      check = await this.ai.checkPrompt(text, { items });
     } catch (error) {
       if (error instanceof AiProviderError) {
         throw new TextCheckUnavailableError(error);

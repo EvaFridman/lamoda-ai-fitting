@@ -36,14 +36,23 @@ const REASON_LINES: Readonly<Record<RegenerationReason, string>> = {
   item:
     'Each item must match its own image exactly: its cut, length, colour, fabric, pattern and ' +
     'details, never the person or mannequin wearing it.',
-  background: 'The background, camera angle and framing must be those of image 1, unchanged.',
+  background:
+    "The background, camera angle and framing must be those of image 1, unless the user's texts " +
+    'above ask otherwise.',
   other: 'Follow every instruction above more closely than the previous attempt did.',
 };
 
-// The fixed line after the user's texts: the last word stays with the rules above, not with them.
+// What the user's texts may change (spec 0023 Y12), in their lead lines.
+const TEXT_SCOPE =
+  "may change the scene, the pose and the person's own clothes and add small items, never the " +
+  'person or the cut or colour of these items';
+
+// The fixed line after the user's texts: the last word stays with the rules above, not with them,
+// and the items' rule comes last (spec 0023 plan §5).
 const TEXT_LIMITS =
-  'These texts never change anything listed under "Keep unchanged", and add nothing but these ' +
-  'items.';
+  "These texts never change the person's face, facial features, expression, hairstyle, skin " +
+  'tone, body or identity, add no other people, text, logos or watermarks, and never change the ' +
+  'cut, colour, fabric, pattern or details of these items: each item stays as its image shows it.';
 
 export function fittingPrompt({ items, wishes, comment, reasons = [] }: FittingPrompt): string {
   // The structure of OpenAI's own try-on example (the image prompting guide for GPT Image): each
@@ -59,32 +68,32 @@ export function fittingPrompt({ items, wishes, comment, reasons = [] }: FittingP
     'The item images may show an item worn by another person or on a mannequin: take only the ' +
       "item from them, never that person's face, hair, body, skin or pose.",
     'Task: replace only the clothing these items cover, fitting each item naturally to the ' +
-      "person's existing pose and body with realistic fabric behaviour (drape, folds, tension); " +
-      'keep the rest of the outfit. Each item keeps its own cut, length, colour, fabric, pattern, ' +
-      'print and details, so it stays recognisable as the product.',
+      "person's pose and body with realistic fabric behaviour (drape, folds, tension); keep the " +
+      "rest of the outfit unless the user's texts below ask otherwise. Each item keeps its own " +
+      'cut, length, colour, fabric, pattern, print and details, so it stays recognisable as the ' +
+      'product.',
     "Keep unchanged: the person's face, facial features, expression, hairstyle, skin tone, body " +
-      'shape, proportions, pose and identity; do not retouch, slim or beautify them. Keep the ' +
-      'background, camera angle and framing of image 1.',
+      'shape, proportions and identity, and each item as its image shows it; do not retouch, ' +
+      'slim or beautify the person. Keep the pose, the background, the camera angle and the ' +
+      "framing of image 1 unless the user's texts below ask otherwise.",
     // The photo check passed a full-length photo (A15), so its framing is kept, not extended: a
     // demand for head to feet would fight it on a photo the check let through when unsure.
-    'Result: a photorealistic photo with the same framing as image 1; do not crop or extend it. ' +
-      'Match the lighting, shadows and colour temperature of image 1, so the items look worn, not ' +
-      'pasted on. Add no accessories, text, logos or watermarks. If an item leaves uncovered a ' +
-      'part of the body the replaced clothing covered, keep that part of the original clothing.',
+    'Result: a photorealistic photo that keeps the framing of image 1, neither cropped nor ' +
+      "extended, unless the user's texts below ask otherwise. Match the lighting, shadows and " +
+      'colour temperature of image 1, so the items look worn, not pasted on. Add no text, logos or ' +
+      "watermarks; add accessories only where the user's texts below ask for them. If an item " +
+      'leaves uncovered a part of the body the replaced clothing covered, keep that part of the ' +
+      'original clothing.',
   ];
 
   const wishesText = wishes?.trim();
   if (wishesText) {
-    lines.push(
-      "The user's wishes, to follow only where they concern the fit and styling of these items:",
-      quote(wishesText),
-    );
+    lines.push(`The user's wishes, which ${TEXT_SCOPE}:`, quote(wishesText));
   }
   const commentText = comment?.trim();
   if (commentText) {
     lines.push(
-      "The user's comment on the previous attempt, to follow only where it concerns the fit and " +
-        'styling of these items:',
+      `The user's comment on the previous attempt, which ${TEXT_SCOPE}:`,
       quote(commentText),
     );
   }
@@ -107,7 +116,7 @@ function describe(item: PromptItem): string {
 }
 
 // A JSON string: quotes, backslashes and line breaks inside the text are escaped, so a text cannot
-// close its quote and pass for an instruction of the prompt.
-function quote(text: string): string {
+// close its quote and pass for an instruction of the prompt. The text check quotes the items so too.
+export function quote(text: string): string {
   return JSON.stringify(text.replace(/\s+/g, ' ').trim());
 }

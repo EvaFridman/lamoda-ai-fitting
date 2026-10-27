@@ -446,15 +446,16 @@ and the full `verify` once at the phase's end (as spec 0019 A58 did).
   colour not of its product (a value of its colour attribute, A76, A91): 400 `RELATED_NOT_FOUND`; the details `HAS_SLOT`, `DISTINCT_SLOTS`) and
   the photo, answers 200 with an earlier completed result of the same fingerprint
   (`fingerprint.ts`: photo, items, wishes; `repeated: true`, A7) or the running one (A32), checks
-  the text (refused: 400 `PROMPT_REFUSED`; no answer: 503), then in one transaction locks the
+  the text with the items' catalog names (refused: 400 `PROMPT_REFUSED`; no answer: 503), then in one transaction locks the
   user's row (`me/lock-user.ts`), looks for the running one again, reads the photo again, reserves
   a try-on of the month (`FittingQuotaService.reserve`, `fitting_quota`; at the limit 409
   `LIMIT_REACHED`, A20) and inserts the `pending` row in the active session; after the commit it
   starts `generateFitting` (a failed start ends the row `failed` through `endFitting`, which the
   workflow's `complete` shares, and goes to Sentry with the id only) and answers 201
   `StartedFittingDto`. `FittingDto` carries the wishes as `promptText` (the user's own text, for a
-  colour change to send again, A92.1) and each item's `slot`. `POST /fittings/:id/regenerate` (`{ reasons, comment? }`) copies the
-  parent's photo, items, wishes and fingerprint; a parent not completed is 409 `NOT_COMPLETED`,
+  colour change to send again, A92.1) and each item's `slot`. `POST /fittings/:id/regenerate` (`{ reasons?, comment? }`, an empty body is one more attempt
+  with `reasons` stored as `[]`, spec 0023 Y9) copies the parent's photo, items, wishes and
+  fingerprint, and checks the comment with the parent's items; a parent not completed is 409 `NOT_COMPLETED`,
   its photo gone 409 `PHOTO_GONE`; a try-on's own result has one free regeneration
   (`free_regeneration_used`, given back by a failed one; a regeneration is created with it set, so
   its regenerations spend, A70), and a paid start or regeneration at the limit is refused before
@@ -1038,7 +1039,13 @@ and the full `verify` once at the phase's end (as spec 0019 A58 did).
 - `api` AI (spec 0019): every call to OpenAI goes through `AI_PROVIDER` (`api/src/ai/`), never a
   direct `fetch`. A check inside a request (`checkPhoto`, `checkPrompt`) runs its two calls, the
   vision model `FITTING_VISION_MODEL` and the moderation endpoint, in parallel under one deadline
-  of `FITTING_CHECK_TIMEOUT_MS` (A45), or of the caller's `timeoutMs` (an activity's budget); a
+  of `FITTING_CHECK_TIMEOUT_MS` (A45), or of the caller's `timeoutMs` (an activity's budget). The
+  text check (`checkPrompt(text, { items })`) gets the chosen items' catalog names and categories
+  in the model's instructions, never the user's text there (spec 0023 Y16); it allows wishes about
+  the items' fit and styling, the scene, the pose, the person's own clothes and small additions,
+  and refuses other people, nudity, minors, violence, politics, and changing the person, adding
+  text or changing a chosen item's cut or colour (Y12; `PROMPT_INSTRUCTIONS`), which the image
+  prompt (`ai/prompts.ts`) mirrors. A
   flagged image or text answers the reason `moderation`, a malformed verdict of the model counts as
   accepted with a warning, and a passed deadline or a cancelled caller signal throws an
   `AiProviderError` whose `isTimeout` or `reason: 'aborted'` says which (the routes that call the
