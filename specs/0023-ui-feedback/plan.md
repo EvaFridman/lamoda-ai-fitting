@@ -217,11 +217,12 @@ safety_category NULL`, `failure_stage` (enum `moderation_stage`: `input`, `outpu
 
 ### 4.1 One photo frame and a smooth window (P24, P10, P29)
 
-- `widgets/try-on/ui/photo-frame.tsx` (`PhotoFrame`): the one frame for the picker's photo, the
+- `entities/fitting/ui/photo-frame.tsx` (`PhotoFrame`, Y20): the one frame for the picker's photo, the
   pending upload, the drop zone, the waiting loader and the result: aspect 2:3 (the result's
   1024×1536), the picture `object-fit: contain` on `--color-background-secondary`, so any photo shows
   whole. Size from the window, not the step: from 1024 px `height: min(640px, 100svh - 240px)`,
-  600–1023 px `min(560px, 100svh - 240px)`, a phone the whole width up to `60svh` high. The picker,
+  600–1023 px `min(560px, 100svh - 240px)`, never below 320 px from 600 px (Y20), a phone the
+  whole width up to `60svh` high. The picker,
   `TryOnLoader` (`features/start-fitting`, its blur now over the contained photo), `FittingResult`
   and `LookResult` take it; their own 3:4 boxes and widths go.
 - **P29.** The frame is what `requestFullscreen` opens; `:fullscreen` makes it the whole screen on

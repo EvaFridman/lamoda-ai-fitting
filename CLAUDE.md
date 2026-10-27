@@ -969,7 +969,7 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   try-on shows the photo in one frame, `PhotoFrame` (`entities/fitting`, spec 0023 P24, Y15):
   the picker's photo, an upload, `TryOnLoader`'s wait and both results, 2:3, every image in it
   `contain` on the light grey, its size from the window only (up to 640 px high from 1024 px,
-  560 px at 600–1023 px, never more than the window's height less 240 px; on a phone the whole
+  560 px at 600–1023 px, never more than the window's height less 240 px nor less than 320 px, Y20; on a phone the whole
   width up to 60svh); «Во весь экран» opens that frame, black and whole (P29).
 - `web` stores page (spec 0022, `_pages/stores`): `useStores` (`entities/store`) starts from the
   page cache's `getStores`; the search (`matchStores`: every word the start of a word of the
