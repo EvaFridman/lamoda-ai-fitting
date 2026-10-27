@@ -3,7 +3,8 @@ import * as Sentry from '@sentry/nextjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
-import { ApiError, buildPath, clientFetch, type ApiPath } from './index';
+import { attachmentName } from './call-api';
+import { ApiError, BLOB_ANSWER, buildPath, clientFetch, type ApiPath } from './index';
 
 vi.mock('@sentry/nextjs', () => ({ captureException: vi.fn() }));
 
@@ -352,6 +353,121 @@ describe('clientFetch without AbortSignal.any', () => {
     );
     expect(error).not.toBeInstanceOf(ApiError);
     expect((error as Error).name).toBe('AbortError');
+  });
+});
+
+describe('attachmentName', () => {
+  it.each([
+    ['attachment; filename="primerka-2026-10-20-1500.webp"', 'primerka-2026-10-20-1500.webp'],
+    ['attachment; FILENAME="a.webp"', 'a.webp'],
+  ])('takes the quoted name of %s', (header, name) => {
+    expect(attachmentName(header)).toBe(name);
+  });
+
+  it.each([
+    null,
+    '',
+    'attachment',
+    'attachment; filename=plain.webp',
+    "attachment; filename*=UTF-8''p.webp",
+    'attachment; filename="../etc/passwd"',
+    'attachment; filename=""',
+  ])('is null for %s', (header) => {
+    expect(attachmentName(header)).toBeNull();
+  });
+});
+
+describe('clientFetch with BLOB_ANSWER', () => {
+  const FILE = buildPath('/fittings/:id/image', { id: 'f1' });
+
+  function fileResponse(headers: Record<string, string> = {}): Response {
+    return new Response(new Uint8Array([1, 2, 3]), { status: 200, headers });
+  }
+
+  it('resolves the bytes and the name of Content-Disposition', async () => {
+    fetchMock.mockResolvedValue(
+      fileResponse({
+        'Content-Type': 'image/webp',
+        'Content-Disposition': 'attachment; filename="primerka-2026-10-20-1500.webp"',
+      }),
+    );
+
+    const answer = await clientFetch(FILE, BLOB_ANSWER);
+
+    expect(answer.fileName).toBe('primerka-2026-10-20-1500.webp');
+    expect(answer.blob.size).toBe(3);
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe(`${ORIGIN}/api/fittings/f1/image`);
+  });
+
+  it('has a null name when the answer names none', async () => {
+    fetchMock.mockResolvedValue(fileResponse());
+
+    await expect(clientFetch(FILE, BLOB_ANSWER)).resolves.toMatchObject({ fileName: null });
+  });
+
+  it('waits 30 s by default, and the caller’s timeoutMs wins', async () => {
+    const timeout = vi.spyOn(AbortSignal, 'timeout');
+    fetchMock.mockImplementation(() => Promise.resolve(fileResponse()));
+
+    await clientFetch(FILE, BLOB_ANSWER);
+    expect(timeout).toHaveBeenLastCalledWith(30_000);
+
+    await clientFetch(FILE, BLOB_ANSWER, undefined, { timeoutMs: 5_000 });
+    expect(timeout).toHaveBeenLastCalledWith(5_000);
+  });
+
+  it('keeps an error answer an ApiError of its status and code', async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse({ error: { code: 'NOT_FOUND', message: 'm', details: [] } }, 404),
+    );
+
+    await expect(clientFetch(FILE, BLOB_ANSWER)).rejects.toMatchObject({
+      kind: 'http',
+      status: 404,
+      code: 'NOT_FOUND',
+    });
+  });
+
+  it('reports a 503 as an http error', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ error: { code: 'SERVICE_UNAVAILABLE' } }, 503));
+
+    await expect(clientFetch(FILE, BLOB_ANSWER)).rejects.toMatchObject({
+      kind: 'http',
+      status: 503,
+    });
+    expect(capture).toHaveBeenCalledTimes(1);
+  });
+
+  it('is a network error, reported, when the bytes are cut short', async () => {
+    const response = fileResponse();
+    vi.spyOn(response, 'blob').mockRejectedValue(new TypeError('terminated'));
+    fetchMock.mockResolvedValue(response);
+
+    const error = (await clientFetch(FILE, BLOB_ANSWER).catch((e: unknown) => e)) as ApiError;
+
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error.kind).toBe('network');
+    expect(capture).toHaveBeenCalledTimes(1);
+  });
+
+  it('is a timeout error when the time runs out while the bytes arrive', async () => {
+    const response = fileResponse();
+    vi.spyOn(response, 'blob').mockRejectedValue(new DOMException('slow', 'TimeoutError'));
+    fetchMock.mockResolvedValue(response);
+
+    await expect(clientFetch(FILE, BLOB_ANSWER)).rejects.toMatchObject({ kind: 'timeout' });
+  });
+
+  it('rethrows a cancel while the bytes arrive, unreported', async () => {
+    const response = fileResponse();
+    vi.spyOn(response, 'blob').mockRejectedValue(new DOMException('aborted', 'AbortError'));
+    fetchMock.mockResolvedValue(response);
+
+    const error = await clientFetch(FILE, BLOB_ANSWER).catch((e: unknown) => e);
+
+    expect(error).not.toBeInstanceOf(ApiError);
+    expect((error as Error).name).toBe('AbortError');
+    expect(capture).not.toHaveBeenCalled();
   });
 });
 

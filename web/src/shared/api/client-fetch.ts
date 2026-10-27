@@ -1,9 +1,13 @@
 import { ApiError } from './api-error';
-import { callApi, type Parsed, type ResponseSchema } from './call-api';
+import { BLOB_ANSWER, callApi, type Parsed, type ResponseSchema } from './call-api';
 import type { ApiPath } from './path';
 
 // Above the api's own 10 s timeout, so its 503 arrives first and shows its text (plan §4).
 const TIMEOUT_MS = 15_000;
+
+// A file's answer (`BLOB_ANSWER`): its bytes arrive within the request's time too (spec 0023 plan
+// §4.3).
+const BLOB_TIMEOUT_MS = 30_000;
 
 // The site's own path to the api in every environment (H6): nginx serves it in production, the
 // dev rewrite in next.config.ts locally. It strips the prefix, as nginx does.
@@ -31,20 +35,24 @@ export interface ClientFetchOptions {
   // reported (the 401 of `DELETE /me` once the session is gone, spec 0017 U25). A 5xx is reported
   // all the same.
   expectedStatus?: number;
-  // The request's whole time in place of the 15 s, for an upload: the browser's timer covers the
-  // body's upload too (spec 0019 plan §7).
+  // The request's whole time in place of the 15 s (a file's 30 s), for an upload: the browser's
+  // timer covers the body's upload too (spec 0019 plan §7).
   timeoutMs?: number;
 }
 
 // The only way browser code calls the api: same origin, no secret and no forwarded headers (the
 // visitor's own request reaches nginx), with a timeout and the response checked against a schema.
 // `init.signal` (TanStack Query's, when a query is cancelled) stops the request too. A `null` schema
-// is for an answer with no body: a 204 resolves to `undefined` (spec 0017 plan §4).
+// is for an answer with no body: a 204 resolves to `undefined` (spec 0017 plan §4); `BLOB_ANSWER`
+// for a file, its bytes and name.
 export async function clientFetch<Schema extends ResponseSchema>(
   path: ApiPath,
   schema: Schema,
   init?: RequestInit,
-  { expectedStatus, timeoutMs = TIMEOUT_MS }: ClientFetchOptions = {},
+  {
+    expectedStatus,
+    timeoutMs = schema === BLOB_ANSWER ? BLOB_TIMEOUT_MS : TIMEOUT_MS,
+  }: ClientFetchOptions = {},
 ): Promise<Parsed<Schema>> {
   // A slice's browser options and its server options share their names (`@/entities/x` and
   // `@/entities/x/server`), so a server component can take the wrong ones. A bug in web, not an api

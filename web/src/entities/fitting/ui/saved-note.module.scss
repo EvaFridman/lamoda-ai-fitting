@@ -1,0 +1,29 @@
+// Spec 0023 Y7: a 13px line with a 16px check mark before it, the history's name underlined.
+
+.note {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+
+  margin: 0;
+
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  color: var(--color-text);
+}
+
+.icon {
+  flex: none;
+  color: var(--color-success);
+}
+
+.link {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: 2px;
+  }
+}

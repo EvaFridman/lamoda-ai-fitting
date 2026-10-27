@@ -71,7 +71,7 @@ the deployed site.
       window, no desktop camera, no subtitle or caption, the item cards with hearts, the consents
       from `/me`; analytics `try-on.*`, `source: drop`. About 6 h. Commit:
       `feat(web): drop zone and photo replacement in the try-on`.
-- [ ] **T13. Success, the saved line, the download and the look's labels (P26, P28, P30–P32).** Plan
+- [x] **T13. Success, the saved line, the download and the look's labels (P26, P28, P30–P32).** Plan
       §4.3: `FittingSuccess`, `SavedNote`, `clientFetch`'s blob, `downloadFittingImage` in the result
       and the history, the labels; `result.history`. About 3.5 h. Commit:
       `feat(web): success screen, saved note and real download`.

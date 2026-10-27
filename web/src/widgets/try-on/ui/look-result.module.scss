@@ -34,10 +34,6 @@
   color: var(--color-text-secondary);
 }
 
-.link {
-  color: inherit;
-}
-
 // As wide as the frame: the caption and the tiles wrap to it. In one column of 600–799px it is
 // centred over the items.
 .left {
@@ -204,9 +200,16 @@
   min-width: 0;
 }
 
-// The column's «Всё в корзину · N вещи» and «Всё в избранное»: equal in one row, never narrower
-// than their labels (a button does not wrap its text), so «Всё в избранное» wraps instead and
-// fills its row, as wide as the cart's. The phone's shorter rows keep `.grow`.
+// The phone's «Добавить образ в корзину» (8.1, P31): too long to share a row with «Вещи образа» and
+// the heart, so a row of its own above them.
+.full {
+  flex: 1 1 100%;
+}
+
+// The column's «Добавить образ в корзину» and «Добавить образ в избранное» (spec 0023 P31, P32):
+// equal in one row, never narrower than their labels (a button does not wrap its text), so the
+// second wraps instead and fills its row, as wide as the cart's. The phone's shorter rows keep
+// `.grow`.
 .wide {
   flex: 1 1 0;
   min-width: max-content;

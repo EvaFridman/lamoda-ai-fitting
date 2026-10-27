@@ -65,10 +65,17 @@ export interface FavoriteStubProps {
   className?: string;
   // The click is called on a press, before the toast (A84.4).
   events?: StubEvents;
+  // The heart's name, «В избранное» by default; the look's «Добавить образ в избранное» (P32).
+  'aria-label'?: string;
 }
 
 // «В избранное»: the kit's heart that never stays pressed (A33).
-export function FavoriteStub({ size, className, events }: FavoriteStubProps) {
+export function FavoriteStub({
+  size,
+  className,
+  events,
+  'aria-label': ariaLabel = 'В избранное',
+}: FavoriteStubProps) {
   return (
     <FavoriteToggle
       size={size}
@@ -80,7 +87,7 @@ export function FavoriteStub({ size, className, events }: FavoriteStubProps) {
         events?.onClick?.();
         showStubToast();
       }}
-      aria-label="В избранное"
+      aria-label={ariaLabel}
     />
   );
 }

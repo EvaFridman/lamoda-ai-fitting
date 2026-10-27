@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -202,11 +202,29 @@ describe('LookResult analytics (A94)', () => {
   it('sends result.add-to-cart-all with the items count from the wide button', async () => {
     renderResult(2);
 
-    await userEvent.setup().click(screen.getByRole('button', { name: /^Всё в корзину/ }));
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Добавить образ в корзину' }));
 
     expect(sent('result.add-to-cart-all')).toEqual([
       expect.objectContaining({ element: 'result.add-to-cart-all', items: 2 }),
     ]);
+  });
+
+  it('sends result.history from the link of «Сохранено в «Мои примерки»»', async () => {
+    renderResult(2);
+    const link = screen.getByRole('link', { name: '«Мои примерки»' });
+    link.addEventListener('click', (event) => event.preventDefault());
+
+    await userEvent.setup().click(link);
+
+    expect(sent('result.history')).toEqual([
+      expect.objectContaining({ element: 'result.history' }),
+    ]);
+  });
+
+  it('names the look’s favourites button «Добавить образ в избранное» on a wide screen', () => {
+    renderResult(2);
+
+    expect(screen.getByRole('button', { name: 'Добавить образ в избранное' })).toBeEnabled();
   });
 
   describe('on a phone', () => {
@@ -223,11 +241,12 @@ describe('LookResult analytics (A94)', () => {
       renderResult(2);
       const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-      await user.click(screen.getByRole('button', { name: 'Всё в корзину' }));
+      await user.click(screen.getByRole('button', { name: 'Добавить образ в корзину' }));
       expect(sent('result.add-to-cart-all')).toHaveLength(1);
 
       await user.click(screen.getByRole('button', { name: 'Вещи образа' }));
-      await user.click(await screen.findByRole('button', { name: /^Всё в корзину · / }));
+      const drawer = await screen.findByRole('dialog', { name: 'Вещи образа' });
+      await user.click(within(drawer).getByRole('button', { name: 'Добавить образ в корзину' }));
 
       expect(sent('result.add-to-cart-all')).toEqual([
         expect.objectContaining({ items: 2 }),
