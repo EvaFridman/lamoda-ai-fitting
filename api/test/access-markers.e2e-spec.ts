@@ -176,6 +176,7 @@ const SIGNED_IN_HANDLERS = [
   'FittingSessionsController.list',
   'FittingsController.delete',
   'FittingsController.get',
+  'FittingsController.image',
   'FittingsController.list',
   'FittingsController.regenerate',
   'FittingsController.start',

@@ -23,8 +23,9 @@ import { userGone } from '../me/me.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { COLOUR_VALUE } from '../products/colour.js';
 import { IMAGE_ORDER } from '../products/product-mapper.js';
-import { generationFolder } from '../storage/keys.js';
+import { generationFolder, isInUserFolder } from '../storage/keys.js';
 import { ownedLink } from '../storage/owner-check.js';
+import { StorageError } from '../storage/storage.error.js';
 import { StorageService } from '../storage/storage.service.js';
 import { FileDeletion } from '../temporal/file-deletion.js';
 import { fittingWorkflowId } from '../temporal/fitting-workflow-id.js';
@@ -105,6 +106,25 @@ export class TextCheckUnavailableError extends AppException {
     );
     this.cause = cause;
   }
+}
+
+// The bucket did not give the result's picture: a 503, reported by AppExceptionFilter as an
+// outage.
+export class ResultUnavailableError extends AppException {
+  constructor(cause: StorageError) {
+    super('SERVICE_UNAVAILABLE', 'The storage is unavailable, try again later');
+    this.cause = cause;
+  }
+}
+
+// The read of a result stops before REQUEST_TIMEOUT_MS (6 s and more) has answered 503, so a slow
+// bucket does not keep requests reading after their client was answered.
+const RESULT_READ_TIMEOUT_MS = 5000;
+
+// A result's picture for a download (spec 0023 Y8) and the moment it was made.
+export interface ResultImage {
+  bytes: Uint8Array;
+  finishedAt: Date;
 }
 
 // The try-ons of the signed-in user (spec 0019 plan §5): a start spends one try-on of the month
@@ -307,6 +327,36 @@ export class FittingsService {
       throw new NotFoundError('Fitting not found');
     }
     return this.toResponse(row, isRunning(row.status) ? await this.estimateSeconds(userId) : null);
+  }
+
+  // The completed fitting's result, read from the bucket (spec 0023 plan §3.2). Someone else's, a
+  // missing one, one without a result or with a key outside the owner's folder (logged, as
+  // ownedLink does) and an object the bucket does not have are 404.
+  async resultImage(userId: string, id: string): Promise<ResultImage> {
+    const row = await this.prisma.aiGeneration.findFirst({
+      where: { ...fittingsOf(userId), id, status: 'completed' },
+      select: { resultImageKey: true, finishedAt: true, createdAt: true },
+    });
+    const key = row?.resultImageKey ?? null;
+    if (row === null || key === null) {
+      throw new NotFoundError('Fitting not found');
+    }
+    if (!isInUserFolder(key, userId)) {
+      this.logger.warn({
+        msg: "A stored key is outside the owner's folder; no file",
+        rowId: id,
+        field: 'resultImageKey',
+      });
+      throw new NotFoundError('Fitting not found');
+    }
+    try {
+      const bytes = await this.storage.get(key, AbortSignal.timeout(RESULT_READ_TIMEOUT_MS));
+      return { bytes, finishedAt: row.finishedAt ?? row.createdAt };
+    } catch (error) {
+      if (!(error instanceof StorageError)) throw error;
+      if (error.status === 404) throw new NotFoundError('Fitting not found');
+      throw new ResultUnavailableError(error);
+    }
   }
 
   // «Вы это примеряли» (AC24): the newest completed fitting that holds the product, regenerations
