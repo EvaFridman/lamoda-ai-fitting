@@ -34,7 +34,12 @@ import {
   uploadErrorText,
   WRONG_TYPE_TEXT,
 } from '../lib/upload-error';
-import { PHOTO_CONSENT_VERSION, setPhotoConsent, usePhotoConsent } from '../model/consent';
+import {
+  PHOTO_CONSENT_VERSION,
+  refreshPhotoConsent,
+  setPhotoConsent,
+  usePhotoConsent,
+} from '../model/consent';
 import { PhotoTips } from './photo-tips';
 import { RefusedPreview } from './refused-preview';
 
@@ -106,8 +111,8 @@ export interface UploadPhotoProps {
 // upload then sends them, so the api keeps them with the user and the tips show once per account
 // (spec 0023 Y1); while `/me` loads, the pickers wait. A file dropped before the consents waits
 // for them. On a phone the tips are a screen of their own ending in «Понятно», then the consents
-// and the pickers (board 4.2, A63.8). «Сделать фото» is the same input with `capture` (A30); in
-// the try-on it shows only on a touch device (Y13). A refusal of the check opens its screen with
+// and the pickers (board 4.2, A63.8). «Сделать фото» is the same input with `capture` (A30),
+// shown only on a touch device (Y13, Y23). A refusal of the check opens its screen with
 // the chosen photo and the reason's advice; any other failure shows its text.
 // The upload is a mutation with no retry, its file and answer not kept (`gcTime: 0`): a write is
 // not repeated by itself, and both are personal data.
@@ -127,8 +132,8 @@ export function UploadPhoto({
   const consented = usePhotoConsent();
   const phone = useMediaQuery(PHONE_QUERY);
   const coarse = useMediaQuery(COARSE_POINTER_QUERY);
-  // The try-on offers the camera only to a finger; «Мои фото» everywhere, as before.
-  const camera = place === 'photos' || coarse;
+  // The camera only for a finger, in the try-on and «Мои фото» alike (spec 0023 Y13, Y23).
+  const camera = coarse;
   const [screen, setScreen] = useState<Screen>('closed');
   const [replacing, setReplacing] = useState(false);
   const [waiting, setWaiting] = useState<Waiting | null>(null);
@@ -161,7 +166,12 @@ export function UploadPhoto({
         if (first) setPhotoConsent(queryClient, true);
         track('Photo Refused', { reason: refused.reason, source, place, first });
       } else if (consentRequired(failure)) setPhotoConsent(queryClient, false);
-      else reportFailure(failure);
+      else {
+        reportFailure(failure);
+        // The api stores a sent consent before the check, so a check that failed may have kept it:
+        // `/me` says.
+        if (first) refreshPhotoConsent(queryClient);
+      }
     },
   });
   const pending = upload.isPending;
@@ -242,6 +252,7 @@ export function UploadPhoto({
             setAgreed(false);
             setWaiting({ file, source });
             openTips();
+            return;
           }
           setError(uploadErrorText(failure));
         },
@@ -390,9 +401,53 @@ export function UploadPhoto({
       variant,
       fullWidth,
       icon,
-    }: { label: string; variant?: ButtonVariant; fullWidth?: boolean; icon?: ReactNode },
+      tile = false,
+    }: {
+      label: string;
+      variant?: ButtonVariant;
+      fullWidth?: boolean;
+      icon?: ReactNode;
+      // A white framed tile, the icon over the label (board 3's «Загрузить» and «Снять»).
+      tile?: boolean;
+    },
   ) {
     const element = source === 'file' ? uploadElement : cameraElement;
+    if (tile) {
+      const content = (
+        <>
+          {icon}
+          <span>{label}</span>
+        </>
+      );
+      return consented ? (
+        <FileInput
+          bare
+          className={styles.tile}
+          accept={PHOTO_ACCEPT}
+          capture={source === 'camera' ? 'user' : undefined}
+          onFileChange={choose(source)}
+          disabled={disabled || (pending && pendingSource !== source)}
+          loading={pendingSource === source}
+          events={element}
+        >
+          {content}
+        </FileInput>
+      ) : (
+        <button
+          type="button"
+          className={styles.tile}
+          disabled={disabled || consented === undefined}
+          onClick={() => {
+            element.onClick();
+            openTips();
+          }}
+          onPointerEnter={element.onPointerEnter}
+          onPointerLeave={element.onPointerLeave}
+        >
+          {content}
+        </button>
+      );
+    }
     if (consented) {
       return (
         <FileInput
@@ -461,12 +516,16 @@ export function UploadPhoto({
     </p>
   );
 
-  // The try-on's pickers: «Загрузить фото» and, on a touch device, «Сделать фото», side by side.
-  const tryOnPickers = (
+  // The try-on's pickers: «Загрузить фото» with a mouse; on a touch device it and «Сделать фото»
+  // as two tiles side by side, which fit a narrow frame and stand out of the grey zone.
+  const tryOnPickers = camera ? (
+    <div className={styles.zoneTiles}>
+      {picker('file', { label: 'Загрузить фото', icon: <UploadIcon />, tile: true })}
+      {picker('camera', { label: 'Сделать фото', icon: <CameraIcon />, tile: true })}
+    </div>
+  ) : (
     <div className={styles.zoneActions}>
       {picker('file', { label: 'Загрузить фото', variant: 'secondary', icon: <UploadIcon /> })}
-      {camera &&
-        picker('camera', { label: 'Сделать фото', variant: 'secondary', icon: <CameraIcon /> })}
     </div>
   );
 

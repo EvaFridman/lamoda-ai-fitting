@@ -1,0 +1,196 @@
+{
+  "PHOTO_REFUSED": [
+    {
+      "field": "photo",
+      "reason": "dark",
+      "message": "photo was refused: dark"
+    },
+    {
+      "field": "photo",
+      "reason": "not_full",
+      "message": "photo was refused: not_full"
+    },
+    {
+      "field": "photo",
+      "reason": "many_people",
+      "message": "photo was refused: many_people"
+    },
+    {
+      "field": "photo",
+      "reason": "child",
+      "message": "photo was refused: child"
+    },
+    {
+      "field": "photo",
+      "reason": "no_person",
+      "message": "photo was refused: no_person"
+    },
+    {
+      "field": "photo",
+      "reason": "moderation:sexual",
+      "message": "photo was refused: moderation:sexual"
+    },
+    {
+      "field": "photo",
+      "reason": "moderation:minors",
+      "message": "photo was refused: moderation:minors"
+    },
+    {
+      "field": "photo",
+      "reason": "moderation:violence",
+      "message": "photo was refused: moderation:violence"
+    },
+    {
+      "field": "photo",
+      "reason": "moderation:self_harm",
+      "message": "photo was refused: moderation:self_harm"
+    },
+    {
+      "field": "photo",
+      "reason": "moderation:hate",
+      "message": "photo was refused: moderation:hate"
+    },
+    {
+      "field": "photo",
+      "reason": "moderation:illicit",
+      "message": "photo was refused: moderation:illicit"
+    },
+    {
+      "field": "photo",
+      "reason": "moderation:unknown",
+      "message": "photo was refused: moderation:unknown"
+    }
+  ],
+  "PROMPT_REFUSED": [
+    {
+      "field": "promptText",
+      "reason": "other_people",
+      "message": "promptText was refused: other_people"
+    },
+    {
+      "field": "promptText",
+      "reason": "nudity",
+      "message": "promptText was refused: nudity"
+    },
+    {
+      "field": "promptText",
+      "reason": "minors",
+      "message": "promptText was refused: minors"
+    },
+    {
+      "field": "promptText",
+      "reason": "violence",
+      "message": "promptText was refused: violence"
+    },
+    {
+      "field": "promptText",
+      "reason": "politics",
+      "message": "promptText was refused: politics"
+    },
+    {
+      "field": "promptText",
+      "reason": "unrelated",
+      "message": "promptText was refused: unrelated"
+    },
+    {
+      "field": "promptText",
+      "reason": "moderation:sexual",
+      "message": "promptText was refused: moderation:sexual"
+    },
+    {
+      "field": "promptText",
+      "reason": "moderation:minors",
+      "message": "promptText was refused: moderation:minors"
+    },
+    {
+      "field": "promptText",
+      "reason": "moderation:violence",
+      "message": "promptText was refused: moderation:violence"
+    },
+    {
+      "field": "promptText",
+      "reason": "moderation:self_harm",
+      "message": "promptText was refused: moderation:self_harm"
+    },
+    {
+      "field": "promptText",
+      "reason": "moderation:hate",
+      "message": "promptText was refused: moderation:hate"
+    },
+    {
+      "field": "promptText",
+      "reason": "moderation:illicit",
+      "message": "promptText was refused: moderation:illicit"
+    },
+    {
+      "field": "promptText",
+      "reason": "moderation:unknown",
+      "message": "promptText was refused: moderation:unknown"
+    },
+    {
+      "field": "comment",
+      "reason": "other_people",
+      "message": "comment was refused: other_people"
+    },
+    {
+      "field": "comment",
+      "reason": "nudity",
+      "message": "comment was refused: nudity"
+    },
+    {
+      "field": "comment",
+      "reason": "minors",
+      "message": "comment was refused: minors"
+    },
+    {
+      "field": "comment",
+      "reason": "violence",
+      "message": "comment was refused: violence"
+    },
+    {
+      "field": "comment",
+      "reason": "politics",
+      "message": "comment was refused: politics"
+    },
+    {
+      "field": "comment",
+      "reason": "unrelated",
+      "message": "comment was refused: unrelated"
+    },
+    {
+      "field": "comment",
+      "reason": "moderation:sexual",
+      "message": "comment was refused: moderation:sexual"
+    },
+    {
+      "field": "comment",
+      "reason": "moderation:minors",
+      "message": "comment was refused: moderation:minors"
+    },
+    {
+      "field": "comment",
+      "reason": "moderation:violence",
+      "message": "comment was refused: moderation:violence"
+    },
+    {
+      "field": "comment",
+      "reason": "moderation:self_harm",
+      "message": "comment was refused: moderation:self_harm"
+    },
+    {
+      "field": "comment",
+      "reason": "moderation:hate",
+      "message": "comment was refused: moderation:hate"
+    },
+    {
+      "field": "comment",
+      "reason": "moderation:illicit",
+      "message": "comment was refused: moderation:illicit"
+    },
+    {
+      "field": "comment",
+      "reason": "moderation:unknown",
+      "message": "comment was refused: moderation:unknown"
+    }
+  ]
+}

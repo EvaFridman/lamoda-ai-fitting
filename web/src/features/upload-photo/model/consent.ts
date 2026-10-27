@@ -38,6 +38,13 @@ export function setPhotoConsent(queryClient: QueryClient, given: boolean): void 
   );
 }
 
+/** Reads `/me` again after a first upload that failed other than by a refusal or
+ * `CONSENT_REQUIRED`: the api may have kept the consents (it writes them after sharp, before the
+ * check), and the next upload then sends none. */
+export function refreshPhotoConsent(queryClient: QueryClient): void {
+  void queryClient.invalidateQueries({ queryKey: userKeys.me });
+}
+
 /** Whether the signed-in user gave both consents of the current text (spec 0023 Y1), from
  * `GET /me`: `undefined` while it loads, `false` when it failed (the upload then sends them). */
 export function usePhotoConsent(): boolean | undefined {

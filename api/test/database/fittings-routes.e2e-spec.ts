@@ -7,6 +7,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 
 import { AI_PROVIDER, type FakeAiProvider } from '../../src/ai/ai-provider.js';
 import { AI_SETTINGS, type AiSettings, aiSettings } from '../../src/ai/ai-settings.js';
+import { refusalMessage } from '../../src/ai/refusal-message.js';
 import { SAFETY_CATEGORIES } from '../../src/ai/safety-category.js';
 import type { Auth } from '../../src/auth/auth.js';
 import { AUTH } from '../../src/auth/auth.module.js';
@@ -794,7 +795,7 @@ describe('the fittings routes (spec 0019 T12: AC5-AC9, A6, A7, A20, A32, A45, A4
         {
           field: 'promptText',
           code: 'PROMPT_REFUSED',
-          message: `promptText was refused: ${reason}`,
+          message: refusalMessage('promptText', reason),
         },
       ]);
       expect(await rowsOf(who.userId)).toEqual([]);
@@ -813,7 +814,7 @@ describe('the fittings routes (spec 0019 T12: AC5-AC9, A6, A7, A20, A32, A45, A4
         {
           field: 'promptText',
           code: 'PROMPT_REFUSED',
-          message: 'promptText was refused: moderation:unknown',
+          message: refusalMessage('promptText', 'moderation:unknown'),
         },
       ]);
     });
@@ -1453,7 +1454,7 @@ describe('the fittings routes (spec 0019 T12: AC5-AC9, A6, A7, A20, A32, A45, A4
           {
             field: 'comment',
             code: 'PROMPT_REFUSED',
-            message: `comment was refused: ${reason}`,
+            message: refusalMessage('comment', reason),
           },
         ]);
         expect((await row(parent.id)).freeRegenerationUsed).toBe(false);
