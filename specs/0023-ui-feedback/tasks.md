@@ -67,7 +67,7 @@ the deployed site.
 - [x] **T11. One photo frame and a smooth window (P10, P24, P29).** Plan §4.1: `PhotoFrame` in the
       picker, the loader and both results, `:fullscreen`, `Modal`'s `animateSize`. About 3 h.
       Commit: `feat(web): show the try-on photo whole in one steady frame`.
-- [ ] **T12. The picker (P3–P9, P22, P23, P25).** Plan §4.2: the drop zone, «Заменить фото» and its
+- [x] **T12. The picker (P3–P9, P22, P23, P25).** Plan §4.2: the drop zone, «Заменить фото» and its
       window, no desktop camera, no subtitle or caption, the item cards with hearts, the consents
       from `/me`; analytics `try-on.*`, `source: drop`. About 6 h. Commit:
       `feat(web): drop zone and photo replacement in the try-on`.

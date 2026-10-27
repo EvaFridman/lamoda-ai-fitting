@@ -66,7 +66,6 @@ beforeEach(() => {
   fetchMock.mockReset();
   fetchMock.mockImplementation((url: string) => route(String(url)));
   vi.stubGlobal('fetch', fetchMock);
-  window.localStorage.setItem('fitting-photo-consent:u1', '1');
 });
 
 afterEach(() => {

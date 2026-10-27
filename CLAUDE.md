@@ -795,17 +795,27 @@ stage, category }` (the stage of `moderation_details`, else `input`);
 
 - `web` photos (spec 0019 plan §7): `entities/user-photo` reads `GET /me/photos` in the browser
   (`useMyPhotos`) under `userPhotoKeys.all`, which starts with `userKeys.all`, so a session's end
-  drops it; `uploadPhoto` (multipart `photo` and `save`), `setDefaultPhoto` and `deletePhoto` are
+  drops it; `uploadPhoto` (multipart `save`, `consent` and `photo`), `setDefaultPhoto` and `deletePhoto` are
   plain requests for the feature's mutations. `PhotoThumb` shows a photo only as `next/image`'s
   `src` (`unoptimized`, no `priority`) inside an `mp-block` container, never the link in another
   attribute (A37). web's Sentry (`web/sentry.options.ts`) drops the spans, breadcrumbs and root
   span attributes (`lcp.url`) that hold `X-Amz-` or `/keep/users/`, since the browser's tracing
   names a span after each image's whole link. `features/upload-photo` shows the tips and the two
-  consents before a user's first upload, kept in `localStorage` per user
-  (`fitting-photo-consent:<userId>`, not an `mp_`/`__mp` key; one the browser will not store
-  holds until the tab reloads, A60), refuses a file over `MAX_PHOTO_BYTES` before the upload (the
+  consents before a user's first upload of the account: `usePhotoConsent` (`model/consent.ts`)
+  reads `photoConsentVersion` of `useMe` (the pickers wait while it loads), the upload after the
+  boxes sends `consent` (`PHOTO_CONSENT_VERSION`, the api's) and puts the version into the cached
+  `/me`, and a `CONSENT_REQUIRED` (a stale tab) shows the consents again with the file waiting
+  (spec 0023 Y1, Y17); spec 0019's `localStorage` keys `fitting-photo-consent:<userId>` are not
+  read and are removed on sight. It refuses a file over `MAX_PHOTO_BYTES` before the upload (the
   api's limit less 64 KB of multipart, `lib/upload-error.ts`; its texts say 20 МБ) and turns the
-  upload off at five saved photos. `/privacy` says the photos go to OpenAI and are not used for
+  upload off at five saved photos. In the try-on (spec 0023 P3–P9, P25) `UploadPhoto`'s `zone`
+  fills the photo frame: a file dropped on it (not JPG, PNG or WebP: «Нужно изображение JPG, PNG
+  или WebP») uploads as `source: drop`, before the consents once they are given; with no photo it
+  is a dashed area a click on which picks a file, «Загрузить фото», «Сделать фото» only under
+  `COARSE_POINTER_QUERY` and the save switch at its bottom; with a photo chosen, `replace` is
+  «Заменить фото» under the frame, whose window (a `Sheet` on a phone) holds the saved photos, the
+  pickers, the switch and «Перейти в «Мои фото»». «Мои фото» keeps `card` and `buttons`, the
+  camera on every device. `/privacy` says the photos go to OpenAI and are not used for
   training (A46). The screens follow the canvas's boards 4, 5 and 10 (A63.8): `PhotoTips` draws
   the canvas's seven example pictures as inline SVG components (`ui/pictograms.tsx`, web keeps no
   files); a refusal shows the chosen file from an object URL set on the `<img>` by an effect and
@@ -862,7 +872,9 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   and tracked elements are the catalog's zone `auth` (`Signed Out` goes before `reset`); the
   account's are the zone `account` (spec 0017 U14), the catalog page's the zone `catalog` (spec
   0014 plan §3.6, O97–O103), the fitting photos' the zone `fitting`, area `photos` (spec 0019
-  plan §9, A60), the product page's the zone `product` (areas `buy-box` and `related`, seven
+  plan §9, A60; `Photo Uploaded`'s and `Photo Refused`'s `source` `drop`, spec 0023 Y11), the
+  picker's area `try-on` (`try-on.replace-photo`, `.my-photos`, `.favourite` by `kind`, spec 0023
+  Y11), the product page's the zone `product` (areas `buy-box` and `related`, seven
   elements with the row's arrows `related.scroll`, A87.8, and `buy-box.to-look`, `related.to-look`,
   A90.9, and `gallery`, the photos' `gallery.photo` by `position`, spec 0023 Y11), the fitting room's the zone `fitting`, area `room` (`room.open`, `.remove`, `.undo`,
   `.fill`, `.clear`, `.add-to-cart-all`, A90.9, `.try-on`, T26, `.favourite`, spec 0023 P12; `.open`'s `source` `picker` and

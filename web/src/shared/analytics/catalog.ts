@@ -265,11 +265,11 @@ export const catalog = defineCatalog({
       zone: 'fitting',
       type: 'interaction',
       description:
-        'Фото для примерки загружено и прошло проверку: после ответа api. `saved` — сохранено в «Мои фото» (не одноразовое), `source` — выбрано из файлов или снято камерой, `place` — где загружено: `photos` — страница «Мои фото», `try-on` — выбор фото в окне примерки, `first` — первая загрузка в этом браузере (с подсказками и согласиями). Само фото и ссылка на него не отправляются.',
-      perVisit: 0.01,
+        'Фото для примерки загружено и прошло проверку: после ответа api. `saved` — сохранено в «Мои фото» (не одноразовое), `source` — выбрано из файлов (`file`), снято камерой (`camera`) или перетащено на зону загрузки в окне примерки (`drop`), `place` — где загружено: `photos` — страница «Мои фото», `try-on` — выбор фото в окне примерки, `first` — загрузка, которая отправила согласия (с подсказками и согласиями; раз на аккаунт, до спеки 0023 — раз на браузер). Само фото и ссылка на него не отправляются.',
+      perVisit: 0.012,
       properties: {
         saved: { kind: 'boolean' },
-        source: { kind: 'enum', values: ['file', 'camera'] },
+        source: { kind: 'enum', values: ['file', 'camera', 'drop'] },
         place: { kind: 'enum', values: ['photos', 'try-on'] },
         first: { kind: 'boolean' },
       },
@@ -285,7 +285,7 @@ export const catalog = defineCatalog({
           kind: 'enum',
           values: ['dark', 'not_full', 'many_people', 'child', 'no_person', 'moderation', 'other'],
         },
-        source: { kind: 'enum', values: ['file', 'camera'] },
+        source: { kind: 'enum', values: ['file', 'camera', 'drop'] },
         place: { kind: 'enum', values: ['photos', 'try-on'] },
         first: { kind: 'boolean' },
       },
@@ -677,14 +677,15 @@ export const catalog = defineCatalog({
       zone: 'fitting',
       type: 'interaction',
       description:
-        '«Добавить фото» или «Выбрать фото» (на странице «Мои фото»), «Загрузить фото» или «+ Новое» (на выборе фото в окне примерки): открывает выбор файла, а при первой загрузке — подсказки и согласия.',
+        '«Добавить фото» или «Выбрать фото» (на странице «Мои фото»), «Загрузить фото» или нажатие на зону загрузки (на выборе фото и в окне «Заменить фото» в окне примерки): открывает выбор файла, а при первой загрузке — подсказки и согласия. Перетаскивание файла на зону не отслеживается: это `Photo Uploaded` с `source: drop`.',
       clicksPerVisit: 0.02,
       hoversPerVisit: 0.02,
     },
     'photos.camera': {
       zone: 'fitting',
       type: 'interaction',
-      description: '«Сделать фото»: на телефоне открывает камеру, на компьютере — выбор файла.',
+      description:
+        '«Сделать фото»: на телефоне открывает камеру, на компьютере — выбор файла. В окне примерки показывается только на сенсорном устройстве (`pointer: coarse`), на странице «Мои фото» — везде.',
       clicksPerVisit: 0.005,
       hoversPerVisit: 0.003,
     },
@@ -707,10 +708,35 @@ export const catalog = defineCatalog({
       zone: 'fitting',
       type: 'interaction',
       description:
-        'Сохранённое фото в ленте на выборе фото: выбирает его для примерки. `is_default` — фото по умолчанию.',
+        'Сохранённое фото в окне «Заменить фото»: выбирает его для примерки и закрывает окно. `is_default` — фото по умолчанию.',
       clicksPerVisit: 0.01,
       hoversPerVisit: 0.01,
       properties: { is_default: { kind: 'boolean' } },
+    },
+    'try-on.replace-photo': {
+      zone: 'fitting',
+      type: 'interaction',
+      description:
+        '«Заменить фото» под выбранным фото: открывает окно с сохранёнными фото, загрузкой нового и ссылкой на «Мои фото».',
+      clicksPerVisit: 0.01,
+      hoversPerVisit: 0.008,
+    },
+    'try-on.my-photos': {
+      zone: 'fitting',
+      type: 'navigation',
+      description:
+        '«Перейти в «Мои фото»» в окне «Заменить фото»: уходит со страницы на «Мои фото», окно примерки закрывается.',
+      clicksPerVisit: 0.002,
+      hoversPerVisit: 0.002,
+    },
+    'try-on.favourite': {
+      zone: 'fitting',
+      type: 'interaction',
+      description:
+        'Сердце «В избранное» у карточки вещи на выборе фото: заглушка, не остаётся нажатым, показывает уведомление. `kind` — примерка одной вещи (`single`) или образа (`look`).',
+      clicksPerVisit: 0.003,
+      hoversPerVisit: 0.005,
+      properties: { kind: { kind: 'enum', values: ['single', 'look'] } },
     },
     'try-on.start': {
       zone: 'fitting',

@@ -118,6 +118,38 @@ describe('uploadPhoto', () => {
     expect((call().init.body as FormData).get('save')).toBe('false');
   });
 
+  it('sends no consent part unless it is given', async () => {
+    fetchMock.mockResolvedValue(new Response(JSON.stringify(photo)));
+    await uploadPhoto(new Blob(['x']));
+    const body = call().init.body as FormData;
+    expect(body.has('consent')).toBe(false);
+    expect([...body.keys()]).toEqual(['save', 'photo']);
+  });
+
+  it('sends the consents version between save and the photo', async () => {
+    fetchMock.mockResolvedValue(new Response(JSON.stringify(photo)));
+    await uploadPhoto(new Blob(['x']), { save: false, consent: 1 });
+    const body = call().init.body as FormData;
+    expect(body.get('consent')).toBe('1');
+    expect(body.get('save')).toBe('false');
+    expect([...body.keys()]).toEqual(['save', 'consent', 'photo']);
+  });
+
+  it('fails with the detail CONSENT_REQUIRED of a user with no stored consents', async () => {
+    const details = [{ field: 'consent', code: 'CONSENT_REQUIRED', message: 'required' }];
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({ error: { code: 'VALIDATION_FAILED', message: 'm', details } }),
+        { status: 400 },
+      ),
+    );
+    await expect(uploadPhoto(new Blob(['x']))).rejects.toMatchObject({
+      kind: 'http',
+      status: 400,
+      details,
+    });
+  });
+
   it('uses the upload timeout of 120 s', async () => {
     const timeout = vi.spyOn(AbortSignal, 'timeout');
     fetchMock.mockResolvedValue(new Response(JSON.stringify(photo)));
