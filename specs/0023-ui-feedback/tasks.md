@@ -41,7 +41,7 @@ the deployed site.
       subtitle, captions or wishes' hint, «+» as a link, the slot's heart (`room.favourite`),
       «Добавить образ в корзину»; `room.fill`'s estimate and descriptions. `qa-tester` on AC1–AC7.
       About 2.5 h. Commit: `feat(web): tidy the fitting room drawer`.
-- [ ] **Phase end.** Clean install, `npm run verify`, push, PR 2, stop with the summary.
+- [x] **Phase end.** Clean install, `npm run verify`, push, PR 2, stop with the summary.
 
 ## PR 3 · feat/0023-try-on-window · part 2 (api and web)
 
