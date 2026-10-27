@@ -71,6 +71,11 @@
     height: 100%;
     box-shadow: none;
 
+    // The whole window: nothing to follow.
+    .animated {
+      height: auto;
+    }
+
     .title {
       padding-right: 56px;
     }
@@ -147,6 +152,30 @@
   padding: var(--space-1) var(--space-6) var(--space-6);
   font-size: var(--font-size-body-m);
   line-height: var(--line-height-body-m);
+
+  > :first-child {
+    margin-top: 0;
+  }
+
+  > :last-child {
+    margin-bottom: 0;
+  }
+}
+
+// `animateSize` (spec 0023 P10): the content is as high as its children's box, measured by the
+// component, and moves to a new height smoothly; the frame follows it. A frame capped by the window
+// still shrinks the content, which scrolls. Its scrollbar's place is kept, so one that shows while
+// the height grows does not narrow the children and change their height again.
+.animated {
+  scrollbar-gutter: stable;
+  box-sizing: content-box;
+  height: var(--modal-content-height, auto);
+  transition: height var(--duration-slow) ease;
+}
+
+// The children's box keeps their margins inside, so its height is all of theirs.
+.inner {
+  display: flow-root;
 
   > :first-child {
     margin-top: 0;

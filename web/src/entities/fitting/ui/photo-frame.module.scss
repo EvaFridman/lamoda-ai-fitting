@@ -1,0 +1,46 @@
+// Spec 0023 plan §4.1: 2:3, from 1024px up to 640px high, 600–1023px up to 560px, both leaving the
+// window 240px for the heading and the margins; on a phone the whole width, up to 60% of the
+// window's height.
+
+.frame {
+  position: relative;
+
+  overflow: hidden;
+  flex: none;
+
+  box-sizing: border-box;
+  aspect-ratio: 2 / 3;
+  height: min(640px, 100svh - 240px);
+
+  background-color: var(--color-background-secondary);
+
+  &::backdrop {
+    background-color: #000;
+  }
+
+  // Every picture in it shows whole: the caller's own image classes may add to it, never crop.
+  img {
+    object-fit: contain;
+  }
+
+  // «Во весь экран» (P29): the whole screen on black.
+  &:fullscreen {
+    aspect-ratio: auto;
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: none;
+
+    background-color: #000;
+  }
+
+  @media (width < 1024px) {
+    height: min(560px, 100svh - 240px);
+  }
+
+  @media (width < 600px) {
+    width: 100%;
+    height: auto;
+    max-height: 60svh;
+  }
+}

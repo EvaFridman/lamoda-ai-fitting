@@ -1,6 +1,6 @@
-// Board 3: on a wide screen the photo 480×640 left of a column (the item, the photos, the switch,
-// then the meter and «Примерить» at the bottom); on a phone (3.1) the item, the photo, the strip,
-// the switch and the button at the bottom, one under the other.
+// Board 3: on a wide screen the photo (the try-on's frame, spec 0023 P24) left of a column (the
+// item, the photos, the switch, then the meter and «Примерить» at the bottom); on a phone (3.1) the
+// item, the photo, the strip, the switch and the button at the bottom, one under the other.
 
 .picker {
   display: grid;
@@ -8,14 +8,12 @@
     'photo item' auto
     'photo photos' auto
     'photo save' auto
-    'photo footer' 1fr / 480px minmax(0, 1fr);
+    'photo footer' 1fr / auto minmax(0, 1fr);
   gap: var(--space-6) var(--space-8);
 
-  @media (width < 1024px) {
-    grid-template-columns: 320px minmax(0, 1fr);
-  }
-
-  @media (width < 600px) {
+  // Below 800px the window is too narrow for the column beside the frame: one column, as the
+  // look's result.
+  @media (width < 800px) {
     grid-template:
       'item' auto
       'photo' auto
@@ -26,24 +24,10 @@
   }
 }
 
+// Centred over the column in 600–799px; a phone's is the whole width.
 .photo {
-  position: relative;
-
-  overflow: hidden;
   grid-area: photo;
-
-  aspect-ratio: 3 / 4;
-
-  background-color: var(--color-background-secondary);
-
-  @media (width < 600px) {
-    aspect-ratio: auto;
-    height: 340px;
-  }
-}
-
-.image {
-  object-fit: cover;
+  justify-self: center;
 }
 
 .dimmed {
@@ -54,7 +38,6 @@
   height: 100%;
 
   opacity: 0.5;
-  object-fit: cover;
 }
 
 .uploading {

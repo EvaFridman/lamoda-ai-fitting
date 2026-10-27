@@ -1,17 +1,16 @@
-// Board 8: on a wide screen the picture 540×720 with the caption and three tiles left of «Вещи
-// образа», the sum and the actions; on a phone (8.1) one column, the items on a screen of their
-// own (8.2).
+// Board 8: on a wide screen the picture (the try-on's frame, spec 0023 P24) with the caption and
+// three tiles left of «Вещи образа», the sum and the actions; on a phone (8.1) one column, the items
+// on a screen of their own (8.2).
 
 .result {
   display: grid;
   grid-template-areas:
     'saved saved'
     'left right';
-  grid-template-columns: 540px minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr);
   gap: var(--space-4) var(--space-10);
 
   @media (width < 1024px) {
-    grid-template-columns: 360px minmax(0, 1fr);
     column-gap: var(--space-6);
   }
 
@@ -39,16 +38,20 @@
   color: inherit;
 }
 
+// As wide as the frame: the caption and the tiles wrap to it. In one column of 600–799px it is
+// centred over the items.
 .left {
   display: flex;
   grid-area: left;
   flex-direction: column;
   gap: var(--space-3);
 
-  // One column of 600–799px: the picture as wide as beside the items, centred over them.
+  @media (width >= 600px) {
+    width: min-content;
+  }
+
   @media (600px <= width < 800px) {
     justify-self: center;
-    width: 360px;
   }
 }
 

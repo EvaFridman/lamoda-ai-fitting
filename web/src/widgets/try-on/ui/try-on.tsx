@@ -480,8 +480,8 @@ interface TryOnModalProps {
   children: ReactNode;
 }
 
-// The window. A new screen unmounts the control that had the focus (the regeneration's «Что
-// поменять?» as its sheet closes, «Попробовать ещё раз»), and the browser drops the focus on the
+// The window, whose height follows a new screen smoothly (spec 0023 P10). A new screen unmounts the
+// control that had the focus (the regeneration's «Что поменять?» as its sheet closes, «Попробовать ещё раз»), and the browser drops the focus on the
 // page's body, out of the window: then it moves to the window, so the keyboard and a screen reader
 // stay inside. Checked a moment after the focus leaves or the page's nodes change (a browser may
 // drop the focus of a removed node without a `focusout`), once the browser has settled it.
@@ -514,6 +514,7 @@ function TryOnModal({ title, description, onClose, children }: TryOnModalProps) 
     <Modal
       open
       wide
+      animateSize
       title={title}
       description={description}
       onOpenChange={(next) => {
