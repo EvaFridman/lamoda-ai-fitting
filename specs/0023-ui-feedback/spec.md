@@ -1,6 +1,7 @@
 # 0023 ui-feedback: the owner's UI notes on the catalog, the header, the product page, the fitting room and the try-on window
 
-Status: accepted (2026-10-27), with the owner's answers Y1–Y14; amended at the review of PR 1
+Status: done (2026-10-27): all 20 criteria pass (`tasks.md`'s record). History, not
+instructions. Accepted (2026-10-27), with the owner's answers Y1–Y14; amended at the review of PR 1
 (AC17: Y16; AC19: Y17).
 
 Source: the owner's Agentation notes of 2026-10-27, kept verbatim in

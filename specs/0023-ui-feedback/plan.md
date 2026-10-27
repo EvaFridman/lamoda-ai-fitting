@@ -1,6 +1,6 @@
 # 0023 ui-feedback: plan
 
-Status: accepted (2026-10-27); its own choices confirmed as Y15; amended at the review of PR 1
+Status: done (2026-10-27). History, not instructions. Accepted (2026-10-27); its own choices confirmed as Y15; amended at the review of PR 1
 (§3.1: Y17, the fields' order; §3.2: timeouts; §3.4: Y16; §3.5: the detail's shape, the CHECK).
 
 Decisions: `Y1`… of [clarifications.md](clarifications.md); notes `C1`–`C7`, `P1`–`P36` of

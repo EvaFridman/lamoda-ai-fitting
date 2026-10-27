@@ -1,7 +1,7 @@
 # 0023 ui-feedback: clarifications
 
-Status: accepted (2026-10-27) with Y1–Y15; Y16, Y17 added at the review of PR 1; later decisions
-are added below as they are made. Decision ids `Y1`, `Y2`, …; the notes are `C1`–`C7` and
+Status: done (2026-10-27), with Y1–Y23. History, not instructions. Accepted (2026-10-27) with
+Y1–Y15; Y16, Y17 added at the review of PR 1, the rest as they were made. Decision ids `Y1`, `Y2`, …; the notes are `C1`–`C7` and
 `P1`–`P36` of [source/agentation-notes.md](source/agentation-notes.md).
 
 ## The canvas
