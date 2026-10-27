@@ -1,6 +1,5 @@
 'use client';
 
-import NextLink from 'next/link';
 import { useRef, useState } from 'react';
 
 import {
@@ -12,6 +11,7 @@ import {
   ItemsStrip,
   itemWord,
   LimitMeter,
+  SavedNote,
   type StartedFitting,
   timeLeftText,
   useStartLookFitting,
@@ -62,9 +62,11 @@ export interface LookResultProps {
   onOpenRoom: () => void;
 }
 
-// Board 8, the result of a look (spec 0019 AC14, AC15, A62, A92): the picture with «Сгенерировано
-// ИИ», three tiles, «Вещи образа» (each item with its price and colours; another colour regenerates
-// the whole look on the same photo), the sum, the stubs «Всё в корзину» and «Всё в избранное» (A33),
+// Board 8, the result of a look (spec 0019 AC14, AC15, A62, A92): «N вещи · <date>», the picture
+// with «Сгенерировано ИИ» and «Сохранено в «Мои примерки»» (spec 0023 Y7), three tiles, «Вещи
+// образа» (each item with its price and colours; another colour regenerates the whole look on the
+// same photo), the sum, the stubs «Добавить образ в корзину» and «Добавить образ в избранное» (A33,
+// spec 0023 P31, P32),
 // «Хотите что-то поменять в образе?» with «Какая именно?», «Заменить вещь в примерочной» and the
 // meter. On a phone (8.1) the strip and the sum under the picture, and «Вещи образа» a screen of its
 // own (8.2).
@@ -83,6 +85,7 @@ export function LookResult({
   const [itemsOpen, setItemsOpen] = useState(false);
   const start = useStartLookFitting();
   const regenerateElement = useTrackedElement('result.regenerate-open');
+  const historyElement = useTrackedElement('result.history');
   const room = useFittingRoom();
   const roomElement = useTrackedElement('room.open', {
     source: 'result',
@@ -196,10 +199,7 @@ export function LookResult({
   return (
     <div className={styles.result}>
       <p className={styles.saved}>
-        {itemsText(items.length)} · сохранено в{' '}
-        <NextLink href={FITTINGS_HREF} className={styles.link}>
-          истории
-        </NextLink>
+        {itemsText(items.length)}
         {fitting.finishedAt && ` · ${fittingDate(fitting.finishedAt)}`}
       </p>
 
@@ -211,6 +211,7 @@ export function LookResult({
           alt="Сгенерированное изображение: вы в образе"
           pictureRef={pictureRef}
         />
+        <SavedNote href={FITTINGS_HREF} events={historyElement} />
         <p className={styles.note}>Изображение приблизительное, могут быть неточности</p>
         <ResultTiles fitting={fitting} running={running} pictureRef={pictureRef} phone={phone} />
       </div>
@@ -226,13 +227,18 @@ export function LookResult({
             </span>
           </div>
           <div className={styles.buttons}>
-            <CartStubButton size={48} className={styles.grow} events={cartElement}>
-              Всё в корзину
+            <CartStubButton size={48} className={styles.full} events={cartElement}>
+              Добавить образ в корзину
             </CartStubButton>
-            <Button size={48} variant="outline" onClick={() => setItemsOpen(true)}>
+            <Button
+              size={48}
+              variant="outline"
+              className={styles.grow}
+              onClick={() => setItemsOpen(true)}
+            >
               Вещи образа
             </Button>
-            <FavoriteStub size={48} />
+            <FavoriteStub size={48} aria-label="Добавить образ в избранное" />
           </div>
           <Drawer
             title="Вещи образа"
@@ -248,9 +254,9 @@ export function LookResult({
               <div className={styles.footer}>
                 <div className={styles.buttons}>
                   <CartStubButton size={48} className={styles.grow} events={cartElement}>
-                    Всё в корзину · {formatPrice(sum)}
+                    Добавить образ в корзину
                   </CartStubButton>
-                  <FavoriteStub size={48} />
+                  <FavoriteStub size={48} aria-label="Добавить образ в избранное" />
                 </div>
                 {regenerate}
                 {replace}
@@ -269,11 +275,11 @@ export function LookResult({
           {list}
           <div className={styles.buttons}>
             <CartStubButton size={56} className={styles.wide} events={cartElement}>
-              Всё в корзину · {itemsText(items.length)}
+              Добавить образ в корзину
             </CartStubButton>
             <Button size={56} variant="outline" className={styles.wide} onClick={showStubToast}>
               <HeartIcon />
-              Всё в избранное
+              Добавить образ в избранное
             </Button>
           </div>
           {regenerate}

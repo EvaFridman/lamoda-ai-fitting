@@ -540,16 +540,21 @@ describe('TryOn of a look: the picker (board 3.2)', () => {
 });
 
 describe('TryOn of a look: the result (board 8, AC14)', () => {
-  it('opens a look of the history as «Примерка образа» with the date and the three tiles', async () => {
+  it('opens a look of the history as «Примерка образа» with the date and the three tiles (AC13)', async () => {
     showResult();
     renderTryOn({ fittingId: RESULT });
 
-    const saved = await screen.findByText(
+    await screen.findByText(
       (_, element) =>
-        element?.tagName === 'P' &&
-        element.textContent === '3 вещи · сохранено в истории · 20 октября, 15:00',
+        element?.tagName === 'P' && element.textContent === '3 вещи · 20 октября, 15:00',
     );
-    expect(within(saved).getByRole('link', { name: 'истории' })).toHaveAttribute(
+    expect(screen.queryByText(/сохранено в истории/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    const note = screen.getByText(
+      (_, element) =>
+        element?.tagName === 'P' && element.textContent === 'Сохранено в «Мои примерки»',
+    );
+    expect(within(note).getByRole('link', { name: '«Мои примерки»' })).toHaveAttribute(
       'href',
       FITTINGS_HREF,
     );
@@ -622,9 +627,10 @@ describe('TryOn of a look: the result (board 8, AC14)', () => {
     renderTryOn({ fittingId: RESULT });
 
     expect(
-      await screen.findByRole('button', { name: 'Всё в корзину · 3 вещи' }),
+      await screen.findByRole('button', { name: 'Добавить образ в корзину' }),
     ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Всё в избранное' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Добавить образ в избранное' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Всё в/ })).not.toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'В корзину' })).toHaveLength(3);
     expect(screen.getByRole('button', { name: 'Хотите что-то поменять в образе?' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Заменить вещь в примерочной' })).toBeInTheDocument();
@@ -1005,7 +1011,8 @@ describe('TryOn of a look on a phone (boards 8.1, 8.2)', () => {
     renderTryOn({ fittingId: RESULT });
 
     expect(await screen.findByRole('button', { name: 'Вещи образа' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Всё в корзину' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Добавить образ в корзину' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Добавить образ в избранное' })).toBeInTheDocument();
     expect(screen.getByText('3 вещи')).toBeInTheDocument();
     expect(screen.getByText(/12\s000/)).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Вещи образа' })).not.toBeInTheDocument();
@@ -1023,7 +1030,10 @@ describe('TryOn of a look on a phone (boards 8.1, 8.2)', () => {
     expect(await within(screen2).findByRole('link', { name: 'Рубашка' })).toBeInTheDocument();
     expect(within(screen2).getByText('Сумма образа')).toBeInTheDocument();
     expect(
-      within(screen2).getByRole('button', { name: /^Всё в корзину · 12\s000/ }),
+      within(screen2).getByRole('button', { name: 'Добавить образ в корзину' }),
+    ).toBeInTheDocument();
+    expect(
+      within(screen2).getByRole('button', { name: 'Добавить образ в избранное' }),
     ).toBeInTheDocument();
     expect(
       within(screen2).getByRole('button', { name: 'Хотите что-то поменять в образе?' }),

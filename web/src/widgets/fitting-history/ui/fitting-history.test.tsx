@@ -395,20 +395,129 @@ describe('FittingHistory card menu', () => {
     );
   });
 
-  it('«Скачать» saves the result in a new tab and tracks it', async () => {
-    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
-    api({ 'all:': { items: [fitting(1)], total: 1, nextCursor: null } });
-    const user = setup();
-    renderHistory();
+  // GET /fittings answers the list; GET /fittings/:id/image answers `image`.
+  function apiWithImage(items: unknown[], image: () => Promise<Response>) {
+    fetchMock.mockImplementation((url: unknown) =>
+      new URL(String(url)).pathname.endsWith('/image')
+        ? image()
+        : json({ items, total: items.length, nextCursor: null }),
+    );
+  }
 
-    await openMenu(user);
-    await user.click(screen.getByRole('menuitem', { name: 'Скачать' }));
+  const imageRequests = () =>
+    fetchMock.mock.calls
+      .map(([url]) => new URL(String(url)).pathname)
+      .filter((path) => path.endsWith('/image'));
 
-    expect(click).toHaveBeenCalledOnce();
-    const link = click.mock.contexts[0] as HTMLAnchorElement;
-    expect(link.href).toBe(RESULT);
-    expect(link.target).toBe('_blank');
-    expect(mocks.track).toHaveBeenCalledWith('Element Clicked', clicked('history.download'));
+  describe('«Скачать» (AC14)', () => {
+    beforeEach(() => {
+      URL.createObjectURL = vi.fn(() => 'blob:history-1');
+      URL.revokeObjectURL = vi.fn();
+    });
+
+    it('saves the file the api sends, opens no tab, thanks with a toast and tracks it', async () => {
+      const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+      const open = vi.spyOn(window, 'open').mockImplementation(() => null);
+      const one = fitting(1);
+      apiWithImage([one], () =>
+        Promise.resolve(
+          new Response(new Uint8Array([1]), {
+            headers: {
+              'Content-Disposition': 'attachment; filename="primerka-2026-10-23-1407.webp"',
+            },
+          }),
+        ),
+      );
+      const user = setup();
+      renderHistory();
+
+      await openMenu(user);
+      await user.click(screen.getByRole('menuitem', { name: 'Скачать' }));
+
+      await vi.waitFor(() =>
+        expect(mocks.showToast).toHaveBeenCalledExactlyOnceWith({ title: 'Фото скачано' }),
+      );
+      expect(imageRequests()).toEqual([`/api/fittings/${one.id}/image`]);
+      expect(click).toHaveBeenCalledOnce();
+      const link = click.mock.contexts[0] as HTMLAnchorElement;
+      expect(link.download).toBe('primerka-2026-10-23-1407.webp');
+      expect(link.getAttribute('href')).toBe('blob:history-1');
+      expect(link.hasAttribute('target')).toBe(false);
+      expect(open).not.toHaveBeenCalled();
+      expect(mocks.track).toHaveBeenCalledWith('Element Clicked', clicked('history.download'));
+    });
+
+    it('shows no success toast before the file is there', async () => {
+      vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+      let answer: (response: Response) => void = () => undefined;
+      apiWithImage(
+        [fitting(1)],
+        () =>
+          new Promise<Response>((resolve) => {
+            answer = resolve;
+          }),
+      );
+      const user = setup();
+      renderHistory();
+
+      await openMenu(user);
+      await user.click(screen.getByRole('menuitem', { name: 'Скачать' }));
+      await vi.waitFor(() => expect(imageRequests()).toHaveLength(1));
+      expect(mocks.showToast).not.toHaveBeenCalled();
+
+      answer(new Response(new Uint8Array([1])));
+      await vi.waitFor(() => expect(mocks.showToast).toHaveBeenCalledOnce());
+    });
+
+    it('is disabled while the file loads: a second click requests and tracks nothing', async () => {
+      vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+      let answer: (response: Response) => void = () => undefined;
+      apiWithImage(
+        [fitting(1)],
+        () =>
+          new Promise<Response>((resolve) => {
+            answer = resolve;
+          }),
+      );
+      const user = setup();
+      renderHistory();
+      const downloads = () =>
+        mocks.track.mock.calls.filter(
+          ([event, props]) => event === 'Element Clicked' && props.element === 'history.download',
+        );
+
+      await openMenu(user);
+      await user.click(screen.getByRole('menuitem', { name: 'Скачать' }));
+      await vi.waitFor(() => expect(imageRequests()).toHaveLength(1));
+      await openMenu(user);
+      const item = screen.getByRole('menuitem', { name: 'Скачать' });
+      await vi.waitFor(() => expect(item).toHaveAttribute('aria-disabled', 'true'));
+      await user.click(item);
+
+      expect(imageRequests()).toHaveLength(1);
+      expect(downloads()).toHaveLength(1);
+
+      answer(new Response(new Uint8Array([1])));
+      await vi.waitFor(() => expect(mocks.showToast).toHaveBeenCalledOnce());
+    });
+
+    it('shows the error’s text in an error toast when the api refuses', async () => {
+      const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+      apiWithImage([fitting(1)], () => apiError(404, 'NOT_FOUND'));
+      const user = setup();
+      renderHistory();
+
+      await openMenu(user);
+      await user.click(screen.getByRole('menuitem', { name: 'Скачать' }));
+
+      await vi.waitFor(() =>
+        expect(mocks.showToast).toHaveBeenCalledExactlyOnceWith({
+          title: 'Не найдено: возможно, запись удалили',
+          tone: 'error',
+        }),
+      );
+      expect(click).not.toHaveBeenCalled();
+    });
   });
 
   it('has no «Скачать» for a failed fitting but can delete it', async () => {

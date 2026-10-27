@@ -1,6 +1,5 @@
 'use client';
 
-import NextLink from 'next/link';
 import { useRef, useState } from 'react';
 
 import {
@@ -8,6 +7,7 @@ import {
   fittingDate,
   type FittingQuota,
   LimitMeter,
+  SavedNote,
   type StartedFitting,
 } from '@/entities/fitting';
 import type { OutfitSlot } from '@/entities/category';
@@ -79,8 +79,8 @@ function LookTile({ product, slot, attributeValueId }: LookTileProps) {
   );
 }
 
-// Board 7, the result of one item (spec 0019 AC5, AC7, AC8, A62): the picture with «Сгенерировано
-// ИИ» and the caption under it, the tiles (the share disabled, A14; «К образу» into the fitting
+// Board 7, the result of one item (spec 0019 AC5, AC7, AC8, A62): its date, the picture with
+// «Сгенерировано ИИ», «Сохранено в «Мои примерки»» (spec 0023 Y7) and the caption under it, the tiles (the share disabled, A14; «К образу» into the fitting
 // room, A90.11), the item with the size select and the cart's and favourites' stubs (A33), the product's
 // other colours (A74, A76), «Хотите что-то поменять в образе?» with the sheet «Что поменять?»,
 // «Примерить на другом фото» and the month's meter. The picture is only an image's `src`, in an
@@ -105,6 +105,7 @@ export function FittingResult({
   const regenerateElement = useTrackedElement('result.regenerate-open');
   const cartElement = useTrackedElement('result.add-to-cart', { kind: 'single' });
   const otherPhotoElement = useTrackedElement('result.other-photo');
+  const historyElement = useTrackedElement('result.history');
   const item = fitting.items[0];
   const progress = useRunningProgress(running);
   const sizes = product?.variations.map(({ size: value }) => ({ value, label: value })) ?? [];
@@ -161,16 +162,11 @@ export function FittingResult({
 
   return (
     <div className={styles.result}>
-      <p className={styles.saved}>
-        Сохранили в{' '}
-        <NextLink href={FITTINGS_HREF} className={styles.link}>
-          историю примерок
-        </NextLink>
-        {fitting.finishedAt && ` · ${fittingDate(fitting.finishedAt)}`}
-      </p>
+      {fitting.finishedAt && <p className={styles.saved}>{fittingDate(fitting.finishedAt)}</p>}
 
       <div className={styles.left}>
         {picture}
+        <SavedNote href={FITTINGS_HREF} events={historyElement} />
         {running ? (
           <p className={styles.muted}>
             {item?.colour

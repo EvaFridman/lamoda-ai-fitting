@@ -56,6 +56,8 @@ interface Api {
   categoriesFail: boolean;
   // The photo consents' version of GET /me (spec 0023 Y1): 1 given, null none.
   consent: number | null;
+  // What GET /fittings/:id/image answers (spec 0023 Y8).
+  image: () => Promise<Response>;
 }
 
 let api: Api;
@@ -165,9 +167,10 @@ function startedResponse(patch: Partial<Fitting> = {}) {
   return json(201, { ...fitting({ id: NEXT, ...patch }), repeated: false });
 }
 
-function route(url: string, init?: RequestInit): Response {
+function route(url: string, init?: RequestInit): Response | Promise<Response> {
   const { pathname } = new URL(url);
   const method = init?.method ?? 'GET';
+  if (/^\/api\/fittings\/[^/]+\/image$/.test(pathname)) return api.image();
   if (pathname === '/api/me' && method === 'GET') return json(200, me());
   if (pathname === '/api/me/photos' && method === 'GET') return json(200, api.photos);
   if (pathname === '/api/me/photos' && method === 'POST') return api.upload();
@@ -261,6 +264,7 @@ beforeEach(() => {
     productFails: false,
     categoriesFail: false,
     consent: 1,
+    image: () => Promise.resolve(new Response(new Uint8Array([1, 2]))),
   };
   useRoomStore.setState({ open: false });
   fetchMock.mockReset();
@@ -808,6 +812,12 @@ describe('TryOn with a fitting', () => {
       await vi.advanceTimersByTimeAsync(3100);
     });
 
+    // The success screen comes first (AC13), the result after 1.5 s.
+    expect(await screen.findByRole('status')).toHaveTextContent('Готово!');
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+
     expect(await screen.findByText('Сгенерировано ИИ')).toBeInTheDocument();
     expect(
       screen.getByRole('img', { name: 'Сгенерированное изображение: вы в вещи «Сарафан»' }),
@@ -1337,6 +1347,264 @@ describe('TryOn with a fitting', () => {
     expect(posts()[0]?.path).toBe(`/api/fittings/${RUNNING}/regenerate`);
     expect(bodyOf(0)).toEqual({ reasons: ['face'] });
     expect(screen.queryByText(/Примеряем Красный/)).not.toBeInTheDocument();
+  });
+});
+
+describe('TryOn success screen (AC13)', () => {
+  const RESULT_URL = 'https://s3.test/keep/users/u/result.webp?X-Amz-Signature=abc';
+  const done = (patch: Partial<Fitting> = {}) =>
+    fitting({
+      status: 'completed',
+      stage: 'done',
+      resultUrl: RESULT_URL,
+      finishedAt: DATE,
+      estimatedSeconds: null,
+      ...patch,
+    });
+  const timerUser = () =>
+    userEvent.setup({ pointerEventsCheck: 0, advanceTimers: vi.advanceTimersByTime });
+
+  async function advance(ms: number) {
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(ms);
+    });
+  }
+
+  const note = () =>
+    screen.getByText(
+      (_, element) =>
+        element?.tagName === 'P' && element.textContent === 'Сохранено в «Мои примерки»',
+    );
+
+  it('shows «Готово!» and the saved line for 1.5 s, then the result with its link to the history', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    // An id of its own: the end of a fitting is sent once per id and module.
+    const own = '00000000-0000-4000-8000-0000000000e9';
+    api.fittings.set(own, fitting({ id: own }));
+    renderTryOn({ fittingId: own });
+    await screen.findByText('Примеряем…');
+
+    api.fittings.set(own, done({ id: own }));
+    await advance(3100);
+
+    const status = await screen.findByRole('status');
+    expect(status).toHaveTextContent('Готово!');
+    expect(status).toHaveTextContent('Сохранили в «Мои примерки»');
+    expect(screen.queryByText('Примеряем…')).not.toBeInTheDocument();
+    expect(screen.queryByText('Сгенерировано ИИ')).not.toBeInTheDocument();
+    expect(screen.queryByText('Скачать')).not.toBeInTheDocument();
+
+    await advance(1500);
+
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(await screen.findByText('Сгенерировано ИИ')).toBeInTheDocument();
+    expect(within(note()).getByRole('link', { name: '«Мои примерки»' })).toHaveAttribute(
+      'href',
+      '/customer/fittings',
+    );
+    expect(mocks.track.mock.calls.filter(([event]) => event === 'Fitting Completed')).toHaveLength(
+      1,
+    );
+  });
+
+  it('shows the result at once, with no success screen, for a fitting opened completed', async () => {
+    api.fittings.set(RUNNING, done());
+    renderTryOn({ fittingId: RUNNING });
+
+    expect(await screen.findByText('Сгенерировано ИИ')).toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(note()).toBeInTheDocument();
+    expect(screen.queryByText(/сохранён в истории/)).not.toBeInTheDocument();
+  });
+
+  it('shows the result at once for a repeated start that answers an earlier result', async () => {
+    api.started = () => json(200, { ...done({ id: NEXT }), repeated: true });
+    api.fittings.set(NEXT, done({ id: NEXT }));
+    const user = setup();
+    renderTryOn({ productId: PRODUCT });
+    await vi.waitFor(() => expect(start()).toBeEnabled());
+
+    await user.click(start());
+
+    expect(await screen.findByText('Сгенерировано ИИ')).toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('shows it after a start from the picker once the new fitting completes', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    api.fittings.set(NEXT, fitting({ id: NEXT }));
+    const user = timerUser();
+    renderTryOn({ productId: PRODUCT });
+    await vi.waitFor(() => expect(start()).toBeEnabled());
+    await user.click(start());
+    await screen.findByText('Примеряем…');
+
+    api.fittings.set(NEXT, done({ id: NEXT }));
+    await advance(3100);
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Готово!');
+    await advance(1500);
+    expect(await screen.findByText('Сгенерировано ИИ')).toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('shows it for a colour that ran over a result, then the new result', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const blue = [{ ...fitting().items[0]!, attributeValueId: BLUE, colour: 'Синий' }];
+    api.fittings.set(RUNNING, done());
+    api.fittings.set(NEXT, fitting({ id: NEXT, items: blue }));
+    api.started = () => startedResponse({ items: blue });
+    const user = timerUser();
+    renderTryOn({ fittingId: RUNNING });
+    await screen.findByText('Сгенерировано ИИ');
+
+    await user.click(await screen.findByRole('button', { name: 'Синий' }));
+    expect(await screen.findByText(/Примеряем Синий…/)).toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+
+    api.fittings.set(
+      NEXT,
+      done({ id: NEXT, items: blue, resultUrl: 'https://s3.test/keep/users/u/blue.webp?X=1' }),
+    );
+    await advance(3100);
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Готово!');
+    expect(screen.queryByText(/Примеряем Синий/)).not.toBeInTheDocument();
+    await advance(1500);
+
+    expect(await screen.findByText('Сгенерировано ИИ')).toBeInTheDocument();
+    expect(
+      screen.getByRole('img', { name: 'Сгенерированное изображение: вы в вещи «Сарафан»' }),
+    ).toHaveAttribute('src', expect.stringContaining('blue.webp'));
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('shows no success screen for a failed fitting', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    api.fittings.set(RUNNING, fitting());
+    renderTryOn({ fittingId: RUNNING });
+    await screen.findByText('Примеряем…');
+
+    api.fittings.set(
+      RUNNING,
+      fitting({ status: 'failed', stage: 'done', failureCode: 'model_timeout' }),
+    );
+    await advance(3100);
+
+    expect(await screen.findByRole('heading', { name: 'Не получилось примерить' })).toBeVisible();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('sends result.history from the result’s link', async () => {
+    api.fittings.set(RUNNING, done());
+    const user = setup();
+    renderTryOn({ fittingId: RUNNING });
+    await screen.findByText('Сгенерировано ИИ');
+    const link = within(note()).getByRole('link', { name: '«Мои примерки»' });
+    link.addEventListener('click', (event) => event.preventDefault());
+
+    await user.click(link);
+
+    expect(mocks.track).toHaveBeenCalledWith(
+      'Element Clicked',
+      expect.objectContaining({ element: 'result.history' }),
+    );
+  });
+});
+
+describe('TryOn result «Скачать» (AC14)', () => {
+  const done = () =>
+    fitting({
+      status: 'completed',
+      stage: 'done',
+      resultUrl: 'https://s3.test/keep/users/u/result.webp?X-Amz-Signature=abc',
+      finishedAt: DATE,
+    });
+  const imageCalls = () =>
+    fetchMock.mock.calls.filter(([url]) => String(url).endsWith(`/api/fittings/${RUNNING}/image`));
+  const clicks = () =>
+    mocks.track.mock.calls.filter(
+      ([event, props]) => event === 'Element Clicked' && props.element === 'result.download',
+    );
+
+  let anchorClick: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    URL.createObjectURL = vi.fn(() => 'blob:result-1');
+    URL.revokeObjectURL = vi.fn();
+    anchorClick = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('saves the api’s file with no new tab and sends result.download once', async () => {
+    api.fittings.set(RUNNING, done());
+    api.image = () =>
+      Promise.resolve(
+        new Response(new Uint8Array([1]), {
+          headers: {
+            'Content-Disposition': 'attachment; filename="primerka-2026-10-20-1500.webp"',
+          },
+        }),
+      );
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null);
+    const user = setup();
+    renderTryOn({ fittingId: RUNNING });
+    await screen.findByText('Сгенерировано ИИ');
+
+    await user.click(screen.getByRole('button', { name: 'Скачать' }));
+
+    await vi.waitFor(() => expect(anchorClick).toHaveBeenCalledOnce());
+    const link = anchorClick.mock.contexts[0] as HTMLAnchorElement;
+    expect(link.download).toBe('primerka-2026-10-20-1500.webp');
+    expect(link.hasAttribute('target')).toBe(false);
+    expect(open).not.toHaveBeenCalled();
+    expect(imageCalls()).toHaveLength(1);
+    expect(clicks()).toHaveLength(1);
+  });
+
+  it('is aria-disabled while the file loads: a second click sends and asks for nothing', async () => {
+    api.fittings.set(RUNNING, done());
+    let answer: (response: Response) => void = () => undefined;
+    api.image = () =>
+      new Promise<Response>((resolve) => {
+        answer = resolve;
+      });
+    const user = setup();
+    renderTryOn({ fittingId: RUNNING });
+    await screen.findByText('Сгенерировано ИИ');
+    const tile = screen.getByRole('button', { name: 'Скачать' });
+
+    await user.click(tile);
+    await vi.waitFor(() => expect(tile).toHaveAttribute('aria-disabled', 'true'));
+    await user.click(tile);
+
+    expect(imageCalls()).toHaveLength(1);
+    expect(clicks()).toHaveLength(1);
+    expect(tile).toBeEnabled();
+
+    await act(async () => {
+      answer(new Response(new Uint8Array([1])));
+    });
+    await vi.waitFor(() => expect(tile).not.toHaveAttribute('aria-disabled'));
+    expect(anchorClick).toHaveBeenCalledOnce();
+  });
+
+  it('saves nothing and gives the tile back when the api refuses', async () => {
+    api.fittings.set(RUNNING, done());
+    api.image = () => Promise.resolve(failure(503, 'SERVICE_UNAVAILABLE'));
+    const user = setup();
+    renderTryOn({ fittingId: RUNNING });
+    await screen.findByText('Сгенерировано ИИ');
+    const tile = screen.getByRole('button', { name: 'Скачать' });
+
+    await user.click(tile);
+
+    await vi.waitFor(() => expect(imageCalls()).toHaveLength(1));
+    await vi.waitFor(() => expect(tile).not.toHaveAttribute('aria-disabled'));
+    expect(anchorClick).not.toHaveBeenCalled();
   });
 });
 

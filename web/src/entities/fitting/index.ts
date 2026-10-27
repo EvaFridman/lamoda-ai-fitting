@@ -1,3 +1,4 @@
+export { downloadFittingImage } from './api/download';
 export { deleteFitting, regenerateFitting, startFitting } from './api/fitting-requests';
 export { fittingKeys } from './api/keys';
 export {
@@ -94,4 +95,5 @@ export {
   triesLeftText,
 } from './ui/limit-meter';
 export { PhotoFrame, type PhotoFrameProps } from './ui/photo-frame';
+export { SavedNote, type SavedNoteEvents, type SavedNoteProps } from './ui/saved-note';
 export { TriedOnNote, type TriedOnNoteEvents, type TriedOnNoteProps } from './ui/tried-on-note';

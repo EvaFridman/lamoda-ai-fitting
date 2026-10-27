@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { type ReactNode, useState } from 'react';
 
 import { type Fitting, historyDate, isFittingRunning, itemLabel } from '@/entities/fitting';
+import { useFittingImageDownload } from '@/features/download-fitting';
 import { useTrackedElement } from '@/shared/analytics';
 import {
   CompareIcon,
@@ -35,18 +36,6 @@ export interface CardActionsProps {
   onDelete?: () => void;
 }
 
-// Saves the result: a link made on the click and dropped at once, so the signed link never sits in
-// the page's markup (A37). The storage's link is another origin, where `download` does not apply:
-// the picture opens in a new tab, from which it is saved (A77.9).
-function download(url: string) {
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = 'primerka.webp';
-  link.target = '_blank';
-  link.rel = 'noopener';
-  link.click();
-}
-
 // A card's state as the analytics name it: a pending and a processing fitting both run.
 export function historyStatus(
   fitting: Pick<Fitting, 'status'>,
@@ -75,7 +64,8 @@ interface Action {
 }
 
 // A card's actions (spec 0019 board 9, A62, A78, A93): «Открыть», «Примерить ещё раз» (disabled
-// with «Фото удалено» once the photo is gone), «Поделиться» (disabled, A14) and «Скачать» for a
+// with «Фото удалено» once the photo is gone), «Поделиться» (disabled, A14) and «Скачать» (a file,
+// spec 0023 P28) for a
 // result, on a phone «Сравнить с другой», and «Удалить» but for a running fitting; on a wide screen
 // the «⋯» menu, on a phone the actions sheet with the result's thumbnail, the item and the date,
 // and under the actions the note that a repeat spends nothing.
@@ -101,6 +91,7 @@ export function CardActions({
   });
   const compareElement = useTrackedElement('history.compare', { from: 'sheet' });
   const downloadElement = useTrackedElement('history.download');
+  const saving = useFittingImageDownload();
   const resultUrl = fitting.status === 'completed' ? fitting.resultUrl : null;
   const photoGone = fitting.photoId === null;
 
@@ -158,8 +149,11 @@ export function CardActions({
       key: 'download',
       icon: <DownloadIcon />,
       label: 'Скачать',
+      // A file through the api and the toast «Фото скачано» (spec 0023 P28); disabled while it
+      // loads, so a second click sends nothing.
+      disabled: saving.pending,
       events: downloadElement,
-      run: () => download(resultUrl),
+      run: () => saving.download(fitting.id),
     },
     onDelete && {
       key: 'delete',

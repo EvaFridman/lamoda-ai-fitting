@@ -11,23 +11,12 @@ import {
   PhotoFrame,
   timeLeftText,
 } from '@/entities/fitting';
+import { useFittingImageDownload } from '@/features/download-fitting';
 import { TryOnLoader } from '@/features/start-fitting';
 import { useTrackedElement } from '@/shared/analytics';
 import { DownloadIcon, FullscreenIcon, ProgressBar, ShareIcon } from '@/shared/ui';
 
 import styles from './fitting-result.module.scss';
-
-// Saves the result: a link made on the click and dropped at once, so the signed link never sits in
-// the page's markup (A37). The storage's link is another origin, where `download` does not apply:
-// the picture opens in a new tab, from which it is saved.
-function download(url: string) {
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = 'primerka.webp';
-  link.target = '_blank';
-  link.rel = 'noopener';
-  link.click();
-}
 
 // The progress of a fitting that runs over a result (boards 7.2, 8.2), a second's tick while it
 // runs; null while none does.
@@ -98,11 +87,12 @@ export interface ResultTilesProps {
   children?: ReactNode;
 }
 
-// Board 13's ResultActions: «Поделиться» (disabled, A14), «Скачать», «Во весь экран», and the
-// caller's tile, if any.
+// Board 13's ResultActions: «Поделиться» (disabled, A14), «Скачать» (a file through the api and
+// the toast «Фото скачано», spec 0023 P28), «Во весь экран», and the caller's tile, if any.
 export function ResultTiles({ fitting, running, pictureRef, phone, children }: ResultTilesProps) {
   const downloadElement = useTrackedElement('result.download');
   const fullscreenElement = useTrackedElement('result.fullscreen');
+  const saving = useFittingImageDownload();
   const off = running !== null || !fitting.resultUrl;
   return (
     <div
@@ -118,9 +108,12 @@ export function ResultTiles({ fitting, running, pictureRef, phone, children }: R
         type="button"
         className={styles.tile}
         disabled={off}
+        // Waits focusable while the file loads, as «К образу» through its write.
+        aria-disabled={saving.pending || undefined}
         onClick={() => {
+          if (saving.pending) return;
           downloadElement.onClick();
-          if (fitting.resultUrl) download(fitting.resultUrl);
+          saving.download(fitting.id);
         }}
         onPointerEnter={downloadElement.onPointerEnter}
         onPointerLeave={downloadElement.onPointerLeave}

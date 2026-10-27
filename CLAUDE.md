@@ -627,7 +627,13 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   the image, so rebuild web after changing it), and all browser calls share the web container's
   quota. With the api stopped that rewrite answers a plain 500, not nginx's 503: the local 503 text
   is checked with a stubbed answer. A `null` schema is for an answer with no body: a 204 resolves
-  to `undefined` without reading it (`clientFetch` only; `apiFetch` always takes one); the JSON body of a write is the caller's
+  to `undefined` without reading it (`clientFetch` only; `apiFetch` always takes one), and
+  `BLOB_ANSWER` for a file, `{ blob, fileName }` from `Content-Disposition`, within 30 s
+  (`downloadFittingImage`, `entities/fitting`: `GET /fittings/:id/image` saved through an object
+  URL and an `<a download>` never put into the page; `useFittingImageDownload` of
+  `features/download-fitting`, the result's and the history's «Скачать», waits for it and shows the
+  toast «Фото скачано» or the error's text, spec 0023 P28);
+  the JSON body of a write is the caller's
   `init` (`body: JSON.stringify(...)`, `Content-Type: application/json`). Queries retry only a
   network error or a 503, at most twice
   (`shouldRetry`, `_app/providers.tsx`); a request cancelled by its caller is not an error. The first
@@ -883,7 +889,8 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   `fitting`, areas `history` and `compare` (`history.repeat`, `.compare`, `.compare-open`,
   `compare.open`, `.add-to-cart`, `source: history`, A93.6), the result's `result.to-look`,
   `.item-colour`, `.add-to-cart-all`, `.add-to-cart`'s `kind` and
-  `.regenerate`'s `with_item` (A94), the grid's hanger `catalog.to-look` in the zone
+  `.regenerate`'s `with_item` (A94) and `result.history` (the link of «Сохранено в «Мои
+  примерки»», spec 0023 Y7), the grid's hanger `catalog.to-look` in the zone
   `catalog` (A90.9), the phone header's the zone `header` (areas `header` and
   `burger`: `header.burger`, `header.search`, `burger.category`, A87.8), the footer's
   `footer.link` in the zone `footer` (`link`: `stores`, spec 0022 X18), the stores page's the zone
@@ -982,7 +989,13 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   the picker's photo, an upload, `TryOnLoader`'s wait and both results, 2:3, every image in it
   `contain` on the light grey, its size from the window only (up to 640 px high from 1024 px,
   560 px at 600–1023 px, never more than the window's height less 240 px nor less than 320 px, Y20; on a phone the whole
-  width up to 60svh); «Во весь экран» opens that frame, black and whole (P29).
+  width up to 60svh); «Во весь экран» opens that frame, black and whole (P29). A fitting the
+  window saw running that completes (a colour or a regeneration over a result too) shows
+  `FittingSuccess` (`features/start-fitting`: the result blurred in the frame, «Готово!» and
+  «Сохранили в «Мои примерки»») for 1.5 s, then the result; one opened completed shows the result
+  at once (P26). Both results carry `SavedNote` (`entities/fitting`, «Сохранено в «Мои
+  примерки»», Y7) under the picture; the look's buttons read «Добавить образ в корзину» and
+  «Добавить образ в избранное» (P31, P32).
 - `web` stores page (spec 0022, `_pages/stores`): `useStores` (`entities/store`) starts from the
   page cache's `getStores`; the search (`matchStores`: every word the start of a word of the
   name, mall, city, street or a metro station, X7) runs in the browser, its text never in an

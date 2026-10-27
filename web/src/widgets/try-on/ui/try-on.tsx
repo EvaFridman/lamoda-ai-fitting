@@ -26,6 +26,7 @@ import { useSession } from '@/entities/session';
 import { deleteTransientPhoto, useMyPhotos, type UserPhoto } from '@/entities/user-photo';
 import {
   FittingErrorCard,
+  FittingSuccess,
   FittingWait,
   LimitCard,
   StartFittingButton,
@@ -44,6 +45,9 @@ import { PhotoPicker } from './photo-picker';
 import { PickerItemActions } from './picker-item-actions';
 
 import styles from './try-on.module.scss';
+
+// How long the success screen shows before the result (spec 0023 Y15).
+const SUCCESS_MS = 1500;
 
 // A one-time photo is deleted when the window closes (A69, A70); a 404 (gone already, or a saved
 // one) is nothing to report.
@@ -155,6 +159,17 @@ export function TryOn({
   // A fitting this window shows: no toast for it, and its end is this tab's to send.
   useEffect(() => (fittingId ? showFitting(fittingId) : undefined), [fittingId]);
   const wasRunningRef = useRef(false);
+  // The fitting whose success screen shows (spec 0023 P26): one seen running in this window that
+  // completed; a fitting opened completed never shows it. Kept in state during the render, as
+  // `ownerId`.
+  const [seenRunning, setSeenRunning] = useState<string | null>(null);
+  const [celebrating, setCelebrating] = useState<string | null>(null);
+  if (fitting && isFittingRunning(fitting) && seenRunning !== fitting.id) {
+    setSeenRunning(fitting.id);
+  } else if (fitting?.status === 'completed' && seenRunning === fitting.id) {
+    setSeenRunning(null);
+    setCelebrating(fitting.id);
+  }
   useEffect(() => {
     if (!fitting) return;
     if (isFittingRunning(fitting)) {
@@ -172,6 +187,11 @@ export function TryOn({
       });
     }
   }, [fitting, queryClient]);
+  useEffect(() => {
+    if (celebrating === null) return;
+    const timer = window.setTimeout(() => setCelebrating(null), SUCCESS_MS);
+    return () => window.clearTimeout(timer);
+  }, [celebrating]);
 
   // `base`: the result a colour runs over (board 7.2), shown while the colour runs.
   function started(next: StartedFitting, base: string | null = null) {
@@ -381,6 +401,8 @@ export function TryOn({
     ) : (
       <Skeleton height={480} />
     );
+  } else if (celebrating === fitting.id && fitting.status === 'completed') {
+    content = <FittingSuccess resultUrl={fitting.resultUrl} />;
   } else if (isLook && fitting.status === 'completed') {
     content = (
       <LookResult

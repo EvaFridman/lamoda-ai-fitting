@@ -41,12 +41,31 @@ async function errorEnvelope(
   return codeOnly.success ? { code: codeOnly.data.error.code, details: [] } : undefined;
 }
 
-// A schema, or `null` for an answer with no body (a 204, spec 0017 plan §4).
-export type ResponseSchema = z.ZodType | null;
+// The answer of a file (the result's picture, spec 0023 plan §4.3): its bytes and the name of its
+// `Content-Disposition`, if any.
+export const BLOB_ANSWER = { kind: 'blob' } as const;
+
+export interface BlobAnswer {
+  blob: Blob;
+  fileName: string | null;
+}
+
+// A schema, `null` for an answer with no body (a 204, spec 0017 plan §4), or `BLOB_ANSWER` for a
+// file.
+export type ResponseSchema = z.ZodType | null | typeof BLOB_ANSWER;
 
 export type Parsed<Schema extends ResponseSchema> = Schema extends z.ZodType
   ? z.infer<Schema>
-  : undefined;
+  : Schema extends typeof BLOB_ANSWER
+    ? BlobAnswer
+    : undefined;
+
+// The name of `attachment; filename="primerka-….webp"`: the plain form the api sends, nothing
+// else (no `filename*`).
+export function attachmentName(header: string | null): string | null {
+  const match = header && /filename="([^"\\/]+)"/i.exec(header);
+  return match ? (match[1] ?? null) : null;
+}
 
 // The step both clients share once they have built the url and the request options: fetch, then the
 // status and the schema, every failure an `ApiError` with its kind and reported to Sentry (plan §3),
@@ -114,6 +133,26 @@ async function request<Schema extends ResponseSchema>(
   // A caller that expects no body gets nothing on a 204, and the body is not read. Any other answer
   // goes on as before: with no schema to parse it, it fails below as `schema`.
   if (schema === null && response.status === 204) return undefined as Parsed<Schema>;
+  if (schema === BLOB_ANSWER) {
+    let blob: Blob;
+    try {
+      blob = await response.blob();
+    } catch (error) {
+      if (isCancelled(error)) throw error;
+      // The status has arrived: the bytes were cut short or ran out of time.
+      throw new ApiError(`unreadable api response: ${template}: ${String(error)}`, {
+        kind: failureKind(error),
+        template,
+        method,
+        cause: error,
+      });
+    }
+    const answer: BlobAnswer = {
+      blob,
+      fileName: attachmentName(response.headers.get('Content-Disposition')),
+    };
+    return answer as Parsed<Schema>;
+  }
   let body: unknown;
   try {
     body = await response.json();
@@ -135,7 +174,7 @@ async function request<Schema extends ResponseSchema>(
       method,
     });
   }
-  const parsed = schema.safeParse(body);
+  const parsed = (schema as z.ZodType).safeParse(body);
   if (!parsed.success) {
     throw new ApiError(`unexpected api response: ${template}: ${parsed.error.message}`, {
       kind: 'schema',
