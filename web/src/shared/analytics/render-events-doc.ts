@@ -29,10 +29,11 @@ function table(header: readonly string[], rows: readonly (readonly string[])[]):
 }
 
 function property(name: string, value: Property): string {
+  const label = value.optional ? `\`${name}\` (не всегда)` : `\`${name}\``;
   if (value.kind === 'enum') {
-    return `\`${name}\`: ${value.values.map((v) => `\`${v}\``).join(', ')}`;
+    return `${label}: ${value.values.map((v) => `\`${v}\``).join(', ')}`;
   }
-  return `\`${name}\`: ${value.kind}`;
+  return `${label}: ${value.kind}`;
 }
 
 function properties(list: Properties | undefined): string {

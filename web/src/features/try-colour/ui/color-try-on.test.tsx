@@ -37,6 +37,8 @@ function fitting(patch: Partial<Fitting> = {}): Fitting {
     status: 'completed',
     stage: 'done',
     failureCode: null,
+    failureCategory: null,
+    failureStage: null,
     countsAgainstLimit: true,
     regenerationFree: true,
     model: 'gpt-image-2',
@@ -212,6 +214,32 @@ describe('ColorTryOn', () => {
     await vi.waitFor(() => expect(onLimit).toHaveBeenCalledTimes(1));
     expect(onStarted).not.toHaveBeenCalled();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('shows the reason of a refused wish and lets the colour be tried again', async () => {
+    fetchMock.mockImplementation(
+      answer(400, {
+        error: {
+          code: 'PROMPT_REFUSED',
+          message: 'm',
+          details: [
+            {
+              field: 'promptText',
+              code: 'PROMPT_REFUSED',
+              message: 'promptText was refused: minors',
+            },
+          ],
+        },
+      }),
+    );
+    const { onLimit, onStarted } = renderColours();
+
+    await userEvent.setup().click(tile('Синий'));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Пожелание не может касаться детей');
+    expect(onLimit).not.toHaveBeenCalled();
+    expect(onStarted).not.toHaveBeenCalled();
+    expect(tile('Синий')).toBeEnabled();
   });
 
   it('shows the text of any other failure and lets the colour be tried again', async () => {

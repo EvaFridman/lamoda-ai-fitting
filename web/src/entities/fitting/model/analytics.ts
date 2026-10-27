@@ -1,6 +1,7 @@
 import { track } from '@/shared/analytics';
 import { ApiError } from '@/shared/api';
 
+import { promptRefusalReason } from '../lib/prompt-refusal';
 import type { Fitting, FittingKind, StartedFitting } from './schemas';
 
 // The fittings' events (spec 0019 plan §9, A43, A75). `Fitting Completed` and `Fitting Failed` are
@@ -97,6 +98,28 @@ export function trackFittingRefused(
   kind: FittingKind,
 ): 'limit_reached' | 'prompt_refused' | null {
   const reason = fittingRefusal(error);
-  if (reason) track('Fitting Refused', { kind, reason });
+  if (reason === 'prompt_refused') {
+    track('Fitting Refused', { kind, reason, prompt_reason: promptGroup(error) });
+  } else if (reason) track('Fitting Refused', { kind, reason });
   return reason;
+}
+
+// A refused text's reason in the catalog's coarse groups (spec 0023 Y11): never `politics` or
+// `nudity` on their own, a classification of the user's own text.
+function promptGroup(error: unknown): 'other_people' | 'minors' | 'unsafe' | 'off_topic' {
+  switch (promptRefusalReason(error)) {
+    case 'other_people':
+      return 'other_people';
+    case 'minors':
+      return 'minors';
+    case 'nudity':
+    case 'violence':
+    case 'sexual':
+    case 'self_harm':
+    case 'hate':
+    case 'illicit':
+      return 'unsafe';
+    default:
+      return 'off_topic';
+  }
 }

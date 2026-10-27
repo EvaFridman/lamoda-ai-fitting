@@ -27,8 +27,8 @@ export const ERROR_TEXTS = {
   IN_USE: 'Нельзя удалить: запись используется',
   // A per-user limit (spec 0019 plan §5): a sixth saved fitting photo, the month's try-ons.
   LIMIT_REACHED: 'Достигнут лимит, больше добавить нельзя',
-  // A fitting's text the safety check refused (spec 0019 A16).
-  PROMPT_REFUSED: 'Текст не подходит для примерки: опишите посадку или стиль выбранных вещей',
+  // A fitting's text the check refused (spec 0019 A16); entities/fitting's table names the reason.
+  PROMPT_REFUSED: 'Текст не подходит для примерки: опишите посадку, стиль, фон или позу',
   // A regeneration whose photo was deleted, or of a result not ready (spec 0019 A70).
   PHOTO_GONE: 'Фото этой примерки удалено — выберите фото и примерьте заново',
   NOT_COMPLETED: 'Перегенерировать можно только готовый результат',
@@ -108,7 +108,8 @@ export function errorText(error: unknown): string {
 // folder (storage/owner-check.ts, spec 0011 M8), `IS_IMAGE` and `PHOTO_REFUSED` of a fitting
 // photo (me/photos, spec 0019 plan §5: a file that is not a JPG, PNG or WebP, and a photo the
 // check refused, its reason in the message; `CONSENT_REQUIRED` of an upload with no consents, spec
-// 0023 Y17), `HAS_SLOT` and `DISTINCT_SLOTS` of a fitting's items
+// 0023 Y17), `PROMPT_REFUSED` of a fitting's refused text (its reason in the message, spec 0023 plan
+// §3.5), `HAS_SLOT` and `DISTINCT_SLOTS` of a fitting's items
 // (fittings, spec 0019 A70: an item outside the fitting room's slots, two items of a look in one
 // slot), `MATCHES_SLOT` of a fitting room's item (me/fitting-room, A86: a product of another slot)
 // and `TOO_MANY_ERRORS` of a cut list (spec 0006 F14).
@@ -147,6 +148,7 @@ export const DETAIL_TEXTS = {
   IS_IMAGE: 'Нужно изображение JPG, PNG или WebP',
   PHOTO_REFUSED: 'Фото не подходит для примерки',
   CONSENT_REQUIRED: 'Подтвердите согласия перед загрузкой фото',
+  PROMPT_REFUSED: 'Текст не подходит для примерки: опишите посадку, стиль, фон или позу',
   HAS_SLOT: 'Эту вещь пока нельзя примерить',
   DISTINCT_SLOTS: 'В образе может быть только одна вещь каждого типа',
   MATCHES_SLOT: 'Эта вещь для другого слота',

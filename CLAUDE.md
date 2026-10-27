@@ -825,7 +825,12 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   training (A46). The screens follow the canvas's boards 4, 5 and 10 (A63.8): `PhotoTips` draws
   the canvas's seven example pictures as inline SVG components (`ui/pictograms.tsx`, web keeps no
   files); a refusal shows the chosen file from an object URL set on the `<img>` by an effect and
-  revoked when it goes (`RefusedPreview`, `mp-block`; none for `child`); «Мои фото» is
+  revoked when it goes (`RefusedPreview`, `mp-block`; none for `child` or the category
+  `minors`). Refusal texts (spec 0023 plan §4.5, never naming who refused): a photo's by the
+  check's reason or the safety category of `moderation:<category>` (`lib/refusal.ts`), a refused
+  wish or comment's by its detail's reason (`fittingErrorText`, `entities/fitting`'s
+  `lib/prompt-refusal.ts`), a failed generation's by its code, `failureStage` and
+  `failureCategory` (`features/start-fitting`'s `lib/failure-text.ts`); «Мои фото» is
   `SavedPhotoCard`s (`entities/user-photo`; its radio's value is a constant, since Base UI writes
   it into a hidden input) and one `UploadPhoto` kept in the list's last item for both layouts.
 - An attribute value's `colorHex` is its swatch colour, `#RRGGBB` (either case) or `null` (an
@@ -839,7 +844,9 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   for hovers ends on a path change, seen by `useHoverReset()`, mounted once in the consent gate). Every event,
   its properties and every tracked element are listed in `catalog.ts` (`events.ts` derives the
   types from it, spec 0015) and described in `EVENTS.md` (generated from it); anything else fails
-  `typecheck`. Rules for new events and elements: `.claude/rules/analytics.md`. `track`'s optional
+  `typecheck`. A property marked `optional` may be left out of a send (`EVENTS.md`'s «не
+  всегда»: `Fitting Refused.prompt_reason`, only with `prompt_refused`, spec 0023 Y11). Rules for
+  new events and elements: `.claude/rules/analytics.md`. `track`'s optional
   third argument `{ sendNow }` sends the event at once by beacon, delivered even while the page
   unloads (only `Account Deleted`, before a full load); others go in the SDK's batches. The SDK sends its own page views and, for heatmaps, `$mp_click`-style events, from
   which `strip-attributes.ts` drops element attributes, ids, links and text; it also drops the

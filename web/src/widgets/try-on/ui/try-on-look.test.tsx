@@ -139,6 +139,8 @@ function look(patch: Partial<Fitting> = {}): Fitting {
     status: 'completed',
     stage: 'done',
     failureCode: null,
+    failureCategory: null,
+    failureStage: null,
     countsAgainstLimit: true,
     regenerationFree: true,
     model: 'gpt-image-2',
@@ -798,7 +800,7 @@ describe('TryOn of a look: another colour (AC15)', () => {
     await pickBlack(user);
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Текст не подходит для примерки: опишите посадку или стиль выбранных вещей',
+      'Текст не подходит для примерки: опишите посадку, стиль, фон или позу',
     );
     expect(
       screen.queryByRole('heading', { name: 'Примерки на этот месяц закончились' }),

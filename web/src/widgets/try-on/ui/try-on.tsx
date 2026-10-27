@@ -7,6 +7,7 @@ import {
   type Fitting,
   fittingKeys,
   fittingQueryOptions,
+  fittingErrorText,
   fittingRefusal,
   fittingsInfiniteQueryOptions,
   isFittingRunning,
@@ -218,7 +219,7 @@ export function TryOn({
     const item = failed.items[0];
     const onError = (failure: unknown) => {
       if (fittingRefusal(failure) === 'limit_reached') reachedLimit();
-      else setRetryError(errorText(failure));
+      else setRetryError(fittingErrorText(failure));
     };
     if (failed.photoId === null || !item) {
       setPicking(true);
@@ -467,6 +468,8 @@ export function TryOn({
     content = (
       <FittingErrorCard
         failure={fitting.failureCode ?? 'provider_error'}
+        category={fitting.failureCategory}
+        stage={fitting.failureStage}
         spent={fitting.countsAgainstLimit}
         left={quota.data?.left}
         photoUrl={photoUrl(fitting.photoId)}

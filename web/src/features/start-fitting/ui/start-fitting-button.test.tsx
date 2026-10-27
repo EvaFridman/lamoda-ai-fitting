@@ -33,6 +33,8 @@ function startedBody() {
     status: 'pending',
     stage: 'queued',
     failureCode: null,
+    failureCategory: null,
+    failureStage: null,
     countsAgainstLimit: true,
     regenerationFree: true,
     model: 'gpt-image-2',
@@ -182,6 +184,38 @@ describe('StartFittingButton', () => {
     expect(onError).toHaveBeenLastCalledWith('Сервис временно недоступен, попробуйте позже');
     expect(onLimit).not.toHaveBeenCalled();
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('passes the reason text of a refused wish to onError and tracks its group', async () => {
+    fetchMock.mockImplementation(
+      answer(400, {
+        error: {
+          code: 'PROMPT_REFUSED',
+          message: 'm',
+          details: [
+            {
+              field: 'promptText',
+              code: 'PROMPT_REFUSED',
+              message: 'promptText was refused: moderation:violence',
+            },
+          ],
+        },
+      }),
+    );
+    const { onLimit, onStarted, onError } = renderButton();
+
+    await userEvent.setup().click(button());
+
+    await vi.waitFor(() =>
+      expect(onError).toHaveBeenLastCalledWith('Пожелание не может касаться насилия'),
+    );
+    expect(onLimit).not.toHaveBeenCalled();
+    expect(onStarted).not.toHaveBeenCalled();
+    expect(mocks.track).toHaveBeenCalledWith('Fitting Refused', {
+      kind: 'single',
+      reason: 'prompt_refused',
+      prompt_reason: 'unsafe',
+    });
   });
 
   it('tracks the click of the start element', async () => {

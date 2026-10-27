@@ -4,12 +4,12 @@ import { useId } from 'react';
 
 import {
   type Fitting,
+  fittingErrorText,
   fittingRefusal,
   type StartedFitting,
   useStartSingleFitting,
 } from '@/entities/fitting';
 import { useTrackedElement } from '@/shared/analytics';
-import { errorText } from '@/shared/api';
 import { CheckIcon, type HexColor, Notice, Spinner, SwatchDot } from '@/shared/ui';
 
 import styles from './color-try-on.module.scss';
@@ -104,7 +104,9 @@ export function ColorTryOn({
   const photoId = fitting.photoId;
   const busy = start.isPending || generating !== null;
   const failure =
-    start.isError && fittingRefusal(start.error) === null ? errorText(start.error) : null;
+    start.isError && fittingRefusal(start.error) !== 'limit_reached'
+      ? fittingErrorText(start.error)
+      : null;
 
   return (
     <section className={styles.block} aria-labelledby={titleId}>

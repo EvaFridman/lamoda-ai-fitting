@@ -88,6 +88,8 @@ function fitting(patch: {
     status: patch.status ?? 'completed',
     stage: 'done',
     failureCode: null,
+    failureCategory: null,
+    failureStage: null,
     countsAgainstLimit: true,
     regenerationFree: true,
     model: 'gpt-image-2',

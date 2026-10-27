@@ -31,6 +31,8 @@ function fitting(patch: Partial<Fitting> = {}): Fitting {
     status: 'completed',
     stage: 'done',
     failureCode: null,
+    failureCategory: null,
+    failureStage: null,
     countsAgainstLimit: true,
     regenerationFree: true,
     model: 'gpt-image-2',
@@ -198,13 +200,48 @@ describe('RegenerateSheet', () => {
     await user.click(submit());
 
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('Текст не подходит для примерки');
+    expect(alert).toHaveTextContent(
+      'Текст не подходит для примерки: опишите посадку, стиль, фон или позу',
+    );
     expect(comment()).toHaveAttribute('aria-invalid', 'true');
     expect(onStarted).not.toHaveBeenCalled();
     expect(onLimit).not.toHaveBeenCalled();
     expect(mocks.track).toHaveBeenCalledWith('Fitting Refused', {
       kind: 'single',
       reason: 'prompt_refused',
+      prompt_reason: 'off_topic',
+    });
+  });
+
+  it('shows the reason of a refused comment (P27)', async () => {
+    fetchMock.mockImplementation(
+      answer(400, {
+        error: {
+          code: 'PROMPT_REFUSED',
+          message: 'm',
+          details: [
+            {
+              field: 'comment',
+              code: 'PROMPT_REFUSED',
+              message: 'comment was refused: other_people',
+            },
+          ],
+        },
+      }),
+    );
+    const user = setup();
+    renderSheet();
+
+    await user.type(await screen.findByLabelText('Что поменять'), 'добавь друга');
+    await user.click(submit());
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Пожелание не может касаться других людей на фото',
+    );
+    expect(mocks.track).toHaveBeenCalledWith('Fitting Refused', {
+      kind: 'single',
+      reason: 'prompt_refused',
+      prompt_reason: 'other_people',
     });
   });
 

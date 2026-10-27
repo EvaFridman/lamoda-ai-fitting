@@ -691,7 +691,6 @@ describe('UploadPhoto with the consents given', () => {
       ['not_full', 'Не видно фигуру целиком'],
       ['many_people', 'На фото несколько человек'],
       ['no_person', 'Не нашли человека на фото'],
-      ['moderation', 'Фото не подходит для примерки'],
     ])('for %s shows «%s» with another photo, the camera and the tips', async (reason, title) => {
       answer = refusedWith(reason);
       const user = setup();
@@ -707,6 +706,60 @@ describe('UploadPhoto with the consents given', () => {
       ).toBeInTheDocument();
       expect(tracked('Photo Refused')).toEqual([
         ['Photo Refused', { reason, source: 'camera', place: 'photos', first: false }],
+      ]);
+    });
+
+    it.each([
+      ['violence', 'На фото есть оружие или насилие', 'Загрузите обычное фото в полный рост'],
+      ['sexual', 'Фото не подходит для примерки', 'на фото откровенный образ'],
+      ['self_harm', 'Фото не подходит для примерки', 'Загрузите другое фото'],
+      ['hate', 'На фото есть оскорбительные символы', 'Загрузите фото без надписей'],
+      ['illicit', 'На фото есть запрещённые предметы', 'Загрузите фото без посторонних предметов'],
+      ['unknown', 'Фото не прошло проверку безопасности', 'фото известных людей и персонажей'],
+      ['weapons', 'Фото не прошло проверку безопасности', 'фото известных людей и персонажей'],
+    ])(
+      'for moderation:%s shows «%s» and tracks the reason moderation',
+      async (category, title, advice) => {
+        answer = refusedWith(`moderation:${category}`);
+        const user = setup();
+        renderUpload({}, consented);
+        await user.upload(fileInputs().camera!, picture());
+
+        const dialog = await screen.findByRole('dialog', { name: title });
+        expect(dialog).toHaveTextContent(advice);
+        expect(within(dialog).getByRole('img', { name: 'Загруженное фото' })).toBeInTheDocument();
+        expect(within(dialog).getByRole('button', { name: 'Сделать фото' })).toBeEnabled();
+        expect(
+          within(dialog).getByRole('button', { name: 'Какое фото подойдёт' }),
+        ).toBeInTheDocument();
+        expect(tracked('Photo Refused')).toEqual([
+          [
+            'Photo Refused',
+            { reason: 'moderation', source: 'camera', place: 'photos', first: false },
+          ],
+        ]);
+      },
+    );
+
+    it('for moderation:minors hides the photo and offers no camera, as for a child', async () => {
+      answer = refusedWith('moderation:minors');
+      const user = setup();
+      renderUpload({}, consented);
+      await user.upload(fileInputs().file!, picture());
+
+      const dialog = await screen.findByRole('dialog', { name: 'Похоже, на фото ребёнок' });
+      expect(within(dialog).getByText('Фото скрыто')).toBeInTheDocument();
+      expect(within(dialog).queryByRole('img')).not.toBeInTheDocument();
+      expect(createObjectURL).not.toHaveBeenCalled();
+      expect(within(dialog).getByRole('button', { name: 'Загрузить своё фото' })).toBeEnabled();
+      expect(
+        within(dialog).queryByRole('button', { name: 'Сделать фото' }),
+      ).not.toBeInTheDocument();
+      expect(
+        within(dialog).queryByRole('button', { name: 'Какое фото подойдёт' }),
+      ).not.toBeInTheDocument();
+      expect(tracked('Photo Refused')).toEqual([
+        ['Photo Refused', { reason: 'moderation', source: 'file', place: 'photos', first: false }],
       ]);
     });
 

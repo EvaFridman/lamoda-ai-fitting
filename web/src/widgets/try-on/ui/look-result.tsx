@@ -7,6 +7,7 @@ import {
   fittingDate,
   type FittingItem,
   type FittingQuota,
+  fittingErrorText,
   fittingRefusal,
   ItemsStrip,
   itemWord,
@@ -20,7 +21,6 @@ import { bySlot, useFittingRoom } from '@/entities/fitting-room';
 import { CartStubButton, FavoriteStub, showStubToast } from '@/features/product-stubs';
 import { RegenerateSheet } from '@/features/regenerate-fitting';
 import { useTrackedElement } from '@/shared/analytics';
-import { errorText } from '@/shared/api';
 import { FITTINGS_HREF, PHONE_QUERY } from '@/shared/config';
 import { formatPrice, useMediaQuery } from '@/shared/lib';
 import { Button, Drawer, HeartIcon, LinkButton, Notice, ProgressBar } from '@/shared/ui';
@@ -99,7 +99,7 @@ export function LookResult({
   // The limit opens its card; anything else, the wishes refused on this start too, is said here.
   const failure =
     start.isError && fittingRefusal(start.error) !== 'limit_reached'
-      ? errorText(start.error)
+      ? fittingErrorText(start.error)
       : null;
   const changed = running ? changedItemText(fitting, running) : null;
 

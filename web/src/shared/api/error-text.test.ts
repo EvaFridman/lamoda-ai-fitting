@@ -17,6 +17,18 @@ function httpError(status: number | undefined, code?: string): ApiError {
 
 const PROTOTYPE_KEYS = ['constructor', '__proto__', 'toString', 'hasOwnProperty'];
 
+describe('detailText of PROMPT_REFUSED', () => {
+  it('gives the general refusal text, whatever the reason in the message', () => {
+    expect(
+      detailText({
+        field: 'promptText',
+        code: 'PROMPT_REFUSED',
+        message: 'promptText was refused: nudity',
+      }),
+    ).toBe('Текст не подходит для примерки: опишите посадку, стиль, фон или позу');
+  });
+});
+
 describe('errorText', () => {
   it.each(Object.entries(ERROR_TEXTS))('gives the text of %s', (code, text) => {
     // 429 is answered by status, so its status is the matching one.

@@ -3,6 +3,7 @@
 import { useRef } from 'react';
 
 import {
+  fittingErrorText,
   fittingRefusal,
   type LookFittingRequest,
   type StartedFitting,
@@ -10,7 +11,6 @@ import {
   useStartSingleFitting,
 } from '@/entities/fitting';
 import { useTrackedElement } from '@/shared/analytics';
-import { errorText } from '@/shared/api';
 import { PHONE_QUERY } from '@/shared/config';
 import { useMediaQuery } from '@/shared/lib';
 import { Button, SparkleIcon } from '@/shared/ui';
@@ -80,7 +80,7 @@ export function StartFittingButton({
             onSuccess: (fitting) => onStarted(fitting),
             onError: (failure) => {
               if (fittingRefusal(failure) === 'limit_reached') onLimit();
-              else onError(errorText(failure));
+              else onError(fittingErrorText(failure));
             },
           },
         );
@@ -140,7 +140,7 @@ export function StartLookButton({
             onSuccess: (fitting) => onStarted(fitting),
             onError: (failure) => {
               if (fittingRefusal(failure) === 'limit_reached') onLimit();
-              else onError(errorText(failure));
+              else onError(fittingErrorText(failure));
             },
           },
         );

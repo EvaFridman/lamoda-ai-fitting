@@ -25,6 +25,17 @@ const testCatalog = defineCatalog({
       perVisit: 1,
       properties: { sort: { kind: 'enum', values: ['price', 'new'] } },
     },
+    'Shop Filtered': {
+      zone: 'shop',
+      type: 'interaction',
+      description: '…',
+      perVisit: 1,
+      properties: {
+        kind: { kind: 'enum', values: ['brand', 'size'] },
+        reason: { kind: 'enum', values: ['a', 'b'], optional: true },
+        count: { kind: 'number', optional: true },
+      },
+    },
   },
   elements: {
     'shop.card': {
@@ -151,6 +162,22 @@ describe('analytics event types', () => {
       useTestElement(either, { position: 1, sale: true });
     }
     expect(useCases).toBeTypeOf('function');
+  });
+
+  it('lets an optional property be left out, but not a required one', () => {
+    function cases() {
+      testTrack('Shop Filtered', { kind: 'brand' });
+      testTrack('Shop Filtered', { kind: 'brand', reason: 'a', count: 2 });
+      testTrack('Shop Filtered', { kind: 'size', count: 1 });
+
+      // @ts-expect-error a required property missing
+      testTrack('Shop Filtered', { reason: 'a' });
+      // @ts-expect-error an optional property still has its kind
+      testTrack('Shop Filtered', { kind: 'brand', count: '2' });
+      // @ts-expect-error an optional enum still has its values
+      testTrack('Shop Filtered', { kind: 'brand', reason: 'c' });
+    }
+    expect(cases).toBeTypeOf('function');
   });
 
   it('refuses a malformed catalog', () => {

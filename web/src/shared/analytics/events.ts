@@ -8,10 +8,16 @@ type ValueOf<P extends Property> = P extends { kind: 'enum'; values: readonly (i
     ? number
     : boolean;
 
-// No properties forbids any (`{}` would accept an extra one).
+type OptionalKeys<P extends Properties> = {
+  [K in keyof P]: P[K] extends { optional: true } ? K : never;
+}[keyof P];
+
+// No properties forbids any (`{}` would accept an extra one). An `optional` one may be left out.
 type PropertiesOf<P extends Properties> = [keyof P] extends [never]
   ? Record<string, never>
-  : { -readonly [K in keyof P]: ValueOf<P[K]> };
+  : { -readonly [K in Exclude<keyof P, OptionalKeys<P>>]: ValueOf<P[K]> } & {
+      -readonly [K in OptionalKeys<P>]?: ValueOf<P[K]>;
+    };
 
 export type ElementsOf<C extends Catalog> = keyof C['elements'] & string;
 
