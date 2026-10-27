@@ -22,6 +22,7 @@ const user = {
   gender: null,
   fittingProfileImageKey: null,
   fittingProfileImageUrl: null,
+  photoConsentVersion: null,
   createdAt: DATE,
   updatedAt: DATE,
 };

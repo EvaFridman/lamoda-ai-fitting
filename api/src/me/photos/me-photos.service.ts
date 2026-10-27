@@ -14,6 +14,7 @@ import { RUNNING_STATUSES } from '../../fittings/end-fitting.js';
 import { FileDeletion } from '../../temporal/file-deletion.js';
 import { lockUser } from '../lock-user.js';
 import { userGone } from '../me.service.js';
+import { consentRequired, hasConsent } from './consent.js';
 import type { UserPhotoDto } from './dto/user-photo.dto.js';
 import { type FittingPhoto, NotAnImageError, toFittingPhoto } from './photo-image.js';
 import { notAnImage, PHOTO_FIELD, type PhotoUpload } from './photo-upload.js';
@@ -132,8 +133,10 @@ export class MePhotosService {
     await this.fileDeletion.start(queued);
   }
 
-  // In this order, so a refused upload costs as little as it can (A54): the user's row and the
-  // limit (reads, before any model call), sharp, the check, then the object and the row in one
+  // In this order, so a refused upload costs as little as it can (A54): the user's row, the
+  // consents (spec 0023 Y17) and the limit (reads, before any model call), sharp, the consents'
+  // write (its own statement, so a photo the check refuses keeps them, plan §3.1), the check, then
+  // the object and the row in one
   // transaction with the user's row locked (A31: the count is final there). The object is written
   // inside the transaction under its own time limit, so a write that fails or runs past the
   // transaction's time leaves no row and, aborted, no object; a row that fails after the write (a
@@ -141,9 +144,16 @@ export class MePhotosService {
   async upload(userId: string, upload: PhotoUpload): Promise<UserPhotoDto> {
     // A deleted user's cached session may still pass for 5 minutes (spec 0013 N31): 401 here,
     // before a paid check; the lock in the transaction is the final word.
-    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { photoConsentVersion: true },
+    });
     if (user === null) {
       throw userGone();
+    }
+    const consentStored = hasConsent(user.photoConsentVersion);
+    if (!consentStored && upload.consent === null) {
+      throw new ValidationError([consentRequired()]);
     }
     if (upload.save && (await this.savedCount(this.prisma, userId)) >= MAX_SAVED_PHOTOS) {
       throw limitReached();
@@ -157,6 +167,9 @@ export class MePhotosService {
       // limit) and holds no bytes; a failure of sharp itself shows here too.
       this.logger.warn(`Upload refused as not an image: ${error.message}`);
       throw new ValidationError([notAnImage()]);
+    }
+    if (!consentStored && upload.consent !== null) {
+      await this.recordConsent(userId, upload.consent);
     }
     const check = await this.check(photo);
     if (!check.ok) {
@@ -203,6 +216,18 @@ export class MePhotosService {
       });
     });
     return this.toResponse(row);
+  }
+
+  // Only over a lower or no version, so a second upload racing the first does not move the time;
+  // a user deleted meanwhile updates nothing, and the transaction's lock answers 401.
+  private async recordConsent(userId: string, version: number): Promise<void> {
+    await this.prisma.user.updateMany({
+      where: {
+        id: userId,
+        OR: [{ photoConsentVersion: null }, { photoConsentVersion: { lt: version } }],
+      },
+      data: { photoConsentAt: new Date(), photoConsentVersion: version },
+    });
   }
 
   private savedCount(client: Prisma.TransactionClient, userId: string): Promise<number> {

@@ -322,6 +322,43 @@ describe('users: fitting profile image key (users_fitting_profile_image_key_chec
   });
 });
 
+describe('users: photo consent (users_photo_consent_check, spec 0023 plan §3.1)', () => {
+  it('accepts no consent and a consent with its time and a version from 1', async () => {
+    await expect(db.user.create({ data: validUser() })).resolves.toMatchObject({
+      photoConsentAt: null,
+      photoConsentVersion: null,
+    });
+    await expect(
+      db.user.create({
+        data: validUser({ photoConsentAt: new Date(), photoConsentVersion: 1 }),
+      }),
+    ).resolves.toMatchObject({ photoConsentVersion: 1 });
+  });
+
+  it('rejects a version with no time', async () => {
+    await expectViolation(
+      db.user.create({ data: validUser({ photoConsentVersion: 1 }) }),
+      'users_photo_consent_check',
+    );
+  });
+
+  it('rejects a time with no version', async () => {
+    await expectViolation(
+      db.user.create({ data: validUser({ photoConsentAt: new Date() }) }),
+      'users_photo_consent_check',
+    );
+  });
+
+  it.each([0, -1])('rejects version %i', async (version) => {
+    await expectViolation(
+      db.user.create({
+        data: validUser({ photoConsentAt: new Date(), photoConsentVersion: version }),
+      }),
+      'users_photo_consent_check',
+    );
+  });
+});
+
 describe('users: unique keys (AC5)', () => {
   it('rejects a second user with the same phone', async () => {
     const first = await db.user.create({ data: validUser() });

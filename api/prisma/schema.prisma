@@ -74,6 +74,10 @@ model User {
   dateOfBirth            DateTime? @map("date_of_birth") @db.Date
   gender                 Gender?
   fittingProfileImageKey String?   @map("fitting_profile_image_key") @db.VarChar(255)
+  // The photo consents (spec 0023 Y1): both set or both null (users_photo_consent_check), the
+  // version at least 1; written only by POST /me/photos (me/photos/consent.ts).
+  photoConsentAt         DateTime? @map("photo_consent_at") @db.Timestamptz(3)
+  photoConsentVersion    Int?      @map("photo_consent_version") @db.SmallInt
   createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt              DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 

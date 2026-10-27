@@ -87,11 +87,19 @@ describe('POST /me/photos (spec 0019 AC1, AC3, AC4, A45)', () => {
 
   const http = () => request(testApp.app.getHttpServer());
 
-  function post(who: SignedIn | null, file: Buffer, save?: string, filename = 'a.jpg') {
+  // With the consents (spec 0023 Y17) unless `consent` is null.
+  function post(
+    who: SignedIn | null,
+    file: Buffer,
+    save?: string,
+    filename = 'a.jpg',
+    consent: string | null = '1',
+  ) {
     const req = http().post('/me/photos');
     if (who !== null) req.set({ Cookie: who.cookie });
     req.attach('photo', file, { filename, contentType: 'image/jpeg' });
     if (save !== undefined) req.field('save', save);
+    if (consent !== null) req.field('consent', consent);
     return req;
   }
 
@@ -428,6 +436,132 @@ describe('POST /me/photos (spec 0019 AC1, AC3, AC4, A45)', () => {
     expect(statuses.filter((status) => status === 409)).toHaveLength(3);
     expect(await rowsOf(who.userId)).toHaveLength(5);
     expect((await rowsOf(who.userId)).filter((row) => row.isDefault)).toHaveLength(1);
+  });
+
+  describe('the photo consents (spec 0023 plan §3.1, AC19)', () => {
+    const userOf = (who: SignedIn) =>
+      testApp.prisma.user.findUniqueOrThrow({ where: { id: who.userId } });
+    const meOf = async (who: SignedIn) =>
+      (await http().get('/me').set({ Cookie: who.cookie })).body as {
+        photoConsentVersion: number | null;
+      };
+
+    it('stores the consent with its time and answers it in GET /me, null before', async () => {
+      const who = await signIn(testApp.app);
+      expect((await meOf(who)).photoConsentVersion).toBeNull();
+      const before = Date.now();
+
+      await post(who, await goodPhoto()).expect(201);
+
+      const user = await userOf(who);
+      expect(user.photoConsentVersion).toBe(1);
+      expect(user.photoConsentAt?.getTime()).toBeGreaterThanOrEqual(before - 1000);
+      const me = await meOf(who);
+      expect(me.photoConsentVersion).toBe(1);
+      expect(me).not.toHaveProperty('photoConsentAt');
+    });
+
+    it.each(['2', '0', 'abc', ''])(
+      'answers 400 IS_IN on consent for %j and stores nothing',
+      async (value) => {
+        const who = await signIn(testApp.app);
+
+        const response = await post(who, await goodPhoto(), undefined, 'a.jpg', value);
+
+        expect(response.status).toBe(400);
+        expect(errorOf(response).code).toBe('VALIDATION_FAILED');
+        expect(errorOf(response).details).toContainEqual(
+          expect.objectContaining({ field: 'consent', code: 'IS_IN' }),
+        );
+        await expectNothingStored(who);
+        expect((await userOf(who)).photoConsentVersion).toBeNull();
+      },
+    );
+
+    it('takes a consent sent after the file', async () => {
+      const who = await signIn(testApp.app);
+
+      const response = await http()
+        .post('/me/photos')
+        .set({ Cookie: who.cookie })
+        .attach('photo', await goodPhoto(), { filename: 'a.jpg', contentType: 'image/jpeg' })
+        .field('consent', '1');
+
+      expect(response.status).toBe(201);
+      expect((await userOf(who)).photoConsentVersion).toBe(1);
+    });
+
+    it('answers 400 CONSENT_REQUIRED with no consent stored or sent, and stores nothing', async () => {
+      const who = await signIn(testApp.app);
+      const check = vi.spyOn(fake, 'checkPhoto');
+
+      const response = await post(who, await goodPhoto(), undefined, 'a.jpg', null);
+
+      const called = check.mock.calls.length;
+      check.mockRestore();
+      expect(response.status).toBe(400);
+      expect(errorOf(response).code).toBe('VALIDATION_FAILED');
+      expect(errorOf(response).details).toEqual([
+        expect.objectContaining({ field: 'consent', code: 'CONSENT_REQUIRED' }),
+      ]);
+      expect(called).toBe(0);
+      await expectNothingStored(who);
+      expect((await userOf(who)).photoConsentVersion).toBeNull();
+    });
+
+    it('keeps no consent for a file that is not an image, and the next upload passes', async () => {
+      const who = await signIn(testApp.app);
+
+      const refused = await post(who, Buffer.from('not an image'), undefined, 'a.txt');
+
+      expect(refused.status).toBe(400);
+      expect(errorOf(refused).details).toEqual([
+        expect.objectContaining({ field: 'photo', code: 'IS_IMAGE' }),
+      ]);
+      expect((await userOf(who)).photoConsentVersion).toBeNull();
+      await post(who, await goodPhoto()).expect(201);
+      expect((await userOf(who)).photoConsentVersion).toBe(1);
+    });
+
+    it('keeps the consent of a photo the check refuses, and then needs none', async () => {
+      const who = await signIn(testApp.app);
+
+      const refused = await post(who, await refusedPhoto('dark'));
+
+      expect(refused.status).toBe(400);
+      expect(errorOf(refused).details[0]).toMatchObject({ code: 'PHOTO_REFUSED' });
+      await expectNothingStored(who);
+      expect((await meOf(who)).photoConsentVersion).toBe(1);
+      await post(who, await goodPhoto(), undefined, 'a.jpg', null).expect(201);
+    });
+
+    it('lets a user with a stored consent upload without it and does not move its time', async () => {
+      const who = await signIn(testApp.app);
+      await post(who, await goodPhoto()).expect(201);
+      const first = await userOf(who);
+
+      await post(who, await goodPhoto(), undefined, 'a.jpg', null).expect(201);
+      await post(who, await goodPhoto()).expect(201);
+
+      const after = await userOf(who);
+      expect(after.photoConsentVersion).toBe(1);
+      expect(after.photoConsentAt?.getTime()).toBe(first.photoConsentAt?.getTime());
+    });
+
+    it('refuses photoConsentVersion in PATCH /me and changes nothing', async () => {
+      const who = await signIn(testApp.app);
+
+      const response = await http()
+        .patch('/me')
+        .set({ Cookie: who.cookie })
+        .send({ photoConsentVersion: 1 });
+
+      expect(response.status).toBe(400);
+      expect(errorOf(response).details).toContainEqual(
+        expect.objectContaining({ field: 'photoConsentVersion', code: 'WHITELIST_VALIDATION' }),
+      );
+      expect((await userOf(who)).photoConsentVersion).toBeNull();
+    });
   });
 
   describe('a check that does not answer in time (A45)', () => {

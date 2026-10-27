@@ -19,6 +19,8 @@ export const userSchema = z.object({
   // A signed link that works for 15 minutes (spec 0011 M9); null for a key outside the owner's
   // folder (M25).
   fittingProfileImageUrl: z.url().nullable(),
+  // The photo consents' version the user gave, null with none (spec 0023 Y1).
+  photoConsentVersion: z.number().nullable(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 });

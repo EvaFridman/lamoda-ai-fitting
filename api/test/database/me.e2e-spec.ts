@@ -693,6 +693,7 @@ describe('DELETE /me starts the file deletion (AC12)', () => {
         .post('/me/photos')
         .set({ Cookie: who.cookie })
         .attach('photo', await goodPhoto(), { filename: 'a.jpg' })
+        .field('consent', '1')
         .expect(201);
     }
     expect(await keysUnder(`keep/users/${who.userId}/`)).toHaveLength(2);

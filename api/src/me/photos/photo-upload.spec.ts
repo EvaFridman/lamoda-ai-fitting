@@ -18,6 +18,7 @@ interface Answer {
   };
   photo?: string;
   save?: boolean;
+  consent?: number | null;
 }
 
 describe('readPhotoUpload', () => {
@@ -26,9 +27,9 @@ describe('readPhotoUpload', () => {
   beforeAll(() => {
     server = createServer((req, res) => {
       void readPhotoUpload(req, MAX).then(
-        ({ photo, save }) => {
+        ({ photo, save, consent }) => {
           res.setHeader('content-type', 'application/json');
-          res.end(JSON.stringify({ photo: photo.toString('latin1'), save }));
+          res.end(JSON.stringify({ photo: photo.toString('latin1'), save, consent }));
         },
         (error: unknown) => {
           const isApp = error instanceof AppException;
@@ -97,6 +98,69 @@ describe('readPhotoUpload', () => {
       );
     },
   );
+
+  it('reads no consent as null', async () => {
+    const result = await answer(upload({ photo: 'PIXELS' }));
+
+    expect(result).toMatchObject({ status: 200, consent: null });
+  });
+
+  it('reads consent=1 as version 1', async () => {
+    const result = await answer(upload({ photo: 'PIXELS', extra: { consent: '1' } }));
+
+    expect(result).toMatchObject({ status: 200, consent: 1, save: true });
+  });
+
+  it('reads consent sent before the file', async () => {
+    const result = await answer(
+      post().field('consent', '1').attach('photo', Buffer.from('PIXELS'), { filename: 'a.jpg' }),
+    );
+
+    expect(result).toMatchObject({ status: 200, consent: 1, photo: 'PIXELS' });
+  });
+
+  it('reads consent sent after the file', async () => {
+    const result = await answer(
+      post().attach('photo', Buffer.from('PIXELS'), { filename: 'a.jpg' }).field('consent', '1'),
+    );
+
+    expect(result).toMatchObject({ status: 200, consent: 1, photo: 'PIXELS' });
+  });
+
+  it.each(['2', '0', 'abc', '', '01', '1 ', 'true', '11111111111'])(
+    'refuses consent=%j with IS_IN on consent',
+    async (value) => {
+      const result = await answer(upload({ photo: 'PIXELS', extra: { consent: value } }));
+
+      expect(result.status).toBe(400);
+      expect(result.error?.code).toBe('VALIDATION_FAILED');
+      expect(result.error?.details).toContainEqual(
+        expect.objectContaining({ field: 'consent', code: 'IS_IN' }),
+      );
+    },
+  );
+
+  it('refuses a consent sent as a file with WHITELIST_VALIDATION', async () => {
+    const result = await answer(
+      post()
+        .attach('photo', Buffer.from('PIXELS'), { filename: 'a.jpg' })
+        .attach('consent', Buffer.from('1'), { filename: 'c.txt' }),
+    );
+
+    expect(result.status).toBe(400);
+    expect(result.error?.details).toContainEqual(
+      expect.objectContaining({ field: 'consent', code: 'WHITELIST_VALIDATION' }),
+    );
+  });
+
+  it('refuses a body with consent and save together when save is wrong, naming both', async () => {
+    const result = await answer(
+      upload({ photo: 'PIXELS', save: 'maybe', extra: { consent: '2' } }),
+    );
+
+    expect(result.status).toBe(400);
+    expect(result.error?.details.map((detail) => detail.field).sort()).toEqual(['consent', 'save']);
+  });
 
   it('refuses a body that is not multipart with the IS_IMAGE detail', async () => {
     const result = await answer(post().send({ photo: 'x' }));
