@@ -4,7 +4,9 @@ import {
   FittingFailure,
   FittingKind,
   GenerationStatus,
+  ModerationStage,
   OutfitSlot,
+  SafetyCategory,
 } from '../../generated/prisma/enums.js';
 
 // Where a fitting is, for the waiting screen (A27, A70): `queued` until the worker takes it,
@@ -78,6 +80,24 @@ export class FittingDto {
 
   @ApiProperty({ enum: FittingFailure, enumName: 'FittingFailure', nullable: true })
   failureCode: FittingFailure | null;
+
+  @ApiProperty({
+    enum: SafetyCategory,
+    enumName: 'SafetyCategory',
+    nullable: true,
+    description:
+      "A moderation refusal's coarse category (spec 0023 Y2); `unknown` when none was given or for a fitting from before; null unless `failureCode` is `moderation`.",
+  })
+  failureCategory: SafetyCategory | null;
+
+  @ApiProperty({
+    enum: ModerationStage,
+    enumName: 'ModerationStage',
+    nullable: true,
+    description:
+      'Where the moderation refused: the photo and the items (`input`, also for a fitting from before) or the picture made (`output`); null unless `failureCode` is `moderation`.',
+  })
+  failureStage: ModerationStage | null;
 
   @ApiProperty({
     description:

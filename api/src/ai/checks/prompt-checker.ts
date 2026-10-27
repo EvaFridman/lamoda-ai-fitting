@@ -1,18 +1,19 @@
 import { z } from 'zod';
 
+import { AiProviderError } from '../ai-provider.error.js';
 import {
-  type AiLogger,
-  answerState,
   type CallOptions,
   type OpenAiClient,
   outputText,
+  type ResponsesAnswer,
 } from '../openai-client.js';
 import { type PromptItem, quote } from '../prompts.js';
+import { type ModerationRefusalReason, moderationRefusal } from '../safety-category.js';
 import type { ModerationChecker } from './moderation-checker.js';
 
 // Why a wish or a regeneration comment is refused (A16): the classification's reasons, and
-// `moderation` for a text the moderation endpoint flagged. Internal: the api answers one code,
-// `PROMPT_REFUSED`, whatever the reason.
+// `moderation:<category>` for a text the moderation endpoint flagged (spec 0023 plan §3.5). The api
+// answers one code, `PROMPT_REFUSED`, whatever the reason, with the reason in its detail.
 export const PROMPT_CLASSIFICATION_REASONS = [
   'other_people',
   'nudity',
@@ -22,7 +23,7 @@ export const PROMPT_CLASSIFICATION_REASONS = [
   'unrelated',
 ] as const;
 export type PromptClassificationReason = (typeof PROMPT_CLASSIFICATION_REASONS)[number];
-export type PromptRefusalReason = PromptClassificationReason | 'moderation';
+export type PromptRefusalReason = PromptClassificationReason | ModerationRefusalReason;
 
 export type PromptCheck = { allowed: true } | { allowed: false; reason: PromptRefusalReason };
 
@@ -69,16 +70,16 @@ export function promptInstructions(items: readonly PromptCheckItem[]): string {
 }
 
 // The text check (spec 0019 A16, A45): the moderation endpoint (any flagged category refuses) and
-// the small model's classification, in parallel under the caller's one deadline. A malformed
-// answer of the model counts as allowed with a warning, as the photo check's does: the safety
-// line is the moderation of the text and of the result, the classification keeps the prompt on
-// topic.
+// the small model's classification, in parallel under the caller's one deadline. An answer of the
+// model it cannot read (incomplete, a refusal, no JSON) is the check not answering (spec 0023 Y19,
+// replacing spec 0019 A50): an AiProviderError, so the route answers 503 with nothing spent, since
+// a wish let through may change the scene and the person's own clothes, which the result's
+// moderation does not judge.
 export class PromptChecker {
   constructor(
     private readonly client: OpenAiClient,
     private readonly moderation: ModerationChecker,
     private readonly visionModel: string,
-    private readonly logger: AiLogger,
   ) {}
 
   async check(
@@ -86,11 +87,19 @@ export class PromptChecker {
     items: readonly PromptCheckItem[],
     options: CallOptions,
   ): Promise<PromptCheck> {
+    // An unreadable verdict waits for the moderation, whose flag refuses the text whatever the
+    // model said; any other failure ends the check at once.
     const [classification, moderation] = await Promise.all([
-      this.classify(text, items, options),
+      this.classify(text, items, options).catch((error: unknown) => {
+        if (error instanceof AiProviderError && error.reason === 'unreadable_verdict') return error;
+        throw error;
+      }),
       this.moderation.checkText(text, options),
     ]);
-    if (moderation.flagged) return { allowed: false, reason: 'moderation' };
+    if (moderation.flagged) {
+      return { allowed: false, reason: moderationRefusal(moderation.categories) };
+    }
+    if (classification instanceof AiProviderError) throw classification;
     return classification;
   }
 
@@ -112,18 +121,23 @@ export class PromptChecker {
             schema: VERDICT_SCHEMA,
           },
         },
-        // Room for a reasoning model's hidden tokens (see PhotoChecker).
-        max_output_tokens: 200,
+        // Room for a reasoning model's hidden tokens (see PhotoChecker), more than the photo's: a
+        // verdict cut short is a 503 here (Y19).
+        max_output_tokens: 500,
         store: false,
       },
       options,
     );
     const parsed = parseVerdict(outputText(answer));
     if (parsed === null) {
-      this.logger.warn(
-        `OpenAI text check: the model answered no readable verdict (${answerState(answer)}); counted as allowed`,
+      // Why, in OpenAI's words only (the status, the incomplete reason), never the answer's text.
+      throw new AiProviderError(
+        'check_prompt',
+        'unreadable_verdict',
+        null,
+        unreadableCause(answer),
+        null,
       );
-      return { allowed: true };
     }
     if (parsed.allowed || parsed.reason === 'none') return { allowed: true };
     return { allowed: false, reason: parsed.reason };
@@ -139,3 +153,16 @@ function parseVerdict(text: string | null): z.infer<typeof verdict> | null {
     return null;
   }
 }
+
+// Why an answer holds no verdict, as an error's code: the incomplete reason
+// (`max_output_tokens`), the model's `refusal`, or `no_verdict` (no text, or not the schema's JSON).
+function unreadableCause(answer: ResponsesAnswer): string {
+  const incomplete = answer.incomplete_details?.reason;
+  if (incomplete !== undefined && CAUSE_WORD.test(incomplete)) return incomplete;
+  const refused = answer.output.some((item) =>
+    (item.content ?? []).some((part) => part.type === 'refusal' || part.refusal !== undefined),
+  );
+  return refused ? 'refusal' : 'no_verdict';
+}
+
+const CAUSE_WORD = /^[a-z_]{1,32}$/;

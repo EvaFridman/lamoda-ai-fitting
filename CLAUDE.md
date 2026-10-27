@@ -216,10 +216,15 @@ and the full `verify` once at the phase's end (as spec 0019 A58 did).
 - `api/src/ai/`: OpenAI (spec 0019 plan §3): `AiModule` provides `AI_SETTINGS` (the
   `OPENAI_API_KEY`, `OPENAI_PROXY_URL` and `FITTING_*` env) and `AI_PROVIDER`: `OpenAiProvider` in production only,
   elsewhere always `FakeAiProvider` (A49), which answers without the network and refuses on the
-  marker `refuse:<reason>` in a photo's bytes or a text, and on a photo of one solid colour
-  (`REFUSAL_COLOURS`, one per reason: an upload reaches the check as sharp's WebP, where no byte
-  of the marker survives, A53; `test/support/photos.ts` makes such images); a test sets its
-  `delayMs`.
+  marker `refuse:<reason>` in a photo's bytes or a text (`refuse:moderation:<category>` for a
+  safety category, spec 0023 plan §3.5), and on a photo of one solid colour
+  (`REFUSAL_COLOURS`, one per reason and per category: an upload reaches the check as sharp's
+  WebP, where no byte of the marker survives, A53; `test/support/photos.ts` makes such images);
+  `fail:unreadable_verdict` in a text is the text check's unreadable verdict (Y19); a test sets
+  its `delayMs`. `safety-category.ts` maps OpenAI's flagged names (the moderation endpoint's, the
+  image model's `moderation_details`) to one coarse category of `SAFETY_CATEGORIES`, the first
+  found of `minors`, `sexual`, `violence`, `self_harm`, `hate` (harassment too), `illicit`, else
+  `unknown` (Y2).
   `OpenAiClient` (undici's own `fetch`, no SDK) calls `/v1/images/edits`, `/v1/responses` and
   `/v1/moderations` at `OPENAI_ORIGIN`, with a proxy (`config/openai-proxy-url.ts`, which the env
   schema shares) through its `ProxyAgent`
@@ -228,9 +233,11 @@ and the full `verify` once at the phase's end (as spec 0019 A58 did).
   behind `ImageModel`, the person's image first, 1 to 5 items) with `prompts.ts`'s one prompt,
   sends again only a request that never reached OpenAI (a connection that did not open, a rate
   limit's 429: one generation, one payment, A67), under the caller's `timeoutMs`, else
-  `FITTING_TIMEOUT_SECONDS`, and answers the model's refusal as `{ ok: false, reason: 'moderation' }`;
+  `FITTING_TIMEOUT_SECONDS`, and answers the model's refusal as `{ ok: false, reason: 'moderation',
+stage, category }` (the stage of `moderation_details`, else `input`);
   the fake's picture is the person's photo at 1024×1536, and `fail:moderation|provider_error|timeout`
-  in the wishes or the comment gets that failure (A66).
+  in the wishes or the comment gets that failure (A66; `fail:moderation:<stage>:<category>` a
+  refusal of that stage and category, a bare one `input` and `unknown`).
 - `api/src/backup/`: the backup job (spec 0012), a plain Node process outside Nest, run as
   `dist/backup/main.js` from the `backup` target of `api/Dockerfile` (image `ai-fitting-backup`):
   a nightly service, `--once`, and `--pre-deploy <tag>` for the deploy. Its object names are
@@ -426,7 +433,7 @@ and the full `verify` once at the phase's end (as spec 0019 A58 did).
   the check, so a refused photo keeps it. `sharp` turns the JPG, PNG or WebP into a
   WebP of at most 2048 px without metadata (anything else: 400 with the detail `IS_IMAGE`), the
   check `checkPhoto` runs on that WebP (a refusal: the detail `PHOTO_REFUSED`, its reason in the
-  message; a failed or timed-out check: 503, nothing stored), then one transaction locks the user's
+  message, a moderation one as `moderation:<category>`; a failed or timed-out check: 503, nothing stored), then one transaction locks the user's
   row (gone: 401 through `signOutWhenGone`), counts the saved photos (a sixth: 409 `LIMIT_REACHED`;
   `save=false` makes a transient one, not counted), writes the object under `userPhotoKey` with a
   3 s limit (a failure: 503, no row; an object left by an abort or a failed insert goes with the
@@ -446,14 +453,20 @@ and the full `verify` once at the phase's end (as spec 0019 A58 did).
   colour not of its product (a value of its colour attribute, A76, A91): 400 `RELATED_NOT_FOUND`; the details `HAS_SLOT`, `DISTINCT_SLOTS`) and
   the photo, answers 200 with an earlier completed result of the same fingerprint
   (`fingerprint.ts`: photo, items, wishes; `repeated: true`, A7) or the running one (A32), checks
-  the text with the items' catalog names (refused: 400 `PROMPT_REFUSED`; no answer: 503), then in one transaction locks the
+  the text with the items' catalog names (refused: 400 `PROMPT_REFUSED` with one detail of the
+  same code on `promptText` or `comment`, «<field> was refused: <reason>», the reason one of the
+  classification's or `moderation:<category>`, spec 0023 plan §3.5; no answer or an unreadable
+  verdict: 503), then in one transaction locks the
   user's row (`me/lock-user.ts`), looks for the running one again, reads the photo again, reserves
   a try-on of the month (`FittingQuotaService.reserve`, `fitting_quota`; at the limit 409
   `LIMIT_REACHED`, A20) and inserts the `pending` row in the active session; after the commit it
   starts `generateFitting` (a failed start ends the row `failed` through `endFitting`, which the
   workflow's `complete` shares, and goes to Sentry with the id only) and answers 201
   `StartedFittingDto`. `FittingDto` carries the wishes as `promptText` (the user's own text, for a
-  colour change to send again, A92.1) and each item's `slot`. `POST /fittings/:id/regenerate` (`{ reasons?, comment? }`, an empty body is one more attempt
+  colour change to send again, A92.1), each item's `slot` and, for a `moderation` failure,
+  `failureCategory` and `failureStage` (`input`, `output`), kept in `ai_generations`'
+  `failure_category` and `failure_stage` (both or neither, only with `moderation`, a CHECK) and
+  read as `unknown` and `input` on an older row; null otherwise (spec 0023 plan §3.5). `POST /fittings/:id/regenerate` (`{ reasons?, comment? }`, an empty body is one more attempt
   with `reasons` stored as `[]`, spec 0023 Y9) copies the parent's photo, items, wishes and
   fingerprint, and checks the comment with the parent's items; a parent not completed is 409 `NOT_COMPLETED`,
   its photo gone 409 `PHOTO_GONE`; a try-on's own result has one free regeneration
@@ -1046,15 +1059,18 @@ and the full `verify` once at the phase's end (as spec 0019 A58 did).
   and refuses other people, nudity, minors, violence, politics, and changing the person, adding
   text or changing a chosen item's cut or colour (Y12; `PROMPT_INSTRUCTIONS`), which the image
   prompt (`ai/prompts.ts`) mirrors. A
-  flagged image or text answers the reason `moderation`, a malformed verdict of the model counts as
-  accepted with a warning, and a passed deadline or a cancelled caller signal throws an
+  flagged image or text answers the reason `moderation:<category>`; a malformed verdict of the
+  photo check's model counts as accepted with a warning, while the text check's (incomplete, a
+  refusal, no JSON) throws an `AiProviderError` of operation `check_prompt` and reason
+  `unreadable_verdict` (its `max_output_tokens` 500, spec 0023 Y19); a passed deadline or a cancelled caller signal throws an
   `AiProviderError` whose `isTimeout` or `reason: 'aborted'` says which (the routes that call the
   checks, `POST /me/photos` and `POST /fittings`, answer any `AiProviderError` as 503 with
   nothing stored).
   The client makes three attempts (`retry: false` makes one, for an activity with a retry policy of
   its own) for a network error, a 429 or a 5xx, none for another 4xx, `insufficient_quota` or a
-  timeout; `AiProviderError` carries the operation, reason, status, OpenAI's `error.code` and
-  request id, never the input or the key, and Sentry cuts requests to `api.openai.com` to method
+  timeout; `AiProviderError` carries the operation, reason, status, OpenAI's `error.code`, an error
+  answer's `moderation_details` (the stage and the category labels, `moderation`) and request id,
+  never the input or the key, and Sentry cuts requests to `api.openai.com` to method
   and origin as the bucket's. `assertServerEnv` refuses production without `OPENAI_API_KEY` or
   `OPENAI_PROXY_URL` and, everywhere, a `FITTING_CHECK_TIMEOUT_MS` above half of
   `REQUEST_TIMEOUT_MS`; the worker's `assertWorkerEnv` refuses production without the key or the

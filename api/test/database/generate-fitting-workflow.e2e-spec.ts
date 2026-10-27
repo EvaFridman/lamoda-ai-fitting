@@ -10,6 +10,7 @@ import {
 } from '@temporalio/client';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
+import type { SafetyCategory } from '../../src/ai/safety-category.js';
 import type {
   FittingOutcome,
   GenerateOutcome,
@@ -30,7 +31,7 @@ const CANCEL_TIMEOUT = 90_000;
 interface Script {
   markProcessing?: () => { userId: string } | null | Promise<{ userId: string } | null>;
   generate?: () => Promise<GenerateOutcome> | GenerateOutcome;
-  moderate?: () => { flagged: boolean };
+  moderate?: () => { flagged: boolean; category?: SafetyCategory | null };
   discardResult?: () => void;
   complete?: () => void;
   notify?: () => void;
@@ -200,7 +201,13 @@ describe('generateFitting workflow (spec 0019 plan §4, A67, A68)', () => {
     "ends the model's refusal as moderation with no message, skips moderate and discards",
     async () => {
       const id = await run({
-        generate: () => ({ ok: false, failureCode: 'moderation', requestId: 'req_r' }),
+        generate: () => ({
+          ok: false,
+          failureCode: 'moderation',
+          stage: 'input',
+          category: 'minors',
+          requestId: 'req_r',
+        }),
       });
 
       expect(stepsOf(id)).toEqual([
@@ -215,7 +222,39 @@ describe('generateFitting workflow (spec 0019 plan §4, A67, A68)', () => {
         failureCode: 'moderation',
         errorMessage: null,
         providerRequestId: 'req_r',
+        safety: { stage: 'input', category: 'minors' },
       });
+    },
+    TIMEOUT,
+  );
+
+  it(
+    'keeps the stage and category of a refusal at the output stage',
+    async () => {
+      const id = await run({
+        generate: () => ({
+          ok: false,
+          failureCode: 'moderation',
+          stage: 'output',
+          category: 'sexual',
+          requestId: null,
+        }),
+      });
+
+      expect(outcomeOf(id)).toMatchObject({ safety: { stage: 'output', category: 'sexual' } });
+    },
+    TIMEOUT,
+  );
+
+  it(
+    'reads a refusal of an earlier release, with no stage or category, as input and unknown',
+    async () => {
+      const id = await run({
+        generate: () =>
+          ({ ok: false, failureCode: 'moderation', requestId: null }) as unknown as GenerateOutcome,
+      });
+
+      expect(outcomeOf(id)).toMatchObject({ safety: { stage: 'input', category: 'unknown' } });
     },
     TIMEOUT,
   );
@@ -223,7 +262,7 @@ describe('generateFitting workflow (spec 0019 plan §4, A67, A68)', () => {
   it(
     'ends a flagged result as moderation, discards it and keeps the request id',
     async () => {
-      const id = await run({ moderate: () => ({ flagged: true }) });
+      const id = await run({ moderate: () => ({ flagged: true, category: 'violence' }) });
 
       expect(stepsOf(id)).toEqual([
         'markProcessing',
@@ -238,7 +277,32 @@ describe('generateFitting workflow (spec 0019 plan §4, A67, A68)', () => {
         failureCode: 'moderation',
         errorMessage: null,
         providerRequestId: 'req_ok',
+        safety: { stage: 'output', category: 'violence' },
       });
+    },
+    TIMEOUT,
+  );
+
+  it(
+    'reads a flagged result with no category (an earlier release) as output and unknown',
+    async () => {
+      const id = await run({ moderate: () => ({ flagged: true }) });
+
+      expect(outcomeOf(id)).toMatchObject({ safety: { stage: 'output', category: 'unknown' } });
+    },
+    TIMEOUT,
+  );
+
+  it(
+    'gives a failure that is not a moderation no safety',
+    async () => {
+      const id = await run({
+        generate: () => {
+          throw failure('provider_error', 'x');
+        },
+      });
+
+      expect(outcomeOf(id)).not.toHaveProperty('safety');
     },
     TIMEOUT,
   );

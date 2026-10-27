@@ -183,6 +183,63 @@ describe('ai generations: error message (ai_generations_error_message_check, C23
   });
 });
 
+describe('ai generations: safety columns (ai_generations_failure_safety_check, spec 0023 Y2)', () => {
+  const failed = { status: 'failed', errorMessage: 'x' } as const;
+  const CHECK = 'ai_generations_failure_safety_check';
+
+  it('accepts a moderation failure with both, with neither, and a pending row with neither', async () => {
+    await expect(
+      newGeneration({
+        ...failed,
+        failureCode: 'moderation',
+        failureCategory: 'self_harm',
+        failureStage: 'output',
+      }),
+    ).resolves.toMatchObject({ failureCategory: 'self_harm', failureStage: 'output' });
+    await expect(newGeneration({ ...failed, failureCode: 'moderation' })).resolves.toMatchObject({
+      failureCategory: null,
+      failureStage: null,
+    });
+    await expect(newGeneration()).resolves.toMatchObject({
+      failureCategory: null,
+      failureStage: null,
+    });
+  });
+
+  it('rejects a category without a stage', async () => {
+    await expectViolation(
+      newGeneration({ ...failed, failureCode: 'moderation', failureCategory: 'sexual' }),
+      CHECK,
+    );
+  });
+
+  it('rejects a stage without a category', async () => {
+    await expectViolation(
+      newGeneration({ ...failed, failureCode: 'moderation', failureStage: 'input' }),
+      CHECK,
+    );
+  });
+
+  it.each(['provider_error', 'model_timeout'] as const)(
+    'rejects both with the failure code %s',
+    async (failureCode) => {
+      await expectViolation(
+        newGeneration({
+          ...failed,
+          failureCode,
+          failureCategory: 'violence',
+          failureStage: 'input',
+        }),
+        CHECK,
+      );
+    },
+  );
+
+  it('rejects both with no failure code', async () => {
+    await expectViolation(newGeneration({ failureCategory: 'hate', failureStage: 'input' }), CHECK);
+  });
+});
+
 const VALID_KEYS = ['products/abc-1/main_01.jpg', 'a', 'A1/b-c_d.e.png', 'a.b/c'];
 const INVALID_KEYS = [
   '/a/b',

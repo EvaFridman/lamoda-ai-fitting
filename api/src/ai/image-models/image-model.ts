@@ -2,6 +2,7 @@ import type { AiProviderError } from '../ai-provider.error.js';
 import type { ImageInput } from '../image-input.js';
 import type { ImagesAnswer } from '../openai-client.js';
 import type { PromptItem, RegenerationReason } from '../prompts.js';
+import type { SafetyRefusal } from '../safety-category.js';
 
 // An item of a fitting: what the prompt names and its first image.
 export interface FittingItem extends PromptItem {
@@ -31,10 +32,11 @@ export interface FittingJob {
 }
 
 // What a generation gives: the picture (WebP, which `storeResult` re-encodes), or the model's own
-// refusal, which counts as moderation (A15). OpenAI's request id goes into `providerRequestId`.
+// refusal, which counts as moderation (A15) with its stage and coarse category (spec 0023 plan
+// §3.5). OpenAI's request id goes into `providerRequestId`.
 export type GenerationResult =
   | { ok: true; image: Uint8Array; requestId: string | null }
-  | { ok: false; reason: 'moderation'; requestId: string | null };
+  | ({ ok: false; reason: 'moderation'; requestId: string | null } & SafetyRefusal);
 
 // An image model of the edits endpoint (plan §3): its request and how its answer reads. Another
 // model, or another provider's (backlog «The other models of 0016 S7»), is another implementation.

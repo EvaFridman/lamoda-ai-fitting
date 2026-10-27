@@ -753,6 +753,81 @@ describe('OpenAiClient error messages', () => {
   });
 });
 
+describe('OpenAiClient moderation details', () => {
+  const refused = (details: unknown, code: string | null = 'moderation_blocked') =>
+    vi.fn().mockResolvedValue(
+      jsonResponse({ error: { code, message: 'm', moderation_details: details } }, 400, {
+        'x-request-id': 'req_mod',
+      }),
+    );
+  const failed = (fetch: ReturnType<typeof vi.fn>) =>
+    failureOf(setup(fetch).client.editImage(new FormData(), { signal: signal() }));
+
+  it('keeps the stage and the categories of moderation_details', async () => {
+    const error = await failed(
+      refused({ moderation_stage: 'output', categories: ['sexual', 'self-harm/intent'] }),
+    );
+
+    expect(error.moderation).toEqual({
+      stage: 'output',
+      categories: ['sexual', 'self-harm/intent'],
+    });
+    expect(error.code).toBe('moderation_blocked');
+    expect(error.message).toContain('output');
+    expect(error.message).toContain('sexual, self-harm/intent');
+  });
+
+  it('is null without moderation_details', async () => {
+    expect((await failed(refused(undefined))).moderation).toBeNull();
+    expect((await failed(refused(null))).moderation).toBeNull();
+  });
+
+  it('drops values that are not labels, keeping the rest', async () => {
+    const error = await failed(
+      refused({
+        moderation_stage: 'out put <b>',
+        categories: ['violence', 5, null, 'a b', '<script>', 'x'.repeat(41), '1abc'],
+      }),
+    );
+
+    expect(error.moderation).toEqual({ stage: null, categories: ['violence'] });
+    expect(error.message).not.toContain('script');
+  });
+
+  it('keeps at most 10 categories', async () => {
+    const error = await failed(
+      refused({ moderation_stage: 'input', categories: Array.from({ length: 15 }, () => 'hate') }),
+    );
+
+    expect(error.moderation?.categories).toHaveLength(10);
+  });
+
+  it('has empty categories for a missing list', async () => {
+    const error = await failed(refused({ moderation_stage: 'input' }));
+
+    expect(error.moderation).toEqual({ stage: 'input', categories: [] });
+  });
+
+  it.each([
+    ['a string', 'bad'],
+    ['an array', ['sexual']],
+    ['a stage that is a number', { moderation_stage: 3, categories: 'x' }],
+  ])('does not lose error.code when moderation_details is %s', async (_name, details) => {
+    const error = await failed(refused(details));
+
+    expect(error.code).toBe('moderation_blocked');
+    expect(error.status).toBe(400);
+  });
+
+  it('never puts the message of the error into the AiProviderError', async () => {
+    const error = await failed(
+      refused({ moderation_stage: 'input', categories: ['sexual'] }, 'moderation_blocked'),
+    );
+
+    expect(error.message).not.toContain('"m"');
+  });
+});
+
 describe('OpenAiClient region block', () => {
   const blocked = () =>
     jsonResponse({ error: { code: REGION_BLOCK_CODE, message: 'no' } }, 403, {

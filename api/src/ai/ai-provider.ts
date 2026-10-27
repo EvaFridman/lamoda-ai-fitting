@@ -30,6 +30,14 @@ import {
   type EditedImage,
   OpenAiClient,
 } from './openai-client.js';
+import {
+  MODERATION_STAGES,
+  moderationStage,
+  SAFETY_CATEGORIES,
+  type SafetyCategory,
+  safetyCategory,
+  type SafetyRefusal,
+} from './safety-category.js';
 
 export const AI_PROVIDER = Symbol('AI_PROVIDER');
 
@@ -96,7 +104,7 @@ export class OpenAiProvider implements AiProvider {
   ) {
     this.moderation = new ModerationChecker(client);
     this.photos = new PhotoChecker(client, this.moderation, settings.visionModel, logger);
-    this.prompts = new PromptChecker(client, this.moderation, settings.visionModel, logger);
+    this.prompts = new PromptChecker(client, this.moderation, settings.visionModel);
     this.imageModel = gptImage2(settings.model);
     this.model = this.imageModel.name;
   }
@@ -114,13 +122,27 @@ export class OpenAiProvider implements AiProvider {
       edited = await this.client.editImage(this.imageModel.buildRequest(job), call);
     } catch (error) {
       if (error instanceof AiProviderError && this.imageModel.isRefusal(error)) {
-        return { ok: false, reason: 'moderation', requestId: error.requestId };
+        // The stage and the category of `moderation_details` (spec 0023 plan §3.5), else the
+        // input's and `unknown`.
+        return {
+          ok: false,
+          reason: 'moderation',
+          stage: moderationStage(error.moderation?.stage),
+          category: safetyCategory(error.moderation?.categories ?? []),
+          requestId: error.requestId,
+        };
       }
       throw error;
     }
     const image = this.imageModel.parseAnswer(edited.answer);
     return image === null
-      ? { ok: false, reason: 'moderation', requestId: edited.requestId }
+      ? {
+          ok: false,
+          reason: 'moderation',
+          stage: 'input',
+          category: 'unknown',
+          requestId: edited.requestId,
+        }
       : { ok: true, image, requestId: edited.requestId };
   }
 
@@ -156,8 +178,9 @@ export function deadlineMs(options: AiCallOptions, fallbackMs: number): number {
 }
 
 // The marker the e2e put into a photo's bytes or a text to get a refusal: `refuse:<reason>`, a
-// reason of the check (`refuse:child`, `refuse:unrelated`) or `refuse:moderation`.
-const MARKER = /refuse:([a-z_]+)/;
+// reason of the check (`refuse:child`, `refuse:unrelated`) or `refuse:moderation:<category>`
+// (spec 0023 plan §3.5; a bare `refuse:moderation` is `unknown`).
+const MARKER = /refuse:([a-z_]+(?::[a-z_]+)?)/;
 
 // The marker of a photo that went through the upload: the check runs on sharp's WebP (plan §5),
 // where no byte of the upload survives, so there the marker is the photo's colour, one solid
@@ -172,7 +195,26 @@ export const REFUSAL_COLOURS: Readonly<
   many_people: [0, 255, 0],
   child: [0, 0, 255],
   no_person: [255, 255, 0],
-  moderation: [255, 0, 255],
+  // One per safety category (spec 0023 plan §3.5); magenta was spec 0019's plain `moderation`.
+  'moderation:unknown': [255, 0, 255],
+  'moderation:sexual': [0, 255, 255],
+  'moderation:minors': [255, 128, 0],
+  'moderation:violence': [128, 0, 0],
+  'moderation:self_harm': [0, 128, 0],
+  'moderation:hate': [0, 0, 128],
+  'moderation:illicit': [128, 0, 128],
+};
+
+// The moderation endpoint's names the fake answers for a category, so the real mapping
+// (safetyCategory) reads them back; `unknown` has none.
+const FAKE_MODERATION_NAMES: Readonly<Record<SafetyCategory, readonly string[]>> = {
+  sexual: ['sexual'],
+  minors: ['sexual', 'sexual/minors'],
+  violence: ['violence'],
+  self_harm: ['self-harm'],
+  hate: ['hate'],
+  illicit: ['illicit'],
+  unknown: [],
 };
 // Lossy WebP moves a solid colour by a level or two; a photo's channels spread far wider.
 const COLOUR_TOLERANCE = 12;
@@ -216,14 +258,16 @@ export class FakeAiProvider implements AiProvider {
   // The person's photo as the result, cut to the real model's size (a deterministic picture, so
   // the local stack and the e2e show a result with no file of their own). A marker `fail:<what>`
   // in the wishes or the comment (the photo reaches here re-encoded, A53) answers as the model
-  // would: `fail:moderation` its refusal, `fail:provider_error` a 500 (never sent again: one
-  // generation, one payment, A67), `fail:timeout` the deadline passing, so a check by hand reaches every failure
-  // screen.
+  // would: `fail:moderation:<stage>:<category>` its refusal (spec 0023 plan §3.5; a bare
+  // `fail:moderation` is `input` and `unknown`, `fail:moderation:output` is `unknown`),
+  // `fail:provider_error` a 500 (never sent again: one generation, one payment, A67),
+  // `fail:timeout` the deadline passing, so a check by hand reaches every failure screen.
   async generate(job: FittingJob, options: AiCallOptions = {}): Promise<GenerationResult> {
     assertFittingItems(job);
     await this.wait(options, 'edit_image', this.settings.timeoutSeconds * 1000);
     const failure = FAILURE_MARKER.exec(`${job.wishes ?? ''}\n${job.comment ?? ''}`)?.[1];
-    if (failure === 'moderation') return { ok: false, reason: 'moderation', requestId: null };
+    const refusal = failure === undefined ? null : fakeGenerationRefusal(failure);
+    if (refusal !== null) return { ok: false, reason: 'moderation', ...refusal, requestId: null };
     if (failure === 'provider_error') {
       throw new AiProviderError('edit_image', 'http', 500, 'server_error', null);
     }
@@ -237,31 +281,38 @@ export class FakeAiProvider implements AiProvider {
 
   async checkPhoto(image: ImageInput, options: AiCallOptions = {}): Promise<PhotoCheck> {
     await this.wait(options);
-    const reason =
-      marker(Buffer.from(image.bytes).toString('latin1')) ?? (await solidColourReason(image.bytes));
-    if (reason === 'moderation') return { ok: false, reason };
+    const reason = await imageMarker(image);
+    const category = moderationCategory(reason);
+    if (category !== null) return { ok: false, reason: `moderation:${category}` };
     if (isOneOf(reason, PHOTO_VISION_REASONS)) return { ok: false, reason };
     return { ok: true };
   }
 
+  // `fail:unreadable_verdict` in the text is the model answering no verdict it can read (Y19);
+  // any other `fail:` marker passes, for the generation.
   async checkPrompt(
     text: string,
     _context: { items: readonly PromptCheckItem[] },
     options: AiCallOptions = {},
   ): Promise<PromptCheck> {
     await this.wait(options);
+    if (FAILURE_MARKER.exec(text)?.[1] === 'unreadable_verdict') {
+      throw new AiProviderError('check_prompt', 'unreadable_verdict', null, 'no_verdict', null);
+    }
     const reason = marker(text);
-    if (reason === 'moderation') return { allowed: false, reason };
+    const category = moderationCategory(reason);
+    if (category !== null) return { allowed: false, reason: `moderation:${category}` };
     if (isOneOf(reason, PROMPT_CLASSIFICATION_REASONS)) return { allowed: false, reason };
     return { allowed: true };
   }
 
   async moderateImage(image: ImageInput, options: AiCallOptions = {}): Promise<ModerationResult> {
     await this.wait(options);
-    const flagged =
-      (marker(Buffer.from(image.bytes).toString('latin1')) ??
-        (await solidColourReason(image.bytes))) === 'moderation';
-    return { flagged, categories: flagged ? ['sexual'] : [] };
+    const category = moderationCategory(await imageMarker(image));
+    return {
+      flagged: category !== null,
+      categories: category === null ? [] : [...FAKE_MODERATION_NAMES[category]],
+    };
   }
 
   // The delay under the same deadline as a real call: a delay past it throws the same timeout.
@@ -282,12 +333,36 @@ export class FakeAiProvider implements AiProvider {
 
 // The fake generation's failure marker (see FakeAiProvider.generate) and its picture's size, the
 // real model's `1024x1536`.
-const FAILURE_MARKER = /fail:([a-z_]+)/;
+// Only `moderation` takes segments after `:`; `fail:timeout:x` is still `timeout`.
+const FAILURE_MARKER = /fail:(moderation(?::[a-z_]+){0,2}(?![a-z_])|[a-z_]+)/;
 const FAKE_RESULT_WIDTH = 1024;
 const FAKE_RESULT_HEIGHT = 1536;
 
 function marker(text: string): string | null {
   return MARKER.exec(text)?.[1] ?? null;
+}
+
+// An image's marker: in its bytes, else its solid colour.
+async function imageMarker(image: ImageInput): Promise<string | null> {
+  return (
+    marker(Buffer.from(image.bytes).toString('latin1')) ?? (await solidColourReason(image.bytes))
+  );
+}
+
+// The category of a moderation marker (`moderation:<category>`, a bare `moderation` is
+// `unknown`); null for any other marker.
+function moderationCategory(reason: string | null): SafetyCategory | null {
+  if (reason === 'moderation') return 'unknown';
+  const category = reason?.startsWith('moderation:') ? reason.slice('moderation:'.length) : null;
+  return isOneOf(category, SAFETY_CATEGORIES) ? category : null;
+}
+
+// The refusal of a generation's marker `moderation[:<stage>[:<category>]]`; null for any other.
+function fakeGenerationRefusal(failure: string): SafetyRefusal | null {
+  const [what, stage = 'input', category = 'unknown'] = failure.split(':');
+  if (what !== 'moderation') return null;
+  if (!isOneOf(stage, MODERATION_STAGES) || !isOneOf(category, SAFETY_CATEGORIES)) return null;
+  return { stage, category };
 }
 
 function isOneOf<T extends string>(value: string | null, values: readonly T[]): value is T {

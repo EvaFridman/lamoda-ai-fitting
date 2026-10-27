@@ -7,6 +7,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 
 import { AI_PROVIDER, type FakeAiProvider } from '../../src/ai/ai-provider.js';
 import { AI_SETTINGS, type AiSettings, aiSettings } from '../../src/ai/ai-settings.js';
+import { SAFETY_CATEGORIES } from '../../src/ai/safety-category.js';
 import type { Auth } from '../../src/auth/auth.js';
 import { AUTH } from '../../src/auth/auth.module.js';
 import type { Env } from '../../src/config/env.js';
@@ -46,6 +47,8 @@ interface FittingBody {
   status: 'pending' | 'processing' | 'completed' | 'failed';
   stage: 'queued' | 'generating' | 'done';
   failureCode: string | null;
+  failureCategory: string | null;
+  failureStage: string | null;
   countsAgainstLimit: boolean;
   regenerationFree: boolean;
   model: string;
@@ -80,6 +83,7 @@ interface Actor extends SignedIn {
 }
 
 const REASONS = ['face', 'item'];
+const CATEGORY_REASONS = SAFETY_CATEGORIES.map((category) => `moderation:${category}`);
 const ROOMY = 20;
 
 describe('the fittings routes (spec 0019 T12: AC5-AC9, A6, A7, A20, A32, A45, A47, A69, A70)', () => {
@@ -769,6 +773,64 @@ describe('the fittings routes (spec 0019 T12: AC5-AC9, A6, A7, A20, A32, A45, A4
       expect(await usedOf(who.userId)).toBe(0);
     });
 
+    it.each([
+      'other_people',
+      'nudity',
+      'minors',
+      'violence',
+      'politics',
+      'unrelated',
+      ...CATEGORY_REASONS,
+    ])('names the reason %s in the one detail of PROMPT_REFUSED', async (reason) => {
+      const who = await actor();
+
+      const response = await start(
+        who,
+        single(who, await product(), { promptText: `a wish refuse:${reason}` }),
+      );
+
+      expectError(response, 400, 'PROMPT_REFUSED');
+      expect(errorOf(response).details).toEqual([
+        {
+          field: 'promptText',
+          code: 'PROMPT_REFUSED',
+          message: `promptText was refused: ${reason}`,
+        },
+      ]);
+      expect(await rowsOf(who.userId)).toEqual([]);
+      expect(await usedOf(who.userId)).toBe(0);
+    });
+
+    it('names a bare moderation refusal moderation:unknown', async () => {
+      const who = await actor();
+
+      const response = await start(
+        who,
+        single(who, await product(), { promptText: 'refuse:moderation' }),
+      );
+
+      expect(errorOf(response).details).toEqual([
+        {
+          field: 'promptText',
+          code: 'PROMPT_REFUSED',
+          message: 'promptText was refused: moderation:unknown',
+        },
+      ]);
+    });
+
+    it('answers 503 SERVICE_UNAVAILABLE for an unreadable verdict, spending and storing nothing (Y19)', async () => {
+      const who = await actor();
+
+      const response = await start(
+        who,
+        single(who, await product(), { promptText: 'fail:unreadable_verdict' }),
+      );
+
+      expectError(response, 503, 'SERVICE_UNAVAILABLE');
+      expect(await rowsOf(who.userId)).toEqual([]);
+      expect(await usedOf(who.userId)).toBe(0);
+    });
+
     it('answers 503 SERVICE_UNAVAILABLE when the check does not answer in time, storing nothing', async () => {
       const who = await actor();
       fake.delayMs = 2000;
@@ -1375,6 +1437,46 @@ describe('the fittings routes (spec 0019 T12: AC5-AC9, A6, A7, A20, A32, A45, A4
       expect(await prisma().aiGeneration.count({ where: { parentId: parent.id } })).toBe(0);
     });
 
+    it.each(['unrelated', 'nudity', ...CATEGORY_REASONS])(
+      'names the reason %s in the one detail of PROMPT_REFUSED on the comment',
+      async (reason) => {
+        const who = await actor();
+        const { parent } = await completed(who);
+
+        const response = await regenerate(who, parent.id, {
+          reasons: REASONS,
+          comment: `brighter refuse:${reason}`,
+        });
+
+        expectError(response, 400, 'PROMPT_REFUSED');
+        expect(errorOf(response).details).toEqual([
+          {
+            field: 'comment',
+            code: 'PROMPT_REFUSED',
+            message: `comment was refused: ${reason}`,
+          },
+        ]);
+        expect((await row(parent.id)).freeRegenerationUsed).toBe(false);
+        expect(await usedOf(who.userId)).toBe(1);
+        expect(await prisma().aiGeneration.count({ where: { parentId: parent.id } })).toBe(0);
+      },
+    );
+
+    it('answers 503 for an unreadable verdict of the comment, keeping the free one (Y19)', async () => {
+      const who = await actor();
+      const { parent } = await completed(who);
+
+      const response = await regenerate(who, parent.id, {
+        reasons: REASONS,
+        comment: 'fail:unreadable_verdict',
+      });
+
+      expectError(response, 503, 'SERVICE_UNAVAILABLE');
+      expect((await row(parent.id)).freeRegenerationUsed).toBe(false);
+      expect(await usedOf(who.userId)).toBe(1);
+      expect(await prisma().aiGeneration.count({ where: { parentId: parent.id } })).toBe(0);
+    });
+
     it('answers 503 when the comment check does not answer in time', async () => {
       const who = await actor();
       const { parent } = await completed(who);
@@ -1536,6 +1638,104 @@ describe('the fittings routes (spec 0019 T12: AC5-AC9, A6, A7, A20, A32, A45, A4
 
       const body = bodyOf(await get(who, parent.id));
       expect(body).toMatchObject({ status: 'completed', photoId: null, regenerationFree: false });
+    });
+  });
+
+  describe('the safety category and stage of a failed fitting (spec 0023 Y2)', () => {
+    const failedBy = (
+      id: string,
+      failureCode: 'moderation' | 'provider_error' | 'model_timeout',
+      safety?: { stage: 'input' | 'output'; category: (typeof SAFETY_CATEGORIES)[number] },
+    ) =>
+      endFitting(prisma(), id, {
+        status: 'failed',
+        failureCode,
+        errorMessage: null,
+        providerRequestId: null,
+        ...(safety === undefined ? {} : { safety }),
+      });
+
+    it.each([
+      ['output', 'sexual'],
+      ['input', 'minors'],
+      ['input', 'unknown'],
+    ] as const)(
+      'answers a moderation refusal at %s as %s on the read, the list and the row',
+      async (stage, category) => {
+        const who = await actor();
+        const id = (await started(who, single(who, await product()))).id;
+        await failedBy(id, 'moderation', { stage, category });
+
+        const one = bodyOf(await get(who, id).expect(200));
+        const listed = ((await list(who).expect(200)).body as ListBody).items[0];
+
+        for (const body of [one, listed]) {
+          expect(body).toMatchObject({
+            status: 'failed',
+            failureCode: 'moderation',
+            failureCategory: category,
+            failureStage: stage,
+          });
+        }
+        expect(await row(id)).toMatchObject({ failureCategory: category, failureStage: stage });
+      },
+    );
+
+    it('reads an older moderation row with neither column as unknown at the input', async () => {
+      const who = await actor();
+      const id = (await started(who, single(who, await product()))).id;
+      await failedBy(id, 'moderation');
+      expect(await row(id)).toMatchObject({ failureCategory: null, failureStage: null });
+
+      const body = bodyOf(await get(who, id).expect(200));
+
+      expect(body).toMatchObject({
+        failureCode: 'moderation',
+        failureCategory: 'unknown',
+        failureStage: 'input',
+      });
+    });
+
+    it.each(['provider_error', 'model_timeout'] as const)(
+      'answers null for both on a %s failure',
+      async (failureCode) => {
+        const who = await actor();
+        const id = (await started(who, single(who, await product()))).id;
+        await failedBy(id, failureCode);
+
+        expect(bodyOf(await get(who, id).expect(200))).toMatchObject({
+          failureCode,
+          failureCategory: null,
+          failureStage: null,
+        });
+      },
+    );
+
+    it('answers null for both on a pending and on a completed fitting', async () => {
+      const who = await actor();
+      const pending = await started(who, single(who, await product()));
+      const done = await started(who, single(who, await product()));
+      await finish(done.id);
+
+      expect(pending).toMatchObject({ failureCategory: null, failureStage: null });
+      expect(bodyOf(await get(who, done.id).expect(200))).toMatchObject({
+        status: 'completed',
+        failureCategory: null,
+        failureStage: null,
+      });
+    });
+
+    it('never stores a category for a failure other than moderation', async () => {
+      const who = await actor();
+      const id = (await started(who, single(who, await product()))).id;
+
+      await failedBy(id, 'provider_error', { stage: 'output', category: 'hate' });
+
+      expect(await row(id)).toMatchObject({
+        status: 'failed',
+        failureCategory: null,
+        failureStage: null,
+      });
     });
   });
 
