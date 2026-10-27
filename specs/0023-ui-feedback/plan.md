@@ -162,11 +162,13 @@ lines then. web stops sending them (its retry's `['other']` too). Snapshots rewr
   or logos, changing the tried-on items' cut or colour, or anything not about the photo's look.
 - `ai/prompts.ts`: "Keep unchanged" keeps the face, the features, the expression, the hair, the skin
   tone, the body's shape, proportions and identity, and the items as their images show them; the
-  background, the camera angle, the framing and the pose stay "unless the user's wishes below ask
-  otherwise"; "Add no accessories" becomes "add no accessories, text, logos or watermarks the
-  wishes do not ask for". The wishes' and the comment's lead lines say they may change the scene,
-  the pose, the person's own clothes and add small items, never the person or the items' cut or
-  colour; `TEXT_LIMITS` says the same. The prompt's unit tests follow.
+  background, the camera angle, the framing, the pose and the rest of the outfit stay "unless the
+  user's texts below ask otherwise" (the wishes or a regeneration's comment); "Add no accessories"
+  becomes "add no text, logos or watermarks; add accessories only where the user's texts below ask
+  for them" (Y12 refuses text and logos outright; tightened at T9's review). The wishes' and the
+  comment's lead lines say they may change the scene, the pose, the person's own clothes and add
+  small items, never the person or the items' cut or colour; `TEXT_LIMITS` says the same and adds
+  no other people, text, logos or watermarks, the items' rule last. The prompt's unit tests follow.
 - Y16: `checkPrompt(text, { items })` takes the chosen items as `{ name, category }` (the catalog's,
   as `PromptItem`); the classification's input names them, so "the person's own clothes" means
   clothes that are not one of these, and changing one of their colours is `unrelated`.
@@ -193,6 +195,11 @@ refused: <reason>' }`, an English sentence in the shape the photo's detail alrea
   after `was refused: ` as `refusal.ts` does, an unknown one falling to the general text; a
   `*.contract.test.ts` pins the shape against an api e2e's answer of each kind. `DETAIL_TEXTS`
   keeps a general text for it by hand (it is not a DTO rule's code).
+- **An unreadable verdict (Y19).** `PromptChecker.classify` throws an `AiProviderError` (operation
+  `checkPrompt`, a reason of its own such as `unreadable_verdict`, never the answer's text) where it
+  now warns and allows, so both routes answer 503 through `TextCheckUnavailableError`;
+  `max_output_tokens` 500. The photo check is unchanged. Unit tests for an incomplete answer, a
+  refusal and no JSON; an e2e of the 503 with nothing spent.
 - **A generation.** `generate` answers `{ ok: false, reason: 'moderation', stage, category }` from
   the image model's refusal (stage from `moderation_details`, else `input`), and the `moderate`
   activity's refusal of the result is stage `output` with its category. Migration

@@ -58,7 +58,8 @@ the deployed site.
       `feat(api): optional regeneration reasons and freer wishes`.
 - [ ] **T10. Safety categories (Y2).** Plan §3.5: `safetyCategory`, the client's
       `moderation_details`, the photo's and the text's details, the migration and `FittingDto`'s
-      `failureCategory`/`failureStage`, the fake provider's markers and colours, tests. About 4 h.
+      `failureCategory`/`failureStage`, the fake provider's markers and colours, the text check's
+      unreadable verdict as 503 (Y19), tests. About 4.5 h.
       Commit: `feat(api): keep the safety category of a refusal`.
 
 ### web
