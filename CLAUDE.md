@@ -44,7 +44,12 @@ read-only, the `investigator` agent with its shell guard and the skill `/investi
 `0022-stores` added Lamoda Sport's stores: the table `stores` filled by the seed, `GET /stores`,
 the page `/customer/stores` open to everyone (the search, the cards and Yandex's map), its
 Content Security Policy on that one path, the footer's link and the analytics zones `stores` and
-`footer`.
+`footer`. Spec `0023-ui-feedback` applied the owner's notes on the UI: the calmer catalog card and
+header icons with «скоро», the gallery's full screen and lens, the tidier fitting room, the try-on's
+drop zone, photo replacement and one steady photo frame, the success screen, the real download
+(`GET /fittings/:id/image`), the regeneration without reasons, freer wishes checked with the
+items' names, the photo consents kept with the user and a text of its own for each refusal's
+reason and safety category.
 
 Keep this file true: update it in the same commit that changes what a section describes.
 
