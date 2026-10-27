@@ -50,7 +50,7 @@ the deployed site.
 - [x] **T7. Consents on the server (Y1).** Plan §3.1: the migration, the multipart field `consent`,
       `PHOTO_CONSENT_VERSION`, `photoConsentVersion` in `UserResponseDto`, the snapshots, e2e.
       About 2 h. Commit: `feat(api): record the photo consents with the user`.
-- [ ] **T8. The result's picture for a download (Y8).** Plan §3.2: `GET /fittings/:id/image`,
+- [x] **T8. The result's picture for a download (Y8).** Plan §3.2: `GET /fittings/:id/image`,
       Swagger, the access lists, e2e. About 1.5 h. Commit:
       `feat(api): serve a fitting's result as a download`.
 - [ ] **T9. Regeneration without reasons and freer wishes (Y9, Y12).** Plan §3.3, §3.4: the DTO, the

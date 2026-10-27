@@ -35,6 +35,7 @@ const RESPONSE_KEYS = [
   'lastName',
   'patronymic',
   'phone',
+  'photoConsentVersion',
   'updatedAt',
 ];
 

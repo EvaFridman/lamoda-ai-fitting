@@ -3,13 +3,21 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   HttpCode,
   HttpStatus,
   Post,
   Query,
   Res,
+  StreamableFile,
 } from '@nestjs/common';
-import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiCreatedResponse,
+  ApiNoContentResponse,
+  ApiOkResponse,
+  ApiProduces,
+  ApiTags,
+} from '@nestjs/swagger';
 import type { Response } from 'express';
 
 import { SignedIn } from '../common/auth/access.decorators.js';
@@ -28,7 +36,10 @@ import { FittingDto, StartedFittingDto } from './dto/fitting.dto.js';
 import { RegenerateFittingDto } from './dto/regenerate-fitting.dto.js';
 import { StartFittingDto } from './dto/start-fitting.dto.js';
 import { FittingsService, type StartResult } from './fittings.service.js';
+import { resultFileName } from './result-file-name.js';
 
+// Every result in the bucket is a WebP image (spec 0011 M7).
+const RESULT_TYPE = 'image/webp';
 const STARTED = 'A new fitting, `pending`: the workflow makes the picture; poll GET /fittings/:id.';
 const FOUND =
   'An earlier completed result of the same photo, items and text (`repeated: true`, nothing spent), or the running fitting of this request (A32).';
@@ -72,6 +83,27 @@ export class FittingsController {
   @ApiOkResponse({ type: FittingDto })
   get(@CurrentUserId() userId: string, @UuidParam('id') id: string): Promise<FittingDto> {
     return this.fittings.get(userId, id);
+  }
+
+  // «Скачать» (spec 0023 Y8): the result as a file from the site's own origin. The handler returns
+  // once the bytes are read; the timeout does not reach the writing of the answer (plan §3.2).
+  @Get(':id/image')
+  @Header('Cache-Control', 'private, no-store')
+  @ApiProduces(RESULT_TYPE)
+  @ApiOkResponse({
+    schema: { type: 'string', format: 'binary' },
+    description: "The completed fitting's result, as an attachment named by its Moscow time.",
+  })
+  async image(
+    @CurrentUserId() userId: string,
+    @UuidParam('id') id: string,
+  ): Promise<StreamableFile> {
+    const { bytes, finishedAt } = await this.fittings.resultImage(userId, id);
+    return new StreamableFile(bytes, {
+      type: RESULT_TYPE,
+      disposition: `attachment; filename="${resultFileName(finishedAt)}"`,
+      length: bytes.byteLength,
+    });
   }
 
   // The first regeneration of a result is free, the next ones spend a try-on (A6).

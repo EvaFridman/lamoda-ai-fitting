@@ -459,8 +459,14 @@ and the full `verify` once at the phase's end (as spec 0019 A58 did).
   (`free_regeneration_used`, given back by a failed one; a regeneration is created with it set, so
   its regenerations spend, A70), and a paid start or regeneration at the limit is refused before
   the paid text check. One generation of a fingerprint runs at a time, so a try-on and its
-  regenerations run one after another. `GET /fittings` (`CursorPaginated`, `fitting-cursor.ts`,
-  `kind`), `GET /fittings/:id`, `DELETE /fittings/:id` (the row and the outbox first, then the
+  regenerations run one after another. `GET /fittings/:id/image` (spec 0023 Y8, plan §3.2) answers
+  a completed fitting's result from the bucket as a `StreamableFile`: `image/webp`, `attachment`
+  named `primerka-<YYYY-MM-DD-HHmm>.webp` by `finishedAt` (else its start) in Moscow time
+  (`result-file-name.ts`), `Cache-Control: private, no-store`; someone else's, a missing one, one
+  not completed, a key outside the owner's folder or an object the bucket lacks is 404, another
+  storage failure or a read over 5 s 503. The handler returns once the bytes are read, so
+  `TimeoutInterceptor` never cuts a slow client's download. `GET /fittings`
+  (`CursorPaginated`, `fitting-cursor.ts`, `kind`), `GET /fittings/:id`, `DELETE /fittings/:id` (the row and the outbox first, then the
   file deletion's start and the workflow's cancel side by side, the try-on stays spent, A47) and
   `GET /me/fitting-quota` see only the user's fittings (rows with a `kind`). A fitting still
   running an hour after its start is ended `failed` with its try-on given back by the
