@@ -1,5 +1,6 @@
 // Board 7.3 without its chips (spec 0023 P33, P34): the hint, the comment (the canvas's kit.css
 // `.n-area`, 88px high) with its counter on the right, then «Перегенерировать» and its caption.
+// The panel itself is the kit's AnchoredPanel (spec 0024 R13).
 
 .body {
   display: flex;
@@ -92,13 +93,6 @@
   font-size: var(--font-size-caption);
   line-height: var(--line-height-caption);
   color: var(--color-error);
-}
-
-.footer {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  width: 100%;
 }
 
 .caption {

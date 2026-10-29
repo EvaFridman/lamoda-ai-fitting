@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 import {
   type Fitting,
@@ -15,7 +15,7 @@ import type { OutfitSlot } from '@/entities/category';
 import type { ProductDetail } from '@/entities/product';
 import { ToLookButton } from '@/features/fitting-room';
 import { CartStubButton, FavoriteStub } from '@/features/product-stubs';
-import { RegenerateSheet } from '@/features/regenerate-fitting';
+import { RegeneratePopover } from '@/features/regenerate-fitting';
 import type { PendingFitting } from '@/features/start-fitting';
 import { ColorTryOn, type TryColour } from '@/features/try-colour';
 import { SavePhotoSwitch } from '@/features/upload-photo';
@@ -67,7 +67,7 @@ export interface FittingResultProps {
 // «Мои примерки»» (spec 0023 Y7) and the caption under it, the save switch of a one-time photo
 // (spec 0024 AC22), the item with the size select, the cart's and favourites' stubs (A33) and
 // «Добавить к образу» into the fitting room (A90.11, spec 0024 Z14), the product's
-// other colours (A74, A76), «Хотите что-то поменять в образе?» with the sheet «Что поменять?»,
+// other colours (A74, A76), «Хотите что-то поменять в образе?» with the popover «Что поменять?»,
 // «Примерить на другом фото» and the month's meter. The picture is only an image's `src`, in an
 // `mp-block` container (A37).
 export function FittingResult({
@@ -89,6 +89,7 @@ export function FittingResult({
 }: FittingResultProps) {
   const [size, setSize] = useState<string | null>(null);
   const [regenerating, setRegenerating] = useState(false);
+  const regenerateRef = useRef<HTMLButtonElement>(null);
   const regenerateElement = useTrackedElement('result.regenerate-open');
   const cartElement = useTrackedElement('result.add-to-cart', { kind: 'single' });
   const otherPhotoElement = useTrackedElement('result.other-photo');
@@ -210,6 +211,7 @@ export function FittingResult({
 
         <div className={styles.footer}>
           <Button
+            ref={regenerateRef}
             variant="secondary"
             fullWidth
             disabled={running !== null || fitting.photoId === null}
@@ -246,8 +248,9 @@ export function FittingResult({
         </div>
       </div>
 
-      <RegenerateSheet
+      <RegeneratePopover
         fitting={fitting}
+        anchor={regenerateRef}
         open={regenerating}
         onOpenChange={setRegenerating}
         onStart={() => {

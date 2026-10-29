@@ -14,6 +14,7 @@ import {
   Tooltip,
 } from '@/shared/ui';
 
+import { AnchoredPanelDemo } from './anchored-panel-demo';
 import styles from './examples.module.scss';
 import { SheetScreensDemo } from './sheet-screens-demo';
 
@@ -180,6 +181,14 @@ export function OverlaysSection() {
             </ModalClose>
           </Modal>
           <code className={styles.props}>wide, media; на телефоне во весь экран</code>
+        </li>
+      </ul>
+
+      <h3 className={styles.heading}>AnchoredPanel</h3>
+      <ul className={styles.row}>
+        <li className={styles.example}>
+          <AnchoredPanelDemo />
+          <code className={styles.props}>anchor, open, footer; над кнопкой, окно затемнено</code>
         </li>
       </ul>
 

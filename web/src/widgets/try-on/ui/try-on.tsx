@@ -37,7 +37,7 @@ import {
 } from '@/features/start-fitting';
 import { ApiError, errorText, reportFailure } from '@/shared/api';
 import { FITTINGS_HREF } from '@/shared/config';
-import { Button, Modal, Notice, Skeleton } from '@/shared/ui';
+import { anchoredPanelOpen, Button, Modal, Notice, Skeleton } from '@/shared/ui';
 
 import { productColours, triedColours } from '../lib/colours';
 import type { ResultPhotoProps } from '../model/result-photo';
@@ -678,7 +678,7 @@ interface TryOnModalProps {
 }
 
 // The window, whose height follows a new screen smoothly (spec 0023 P10). A new screen unmounts the
-// control that had the focus (the regeneration's «Что поменять?» as its sheet closes, «Попробовать ещё раз»), and the browser drops the focus on the
+// control that had the focus (the regeneration's «Что поменять?» as its popover closes, «Попробовать ещё раз»), and the browser drops the focus on the
 // page's body, out of the window: then it moves to the window, so the keyboard and a screen reader
 // stay inside. Checked a moment after the focus leaves or the page's nodes change (a browser may
 // drop the focus of a removed node without a `focusout`), once the browser has settled it.
@@ -691,9 +691,11 @@ function TryOnModal({ title, onClose, children }: TryOnModalProps) {
       timer = setTimeout(() => {
         if (document.activeElement !== null && document.activeElement !== document.body) return;
         // The window itself, named by its title, as Base UI's own restore does; never while a
-        // window over it (the tips, «Что поменять?») holds the focus, which Base UI keeps there.
+        // window over it (the tips, a nested dialog) or the kit's AnchoredPanel «Что поменять?»,
+        // which is no nested dialog to Base UI, holds the focus, which Base UI keeps there.
         const popup = bodyRef.current?.closest<HTMLElement>('[role="dialog"]');
         if (!popup || popup.hasAttribute('data-nested-dialog-open')) return;
+        if (anchoredPanelOpen()) return;
         popup.focus({ preventScroll: true });
       });
     };

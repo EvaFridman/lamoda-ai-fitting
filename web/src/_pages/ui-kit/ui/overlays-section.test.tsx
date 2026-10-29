@@ -36,6 +36,21 @@ describe('OverlaysSection', () => {
     await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
+  it('opens the anchored panel from its button and closes it with «Готово»', async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    render(<OverlaysSection />);
+
+    const trigger = screen.getByRole('button', { name: 'Хотите что-то поменять?' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    await user.click(trigger);
+    await screen.findByRole('dialog', { name: 'Что поменять?' });
+
+    await user.click(screen.getByRole('button', { name: 'Готово' }));
+
+    await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(trigger).toHaveFocus();
+  });
+
   it('opens the cart drawer', async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
     render(<OverlaysSection />);
