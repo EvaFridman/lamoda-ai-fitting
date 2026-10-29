@@ -808,7 +808,7 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   takes `description`, `media` (a picture left of the heading, which then has no "‹" or header
   action), `grip`, `closable` and `initialFocus`; `Sheet` is it with a grip and no ×),
   `ProgressBar`, `CountBadge` (nothing at 0; its parent places it and names the count),
-  `SoonChip` (board 3's «скоро», grey, placed by its parent as `CountBadge`, hidden from screen
+  `SoonChip` (board 3's «скоро», grey and 16 px high, spec 0024 Z32, placed by its parent as `CountBadge`, hidden from screen
   readers: the header's inert «Избранное» and «Корзина» at the room count's place, spec 0023 C4,
   C5, spec 0024 AC8),
   `LamodaMark` (Lamoda's «la», `LAMODA_MARK_PATHS`: the stores map's pin and the tab icons),
