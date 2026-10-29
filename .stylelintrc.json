@@ -4,6 +4,14 @@
     "selector-class-pattern": [
       "^[a-z][a-zA-Z0-9]*$",
       { "message": "Use camelCase class names: CSS Modules expose them as styles.className" }
+    ],
+    "declaration-property-value-disallowed-list": [
+      {
+        "/^(transition|animation)(-timing-function)?$/": ["/cubic-bezier\\(/", "/\\bease-(in|out)/"]
+      },
+      {
+        "message": "Use var(--ease-standard) for movement (spec 0024 Z2); only ease (fades) and linear (loops) are allowed as literals"
+      }
     ]
   }
 }

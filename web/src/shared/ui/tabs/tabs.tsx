@@ -32,8 +32,8 @@ export interface TabsProps {
 }
 
 // Lamoda's tabs: grey labels that turn black on hover and when active, the active one underlined
-// 2px black. Base UI's Tabs: the arrows, Home and End move along the tabs and show each panel at
-// once (D7v); Tab goes on to the panel.
+// 2px black by a line that slides between the tabs (spec 0024 AC4). Base UI's Tabs: the arrows,
+// Home and End move along the tabs and show each panel at once (D7v); Tab goes on to the panel.
 export function Tabs({
   items,
   defaultValue = items.find((item) => !item.disabled)?.value,
@@ -62,6 +62,7 @@ export function Tabs({
             {item.count === undefined ? null : ` ${item.count}`}
           </BaseTabs.Tab>
         ))}
+        <BaseTabs.Indicator className={styles.indicator} />
       </BaseTabs.List>
       {items.map((item) =>
         item.panel === undefined ? null : (

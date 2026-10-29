@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Tabs } from '@/shared/ui';
 
@@ -167,6 +167,133 @@ describe('Tabs', () => {
       await user.keyboard('{ArrowLeft}');
       expect(screen.getByRole('tab', { name: 'Отзывы 54' })).toHaveFocus();
       expect(screen.getByRole('tabpanel')).toHaveTextContent('Про отзывы');
+    });
+  });
+
+  // AC4
+  describe('the sliding underline', () => {
+    // jsdom has no layout: each tab gets a box by its text, as the browser would measure it.
+    const boxes: Record<string, { left: number; width: number }> = {
+      'О товаре': { left: 0, width: 80 },
+      'О бренде': { left: 80, width: 90 },
+      'Отзывы 54': { left: 170, width: 100 },
+    };
+    const height = 40;
+    const boxOf = (el: HTMLElement) =>
+      el.getAttribute('role') === 'tablist'
+        ? { left: 0, width: 300 }
+        : (boxes[el.textContent ?? ''] ?? { left: 0, width: 0 });
+    const restore: Array<() => void> = [];
+
+    function stub(
+      name: 'offsetLeft' | 'offsetWidth' | 'offsetHeight',
+      value: (el: HTMLElement) => number,
+    ) {
+      const original = Object.getOwnPropertyDescriptor(HTMLElement.prototype, name);
+      Object.defineProperty(HTMLElement.prototype, name, {
+        configurable: true,
+        get(this: HTMLElement) {
+          return value(this);
+        },
+      });
+      restore.push(() => {
+        if (original) Object.defineProperty(HTMLElement.prototype, name, original);
+      });
+    }
+
+    beforeEach(() => {
+      stub('offsetLeft', (el) => boxOf(el).left);
+      stub('offsetWidth', (el) => boxOf(el).width);
+      stub('offsetHeight', () => height);
+      const rect = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect');
+      rect.mockImplementation(function (this: HTMLElement) {
+        const { left, width } = boxOf(this);
+        return {
+          left,
+          right: left + width,
+          top: 0,
+          bottom: height,
+          width,
+          height,
+          x: left,
+          y: 0,
+          toJSON: () => ({}),
+        };
+      });
+      restore.push(() => rect.mockRestore());
+    });
+
+    afterEach(() => {
+      restore.splice(0).forEach((undo) => undo());
+    });
+
+    const indicatorOf = (container: HTMLElement) =>
+      container.querySelectorAll<HTMLElement>('[role="tablist"] > [role="presentation"]');
+
+    const onlyIndicator = (container: HTMLElement) => {
+      const found = indicatorOf(container);
+      if (found.length !== 1 || !found[0]) throw new Error('expected one indicator');
+      return found[0];
+    };
+
+    it('renders one indicator inside the tab list, which is not a tab', () => {
+      const { container } = render(<Tabs items={items} />);
+
+      expect(indicatorOf(container)).toHaveLength(1);
+      expect(screen.getAllByRole('tab')).toHaveLength(3);
+      expect(screen.queryByRole('tab', { name: '' })).toBeNull();
+    });
+
+    it('starts under the selected tab', () => {
+      const { container } = render(<Tabs items={items} defaultValue="brand" />);
+      const indicator = onlyIndicator(container);
+
+      expect(indicator.style.getPropertyValue('--active-tab-left')).toBe('80px');
+      expect(indicator.style.getPropertyValue('--active-tab-width')).toBe('90px');
+    });
+
+    it('follows a click (uncontrolled)', async () => {
+      const user = userEvent.setup();
+      const { container } = render(<Tabs items={items} />);
+      const indicator = onlyIndicator(container);
+      expect(indicator.style.getPropertyValue('--active-tab-left')).toBe('0px');
+      expect(indicator.style.getPropertyValue('--active-tab-width')).toBe('80px');
+
+      await user.click(screen.getByRole('tab', { name: 'Отзывы 54' }));
+
+      expect(indicatorOf(container)[0]).toBe(indicator);
+      expect(indicator.style.getPropertyValue('--active-tab-left')).toBe('170px');
+      expect(indicator.style.getPropertyValue('--active-tab-width')).toBe('100px');
+    });
+
+    it('follows the arrow keys', async () => {
+      const user = userEvent.setup();
+      const { container } = render(<Tabs items={items} />);
+      const indicator = onlyIndicator(container);
+      await user.tab();
+
+      await user.keyboard('{ArrowRight}');
+      expect(indicator.style.getPropertyValue('--active-tab-left')).toBe('80px');
+      expect(indicator.style.getPropertyValue('--active-tab-width')).toBe('90px');
+
+      await user.keyboard('{ArrowLeft}');
+      expect(indicator.style.getPropertyValue('--active-tab-left')).toBe('0px');
+      expect(indicator.style.getPropertyValue('--active-tab-width')).toBe('80px');
+    });
+
+    it('follows the controlled value, not the click', async () => {
+      const user = userEvent.setup();
+      const { container, rerender } = render(
+        <Tabs items={items} value="about" onValueChange={vi.fn()} />,
+      );
+      const indicator = onlyIndicator(container);
+
+      await user.click(screen.getByRole('tab', { name: 'О бренде' }));
+      expect(indicator.style.getPropertyValue('--active-tab-left')).toBe('0px');
+
+      rerender(<Tabs items={items} value="brand" onValueChange={vi.fn()} />);
+      expect(indicator.style.getPropertyValue('--active-tab-left')).toBe('80px');
+      expect(indicator.style.getPropertyValue('--active-tab-width')).toBe('90px');
     });
   });
 

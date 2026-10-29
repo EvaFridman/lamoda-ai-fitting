@@ -49,7 +49,7 @@
   outline: none;
 
   transition:
-    transform var(--duration-slow) cubic-bezier(0, 0, 0.58, 1),
+    transform var(--duration-slow) var(--ease-standard),
     opacity var(--duration-slow);
 
   &[data-type='error'] {

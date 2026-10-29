@@ -102,7 +102,7 @@
 }
 
 .chevron {
-  transition: transform var(--duration-fast);
+  transition: transform var(--duration-fast) var(--ease-standard);
 
   [aria-expanded='true'] > & {
     transform: rotate(90deg);

@@ -170,7 +170,7 @@
   scrollbar-gutter: stable;
   box-sizing: content-box;
   height: var(--modal-content-height, auto);
-  transition: height var(--duration-slow) ease;
+  transition: height var(--duration-slow) var(--ease-standard);
 }
 
 // The children's box keeps their margins inside, so its height is all of theirs.

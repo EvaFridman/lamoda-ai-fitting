@@ -35,7 +35,7 @@
   box-shadow: var(--shadow-popover);
 
   // `--duration-slow` is 0 under `prefers-reduced-motion`.
-  animation: appear var(--duration-slow) ease-out;
+  animation: appear var(--duration-slow) var(--ease-standard);
 }
 
 .check {

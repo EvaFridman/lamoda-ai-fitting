@@ -55,8 +55,8 @@
   color: var(--color-text);
 
   transition:
-    width var(--duration-fast),
-    height var(--duration-fast);
+    width var(--duration-fast) var(--ease-standard),
+    height var(--duration-fast) var(--ease-standard);
 
   &[data-selected] {
     width: 44px;
