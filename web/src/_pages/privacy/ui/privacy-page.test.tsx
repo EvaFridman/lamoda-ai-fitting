@@ -54,6 +54,16 @@ describe('PrivacyPage', () => {
     expect(paragraph).toHaveTextContent('может сохранять свои cookie');
   });
 
+  it('says the location is asked for, stays in the browser, right after the map paragraph (AC13)', () => {
+    render(<PrivacyPage />);
+    const map = screen.getByText(/На странице магазинов показана карта Яндекса/);
+    const location = screen.getByText(/сайт просит у браузера ваше местоположение/);
+    expect(location.textContent?.trim()).toBe(
+      'На странице магазинов и по кнопке «Определить автоматически» сайт просит у браузера ваше местоположение. Оно используется только в браузере, чтобы выбрать ближайший город с магазином Lamoda Sport, и никуда не передаётся. Выбранный город хранится в вашем браузере.',
+    );
+    expect(map.nextElementSibling).toBe(location);
+  });
+
   it('links the Yandex Maps terms in a new tab without opener or referrer', () => {
     render(<PrivacyPage />);
     const link = screen.getByRole('link', { name: 'условия использования API Яндекс Карт' });
