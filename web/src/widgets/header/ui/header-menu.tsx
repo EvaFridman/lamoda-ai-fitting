@@ -19,6 +19,9 @@ import styles from './header-menu.module.scss';
 // trigger is hidden there (`HeaderProfile`).
 export const BURGER_ID = 'header-burger';
 
+// One drawer per page: the catalog's heading names its section and list.
+const CATALOG_HEADING_ID = 'header-menu-catalog';
+
 // The header's list, only what the menu shows: no other field of a category reaches the browser.
 export interface HeaderMenuCategory {
   id: string;
@@ -127,10 +130,10 @@ function CityRow({ cities, openCity }: { cities: readonly City[] | null; openCit
 // The header's menu on phones (spec 0019 A87.6): a drawer from the left. Signed out (a failed read
 // too) «Войти» at its top, a second login modal: the header's own, mounted on every width, answers
 // a failed sign-in's code (A87.7). Signed in, the initials and the name (no email, 0013 N6), the
-// account's sections and the two sign-outs. Then the city's row (spec 0026 C5), «Все товары» and
-// the active categories, the header's list. A link closes it. Its items send the profile menu's
-// elements with `surface: 'burger'` (A87.8). Render it per request inside <Suspense>: the modal
-// reads the query.
+// account's sections and the two sign-outs. Then the city's row (spec 0026 C5), one hairline, the
+// heading «Каталог» (spec 0024 AC9), «Все товары» and the active categories, the header's list. A
+// link closes it. Its items send the profile menu's elements with `surface: 'burger'` (A87.8).
+// Render it per request inside <Suspense>: the modal reads the query.
 export function HeaderMenu({
   categories,
   cities,
@@ -201,18 +204,23 @@ export function HeaderMenu({
             }}
           />
         </ul>
-        <ul className={styles.list} aria-label="Каталог">
-          <CatalogRow href="/catalog" title="Все товары" all close={close} />
-          {categories.map((category) => (
-            <CatalogRow
-              key={category.id}
-              href={`/catalog/${encodeURIComponent(category.slug)}`}
-              title={category.name}
-              all={false}
-              close={close}
-            />
-          ))}
-        </ul>
+        <section className={styles.catalog} aria-labelledby={CATALOG_HEADING_ID}>
+          <h3 id={CATALOG_HEADING_ID} className={styles.heading}>
+            Каталог
+          </h3>
+          <ul className={styles.catalogList} aria-labelledby={CATALOG_HEADING_ID}>
+            <CatalogRow href="/catalog" title="Все товары" all close={close} />
+            {categories.map((category) => (
+              <CatalogRow
+                key={category.id}
+                href={`/catalog/${encodeURIComponent(category.slug)}`}
+                title={category.name}
+                all={false}
+                close={close}
+              />
+            ))}
+          </ul>
+        </section>
       </Drawer>
     </>
   );

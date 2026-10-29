@@ -12,6 +12,37 @@
   list-style: none;
 }
 
+.catalog {
+  margin-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.catalogList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+// One hairline between the city's row and the catalog (spec 0024 AC9): a list's last row drops its
+// own, and the next list's or the catalog's takes its place.
+.list li:last-child .row {
+  border-bottom: 0;
+}
+
+.list + .catalog {
+  margin-top: 0;
+}
+
+.heading {
+  margin: 0;
+  padding: var(--space-6) 0 var(--space-2);
+
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-caption);
+  color: var(--color-text-secondary);
+}
+
 .row {
   cursor: pointer;
 
