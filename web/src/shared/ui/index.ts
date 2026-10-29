@@ -1,6 +1,8 @@
 // Public API of the ui segment: the rest of the app imports components only from here.
 export type { AccordionItem, AccordionProps } from './accordion/accordion';
 export { Accordion } from './accordion/accordion';
+export type { AnchoredPanelProps } from './anchored-panel/anchored-panel';
+export { AnchoredPanel, anchoredPanelOpen } from './anchored-panel/anchored-panel';
 export type { Badge, BadgeSize, BadgesProps, BadgeTone } from './badges/badges';
 export { Badges } from './badges/badges';
 export type { BreadcrumbsProps, Crumb } from './breadcrumbs/breadcrumbs';

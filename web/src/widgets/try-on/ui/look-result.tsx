@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 import {
   type Fitting,
@@ -20,7 +20,7 @@ import {
 import { bySlot, type OutfitSlot, useFittingRoom } from '@/entities/fitting-room';
 import { useAnyColourChoice } from '@/entities/product';
 import { CartStubButton, FavoriteStub } from '@/features/product-stubs';
-import { RegenerateSheet } from '@/features/regenerate-fitting';
+import { RegeneratePopover } from '@/features/regenerate-fitting';
 import type { PendingFitting } from '@/features/start-fitting';
 import { SavePhotoSwitch } from '@/features/upload-photo';
 import { useTrackedElement } from '@/shared/analytics';
@@ -97,6 +97,7 @@ export function LookResult({
   photo,
 }: LookResultProps) {
   const [regenerating, setRegenerating] = useState(false);
+  const regenerateRef = useRef<HTMLButtonElement>(null);
   const start = useStartLookFitting();
   const regenerateElement = useTrackedElement('result.regenerate-open');
   const historyElement = useTrackedElement('result.history');
@@ -230,6 +231,7 @@ export function LookResult({
             />
           </div>
           <Button
+            ref={regenerateRef}
             variant="secondary"
             fullWidth
             disabled={busy || fitting.photoId === null}
@@ -250,8 +252,9 @@ export function LookResult({
         </div>
       </div>
 
-      <RegenerateSheet
+      <RegeneratePopover
         fitting={fitting}
+        anchor={regenerateRef}
         open={regenerating}
         onOpenChange={setRegenerating}
         onStart={() => {

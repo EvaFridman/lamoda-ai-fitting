@@ -930,6 +930,27 @@ describe('TryOn of a look: «Что поменять?» and the retry', () => {
     );
   });
 
+  it('on a phone opens the same popover with «Какая именно?», and Escape closes only it (AC26)', async () => {
+    stubPhone();
+    showResult();
+    const user = setup();
+    const { onClose } = renderTryOn({ fittingId: RESULT });
+
+    const button = await screen.findByRole('button', { name: 'Хотите что-то поменять в образе?' });
+    await user.click(button);
+    const popover = await screen.findByRole('dialog', { name: 'Что поменять?' });
+    expect(within(popover).getByText('Какая именно?')).toBeInTheDocument();
+    expect(within(popover).getByRole('button', { name: 'Закрыть' })).toBeInTheDocument();
+
+    await user.keyboard('{Escape}');
+
+    await vi.waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Что поменять?' })).not.toBeInTheDocument(),
+    );
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog', { name: 'Примерка образа' })).toBeInTheDocument();
+  });
+
   it('retries a failed look with its photo, its items in their colours and its wishes', async () => {
     showResult(look({ status: 'failed', failureCode: 'model_timeout', countsAgainstLimit: false }));
     const user = setup();

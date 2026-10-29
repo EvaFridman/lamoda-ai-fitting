@@ -832,7 +832,11 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   `plain` and `Sheet` (spec 0019 A64: the kit's one bottom sheet is `Drawer side="bottom"`, which
   takes `description`, `media` (a picture left of the heading, which then has no "‹" or header
   action), `grip`, `closable` and `initialFocus`; `Sheet` is it with a grip and no ×),
-  `ProgressBar`, `InfoTip` (a 16 px «!» whose hint is the kit's `Tooltip` with a mouse, after a
+  `ProgressBar`, `AnchoredPanel` (Base UI's modal `Popover` over the control given as `anchor`,
+  opened through `open`: the window dimmed, as wide as the control up to 440 px, on a phone the
+  window's width less 32 px, rising 8 px over `--duration-slow`, under the control when the space
+  above is short; Escape, the backdrop and × close it, the focus back on the control;
+  `anchoredPanelOpen()` tells a window under it to leave the focus there, spec 0024 R13), `InfoTip` (a 16 px «!» whose hint is the kit's `Tooltip` with a mouse, after a
   100 ms rest, and a `Popover` of the same look, opened by a tap, under `COARSE_POINTER_QUERY`,
   spec 0024 plan §2.9, Z39),
   `CountBadge` (nothing at 0; its parent places it and names the count),
@@ -1130,7 +1134,9 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   photo, items and `promptText`, run over the result; «Что поменять?» (no reasons' chips: the
   hint of what may change, an optional comment, `POST /fittings/:id/regenerate` with no
   `reasons`, spec 0023 Y9) asks a look «Какая именно?», an optional item that goes before the
-  comment. The header's `HeaderRoom`
+  comment; it is `RegeneratePopover` (`features/regenerate-fitting`, spec 0024 R13, AC26), the
+  kit's `AnchoredPanel` rising over «Хотите что-то поменять…» on every width, and the try-on
+  window does not pull the focus back while it is open. The header's `HeaderRoom`
   (`FittingRoomButton` with `CountBadge`, between «Избранное» and «Корзина», per request inside
   `<Suspense>`) opens it, or a visitor's `LoginModal`; so do the limit card's «Перейти в
   примерочную», after the try-on window closes (A90.12), and the add toast's «Открыть». The

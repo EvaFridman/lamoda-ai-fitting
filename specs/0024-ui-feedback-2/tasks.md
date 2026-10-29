@@ -130,7 +130,7 @@ same release); PR 4 the closing, which records the owner's checks on the deploye
       `result.share`, `result.fullscreen` removed, `result.download` and `result.to-look`
       descriptions. Check: `result-media.test.tsx`, `use-fitting-share.test.ts`, `try-on.test.tsx`,
       `catalog.test.ts`. Commit: `feat(web): full screen by click, download and share over the picture`.
-- [ ] **T22. «Что поменять?» as a popover (plan §4.4; AC26).** `RegeneratePopover` with the
+- [x] **T22. «Что поменять?» as a popover (plan §4.4; AC26).** `RegeneratePopover` with the
       backdrop and the rise, on every width; the descriptions. Check:
       `regenerate-popover.test.tsx`, `try-on-look.test.tsx`. Commit:
       `feat(web): «Что поменять?» rises over the result`.

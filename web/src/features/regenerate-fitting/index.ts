@@ -2,6 +2,6 @@
 export {
   commentWithItem,
   MAX_COMMENT_LENGTH,
-  RegenerateSheet,
-  type RegenerateSheetProps,
-} from './ui/regenerate-sheet';
+  RegeneratePopover,
+  type RegeneratePopoverProps,
+} from './ui/regenerate-popover';

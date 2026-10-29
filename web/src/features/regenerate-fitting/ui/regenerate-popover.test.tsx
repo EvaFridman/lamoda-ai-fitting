@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { createRef, useRef, useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Fitting } from '@/entities/fitting';
@@ -16,9 +17,9 @@ vi.mock('@sentry/nextjs', () => ({ captureException: mocks.captureException }));
 import {
   commentWithItem,
   MAX_COMMENT_LENGTH,
-  RegenerateSheet,
-  type RegenerateSheetProps,
-} from './regenerate-sheet';
+  RegeneratePopover,
+  type RegeneratePopoverProps,
+} from './regenerate-popover';
 
 const PARENT = '00000000-0000-4000-8000-0000000000e1';
 const fetchMock = vi.fn();
@@ -66,12 +67,16 @@ function failure(status: number, code: string) {
   return answer(status, { error: { code, message: 'm', details: [] } });
 }
 
-function renderSheet(props: Partial<RegenerateSheetProps> = {}) {
+function renderSheet(props: Partial<Omit<RegeneratePopoverProps, 'anchor'>> = {}) {
   const handlers = { onOpenChange: vi.fn(), onStarted: vi.fn(), onLimit: vi.fn() };
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const anchor = createRef<HTMLButtonElement>();
   render(
     <QueryClientProvider client={queryClient}>
-      <RegenerateSheet fitting={fitting()} open {...handlers} {...props} />
+      <button ref={anchor} type="button">
+        Хотите что-то поменять?
+      </button>
+      <RegeneratePopover fitting={fitting()} anchor={anchor} open {...handlers} {...props} />
     </QueryClientProvider>,
   );
   return handlers;
@@ -94,7 +99,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('RegenerateSheet', () => {
+describe('RegeneratePopover', () => {
   it('has no reason chips, shows the hint and an enabled button (AC16)', async () => {
     renderSheet();
 
@@ -621,17 +626,83 @@ describe('RegenerateSheet', () => {
     });
   });
 
-  it('is a bottom sheet on a phone with the same hint and field', async () => {
-    vi.stubGlobal('matchMedia', (query: string) => ({
-      matches: query === '(width < 600px)',
-      media: query,
-      addEventListener: () => {},
-      removeEventListener: () => {},
-    }));
-    renderSheet();
+  describe('as a popover over its button (AC26)', () => {
+    function Controlled() {
+      const anchorRef = useRef<HTMLButtonElement>(null);
+      const [open, setOpen] = useState(false);
+      return (
+        <QueryClientProvider client={new QueryClient()}>
+          <button ref={anchorRef} type="button" onClick={() => setOpen(true)}>
+            Хотите что-то поменять?
+          </button>
+          <RegeneratePopover
+            fitting={fitting()}
+            anchor={anchorRef}
+            open={open}
+            onOpenChange={setOpen}
+            onStarted={vi.fn()}
+            onLimit={vi.fn()}
+          />
+        </QueryClientProvider>
+      );
+    }
 
-    expect(await screen.findByRole('dialog', { name: 'Что поменять?' })).toBeInTheDocument();
-    expect(screen.getByText(HINT)).toBeInTheDocument();
-    expect(comment()).toBeInTheDocument();
+    it('rises over the anchor: side top, aligned to its start', async () => {
+      renderSheet();
+      const dialog = await screen.findByRole('dialog', { name: 'Что поменять?' });
+
+      const positioner = dialog.parentElement as HTMLElement;
+      expect(positioner).toHaveAttribute('data-side', 'top');
+      expect(positioner).toHaveAttribute('data-align', 'start');
+    });
+
+    it('closes by Escape, by a click on the backdrop and by ×', async () => {
+      const user = setup();
+      const { onOpenChange } = renderSheet();
+      await screen.findByRole('dialog', { name: 'Что поменять?' });
+
+      await user.keyboard('{Escape}');
+      await vi.waitFor(() => expect(onOpenChange).toHaveBeenCalledTimes(1));
+      expect(onOpenChange).toHaveBeenLastCalledWith(false);
+
+      const backdrop = document.querySelector('.backdrop') as HTMLElement;
+      expect(backdrop).toBeInTheDocument();
+      await user.click(backdrop);
+      await vi.waitFor(() => expect(onOpenChange).toHaveBeenCalledTimes(2));
+      expect(onOpenChange).toHaveBeenLastCalledWith(false);
+
+      await user.click(screen.getByRole('button', { name: 'Закрыть' }));
+      await vi.waitFor(() => expect(onOpenChange).toHaveBeenCalledTimes(3));
+      expect(onOpenChange).toHaveBeenLastCalledWith(false);
+    });
+
+    it('opens from the anchor and gives the focus back to it when it closes', async () => {
+      const user = setup();
+      render(<Controlled />);
+      const button = screen.getByRole('button', { name: 'Хотите что-то поменять?' });
+
+      await user.click(button);
+      await screen.findByRole('dialog', { name: 'Что поменять?' });
+      await user.keyboard('{Escape}');
+
+      await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      expect(button).toHaveFocus();
+    });
+
+    it('is the same popover on a phone, with the same hint and field', async () => {
+      vi.stubGlobal('matchMedia', (query: string) => ({
+        matches: query === '(width < 600px)',
+        media: query,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }));
+      renderSheet();
+
+      const dialog = await screen.findByRole('dialog', { name: 'Что поменять?' });
+      expect(dialog.parentElement).toHaveAttribute('data-side', 'top');
+      expect(screen.getByText(HINT)).toBeInTheDocument();
+      expect(comment()).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Закрыть' })).toBeInTheDocument();
+    });
   });
 });

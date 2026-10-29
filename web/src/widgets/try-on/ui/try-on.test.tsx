@@ -2366,14 +2366,32 @@ describe('TryOn focus', () => {
     await user.click(
       await screen.findByRole('button', { name: 'Хотите что-то поменять в образе?' }),
     );
-    await screen.findByRole('dialog', { name: 'Что поменять?' });
-    await vi.waitFor(() => expect(outerPopup()).toHaveAttribute('data-nested-dialog-open'));
+    const popover = await screen.findByRole('dialog', { name: 'Что поменять?' });
+    await vi.waitFor(() => expect(popover).toHaveAttribute('data-open'));
 
     (document.activeElement as HTMLElement).blur();
     expect(document.body).toHaveFocus();
     await settle();
 
     expect(outerPopup()).not.toHaveFocus();
+  });
+
+  it('closes only «Что поменять?» on Escape: the try-on window stays open (AC26)', async () => {
+    api.fittings.set(RUNNING, fitting(COMPLETED_RESULT));
+    const user = setup();
+    const { onClose } = renderTryOn({ fittingId: RUNNING });
+    await user.click(
+      await screen.findByRole('button', { name: 'Хотите что-то поменять в образе?' }),
+    );
+    await screen.findByRole('dialog', { name: 'Что поменять?' });
+
+    await user.keyboard('{Escape}');
+
+    await vi.waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Что поменять?' })).not.toBeInTheDocument(),
+    );
+    expect(onClose).not.toHaveBeenCalled();
+    expect(outerPopup()).toBeInTheDocument();
   });
 
   it('does not take the focus from another control when the page changes', async () => {

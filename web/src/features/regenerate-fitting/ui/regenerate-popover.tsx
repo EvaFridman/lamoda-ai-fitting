@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useId, useState } from 'react';
+import { type RefObject, useId, useState } from 'react';
 
 import {
   type Fitting,
@@ -13,11 +13,9 @@ import {
 import { bySlot } from '@/entities/fitting-room';
 import { useTrackedElement } from '@/shared/analytics';
 import { errorText } from '@/shared/api';
-import { PHONE_QUERY } from '@/shared/config';
-import { useMediaQuery } from '@/shared/lib';
-import { Button, Chip, ChipGroup, Modal, Notice, Sheet } from '@/shared/ui';
+import { AnchoredPanel, Button, Chip, ChipGroup, Notice } from '@/shared/ui';
 
-import styles from './regenerate-sheet.module.scss';
+import styles from './regenerate-popover.module.scss';
 
 // The comment's limit (A16, A70).
 export const MAX_COMMENT_LENGTH = 300;
@@ -34,18 +32,20 @@ export function commentWithItem(comment: string, itemName: string | null): strin
   return (text ? `${itemName}: ${text}` : itemName).slice(0, MAX_COMMENT_LENGTH);
 }
 
-export interface RegenerateSheetProps {
+export interface RegeneratePopoverProps {
   // The result to regenerate; a look's items are offered in «Какая именно?» (board 8.3).
   fitting: Fitting;
+  // The button the popover rises over («Хотите что-то поменять…»); the focus returns to it.
+  anchor: RefObject<HTMLElement | null>;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  // At the click, before the request: the placer closes the sheet and shows the wait at once (spec
+  // At the click, before the request: the placer closes the popover and shows the wait at once (spec
   // 0024 AC19), keeping this component mounted so the answer reaches it.
   onStart?: () => void;
   onStarted: (fitting: StartedFitting) => void;
   // The api refused at the month's limit.
   onLimit: () => void;
-  // Any other failure (the comment refused too): the placer opens the sheet again, which says it.
+  // Any other failure (the comment refused too): the placer opens the popover again, which says it.
   onFailed?: () => void;
 }
 
@@ -53,17 +53,18 @@ export interface RegenerateSheetProps {
 // optional comment and «Перегенерировать», which an empty comment sends too (one more attempt, Y9).
 // The new result is a new entry of the history; a try-on's own result regenerates once for free,
 // any other regeneration spends a try-on (A6, A70). A comment the check refuses is said under it
-// (PROMPT_REFUSED) and spends nothing. A bottom sheet on a phone, a modal elsewhere.
-export function RegenerateSheet({
+// (PROMPT_REFUSED) and spends nothing. On every width the kit's AnchoredPanel rising over its
+// button inside the result, the rest of the window dimmed (spec 0024 R13, plan §4.4).
+export function RegeneratePopover({
   fitting,
+  anchor,
   open,
   onOpenChange,
   onStart,
   onStarted,
   onLimit,
   onFailed,
-}: RegenerateSheetProps) {
-  const phone = useMediaQuery(PHONE_QUERY);
+}: RegeneratePopoverProps) {
   const [comment, setComment] = useState('');
   const [itemId, setItemId] = useState<string | null>(null);
   const regenerate = useRegenerateFitting();
@@ -175,7 +176,7 @@ export function RegenerateSheet({
           {COMMENT_HINT}
         </p>
         {/* The text stays out of attributes: recordings keep them (spec 0008), and the whole
-            sheet is `mp-block`. */}
+            popover is `mp-block`. */}
         <textarea
           id={commentId}
           className={[styles.area, commentError && styles.invalid].filter(Boolean).join(' ')}
@@ -204,7 +205,7 @@ export function RegenerateSheet({
   );
 
   const footer = (
-    <div className={styles.footer}>
+    <>
       <Button
         fullWidth
         loading={regenerate.isPending}
@@ -220,16 +221,19 @@ export function RegenerateSheet({
           ? 'Первая перегенерация не списывает примерку.'
           : 'Перегенерация списывает 1 примерку.'}
       </p>
-    </div>
+    </>
   );
 
-  return phone ? (
-    <Sheet title="Что поменять?" open={open} onOpenChange={changeOpen} footer={footer}>
-      <div className="mp-block">{body}</div>
-    </Sheet>
-  ) : (
-    <Modal title="Что поменять?" open={open} onOpenChange={changeOpen} footer={footer}>
-      <div className="mp-block">{body}</div>
-    </Modal>
+  return (
+    <AnchoredPanel
+      title="Что поменять?"
+      anchor={anchor}
+      open={open}
+      onOpenChange={changeOpen}
+      footer={footer}
+      className="mp-block"
+    >
+      {body}
+    </AnchoredPanel>
   );
 }
