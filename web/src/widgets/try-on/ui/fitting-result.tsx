@@ -9,6 +9,7 @@ import {
   LimitMeter,
   SavedNote,
   type StartedFitting,
+  triesLeftTail,
 } from '@/entities/fitting';
 import type { OutfitSlot } from '@/entities/category';
 import type { ProductDetail } from '@/entities/product';
@@ -247,8 +248,8 @@ export function FittingResult({
             {quota && (
               <LimitMeter left={quota.left} limit={quota.limit}>
                 {running?.countsAgainstLimit
-                  ? `Списали 1 примерку · осталось ${quota.left} в этом месяце`
-                  : `Осталось ${quota.left} в этом месяце`}
+                  ? `Списали 1 примерку · ${triesLeftTail(quota.left)}`
+                  : undefined}
               </LimitMeter>
             )}
           </div>

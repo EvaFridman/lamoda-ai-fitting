@@ -14,6 +14,7 @@ import {
   showFitting,
   type StartedFitting,
   trackFittingOutcome,
+  triesLeftTail,
   useFittingQuota,
   useRegenerateFitting,
   useStartLookFitting,
@@ -332,7 +333,7 @@ export function TryOn({
               <Skeleton height={48} />
             )
           }
-          meterText={(left) => `Образ целиком — 1 примерка · осталось ${left} в этом месяце`}
+          meterText={(left) => `Образ целиком — 1 примерка · ${triesLeftTail(left)}`}
           renderStart={(photoId, onError) => (
             <StartLookButton
               photoId={photoId}

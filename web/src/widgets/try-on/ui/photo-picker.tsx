@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 
-import { LimitMeter, type FittingQuota, PhotoFrame } from '@/entities/fitting';
+import { LimitMeter, type FittingQuota, PhotoFrame, triesLeftTail } from '@/entities/fitting';
 import { PhotoThumb, type UserPhoto } from '@/entities/user-photo';
 import { UploadPhoto } from '@/features/upload-photo';
 import { useTrackedElement } from '@/shared/analytics';
@@ -151,7 +151,7 @@ export function PhotoPicker({
     save,
     refusalNote:
       left === undefined ? undefined : (
-        <Notice tone="success">Примерка не списана · осталось {left} в этом месяце</Notice>
+        <Notice tone="success">Примерка не списана · {triesLeftTail(left)}</Notice>
       ),
     onPendingChange: setPendingFile,
     onUploaded: (photo: UserPhoto) => {

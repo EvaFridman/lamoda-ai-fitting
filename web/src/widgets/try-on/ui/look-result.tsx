@@ -15,6 +15,7 @@ import {
   SavedNote,
   type StartedFitting,
   timeLeftText,
+  triesLeftTail,
   useStartLookFitting,
 } from '@/entities/fitting';
 import { bySlot, useFittingRoom } from '@/entities/fitting-room';
@@ -192,7 +193,7 @@ export function LookResult({
   );
   const meter = quota && (
     <LimitMeter left={quota.left} limit={quota.limit}>
-      Образ — 1 примерка · осталось {quota.left} в этом месяце
+      Образ — 1 примерка · {triesLeftTail(quota.left)}
     </LimitMeter>
   );
 

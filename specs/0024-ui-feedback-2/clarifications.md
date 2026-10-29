@@ -253,3 +253,11 @@ with the Apple icon by `_app/icons/mark-icons.tsx`; `/icon1` joins `EXCLUDED`. A
 wide, covers the top of the 24 px icons of «Избранное» and «Корзина». The owner's answer at T7:
 make it a little smaller. `SoonChip` is 16 px high, 4 px from the sides, an 8 px radius and 10 px
 text, everywhere it is used. Amends plan §2.5.
+
+**Z33. The meters' forms for few and none (T9, AC11, AC15).** T9's review found that the window's
+own meter texts passed to `LimitMeter` skipped `triesLeftText`, so they read «Осталось 1 в этом
+месяце» and «Осталось 0 в этом месяце». The owner's answer at T9: fix it. The result's plain meter
+is `triesLeftText` itself («Осталось 17 примерок в этом месяце», «Осталось 2 — мало», «Примерки
+закончились»); a longer text ends in `triesLeftTail` («· осталась 1 в этом месяце», «· осталось 7
+в этом месяце», «· примерки закончились»). On a phone the wait's percent is body-s as the stage
+beside it. Amends plan §2.7.

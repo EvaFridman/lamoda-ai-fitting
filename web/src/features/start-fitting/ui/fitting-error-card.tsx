@@ -2,7 +2,12 @@
 
 import Image from 'next/image';
 
-import type { FittingFailure, ModerationStage, SafetyCategory } from '@/entities/fitting';
+import {
+  type FittingFailure,
+  type ModerationStage,
+  type SafetyCategory,
+  triesLeftTail,
+} from '@/entities/fitting';
 import { useTrackedElement } from '@/shared/analytics';
 import { PHONE_QUERY } from '@/shared/config';
 import { useMediaQuery } from '@/shared/lib';
@@ -77,7 +82,7 @@ export function FittingErrorCard({
         <p className={styles.text}>{text.text}</p>
         {!spent && (
           <Notice tone="success">
-            Примерка не списана{left === undefined ? '' : ` · осталось ${left} в этом месяце`}
+            Примерка не списана{left === undefined ? '' : ` · ${triesLeftTail(left)}`}
           </Notice>
         )}
         {error && (
