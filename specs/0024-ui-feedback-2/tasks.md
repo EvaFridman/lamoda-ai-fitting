@@ -87,10 +87,11 @@ same release); PR 4 the closing, which records the owner's checks on the deploye
       the limit's 409, the default rule, markers, Swagger, `openapi.json`. Check:
       `me-photos.e2e-spec.ts`, `access-markers`, `openapi-snapshot`. Commit:
       `feat(api): keep a transient photo for later try-ons`.
-- [ ] **T14a. The fitting's photo kind (plan §3.1; Z42, AC22).** `photoTransient` in `FittingDto`
-      (the photo's `transient`, `null` once it is gone) on every route that answers one, Swagger,
-      `openapi.json`, `CLAUDE.md`'s fittings paragraph. Check: `fittings.e2e-spec.ts`,
-      `openapi-snapshot`. Commit: `feat(api): the fitting's photo kind for the result's switch`.
+- [x] **T14a. The fitting's photo kind (plan §3.1; Z42, Z43, AC22).** `photoTransient` in
+      `FittingDto` (the photo's `transient`, `null` once it is gone) on every route that answers
+      one, Swagger, `openapi.json`, `CLAUDE.md`'s fittings paragraph; web's `fittingSchema` and
+      its tests' fittings (Z43). Check: `fittings-routes.e2e-spec.ts`, `openapi-snapshot`, web's
+      `schemas.contract.test.ts`. Commit: `feat(api): the fitting's photo kind for the result's switch`.
 - [ ] **T15. Seen results (plan §3.2; AC30).** The migration (`seen_at`, the partial index),
       `POST /fittings/:id/seen`, `POST /fittings/seen`, `unseen` in `GET /me/fitting-quota`,
       markers, `openapi.json`. Check: `fittings.e2e-spec.ts`, `fitting-quota` tests, the
@@ -119,8 +120,8 @@ same release); PR 4 the closing, which records the owner's checks on the deploye
       `feat(web): the wait from the click, sticky «Примерить» on phones`.
 - [ ] **T20. The save switch on the result (plan §4.2; AC22).** No switch in the picker,
       `SavePhotoSwitch` on both results (shown by `transients` or `photoTransient`, Z42),
-      `keepPhoto`/`unkeepPhoto`, `transients` kept in step, the fitting's schema's `photoTransient`,
-      `result.save-photo`, `Photo Uploaded.saved`'s description. Check:
+      `keepPhoto`/`unkeepPhoto`, `transients` kept in step (the fitting's schema's `photoTransient`
+      came with T14a, Z43), `result.save-photo`, `Photo Uploaded.saved`'s description. Check:
       `save-photo-switch.test.tsx`, `try-on.test.tsx`. Commit:
       `feat(web): save the try-on's photo from the result`.
 - [ ] **T21. The picture's actions (plan §4.3; AC23–AC25).** `ResultTiles` removed, the picture

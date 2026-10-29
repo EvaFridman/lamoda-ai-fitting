@@ -70,6 +70,7 @@ const listed = {
   ],
   promptText: null,
   photoId: null,
+  photoTransient: null,
   resultUrl: null,
   createdAt: '2026-10-23T11:06:00.000Z',
   startedAt: null,

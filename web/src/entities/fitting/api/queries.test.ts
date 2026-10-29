@@ -60,6 +60,7 @@ const fitting: Fitting = {
   items: [],
   promptText: null,
   photoId: ID,
+  photoTransient: false,
   resultUrl: 'https://s3.example/keep/users/u/result.webp?X-Amz-Signature=abc',
   createdAt: '2026-10-01T12:00:00.000Z',
   startedAt: '2026-10-01T12:00:01.000Z',

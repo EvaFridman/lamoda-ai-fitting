@@ -10406,6 +10406,11 @@
             "nullable": true,
             "description": "The photo tried on; null once it is deleted (the result stays)."
           },
+          "photoTransient": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "Whether the photo tried on is a one-time one (true) or saved (false); null once it is deleted, as `photoId` (spec 0024 Z42)."
+          },
           "promptText": {
             "type": "string",
             "nullable": true,
@@ -10457,6 +10462,7 @@
           "model",
           "items",
           "photoId",
+          "photoTransient",
           "promptText",
           "resultUrl",
           "createdAt",
@@ -10552,6 +10558,11 @@
             "nullable": true,
             "description": "The photo tried on; null once it is deleted (the result stays)."
           },
+          "photoTransient": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "Whether the photo tried on is a one-time one (true) or saved (false); null once it is deleted, as `photoId` (spec 0024 Z42)."
+          },
           "promptText": {
             "type": "string",
             "nullable": true,
@@ -10599,6 +10610,7 @@
           "model",
           "items",
           "photoId",
+          "photoTransient",
           "promptText",
           "resultUrl",
           "createdAt",

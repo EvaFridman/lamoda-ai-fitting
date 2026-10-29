@@ -330,3 +330,11 @@ when the photo is in `transients` or `photoTransient` is `true`; «Фото уж
 user deleted shows it too) or the keep answers 404; `false` shows nothing. The answer is still
 taken once and kept as `ownPhoto` (§4.2). A new api task, T14a, in this phase. Amends plan §3.1,
 §4.2.
+
+## Settled at T14a (2026-10-29)
+
+**Z43. web's fitting schema takes `photoTransient` in T14a (the owner, at T14a).** web's
+`schemas.contract.test.ts` fails on any field of `FittingDto` its `fittingSchema` lacks, so the
+api's new field left alone would keep `verify` red until T20. T14a adds `photoTransient:
+z.boolean().nullable()` to `fittingSchema` and to the web tests' fittings, with no UI; T20 keeps
+the rest of its web work. Amends tasks T14a, T20.

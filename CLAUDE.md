@@ -487,7 +487,9 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   colour change to send again, A92.1), each item's `slot` and, for a `moderation` failure,
   `failureCategory` and `failureStage` (`input`, `output`), kept in `ai_generations`'
   `failure_category` and `failure_stage` (both or neither, only with `moderation`, a CHECK) and
-  read as `unknown` and `input` on an older row; null otherwise (spec 0023 plan §3.5). `POST /fittings/:id/regenerate` (`{ reasons?, comment? }`, an empty body is one more attempt
+  read as `unknown` and `input` on an older row; null otherwise (spec 0023 plan §3.5), and the
+  photo's kind as `photoTransient` (`true` a one-time photo, `false` a saved one, `null` once it
+  is gone, as `photoId`; the result's save switch, spec 0024 Z42). `POST /fittings/:id/regenerate` (`{ reasons?, comment? }`, an empty body is one more attempt
   with `reasons` stored as `[]`, spec 0023 Y9) copies the parent's photo, items, wishes and
   fingerprint, and checks the comment with the parent's items; a parent not completed is 409 `NOT_COMPLETED`,
   its photo gone 409 `PHOTO_GONE`; a try-on's own result has one free regeneration

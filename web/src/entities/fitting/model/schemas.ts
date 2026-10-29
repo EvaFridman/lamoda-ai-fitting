@@ -81,6 +81,9 @@ export const fittingSchema = z.object({
   items: z.array(fittingItemSchema),
   // Null once the photo is deleted; the result stays.
   photoId: z.uuid().nullable(),
+  // Whether that photo is a one-time one (true) or saved (false); null once it is gone (spec 0024
+  // Z42): the result's save switch.
+  photoTransient: z.boolean().nullable(),
   // The wishes it was tried on with, null when none: a colour change sends them again (A92.1).
   // Personal text: rendered nowhere.
   promptText: z.string().nullable(),

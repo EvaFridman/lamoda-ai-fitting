@@ -56,6 +56,7 @@ interface FittingBody {
   items: ItemBody[];
   promptText: string | null;
   photoId: string | null;
+  photoTransient: boolean | null;
   resultUrl: string | null;
   createdAt: string;
   startedAt: string | null;
@@ -1639,6 +1640,91 @@ describe('the fittings routes (spec 0019 T12: AC5-AC9, A6, A7, A20, A32, A45, A4
 
       const body = bodyOf(await get(who, parent.id));
       expect(body).toMatchObject({ status: 'completed', photoId: null, regenerationFree: false });
+    });
+  });
+
+  describe('the kind of the fitting’s photo: photoTransient (spec 0024 T14a)', () => {
+    const keep = (who: SignedIn, photoId: string) =>
+      http().put(`/me/photos/${photoId}/keep`).set({ Cookie: who.cookie });
+    const unkeep = (who: SignedIn, photoId: string) =>
+      http().delete(`/me/photos/${photoId}/keep`).set({ Cookie: who.cookie });
+    const lastOf = (who: SignedIn, productId: string) =>
+      http().get(`/products/${productId}/fittings/last`).set({ Cookie: who.cookie });
+
+    it('is false on a saved photo: the start, the repeat, the read and the list', async () => {
+      const who = await actor();
+      const dress = await product();
+
+      const first = await start(who, single(who, dress));
+      await finish(bodyOf(first).id);
+      const repeat = await start(who, single(who, dress));
+
+      expect(first.status).toBe(201);
+      expect(bodyOf(first).photoTransient).toBe(false);
+      expect(repeat.status).toBe(200);
+      expect(bodyOf(repeat)).toMatchObject({ repeated: true, photoTransient: false });
+      expect(bodyOf(await get(who, bodyOf(first).id)).photoTransient).toBe(false);
+      const listed = ((await list(who).expect(200)).body as ListBody).items;
+      expect(listed.map((item) => item.photoTransient)).toEqual([false]);
+    });
+
+    it('is true on a one-time photo and false once that photo is kept, then true again', async () => {
+      const who = await actor({ transient: true });
+      const dress = await product();
+      const body = await started(who, single(who, dress));
+      await finish(body.id);
+      expect(body.photoTransient).toBe(true);
+      expect(bodyOf(await get(who, body.id)).photoTransient).toBe(true);
+      expect(bodyOf(await lastOf(who, dress.id))).toMatchObject({
+        id: body.id,
+        photoTransient: true,
+      });
+
+      await keep(who, who.photoId).expect(200);
+
+      expect(bodyOf(await get(who, body.id)).photoTransient).toBe(false);
+      expect(
+        ((await list(who).expect(200)).body as ListBody).items.map((item) => item.photoTransient),
+      ).toEqual([false]);
+      expect(bodyOf(await lastOf(who, dress.id)).photoTransient).toBe(false);
+
+      await unkeep(who, who.photoId).expect(204);
+
+      expect(bodyOf(await get(who, body.id)).photoTransient).toBe(true);
+    });
+
+    it('is on a regeneration, with the photo of its parent', async () => {
+      const who = await actor({ transient: true });
+      const parent = await started(who, single(who, await product()));
+      await finish(parent.id);
+
+      const child = await regenerate(who, parent.id, { reasons: REASONS });
+
+      expect(child.status).toBe(201);
+      expect(bodyOf(child)).toMatchObject({ photoId: who.photoId, photoTransient: true });
+    });
+
+    it('is null with the photo id once the photo is deleted', async () => {
+      const who = await actor();
+      const dress = await product();
+      const body = await started(who, single(who, dress));
+      await finish(body.id);
+      await prisma().userPhoto.delete({ where: { id: who.photoId } });
+
+      expect(bodyOf(await get(who, body.id))).toMatchObject({
+        photoId: null,
+        photoTransient: null,
+      });
+      expect(
+        ((await list(who).expect(200)).body as ListBody).items.map((item) => [
+          item.photoId,
+          item.photoTransient,
+        ]),
+      ).toEqual([[null, null]]);
+      expect(bodyOf(await lastOf(who, dress.id))).toMatchObject({
+        photoId: null,
+        photoTransient: null,
+      });
     });
   });
 

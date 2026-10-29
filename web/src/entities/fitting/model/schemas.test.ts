@@ -38,6 +38,7 @@ const fitting = {
   items: [item],
   promptText: 'Свободнее',
   photoId: ID,
+  photoTransient: false,
   resultUrl: 'https://s3.example/keep/users/u/result.webp?X-Amz-Signature=abc',
   createdAt: '2026-10-01T12:00:00.000Z',
   startedAt: '2026-10-01T12:00:01.000Z',
@@ -56,6 +57,7 @@ describe('fittingSchema', () => {
       parentId: null,
       failureCode: null,
       photoId: null,
+      photoTransient: null,
       resultUrl: null,
       startedAt: null,
       finishedAt: null,
@@ -64,6 +66,17 @@ describe('fittingSchema', () => {
       items: [{ ...item, imageUrl: null, attributeValueId: null, colour: null, slot: null }],
     };
     expect(fittingSchema.safeParse(bare).success).toBe(true);
+  });
+
+  it('takes photoTransient as true, false or null, and requires it', () => {
+    for (const photoTransient of [true, false, null]) {
+      expect(fittingSchema.parse({ ...fitting, photoTransient }).photoTransient).toBe(
+        photoTransient,
+      );
+    }
+    const { photoTransient: _omitted, ...without } = fitting;
+    expect(fittingSchema.safeParse(without).success).toBe(false);
+    expect(fittingSchema.safeParse({ ...fitting, photoTransient: 'yes' }).success).toBe(false);
   });
 
   it('fails on an unknown slot and on a missing promptText', () => {

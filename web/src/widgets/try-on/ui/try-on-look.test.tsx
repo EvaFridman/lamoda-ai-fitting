@@ -147,6 +147,7 @@ function look(patch: Partial<Fitting> = {}): Fitting {
     items: IN_SLOT_ORDER,
     promptText: 'шарф поверх',
     photoId: PHOTO_A,
+    photoTransient: false,
     resultUrl: RESULT_URL,
     createdAt: DATE,
     startedAt: DATE,

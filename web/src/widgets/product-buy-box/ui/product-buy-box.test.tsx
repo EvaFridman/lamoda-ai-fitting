@@ -113,6 +113,7 @@ const completed = {
   ],
   promptText: null,
   photoId: null,
+  photoTransient: null,
   resultUrl: RESULT,
   createdAt: '2026-10-01T11:06:00.000Z',
   startedAt: null,
