@@ -206,6 +206,10 @@ and the window's close delete it as any transient photo. `PATCH /me/photos/:id` 
 `openapi.json`. The housekeeping's rule is unchanged: a transient photo goes an hour after its
 last generation ended (Z12 amended), so a result opened later finds it gone (§4.2).
 
+`fittings` (Z42): `FittingDto` gets `photoTransient` (`boolean | null`): the fitting's photo's
+`transient` while it exists, `null` once it is gone (as `photoId`), read with the photo in every
+route that answers a `FittingDto`; Swagger and `openapi.json`.
+
 ### 3.2 Seen results (Z18)
 
 - Migration: `ai_generations.seen_at timestamptz NULL`; a partial index
@@ -253,9 +257,9 @@ calc(12px + env(safe-area-inset-bottom))`, inside the modal's scroll container, 
   `save` is `false` in the window (`Photo Uploaded.saved` false from the window).
 - `fitting-result.tsx` and `look-result.tsx`: `SavePhotoSwitch` (`features/upload-photo`) in the
   right column above the item cards, rendered when the fitting's photo is in the window's
-  `transients` or `useMyPhotos` shows it `transient: true`. The answer is taken once, as soon as
-  it is known (at once from `transients`, else when `useMyPhotos` has loaded; nothing renders
-  while it loads), and kept in the component's state (`ownPhoto`) for the result's lifetime, never
+  `transients` or the fitting's `photoTransient` is `true` (Z42; `null`, the photo gone, shows
+  «Фото уже удалено» in its place, `false` nothing). The answer is taken once, from the fitting
+  the result opens with, and kept in the component's state (`ownPhoto`) for the result's lifetime, never
   recomputed after the switch's own keep or unkeep, so the switch stays
   after its own keep and can be turned off and on again. On mount with the switch on it calls
   `keepPhoto(id)` once (`PUT …/keep`); a 409 shows it off and disabled with no text (Z29); a 404
@@ -361,7 +365,8 @@ it below the button when the space above is short. Elements `result.regenerate-o
   is taken only by a drop or a paste. The zone says «Готовим фото…» meanwhile.
 - **A transient photo gone before the result is opened.** The housekeeping deletes it an hour
   after the generation ended; a result opened from the history or a late toast shows «Фото уже
-  удалено» instead of the switch (Z12 amended). Opening the result right after the generation,
+  удалено» instead of the switch (Z12 amended), told by the fitting's `photoTransient` `null`
+  (Z42), as is a saved photo the user deleted. Opening the result right after the generation,
   the usual way, keeps it at once.
 - **The silent retry and `@Expensive()`.** The expensive tier allows one request a second
   (`THROTTLE_EXPENSIVE_BURST` 1) and ten a minute; a repeat exactly a second later can land in

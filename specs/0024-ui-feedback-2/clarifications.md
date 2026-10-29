@@ -316,3 +316,17 @@ limit it keeps the kit's lighter `--color-background-secondary` and no frame (am
 The single result's size stub was a 50 px full-width field, too large for a secondary control: it
 is a 32 px field in small text, as wide as its text, under the card's text beside the picture
 (amends Z40). Amends plan §2.3, §2.7.
+
+## Settled at T14 (2026-10-29)
+
+**Z42. The result learns its photo's kind from the fitting (T14's review, AC22).** Plan §4.2 showed
+the save switch when the photo was in the window's `transients` or `useMyPhotos` showed it
+`transient: true`, but `GET /me/photos` lists only saved photos, so a result opened outside the
+window that uploaded its photo (the history, a late toast) never showed the switch or «Фото уже
+удалено». `FittingDto` gets `photoTransient`: `true` while the fitting's photo is a one-time one,
+`false` while it is saved, `null` once it is gone (with `photoId` `null`). The switch renders
+when the photo is in `transients` or `photoTransient` is `true`; «Фото уже удалено» shows when
+`photoTransient` is `null` (the api cannot tell which kind a gone photo was, so a saved photo the
+user deleted shows it too) or the keep answers 404; `false` shows nothing. The answer is still
+taken once and kept as `ownPhoto` (§4.2). A new api task, T14a, in this phase. Amends plan §3.1,
+§4.2.
