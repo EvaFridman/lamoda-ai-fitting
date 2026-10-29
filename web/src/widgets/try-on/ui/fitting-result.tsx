@@ -67,7 +67,7 @@ export interface FittingResultProps {
 // «Мои примерки»» (spec 0023 Y7) and the caption under it, the save switch of a one-time photo
 // (spec 0024 AC22), the item with the size select, the cart's and favourites' stubs (A33) and
 // «Добавить к образу» into the fitting room (A90.11, spec 0024 Z14), the product's
-// other colours (A74, A76), «Хотите что-то поменять в образе?» with the popover «Что поменять?»,
+// other colours (A74, A76), «Хотите что-то поменять в примерке?» (spec 0024 AC26) with the popover «Что поменять?»,
 // «Примерить на другом фото» and the month's meter. The picture is only an image's `src`, in an
 // `mp-block` container (A37).
 export function FittingResult({
@@ -222,7 +222,7 @@ export function FittingResult({
             onPointerEnter={regenerateElement.onPointerEnter}
             onPointerLeave={regenerateElement.onPointerLeave}
           >
-            Хотите что-то поменять в образе?
+            Хотите что-то поменять в примерке?
           </Button>
           <div className={styles.footerRow}>
             <LinkButton
