@@ -793,7 +793,8 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   0026 C10), `_pages/fittings` the history («Мои примерки», spec 0019 T16: `widgets/fitting-history`,
   `features/delete-fitting`, `entities/fitting`'s `HistoryCard`; a card opens its fitting through
   `?fitting=<id>` in T15's try-on window; «Примерить ещё раз» is `useRepeatFitting` with the
-  entry's `repeatBody`, disabled once its photo is gone, a repeat's answer the toast «Такая
+  entry's `repeatBody`, disabled once its photo is gone and on every card while one runs, its
+  card under a spinner meanwhile (spec 0024 Z46), a repeat's answer the toast «Такая
   примерка уже есть…», T27, A93; the selection mode of `features/compare-fittings` leads to
   `_pages/fitting-compare`, `/customer/fittings/compare?a=<id>&b=<id>`, `widgets/fitting-compare`
   with `fittingDifference`), and `_pages/account-data` shows the user's data from `entities/user` (`useMe`,

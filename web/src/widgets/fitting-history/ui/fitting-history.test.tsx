@@ -871,6 +871,91 @@ describe('FittingHistory «Примерить ещё раз» (AC17)', () => {
   });
 });
 
+describe('FittingHistory the repeat’s wait (spec 0024 Z46)', () => {
+  const status = (article: HTMLElement) => within(article).getByRole('status');
+  const WAIT = 'Запускаем примерку';
+
+  function hangingStart() {
+    let answer: (response: Response) => void = () => undefined;
+    apiWithStart(
+      [fitting(1), fitting(2)],
+      () =>
+        new Promise<Response>((resolve) => {
+          answer = resolve;
+        }),
+    );
+    return (response: Response) => answer(response);
+  }
+
+  it('spins the repeated card only and disables the repeat of another until the answer', async () => {
+    const answer = hangingStart();
+    const user = setup();
+    const { onOpen } = renderHistory();
+
+    await openCardMenu(user, 0);
+    await user.click(screen.getByRole('menuitem', { name: 'Примерить ещё раз' }));
+    await vi.waitFor(() => expect(posts()).toHaveLength(1));
+
+    const [one, two] = screen.getAllByRole('article') as [HTMLElement, HTMLElement];
+    expect(status(one)).toHaveTextContent(WAIT);
+    expect(status(two)).not.toHaveTextContent(WAIT);
+
+    await openCardMenu(user, 1);
+    expect(screen.getByRole('menuitem', { name: 'Примерить ещё раз' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+
+    answer(await json({ ...fitting(1), id: uuid(8), status: 'pending', repeated: false }, 201));
+    await vi.waitFor(() => expect(onOpen).toHaveBeenCalledOnce());
+    expect(status(one)).not.toHaveTextContent(WAIT);
+  });
+
+  it('clears the status and enables the repeat again after an error', async () => {
+    const answer = hangingStart();
+    const user = setup();
+    renderHistory();
+
+    await openCardMenu(user, 0);
+    await user.click(screen.getByRole('menuitem', { name: 'Примерить ещё раз' }));
+    await vi.waitFor(() => expect(posts()).toHaveLength(1));
+    const [one] = screen.getAllByRole('article') as [HTMLElement];
+    expect(status(one)).toHaveTextContent(WAIT);
+
+    answer(await apiError(409, 'LIMIT_REACHED'));
+    await vi.waitFor(() => expect(mocks.showToast).toHaveBeenCalledOnce());
+    expect(status(one)).not.toHaveTextContent(WAIT);
+
+    await openCardMenu(user, 1);
+    expect(screen.getByRole('menuitem', { name: 'Примерить ещё раз' })).not.toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+  });
+
+  it('disables the repeat in another card’s sheet on a phone while it runs', async () => {
+    stubPhone();
+    hangingStart();
+    const user = setup();
+    renderHistory();
+
+    await user.click(
+      (await screen.findAllByRole('button', { name: 'Действия' }))[0] as HTMLElement,
+    );
+    await user.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Примерить ещё раз' }),
+    );
+    await vi.waitFor(() => expect(posts()).toHaveLength(1));
+    await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+    expect(status(screen.getAllByRole('article')[0] as HTMLElement)).toHaveTextContent(WAIT);
+    await user.click(screen.getAllByRole('button', { name: 'Действия' })[1] as HTMLElement);
+    const sheet = await screen.findByRole('dialog');
+
+    expect(within(sheet).getByRole('button', { name: 'Примерить ещё раз' })).toBeDisabled();
+  });
+});
+
 describe('FittingHistory sheet on a phone: repeat and compare', () => {
   const NOTICE = /с теми же фото, вещами и цветами откроет готовый результат и не потратит лимит/;
 

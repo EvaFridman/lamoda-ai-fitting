@@ -30,6 +30,8 @@ export interface CardActionsProps {
   onOpen: () => void;
   // «Примерить ещё раз»; absent for a running fitting, which has nothing to repeat yet.
   onRepeat?: () => void;
+  // A repeat of any card is being started: «Примерить ещё раз» waits for it (spec 0024 Z46).
+  repeatBusy?: boolean;
   // «Сравнить с другой» of the phones' sheet (A78.1); absent for an entry that cannot be chosen.
   onCompare?: () => void;
   // Asks to delete; absent for a running fitting, which web never deletes (A47).
@@ -74,6 +76,7 @@ export function CardActions({
   phone,
   onOpen,
   onRepeat,
+  repeatBusy = false,
   onCompare,
   onDelete,
 }: CardActionsProps) {
@@ -124,7 +127,7 @@ export function CardActions({
       key: 'repeat',
       icon: <RefreshIcon />,
       label: 'Примерить ещё раз',
-      disabled: photoGone,
+      disabled: photoGone || repeatBusy,
       hint: photoGone ? 'Фото удалено' : undefined,
       events: repeatElement,
       run: onRepeat,

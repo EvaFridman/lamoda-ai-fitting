@@ -22,6 +22,8 @@ export interface HistoryListProps {
   canCompare: boolean;
   onOpen: (fitting: Fitting) => void;
   onRepeat: (fitting: Fitting) => void;
+  // The fitting whose repeat is being started, if any (spec 0024 Z46).
+  repeatingId: string | null;
   onDelete: (fitting: DeletableFitting) => void;
 }
 
@@ -34,6 +36,7 @@ function Card({
   canCompare,
   onOpen,
   onRepeat,
+  repeatingId,
   onDelete,
 }: { fitting: Fitting } & Omit<HistoryListProps, 'kind'>) {
   const status = historyStatus(fitting);
@@ -48,6 +51,7 @@ function Card({
   return (
     <HistoryCard
       fitting={fitting}
+      busy={repeatingId === fitting.id}
       onOpen={() => (choosing ? selection.toggle(fitting.id) : onOpen(fitting))}
       openEvents={choosing ? undefined : openElement}
       openLabel={
@@ -68,6 +72,7 @@ function Card({
           phone={phone}
           onOpen={() => onOpen(fitting)}
           onRepeat={status === 'running' ? undefined : () => onRepeat(fitting)}
+          repeatBusy={repeatingId !== null}
           onCompare={selectable && canCompare ? () => selection.start(fitting.id) : undefined}
           onDelete={
             status === 'running'
@@ -120,6 +125,7 @@ export function HistoryList({
   canCompare,
   onOpen,
   onRepeat,
+  repeatingId,
   onDelete,
 }: HistoryListProps) {
   const fittings = useFittings(kind);
@@ -192,6 +198,7 @@ export function HistoryList({
               canCompare={canCompare}
               onOpen={onOpen}
               onRepeat={onRepeat}
+              repeatingId={repeatingId}
               onDelete={onDelete}
             />
           </li>

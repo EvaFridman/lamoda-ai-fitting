@@ -54,6 +54,10 @@ export function FittingHistory({ onOpen }: FittingHistoryProps) {
   const [tab, setTab] = useState<Tab>('all');
   const [target, setTarget] = useState<DeletableFitting | null>(null);
   const repeat = useRepeatFitting();
+  // The entry whose repeat runs: its card shows the spinner until the answer, up to two attempts
+  // (spec 0024 Z46).
+  const [repeatedId, setRepeatedId] = useState<string | null>(null);
+  const repeatingId = repeat.isPending ? repeatedId : null;
   const shown = useFittings(tabKind(tab)).data?.pages;
   // The shown tab's first batch counts its entries (A78).
   const total = shown?.[0]?.total;
@@ -76,6 +80,7 @@ export function FittingHistory({ onOpen }: FittingHistoryProps) {
   function repeatFitting(fitting: Fitting) {
     const body = repeatBody(fitting);
     if (!body || repeat.isPending) return;
+    setRepeatedId(fitting.id);
     repeat.mutate(body, {
       onSuccess: (started) => {
         if (!started.repeated) {
@@ -134,6 +139,7 @@ export function FittingHistory({ onOpen }: FittingHistoryProps) {
                 if (!repeat.isPending) onOpen(fitting);
               }}
               onRepeat={repeatFitting}
+              repeatingId={repeatingId}
               onDelete={setTarget}
             />
           ),

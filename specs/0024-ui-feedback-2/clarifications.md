@@ -359,3 +359,10 @@ silent retry and `Fitting Start Retried` sends `source: history` for it. The mut
 pending until the network returns, with no error card; now both attempts fail and the card shows.
 A start closed during the 1.5 s pause is still sent again, as the waiting screen's «Закрыть и
 продолжить покупки» keeps a running one. Amends plan §4.1.
+
+**Z46. The history's repeat shows its wait (the owner, after T16).** «Примерить ещё раз» of «Мои
+примерки» had no pending state, while with Z45 its wait may reach about 31 s (two timeouts and the
+pause). While it runs, the card it came from shows the kit's `Spinner` over a veiled picture that
+clicks pass through (`HistoryCard`'s `busy`; «Запускаем примерку» in the card's `role="status"`,
+not `aria-busy`, which lets screen readers stay silent) and «Примерить ещё раз» is
+disabled on every card, since one repeat runs at a time. A fix within PR 3, outside `tasks.md`.

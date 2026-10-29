@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -155,6 +155,23 @@ describe('HistoryCard', () => {
     await userEvent.setup().click(screen.getByRole('button', { name: 'Открыть примерку' }));
 
     expect(onOpen).toHaveBeenCalledOnce();
+  });
+
+  it('busy announces «Запускаем примерку» in the card status', () => {
+    render(<HistoryCard fitting={fitting()} onOpen={vi.fn()} now={NOW} busy />);
+
+    const card = screen.getByRole('article');
+    expect(within(card).getByRole('status')).toHaveTextContent('Запускаем примерку');
+    expect(card).not.toHaveAttribute('aria-busy');
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+  });
+
+  it('keeps the card status empty by default', () => {
+    render(<HistoryCard fitting={fitting()} onOpen={vi.fn()} now={NOW} />);
+
+    const card = screen.getByRole('article');
+    expect(within(card).getByRole('status')).toBeEmptyDOMElement();
+    expect(card).not.toHaveAttribute('aria-busy');
   });
 
   it('shows the actions the page gives, next to the picture button', () => {

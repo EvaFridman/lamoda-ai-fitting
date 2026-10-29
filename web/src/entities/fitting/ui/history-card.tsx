@@ -31,6 +31,8 @@ export interface HistoryCardProps {
   openLabel?: string;
   // The clock «Сегодня» is counted from; now by default.
   now?: number;
+  // A repeat of this fitting is being started: the spinner over the picture (spec 0024 Z46).
+  busy?: boolean;
 }
 
 // «Рубашка Annen · белый»: one item and its colour.
@@ -57,6 +59,7 @@ export function HistoryCard({
   select,
   openLabel = 'Открыть примерку',
   now,
+  busy = false,
 }: HistoryCardProps) {
   const captionId = useId();
   const running = isFittingRunning(fitting);
@@ -107,6 +110,15 @@ export function HistoryCard({
         >
           {picture}
         </button>
+        {/* The status is always there, so its words are announced when they appear. */}
+        <span role="status" className={styles.busyText}>
+          {busy ? 'Запускаем примерку' : ''}
+        </span>
+        {busy && (
+          <span className={styles.busy}>
+            <Spinner label="" aria-hidden />
+          </span>
+        )}
         {select && <div className={styles.select}>{select}</div>}
         {actions && <div className={styles.actions}>{actions}</div>}
       </div>
