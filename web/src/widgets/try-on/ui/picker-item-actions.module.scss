@@ -1,8 +1,9 @@
-// «В корзину» and the heart side by side at the card's end.
+// «В корзину» and the heart side by side at the card's end, at its top.
 
 .actions {
   display: flex;
   flex: none;
   gap: var(--space-2);
   align-items: center;
+  align-self: flex-start;
 }

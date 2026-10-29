@@ -51,7 +51,9 @@ describe('FittingErrorCard for a timeout', () => {
       expect(screen.getByRole('alert')).toBeInTheDocument();
       expect(screen.getByRole('heading', { name: title })).toBeInTheDocument();
       expect(screen.getByText(text)).toBeInTheDocument();
-      expect(screen.getByText('Примерка не списана · осталось 7')).toBeInTheDocument();
+      expect(
+        screen.getByText('Примерка не списана · осталось 7 в этом месяце'),
+      ).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Попробовать ещё раз' })).toBeEnabled();
       expect(screen.getByRole('button', { name: 'Закрыть' })).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Другое фото' })).not.toBeInTheDocument();
@@ -121,7 +123,7 @@ describe('FittingErrorCard for a moderation failure', () => {
       screen.getByRole('heading', { name: 'Не можем показать результат' }),
     ).toBeInTheDocument();
     expect(screen.getByText(/Изображение не прошло проверку безопасности\./)).toBeInTheDocument();
-    expect(screen.getByText('Примерка не списана · осталось 7')).toBeInTheDocument();
+    expect(screen.getByText('Примерка не списана · осталось 7 в этом месяце')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Попробовать ещё раз' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Другое фото' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Закрыть' })).not.toBeInTheDocument();

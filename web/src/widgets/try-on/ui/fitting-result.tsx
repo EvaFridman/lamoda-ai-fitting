@@ -247,8 +247,8 @@ export function FittingResult({
             {quota && (
               <LimitMeter left={quota.left} limit={quota.limit}>
                 {running?.countsAgainstLimit
-                  ? `Списали 1 примерку · осталось ${quota.left}`
-                  : `Осталось ${quota.left}`}
+                  ? `Списали 1 примерку · осталось ${quota.left} в этом месяце`
+                  : `Осталось ${quota.left} в этом месяце`}
               </LimitMeter>
             )}
           </div>

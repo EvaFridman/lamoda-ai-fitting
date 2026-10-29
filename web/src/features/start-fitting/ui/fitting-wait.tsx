@@ -1,6 +1,5 @@
 'use client';
 
-import Image from 'next/image';
 import { useEffect, useState } from 'react';
 
 import {
@@ -8,7 +7,6 @@ import {
   FITTING_STEPS,
   fittingProgress,
   type FittingStep,
-  ItemsStrip,
   itemWord,
   timeLeftText,
 } from '@/entities/fitting';
@@ -18,6 +16,7 @@ import { useMediaQuery } from '@/shared/lib';
 import { Button, CheckIcon, Notice, ProgressBar, Spinner } from '@/shared/ui';
 
 import { TryOnLoader } from './try-on-loader';
+import { WaitItems } from './wait-items';
 
 import styles from './fitting-wait.module.scss';
 
@@ -50,7 +49,8 @@ export interface FittingWaitProps {
   fitting: Fitting;
   // The photo it uses (a signed link), or null.
   photoUrl: string | null;
-  // «Закрыть и продолжить покупки» (phones: «Свернуть»): the window closes, the fitting goes on.
+  // «Закрыть и продолжить покупки» (spec 0024 AC15, every width): the window closes, the fitting
+  // goes on.
   onClose: () => void;
 }
 
@@ -64,7 +64,8 @@ export function FittingWait({ fitting, photoUrl, onClose }: FittingWaitProps) {
   const close = useTrackedElement('try-on.close', { screen: 'wait' });
   const progress = fittingProgress(fitting.createdAt, fitting.estimatedSeconds, now);
   const look = fitting.kind === 'look';
-  // A look shows its items as the strip under the progress (A62), not one item beside it.
+  // A look shows its items as the row under the progress (A62), a single item its own above it,
+  // both at 72×96 on every width (spec 0024 Z7).
   const item = look ? undefined : fitting.items[0];
   const word = look ? 'образ' : item ? itemWord(item.name) : 'вещь';
   const current = FITTING_STEPS.indexOf(progress.step);
@@ -73,27 +74,17 @@ export function FittingWait({ fitting, photoUrl, onClose }: FittingWaitProps) {
     <div className={styles.wait} aria-busy="true">
       <TryOnLoader photoUrl={photoUrl} />
       <div className={styles.side}>
-        {item && !phone && (
-          <div className={styles.item}>
-            <span className={styles.itemImage}>
-              {item.imageUrl && <Image src={item.imageUrl} alt="" fill sizes="48px" unoptimized />}
-            </span>
-            <span>
-              <span className={styles.itemName}>{item.name}</span>
-              {item.colour && <span className={styles.muted}>{item.colour}</span>}
-            </span>
-          </div>
-        )}
+        {item && <WaitItems items={[item]} />}
         <div className={styles.progress}>
           <p className={styles.progressHead}>
             <span className={phone ? styles.stepNow : styles.title}>
               {phone ? stepText(progress.step, word, false) : 'Примеряем…'}
             </span>
-            <span>{progress.percent}%</span>
+            <span className={styles.percent}>{progress.percent}%</span>
           </p>
           <ProgressBar value={progress.percent} aria-label="Прогресс примерки" />
           <p className={styles.muted}>{timeLeftText(progress.secondsLeft)}</p>
-          {look && <ItemsStrip items={fitting.items} />}
+          {look && <WaitItems items={fitting.items} />}
         </div>
         {!phone && (
           <ol className={styles.steps}>
@@ -137,7 +128,7 @@ export function FittingWait({ fitting, photoUrl, onClose }: FittingWaitProps) {
             onPointerEnter={close.onPointerEnter}
             onPointerLeave={close.onPointerLeave}
           >
-            {phone ? 'Свернуть' : 'Закрыть и продолжить покупки'}
+            Закрыть и продолжить покупки
           </Button>
         </div>
       </div>

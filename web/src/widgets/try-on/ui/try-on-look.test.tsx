@@ -326,7 +326,9 @@ describe('TryOn of a look: the picker (board 3.2)', () => {
     expect(await screen.findByText('Образ · 3 вещи')).toBeInTheDocument();
     expect(screen.getByText(/12\s000/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Изменить' })).toBeInTheDocument();
-    expect(await screen.findByText('Образ целиком — 1 примерка · осталось 17')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Образ целиком — 1 примерка · осталось 17 в этом месяце'),
+    ).toBeInTheDocument();
     expect(await screen.findByRole('img', { name: 'Ваше фото' })).toHaveAttribute(
       'src',
       expect.stringContaining(PHOTO_B),
@@ -603,6 +605,18 @@ describe('TryOn of a look: the result (board 8, AC14)', () => {
     ).toBeTruthy();
   });
 
+  it('keeps «В корзину» and the heart of an item card in one wrapper (AC11)', async () => {
+    showResult();
+    renderTryOn({ fittingId: RESULT });
+
+    const row = await rowOf('Рубашка');
+
+    const cart = within(row).getByRole('button', { name: 'В корзину' });
+    const heart = within(row).getByRole('button', { name: 'В избранное' });
+    expect(cart.parentElement).toBe(heart.parentElement);
+    expect(cart.parentElement).not.toBe(row);
+  });
+
   it('offers the product’s colours as swatches with the item’s one pressed, «один цвет» for one and nothing for none', async () => {
     showResult();
     renderTryOn({ fittingId: RESULT });
@@ -636,7 +650,9 @@ describe('TryOn of a look: the result (board 8, AC14)', () => {
     expect(screen.getAllByRole('button', { name: 'В корзину' })).toHaveLength(3);
     expect(screen.getByRole('button', { name: 'Хотите что-то поменять в образе?' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Заменить вещь в примерочной' })).toBeInTheDocument();
-    expect(await screen.findByText('Образ — 1 примерка · осталось 17')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Образ — 1 примерка · осталось 17 в этом месяце'),
+    ).toBeInTheDocument();
   });
 
   it('closes the window and opens the room from «Заменить вещь в примерочной»', async () => {

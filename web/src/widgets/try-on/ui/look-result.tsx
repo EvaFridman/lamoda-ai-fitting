@@ -192,7 +192,7 @@ export function LookResult({
   );
   const meter = quota && (
     <LimitMeter left={quota.left} limit={quota.limit}>
-      Образ — 1 примерка · осталось {quota.left}
+      Образ — 1 примерка · осталось {quota.left} в этом месяце
     </LimitMeter>
   );
 

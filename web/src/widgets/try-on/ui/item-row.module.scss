@@ -1,9 +1,10 @@
-// The item's row: its picture at 3:4, then the name, the colour and the price, an action at the end.
+// The item's row: its picture at 3:4, then the name, the colour and the price, an action at the
+// end, all at the row's top (spec 0024 AC11).
 
 .row {
   display: flex;
   gap: var(--space-3);
-  align-items: center;
+  align-items: flex-start;
 }
 
 .image {
