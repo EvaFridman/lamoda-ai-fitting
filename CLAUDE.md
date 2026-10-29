@@ -810,7 +810,7 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   `ProgressBar`, `CountBadge` (nothing at 0; its parent places it and names the count),
   `SoonChip` (board 3's «скоро», grey and 16 px high, spec 0024 Z32, placed by its parent as `CountBadge`, hidden from screen
   readers: the header's inert «Избранное» and «Корзина» at the room count's place, spec 0023 C4,
-  C5, spec 0024 AC8),
+  C5, spec 0024 AC8; after the room's accessory slot's name, AC10),
   `LamodaMark` (Lamoda's «la», `LAMODA_MARK_PATHS`: the stores map's pin and the tab icons),
   `Chip`/`ChipGroup` (Base UI's Toggle and ToggleGroup; spec 0019 plan §7), `Select`'s option
   `swatch` (a colour circle in place of a thumbnail, spec 0019 A90.3) and `Gallery` (a
@@ -1044,8 +1044,9 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   with the colour `Select` of `swatch` circles, the size stub, the heart stub `room.favourite`,
   «В корзину», «Убрать»; on phones one field opening the `Sheet` «Цвет «…»» of `MiniSwatches`;
   `EmptySlotRow`, with no caption, whose «+» box, out of the tab order, and «Подобрать в
-  каталоге» both lead to the slot's first active category, none for the accessory), the wishes
-  (only the counter under them, Y6), the sum, «Примерить образ» (from two items;
+  каталоге» both lead to the slot's first active category, none for the accessory, which carries
+  «скоро», spec 0024 AC10), the wishes (five lines on every width, growing with the text to
+  eight, then a scroll, Z6; only the counter under them, Y6), the sum, «Примерить образ» (from two items;
   `openLookTryOn()` closes the drawer and opens the store's `lookOpen`, `room.try-on`),
   «Добавить образ в корзину» (the row wraps when both do not fit), `LimitMeter` and «Очистить
   примерочную». `widgets/try-on`'s `LookTryOn`, mounted

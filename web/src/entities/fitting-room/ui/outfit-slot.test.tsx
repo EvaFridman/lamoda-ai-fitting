@@ -103,6 +103,30 @@ describe('EmptySlotRow', () => {
     expect(screen.queryByRole('link', { hidden: true })).not.toBeInTheDocument();
   });
 
+  it('marks the accessory «скоро», hidden from assistive technology (AC10)', () => {
+    render(<EmptySlotRow slot="accessory" />);
+
+    const chip = screen.getByText('скоро');
+    expect(chip.closest('[aria-hidden="true"]')).not.toBeNull();
+    expect(
+      screen.queryByText('скоро', { ignore: '[aria-hidden="true"], [aria-hidden="true"] *' }),
+    ).toBeNull();
+    expect(screen.getByText('Аксессуары')).toContainElement(chip);
+  });
+
+  it('shows no «скоро» for a slot with an address', () => {
+    render(<EmptySlotRow slot="shoes" href="/catalog/shoes" />);
+
+    expect(screen.queryByText('скоро')).not.toBeInTheDocument();
+  });
+
+  it('shows no «скоро» for a non-accessory slot with no address yet (categories loading)', () => {
+    render(<EmptySlotRow slot="shoes" />);
+
+    expect(screen.getByText('Обувь')).toBeInTheDocument();
+    expect(screen.queryByText('скоро')).not.toBeInTheDocument();
+  });
+
   it('makes the «+» box a link to the same address, out of the tab order and hidden', () => {
     render(<EmptySlotRow slot="top" href="/catalog/shirts" />);
 

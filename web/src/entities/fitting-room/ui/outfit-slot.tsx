@@ -2,7 +2,7 @@ import Image from 'next/image';
 import NextLink from 'next/link';
 import type { AnchorHTMLAttributes, ReactNode } from 'react';
 
-import { Link, Price, Skeleton } from '@/shared/ui';
+import { Link, Price, Skeleton, SoonChip } from '@/shared/ui';
 
 import { roomItemName, SLOT_TITLES } from '../config/slots';
 import type { FittingRoomItem, OutfitSlot as Slot } from '../model/schemas';
@@ -70,7 +70,9 @@ export interface EmptySlotRowProps {
 
 // An empty slot of board 2: the dashed «+» box, the slot and the catalog's link (no caption,
 // spec 0023 P16–P18). With a link the box leads there too, out of the tab order: one stop, the
-// text link's.
+// text link's; with none the box stays inert. The accessory, which no category has, carries
+// «скоро», hidden from screen readers as in the header (spec 0024 AC10): by its slot, not by the
+// missing link, which other slots lack too while the categories load or fail.
 export function EmptySlotRow({ slot, href, linkEvents }: EmptySlotRowProps) {
   return (
     <div className={styles.slot}>
@@ -91,7 +93,10 @@ export function EmptySlotRow({ slot, href, linkEvents }: EmptySlotRowProps) {
         </span>
       )}
       <div className={styles.body}>
-        <span className={styles.kind}>{SLOT_TITLES[slot]}</span>
+        <span className={styles.kind}>
+          {SLOT_TITLES[slot]}
+          {slot === 'accessory' && <SoonChip />}
+        </span>
         {href && (
           <Link href={href} prefetch={false} className={styles.fill} {...linkEvents}>
             Подобрать в каталоге
