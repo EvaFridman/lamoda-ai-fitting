@@ -79,6 +79,20 @@ describe('Button', () => {
     });
   });
 
+  describe('disabled secondary', () => {
+    it('keeps the secondary look and adds the disabled one', () => {
+      render(
+        <Button variant="secondary" disabled>
+          Примерить
+        </Button>,
+      );
+
+      const button = screen.getByRole('button', { name: 'Примерить' });
+      expect(button).toBeDisabled();
+      expect(button).toHaveClass('secondary', 'disabled');
+    });
+  });
+
   describe('loading', () => {
     it('sets aria-busy and keeps the label as the accessible name', () => {
       render(<Button loading>Добавить в корзину</Button>);

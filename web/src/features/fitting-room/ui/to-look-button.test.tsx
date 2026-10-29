@@ -102,6 +102,15 @@ describe('ToLookButton', () => {
     );
   });
 
+  it('is an outline button of size 48 (spec 0024 AC6)', () => {
+    setup(empty);
+
+    expect(screen.getByRole('button', { name: 'Добавить к образу' })).toHaveClass(
+      'outline',
+      'size48',
+    );
+  });
+
   it('is «В образе», pressed, once the product is in the room', () => {
     setup(inRoom);
 

@@ -17,9 +17,9 @@ export interface ToLookButtonProps {
   className?: string;
 }
 
-// «Добавить к образу» of the buy box (board 1, A62, A82.2; spec 0023 P1): an outline 56 button that
-// puts the product into its slot; once it is there, «В образе» with a ✓, pressed, and a click takes
-// it out.
+// «Добавить к образу» of the buy box (board 1, A62, A82.2; spec 0023 P1): an outline 48 button
+// (spec 0024 Z4) that puts the product into its slot; once it is there, «В образе» with a ✓,
+// pressed, and a click takes it out.
 export function ToLookButton({
   product,
   slot,
@@ -31,7 +31,7 @@ export function ToLookButton({
   const look = useLookToggle({ product, slot, attributeValueId, element, onSignIn });
   return (
     <Button
-      size={56}
+      size={48}
       variant="outline"
       className={className}
       aria-pressed={look.pressed}

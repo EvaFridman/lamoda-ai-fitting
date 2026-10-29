@@ -38,7 +38,7 @@ same release); PR 4 the closing, which records the owner's checks on the deploye
       `CatalogCategoryList`'s `all` row and counts in `rows`, the W28 effect removed,
       `catalog.category-toggle`'s description. Check: `catalog-browser.test.tsx`,
       `catalog-category-list.test.tsx`. Commit: `feat(web): categories open as a sheet on phones`.
-- [ ] **T5. The buy box's button (plan §2.3; AC6).** `secondary` 48 for «Примерить», the
+- [x] **T5. The buy box's button (plan §2.3; AC6).** `secondary` 48 for «Примерить», the
       disabled `secondary` style, `/ui-kit`. Check: `product-buy-box.test.tsx`, `button.test.tsx`.
       Commit: `feat(web): quiet grey «Примерить» in the buy box`.
 - [ ] **T6. Tab icons (plan §2.4; AC7).** `LamodaMark` in the kit's icons (the pin reuses it),
