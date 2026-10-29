@@ -261,3 +261,14 @@ is `triesLeftText` itself («Осталось 17 примерок в этом м
 закончились»); a longer text ends in `triesLeftTail` («· осталась 1 в этом месяце», «· осталось 7
 в этом месяце», «· примерки закончились»). On a phone the wait's percent is body-s as the stage
 beside it. Amends plan §2.7.
+
+**Z34. «Другое фото» of the error screen chooses none too (T12, AC17).** T12's review found that
+the error card's «Другое фото» went back to the picker with the failed fitting's photo still
+chosen, so a refused photo stood in the frame with «Примерить» enabled. The owner's answer at T12:
+it behaves as «Примерить на другом фото», the empty zone and no photo chosen. Amends plan §2.10.
+
+**Z35. «Выбрать из сохранённых» under the empty zone (T12, AC17).** AC17 and plan §2.10 left the
+empty zone with no way to the saved photos, since «Заменить фото» showed only under a chosen photo.
+The owner's answer at T12: while there are photos to pick and none is chosen, the same button and
+window stay under the zone, named «Выбрать из сохранённых», listing every photo; with a photo
+chosen it is «Заменить фото» as before. `try-on.replace-photo` counts both. Amends plan §2.10.

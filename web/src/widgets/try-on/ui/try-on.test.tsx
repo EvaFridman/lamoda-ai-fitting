@@ -1343,9 +1343,17 @@ describe('TryOn with a fitting', () => {
     expect(await screen.findByText('Результат скрыт')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Другое фото' }));
 
-    expect(await screen.findByRole('button', { name: 'Заменить фото' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('button', { name: 'Выбрать из сохранённых' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Заменить фото' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Об изображении' })).not.toBeInTheDocument();
     expect(screen.queryByText(/Сохранено в/)).not.toBeInTheDocument();
+    expect(
+      screen.getByText('Загрузите фото в полный рост: один человек в кадре'),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: 'Ваше фото' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Примерить' })).toBeDisabled();
   });
 
   it('goes back to the picker from «Примерить на другом фото»', async () => {
@@ -1363,7 +1371,9 @@ describe('TryOn with a fitting', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Примерить на другом фото' }));
 
-    expect(await screen.findByRole('button', { name: 'Заменить фото' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('button', { name: 'Выбрать из сохранённых' }),
+    ).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Об изображении' })).not.toBeInTheDocument();
     expect(screen.queryByText(/Сохранено в/)).not.toBeInTheDocument();
   });
@@ -1389,8 +1399,9 @@ describe('TryOn with a fitting', () => {
     expect(screen.queryByRole('img', { name: 'Ваше фото' })).not.toBeInTheDocument();
     expect(start()).toBeDisabled();
 
-    await user.click(await screen.findByRole('button', { name: 'Заменить фото' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Заменить фото' });
+    expect(screen.queryByRole('button', { name: 'Заменить фото' })).not.toBeInTheDocument();
+    await user.click(await screen.findByRole('button', { name: 'Выбрать из сохранённых' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Выбрать из сохранённых' });
     expect(within(dialog).getByRole('button', { name: 'Фото 1' })).toBeInTheDocument();
     expect(
       within(dialog).getByRole('button', { name: 'Фото 2, по умолчанию' }),
@@ -1432,8 +1443,8 @@ describe('TryOn with a fitting', () => {
     renderTryOn({ fittingId: RUNNING });
     await screen.findByRole('heading', { name: 'Примерить другой цвет' });
     await user.click(screen.getByRole('button', { name: 'Примерить на другом фото' }));
-    await user.click(await screen.findByRole('button', { name: 'Заменить фото' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Заменить фото' });
+    await user.click(await screen.findByRole('button', { name: 'Выбрать из сохранённых' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Выбрать из сохранённых' });
     await user.click(within(dialog).getByRole('button', { name: 'Фото 1' }));
     await vi.waitFor(() => expect(start()).toBeEnabled());
 

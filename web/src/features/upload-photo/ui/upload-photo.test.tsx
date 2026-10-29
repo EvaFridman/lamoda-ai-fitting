@@ -1119,6 +1119,30 @@ describe('UploadPhoto in the try-on', () => {
     renderUpload({ place: 'try-on' }, consented);
     expect(screen.getByRole('button', { name: 'Сделать фото' })).toBeEnabled();
   });
+
+  it('names the replace button and its window «Заменить фото» by default', async () => {
+    const user = setup();
+    renderUpload({ place: 'try-on', appearance: 'replace' }, consented);
+
+    await user.click(screen.getByRole('button', { name: 'Заменить фото' }));
+
+    expect(await screen.findByRole('dialog', { name: 'Заменить фото' })).toBeInTheDocument();
+  });
+
+  it('names the replace button and its window by replaceLabel (Z35)', async () => {
+    const user = setup();
+    renderUpload(
+      { place: 'try-on', appearance: 'replace', replaceLabel: 'Выбрать из сохранённых' },
+      consented,
+    );
+
+    expect(screen.queryByRole('button', { name: 'Заменить фото' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Выбрать из сохранённых' }));
+
+    expect(
+      await screen.findByRole('dialog', { name: 'Выбрать из сохранённых' }),
+    ).toBeInTheDocument();
+  });
 });
 
 describe('UploadPhoto as the drop zone (AC8)', () => {

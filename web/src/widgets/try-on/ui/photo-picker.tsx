@@ -92,8 +92,8 @@ export interface PhotoPickerProps {
 // Board 3, the photo picker (spec 0019 AC3, AC5, AC6, A62; spec 0023 P3–P9, P25): the try-on's
 // frame (P24) holds the chosen photo, whole, with «Ваше фото, видите только вы», and under it
 // «Заменить фото», whose window picks another photo or uploads one (spec 0024 AC16; with none
-// chosen, after «Примерить на другом фото», it stays under the zone while there are photos to
-// pick, AC17); with none it is the drop
+// chosen, after «Примерить на другом фото», it is «Выбрать из сохранённых» under the zone while
+// there are photos to pick, AC17, Z35); with none it is the drop
 // zone, with «Загрузить фото», the camera on a touch device and the switch «Сохранить фото для
 // следующих примерок» at its bottom. A file dropped on the frame uploads either way. Beside it the item, the
 // month's meter and «Примерить». A new photo shows dimmed while it uploads (3.3) and is chosen
@@ -185,6 +185,7 @@ export function PhotoPicker({
           <UploadPhoto
             {...uploadProps}
             appearance="replace"
+            replaceLabel={chosen ? undefined : 'Выбрать из сохранённых'}
             disabled={pendingFile !== null}
             thumbs={
               others.length > 0

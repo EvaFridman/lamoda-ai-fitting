@@ -282,8 +282,8 @@ export function TryOn({
     openRoom({ slot });
   }
 
-  // «Примерить на другом фото»: the picker with the empty zone and no photo chosen (spec 0024
-  // AC17), so «Примерить» waits for a choice.
+  // «Примерить на другом фото» and the error card's «Другое фото»: the picker with the empty zone
+  // and no photo chosen (spec 0024 AC17, Z34), so «Примерить» waits for a choice.
   function pickOtherPhoto() {
     setChosenId(null);
     setPicking(true);
@@ -489,7 +489,7 @@ export function TryOn({
         onRetry={() => retry(fitting)}
         retrying={start.isPending || startLook.isPending || regenerate.isPending}
         onClose={onClose}
-        onOtherPhoto={() => setPicking(true)}
+        onOtherPhoto={pickOtherPhoto}
         error={retryError}
       />
     );
