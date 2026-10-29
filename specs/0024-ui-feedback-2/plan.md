@@ -47,9 +47,10 @@ decides, `PHONE_QUERY` and `@media` where the width does.
   correct indicator since the vars come from the active tab's box.
 - The header's search row on phones (`widgets/header`, `header-search-toggle.tsx`,
   `header.module.scss` `.search`): below 600 px the row is a grid cell whose
-  `grid-template-rows` goes `0fr → 1fr` with `overflow: hidden` and `visibility` switched at the
-  end, over `--duration-slow`; `display: none` goes. The field is focused once the row is visible
-  (`transitionend`, or at once under reduced motion). With `q` on load the row renders open
+  `grid-template-rows` goes `0fr → 1fr` with `overflow: hidden`, over `--duration-slow`; its
+  `visibility` turns on at the start of an opening and off at the end of a closing; `display:
+none` goes. The field is focused at the loupe's click, `preventScroll`, while the row grows, so
+  iOS opens the keyboard (Z30). With `q` on load the row renders open
   without a transition (the server-rendered state, no `data-animate` until the first toggle).
 - `GalleryViewer` (`shared/ui/gallery/gallery-viewer.tsx`): `go()` scrolls with
   `scrollTo({ left, behavior: 'smooth' })`, as `ScrollRow`'s arrows do with `scrollBy`; the
@@ -393,7 +394,7 @@ visit unchanged). `catalog.test.ts`'s lists and `EVENTS.md` change in the same c
 | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | AC1  | the Stylelint rule in `verify`; `drawer`, `modal`, `toast`, `tabs` tests read the computed easing; `qa-tester` on a phone: the filters' sheet, reduced motion                                     |
 | AC2  | `catalog-browser.test.tsx` (the sheet opens, rows with counts, «Все товары», the query kept); `qa-tester` at 390 px                                                                               |
-| AC3  | `header-search-toggle.test.tsx` (open state, focus after `transitionend`); `qa-tester` on a phone                                                                                                 |
+| AC3  | `header-search-toggle.test.tsx` (open state, focus at the click, Z30); `qa-tester` on a phone                                                                                                     |
 | AC4  | `tabs.test.tsx` (the indicator's vars follow the active tab); `qa-tester` on `/customer/fittings`                                                                                                 |
 | AC5  | `gallery.test.tsx` (`scrollTo` called with `behavior: 'smooth'`)                                                                                                                                  |
 | AC6  | `product-buy-box.test.tsx` (variant and size, disabled at the limit); `/ui-kit`                                                                                                                   |

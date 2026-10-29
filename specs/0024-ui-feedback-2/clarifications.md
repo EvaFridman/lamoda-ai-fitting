@@ -235,3 +235,11 @@ The review's other notes were fixed in the documents of PR 1 without a decision:
 (plan §6), the retry's departure from spec 0017's "a write is not repeated by itself" written at
 `isStartRetryable` and in `CLAUDE.md` (T16), the CSP's `'wasm-unsafe-eval'` in AC27, the package
 check of `libheif-js` (T18) and the header's quota read on every page (plan §5).
+
+## Settled during the tasks
+
+**Z30. The search row's field is focused at the loupe's click (T3, AC3).** Not after the slide
+ends: iOS Safari opens the keyboard only for a focus called within the tap itself, so a focus at
+`transitionend` would leave a phone with a focused field and no keyboard. The row turns visible
+at the start of its slide and the field takes the focus at once (`preventScroll`), while the row
+grows `0fr → 1fr`. Amends plan §2.1.

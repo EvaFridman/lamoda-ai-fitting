@@ -6,7 +6,7 @@ import {
   type ReactNode,
   type RefObject,
   use,
-  useEffect,
+  useLayoutEffect,
   useRef,
   useState,
 } from 'react';
@@ -90,19 +90,38 @@ export function HeaderLoupe() {
 // The search field's row: below 600px shown only while open, from 600px always. It stays mounted
 // while closed, so the field keeps what was typed. Render it inside <Suspense>: it reads the query.
 export function HeaderSearchRow({ children }: { children: ReactNode }) {
-  const { open, focusRef } = useSearchRow();
+  const { open, choice, focusRef } = useSearchRow();
   const rowRef = useRef<HTMLDivElement>(null);
+  // Whether the row's last slide ended open; a new open or close starts a slide again.
+  const [settled, setSettled] = useState<{ open: boolean; ended: boolean }>({ open, ended: true });
+  if (settled.open !== open) setSettled({ open, ended: false });
 
-  // Opened by the loupe, the field takes the focus, so the keyboard comes up on a phone.
-  useEffect(() => {
+  // Opened by the loupe, the field takes the focus at once, as the row starts to slide: iOS opens
+  // the keyboard only for a focus within the tap (spec 0024 Z30). A layout effect runs in the
+  // click's own task, after `data-open` made the row visible.
+  useLayoutEffect(() => {
     if (!open || !focusRef.current) return;
     focusRef.current = false;
-    rowRef.current?.querySelector('input')?.focus();
+    rowRef.current?.querySelector('input')?.focus({ preventScroll: true });
   }, [open, focusRef]);
 
   return (
-    <div ref={rowRef} id={ROW_ID} className={styles.search} data-open={open ? '' : undefined}>
-      {children}
+    <div
+      ref={rowRef}
+      id={ROW_ID}
+      className={styles.search}
+      data-open={open ? '' : undefined}
+      // The loupe's first click starts the slides; a row drawn open by `q` appears as it is.
+      data-animate={choice !== null ? '' : undefined}
+      data-settled={open && settled.ended ? '' : undefined}
+      onTransitionEnd={(event) => {
+        if (event.target === event.currentTarget && event.propertyName === 'grid-template-rows') {
+          setSettled({ open, ended: true });
+        }
+      }}
+    >
+      {/* The grid row's one cell: with no height of its own it lets the row shrink to 0. */}
+      <div className={styles.searchClip}>{children}</div>
     </div>
   );
 }

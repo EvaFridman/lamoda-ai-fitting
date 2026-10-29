@@ -4,7 +4,7 @@ import { Dialog } from '@base-ui/react/dialog';
 import Image from 'next/image';
 import { type KeyboardEvent, type UIEvent, useCallback, useRef, useState } from 'react';
 
-import { MOUSE_QUERY } from '@/shared/config';
+import { MOUSE_QUERY, REDUCED_MOTION_QUERY } from '@/shared/config';
 import { useMediaQuery } from '@/shared/lib';
 
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon } from '../icon/icons';
@@ -31,8 +31,11 @@ export interface GalleryViewerProps {
 // from. Base UI's Dialog, as the kit's `Modal`, whose white frame and heading it does not have.
 export function GalleryViewer({ images, index, onClose, title, finalFocus }: GalleryViewerProps) {
   const mouse = useMediaQuery(MOUSE_QUERY);
+  const reducedMotion = useMediaQuery(REDUCED_MOTION_QUERY);
   const [current, setCurrent] = useState(0);
   const stripRef = useRef<HTMLUListElement | null>(null);
+  // The photo a smooth scroll of the arrows or keys is going to, until it gets there.
+  const glideRef = useRef<number | null>(null);
   // Opened on the ×, not on «‹», which is off at the first photo.
   const closeRef = useRef<HTMLButtonElement>(null);
 
@@ -50,14 +53,32 @@ export function GalleryViewer({ images, index, onClose, title, finalFocus }: Gal
   function onScroll(event: UIEvent<HTMLUListElement>) {
     const strip = event.currentTarget;
     if (strip.clientWidth === 0) return;
-    setCurrent(Math.round(strip.scrollLeft / strip.clientWidth));
+    const shown = Math.round(strip.scrollLeft / strip.clientWidth);
+    // By the index, not the pixel: a slide's width may be fractional while `clientWidth` is not.
+    if (glideRef.current !== null) {
+      if (shown !== glideRef.current) return;
+      glideRef.current = null;
+    }
+    setCurrent(shown);
+  }
+
+  // A finger or a wheel takes the strip over from a glide.
+  function stopGlide() {
+    glideRef.current = null;
   }
 
   function go(next: number) {
     if (next < 0 || next >= images.length) return;
     setCurrent(next);
     const strip = stripRef.current;
-    strip?.scrollTo?.({ left: next * strip.clientWidth });
+    if (!strip) return;
+    // The browser's own smooth curve, as `ScrollRow`'s arrows (spec 0024 Z26.3); none under reduced
+    // motion. While it glides, the counter keeps the photo it goes to.
+    glideRef.current = reducedMotion ? null : next;
+    strip.scrollTo?.({
+      left: next * strip.clientWidth,
+      behavior: reducedMotion ? 'instant' : 'smooth',
+    });
   }
 
   function onKeyDown(event: KeyboardEvent) {
@@ -85,7 +106,14 @@ export function GalleryViewer({ images, index, onClose, title, finalFocus }: Gal
           finalFocus={finalFocus ? () => finalFocus() : undefined}
         >
           <Dialog.Title className={styles.title}>{title}</Dialog.Title>
-          <ul className={styles.strip} ref={start} onScroll={onScroll}>
+          <ul
+            className={styles.strip}
+            ref={start}
+            onScroll={onScroll}
+            onPointerDown={stopGlide}
+            onTouchStart={stopGlide}
+            onWheel={stopGlide}
+          >
             {images.map((image, position) => (
               <li
                 key={image.id}

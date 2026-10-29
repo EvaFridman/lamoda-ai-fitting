@@ -725,8 +725,10 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   `loadHeaderCities()` (React's `cache`, shared with the burger; `getStores()` → `storeCities`,
   only names and points reach the page, a failure `null`) and `HeaderCity`, the chosen city's
   name or «Укажите ваш населенный пункт» (also before hydration), opening `CityModal`. The loupe (`HeaderLoupe`)
-  opens and closes the search row (`HeaderSearchRow`, kept mounted while closed); the row is open
-  while `q` is in the address, until the loupe closes it, and a new `q` opens it again. The burger
+  opens and closes the search row (`HeaderSearchRow`, kept mounted while closed), which slides as
+  its grid row goes `0fr → 1fr`, the field focused at the click itself so iOS opens the keyboard
+  (spec 0024 Z30); the row is open while `q` is in the address, drawn so with no slide, until the
+  loupe closes it, and a new `q` opens it again. The burger
   opens `HeaderMenu`, a left `Drawer`: signed out «Войти» (a second `LoginModal`,
   `handlesReturnedError={false}`), signed in `SessionUserBadge` in an `mp-block`, the account's
   sections and the sign-outs (`useSignOuts`, `features/auth`, which `SignOutItems` shares), then
@@ -814,7 +816,8 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   the page's `--gallery-offset`, with Lamoda's dots above the page's `--gallery-overlap`, spec
   0019 A87.1, A88; one list switched by CSS, `unoptimized`; spec 0023 P2: a photo is a button
   that opens `GalleryViewer`, its full screen, at it: black, each photo whole, a swiped strip,
-  «‹» «›» with a mouse, the arrow keys, «N из M», × and Escape; with a mouse, `MOUSE_QUERY`, the
+  «‹» «›» with a mouse and the arrow keys gliding to the next photo (a smooth `scrollTo`, instant
+  under `REDUCED_MOTION_QUERY`), «N из M», × and Escape; with a mouse, `MOUSE_QUERY`, the
   cursor over a photo is a round lens of 160 px showing the part under it 2.5 times larger, the
   photo unchanged, Y14; catalog photos only, since the lens puts the address in an inline style)
   and `ScrollRow` (one row of `<li>`s scrolling sideways with snapping, as many in
@@ -831,7 +834,8 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   Phones are below 600px: `PHONE_QUERY` (`@/shared/config`) with `useMediaQuery` (`@/shared/lib`,
   a client module) where the DOM must differ, else CSS. Where the device kind decides a control
   (the camera, the magnifier, hover effects), the primary pointer does, not the width (spec 0023
-  Y13): `COARSE_POINTER_QUERY` (a finger) and `MOUSE_QUERY` (`@/shared/config`), the same way.
+  Y13): `COARSE_POINTER_QUERY` (a finger) and `MOUSE_QUERY` (`@/shared/config`), the same way;
+  a motion a script starts follows `REDUCED_MOTION_QUERY` there.
   Tracking handlers reach the kit and entity
   components as props, from the widget or page that calls `useTrackedElement`: `FilterDropdown`'s
   and the catalog filters' `chipEvents` (on the chip's trigger, not its ×), `FileInput`'s and
@@ -846,7 +850,8 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   `var(--ease-standard)` (`shared/styles/tokens.scss`, slow at both ends) and one of
   `--duration-fast`, `--duration-slow` or `--duration-long` (a bottom sheet's and a side drawer's
   slide, their overlay in step), all three 0 under `prefers-reduced-motion`; colour changes and
-  opacity-only fades keep `ease`, endless loops `linear`. Stylelint (`.stylelintrc.json`) refuses
+  opacity-only fades keep `ease`, endless loops `linear`, and a script's smooth scroll the
+  browser's own curve (Z26.3). Stylelint (`.stylelintrc.json`) refuses
   `cubic-bezier(` and `ease-in`/`ease-out` literals in transitions and animations.
 
 - `web` photos (spec 0019 plan §7): `entities/user-photo` reads `GET /me/photos` in the browser

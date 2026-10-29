@@ -29,8 +29,9 @@ same release); PR 4 the closing, which records the owner's checks on the deploye
       movement on them (Drawer, Modal, Toast, Accordion, Switch, Checkbox, Chip, FavoriteToggle,
       ScrollRow), the Stylelint rule, `Tabs.Indicator`. Check: `npm --prefix web run lint:styles`,
       the kit's tests. Commit: `feat(web): one easing for every animation, a sliding tabs underline`.
-- [ ] **T3. The search row and the gallery (plan §2.1; AC3, AC5).** The phone search row's
-      `0fr → 1fr` slide with the focus after it, `GalleryViewer`'s smooth `scrollTo`. Check:
+- [x] **T3. The search row and the gallery (plan §2.1; AC3, AC5).** The phone search row's
+      `0fr → 1fr` slide with the focus at the loupe's click (Z30), `GalleryViewer`'s smooth
+      `scrollTo`. Check:
       `header-search-toggle.test.tsx`, `gallery.test.tsx`. Commit:
       `feat(web): slide the phone search row, glide the gallery viewer`.
 - [ ] **T4. Categories as a sheet on phones (plan §2.2; AC2).** `CatalogCategorySheet`,

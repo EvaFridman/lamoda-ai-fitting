@@ -268,12 +268,48 @@
     margin: var(--space-2) 0 0;
   }
 
-  // The loupe opens it (A87.5); closed, it stays mounted.
+  // The loupe opens it (A87.5); closed, it stays mounted. It slides down as its one grid row grows
+  // from 0fr to 1fr (spec 0024 Z2): visible from an opening's start to a closing's end. The field
+  // is clipped while it moves and closed, then shows its focus shadow. With `q` on load it is drawn
+  // open with no slide: `data-animate` comes with the loupe's first click.
   @media (width < 600px) {
-    margin: 0 0 var(--space-3);
+    display: grid;
+    grid-template-rows: 0fr;
+    margin: 0;
+    visibility: hidden;
 
-    &:not([data-open]) {
-      display: none;
+    > .searchClip {
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    &[data-open] {
+      grid-template-rows: 1fr;
+      margin-bottom: var(--space-3);
+      visibility: visible;
+    }
+
+    &[data-animate] {
+      transition:
+        grid-template-rows var(--duration-slow) var(--ease-standard),
+        margin-bottom var(--duration-slow) var(--ease-standard),
+        visibility 0s linear var(--duration-slow);
+    }
+
+    &[data-animate][data-open] {
+      transition-delay: 0s;
+    }
+
+    &[data-open]:not([data-animate]) > .searchClip,
+    &[data-open][data-settled] > .searchClip {
+      overflow: visible;
+    }
+
+    // No transition ends there, so nothing would set `data-settled`.
+    @media (prefers-reduced-motion: reduce) {
+      &[data-open] > .searchClip {
+        overflow: visible;
+      }
     }
   }
 }
