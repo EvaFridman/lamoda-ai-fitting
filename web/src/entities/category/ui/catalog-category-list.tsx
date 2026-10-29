@@ -17,67 +17,68 @@ export interface CatalogCategoryListProps {
   value: string | null;
   // Where a row leads: filter state in the URL belongs to the page (0009 K7).
   getHref: (id: string) => string;
+  // A first row «Все товары» (the phone's sheet, spec 0024 Z3): where it leads and its count. It
+  // is the chosen one while `value` is null.
+  all?: { href: string; count: number };
   // Every row's own click and pointer handlers (the page's analytics).
   linkEvents?: Pick<
     AnchorHTMLAttributes<HTMLAnchorElement>,
     'onClick' | 'onPointerEnter' | 'onPointerLeave'
   >;
-  // `column`: the desktop column; `rows`: the phone list under the bar (spec 0020 plan §2).
+  // `column`: the desktop column; `rows`: the phone's sheet of categories (spec 0024 Z3).
   layout?: 'column' | 'rows';
-  // For the phone bar's toggle (`aria-controls`), which hides the list with `hidden`.
-  id?: string;
-  hidden?: boolean;
   'aria-label'?: string;
   className?: string;
 }
 
 // Lamoda's category tree, flat as categories are (0009 K8): each row is a link with the name and
 // a grey count; the chosen one is a black block with aria-current="page" and stays a link. The
-// phone's rows (W27) are full-width lines split by hairlines, with no count; the chosen one is
-// bold. Nothing renders for an empty list.
+// phone's rows are the sheet's lines split by hairlines, the count grey after the name; the
+// chosen one is bold. Nothing renders for an empty list.
 export function CatalogCategoryList({
   categories,
   value,
   getHref,
+  all,
   linkEvents,
   layout = 'column',
-  id,
-  hidden,
   'aria-label': ariaLabel = 'Категории',
   className,
 }: CatalogCategoryListProps) {
   if (categories.length === 0) return null;
   const rows = layout === 'rows';
+  const items = [
+    ...(all === undefined ? [] : [{ key: '', name: 'Все товары', ...all, chosen: value === null }]),
+    ...categories.map((category) => ({
+      key: category.id,
+      name: category.name,
+      count: category.count,
+      href: getHref(category.id),
+      chosen: category.id === value,
+    })),
+  ];
 
   return (
-    <nav aria-label={ariaLabel} id={id} hidden={hidden} className={className}>
+    <nav aria-label={ariaLabel} className={className}>
       <ul className={rows ? styles.rows : styles.list}>
-        {categories.map((category) => {
-          const chosen = category.id === value;
-          return (
-            <li key={category.id} className={rows ? styles.row : undefined}>
-              <NextLink
-                {...linkEvents}
-                href={getHref(category.id)}
-                aria-current={chosen ? 'page' : undefined}
-                className={[
-                  rows ? styles.rowLink : styles.link,
-                  chosen ? (rows ? styles.rowChosen : styles.chosen) : null,
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
-              >
-                <span className={styles.name}>{category.name}</span>
-                {rows ? null : (
-                  <>
-                    {' '}
-                    <span className={styles.count}>{category.count}</span>
-                  </>
-                )}
-              </NextLink>
-            </li>
-          );
-        })}
+        {items.map((item) => (
+          <li key={item.key} className={rows ? styles.row : undefined}>
+            <NextLink
+              {...linkEvents}
+              href={item.href}
+              aria-current={item.chosen ? 'page' : undefined}
+              className={[
+                rows ? styles.rowLink : styles.link,
+                item.chosen ? (rows ? styles.rowChosen : styles.chosen) : null,
+              ]
+                .filter(Boolean)
+                .join(' ')}
+            >
+              <span className={styles.name}>{item.name}</span>{' '}
+              <span className={styles.count}>{item.count}</span>
+            </NextLink>
+          </li>
+        ))}
       </ul>
     </nav>
   );
