@@ -1378,7 +1378,9 @@ describe('TryOn with a fitting', () => {
     expect(
       await screen.findByRole('heading', { name: 'Примерить другой цвет' }),
     ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Хотите что-то поменять в образе?' })).toBeEnabled();
+    expect(
+      screen.getByRole('button', { name: 'Хотите что-то поменять в примерке?' }),
+    ).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Примерить на другом фото' })).toBeInTheDocument();
     expect(screen.getByText('Осталось 17 примерок в этом месяце')).toBeInTheDocument();
   });
@@ -2006,7 +2008,7 @@ describe('TryOn with a fitting', () => {
     renderTryOn({ fittingId: RUNNING });
 
     await user.click(
-      await screen.findByRole('button', { name: 'Хотите что-то поменять в образе?' }),
+      await screen.findByRole('button', { name: 'Хотите что-то поменять в примерке?' }),
     );
     await user.click(await screen.findByRole('button', { name: /Перегенерировать/ }));
 
@@ -2312,7 +2314,7 @@ describe('TryOn focus', () => {
     const user = setup();
     renderTryOn({ fittingId: RUNNING });
     await user.click(
-      await screen.findByRole('button', { name: 'Хотите что-то поменять в образе?' }),
+      await screen.findByRole('button', { name: 'Хотите что-то поменять в примерке?' }),
     );
     await user.click(await screen.findByRole('button', { name: /Перегенерировать/ }));
 
@@ -2364,7 +2366,7 @@ describe('TryOn focus', () => {
     const user = setup();
     renderTryOn({ fittingId: RUNNING });
     await user.click(
-      await screen.findByRole('button', { name: 'Хотите что-то поменять в образе?' }),
+      await screen.findByRole('button', { name: 'Хотите что-то поменять в примерке?' }),
     );
     const popover = await screen.findByRole('dialog', { name: 'Что поменять?' });
     await vi.waitFor(() => expect(popover).toHaveAttribute('data-open'));
@@ -2381,7 +2383,7 @@ describe('TryOn focus', () => {
     const user = setup();
     const { onClose } = renderTryOn({ fittingId: RUNNING });
     await user.click(
-      await screen.findByRole('button', { name: 'Хотите что-то поменять в образе?' }),
+      await screen.findByRole('button', { name: 'Хотите что-то поменять в примерке?' }),
     );
     await screen.findByRole('dialog', { name: 'Что поменять?' });
 
@@ -2713,7 +2715,7 @@ describe('TryOn optimistic start (AC19)', () => {
       const user = setup();
       renderTryOn({ fittingId: RUNNING });
       await user.click(
-        await screen.findByRole('button', { name: 'Хотите что-то поменять в образе?' }),
+        await screen.findByRole('button', { name: 'Хотите что-то поменять в примерке?' }),
       );
       await user.click(await screen.findByRole('button', { name: /Перегенерировать/ }));
       await vi.waitFor(() => expect(held.sent()).toBe(1));
