@@ -19,10 +19,13 @@ const MAX_SAVED_PHOTOS = 5;
 function StripThumb({
   photo,
   position,
+  disabled,
   onChoose,
 }: {
   photo: UserPhoto;
   position: number;
+  // A HEIC being prepared in the same window: its upload will choose the new photo.
+  disabled: boolean;
   onChoose: () => void;
 }) {
   const tracked = useTrackedElement('try-on.photo', { is_default: photo.isDefault });
@@ -30,6 +33,7 @@ function StripThumb({
     <button
       type="button"
       className={styles.thumb}
+      disabled={disabled}
       aria-label={photo.isDefault ? `Фото ${position}, по умолчанию` : `Фото ${position}`}
       onClick={() => {
         tracked.onClick();
@@ -111,6 +115,8 @@ export function PhotoPicker({
   quota,
 }: PhotoPickerProps) {
   const [pendingFile, setPendingFile] = useState<File | null>(null);
+  // A photo on its way or a HEIC being prepared in the zone or in «Заменить фото» (spec 0024 Z15).
+  const [busy, setBusy] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
   const saved = photos ?? [];
   const full = saved.length >= MAX_SAVED_PHOTOS;
@@ -127,7 +133,12 @@ export function PhotoPicker({
   const loading = photos === undefined && !photosFailed;
 
   const saveSwitch = (
-    <Switch checked={save} disabled={full} onCheckedChange={(checked) => setSaveChoice(checked)}>
+    // Off while a photo is on its way: the upload already took its value.
+    <Switch
+      checked={save}
+      disabled={full || busy}
+      onCheckedChange={(checked) => setSaveChoice(checked)}
+    >
       Сохранить фото для следующих примерок
     </Switch>
   );
@@ -140,6 +151,7 @@ export function PhotoPicker({
         <Notice tone="success">Примерка не списана · {triesLeftTail(left)}</Notice>
       ),
     onPendingChange: setPendingFile,
+    onBusyChange: setBusy,
     onUploaded: (photo: UserPhoto) => {
       if (photo.transient) onTransient(photo);
       onChoose(photo.id);
@@ -173,8 +185,8 @@ export function PhotoPicker({
               key={chosen?.id ?? 'none'}
               {...uploadProps}
               appearance="zone"
-              // One photo at a time: none dropped while «Заменить фото» uploads another.
-              disabled={pendingFile !== null}
+              // One photo at a time: none dropped while «Заменить фото» uploads or prepares another.
+              disabled={busy}
               extra={saveSwitch}
             >
               {framed}
@@ -186,7 +198,7 @@ export function PhotoPicker({
             {...uploadProps}
             appearance="replace"
             replaceLabel={chosen ? undefined : 'Выбрать из сохранённых'}
-            disabled={pendingFile !== null}
+            disabled={busy}
             thumbs={
               others.length > 0
                 ? (close) =>
@@ -195,6 +207,7 @@ export function PhotoPicker({
                         key={photo.id}
                         photo={photo}
                         position={position}
+                        disabled={busy}
                         onChoose={() => {
                           onChoose(photo.id);
                           close();
@@ -226,7 +239,7 @@ export function PhotoPicker({
             {meterText?.(quota.left)}
           </LimitMeter>
         )}
-        {renderStart(chosen && !pendingFile ? chosen.id : null, setStartError)}
+        {renderStart(chosen && !busy ? chosen.id : null, setStartError)}
         <p className={styles.caption}>
           Фото не используются для обучения моделей ·{' '}
           <Link href="/privacy" variant="secondary" target="_blank">

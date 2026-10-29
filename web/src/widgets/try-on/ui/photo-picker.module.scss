@@ -104,6 +104,11 @@
     outline-offset: 2px;
   }
 
+  &:disabled {
+    cursor: default;
+    opacity: 0.5;
+  }
+
   @media (width < 600px) {
     width: 56px;
     height: 75px;

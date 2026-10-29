@@ -145,7 +145,8 @@ export const DETAIL_TEXTS = {
   CONSTRAINT_VIOLATION: 'Недопустимое значение',
   MATCHES_STATUS: 'Не соответствует статусу генерации',
   IN_OWNER_FOLDER: 'Файл принадлежит другому пользователю или ещё не загружен',
-  IS_IMAGE: 'Нужно изображение JPG, PNG или WebP',
+  // web turns a HEIC into a JPEG before its upload (spec 0024 Z15), so the text names it too.
+  IS_IMAGE: 'Нужно изображение JPG, PNG, WebP или HEIC',
   PHOTO_REFUSED: 'Фото не подходит для примерки',
   CONSENT_REQUIRED: 'Подтвердите согласия перед загрузкой фото',
   PROMPT_REFUSED: 'Текст не подходит для примерки: опишите посадку, стиль, фон или позу',

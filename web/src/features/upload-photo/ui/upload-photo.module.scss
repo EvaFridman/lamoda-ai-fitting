@@ -74,6 +74,27 @@
   text-align: center;
 }
 
+// A HEIC being turned into a JPEG (spec 0024 plan §4.5): «Готовим фото…» over the zone.
+.preparing {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: center;
+
+  padding: var(--space-6);
+
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+  color: var(--color-text);
+  text-align: center;
+
+  background: rgb(255 255 255 / 85%);
+}
+
 // A dropped file the zone does not take: its text over the frame's top.
 .zoneError {
   position: absolute;

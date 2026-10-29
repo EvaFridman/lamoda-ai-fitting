@@ -54,6 +54,10 @@ export function newNonce(): string {
  * load from the users' folders of our bucket, where a user's photo is a signed link (spec 0019): a
  * path, not the whole origin, which the storage shares with every other bucket of its host. The
  * stores page alone adds Yandex Maps' list (spec 0022 X16).
+ * 'wasm-unsafe-eval' on every page (spec 0024 Z15, AC27), the one loosening since spec 0014: it
+ * lets WebAssembly compile, the HEIC decoder of the try-on's upload, and no script `eval`. The
+ * try-on window opens on the product pages, the history and from the fitting room, so a per-path
+ * policy would not hold.
  */
 export function contentSecurityPolicy({
   nonce,
@@ -77,6 +81,7 @@ export function contentSecurityPolicy({
       "script-src 'self'",
       `'nonce-${nonce}'`,
       ...shellScriptHashes.map((hash) => `'${hash}'`),
+      "'wasm-unsafe-eval'",
       ...(yandexMaps ? YANDEX_MAPS_SCRIPTS : []),
       ...(dev || yandexMaps ? ["'unsafe-eval'"] : []),
     ].join(' '),

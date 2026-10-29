@@ -268,29 +268,31 @@ export const catalog = defineCatalog({
       zone: 'fitting',
       type: 'interaction',
       description:
-        'Фото для примерки загружено и прошло проверку: после ответа api. `saved` — сохранено в «Мои фото» (не одноразовое), `source` — выбрано из файлов (`file`), снято камерой (`camera`) или перетащено на зону загрузки в окне примерки (`drop`), `place` — где загружено: `photos` — страница «Мои фото», `try-on` — выбор фото в окне примерки, `first` — загрузка, которая отправила согласия (с подсказками и согласиями; раз на аккаунт, до спеки 0023 — раз на браузер). Само фото и ссылка на него не отправляются.',
+        'Фото для примерки загружено и прошло проверку: после ответа api. `saved` — сохранено в «Мои фото» (не одноразовое), `source` — выбрано из файлов (`file`), снято камерой (`camera`), перетащено на зону загрузки в окне примерки (`drop`) или вставлено там Ctrl/Cmd+V (`paste`, со спеки 0024), `place` — где загружено: `photos` — страница «Мои фото», `try-on` — выбор фото в окне примерки, `first` — загрузка, которая отправила согласия (с подсказками и согласиями; раз на аккаунт, до спеки 0023 — раз на браузер), `format` — формат выбранного файла до преобразования: `jpeg`, `png`, `webp` или `heic` (HEIC браузер переводит в JPEG перед загрузкой; со спеки 0024, в более ранних событиях его нет). Само фото и ссылка на него не отправляются.',
       perVisit: 0.012,
       properties: {
         saved: { kind: 'boolean' },
-        source: { kind: 'enum', values: ['file', 'camera', 'drop'] },
+        source: { kind: 'enum', values: ['file', 'camera', 'drop', 'paste'] },
         place: { kind: 'enum', values: ['photos', 'try-on'] },
         first: { kind: 'boolean' },
+        format: { kind: 'enum', values: ['jpeg', 'png', 'webp', 'heic'] },
       },
     },
     'Photo Refused': {
       zone: 'fitting',
       type: 'interaction',
       description:
-        'Проверка не пропустила фото: после ответа api. `reason` — причина: `dark` слишком темно, `not_full` не в полный рост, `many_people` больше одного человека, `child` похоже на ребёнка, `no_person` нет человека, `moderation` не прошло модерацию, `other` причина не распознана. `source`, `place`, `first` — как у `Photo Uploaded`.',
+        'Проверка не пропустила фото: после ответа api. `reason` — причина: `dark` слишком темно, `not_full` не в полный рост, `many_people` больше одного человека, `child` похоже на ребёнка, `no_person` нет человека, `moderation` не прошло модерацию, `other` причина не распознана. `source`, `place`, `first`, `format` — как у `Photo Uploaded`.',
       perVisit: 0.005,
       properties: {
         reason: {
           kind: 'enum',
           values: ['dark', 'not_full', 'many_people', 'child', 'no_person', 'moderation', 'other'],
         },
-        source: { kind: 'enum', values: ['file', 'camera', 'drop'] },
+        source: { kind: 'enum', values: ['file', 'camera', 'drop', 'paste'] },
         place: { kind: 'enum', values: ['photos', 'try-on'] },
         first: { kind: 'boolean' },
+        format: { kind: 'enum', values: ['jpeg', 'png', 'webp', 'heic'] },
       },
     },
     'Fitting Started': {
@@ -740,7 +742,7 @@ export const catalog = defineCatalog({
       zone: 'fitting',
       type: 'interaction',
       description:
-        '«Добавить фото» или «Выбрать фото» (на странице «Мои фото»), «Загрузить фото» или нажатие на зону загрузки (на выборе фото и в окне «Заменить фото» в окне примерки): открывает выбор файла, а при первой загрузке — подсказки и согласия. Перетаскивание файла на зону не отслеживается: это `Photo Uploaded` с `source: drop`.',
+        '«Добавить фото» или «Выбрать фото» (на странице «Мои фото»), «Загрузить фото» или нажатие на зону загрузки (на выборе фото и в окне «Заменить фото» в окне примерки): открывает выбор файла, а при первой загрузке — подсказки и согласия. Перетаскивание файла на зону и вставка не отслеживаются: это `Photo Uploaded` с `source: drop` и `source: paste`.',
       clicksPerVisit: 0.02,
       hoversPerVisit: 0.02,
     },

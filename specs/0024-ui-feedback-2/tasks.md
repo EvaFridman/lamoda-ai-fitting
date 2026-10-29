@@ -107,7 +107,7 @@ same release); PR 4 the closing, which records the owner's checks on the deploye
       and in the window's zone (texts, hover, dragging), the formats line with HEIC. Check:
       `upload-photo.test.tsx`. **Stop once** for the owner's look at `/ui-kit` and the window
       (Z26.7) before the commit. Commit: `feat(web): the hairline drop zone`.
-- [ ] **T18. HEIC and paste (plan §4.5; AC27, AC28).** `libheif-js` (checked first as
+- [x] **T18. HEIC and paste (plan §4.5; AC27, AC28).** `libheif-js` (checked first as
       `CONTRIBUTING.md` rule 3 asks: on npm, its repository, usage, recent releases, no install
       script), `heic.ts`, `accept` by
       pointer, the paste listener with `source: paste`, `format` on the upload events, the CSP's
