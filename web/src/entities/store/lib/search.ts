@@ -1,13 +1,5 @@
 import type { Store } from '../model/schemas';
-
-// Lower case, `ё` as `е`, split on anything but letters and digits: «Охта-Молл», «ул. Ленина, 5».
-function words(text: string): string[] {
-  return text
-    .toLowerCase()
-    .replaceAll('ё', 'е')
-    .split(/[^\p{L}\p{N}]+/u)
-    .filter(Boolean);
-}
+import { matchesWords, words } from './words';
 
 function storeWords(store: Store): string[] {
   return [store.name, store.mall, store.city, store.street, ...store.metroStations].flatMap(words);
@@ -19,8 +11,5 @@ function storeWords(store: Store): string[] {
 export function matchStores(stores: readonly Store[], text: string): Store[] {
   const query = words(text);
   if (query.length === 0) return [...stores];
-  return stores.filter((store) => {
-    const own = storeWords(store);
-    return query.every((word) => own.some((candidate) => candidate.startsWith(word)));
-  });
+  return stores.filter((store) => matchesWords(query, storeWords(store)));
 }
