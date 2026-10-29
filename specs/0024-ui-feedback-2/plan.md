@@ -237,9 +237,11 @@ calc(12px + env(safe-area-inset-bottom))`, inside the modal's scroll container, 
 - `photo-picker.tsx`: `saveSwitch` goes from the zone and the replace window; `UploadPhoto`'s
   `save` is `false` in the window (`Photo Uploaded.saved` false from the window).
 - `fitting-result.tsx` and `look-result.tsx`: `SavePhotoSwitch` (`features/upload-photo`) in the
-  right column above the item cards, rendered when, at the result's first render, the fitting's
-  photo is in the window's `transients` or `useMyPhotos` shows it `transient: true`; that answer
-  is kept in the component's state (`ownPhoto`) for the result's lifetime, so the switch stays
+  right column above the item cards, rendered when the fitting's photo is in the window's
+  `transients` or `useMyPhotos` shows it `transient: true`. The answer is taken once, as soon as
+  it is known (at once from `transients`, else when `useMyPhotos` has loaded; nothing renders
+  while it loads), and kept in the component's state (`ownPhoto`) for the result's lifetime, never
+  recomputed after the switch's own keep or unkeep, so the switch stays
   after its own keep and can be turned off and on again. On mount with the switch on it calls
   `keepPhoto(id)` once (`PUT …/keep`); a 409 shows it off and disabled with no text (Z29); a 404
   shows «Фото уже удалено» in its place; a kept photo leaves
