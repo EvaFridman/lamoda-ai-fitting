@@ -32,7 +32,7 @@ Status: accepted (2026-10-29).
       Check: tests pin today's 31 names and their order, the nearest city (real cities, Москва–
       Санкт-Петербург about 635 km, so swapped axes fail) and the 100 km bound.
       Commit: `feat(web): derive the stores' cities and the nearest one`
-- [ ] **T3. The choice and the window (plan §3, §7).** `features/choose-city`: the store of
+- [x] **T3. The choice and the window (plan §3, §7).** `features/choose-city`: the store of
       `city` and `city-asked`, `locateCity`, `CityModal`, `useAskCityOnce`; the analytics
       catalog's entries (C13) and `EVENTS.md`.
       Check: tests with a stubbed `navigator.geolocation` and `localStorage` (found, far,

@@ -370,6 +370,7 @@ describe('analytics catalog', () => {
       'Catalog Filter Applied',
       'Catalog Searched',
       'Catalog Sorted',
+      'City Located',
       'Fitting Completed',
       'Fitting Failed',
       'Fitting Refused',
@@ -408,6 +409,7 @@ describe('analytics catalog', () => {
       'Fitting Failed': ['fitting', 'interaction'],
       'Fitting Refused': ['fitting', 'interaction'],
       'Stores Searched': ['stores', 'interaction'],
+      'City Located': ['stores', 'interaction'],
     });
   });
 
@@ -495,6 +497,9 @@ describe('analytics catalog', () => {
       'room.try-on': ['fitting', 'interaction'],
       'header.burger': ['header', 'interaction'],
       'header.search': ['header', 'interaction'],
+      'city.open': ['header', 'interaction'],
+      'city.pick': ['header', 'interaction'],
+      'city.auto': ['header', 'interaction'],
       'burger.category': ['header', 'navigation'],
       'footer.link': ['footer', 'navigation'],
       'stores.card': ['stores', 'interaction'],
@@ -503,6 +508,8 @@ describe('analytics catalog', () => {
       'stores.route': ['stores', 'navigation'],
       'stores.pin': ['stores', 'interaction'],
       'stores.tab': ['stores', 'interaction'],
+      'stores.scope': ['stores', 'interaction'],
+      'stores.search-all': ['stores', 'interaction'],
     });
   });
 

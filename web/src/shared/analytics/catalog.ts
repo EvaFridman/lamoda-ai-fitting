@@ -128,9 +128,9 @@ export const catalog = defineCatalog({
     },
     header: {
       title: 'Шапка',
-      areas: ['header', 'burger'],
+      areas: ['header', 'burger', 'city'],
       description:
-        'Шапка сайта на телефоне (спека 0019 A87). `header` — её строка: бургер и лупа; `burger` — меню-бургер слева: «Все товары» и категории. Логотип, «Избранное» и «Корзина» не отслеживаются; «Войти» бургера считает `Login Opened`, его разделы кабинета и выходы — элементы `profile-menu` с `surface: burger`.',
+        'Шапка сайта. `header` — строка шапки на телефоне (спека 0019 A87): бургер и лупа; `burger` — меню-бургер слева: «Все товары» и категории; `city` — город посетителя (спека 0026): кнопка в шапке, строка бургера и «Изменить город» страницы магазинов открывают окно «Ваш город», в нём «Определить автоматически» и список городов. Ни одно свойство не называет город и не несёт координат. Логотип, «Избранное» и «Корзина» не отслеживаются; «Войти» бургера считает `Login Opened`, его разделы кабинета и выходы — элементы `profile-menu` с `surface: burger`.',
     },
     account: {
       title: 'Личный кабинет',
@@ -374,6 +374,17 @@ export const catalog = defineCatalog({
         results: { kind: 'number' },
       },
     },
+    'City Located': {
+      zone: 'stores',
+      type: 'interaction',
+      description:
+        'Конец поиска города по геопозиции (спека 0026): страница магазинов спросила сама при первом открытии без города (`trigger: page`) или посетитель нажал «Определить автоматически» (`button`). `result`: `found` — выбран город ближайшего магазина, `far` — ни одного магазина ближе 100 км, `refused` — доступ к геопозиции запрещён, `failed` — не удалось определить (ошибка, 10 секунд без ответа, нет геолокации в браузере). Ни город, ни координаты, ни расстояние не отправляются.',
+      perVisit: 0.025,
+      properties: {
+        result: { kind: 'enum', values: ['found', 'far', 'refused', 'failed'] },
+        trigger: { kind: 'enum', values: ['page', 'button'] },
+      },
+    },
   },
   elements: {
     'ui-kit.button-primary': {
@@ -434,6 +445,36 @@ export const catalog = defineCatalog({
       clicksPerVisit: 0.2,
       hoversPerVisit: 0.05,
       properties: { expanded: { kind: 'boolean' } },
+    },
+    'city.open': {
+      zone: 'header',
+      type: 'interaction',
+      description:
+        'Открытие окна «Ваш город»: кнопка города в шапке (`source: header`), строка «Город» в меню-бургере (`burger`) или «Изменить город» / «Выбрать город» на странице магазинов (`stores`). `had_city` — был ли город уже выбран.',
+      clicksPerVisit: 0.05,
+      hoversPerVisit: 0.08,
+      properties: {
+        source: { kind: 'enum', values: ['header', 'burger', 'stores'] },
+        had_city: { kind: 'boolean' },
+      },
+    },
+    'city.pick': {
+      zone: 'header',
+      type: 'interaction',
+      description:
+        'Город в списке окна «Ваш город» (один элемент на все строки): выбирает его и закрывает окно. Какой город и место строки не отправляются. `searched` — был ли в поле поиска текст, `had_city` — был ли город выбран до этого.',
+      clicksPerVisit: 0.03,
+      hoversPerVisit: 0.03,
+      properties: { searched: { kind: 'boolean' }, had_city: { kind: 'boolean' } },
+    },
+    'city.auto': {
+      zone: 'header',
+      type: 'interaction',
+      description:
+        '«Определить автоматически» в окне «Ваш город»: браузер спрашивает разрешение на геопозицию, чем всё кончилось — событие `City Located` с `trigger: button`. `had_city` — был ли город выбран до этого.',
+      clicksPerVisit: 0.01,
+      hoversPerVisit: 0.01,
+      properties: { had_city: { kind: 'boolean' } },
     },
     'burger.category': {
       zone: 'header',
@@ -1118,6 +1159,23 @@ export const catalog = defineCatalog({
       clicksPerVisit: 0.03,
       hoversPerVisit: 0,
       properties: { tab: { kind: 'enum', values: ['list', 'map'] } },
+    },
+    'stores.scope': {
+      zone: 'stores',
+      type: 'interaction',
+      description:
+        'Переключатель «<Город>» / «Все города» над поиском, когда город выбран (спека 0026). `scope` — выбранный вид: магазины города (`city`) или все (`all`). Город не отправляется.',
+      clicksPerVisit: 0.01,
+      hoversPerVisit: 0,
+      properties: { scope: { kind: 'enum', values: ['city', 'all'] } },
+    },
+    'stores.search-all': {
+      zone: 'stores',
+      type: 'interaction',
+      description:
+        '«Искать во всех городах» под «Ничего не нашлось», когда в городе поиск ничего не нашёл: показывает магазины всех городов с тем же текстом.',
+      clicksPerVisit: 0.003,
+      hoversPerVisit: 0.002,
     },
     'footer.link': {
       zone: 'footer',

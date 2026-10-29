@@ -1,7 +1,7 @@
 # 0026 city: clarifications
 
 Status: accepted (2026-10-29): C0 carried in from spec 0024; C1–C12 settled at the first answers,
-C13 at the plan, C14 at the review of PR 1 (C6, C7 amended).
+C13 at the plan, C14 at the review of PR 1 (C6, C7 amended), C15 at T3.
 Decision ids `C0`, `C1`, …; the notes are `S1`, `S2` and `S3` of
 [../0024-ui-feedback-2/source/agentation-notes.md](../0024-ui-feedback-2/source/agentation-notes.md).
 
@@ -59,14 +59,14 @@ page only; the city back in the phone header.
 
 **C6. The page asks once per browser.** `/customer/stores` asks for the permission by itself only
 while no city is chosen and the page has never asked in this browser (a `localStorage` mark set
-when it asks); a city chosen by hand never asks. While the browser's prompt waits, the page shows
-every store as today and moves to the city once one is found. Weighed: every open while no city is
+when it asks); a city chosen by hand never asks (amended by C14). While the browser's prompt waits, the page shows
+every store as today and moves to the city once one is found (amended by C15). Weighed: every open while no city is
 chosen and the permission is not refused (it would ask on every visit of someone who closed the
 prompt without answering).
 
 **C7. The texts.** After the page's own ask: a city found moves the page to it (C3) and the header
 shows it, with no message; past 100 km a line over the list «Рядом с вами пока нет магазинов» and
-every store; refused, failed or timed out (10 s): nothing, today's view. In the window after
+every store; refused, failed or timed out (10 s, amended by C15): nothing, today's view. In the window after
 «Определить автоматически»: a city found closes it with the city chosen; past 100 km «Рядом с вами
 пока нет магазинов»; refused «Доступ к геопозиции запрещён» (amended by C14); failed or timed
 out «Не удалось определить местоположение».
@@ -123,3 +123,14 @@ as it stands:
 3. The key stays `city` (and `city-asked`), unprefixed as `cookie-consent` and
    `fitting-photo-consent:<userId>`; nothing of the SDK's (`mp_`, `__mp`) can clash. Weighed:
    `lamoda-city`.
+
+## Added at T3 (2026-10-29)
+
+**C15. The ask's own deadline.** The browser's geolocation `timeout` (C7's 10 s) starts only once
+the permission is given, and a prompt closed without an answer (Firefox, Safari) may call neither
+callback, leaving «Определить автоматически» busy and no `City Located` sent. The owner, at
+T3's review: `locateCity` ends `failed` («Не удалось определить местоположение») 30 s after the
+ask, time to read the prompt and C7's 10 s for the position; a later answer is ignored, for the
+stores page's own ask too (C6: it then stays on every store). Weighed:
+10 s from the click (a slow reader is told it failed before answering); the browser's timeout
+alone, as a risk.

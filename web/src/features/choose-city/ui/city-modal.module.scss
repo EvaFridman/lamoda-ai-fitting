@@ -1,0 +1,76 @@
+// The window «Ваш город» (spec 0026 C4): the button and its result line, the search, then the
+// cities as 48px rows split by hairlines, as the burger's lists.
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.status {
+  min-height: var(--line-height-body-s);
+  margin: var(--space-2) 0 0;
+
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  color: var(--color-text-secondary);
+
+  &:empty {
+    margin: 0;
+  }
+}
+
+.failure,
+.empty {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--color-border);
+  list-style: none;
+}
+
+.row {
+  cursor: pointer;
+
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: space-between;
+
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 48px;
+  margin: 0;
+  padding: var(--space-3) 0;
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+
+  font: inherit;
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+  color: inherit;
+  text-align: left;
+
+  background: none;
+
+  &:hover {
+    color: var(--color-text-secondary);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: -2px;
+  }
+
+  &[aria-current='true'] {
+    font-weight: var(--font-weight-medium);
+  }
+}
+
+.name {
+  overflow-wrap: anywhere;
+}
