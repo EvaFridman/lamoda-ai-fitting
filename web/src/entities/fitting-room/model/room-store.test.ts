@@ -2,6 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
+  clearFocusSlot,
   isRoomOwner,
   openLookTryOn,
   openRoom,
@@ -11,7 +12,13 @@ import {
 } from './room-store';
 
 beforeEach(() => {
-  useRoomStore.setState({ open: false, lookOpen: false, wishes: null, userId: undefined });
+  useRoomStore.setState({
+    open: false,
+    focusSlot: null,
+    lookOpen: false,
+    wishes: null,
+    userId: undefined,
+  });
 });
 
 describe('the look window', () => {
@@ -119,6 +126,42 @@ describe('openRoom', () => {
     openRoom();
 
     expect(useRoomStore.getState().open).toBe(true);
+  });
+
+  it('keeps no slot to focus when opened without one', () => {
+    useRoomStore.setState({ focusSlot: 'shoes' });
+
+    openRoom();
+
+    expect(useRoomStore.getState().open).toBe(true);
+    expect(useRoomStore.getState().focusSlot).toBeNull();
+  });
+
+  it('opens with the slot to bring into view', () => {
+    openRoom({ slot: 'bottom' });
+
+    expect(useRoomStore.getState().open).toBe(true);
+    expect(useRoomStore.getState().focusSlot).toBe('bottom');
+  });
+
+  it('forgets the slot once scrolled to', () => {
+    openRoom({ slot: 'bottom' });
+
+    clearFocusSlot();
+
+    expect(useRoomStore.getState().focusSlot).toBeNull();
+    expect(useRoomStore.getState().open).toBe(true);
+  });
+
+  it('forgets the slot when closed, and keeps it when opened', () => {
+    openRoom({ slot: 'top' });
+    useRoomStore.getState().setOpen(true);
+    expect(useRoomStore.getState().focusSlot).toBe('top');
+
+    useRoomStore.getState().setOpen(false);
+
+    expect(useRoomStore.getState().open).toBe(false);
+    expect(useRoomStore.getState().focusSlot).toBeNull();
   });
 
   it('keeps it open when called twice', () => {

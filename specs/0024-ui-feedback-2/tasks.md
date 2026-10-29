@@ -61,7 +61,7 @@ same release); PR 4 the closing, which records the owner's checks on the deploye
       and tap), `SavedNote`'s `note`, the `.note` paragraphs removed, `/ui-kit`. Check:
       `info-tip.test.tsx`, `saved-note.test.tsx`. Commit:
       `feat(web): info tip in the kit, the result's caption as a tooltip`.
-- [ ] **T11. The look result in one layout (plan §2.8; AC12, AC14).** One markup for every width,
+- [x] **T11. The look result in one layout (plan §2.8; AC12, AC14).** One markup for every width,
       the colour line's condition and no «один цвет», the heart with its tooltip, the bottom-aligned
       block, «Заменить» on the item cards with the room's `focusSlot`, «Хотите что-то поменять в
       образе?» on phones; `room.open`, `result.add-to-cart-all`, `result.item-colour` descriptions.

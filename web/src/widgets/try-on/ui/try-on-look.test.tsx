@@ -303,7 +303,13 @@ beforeEach(() => {
     fittings: new Map(),
     started: () => json(201, { ...running(), repeated: false }),
   };
-  useRoomStore.setState({ open: false, lookOpen: false, wishes: null, userId: undefined });
+  useRoomStore.setState({
+    open: false,
+    focusSlot: null,
+    lookOpen: false,
+    wishes: null,
+    userId: undefined,
+  });
   fetchMock.mockReset();
   fetchMock.mockImplementation((url: string, init?: RequestInit) =>
     Promise.resolve(route(String(url), init)),
@@ -632,14 +638,38 @@ describe('TryOn of a look: the result (board 8, AC14)', () => {
       'false',
     );
     const jeansRow = await rowOf('Джинсы');
-    expect(await within(jeansRow).findByText('один цвет')).toBeInTheDocument();
     expect(within(jeansRow).queryByRole('group')).not.toBeInTheDocument();
+    expect(within(jeansRow).queryByText('один цвет')).not.toBeInTheDocument();
     const sneakersRow = await rowOf('Кеды');
     expect(within(sneakersRow).queryByRole('group')).not.toBeInTheDocument();
     expect(within(sneakersRow).queryByText('один цвет')).not.toBeInTheDocument();
   });
 
-  it('has the stubs, the question, «Заменить вещь в примерочной» and the look’s meter', async () => {
+  it('says that a colour change regenerates the whole look while some item has a second colour (AC12)', async () => {
+    showResult();
+    renderTryOn({ fittingId: RESULT });
+
+    expect(
+      await screen.findByText('Смена цвета одной вещи перегенерирует весь образ на этом же фото'),
+    ).toBeInTheDocument();
+  });
+
+  it('leaves the colour line out when no item has a second colour (AC12)', async () => {
+    showResult(look({ items: [IN_SLOT_ORDER[1]!, IN_SLOT_ORDER[2]!] }));
+    renderTryOn({ fittingId: RESULT });
+
+    await rowOf('Джинсы');
+    await vi.waitFor(() =>
+      expect(
+        fetchMock.mock.calls.filter(([url]) =>
+          new URL(String(url)).pathname.startsWith('/api/products/'),
+        ),
+      ).toHaveLength(2),
+    );
+    expect(screen.queryByText(/Смена цвета одной вещи/)).not.toBeInTheDocument();
+  });
+
+  it('has the stubs, the question, a «Заменить» on each card and the look’s meter', async () => {
     showResult();
     renderTryOn({ fittingId: RESULT });
 
@@ -650,21 +680,31 @@ describe('TryOn of a look: the result (board 8, AC14)', () => {
     expect(screen.queryByRole('button', { name: /Всё в/ })).not.toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'В корзину' })).toHaveLength(3);
     expect(screen.getByRole('button', { name: 'Хотите что-то поменять в образе?' })).toBeEnabled();
-    expect(screen.getByRole('button', { name: 'Заменить вещь в примерочной' })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Заменить вещь в примерочной' }),
+    ).not.toBeInTheDocument();
+    for (const name of ['Рубашка', 'Джинсы', 'Кеды']) {
+      expect(screen.getByRole('button', { name: `Заменить: ${name}` })).toBeEnabled();
+    }
     expect(
       await screen.findByText('Образ — 1 примерка · осталось 17 в этом месяце'),
     ).toBeInTheDocument();
   });
 
-  it('closes the window and opens the room from «Заменить вещь в примерочной»', async () => {
+  it('closes the window and opens the room at the slot of the item whose «Заменить» was pressed', async () => {
     showResult();
     const user = setup();
     const { onClose } = renderTryOn({ fittingId: RESULT });
 
-    await user.click(await screen.findByRole('button', { name: 'Заменить вещь в примерочной' }));
+    await user.click(await screen.findByRole('button', { name: 'Заменить: Джинсы' }));
 
     expect(onClose).toHaveBeenCalledOnce();
     expect(useRoomStore.getState().open).toBe(true);
+    expect(useRoomStore.getState().focusSlot).toBe('bottom');
+    expect(mocks.track).toHaveBeenCalledWith(
+      'Element Clicked',
+      expect.objectContaining({ element: 'room.open', source: 'result', items: 3 }),
+    );
   });
 
   it('shows the wait of a look that runs, naming the look and not one item', async () => {
@@ -855,7 +895,7 @@ describe('TryOn of a look: another colour (AC15)', () => {
     const group = await screen.findByRole('group', { name: 'Цвет: Рубашка' });
     for (const swatch of within(group).getAllByRole('button')) expect(swatch).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Хотите что-то поменять в образе?' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Заменить вещь в примерочной' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Заменить: Рубашка' })).toBeEnabled();
   });
 });
 
@@ -1024,44 +1064,23 @@ describe('TryOn of a look: the picker of a shown look keeps that look, not the r
 describe('TryOn of a look on a phone (boards 8.1, 8.2)', () => {
   beforeEach(stubPhone);
 
-  it('shows the strip, the count and the sum with «Всё в корзину» and «Вещи образа» under the picture', async () => {
+  it('shows the same item cards, the sum and the actions as a wide screen, no «Вещи образа» screen (AC12)', async () => {
     showResult();
     renderTryOn({ fittingId: RESULT });
 
-    expect(await screen.findByRole('button', { name: 'Вещи образа' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Вещи образа' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Вещи образа' })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    expect(screen.getByRole('link', { name: 'Рубашка' })).toBeInTheDocument();
+    expect(screen.getByText('Сумма образа')).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'В корзину' })).toHaveLength(3);
     expect(screen.getByRole('button', { name: 'Добавить образ в корзину' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Добавить образ в избранное' })).toBeInTheDocument();
-    expect(screen.getByText('3 вещи')).toBeInTheDocument();
-    expect(screen.getByText(/12\s000/)).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Вещи образа' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Рубашка' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Хотите что-то поменять в образе?' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Заменить: Рубашка' })).toBeInTheDocument();
   });
 
-  it('opens «Вещи образа» as a screen of its own with the list, the sum and the actions', async () => {
-    showResult();
-    const user = setup();
-    renderTryOn({ fittingId: RESULT });
-
-    await user.click(await screen.findByRole('button', { name: 'Вещи образа' }));
-
-    const screen2 = await screen.findByRole('dialog', { name: 'Вещи образа' });
-    expect(await within(screen2).findByRole('link', { name: 'Рубашка' })).toBeInTheDocument();
-    expect(within(screen2).getByText('Сумма образа')).toBeInTheDocument();
-    expect(
-      within(screen2).getByRole('button', { name: 'Добавить образ в корзину' }),
-    ).toBeInTheDocument();
-    expect(
-      within(screen2).getByRole('button', { name: 'Добавить образ в избранное' }),
-    ).toBeInTheDocument();
-    expect(
-      within(screen2).getByRole('button', { name: 'Хотите что-то поменять в образе?' }),
-    ).toBeEnabled();
-    expect(
-      within(screen2).getByRole('button', { name: 'Заменить вещь в примерочной' }),
-    ).toBeInTheDocument();
-  });
-
-  it('changes a colour from the screen of the items the same way', async () => {
+  it('changes a colour from the card the same way', async () => {
     showResult();
     api.started = () =>
       json(201, {
@@ -1072,9 +1091,7 @@ describe('TryOn of a look on a phone (boards 8.1, 8.2)', () => {
       });
     const user = setup();
     renderTryOn({ fittingId: RESULT });
-    await user.click(await screen.findByRole('button', { name: 'Вещи образа' }));
-    const items = await screen.findByRole('dialog', { name: 'Вещи образа' });
-    const group = await within(items).findByRole('group', { name: 'Цвет: Рубашка' });
+    const group = await screen.findByRole('group', { name: 'Цвет: Рубашка' });
 
     await user.click(within(group).getByRole('button', { name: 'Чёрный' }));
 

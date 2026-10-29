@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 
+import type { OutfitSlot } from './schemas';
+
 // Where the room was opened from (spec 0019 A90.7): the header's icon, the toast's «Открыть», the
 // limit card's «Перейти в примерочную». The analytics' `room.open` sends it.
 export type RoomOpenSource = 'header' | 'toast' | 'limit';
@@ -11,6 +13,9 @@ interface RoomState {
   // The room's drawer is mounted once (the root layout), so anything opens it through here: a
   // widget imports no widget.
   open: boolean;
+  // The slot whose row the drawer brings into view as it opens (the look result's «Заменить», spec
+  // 0024 Z8); the drawer clears it once scrolled, and a close forgets it.
+  focusSlot: OutfitSlot | null;
   // The look's try-on window (T26), mounted once in the root layout as the drawer is: the drawer's
   // «Примерить образ» opens it.
   lookOpen: boolean;
@@ -30,10 +35,11 @@ interface RoomState {
 
 export const useRoomStore = create<RoomState>()((set) => ({
   open: false,
+  focusSlot: null,
   lookOpen: false,
   wishes: null,
   userId: undefined,
-  setOpen: (open) => set({ open }),
+  setOpen: (open) => set(open ? { open } : { open, focusSlot: null }),
   setLookOpen: (lookOpen) => set({ lookOpen }),
   setWishes: (userId, text) => set({ wishes: { userId, text: text.slice(0, ROOM_WISHES_MAX) } }),
   setUser: (userId) =>
@@ -49,9 +55,15 @@ export function isRoomOwner(owner: string | null): boolean {
   return owner !== null && (current === undefined || current === owner);
 }
 
-// Opens the room's drawer; outside React too (a toast's action).
-export function openRoom(): void {
-  useRoomStore.getState().setOpen(true);
+// Opens the room's drawer; outside React too (a toast's action). With `slot`, that slot's row is
+// brought into view.
+export function openRoom({ slot = null }: { slot?: OutfitSlot | null } = {}): void {
+  useRoomStore.setState({ open: true, focusSlot: slot });
+}
+
+// The slot was brought into view.
+export function clearFocusSlot(): void {
+  useRoomStore.setState({ focusSlot: null });
 }
 
 // Closes it: a link inside it was followed, to another page or to the one it is on.

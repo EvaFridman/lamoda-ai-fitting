@@ -3,7 +3,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { useRoomStore } from '@/entities/fitting-room';
+import { openRoom, useRoomStore } from '@/entities/fitting-room';
 import { PHONE_QUERY } from '@/shared/config';
 
 import { FittingRoomDrawer } from './fitting-room-drawer';
@@ -263,11 +263,48 @@ beforeEach(() => {
   fetchMock.mockReset();
   fetchMock.mockImplementation((url: string, init?: RequestInit) => route(String(url), init));
   vi.stubGlobal('fetch', fetchMock);
-  useRoomStore.setState({ open: false, wishes: null, userId: undefined });
+  useRoomStore.setState({ open: false, focusSlot: null, wishes: null, userId: undefined });
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
+});
+
+describe('FittingRoomDrawer opened at a slot (spec 0024 Z8)', () => {
+  const scrollIntoView = vi.fn();
+
+  beforeEach(() => {
+    scrollIntoView.mockReset();
+    Element.prototype.scrollIntoView = scrollIntoView;
+  });
+
+  afterEach(() => {
+    // jsdom has no scrollIntoView of its own.
+    // @ts-expect-error removing the stub
+    delete Element.prototype.scrollIntoView;
+  });
+
+  it('scrolls the row of that slot into view, then forgets the slot', async () => {
+    renderDrawer();
+    openRoom({ slot: 'bottom' });
+    const dialog = await screen.findByRole('dialog', { name: 'Примерочная' });
+    await within(dialog).findByText('Джинсы Annen');
+
+    await waitFor(() => expect(scrollIntoView).toHaveBeenCalledTimes(1));
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'start' });
+    const row = scrollIntoView.mock.contexts[0] as HTMLElement;
+    expect(row.tagName).toBe('LI');
+    expect(row).toHaveTextContent('Джинсы');
+    expect(row).not.toHaveTextContent('Рубашка');
+    await waitFor(() => expect(useRoomStore.getState().focusSlot).toBeNull());
+  });
+
+  it('scrolls nothing when opened without a slot', async () => {
+    const { dialog } = await openDrawer();
+    await within(dialog).findByText('Джинсы Annen');
+
+    expect(scrollIntoView).not.toHaveBeenCalled();
+  });
 });
 
 describe('FittingRoomDrawer closed or signed out', () => {

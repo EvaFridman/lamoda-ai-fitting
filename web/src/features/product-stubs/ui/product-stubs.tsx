@@ -9,6 +9,7 @@ import {
   FavoriteToggle,
   type FavoriteToggleSize,
   showToast,
+  Tooltip,
 } from '@/shared/ui';
 
 // The cart and the favourites are not in the prototype (spec 0019 A33): their buttons answer this.
@@ -67,6 +68,9 @@ export interface FavoriteStubProps {
   events?: StubEvents;
   // The heart's name, «В избранное» by default; the look's «Добавить образ в избранное» (P32).
   'aria-label'?: string;
+  // The kit's `Tooltip` over the heart, with a mouse or the focus: the look's «Добавим в избранное
+  // все вещи образа» (spec 0024 AC14). A touch screen shows none; the toast says the rest.
+  tooltip?: string;
 }
 
 // «В избранное»: the kit's heart that never stays pressed (A33).
@@ -75,8 +79,9 @@ export function FavoriteStub({
   className,
   events,
   'aria-label': ariaLabel = 'В избранное',
+  tooltip,
 }: FavoriteStubProps) {
-  return (
+  const heart = (
     <FavoriteToggle
       size={size}
       className={className}
@@ -90,4 +95,5 @@ export function FavoriteStub({
       aria-label={ariaLabel}
     />
   );
+  return tooltip === undefined ? heart : <Tooltip content={tooltip}>{heart}</Tooltip>;
 }

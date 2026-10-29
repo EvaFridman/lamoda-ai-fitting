@@ -1032,8 +1032,9 @@ stage, category }` (the stage of `moderation_details`, else `input`);
 - `web` fitting room (spec 0019 board 2, AC13, A12, A90): `entities/fitting-room` reads
   `GET /me/fitting-room` in the browser (`useFittingRoom`) under `fittingRoomKeys.all`, which
   starts with `userKeys.all`; its store (`useRoomStore`, Zustand) holds whether the drawer is open
-  (`openRoom()`, also from a toast's action) and the wishes of one user in the tab's memory only
-  (A90.5). `features/fitting-room`'s `useRoomActions` puts, removes and clears, answering the cache
+  (`openRoom()`, also from a toast's action; `openRoom({ slot })` sets `focusSlot`, whose row the
+  drawer scrolls into view and clears, a close forgets it, spec 0024 Z8) and the wishes of one
+  user in the tab's memory only (A90.5). `features/fitting-room`'s `useRoomActions` puts, removes and clears, answering the cache
   with the write's answer (writes that overlap or fail, a write answered while the room is being
   read and a remove over a room waiting for a read read it again instead, A97), and shows the toasts (names in quotes, A90.10; no slot's name, spec 0023 Y15): «Заменили «<прежняя>»
   на «<новая>»» and «Убрали «…» из примерочной» with «Вернуть» (a `PUT` of the item back), ««…» в
@@ -1054,8 +1055,13 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   примерочную». `widgets/try-on`'s `LookTryOn`, mounted
   beside the drawer and closed the same way, is `TryOn` with `look` (T26, A92): the picker with
   the room's items, its sum and «Изменить» (back to the room), started with the store's wishes;
-  a look's result (`LookResult`, also from the history's `?fitting=`) lists the items in the
-  slots' order with `MiniSwatches`, and another colour is `POST /fittings` with the result's
+  a look's result (`LookResult`, also from the history's `?fitting=`; one markup on every width,
+  one column below 800 px, spec 0024 AC12) lists the items in the slots' order as full cards with
+  `MiniSwatches` (none for one colour; the line «Смена цвета…» only while some item has two),
+  «В корзину», the heart and «Заменить» (the window closes, the room opens at the item's slot,
+  `room.open` with `source: result`, Z8), then a block at the right column's bottom (the sum,
+  «Добавить образ в корзину» with a heart whose tooltip says every item is added, «Хотите что-то
+  поменять в образе?», the meter, AC14), and another colour is `POST /fittings` with the result's
   photo, items and `promptText`, run over the result; «Что поменять?» (no reasons' chips: the
   hint of what may change, an optional comment, `POST /fittings/:id/regenerate` with no
   `reasons`, spec 0023 Y9) asks a look «Какая именно?», an optional item that goes before the
@@ -1074,8 +1080,8 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   at once (P26). Both results carry `SavedNote` (`entities/fitting`, «Сохранено в «Мои
   примерки»», Y7) under the picture, with an `InfoTip` «Изображение приблизительное…» after it
   (spec 0024 AC13, no caption of its own in the body; the single result's not while a colour or
-  a regeneration runs over it); the look's buttons read «Добавить образ в корзину» and
-  «Добавить образ в избранное» (P31, P32).
+  a regeneration runs over it); the look's cart button reads «Добавить образ в корзину» and
+  its heart is named «Добавить образ в избранное» (P31, P32, spec 0024 AC14).
 - `web` stores page (spec 0022, `_pages/stores`): `useStores` (`entities/store`) starts from the
   page cache's `getStores`; the search (`matchStores`: every word the start of a word of the
   name, mall, city, street or a metro station, X7) runs in the browser, its text never in an

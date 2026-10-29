@@ -9,7 +9,6 @@ import {
   type FittingQuota,
   fittingErrorText,
   fittingRefusal,
-  ItemsStrip,
   itemWord,
   LimitMeter,
   SavedNote,
@@ -18,13 +17,14 @@ import {
   triesLeftTail,
   useStartLookFitting,
 } from '@/entities/fitting';
-import { bySlot, useFittingRoom } from '@/entities/fitting-room';
-import { CartStubButton, FavoriteStub, showStubToast } from '@/features/product-stubs';
+import { bySlot, type OutfitSlot, useFittingRoom } from '@/entities/fitting-room';
+import { useAnyColourChoice } from '@/entities/product';
+import { CartStubButton, FavoriteStub } from '@/features/product-stubs';
 import { RegenerateSheet } from '@/features/regenerate-fitting';
 import { useTrackedElement } from '@/shared/analytics';
 import { FITTINGS_HREF, PHONE_QUERY } from '@/shared/config';
 import { formatPrice, useMediaQuery } from '@/shared/lib';
-import { Button, Drawer, HeartIcon, LinkButton, Notice, ProgressBar } from '@/shared/ui';
+import { Button, Notice, ProgressBar } from '@/shared/ui';
 
 import { RESULT_NOTE } from '../lib/result-note';
 import { itemsText } from './look-subject';
@@ -60,18 +60,17 @@ export interface LookResultProps {
   // A regeneration of «Что поменять?» started: it has the wait of its own.
   onRegenerated: (fitting: StartedFitting) => void;
   onLimit: () => void;
-  // «Заменить вещь в примерочной»: the window closes and the room opens.
-  onOpenRoom: () => void;
+  // An item's «Заменить»: the window closes and the room opens at that slot (spec 0024 Z8).
+  onOpenRoom: (slot?: OutfitSlot) => void;
 }
 
-// Board 8, the result of a look (spec 0019 AC14, AC15, A62, A92): «N вещи · <date>», the picture
-// with «Сгенерировано ИИ» and «Сохранено в «Мои примерки»» (spec 0023 Y7), three tiles, «Вещи
-// образа» (each item with its price and colours; another colour regenerates the whole look on the
-// same photo), the sum, the stubs «Добавить образ в корзину» and «Добавить образ в избранное» (A33,
-// spec 0023 P31, P32),
-// «Хотите что-то поменять в образе?» with «Какая именно?», «Заменить вещь в примерочной» and the
-// meter. On a phone (8.1) the strip and the sum under the picture, and «Вещи образа» a screen of its
-// own (8.2).
+// Board 8, the result of a look (spec 0019 AC14, AC15, A62, A92), one markup on every width (spec
+// 0024 AC12): «N вещи · <date>», the picture with «Сохранено в «Мои примерки»» and its «!» (spec
+// 0023 Y7, spec 0024 AC13), three tiles, «Вещи образа» (each item with its price, colours and
+// «Заменить»; another colour regenerates the whole look on the same photo), then a block at the
+// column's bottom, level with the picture's on a wide window (AC14): the sum, the stub «Добавить
+// образ в корзину» with the heart (A33, spec 0023 P31, P32), «Хотите что-то поменять в образе?»
+// with «Какая именно?» and the meter. Below 800px one column.
 export function LookResult({
   fitting,
   running,
@@ -84,7 +83,6 @@ export function LookResult({
   const phone = useMediaQuery(PHONE_QUERY);
   const pictureRef = useRef<HTMLDivElement>(null);
   const [regenerating, setRegenerating] = useState(false);
-  const [itemsOpen, setItemsOpen] = useState(false);
   const start = useStartLookFitting();
   const regenerateElement = useTrackedElement('result.regenerate-open');
   const historyElement = useTrackedElement('result.history');
@@ -95,6 +93,8 @@ export function LookResult({
   });
   const progress = useRunningProgress(running);
   const items = itemsBySlot(fitting.items);
+  // The line «Смена цвета…» shows only while some item has another colour (spec 0024 AC12).
+  const anyColourChoice = useAnyColourChoice(items.map((item) => item.productId));
   const cartElement = useTrackedElement('result.add-to-cart-all', { items: items.length });
   const sum = items.reduce((total, item) => total + item.finalPrice, 0);
   const busy = running !== null || start.isPending;
@@ -126,78 +126,6 @@ export function LookResult({
     );
   }
 
-  const runningNote = running && progress && (
-    <div className={styles.running} aria-live="polite">
-      <span>Перегенерируем образ{changed ? `: ${changed}` : ''}</span>
-      <ProgressBar value={progress.percent} aria-label="Прогресс примерки" />
-      <span className={styles.muted}>
-        {timeLeftText(progress.secondsLeft)}
-        {running.countsAgainstLimit && ' · 1 примерка'}
-      </span>
-    </div>
-  );
-
-  const list = (
-    <>
-      {runningNote}
-      {failure && (
-        <Notice tone="error" role="alert">
-          {failure}
-        </Notice>
-      )}
-      <ul className={styles.items}>
-        {items.map((item) => (
-          <li key={item.productId}>
-            <LookItemRow
-              item={item}
-              // A photo gone takes the colours with it: the look cannot run again.
-              disabled={busy || fitting.photoId === null}
-              onColour={(id) => changeColour(item.productId, id)}
-            />
-          </li>
-        ))}
-      </ul>
-      <p className={styles.sum}>
-        <span>Сумма образа</span>
-        <b>{formatPrice(sum)}</b>
-      </p>
-    </>
-  );
-
-  const regenerate = (
-    <Button
-      variant="secondary"
-      fullWidth
-      disabled={busy || fitting.photoId === null}
-      onClick={() => {
-        regenerateElement.onClick();
-        setRegenerating(true);
-      }}
-      onPointerEnter={regenerateElement.onPointerEnter}
-      onPointerLeave={regenerateElement.onPointerLeave}
-    >
-      Хотите что-то поменять в образе?
-    </Button>
-  );
-  const replace = (
-    <LinkButton
-      className={styles.replace}
-      onPointerEnter={roomElement.onPointerEnter}
-      onPointerLeave={roomElement.onPointerLeave}
-      onClick={() => {
-        roomElement.onClick();
-        onOpenRoom();
-      }}
-    >
-      Заменить вещь в примерочной
-    </LinkButton>
-  );
-  const meter = quota && (
-    <LimitMeter left={quota.left} limit={quota.limit}>
-      Образ — 1 примерка · {triesLeftTail(quota.left)}
-    </LimitMeter>
-  );
-
   return (
     <div className={styles.result}>
       <p className={styles.saved}>
@@ -217,77 +145,84 @@ export function LookResult({
         <ResultTiles fitting={fitting} running={running} pictureRef={pictureRef} phone={phone} />
       </div>
 
-      {phone ? (
-        <div className={styles.right}>
-          {runningNote}
-          <div className={styles.summary}>
-            <ItemsStrip items={items} />
-            <span className={styles.summaryText}>
-              <span className={styles.muted}>{itemsText(items.length)}</span>
-              <b>{formatPrice(sum)}</b>
-            </span>
-          </div>
-          <div className={styles.buttons}>
-            <CartStubButton size={48} className={styles.full} events={cartElement}>
-              Добавить образ в корзину
-            </CartStubButton>
-            <Button
-              size={48}
-              variant="outline"
-              className={styles.grow}
-              onClick={() => setItemsOpen(true)}
-            >
-              Вещи образа
-            </Button>
-            <FavoriteStub size={48} aria-label="Добавить образ в избранное" />
-          </div>
-          <Drawer
-            title="Вещи образа"
-            description="Смена цвета одной вещи перегенерирует весь образ на этом же фото"
-            side="bottom"
-            fullHeight
-            open={itemsOpen}
-            onOpenChange={(next) => setItemsOpen(next)}
-            onBack={() => setItemsOpen(false)}
-            backLabel="К результату"
-            closable={false}
-            footer={
-              <div className={styles.footer}>
-                <div className={styles.buttons}>
-                  <CartStubButton size={48} className={styles.grow} events={cartElement}>
-                    Добавить образ в корзину
-                  </CartStubButton>
-                  <FavoriteStub size={48} aria-label="Добавить образ в избранное" />
-                </div>
-                {regenerate}
-                {replace}
-              </div>
-            }
-          >
-            {list}
-          </Drawer>
-        </div>
-      ) : (
-        <div className={styles.right}>
-          <h3 className={styles.title}>Вещи образа</h3>
+      <div className={styles.right}>
+        <h3 className={styles.title}>Вещи образа</h3>
+        {anyColourChoice && (
           <p className={styles.muted}>
             Смена цвета одной вещи перегенерирует весь образ на этом же фото
           </p>
-          {list}
+        )}
+        {running && progress && (
+          <div className={styles.running} aria-live="polite">
+            <span>Перегенерируем образ{changed ? `: ${changed}` : ''}</span>
+            <ProgressBar value={progress.percent} aria-label="Прогресс примерки" />
+            <span className={styles.muted}>
+              {timeLeftText(progress.secondsLeft)}
+              {running.countsAgainstLimit && ' · 1 примерка'}
+            </span>
+          </div>
+        )}
+        {failure && (
+          <Notice tone="error" role="alert">
+            {failure}
+          </Notice>
+        )}
+        <ul className={styles.items}>
+          {items.map((item) => (
+            <li key={item.productId}>
+              <LookItemRow
+                item={item}
+                // A photo gone takes the colours with it: the look cannot run again.
+                disabled={busy || fitting.photoId === null}
+                onColour={(id) => changeColour(item.productId, id)}
+                replaceEvents={{
+                  onPointerEnter: roomElement.onPointerEnter,
+                  onPointerLeave: roomElement.onPointerLeave,
+                }}
+                onReplace={() => {
+                  roomElement.onClick();
+                  onOpenRoom(item.slot ?? undefined);
+                }}
+              />
+            </li>
+          ))}
+        </ul>
+
+        <div className={styles.bottom}>
+          <p className={styles.sum}>
+            <span>Сумма образа</span>
+            <b>{formatPrice(sum)}</b>
+          </p>
           <div className={styles.buttons}>
-            <CartStubButton size={56} className={styles.wide} events={cartElement}>
+            <CartStubButton size={56} className={styles.grow} events={cartElement}>
               Добавить образ в корзину
             </CartStubButton>
-            <Button size={56} variant="outline" className={styles.wide} onClick={showStubToast}>
-              <HeartIcon />
-              Добавить образ в избранное
-            </Button>
+            <FavoriteStub
+              size={56}
+              aria-label="Добавить образ в избранное"
+              tooltip="Добавим в избранное все вещи образа"
+            />
           </div>
-          {regenerate}
-          {replace}
-          {meter}
+          <Button
+            variant="secondary"
+            fullWidth
+            disabled={busy || fitting.photoId === null}
+            onClick={() => {
+              regenerateElement.onClick();
+              setRegenerating(true);
+            }}
+            onPointerEnter={regenerateElement.onPointerEnter}
+            onPointerLeave={regenerateElement.onPointerLeave}
+          >
+            Хотите что-то поменять в образе?
+          </Button>
+          {quota && (
+            <LimitMeter left={quota.left} limit={quota.limit}>
+              Образ — 1 примерка · {triesLeftTail(quota.left)}
+            </LimitMeter>
+          )}
         </div>
-      )}
+      </div>
 
       <RegenerateSheet
         fitting={fitting}
@@ -295,12 +230,10 @@ export function LookResult({
         onOpenChange={setRegenerating}
         onStarted={(started) => {
           setRegenerating(false);
-          setItemsOpen(false);
           onRegenerated(started);
         }}
         onLimit={() => {
           setRegenerating(false);
-          setItemsOpen(false);
           onLimit();
         }}
       />
