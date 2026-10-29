@@ -465,6 +465,32 @@ describe('FittingRoomDrawer filled (desktop)', () => {
     expect(accessory).toHaveTextContent('+');
   });
 
+  it('marks only the empty accessory slot «скоро» (AC10)', async () => {
+    const { dialog } = await openDrawer();
+    await within(dialog).findByText('Рубашка Annen');
+    await waitFor(() =>
+      expect(within(dialog).getAllByRole('link', { name: 'Подобрать в каталоге' })).toHaveLength(2),
+    );
+
+    const chips = within(dialog).getAllByText('скоро');
+    expect(chips).toHaveLength(1);
+    const accessory = within(dialog).getAllByRole('listitem')[4] as HTMLElement;
+    expect(accessory).toContainElement(chips[0]!);
+  });
+
+  it('marks only the accessory «скоро» while the categories have not loaded', async () => {
+    fetchMock.mockImplementation((url: string, init?: RequestInit) =>
+      new URL(url).pathname === '/api/categories' ? new Promise(() => undefined) : route(url, init),
+    );
+    const { dialog } = await openDrawer();
+    await within(dialog).findByText('Рубашка Annen');
+
+    expect(within(dialog).queryByRole('link', { name: 'Подобрать в каталоге' })).toBeNull();
+    const chips = within(dialog).getAllByText('скоро');
+    expect(chips).toHaveLength(1);
+    expect(within(dialog).getAllByRole('listitem')[4]).toContainElement(chips[0]!);
+  });
+
   it('has a heart «В избранное» on a filled slot that shows the stub toast and sends room.favourite', async () => {
     const { dialog } = await openDrawer();
     await within(dialog).findByText('Рубашка Annen');
@@ -761,6 +787,13 @@ describe('FittingRoomDrawer wishes (A16, A90.5)', () => {
     expect(field.closest('.mp-block')).not.toBeNull();
     expect(field).toHaveAttribute('maxlength', '200');
     expect(within(dialog).getByText('0 / 200')).toBeInTheDocument();
+  });
+
+  it('is five lines tall (AC10)', async () => {
+    const { dialog } = await openDrawer();
+
+    const field = await within(dialog).findByRole('textbox', { name: /Пожелания к образу/ });
+    expect(field).toHaveAttribute('rows', '5');
   });
 
   it('is labelled exactly «Пожелания к образу», with no «по желанию» and no hint (AC7)', async () => {

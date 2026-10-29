@@ -29,6 +29,7 @@ export function RoomWishes({ userId, phone }: RoomWishesProps) {
         id={id}
         className={styles.wishesArea}
         value={wishes}
+        rows={5}
         maxLength={ROOM_WISHES_MAX}
         placeholder={
           phone

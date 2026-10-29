@@ -109,13 +109,23 @@
   line-height: var(--line-height-body-s);
 }
 
+// Five lines at least, growing with the text up to eight, then a scroll (spec 0024 Z6): the height
+// counts the lines, the padding and the border. A browser without `field-sizing` (Firefox) keeps
+// the five lines and scrolls.
 .wishesArea {
+  --wishes-padding-y: 10px;
+  --wishes-chrome: calc(2 * var(--wishes-padding-y) + 2 * var(--border-width));
+
   resize: none;
 
+  overflow-y: auto;
+
   box-sizing: border-box;
+  field-sizing: content;
   width: 100%;
-  min-height: 64px;
-  padding: 10px var(--space-3);
+  min-height: calc(5 * var(--line-height-body-s) + var(--wishes-chrome));
+  max-height: calc(8 * var(--line-height-body-s) + var(--wishes-chrome));
+  padding: var(--wishes-padding-y) var(--space-3);
   border: var(--border-width) solid var(--color-border-control);
   border-radius: var(--radius-s);
 
@@ -131,10 +141,6 @@
   &:focus-visible {
     outline: 2px solid var(--color-border-active);
     outline-offset: 2px;
-  }
-
-  @media (width < 600px) {
-    min-height: 48px;
   }
 }
 
