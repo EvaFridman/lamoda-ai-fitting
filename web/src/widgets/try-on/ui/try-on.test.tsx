@@ -443,14 +443,23 @@ describe('TryOn picker', () => {
   });
 
   describe('the drop zone with no photo (AC8)', () => {
-    const line = () => screen.findByText('Загрузите фото в полный рост: один человек в кадре');
+    const line = () => screen.findByText('Загрузите своё фото');
+    // The whole-card button is a pointer's target only, out of the accessibility tree (Z47).
+    // (aria-hidden takes its name out of the tree, so it is found by class.)
+    const area = () => {
+      const found = document.querySelector<HTMLButtonElement>('button.dropArea');
+      if (!found) throw new Error('no drop area');
+      return found;
+    };
 
-    it('shows the line, «Загрузить фото» and the save switch, and no «Заменить фото»', async () => {
+    it('shows the card, «Выбрать файл» and the save switch, and no «Заменить фото»', async () => {
       api.photos = [];
       renderTryOn({ productId: PRODUCT });
 
       expect(await line()).toBeInTheDocument();
-      expect(screen.getAllByRole('button', { name: 'Загрузить фото' }).length).toBeGreaterThan(0);
+      expect(area()).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Загрузить фото' })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Выбрать файл' })).toBeInTheDocument();
       expect(screen.getByRole('switch', { name: /Сохранить фото/ })).toBeChecked();
       expect(screen.queryByRole('button', { name: 'Сделать фото' })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Заменить фото' })).not.toBeInTheDocument();
@@ -477,9 +486,7 @@ describe('TryOn picker', () => {
       api.photos = [];
       renderTryOn({ productId: PRODUCT });
       const target = await line();
-      await vi.waitFor(() =>
-        expect(screen.getAllByRole('button', { name: 'Загрузить фото' })[0]).toBeEnabled(),
-      );
+      await vi.waitFor(() => expect(area()).toBeEnabled());
 
       fireEvent.drop(target, {
         dataTransfer: {
@@ -510,9 +517,7 @@ describe('TryOn picker', () => {
       api.photos = [];
       renderTryOn({ productId: PRODUCT });
       const target = await line();
-      await vi.waitFor(() =>
-        expect(screen.getAllByRole('button', { name: 'Загрузить фото' })[0]).toBeEnabled(),
-      );
+      await vi.waitFor(() => expect(area()).toBeEnabled());
 
       fireEvent.drop(target, {
         dataTransfer: {
@@ -583,9 +588,7 @@ describe('TryOn picker', () => {
       const user = setup();
       renderTryOn({ productId: PRODUCT });
       const target = await line();
-      await vi.waitFor(() =>
-        expect(screen.getAllByRole('button', { name: 'Загрузить фото' })[0]).toBeEnabled(),
-      );
+      await vi.waitFor(() => expect(area()).toBeEnabled());
 
       fireEvent.drop(target, {
         dataTransfer: {
@@ -1394,9 +1397,7 @@ describe('TryOn with a fitting', () => {
     expect(screen.queryByRole('button', { name: 'Заменить фото' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Об изображении' })).not.toBeInTheDocument();
     expect(screen.queryByText(/Сохранено в/)).not.toBeInTheDocument();
-    expect(
-      screen.getByText('Загрузите фото в полный рост: один человек в кадре'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('Загрузите своё фото')).toBeInTheDocument();
     expect(screen.queryByRole('img', { name: 'Ваше фото' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Примерить' })).toBeDisabled();
   });
@@ -1438,9 +1439,7 @@ describe('TryOn with a fitting', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Примерить на другом фото' }));
 
-    expect(
-      await screen.findByText('Загрузите фото в полный рост: один человек в кадре'),
-    ).toBeInTheDocument();
+    expect(await screen.findByText('Загрузите своё фото')).toBeInTheDocument();
     expect(screen.queryByRole('img', { name: 'Ваше фото' })).not.toBeInTheDocument();
     expect(start()).toBeDisabled();
 
@@ -1842,7 +1841,7 @@ describe('TryOn focus', () => {
     api.consent = null;
     const user = setup();
     renderTryOn({ productId: PRODUCT });
-    const opener = (await screen.findAllByRole('button', { name: 'Загрузить фото' }))[0]!;
+    const opener = await screen.findByRole('button', { name: 'Выбрать файл' });
     await vi.waitFor(() => expect(opener).toBeEnabled());
     await user.click(opener);
     const tips = await screen.findByRole('dialog', { name: 'Какое фото подойдёт' });

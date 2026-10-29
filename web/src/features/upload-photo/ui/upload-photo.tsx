@@ -40,6 +40,7 @@ import {
   setPhotoConsent,
   usePhotoConsent,
 } from '../model/consent';
+import { DropCard, dropCardClass } from './drop-card';
 import { PhotoTips } from './photo-tips';
 import { RefusedPreview } from './refused-preview';
 
@@ -86,9 +87,10 @@ export interface UploadPhotoProps {
   // `card`: board 10's dashed «Добавить фото» card in the grid of saved photos, which opens the
   // file picker at once once the consents are given. `buttons` (the default): the pickers in a row.
   // `zone`: the try-on's drop zone, filling the photo's frame (spec 0023 P3, P8, P9): a file
-  // dropped on it uploads; with no `children` it is a dashed area a click on which picks a file,
-  // with «Загрузить фото» (and «Сделать фото» on a touch device) and `extra` at its bottom; with
-  // `children` (the chosen photo, the one on its way) it shows them and only takes a drop.
+  // dropped on it uploads; with no `children` it is the hairline `DropCard` (spec 0024 Z17), a
+  // click on which picks a file, with «Выбрать файл» (on a touch device the tiles «Загрузить фото»
+  // and «Сделать фото») and `extra`; with `children` (the chosen photo, the one on its way) it
+  // shows them and only takes a drop.
   // `replace`: a button (`replaceLabel`, «Заменить фото» by default) and its window (P25):
   // `thumbs`, the pickers and `extra`.
   appearance?: 'buttons' | 'card' | 'zone' | 'replace';
@@ -427,7 +429,7 @@ export function UploadPhoto({
       return consented ? (
         <FileInput
           bare
-          className={styles.tile}
+          className={dropCardClass.tile}
           accept={PHOTO_ACCEPT}
           capture={source === 'camera' ? 'user' : undefined}
           onFileChange={choose(source)}
@@ -440,7 +442,7 @@ export function UploadPhoto({
       ) : (
         <button
           type="button"
-          className={styles.tile}
+          className={dropCardClass.tile}
           disabled={disabled || consented === undefined}
           onClick={() => {
             element.onClick();
@@ -521,9 +523,9 @@ export function UploadPhoto({
     </p>
   );
 
-  // The try-on's pickers: «Загрузить фото» with a mouse; on a touch device it and «Сделать фото»
-  // as two tiles side by side, which fit a narrow frame and stand out of the grey zone.
-  const tryOnPickers = camera ? (
+  // «Заменить фото»'s pickers: «Загрузить фото» with a mouse; on a touch device it and «Сделать
+  // фото» as the drop zone's two tiles side by side, which fit a phone's window.
+  const replacePickers = camera ? (
     <div className={styles.zoneTiles}>
       {picker('file', { label: 'Загрузить фото', icon: <UploadIcon />, tile: true })}
       {picker('camera', { label: 'Сделать фото', icon: <CameraIcon />, tile: true })}
@@ -539,7 +541,8 @@ export function UploadPhoto({
   let entry;
   if (appearance === 'zone') {
     const empty = children === undefined || children === null;
-    // The whole area picks a file: a click, Enter or Space.
+    // A click anywhere on the card picks a file. Only the pointer's: the keyboard and a screen
+    // reader reach «Выбрать файл» or the tiles, not a second control of the same action (Z47).
     const area = consented ? (
       <FileInput
         bare
@@ -547,8 +550,10 @@ export function UploadPhoto({
         onFileChange={choose('file')}
         disabled={disabled || pending}
         loading={pendingSource === 'file'}
-        className={styles.zoneArea}
+        className={dropCardClass.area}
         aria-label="Загрузить фото"
+        tabIndex={-1}
+        aria-hidden
         events={uploadElement}
       >
         {null}
@@ -556,9 +561,11 @@ export function UploadPhoto({
     ) : (
       <button
         type="button"
-        className={styles.zoneArea}
+        className={dropCardClass.area}
         disabled={disabled || consented === undefined}
         aria-label="Загрузить фото"
+        tabIndex={-1}
+        aria-hidden
         onClick={() => {
           uploadElement.onClick();
           openTips();
@@ -567,29 +574,61 @@ export function UploadPhoto({
         onPointerLeave={uploadElement.onPointerLeave}
       />
     );
+    // With a mouse the text link «Выбрать файл»; before the consents it opens the tips.
+    const chooseLink = consented ? (
+      <FileInput
+        bare
+        accept={PHOTO_ACCEPT}
+        onFileChange={choose('file')}
+        disabled={disabled || pending}
+        loading={pendingSource === 'file'}
+        className={dropCardClass.link}
+        events={uploadElement}
+      >
+        Выбрать файл
+      </FileInput>
+    ) : (
+      <button
+        type="button"
+        className={dropCardClass.link}
+        disabled={disabled || consented === undefined}
+        onClick={() => {
+          uploadElement.onClick();
+          openTips();
+        }}
+        onPointerEnter={uploadElement.onPointerEnter}
+        onPointerLeave={uploadElement.onPointerLeave}
+      >
+        Выбрать файл
+      </button>
+    );
     entry = (
       <div
-        className={[styles.zone, empty && styles.zoneEmpty, dragging && styles.dragging]
-          .filter(Boolean)
-          .join(' ')}
+        className={[styles.zone, !empty && dragging && styles.dragging].filter(Boolean).join(' ')}
         {...dropHandlers}
       >
         {empty ? (
-          <>
-            {area}
-            <span className={styles.zoneLead} aria-hidden>
-              <PlusIcon />
-              <span>Загрузите фото в полный рост: один человек в кадре</span>
-            </span>
-            <div className={styles.zoneBottom}>
-              {tryOnPickers}
-              {extra}
-            </div>
-          </>
+          <DropCard
+            touch={camera}
+            dragging={dragging}
+            disabled={disabled || pending || consented === undefined}
+            area={area}
+            actions={
+              camera ? (
+                <>
+                  {picker('file', { label: 'Загрузить фото', icon: <UploadIcon />, tile: true })}
+                  {picker('camera', { label: 'Сделать фото', icon: <CameraIcon />, tile: true })}
+                </>
+              ) : (
+                chooseLink
+              )
+            }
+            extra={extra}
+          />
         ) : (
           children
         )}
-        {dragging && <span className={styles.dropHint}>Отпустите, чтобы загрузить</span>}
+        {!empty && dragging && <span className={styles.dropHint}>Отпустите, чтобы загрузить</span>}
         {screen === 'closed' && error && <div className={styles.zoneError}>{failure}</div>}
       </div>
     );
@@ -598,7 +637,7 @@ export function UploadPhoto({
     const windowContent = (
       <div className={styles.replace}>
         {thumbs && <div className={styles.thumbs}>{thumbs(close)}</div>}
-        {tryOnPickers}
+        {replacePickers}
         {extra}
       </div>
     );

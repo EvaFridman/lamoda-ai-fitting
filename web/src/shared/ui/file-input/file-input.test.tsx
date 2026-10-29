@@ -134,6 +134,37 @@ describe('FileInput', () => {
     expect(button).toHaveAttribute('type', 'button');
   });
 
+  it.each([
+    ['the kit button', false],
+    ['the bare button', true],
+  ])('passes tabIndex and aria-hidden to %s', (_form, bare) => {
+    render(
+      <FileInput bare={bare} tabIndex={-1} aria-hidden onFileChange={vi.fn()}>
+        Фото
+      </FileInput>,
+    );
+
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    const button = screen.getByRole('button', { hidden: true });
+    expect(button).toHaveAttribute('tabindex', '-1');
+    expect(button).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it.each([
+    ['the kit button', false],
+    ['the bare button', true],
+  ])('leaves %s in the tab order and the tree by default', (_form, bare) => {
+    render(
+      <FileInput bare={bare} onFileChange={vi.fn()}>
+        Фото
+      </FileInput>,
+    );
+
+    const button = screen.getByRole('button', { name: 'Фото' });
+    expect(button).not.toHaveAttribute('tabindex');
+    expect(button).not.toHaveAttribute('aria-hidden');
+  });
+
   it('bare is a plain button with the given class, opening the picker with the events', async () => {
     const user = userEvent.setup();
     const onClick = vi.fn();

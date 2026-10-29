@@ -822,7 +822,8 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   column), `Modal`'s `animateSize` (the frame's height follows its content over `--duration-slow`,
   a `ResizeObserver` on a box around the children; not on a phone's `wide`; the try-on's window,
   spec 0023 P10), `FileInput` (a kit `Button` that clicks a hidden `<input type="file">`, one file, with
-  `accept` and `capture`, spec 0019 A30; `bare` is a plain button the page styles), `IconButton`'s
+  `accept` and `capture`, spec 0019 A30; `bare` is a plain button the page styles; `tabIndex` and
+  `aria-hidden` make it a pointer's target only, the drop card's whole area, spec 0024 Z47), `IconButton`'s
   `plain` and `Sheet` (spec 0019 A64: the kit's one bottom sheet is `Drawer side="bottom"`, which
   takes `description`, `media` (a picture left of the heading, which then has no "‹" or header
   action), `grip`, `closable` and `initialFocus`; `Sheet` is it with a grip and no ×),
@@ -898,9 +899,13 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   upload off at five saved photos. In the try-on (spec 0023 P3–P9, P25) `UploadPhoto`'s `zone`
   fills the photo frame: a file dropped on it (not JPG, PNG or WebP: «Нужно изображение JPG, PNG
   или WebP») uploads as `source: drop`, before the consents once they are given; with no photo it
-  is a dashed area a click on which picks a file, «Загрузить фото» (under `COARSE_POINTER_QUERY`
-  it and «Сделать фото» as two white tiles, Y21) and the save switch at its bottom; with a photo
-  chosen, `replace` is
+  is `DropCard` (spec 0024 Z17, Z47, also on `/ui-kit`): a hairline card a click on which picks a
+  file (a pointer's only: out of the tab order and hidden from screen readers), the «+» circle
+  about its middle and in its lower part «Загрузите своё фото», a hint line, the link «Выбрать файл» (under
+  `COARSE_POINTER_QUERY` the tiles «Загрузить фото» and «Сделать фото», Y21, which «Заменить
+  фото»'s window shares), the save switch and «JPG, PNG, WebP, HEIC · до 20 МБ» at its bottom; a
+  file dragged over it blackens its border and greys it (over a chosen photo, a dark veil with
+  «Отпустите, чтобы загрузить»); with a photo chosen, `replace` is
   «Заменить фото» under the frame, whose window (a `Sheet` on a phone) holds the photos but the
   chosen one, the pickers and the switch (spec 0024 AC16). The first open chooses the default
   photo; «Примерить на другом фото» and the error's «Другое фото» choose none, so the zone is

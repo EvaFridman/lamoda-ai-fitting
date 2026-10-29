@@ -40,6 +40,10 @@ export interface FileInputProps {
   // that hint.
   'aria-label'?: string;
   'aria-describedby'?: string;
+  // A pointer's target only, beside a picker that the keyboard and a screen reader reach (the drop
+  // card's whole area): `tabIndex={-1}` and `aria-hidden`.
+  tabIndex?: number;
+  'aria-hidden'?: boolean;
   events?: FileInputEvents;
 }
 
@@ -60,9 +64,16 @@ export function FileInput({
   className,
   'aria-label': ariaLabel,
   'aria-describedby': ariaDescribedBy,
+  tabIndex,
+  'aria-hidden': ariaHidden,
   events,
 }: FileInputProps) {
-  const named = { 'aria-label': ariaLabel, 'aria-describedby': ariaDescribedBy };
+  const named = {
+    'aria-label': ariaLabel,
+    'aria-describedby': ariaDescribedBy,
+    tabIndex,
+    'aria-hidden': ariaHidden,
+  };
   const inputRef = useRef<HTMLInputElement>(null);
 
   function handleChange(event: ChangeEvent<HTMLInputElement>) {

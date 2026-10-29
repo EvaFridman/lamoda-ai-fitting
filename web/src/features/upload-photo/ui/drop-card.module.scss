@@ -1,0 +1,252 @@
+// Spec 0024 Z17, Z47: the hairline card, lots of air, the call in its lower part and the formats at
+// its bottom.
+
+.dropCard {
+  position: relative;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: var(--space-6) var(--space-4) var(--space-4);
+  border: var(--border-width) solid var(--color-border);
+
+  background-color: var(--color-background);
+
+  transition:
+    border-color var(--duration-fast),
+    background-color var(--duration-fast);
+}
+
+// A button over the whole card, under its text and pickers.
+.dropArea {
+  cursor: pointer;
+
+  position: absolute;
+  inset: 0;
+
+  margin: 0;
+  padding: 0;
+  border: 0;
+
+  background: none;
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: -2px;
+  }
+
+  &:disabled {
+    cursor: default;
+  }
+}
+
+// The column over the whole-card control: only its own controls take the pointer. The text sits
+// in the card's lower part, above the formats; the circle in the middle of the space over it (Z47).
+.dropBody {
+  pointer-events: none;
+
+  position: relative;
+
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+
+  width: 100%;
+  padding-bottom: var(--space-6);
+
+  text-align: center;
+}
+
+.dropCircleSlot {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+
+  min-height: 56px;
+  margin-bottom: var(--space-4);
+
+  // A little under the middle of that space.
+  padding-top: var(--space-12);
+}
+
+.dropCircle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  box-sizing: border-box;
+  width: 56px;
+  height: 56px;
+  border: var(--border-width) solid var(--color-border);
+  border-radius: 50%;
+
+  color: var(--color-text);
+
+  transition:
+    border-color var(--duration-fast),
+    transform var(--duration-fast) var(--ease-standard);
+
+  // The kit's 24 px «+» is a 1 px line; half a pixel of stroke around it makes 1.5.
+  path {
+    stroke: currentcolor;
+    stroke-width: 0.5px;
+  }
+}
+
+@media (hover: hover) {
+  .dropCard:hover:not(.disabled) .dropCircle {
+    border-color: var(--color-border-active);
+  }
+}
+
+.dropTitle {
+  margin: 0;
+
+  font-size: var(--font-size-body-m);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-body-m);
+  color: var(--color-text);
+}
+
+.dropLine {
+  max-width: 280px;
+  margin: var(--space-2) 0 0;
+
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  color: var(--color-text-secondary);
+}
+
+.dropActions,
+.dropTiles {
+  pointer-events: auto;
+  margin-top: var(--space-4);
+}
+
+// On a touch device: «Загрузить фото» and «Сделать фото» as two equal hairline tiles, the icon
+// over the label (spec 0023 Y21's board 3 «Загрузить» and «Снять»).
+.dropTiles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+
+  width: 100%;
+  max-width: 320px;
+}
+
+// «Выбрать файл»: the kit's text link on a button.
+.chooseLink {
+  cursor: pointer;
+
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-xs);
+
+  font: inherit;
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  color: var(--color-text);
+  text-decoration-color: var(--color-text-secondary);
+  text-decoration-line: underline;
+  text-decoration-thickness: var(--border-width);
+  text-underline-offset: 3px;
+
+  background: none;
+
+  transition: color var(--duration-fast);
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    cursor: default;
+    color: var(--color-text-disabled);
+  }
+
+  @media (hover: hover) {
+    &:hover:not(:disabled) {
+      color: var(--color-text-secondary);
+    }
+  }
+}
+
+.tile {
+  cursor: pointer;
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  align-items: center;
+  justify-content: center;
+
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 72px;
+  margin: 0;
+  padding: var(--space-3) var(--space-2);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-s);
+
+  font-family: inherit;
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  color: var(--color-text);
+  text-align: center;
+
+  background-color: var(--color-background);
+
+  transition: border-color var(--duration-fast);
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-active);
+    outline-offset: 2px;
+  }
+
+  &:active:not(:disabled) {
+    border-color: var(--color-border-active);
+  }
+
+  &:disabled {
+    cursor: default;
+    color: var(--color-text-secondary);
+  }
+}
+
+.dropExtra {
+  position: relative;
+  width: 100%;
+  margin-top: var(--space-4);
+}
+
+.dropFormats {
+  pointer-events: none;
+
+  position: relative;
+
+  margin: var(--space-4) 0 0;
+
+  font-size: var(--font-size-caption);
+  line-height: var(--line-height-caption);
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+// A file over the card.
+.dragging {
+  border-color: var(--color-border-active);
+  background-color: var(--color-background-secondary);
+
+  .dropCircle {
+    transform: scale(1.1);
+    border-color: var(--color-border-active);
+  }
+}

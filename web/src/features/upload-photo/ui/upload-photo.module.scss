@@ -19,80 +19,15 @@
   inset: 0;
 }
 
-// Spec 0023 P3: the frame itself takes a dropped file; with no photo it is a dashed area, the «+»
-// and the line in its middle, the pickers and the save switch at its bottom.
+// Spec 0023 P3: the frame itself takes a dropped file; with no photo it is the hairline card
+// (`DropCard`, spec 0024 Z17).
 .zone {
   position: relative;
   width: 100%;
   height: 100%;
 }
 
-.zoneEmpty {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-
-  box-sizing: border-box;
-  padding: var(--space-4);
-  border: var(--border-width) dashed var(--color-border-control);
-
-  transition: border-color var(--duration-fast);
-
-  @media (hover: hover) {
-    &:has(.zoneArea:hover:not(:disabled)) {
-      border-color: var(--color-border-active);
-    }
-  }
-}
-
-// A button over the whole area, under the pickers.
-.zoneArea {
-  cursor: pointer;
-
-  position: absolute;
-  inset: 0;
-
-  margin: 0;
-  padding: 0;
-  border: 0;
-
-  background: none;
-
-  &:focus-visible {
-    outline: 2px solid var(--color-border-active);
-    outline-offset: -2px;
-  }
-
-  &:disabled {
-    cursor: default;
-  }
-}
-
-.zoneLead {
-  pointer-events: none;
-
-  position: absolute;
-  inset: 0 var(--space-6) 40%;
-
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  align-items: center;
-  justify-content: flex-end;
-
-  font-size: var(--font-size-body-s);
-  line-height: var(--line-height-body-s);
-  color: var(--color-text-secondary);
-  text-align: center;
-}
-
-.zoneBottom {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
+// «Заменить фото»'s window: one «Загрузить фото» with a mouse.
 .zoneActions {
   display: flex;
   gap: var(--space-2);
@@ -102,57 +37,14 @@
   }
 }
 
-// On a touch device: «Загрузить фото» and «Сделать фото» as two equal tiles, white on the grey
-// zone, the icon over the label (board 3's «Загрузить» and «Снять»), so both fit a phone's frame.
+// On a touch device: the drop zone's two hairline tiles (`DropCard`'s), side by side.
 .zoneTiles {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--space-2);
 }
 
-.tile {
-  cursor: pointer;
-
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  align-items: center;
-  justify-content: center;
-
-  box-sizing: border-box;
-  min-width: 0;
-  min-height: 72px;
-  margin: 0;
-  padding: var(--space-3) var(--space-2);
-  border: var(--border-width) solid var(--color-border-control);
-  border-radius: var(--radius-s);
-
-  font-family: inherit;
-  font-size: var(--font-size-body-s);
-  line-height: var(--line-height-body-s);
-  color: var(--color-text);
-  text-align: center;
-
-  background-color: var(--color-background);
-
-  transition: border-color var(--duration-fast);
-
-  &:focus-visible {
-    outline: 2px solid var(--color-border-active);
-    outline-offset: 2px;
-  }
-
-  &:active:not(:disabled) {
-    border-color: var(--color-border-active);
-  }
-
-  &:disabled {
-    cursor: default;
-    color: var(--color-text-secondary);
-  }
-}
-
-// A file dragged over the frame darkens it.
+// A file dragged over the chosen photo darkens it.
 .dragging::after {
   pointer-events: none;
   content: '';

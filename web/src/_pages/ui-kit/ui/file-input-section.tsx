@@ -1,4 +1,5 @@
 import styles from './examples.module.scss';
+import { DropCardDemo } from './drop-card-demo';
 import { FileInputDemo } from './file-input-demo';
 
 // The file picker as a kit button. On a phone `capture` opens the camera; elsewhere it is the
@@ -12,6 +13,13 @@ export function FileInputSection() {
       </p>
       <h3 className={styles.heading}>FileInput</h3>
       <FileInputDemo />
+      <h3 className={styles.heading}>DropCard</h3>
+      <p className={styles.caption}>
+        Пустая зона примерки: тонкая рамка, «+» в круге, призыв и форматы внизу. Наведение делает
+        круг чёрным, файл над карточкой — рамку чёрной и фон серым. На устройстве с пальцем вместо
+        ссылки две плитки.
+      </p>
+      <DropCardDemo />
     </>
   );
 }
