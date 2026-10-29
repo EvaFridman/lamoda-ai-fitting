@@ -50,6 +50,19 @@ export function deletePhoto(id: string): Promise<undefined> {
   return clientFetch(buildPath('/me/photos/:id', { id }), null, { method: 'DELETE' });
 }
 
+// PUT /me/photos/:id/keep: a one-time photo becomes a saved one, the default when the user has
+// none; one saved already answers unchanged. At five saved photos a 409 `LIMIT_REACHED`, a photo
+// gone a 404 (spec 0024 plan §3.1, Z29).
+export function keepPhoto(id: string): Promise<UserPhoto> {
+  return clientFetch(buildPath('/me/photos/:id/keep', { id }), userPhotoSchema, { method: 'PUT' });
+}
+
+// DELETE /me/photos/:id/keep: a 204. The saved photo is a one-time one again and not the default,
+// deleted as any (Z26.4); a one-time or missing one is a 404.
+export function unkeepPhoto(id: string): Promise<undefined> {
+  return clientFetch(buildPath('/me/photos/:id/keep', { id }), null, { method: 'DELETE' });
+}
+
 // DELETE /me/photos/transient/:id: a 204. The try-on calls it when it closes; a photo a running
 // fitting uses stays for the housekeeping, and a saved one is a 404 (spec 0019 A70).
 export function deleteTransientPhoto(id: string): Promise<undefined> {

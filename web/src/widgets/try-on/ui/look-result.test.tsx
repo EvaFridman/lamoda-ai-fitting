@@ -58,7 +58,7 @@ function fitting(items: FittingItem[]): Fitting {
     items,
     promptText: null,
     photoId: null,
-    photoTransient: null,
+    photoTransient: false,
     resultUrl: null,
     createdAt: '2026-10-20T12:00:00.000Z',
     startedAt: null,
@@ -189,6 +189,7 @@ describe('LookResult analytics (A94)', () => {
             item(1, { productId: P1, slot: 'top' }),
             item(2, { productId: P2, slot: 'bottom' }),
           ])}
+          photo={{ uploadedHere: false }}
           running={null}
           quota={undefined}
           onStart={vi.fn()}

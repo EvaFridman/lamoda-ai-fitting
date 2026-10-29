@@ -474,6 +474,7 @@ describe('analytics catalog', () => {
       'result.item-colour': ['fitting', 'interaction'],
       'result.to-look': ['fitting', 'interaction'],
       'result.other-photo': ['fitting', 'interaction'],
+      'result.save-photo': ['fitting', 'interaction'],
       'result.history': ['fitting', 'navigation'],
       'fitting-toast.open': ['fitting', 'navigation'],
       'fitting-toast.retry': ['fitting', 'interaction'],

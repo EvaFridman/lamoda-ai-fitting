@@ -51,6 +51,9 @@ interface Api {
   // What POST /fittings and POST /fittings/:id/regenerate answer.
   started: () => Response;
   upload: () => Response;
+  // What PUT and DELETE /me/photos/:id/keep answer (the result's save switch, spec 0024 AC22).
+  keep: (id: string) => Response;
+  unkeep: () => Response;
   // The slot of the product's category in the fitting room; null: none.
   slot: string | null;
   // The items of the fitting room as GET answers it.
@@ -182,6 +185,9 @@ function route(url: string, init?: RequestInit): Response | Promise<Response> {
   if (pathname === '/api/me/photos' && method === 'GET') return json(200, api.photos);
   if (pathname === '/api/me/photos' && method === 'POST') return api.upload();
   if (pathname.startsWith('/api/me/photos/transient/')) return new Response(null, { status: 204 });
+  const keep = /^\/api\/me\/photos\/([^/]+)\/keep$/.exec(pathname);
+  if (keep?.[1] && method === 'PUT') return api.keep(keep[1]);
+  if (keep && method === 'DELETE') return api.unkeep();
   if (pathname === '/api/me/fitting-quota') return json(200, api.quota);
   if (pathname === `/api/products/${PRODUCT}`) {
     return api.productFails ? failure(503, 'SERVICE_UNAVAILABLE') : json(200, product);
@@ -268,6 +274,8 @@ beforeEach(() => {
     fittings: new Map(),
     started: () => startedResponse(),
     upload: () => json(201, photo(ONE_TIME, { transient: true })),
+    keep: (id) => json(200, photo(id, { isDefault: true })),
+    unkeep: () => new Response(null, { status: 204 }),
     slot: 'top',
     room: [],
     productFails: false,
@@ -303,7 +311,7 @@ describe('TryOn picker', () => {
     expect(start()).toBeEnabled();
   });
 
-  it('has no subtitle about an approximate picture and no caption under the switch (AC10)', async () => {
+  it('has no subtitle about an approximate picture, no caption and no save switch (AC10, AC22)', async () => {
     api.photos = [];
     renderTryOn({ productId: PRODUCT });
     await screen.findByText('Осталось 17 примерок в этом месяце');
@@ -312,7 +320,7 @@ describe('TryOn picker', () => {
     expect(screen.queryByRole('button', { name: 'Об изображении' })).not.toBeInTheDocument();
     expect(screen.queryByText(/Ваши фото/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Управлять/)).not.toBeInTheDocument();
-    expect(screen.getAllByRole('switch')).toHaveLength(1);
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
   });
 
   describe('one photo at a time while a HEIC is prepared (spec 0024 Z15)', () => {
@@ -348,7 +356,7 @@ describe('TryOn picker', () => {
       return (file: File) => finish(file);
     }
 
-    it('keeps the frame, the paste and the save switch off while «Заменить фото» prepares one', async () => {
+    it('keeps the frame and the paste off while «Заменить фото» prepares one', async () => {
       const finish = pendingConversion();
       const user = setup();
       renderTryOn({ productId: PRODUCT });
@@ -367,12 +375,7 @@ describe('TryOn picker', () => {
 
       await vi.waitFor(() => expect(mocks.heicToJpeg).toHaveBeenCalledTimes(1));
       expect(screen.getByRole('dialog', { name: 'Заменить фото' })).toBeInTheDocument();
-      const off = within(dialog).getByRole('switch', { name: /Сохранить фото/ });
-      await vi.waitFor(() =>
-        expect(
-          off.hasAttribute('data-disabled') || off.getAttribute('aria-disabled') === 'true',
-        ).toBe(true),
-      );
+      expect(within(dialog).queryByRole('switch')).not.toBeInTheDocument();
       fireEvent.drop(frameImage(), {
         dataTransfer: {
           files: [new File(['x'], 'again.jpg', { type: 'image/jpeg' })],
@@ -489,7 +492,7 @@ describe('TryOn picker', () => {
       expect(screen.queryByRole('button', { name: /^Фото \d/ })).not.toBeInTheDocument();
     });
 
-    it('lists the saved photos but the chosen one, with the switch and no link to «Мои фото» (AC16)', async () => {
+    it('lists the saved photos but the chosen one, with no switch and no link to «Мои фото» (AC16, AC22)', async () => {
       const user = setup();
       renderTryOn({ productId: PRODUCT });
 
@@ -501,7 +504,7 @@ describe('TryOn picker', () => {
       expect(
         within(dialog).queryByRole('button', { name: 'Фото 2, по умолчанию' }),
       ).not.toBeInTheDocument();
-      expect(within(dialog).getByRole('switch', { name: /Сохранить фото/ })).toBeChecked();
+      expect(within(dialog).queryByRole('switch')).not.toBeInTheDocument();
       expect(within(dialog).getByRole('button', { name: 'Загрузить фото' })).toBeEnabled();
       expect(within(dialog).queryByRole('link')).not.toBeInTheDocument();
       expect(screen.queryByText('Перейти в «Мои фото»')).not.toBeInTheDocument();
@@ -524,7 +527,7 @@ describe('TryOn picker', () => {
       expect(within(dialog).queryByRole('button', { name: 'Фото 1' })).not.toBeInTheDocument();
     });
 
-    it('shows only the pickers and the switch when the one saved photo is the chosen one (AC16)', async () => {
+    it('shows only the pickers when the one saved photo is the chosen one (AC16)', async () => {
       api.photos = [photo(PHOTO_B, { isDefault: true })];
       const user = setup();
       renderTryOn({ productId: PRODUCT });
@@ -533,7 +536,7 @@ describe('TryOn picker', () => {
 
       expect(within(dialog).queryByRole('button', { name: /^Фото \d/ })).not.toBeInTheDocument();
       expect(within(dialog).getByRole('button', { name: 'Загрузить фото' })).toBeEnabled();
-      expect(within(dialog).getByRole('switch', { name: /Сохранить фото/ })).toBeInTheDocument();
+      expect(within(dialog).queryByRole('switch')).not.toBeInTheDocument();
     });
 
     it('offers the camera in the window only on a touch device', async () => {
@@ -615,7 +618,7 @@ describe('TryOn picker', () => {
       return found;
     };
 
-    it('shows the card, «Выбрать файл» and the save switch, and no «Заменить фото»', async () => {
+    it('shows the card and «Выбрать файл», with no save switch and no «Заменить фото»', async () => {
       api.photos = [];
       renderTryOn({ productId: PRODUCT });
 
@@ -623,7 +626,7 @@ describe('TryOn picker', () => {
       expect(area()).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Загрузить фото' })).not.toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Выбрать файл' })).toBeInTheDocument();
-      expect(screen.getByRole('switch', { name: /Сохранить фото/ })).toBeChecked();
+      expect(screen.queryByRole('switch')).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Сделать фото' })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Заменить фото' })).not.toBeInTheDocument();
     });
@@ -645,7 +648,7 @@ describe('TryOn picker', () => {
       );
     });
 
-    it('uploads a dropped photo (saved, no consent sent again) and chooses it', async () => {
+    it('uploads a dropped photo (one-time, no consent sent again) and chooses it', async () => {
       api.photos = [];
       renderTryOn({ productId: PRODUCT });
       const target = await line();
@@ -662,7 +665,7 @@ describe('TryOn picker', () => {
         expect(posts().some(({ path }) => path === '/api/me/photos')).toBe(true),
       );
       const body = posts().find(({ path }) => path === '/api/me/photos')?.init.body as FormData;
-      expect(body.get('save')).toBe('true');
+      expect(body.get('save')).toBe('false');
       expect(body.has('consent')).toBe(false);
       await vi.waitFor(() =>
         expect(screen.getByRole('img', { name: 'Ваше фото' })).toHaveAttribute(
@@ -895,11 +898,10 @@ describe('TryOn picker', () => {
 });
 
 describe('TryOn one-time photo', () => {
-  // Through «Заменить фото»: its window holds the save switch and the file picker.
+  // Through «Заменить фото»: an upload there is always one-time (spec 0024 AC22).
   async function uploadOneTime(user: ReturnType<typeof setup>) {
     await user.click(await screen.findByRole('button', { name: 'Заменить фото' }));
     const dialog = await screen.findByRole('dialog', { name: 'Заменить фото' });
-    await user.click(within(dialog).getByRole('switch', { name: /Сохранить фото/ }));
     const input = dialog.querySelector<HTMLInputElement>('input[type="file"]:not([capture])');
     await user.upload(input!, new File(['x'], 'me.jpg', { type: 'image/jpeg' }));
     await vi.waitFor(() =>
@@ -940,6 +942,322 @@ describe('TryOn one-time photo', () => {
 
     await vi.waitFor(() => expect(deletes()).toHaveLength(1));
     expect(deletes()[0]?.path).toBe(`/api/me/photos/transient/${ONE_TIME}`);
+  });
+
+  describe("the result's save switch (AC22)", () => {
+    const RESULT = 'https://s3.test/keep/users/u/result.webp?X-Amz-Signature=abc';
+    const completed = (patch: Partial<Fitting> = {}) =>
+      fitting({
+        status: 'completed',
+        stage: 'done',
+        resultUrl: RESULT,
+        finishedAt: DATE,
+        ...patch,
+      });
+    const keeps = (method: string) =>
+      fetchMock.mock.calls
+        .map(([url, init]) => ({ path: new URL(String(url)).pathname, init: init as RequestInit }))
+        .filter(({ path, init }) => path.endsWith('/keep') && init?.method === method);
+    const saveSwitch = () => screen.findByRole('switch', { name: /Сохранить фото/ });
+
+    // An upload in the window, then a start the api answers with a finished fitting on that photo.
+    async function resultOfUpload(user: ReturnType<typeof setup>) {
+      api.started = () =>
+        json(201, {
+          ...completed({ id: NEXT, photoId: ONE_TIME, photoTransient: true }),
+          repeated: false,
+        });
+      const view = renderTryOn({ productId: PRODUCT });
+      await uploadOneTime(user);
+      await vi.waitFor(() =>
+        expect(screen.getByRole('img', { name: 'Ваше фото' })).toHaveAttribute(
+          'src',
+          expect.stringContaining(ONE_TIME),
+        ),
+      );
+      await vi.waitFor(() => expect(start()).toBeEnabled());
+      await user.click(start());
+      return view;
+    }
+
+    it('shows the switch on for a photo uploaded in the window and keeps it', async () => {
+      const user = setup();
+      await resultOfUpload(user);
+
+      await vi.waitFor(() => expect(keeps('PUT')).toHaveLength(1), { timeout: 4000 });
+      expect(keeps('PUT')[0]?.path).toBe(`/api/me/photos/${ONE_TIME}/keep`);
+      expect(await saveSwitch()).toBeChecked();
+    });
+
+    it('does not delete the kept photo when the window closes', async () => {
+      const user = setup();
+      const { unmount } = await resultOfUpload(user);
+      await vi.waitFor(() => expect(keeps('PUT')).toHaveLength(1), { timeout: 4000 });
+      await saveSwitch();
+      // The keep answered and the window learned of it.
+      await vi.waitFor(() => expect(saveSwitchDisabled()).toBe(false));
+
+      unmount();
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(deletes().filter(({ path }) => path.includes('/transient/'))).toHaveLength(0);
+    });
+
+    it('deletes the photo when the window closes after the switch went off', async () => {
+      const user = setup();
+      const { unmount } = await resultOfUpload(user);
+      await vi.waitFor(() => expect(keeps('PUT')).toHaveLength(1), { timeout: 4000 });
+      await saveSwitch();
+      await vi.waitFor(() => expect(saveSwitchDisabled()).toBe(false));
+
+      await user.click(await saveSwitch());
+
+      await vi.waitFor(() => expect(keeps('DELETE')).toHaveLength(1));
+      await vi.waitFor(() => expect(saveSwitchDisabled()).toBe(false));
+      expect(await saveSwitch()).not.toBeChecked();
+      unmount();
+
+      await vi.waitFor(() =>
+        expect(deletes().filter(({ path }) => path.includes('/transient/'))).toHaveLength(1),
+      );
+      expect(deletes().find(({ path }) => path.includes('/transient/'))?.path).toBe(
+        `/api/me/photos/transient/${ONE_TIME}`,
+      );
+    });
+
+    it('does not delete the photo when the window closes while its keep is pending', async () => {
+      let pending = false;
+      let answer: () => void = () => undefined;
+      const user = setup();
+      const previous = fetchMock.getMockImplementation()!;
+      fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+        if (init?.method === 'PUT' && new URL(String(url)).pathname.endsWith('/keep')) {
+          pending = true;
+          return new Promise<Response>((resolve) => {
+            answer = () => resolve(previous(url, init) as Response);
+          });
+        }
+        return previous(url, init);
+      });
+      const { unmount } = await resultOfUpload(user);
+      await vi.waitFor(() => expect(pending).toBe(true), { timeout: 4000 });
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      unmount();
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(deletes().filter(({ path }) => path.includes('/transient/'))).toHaveLength(0);
+      await act(async () => {
+        answer();
+        await Promise.resolve();
+      });
+    });
+
+    it('says the photo is gone when the keep answers 404', async () => {
+      api.keep = () => failure(404, 'NOT_FOUND');
+      const user = setup();
+      await resultOfUpload(user);
+
+      expect(
+        await screen.findByText('Фото уже удалено', {}, { timeout: 4000 }),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole('switch', { name: /Сохранить фото/ })).not.toBeInTheDocument();
+    });
+
+    it('keeps the switch off on a later result of the same photo and keeps nothing by itself', async () => {
+      const COLOUR_RUN = '00000000-0000-4000-8000-0000000000e5';
+      const user = setup();
+      await resultOfUpload(user);
+      await vi.waitFor(() => expect(keeps('PUT')).toHaveLength(1), { timeout: 4000 });
+      await vi.waitFor(() => expect(saveSwitchDisabled()).toBe(false));
+      await user.click(await saveSwitch());
+      await vi.waitFor(() => expect(keeps('DELETE')).toHaveLength(1));
+      await vi.waitFor(() => expect(saveSwitchDisabled()).toBe(false));
+      expect(await saveSwitch()).not.toBeChecked();
+
+      // The first result stays readable, then another colour runs over it and completes.
+      api.fittings.set(NEXT, completed({ id: NEXT, photoId: ONE_TIME, photoTransient: true }));
+      const blueItems = [{ ...fitting().items[0]!, attributeValueId: BLUE, colour: 'Синий' }];
+      api.fittings.set(
+        COLOUR_RUN,
+        fitting({
+          id: COLOUR_RUN,
+          photoId: ONE_TIME,
+          photoTransient: true,
+          items: blueItems,
+        }),
+      );
+      api.started = () =>
+        json(201, {
+          ...fitting({
+            id: COLOUR_RUN,
+            photoId: ONE_TIME,
+            photoTransient: true,
+            items: blueItems,
+          }),
+          repeated: false,
+        });
+      await user.click(await screen.findByRole('button', { name: 'Синий' }));
+      await screen.findByText(/Примеряем Синий…/);
+      api.fittings.set(
+        COLOUR_RUN,
+        completed({ id: COLOUR_RUN, photoId: ONE_TIME, photoTransient: true, items: blueItems }),
+      );
+
+      expect(await screen.findByRole('status', {}, { timeout: 8000 })).toHaveTextContent('Готово!');
+      const control = await screen.findByRole(
+        'switch',
+        { name: /Сохранить фото/ },
+        { timeout: 4000 },
+      );
+
+      expect(control).not.toBeChecked();
+      expect(keeps('PUT')).toHaveLength(1);
+
+      await user.click(control);
+
+      await vi.waitFor(() => expect(keeps('PUT')).toHaveLength(2));
+      await vi.waitFor(() => expect(saveSwitchDisabled()).toBe(false));
+      expect(await saveSwitch()).toBeChecked();
+    }, 30000);
+
+    it('shows no switch and keeps nothing again on the result of another colour of a kept photo (Z12)', async () => {
+      const COLOUR_RUN = '00000000-0000-4000-8000-0000000000e6';
+      const user = setup();
+      await resultOfUpload(user);
+      await vi.waitFor(() => expect(keeps('PUT')).toHaveLength(1), { timeout: 4000 });
+      await vi.waitFor(() => expect(saveSwitchDisabled()).toBe(false));
+      expect(await saveSwitch()).toBeChecked();
+
+      // The api now says the photo is saved.
+      api.fittings.set(NEXT, completed({ id: NEXT, photoId: ONE_TIME, photoTransient: false }));
+      const blueItems = [{ ...fitting().items[0]!, attributeValueId: BLUE, colour: 'Синий' }];
+      const running = fitting({
+        id: COLOUR_RUN,
+        photoId: ONE_TIME,
+        photoTransient: false,
+        items: blueItems,
+      });
+      api.fittings.set(COLOUR_RUN, running);
+      api.started = () => json(201, { ...running, repeated: false });
+      await user.click(await screen.findByRole('button', { name: 'Синий' }));
+      await screen.findByText(/Примеряем Синий…/);
+      api.fittings.set(
+        COLOUR_RUN,
+        completed({ id: COLOUR_RUN, photoId: ONE_TIME, photoTransient: false, items: blueItems }),
+      );
+
+      expect(await screen.findByRole('status', {}, { timeout: 8000 })).toHaveTextContent('Готово!');
+      expect(
+        await screen.findByText('Сгенерировано ИИ', {}, { timeout: 4000 }),
+      ).toBeInTheDocument();
+
+      expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+      expect(keeps('PUT')).toHaveLength(1);
+      expect(keeps('DELETE')).toHaveLength(0);
+    }, 30000);
+
+    it('still lists the kept photo once among the saved ones after «Примерить на другом фото»', async () => {
+      // As the api does: the kept photo is saved from then on, for any later read.
+      api.keep = (id) => {
+        api.photos = [...api.photos, photo(id)];
+        return json(200, photo(id));
+      };
+      const user = setup();
+      await resultOfUpload(user);
+      await vi.waitFor(() => expect(keeps('PUT')).toHaveLength(1), { timeout: 4000 });
+      await vi.waitFor(() => expect(saveSwitchDisabled()).toBe(false));
+
+      await user.click(await screen.findByRole('button', { name: 'Примерить на другом фото' }));
+      await user.click(await screen.findByRole('button', { name: 'Выбрать из сохранённых' }));
+
+      const dialog = await screen.findByRole('dialog', { name: 'Выбрать из сохранённых' });
+      expect(within(dialog).getAllByRole('button', { name: /^Фото \d/ })).toHaveLength(3);
+      expect(within(dialog).getByRole('button', { name: /^Фото 3/ })).toBeInTheDocument();
+      expect(within(dialog).queryByRole('button', { name: /^Фото 4/ })).not.toBeInTheDocument();
+    });
+
+    it('deletes nothing even after the keep answers once the window is closed', async () => {
+      let pending = false;
+      let answer: () => void = () => undefined;
+      const user = setup();
+      const previous = fetchMock.getMockImplementation()!;
+      fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+        if (init?.method === 'PUT' && new URL(String(url)).pathname.endsWith('/keep')) {
+          pending = true;
+          return new Promise<Response>((resolve) => {
+            answer = () => resolve(previous(url, init) as Response);
+          });
+        }
+        return previous(url, init);
+      });
+      const { unmount } = await resultOfUpload(user);
+      await vi.waitFor(() => expect(pending).toBe(true), { timeout: 4000 });
+
+      unmount();
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(deletes().filter(({ path }) => path.includes('/transient/'))).toHaveLength(0);
+
+      await act(async () => {
+        answer();
+        for (let i = 0; i < 10; i++) await Promise.resolve();
+      });
+
+      expect(deletes().filter(({ path }) => path.includes('/transient/'))).toHaveLength(0);
+    });
+
+    function saveSwitchDisabled() {
+      return (
+        screen.getByRole('switch', { name: /Сохранить фото/ }).getAttribute('aria-disabled') ===
+        'true'
+      );
+    }
+
+    it('shows the switch and keeps the photo of an opened result with a one-time photo', async () => {
+      api.fittings.set(RUNNING, completed({ photoId: PHOTO_A, photoTransient: true }));
+      renderTryOn({ fittingId: RUNNING });
+
+      expect(await saveSwitch()).toBeChecked();
+      await vi.waitFor(() => expect(keeps('PUT')).toHaveLength(1));
+      expect(keeps('PUT')[0]?.path).toBe(`/api/me/photos/${PHOTO_A}/keep`);
+    });
+
+    it('shows no switch for an opened result with a saved photo', async () => {
+      api.fittings.set(RUNNING, completed({ photoTransient: false }));
+      renderTryOn({ fittingId: RUNNING });
+      await screen.findByText('Сгенерировано ИИ');
+
+      expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+      expect(screen.queryByText('Фото уже удалено')).not.toBeInTheDocument();
+      expect(keeps('PUT')).toHaveLength(0);
+    });
+
+    it('says the photo is gone for an opened result whose photo is deleted', async () => {
+      api.fittings.set(RUNNING, completed({ photoId: null, photoTransient: null }));
+      renderTryOn({ fittingId: RUNNING });
+
+      expect(await screen.findByText('Фото уже удалено')).toBeInTheDocument();
+      expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+      expect(keeps('PUT')).toHaveLength(0);
+    });
+
+    it('shows the switch off and disabled at the limit of five saved photos (409)', async () => {
+      api.keep = () => failure(409, 'LIMIT_REACHED');
+      api.fittings.set(RUNNING, completed({ photoId: PHOTO_A, photoTransient: true }));
+      renderTryOn({ fittingId: RUNNING });
+
+      const control = await saveSwitch();
+      await vi.waitFor(() => expect(control).not.toBeChecked());
+      expect(control).toHaveAttribute('aria-disabled', 'true');
+    });
   });
 
   it('deletes nothing when no one-time photo was uploaded', () => {
@@ -2067,10 +2385,6 @@ describe('TryOn picker details', () => {
     for (const name of ['one.jpg', 'two.jpg']) {
       await user.click(await screen.findByRole('button', { name: 'Заменить фото' }));
       const dialog = await screen.findByRole('dialog', { name: 'Заменить фото' });
-      // The switch is on at first; the first window turns it off for both uploads.
-      if (name === 'one.jpg') {
-        await user.click(within(dialog).getByRole('switch', { name: /Сохранить фото/ }));
-      }
       const input = dialog.querySelector<HTMLInputElement>('input[type="file"]:not([capture])');
       await user.upload(input!, new File(['x'], name, { type: 'image/jpeg' }));
       await vi.waitFor(() => expect(posts()).toHaveLength(count));
@@ -2475,10 +2789,9 @@ describe('TryOn optimistic start (AC19)', () => {
   });
 
   describe('the one-time photo of a start on its way', () => {
-    async function uploadOneTime(user: ReturnType<typeof setup>, name: string, turnOff: boolean) {
+    async function uploadOneTime(user: ReturnType<typeof setup>, name: string) {
       await user.click(await screen.findByRole('button', { name: 'Заменить фото' }));
       const dialog = await screen.findByRole('dialog', { name: 'Заменить фото' });
-      if (turnOff) await user.click(within(dialog).getByRole('switch', { name: /Сохранить фото/ }));
       const input = dialog.querySelector<HTMLInputElement>('input[type="file"]:not([capture])');
       await user.upload(input!, new File(['x'], name, { type: 'image/jpeg' }));
       await vi.waitFor(() =>
@@ -2495,8 +2808,8 @@ describe('TryOn optimistic start (AC19)', () => {
       const held = holdStarts();
       const user = setup();
       const { unmount } = renderTryOn({ productId: PRODUCT });
-      await uploadOneTime(user, 'one.jpg', true);
-      await uploadOneTime(user, 'two.jpg', false);
+      await uploadOneTime(user, 'one.jpg');
+      await uploadOneTime(user, 'two.jpg');
       await vi.waitFor(() =>
         expect(screen.getByRole('img', { name: 'Ваше фото' })).toHaveAttribute(
           'src',
@@ -2522,7 +2835,7 @@ describe('TryOn optimistic start (AC19)', () => {
       const held = holdStarts();
       const user = setup();
       const { unmount } = renderTryOn({ productId: PRODUCT });
-      await uploadOneTime(user, 'one.jpg', true);
+      await uploadOneTime(user, 'one.jpg');
       await vi.waitFor(() => expect(start()).toBeEnabled());
       await user.click(start());
       await vi.waitFor(() => expect(held.sent()).toBe(1));

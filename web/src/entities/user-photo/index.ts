@@ -2,7 +2,9 @@ export { userPhotoKeys } from './api/keys';
 export {
   deletePhoto,
   deleteTransientPhoto,
+  keepPhoto,
   setDefaultPhoto,
+  unkeepPhoto,
   UPLOAD_TIMEOUT_MS,
   uploadPhoto,
   type UploadPhotoOptions,

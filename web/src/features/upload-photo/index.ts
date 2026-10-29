@@ -5,4 +5,5 @@ export {
   type DropCardPickerProps,
   type DropCardProps,
 } from './ui/drop-card';
+export { SavePhotoSwitch, type SavePhotoSwitchProps } from './ui/save-photo-switch';
 export { UploadPhoto, type UploadPhotoProps } from './ui/upload-photo';

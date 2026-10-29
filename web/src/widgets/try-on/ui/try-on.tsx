@@ -1,7 +1,7 @@
 'use client';
 
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 
 import {
   type Fitting,
@@ -40,6 +40,7 @@ import { FITTINGS_HREF } from '@/shared/config';
 import { Button, Modal, Notice, Skeleton } from '@/shared/ui';
 
 import { productColours, triedColours } from '../lib/colours';
+import type { ResultPhotoProps } from '../model/result-photo';
 import { pendingFitting, type Starting, startingNow, type StartIntent } from '../model/starting';
 import { FittingResult } from './fitting-result';
 import { ItemRow } from './item-row';
@@ -106,6 +107,8 @@ export function TryOn({
   // The one-time photos uploaded here, the last one in the picker's strip.
   const [transients, setTransients] = useState<UserPhoto[]>([]);
   const transient = transients.at(-1) ?? null;
+  // The photos whose result's save switch went off in this window (spec 0024 AC22).
+  const [declinedIds, setDeclinedIds] = useState<string[]>([]);
   // The chosen photo: undefined the default one (A63.4), null none («Примерить на другом фото»,
   // spec 0024 AC17).
   const [chosenId, setChosenId] = useState<string | null | undefined>(undefined);
@@ -164,11 +167,23 @@ export function TryOn({
     transientsRef.current = transients;
   }, [transients]);
   // But the one a start on its way uses: the delete could reach the api before the fitting that
-  // keeps it (A70), and the housekeeping deletes it within the hour if the start fails (A24).
+  // keeps it (A70), and the housekeeping deletes it within the hour if the start fails (A24). So
+  // too the one a result's save switch is keeping (spec 0024 AC22).
+  // Keeps on their way by photo, counted: a second switch may keep the same photo before the
+  // first answers. An unkeep on its way leaves its photo to the housekeeping (A24).
+  const keepingRef = useRef(new Map<string, number>());
+  const markKeeping = useCallback((id: string, keeping: boolean) => {
+    const count = (keepingRef.current.get(id) ?? 0) + (keeping ? 1 : -1);
+    if (count > 0) keepingRef.current.set(id, count);
+    else keepingRef.current.delete(id);
+  }, []);
   useEffect(
     () => () => {
       for (const photo of transientsRef.current) {
-        if (photo.id !== startingRef.current?.photoId) dropTransient(photo.id);
+        if (photo.id === startingRef.current?.photoId || keepingRef.current.has(photo.id)) {
+          continue;
+        }
+        dropTransient(photo.id);
       }
     },
     [],
@@ -314,6 +329,28 @@ export function TryOn({
   function photoUrl(id: string | null): string | null {
     if (id === null) return null;
     return [...transients, ...(photos.data ?? [])].find((photo) => photo.id === id)?.url ?? null;
+  }
+
+  // A result's save switch (spec 0024 AC22): a kept photo leaves the one-time photos, so the close
+  // does not delete it, and comes back to them when the switch goes off. A photo whose switch went
+  // off stays declined for the window: the next result on it (a colour, a regeneration) does not
+  // keep it by itself.
+  function resultPhoto(shown: Fitting): ResultPhotoProps {
+    return {
+      uploadedHere: transients.some((photo) => photo.id === shown.photoId),
+      declined: shown.photoId !== null && declinedIds.includes(shown.photoId),
+      onKept: (kept) => {
+        setTransients((list) => list.filter((photo) => photo.id !== kept.id));
+        setDeclinedIds((ids) => ids.filter((id) => id !== kept.id));
+      },
+      onUnkept: (again) => {
+        setTransients((list) =>
+          list.some((photo) => photo.id === again.id) ? list : [...list, again],
+        );
+        setDeclinedIds((ids) => (ids.includes(again.id) ? ids : [...ids, again.id]));
+      },
+      onKeeping: markKeeping,
+    };
   }
 
   const colours = productColours(product);
@@ -506,6 +543,7 @@ export function TryOn({
       <LookResult
         fitting={fitting}
         running={startingOver}
+        photo={resultPhoto(fitting)}
         quota={quota.data}
         {...resultStart}
         onStarted={startedColour}
@@ -520,6 +558,7 @@ export function TryOn({
         fitting={baseQuery.data}
         running={fitting}
         origin={originOf(fitting.id)}
+        photo={resultPhoto(baseQuery.data)}
         quota={quota.data}
         {...resultStart}
         onStarted={startedColour}
@@ -534,6 +573,7 @@ export function TryOn({
         fitting={baseQuery.data}
         running={fitting}
         origin={originOf(fitting.id)}
+        photo={resultPhoto(baseQuery.data)}
         {...resultStart}
         product={product}
         colours={colours}
@@ -562,6 +602,7 @@ export function TryOn({
       <FittingResult
         fitting={fitting}
         running={startingOver}
+        photo={resultPhoto(fitting)}
         {...resultStart}
         product={product}
         colours={colours}

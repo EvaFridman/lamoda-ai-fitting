@@ -95,10 +95,10 @@ export interface UploadPhotoProps {
   // `zone`: the try-on's drop zone, filling the photo's frame (spec 0023 P3, P8, P9): a file
   // dropped on it uploads; with no `children` it is the hairline `DropCard` (spec 0024 Z17), a
   // click on which picks a file, with «Выбрать файл» (on a touch device the tiles «Загрузить фото»
-  // and «Сделать фото») and `extra`; with `children` (the chosen photo, the one on its way) it
-  // shows them and only takes a drop.
+  // and «Сделать фото»); with `children` (the chosen photo, the one on its way) it shows them and
+  // only takes a drop.
   // `replace`: a button (`replaceLabel`, «Заменить фото» by default) and its window (P25):
-  // `thumbs`, the pickers and `extra`.
+  // `thumbs` and the pickers.
   appearance?: 'buttons' | 'card' | 'zone' | 'replace';
   // `replace`'s button and window title: «Выбрать из сохранённых» with no photo chosen (spec 0024
   // Z35).
@@ -106,8 +106,6 @@ export interface UploadPhotoProps {
   children?: ReactNode;
   // The window's saved photos (`replace` only), given the window's close: a choice closes it.
   thumbs?: (close: () => void) => ReactNode;
-  // Under the pickers (`zone` and `replace`): the try-on's save switch.
-  extra?: ReactNode;
   // `false` uploads a one-time photo, not among the saved ones (spec 0019 A24).
   save?: boolean;
   // Under the refusal's text: the try-on's «Примерка не списана · осталось 7 в этом месяце» (A62, board 5).
@@ -115,7 +113,7 @@ export interface UploadPhotoProps {
   // The file on its way, then `null` once it is stored or refused (board 3.3 shows it dimmed).
   onPendingChange?: (file: File | null) => void;
   // `true` while a photo is on its way or a HEIC is being prepared, `false` once it is done (or
-  // the component goes): the page keeps its other pickers and the save switch off meanwhile.
+  // the component goes): the page keeps its other pickers off meanwhile.
   onBusyChange?: (busy: boolean) => void;
   onUploaded?: (photo: UserPhoto) => void;
 }
@@ -138,7 +136,6 @@ export function UploadPhoto({
   replaceLabel = 'Заменить фото',
   children,
   thumbs,
-  extra,
   save = true,
   refusalNote,
   onPendingChange,
@@ -711,7 +708,6 @@ export function UploadPhoto({
                 chooseLink
               )
             }
-            extra={extra}
           />
         ) : (
           children
@@ -732,7 +728,6 @@ export function UploadPhoto({
       <div className={styles.replace}>
         {thumbs && <div className={styles.thumbs}>{thumbs(close)}</div>}
         {replacePickers}
-        {extra}
       </div>
     );
     const title = replaceLabel;
