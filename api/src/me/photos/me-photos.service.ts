@@ -95,6 +95,41 @@ export class MePhotosService {
     return this.toResponse(row);
   }
 
+  // Keeps a transient photo for later try-ons (spec 0024 plan §3.1, Z12): the result's switch,
+  // on as the result opens. With the user's row locked, as the upload, the housekeeping and the
+  // window's close, the count is final and no deletion of the photo runs meanwhile. A photo saved
+  // already answers unchanged (Z29: never saved twice, so not counted); with no default photo it
+  // becomes the default (the upload's rule, A54). Another user's or a missing photo is 404.
+  async keep(userId: string, id: string): Promise<UserPhotoDto> {
+    const row = await this.prisma.$transaction(async (tx) => {
+      await lockUser(tx, userId);
+      const photo = await tx.userPhoto.findUniqueOrThrow({ where: { id, userId } });
+      if (!photo.transient) {
+        return photo;
+      }
+      if ((await this.savedCount(tx, userId)) >= MAX_SAVED_PHOTOS) {
+        throw limitReached();
+      }
+      const isDefault = (await tx.userPhoto.count({ where: { userId, isDefault: true } })) === 0;
+      return tx.userPhoto.update({ where: { id }, data: { transient: false, isDefault } });
+    });
+    return this.toResponse(row);
+  }
+
+  // The switch turned off (Z26.4): a saved photo of the user is transient again, no longer the
+  // default, and goes as any transient one (the window's close, the housekeeping), so the switch
+  // can keep it again while the result is open. No other photo becomes the default (as a delete,
+  // A54). A transient, another user's or a missing photo is 404 (P2025).
+  async unkeep(userId: string, id: string): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      await lockUser(tx, userId);
+      await tx.userPhoto.update({
+        where: { id, userId, transient: false },
+        data: { transient: true, isDefault: false },
+      });
+    });
+  }
+
   // Deletes one saved photo: the row and its outbox entry in one transaction (spec 0019 A38), the
   // file after the commit. No other photo becomes the default: the next saved upload does (A54).
   // Another user's, a transient or a missing photo is 404 (P2025).

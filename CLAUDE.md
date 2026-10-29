@@ -462,6 +462,12 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   on both; both lock the user's row as the upload does, so a gone user answers 401 through
   `signOutWhenGone` (A59). Closing the try-on calls `DELETE /me/photos/transient/:id` (204, only a
   transient photo, else 404), which leaves one a running fitting uses to the housekeeping (A70).
+  The result's save switch (spec 0024 plan §3.1, Z12, Z26.4, Z29) calls `PUT /me/photos/:id/keep`
+  (200 `UserPhotoDto`): with the user's row locked, a transient photo becomes saved (a sixth: 409
+  `LIMIT_REACHED`), the default when the user has none; one saved already answers unchanged.
+  `DELETE /me/photos/:id/keep` (204) makes a saved photo transient again and not the default (no
+  other one becomes it), deleted as any transient one; a transient one there is 404. Another
+  user's or a missing photo is 404 on both, a gone user 401 through `signOutWhenGone`.
 - `api` fittings (spec 0019 plan §5, `fittings/`): `POST /fittings` (`@Expensive()`,
   `StartFittingDto`: `photoId`, `kind` `single` with one item or `look` with 2–5, `items` of
   `productId` and `attributeValueId`, `promptText` ≤ 200) checks the items (a missing product or a
