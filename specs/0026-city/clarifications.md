@@ -1,7 +1,8 @@
 # 0026 city: clarifications
 
 Status: done (2026-10-29): C0 carried in from spec 0024; C1–C12 settled at the first answers,
-C13 at the plan, C14 at the review of PR 1 (C6, C7 amended), C15 at T3.
+C13 at the plan, C14 at the review of PR 1 (C6, C7 amended), C15 at T3, C16 at the owner's
+review of the phase.
 Decision ids `C0`, `C1`, …; the notes are `S1`, `S2` and `S3` of
 [../0024-ui-feedback-2/source/agentation-notes.md](../0024-ui-feedback-2/source/agentation-notes.md).
 
@@ -134,3 +135,10 @@ ask, time to read the prompt and C7's 10 s for the position; a later answer is i
 stores page's own ask too (C6: it then stays on every store). Weighed:
 10 s from the click (a slow reader is told it failed before answering); the browser's timeout
 alone, as a risk.
+
+## Added at the owner's review of the phase (2026-10-29)
+
+**C16. No legend on the stores page.** The owner, looking at the page locally before PR 2: the
+legend of the store kinds above the list (0022 X9: the «lamoda sport» and «lamoda sport outlet»
+logos with their texts) goes; the page starts with the city's row under its title. The pins keep
+the «la» of the wordmark.

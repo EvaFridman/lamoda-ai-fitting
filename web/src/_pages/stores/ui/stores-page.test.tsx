@@ -66,10 +66,10 @@ function suspenseOf(page: ReactElement): ReactElement {
 
 function renderWithoutContent() {
   const page = StoresPage();
-  const props = page.props as { children: ReactElement[] };
+  const props = page.props as Record<string, unknown>;
   const Shell = page.type as ComponentType<Record<string, unknown>>;
   return render(
-    <Shell {...props}>{props.children.filter((child) => child.type !== Suspense)}</Shell>,
+    <Shell {...props}>{childrenOf(page).filter((child) => child.type !== Suspense)}</Shell>,
   );
 }
 
@@ -94,35 +94,27 @@ describe('StoresPage', () => {
       ['signed out', { status: 'signed-out', failed: false }],
       ['a failed read', { status: 'signed-out', failed: true }],
     ] as [string, SessionState][])(
-      'shows the title and the legend and no invitation when %s',
+      'shows the title, no legend and no invitation when %s',
       (_name, session) => {
         mocks.session = session;
         renderWithoutContent();
         expect(
           screen.getByRole('heading', { level: 1, name: 'Магазины Lamoda Sport' }),
         ).toBeInTheDocument();
-        expect(screen.getByRole('img', { name: 'lamoda sport' })).toBeInTheDocument();
-        expect(screen.getByRole('img', { name: 'lamoda sport outlet' })).toBeInTheDocument();
+        expect(screen.queryByRole('img', { name: 'lamoda sport' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('img', { name: 'lamoda sport outlet' })).not.toBeInTheDocument();
         expect(
-          screen.getByText('Мультибрендовый розничный магазин спортивной одежды и обуви'),
-        ).toBeInTheDocument();
+          screen.queryByText('Мультибрендовый розничный магазин спортивной одежды и обуви'),
+        ).not.toBeInTheDocument();
         expect(
-          screen.getByText('Спортивная одежда и обувь по сниженным ценам'),
-        ).toBeInTheDocument();
+          screen.queryByText('Спортивная одежда и обувь по сниженным ценам'),
+        ).not.toBeInTheDocument();
+        expect(screen.queryByRole('term')).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Войти' })).not.toBeInTheDocument();
         expect(screen.queryByText(/Войдите/)).not.toBeInTheDocument();
         expect(document.querySelector('[aria-busy="true"]')).toBeNull();
       },
     );
-
-    it('pairs each logo with its text in a description list', () => {
-      renderWithoutContent();
-      const terms = screen.getAllByRole('term');
-      const definitions = screen.getAllByRole('definition');
-      expect(terms).toHaveLength(2);
-      expect(within(terms[0] as HTMLElement).getByRole('img')).toHaveAccessibleName('lamoda sport');
-      expect(definitions[1]).toHaveTextContent('Спортивная одежда и обувь по сниженным ценам');
-    });
 
     it('sits inside the account menu with the stores marked when signed in', () => {
       mocks.session = {

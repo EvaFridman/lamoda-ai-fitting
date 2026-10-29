@@ -1,8 +1,8 @@
 import styles from './stores-map.module.scss';
 
 // Lamoda's map pin (spec 0022 X5, X9): a black drop whose tip is the store's point, «la» in white
-// on its round part, the first two letters of the «lamoda sport» wordmark
-// (`_pages/stores/ui/logos.tsx`). Decorative: the marker's button names the store.
+// on its round part, the first two letters of the «lamoda sport» wordmark. Decorative: the
+// marker's button names the store.
 export function StorePin() {
   return (
     <svg className={styles.pinIcon} viewBox="0 0 32 40" aria-hidden="true" focusable="false">
