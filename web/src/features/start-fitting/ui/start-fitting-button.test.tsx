@@ -141,7 +141,7 @@ describe('StartFittingButton', () => {
     await userEvent.setup().click(button());
     await vi.waitFor(() => expect(button()).toHaveAttribute('aria-busy', 'true'));
 
-    finish(await failure(503, 'SERVICE_UNAVAILABLE')());
+    finish(await failure(500, 'INTERNAL_ERROR')());
     await vi.waitFor(() => expect(button()).not.toHaveAttribute('aria-busy'));
   });
 
@@ -176,13 +176,14 @@ describe('StartFittingButton', () => {
   });
 
   it('passes the Russian text of any other failure to onError', async () => {
-    fetchMock.mockImplementation(failure(503, 'SERVICE_UNAVAILABLE'));
+    // A bare 500 is not sent again (a 503 is, once, after 1.5 s).
+    fetchMock.mockImplementation(failure(500, 'INTERNAL_ERROR'));
     const { onLimit, onError } = renderButton();
 
     await userEvent.setup().click(button());
 
     await vi.waitFor(() => expect(onError).toHaveBeenCalledTimes(2));
-    expect(onError).toHaveBeenLastCalledWith('Сервис временно недоступен, попробуйте позже');
+    expect(onError).toHaveBeenLastCalledWith('Ошибка на сервере, попробуйте позже');
     expect(onLimit).not.toHaveBeenCalled();
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
@@ -346,13 +347,13 @@ describe('StartLookButton', () => {
   });
 
   it('passes the Russian text of any other failure to onError', async () => {
-    fetchMock.mockImplementation(failure(503, 'SERVICE_UNAVAILABLE'));
+    fetchMock.mockImplementation(failure(500, 'INTERNAL_ERROR'));
     const { onLimit, onError } = renderLook();
 
     await userEvent.setup().click(lookButton());
 
     await vi.waitFor(() =>
-      expect(onError).toHaveBeenLastCalledWith('Сервис временно недоступен, попробуйте позже'),
+      expect(onError).toHaveBeenLastCalledWith('Ошибка на сервере, попробуйте позже'),
     );
     expect(onLimit).not.toHaveBeenCalled();
   });

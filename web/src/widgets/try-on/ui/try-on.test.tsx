@@ -713,7 +713,8 @@ describe('TryOn picker', () => {
   });
 
   it('shows another failure of the start under the picker and lets it be tried again', async () => {
-    api.started = () => failure(503, 'SERVICE_UNAVAILABLE');
+    // A bare 500 is not sent again, so the text shows at once (a 503 is, once, after 1.5 s).
+    api.started = () => failure(500, 'INTERNAL_ERROR');
     const user = setup();
     renderTryOn({ productId: PRODUCT });
     await vi.waitFor(() => expect(start()).toBeEnabled());
@@ -721,7 +722,7 @@ describe('TryOn picker', () => {
     await user.click(start());
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Сервис временно недоступен, попробуйте позже',
+      'Ошибка на сервере, попробуйте позже',
     );
     expect(start()).toBeEnabled();
   });
@@ -1365,15 +1366,14 @@ describe('TryOn with a fitting', () => {
       RUNNING,
       fitting({ status: 'failed', stage: 'done', failureCode: 'model_timeout' }),
     );
-    api.started = () => failure(503, 'SERVICE_UNAVAILABLE');
+    // A bare 500 is not sent again, so the text shows at once (a 503 is, once, after 1.5 s).
+    api.started = () => failure(500, 'INTERNAL_ERROR');
     const user = setup();
     renderTryOn({ fittingId: RUNNING });
 
     await user.click(await screen.findByRole('button', { name: 'Попробовать ещё раз' }));
 
-    expect(
-      await screen.findByText('Сервис временно недоступен, попробуйте позже'),
-    ).toBeInTheDocument();
+    expect(await screen.findByText('Ошибка на сервере, попробуйте позже')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Не получилось примерить' })).toBeInTheDocument();
   });
 

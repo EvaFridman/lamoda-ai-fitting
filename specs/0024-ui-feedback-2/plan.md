@@ -229,14 +229,15 @@ route that answers a `FittingDto`; Swagger and `openapi.json`.
 
 ### 4.1 The optimistic start, the silent retry and the sticky button (Z10, Z11; R12, T2)
 
-- `entities/fitting/api/mutations.ts`: the start, the look start and the regeneration get
-  `retry: (count, error) => count < 1 && isStartRetryable(error)` and `retryDelay: 1500` (Z26.6);
+- `entities/fitting/api/mutations.ts`: the start, the look start, the regeneration and the
+  history's repeat (Z45) get `retry: (count, error) => count < 1 && isStartRetryable(error)`,
+  `retryDelay: 1500` (Z26.6) and `networkMode: 'always'` (Z45);
   `isStartRetryable` (`shared/api/retry.ts`): kind `network` or `timeout`, or `http` 502/503/504;
   a 429 and a bare 500 are not (Z27). Its comment says why this write may repeat against spec 0017
   plan §4's "a write is not repeated by itself": the api answers the running fitting of the same
   fingerprint (spec 0019 A32), so a lost answer starts no second generation; `CLAUDE.md`'s line
   on writes names the exception. `trackFittingRefused` and `reportFailure` stay in `onError`, after the last
-  attempt. `Fitting Start Retried` is sent from `onSettled` when `failureCount > 0`, with `cause`
+  attempt. `Fitting Start Retried` is sent from `onSettled` when the first failure was repeated (its cause kept per request), with `cause`
   (the first failure's kind or status class) and `outcome` (§6).
 - `widgets/try-on/ui/try-on.tsx`: `StartFittingButton` and `StartLookButton` take `onStart`
   (called before `mutate`): `TryOn` sets `starting = { at: Date.now(), items, kind }` and shows

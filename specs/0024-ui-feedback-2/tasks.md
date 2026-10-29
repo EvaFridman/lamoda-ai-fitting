@@ -99,7 +99,7 @@ same release); PR 4 the closing, which records the owner's checks on the deploye
 
 ### web
 
-- [ ] **T16. The silent retry (plan §4.1; AC20).** `isStartRetryable`, the mutations' retry once
+- [x] **T16. The silent retry (plan §4.1; AC20).** `isStartRetryable`, the mutations' retry once
       after 1.5 s (no bare 500, Z27), its comment and `CLAUDE.md`'s line on writes naming the
       exception, `Fitting Start Retried` in the catalog. Check: `mutations.test.tsx`,
       `retry.test.ts`, `catalog.test.ts`. Commit: `feat(web): silent retry of a fitting's start`.

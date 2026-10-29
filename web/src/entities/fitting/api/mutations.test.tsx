@@ -1,7 +1,7 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const track = vi.hoisted(() => vi.fn());
 const requests = vi.hoisted(() => ({ startFitting: vi.fn(), regenerateFitting: vi.fn() }));
@@ -531,5 +531,336 @@ describe('useRegenerateFitting', () => {
       'Fitting Started',
       expect.objectContaining({ source: 'retry', with_prompt: false }),
     );
+  });
+});
+
+function failure(
+  kind: 'network' | 'timeout' | 'http' | 'schema',
+  status?: number,
+  code?: string,
+): ApiError {
+  return new ApiError('failed', {
+    kind,
+    template: '/fittings',
+    method: 'POST',
+    ...(status === undefined ? {} : { status }),
+    ...(code ? { code } : {}),
+  });
+}
+
+interface StartCase {
+  name: string;
+  kind: 'single' | 'look';
+  source: 'picker' | 'regenerate' | 'history';
+  request: ReturnType<typeof vi.fn>;
+  useSend: () => () => Promise<unknown>;
+}
+
+const START_CASES: StartCase[] = [
+  {
+    name: 'useStartSingleFitting',
+    kind: 'single',
+    source: 'picker',
+    request: requests.startFitting,
+    useSend: () => {
+      const mutation = useStartSingleFitting();
+      return () => mutation.mutateAsync({ photoId: PHOTO, productId: PRODUCT, source: 'picker' });
+    },
+  },
+  {
+    name: 'useStartLookFitting',
+    kind: 'look',
+    source: 'picker',
+    request: requests.startFitting,
+    useSend: () => {
+      const mutation = useStartLookFitting();
+      return () =>
+        mutation.mutateAsync({
+          photoId: PHOTO,
+          items: [
+            { productId: PRODUCT, attributeValueId: COLOUR },
+            { productId: '00000000-0000-4000-8000-0000000000a2', attributeValueId: null },
+          ],
+          promptText: null,
+          source: 'picker',
+        });
+    },
+  },
+  {
+    name: 'useRepeatFitting',
+    kind: 'single',
+    source: 'history',
+    request: requests.startFitting,
+    useSend: () => {
+      const mutation = useRepeatFitting();
+      return () =>
+        mutation.mutateAsync({
+          photoId: PHOTO,
+          kind: 'single',
+          items: [{ productId: PRODUCT }],
+        });
+    },
+  },
+  {
+    name: 'useRegenerateFitting',
+    kind: 'single',
+    source: 'regenerate',
+    request: requests.regenerateFitting,
+    useSend: () => {
+      const mutation = useRegenerateFitting();
+      return () =>
+        mutation.mutateAsync({
+          parentId: '00000000-0000-4000-8000-0000000000b1',
+          kind: 'single',
+          source: 'regenerate',
+        });
+    },
+  },
+];
+
+describe.each(START_CASES)('the silent retry of $name', (start) => {
+  const retried = 'Fitting Start Retried';
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  // Sends once and lets `ms` of fake time pass; resolves with the settled outcome.
+  async function sendAndWait(send: () => Promise<unknown>, ms: number) {
+    let settled: Promise<unknown> = Promise.resolve();
+    await act(async () => {
+      settled = send().then(
+        () => 'ok',
+        () => 'error',
+      );
+      await vi.advanceTimersByTimeAsync(ms);
+    });
+    return act(() => settled);
+  }
+
+  it.each([
+    ['a network error', failure('network'), 'network'],
+    ['a timeout', failure('timeout'), 'timeout'],
+    ['a 502', failure('http', 502), 'server'],
+    ['a 503', failure('http', 503), 'server'],
+    ['a 504', failure('http', 504), 'server'],
+  ])(
+    'sends again once, 1.5 s later, after %s, and goes on when it succeeds',
+    async (_n, error, cause) => {
+      start.request
+        .mockRejectedValueOnce(error)
+        .mockResolvedValueOnce(started({ kind: start.kind }));
+      const { result } = renderHook(() => start.useSend(), { wrapper });
+
+      let settled: Promise<unknown> = Promise.resolve();
+      await act(async () => {
+        settled = result.current().then(
+          () => 'ok',
+          () => 'error',
+        );
+        await vi.advanceTimersByTimeAsync(1499);
+      });
+      expect(start.request).toHaveBeenCalledTimes(1);
+      expect(reportFailure).not.toHaveBeenCalled();
+      expect(track).not.toHaveBeenCalled();
+
+      await act(() => vi.advanceTimersByTimeAsync(1));
+      expect(await act(() => settled)).toBe('ok');
+
+      expect(start.request).toHaveBeenCalledTimes(2);
+      expect(reportFailure).not.toHaveBeenCalled();
+      expect(track).toHaveBeenCalledWith(
+        'Fitting Started',
+        expect.objectContaining({ kind: start.kind, source: start.source }),
+      );
+      expect(track).toHaveBeenCalledWith(retried, {
+        kind: start.kind,
+        source: start.source,
+        cause,
+        outcome: 'started',
+      });
+      expect(client.getQueryData(fittingKeys.detail(FITTING))).toMatchObject({ id: FITTING });
+    },
+  );
+
+  it('shows the error after a second failure, sends only twice and names the first cause', async () => {
+    const last = failure('http', 503);
+    start.request.mockRejectedValueOnce(failure('network')).mockRejectedValueOnce(last);
+    const { result } = renderHook(() => start.useSend(), { wrapper });
+
+    expect(await sendAndWait(result.current, 1500)).toBe('error');
+    await act(() => vi.advanceTimersByTimeAsync(10_000));
+
+    expect(start.request).toHaveBeenCalledTimes(2);
+    expect(reportFailure).toHaveBeenCalledExactlyOnceWith(last);
+    expect(track).toHaveBeenCalledExactlyOnceWith(retried, {
+      kind: start.kind,
+      source: start.source,
+      cause: 'network',
+      outcome: 'failed',
+    });
+  });
+
+  it('counts a repeat that ends in the limit as refused', async () => {
+    start.request
+      .mockRejectedValueOnce(failure('http', 503))
+      .mockRejectedValueOnce(failure('http', 409, 'LIMIT_REACHED'));
+    const { result } = renderHook(() => start.useSend(), { wrapper });
+
+    expect(await sendAndWait(result.current, 1500)).toBe('error');
+
+    expect(start.request).toHaveBeenCalledTimes(2);
+    expect(reportFailure).not.toHaveBeenCalled();
+    expect(track).toHaveBeenCalledWith('Fitting Refused', {
+      kind: start.kind,
+      reason: 'limit_reached',
+    });
+    expect(track).toHaveBeenCalledWith(retried, {
+      kind: start.kind,
+      source: start.source,
+      cause: 'server',
+      outcome: 'refused',
+    });
+  });
+
+  it.each([
+    ['a 400', failure('http', 400)],
+    ['a 401', failure('http', 401)],
+    ['a 409', failure('http', 409, 'LIMIT_REACHED')],
+    ['a 429', failure('http', 429)],
+    ['a bare 500', failure('http', 500)],
+    ['a wrong answer', failure('schema')],
+    ['a plain error', new Error('x')],
+  ])('does not send again after %s', async (_n, error) => {
+    start.request.mockRejectedValue(error);
+    const { result } = renderHook(() => start.useSend(), { wrapper });
+
+    expect(await sendAndWait(result.current, 5000)).toBe('error');
+
+    expect(start.request).toHaveBeenCalledTimes(1);
+    expect(track).not.toHaveBeenCalledWith(retried, expect.anything());
+  });
+
+  it('sends no retry event when the first try succeeds', async () => {
+    start.request.mockResolvedValue(started());
+    const { result } = renderHook(() => start.useSend(), { wrapper });
+
+    expect(await sendAndWait(result.current, 5000)).toBe('ok');
+
+    expect(start.request).toHaveBeenCalledTimes(1);
+    expect(track).not.toHaveBeenCalledWith(retried, expect.anything());
+  });
+
+  it('retries a second send of the same hook afresh', async () => {
+    start.request
+      .mockRejectedValueOnce(failure('network'))
+      .mockResolvedValueOnce(started())
+      .mockResolvedValueOnce(started());
+    const { result } = renderHook(() => start.useSend(), { wrapper });
+
+    expect(await sendAndWait(result.current, 1500)).toBe('ok');
+    track.mockClear();
+    expect(await sendAndWait(result.current, 1500)).toBe('ok');
+
+    expect(start.request).toHaveBeenCalledTimes(3);
+    expect(track).not.toHaveBeenCalledWith(retried, expect.anything());
+  });
+});
+
+describe.each(START_CASES)('the silent retry of $name, edge cases', (start) => {
+  const retried = 'Fitting Start Retried';
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    onlineManager.setOnline(true);
+    vi.useRealTimers();
+  });
+
+  it.each([
+    ['before the start', true],
+    ['after the first failure', false],
+  ])('still sends again and ends in error when offline %s', async (_n, offlineFirst) => {
+    const last = failure('network');
+    start.request.mockImplementationOnce(() => {
+      if (!offlineFirst) onlineManager.setOnline(false);
+      return Promise.reject(failure('network'));
+    });
+    start.request.mockRejectedValueOnce(last);
+    if (offlineFirst) onlineManager.setOnline(false);
+    const { result } = renderHook(() => start.useSend(), { wrapper });
+
+    let settled: Promise<unknown> = Promise.resolve();
+    await act(async () => {
+      settled = result.current().then(
+        () => 'ok',
+        () => 'error',
+      );
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+    expect(await act(() => settled)).toBe('error');
+
+    expect(start.request).toHaveBeenCalledTimes(2);
+    expect(reportFailure).toHaveBeenCalledExactlyOnceWith(last);
+    expect(track).toHaveBeenCalledExactlyOnceWith(retried, {
+      kind: start.kind,
+      source: start.source,
+      cause: 'network',
+      outcome: 'failed',
+    });
+  });
+
+  it('sends again after the hook is unmounted and reports once', async () => {
+    const last = failure('http', 503);
+    start.request.mockRejectedValueOnce(failure('network')).mockRejectedValueOnce(last);
+    const { result, unmount } = renderHook(() => start.useSend(), { wrapper });
+
+    await act(async () => {
+      void result.current().catch(() => undefined);
+      await vi.advanceTimersByTimeAsync(100);
+    });
+    unmount();
+    await act(() => vi.advanceTimersByTimeAsync(10_000));
+
+    expect(start.request).toHaveBeenCalledTimes(2);
+    expect(reportFailure).toHaveBeenCalledExactlyOnceWith(last);
+    expect(track.mock.calls.filter(([name]) => name === retried)).toEqual([
+      [retried, { kind: start.kind, source: start.source, cause: 'network', outcome: 'failed' }],
+    ]);
+  });
+
+  it('gives each of two overlapping sends its own cause', async () => {
+    const answers = [
+      () => Promise.reject(failure('network')),
+      () => Promise.reject(failure('http', 503)),
+      () => Promise.resolve(started({ kind: start.kind })),
+      () => Promise.resolve(started({ kind: start.kind })),
+    ];
+    start.request.mockImplementation(
+      () => answers.shift()?.() ?? Promise.reject(new Error('extra')),
+    );
+    const { result } = renderHook(() => start.useSend(), { wrapper });
+
+    const settled: Promise<unknown>[] = [];
+    await act(async () => {
+      settled.push(result.current().catch(() => undefined));
+      settled.push(result.current().catch(() => undefined));
+      await vi.advanceTimersByTimeAsync(1500);
+      await Promise.all(settled);
+    });
+
+    expect(start.request).toHaveBeenCalledTimes(4);
+    const causes = track.mock.calls
+      .filter(([name]) => name === retried)
+      .map(([, props]) => props as { cause: string; outcome: string });
+    expect(causes).toHaveLength(2);
+    expect(causes.map((p) => p.cause).sort()).toEqual(['network', 'server']);
+    expect(causes.every((p) => p.outcome === 'started')).toBe(true);
   });
 });

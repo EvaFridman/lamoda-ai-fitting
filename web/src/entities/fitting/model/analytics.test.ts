@@ -7,6 +7,7 @@ import { ApiError } from '@/shared/api';
 
 import {
   fittingRefusal,
+  startRetryCause,
   trackFittingOutcome,
   trackFittingRefused,
   trackFittingStarted,
@@ -227,6 +228,26 @@ describe('trackFittingStarted', () => {
 
     expect(track).toHaveBeenCalledTimes(1);
     expect(track).toHaveBeenCalledWith('Fitting Started', expect.anything());
+  });
+});
+
+describe('startRetryCause', () => {
+  const failure = (kind: 'network' | 'timeout' | 'http' | 'schema', status?: number) =>
+    new ApiError('x', { kind, template: '/fittings', ...(status ? { status } : {}) });
+
+  it.each([
+    [failure('network'), 'network'],
+    [failure('timeout'), 'timeout'],
+    [failure('http', 502), 'server'],
+    [failure('http', 503), 'server'],
+    [failure('http', 504), 'server'],
+    [failure('http', 500), null],
+    [failure('http', 429), null],
+    [failure('http', 400), null],
+    [failure('schema'), null],
+    [new Error('x'), null],
+  ])('names the cause of %o as %s', (error, cause) => {
+    expect(startRetryCause(error)).toBe(cause);
   });
 });
 

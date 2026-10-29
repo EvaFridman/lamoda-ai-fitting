@@ -515,7 +515,8 @@ describe('TryOn of a look: the picker (board 3.2)', () => {
   });
 
   it('shows another failure under the picker and lets it be tried again', async () => {
-    api.started = () => failure(503, 'SERVICE_UNAVAILABLE');
+    // A bare 500 is not sent again, so the text shows at once (a 503 is, once, after 1.5 s).
+    api.started = () => failure(500, 'INTERNAL_ERROR');
     const user = setup();
     renderTryOn({ look: true });
     await vi.waitFor(() => expect(start()).toBeEnabled());
@@ -523,7 +524,7 @@ describe('TryOn of a look: the picker (board 3.2)', () => {
     await user.click(start());
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Сервис временно недоступен, попробуйте позже',
+      'Ошибка на сервере, попробуйте позже',
     );
     expect(start()).toBeEnabled();
   });
@@ -834,14 +835,15 @@ describe('TryOn of a look: another colour (AC15)', () => {
 
   it('shows another failure in the list and gives the swatches back', async () => {
     showResult();
-    api.started = () => failure(503, 'SERVICE_UNAVAILABLE');
+    // A bare 500 is not sent again, so the text shows at once (a 503 is, once, after 1.5 s).
+    api.started = () => failure(500, 'INTERNAL_ERROR');
     const user = setup();
     renderTryOn({ fittingId: RESULT });
 
     await pickBlack(user);
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Сервис временно недоступен, попробуйте позже',
+      'Ошибка на сервере, попробуйте позже',
     );
     const group = screen.getByRole('group', { name: 'Цвет: Рубашка' });
     await vi.waitFor(() =>

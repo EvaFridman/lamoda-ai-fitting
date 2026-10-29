@@ -1,5 +1,5 @@
 import { track } from '@/shared/analytics';
-import { ApiError } from '@/shared/api';
+import { ApiError, isStartRetryable } from '@/shared/api';
 
 import { promptRefusalReason } from '../lib/prompt-refusal';
 import type { Fitting, FittingKind, StartedFitting } from './schemas';
@@ -82,6 +82,27 @@ export function trackFittingStarted(
     counts_against_limit: false,
     repeated: true,
   });
+}
+
+export type StartRetryCause = 'network' | 'timeout' | 'server';
+
+// Why a start was sent again (spec 0024 plan §6): a failure `isStartRetryable` repeats, in the
+// catalog's words; null for any other, which is not repeated.
+export function startRetryCause(error: unknown): StartRetryCause | null {
+  if (!isStartRetryable(error) || !(error instanceof ApiError)) return null;
+  return error.kind === 'http' ? 'server' : error.kind === 'network' ? 'network' : 'timeout';
+}
+
+// After a start that was sent again settles: how the repeat ended, `refused` for the limit or the
+// text (`Fitting Refused` went too), `failed` for the error card.
+export function trackStartRetried(
+  kind: FittingKind,
+  source: FittingStartSource,
+  cause: StartRetryCause,
+  error: unknown,
+): void {
+  const outcome = error === null ? 'started' : fittingRefusal(error) ? 'refused' : 'failed';
+  track('Fitting Start Retried', { kind, source, cause, outcome });
 }
 
 // A start the api refused before any generation: the month's limit, or a text the check refused.

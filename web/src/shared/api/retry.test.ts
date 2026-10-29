@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { ApiError, retryDelay, shouldRetry } from './index';
-import { isRetryable } from './retry';
+import { isRetryable, isStartRetryable } from './retry';
 
 function http(status: number): ApiError {
   return new ApiError('m', { kind: 'http', template: '/t', status });
@@ -37,6 +37,32 @@ describe('shouldRetry', () => {
   ])('never retries %s', (_name, error) => {
     expect(isRetryable(error)).toBe(false);
     expect(shouldRetry(0, error)).toBe(false);
+  });
+});
+
+describe('isStartRetryable', () => {
+  it.each([
+    ['a network error', kind('network')],
+    ['a timeout', kind('timeout')],
+    ['a 502', http(502)],
+    ['a 503', http(503)],
+    ['a 504', http(504)],
+  ])('repeats %s', (_name, error) => {
+    expect(isStartRetryable(error)).toBe(true);
+  });
+
+  it.each([
+    ['a 400', http(400)],
+    ['a 401', http(401)],
+    ['a 409', http(409)],
+    ['a 429', http(429)],
+    ['a bare 500', http(500)],
+    ['schema', kind('schema')],
+    ['path', kind('path')],
+    ['a plain Error', new Error('x')],
+    ['undefined', undefined],
+  ])('does not repeat %s', (_name, error) => {
+    expect(isStartRetryable(error)).toBe(false);
   });
 });
 
