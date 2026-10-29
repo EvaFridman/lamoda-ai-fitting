@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -42,6 +42,28 @@ describe('InfoTip with a mouse', () => {
     await user.hover(screen.getByRole('button', { name: 'Об изображении' }));
 
     expect(await screen.findByText(TEXT)).toBeInTheDocument();
+  });
+
+  describe('hover delay (spec 0024 Z39)', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('opens the hint after about 100 ms of rest, not before', async () => {
+      vi.useFakeTimers();
+      render(<Example />);
+
+      const trigger = screen.getByRole('button', { name: 'Об изображении' });
+      fireEvent.pointerEnter(trigger, { pointerType: 'mouse' });
+      fireEvent.mouseEnter(trigger);
+      fireEvent.pointerMove(trigger, { pointerType: 'mouse' });
+      fireEvent.mouseMove(trigger);
+      await act(() => vi.advanceTimersByTimeAsync(50));
+      expect(screen.queryByText(TEXT)).not.toBeInTheDocument();
+
+      await act(() => vi.advanceTimersByTimeAsync(100));
+      expect(screen.getByText(TEXT)).toBeInTheDocument();
+    });
   });
 
   it('shows the text on keyboard focus and hides it on Esc', async () => {

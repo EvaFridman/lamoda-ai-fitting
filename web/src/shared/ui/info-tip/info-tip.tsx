@@ -11,6 +11,9 @@ import type { TooltipSide } from '../tooltip/tooltip';
 import tipStyles from '../tooltip/tooltip.module.scss';
 import styles from './info-tip.module.scss';
 
+// The pointer's rest before the hint opens, shorter than Base UI's default (spec 0024 Z39).
+const OPEN_DELAY_MS = 100;
+
 export interface InfoTipProps {
   // The name of the «!» for screen readers ("Об изображении").
   'aria-label': string;
@@ -54,6 +57,7 @@ export function InfoTip({ 'aria-label': label, content, side = 'top', className 
   return (
     <Tooltip.Root>
       <Tooltip.Trigger
+        delay={OPEN_DELAY_MS}
         render={
           // `aria-description` is ARIA 1.3's, read by Chrome, Safari and Firefox; the plugin's
           // table predates it.

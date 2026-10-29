@@ -76,7 +76,10 @@ follows the sheet's open state.
 `--color-background-tertiary`; `.secondary:disabled` gets `--color-background-secondary` with
 `--color-text-secondary` text and no hover change, so the disabled one (the limit) differs from the
 hovered one by its text colour and its stillness. `/ui-kit`'s button section shows `secondary`
-48 next to `primary` 48 and the disabled one.
+48 next to `primary` 48 and the disabled one. At PR 2's review (Z39) the buy box's «Примерить»
+gets `--color-border-active` as its border, hovered too; disabled at the limit (not while
+loading) it keeps only its fill. Then (Z41) its fill is `--color-background-tertiary`,
+`brightness(0.95)` on hover, the disabled one the kit's lighter fill.
 
 ### 2.4 Favicon (Z5; K1)
 
@@ -93,7 +96,8 @@ harmless.
 
 - `SoonChip` (`shared/ui/soon-chip`): background `--color-background-tertiary`, text
   `--color-text-secondary`; `header.module.scss` `.soon` moves to the count badge's position
-  (`top: 4px; right: 2px`, `fitting-room-button.module.scss`'s).
+  (`top: 4px; right: 2px`, `fitting-room-button.module.scss`'s). At PR 2's review (Z39) it moves
+  higher and further right, `top: 0; right: -4px`.
 - `CountBadge` (`shared/ui/count-badge`): `display: inline-flex; align-items: center;
 justify-content: center; padding: 0 4px; font-variant-numeric: tabular-nums; line-height: 1`,
   so «1» and «2» sit in the middle; its test checks the box is 18 px and the text centred.
@@ -124,7 +128,11 @@ scroll (no JS auto-grow).
   `look-result.module.scss` (`.rowCart`): `align-items: flex-start` and `align-self: flex-start`,
   the actions on one line at the card's top (`display: flex; gap: 8px`). Below 360 px of the look
   result's column «В корзину» is the bag icon beside the heart and «Заменить» goes under the text
-  (Z37, at T13's QA).
+  (Z37, at T13's QA). At PR 2's review (Z40) the single result's item card is `ItemRow` (60×80,
+  40×54 on a phone; its `size` prop and 72×96 go) whose `action` holds `CartStubButton` 32 body-s
+  (`result.add-to-cart`, kind `single`) and `FavoriteStub` 32, the size's stub under it, no 56 px
+  buttons; the stub is a 32 px `Select` in body-s, as wide as its text, under the card's text
+  (Z41).
 - `look-item-row.tsx`: with one colour nothing renders in the colour slot; `look-result.tsx`: the
   line «Смена цвета одной вещи…» renders only when `items.some(colours.length > 1)` (the rows
   already read `useProduct`; the parent reads the same queries through a small
@@ -164,7 +172,7 @@ scroll (no JS auto-grow).
 `shared/ui/info-tip`: a 16 px «!» in a circle (`InfoIcon`), a `<button aria-label>` wrapped in
 Base UI's `Tooltip` for a mouse and, under `COARSE_POINTER_QUERY`, a `Popover` of the same look
 opened by a tap (Base UI's `Tooltip` has no touch opening), closed by a tap outside or Escape.
-Shown on `/ui-kit`.
+Shown on `/ui-kit`. At PR 2's review (Z39) the trigger's `delay` is 100 ms.
 
 ### 2.10 Picker's removals (T3, T5, H2)
 

@@ -90,3 +90,24 @@
   flex: 1;
   min-width: max-content;
 }
+
+// «Примерить»: a grey a shade darker than the kit's secondary with «Добавить к образу»'s black
+// frame (spec 0024 Z39, Z41), over the kit's secondary and its hover, darker again when hovered; a
+// disabled one (the limit) keeps only the kit's lighter fill, a loading one (`aria-busy`, disabled
+// too) keeps the frame and the fill, so neither jumps when the quota arrives.
+.fitting .tryOn,
+.fitting .tryOn:hover:not([data-disabled]) {
+  border-color: var(--color-border-active);
+  background-color: var(--color-background-tertiary);
+}
+
+@media (hover: hover) {
+  .fitting .tryOn:hover:not([data-disabled]) {
+    filter: brightness(0.95);
+  }
+}
+
+.fitting .tryOn[data-disabled]:not([aria-busy]) {
+  border-color: var(--color-background-secondary);
+  background-color: var(--color-background-secondary);
+}

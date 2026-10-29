@@ -14,13 +14,13 @@ import {
 import type { OutfitSlot } from '@/entities/category';
 import type { ProductDetail } from '@/entities/product';
 import { useLookToggle } from '@/features/fitting-room';
-import { showStubToast } from '@/features/product-stubs';
+import { CartStubButton, FavoriteStub } from '@/features/product-stubs';
 import { RegenerateSheet } from '@/features/regenerate-fitting';
 import { ColorTryOn, type TryColour } from '@/features/try-colour';
 import { useTrackedElement } from '@/shared/analytics';
 import { FITTINGS_HREF, PHONE_QUERY } from '@/shared/config';
 import { useMediaQuery } from '@/shared/lib';
-import { Button, CheckIcon, FavoriteToggle, HangerIcon, LinkButton, Select } from '@/shared/ui';
+import { Button, CheckIcon, HangerIcon, LinkButton, Select } from '@/shared/ui';
 
 import { RESULT_NOTE } from '../lib/result-note';
 import { ItemRow } from './item-row';
@@ -138,28 +138,15 @@ export function FittingResult({
     </ResultTiles>
   );
 
-  const cart = (
-    <Button
-      size={phone ? 48 : 56}
-      className={styles.cart}
-      onClick={() => {
-        cartElement.onClick();
-        showStubToast();
-      }}
-      onPointerEnter={cartElement.onPointerEnter}
-      onPointerLeave={cartElement.onPointerLeave}
-    >
-      {phone ? 'В корзину' : 'Добавить в корзину'}
-    </Button>
-  );
-  // The favourite's stub never stays pressed (A33).
-  const favourite = (
-    <FavoriteToggle
-      size={phone ? 48 : 56}
-      pressed={false}
-      onPressedChange={showStubToast}
-      aria-label="В избранное"
-    />
+  // The item card's actions as the look's (spec 0024 Z40): «В корзину» and the heart, 32px, at the
+  // card's top; the stubs only show their toast (A33).
+  const actions = (
+    <span className={styles.actions}>
+      <CartStubButton size={32} textSize="body-s" events={cartElement}>
+        В корзину
+      </CartStubButton>
+      <FavoriteStub size={32} />
+    </span>
   );
 
   return (
@@ -187,12 +174,12 @@ export function FittingResult({
         {item && (
           <div className={styles.item}>
             <ItemRow
-              size="l"
               name={item.name}
               imageUrl={item.imageUrl}
               details={item.colour}
               price={item.price}
               finalPrice={item.finalPrice}
+              action={actions}
             />
             {sizes.length > 0 && (
               <Select
@@ -201,12 +188,9 @@ export function FittingResult({
                 onValueChange={(value) => setSize(value)}
                 placeholder="Выберите размер"
                 aria-label="Размер"
+                className={styles.size}
               />
             )}
-            <div className={styles.buy}>
-              {cart}
-              {favourite}
-            </div>
           </div>
         )}
 
