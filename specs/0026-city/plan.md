@@ -1,8 +1,9 @@
 # 0026 city: plan
 
-Status: accepted (2026-10-29).
+Status: accepted (2026-10-29); amended at the review of PR 1 (§3.1, §3.3: C14; §5: the map's
+fit; §9, §10).
 
-How [spec.md](spec.md) is built. Decisions: [clarifications.md](clarifications.md) (C0–C12).
+How [spec.md](spec.md) is built. Decisions: [clarifications.md](clarifications.md) (C0–C14).
 
 ## 1. Overview
 
@@ -60,7 +61,7 @@ the tab reloads (C9, as 0019 A60).
   acts on it then.
 - `useCity(cities)`: the stored name only if it is one of `cities` (C8), else `null`; `undefined`
   while hydrating or while `cities` is not there.
-- `chooseCity(name)`, `wasAsked()`, `markAsked()`.
+- `chooseCity(name)`, which also calls `markAsked()` (C14), `wasAsked()`, `markAsked()`.
 
 ### 3.2 Finding the city (`lib/locate.ts`)
 
@@ -131,9 +132,10 @@ The warm-up's list does not change (no route). The page shells keep no new inlin
 - `far`: «Рядом с вами пока нет магазинов» (`role="status"`) over the list, every store (C7).
 - Nothing found in the city: «Ничего не нашлось» and `LinkButton` «Искать во всех городах»,
   which sets `view` to `'all'`.
-- The map's fit (`widgets/stores-map`, `lib/fit.ts`): a new `MapFit` kind `'city'` with its stores,
-  fitted to their bounds, one store at `CITY_ZOOM` (12) instead of a street's; the base fit is
-  `'city'` in the city's view, else `'start'` (Moscow, as today); a non-empty search fits what it
+- The map's fit (`widgets/stores-map`, `lib/fit.ts`): the kind `'stores'` takes an optional
+  `singleZoom`, the zoom of one point (a street's, `STORE_ZOOM`, by default); the city's fit is
+  `'stores'` with the city's stores and `singleZoom: CITY_ZOOM` (12), no new kind. The base fit is
+  that in the city's view, else `'start'` (Moscow, as today); a non-empty search fits what it
   left, as today. The map is created in the browser after hydration, so it starts on the city.
 - The search's pause (C12): the text the list and the map follow is set 300 ms
   (`SEARCH_APPLY_MS`) after the last change; an empty text at once. `Stores Searched` keeps
@@ -181,21 +183,29 @@ the switch, the page's ask, the search's pause), the keys `city` and `city-asked
 - The placeholder before hydration for a visitor with a city (§4): a short flash of «Укажите…».
 - A store's `city` with a new shape (another prefix, a district) gives a new city name; `cityName`'s
   test pins the 31 names of today's seed.
+- `[lng, lat]` points against geolocation's `{ latitude, longitude }`: swapped axes in the
+  haversine pass a test of two near points. `nearestCity`'s test takes real cities and a known
+  distance (Москва–Санкт-Петербург, about 635 km).
+- While the page cache skips Redis (V24), the header's `getStores` goes as the visitor on every
+  page's render, beside the categories' read: one more `read`-tier request per page, accepted as
+  V24 accepts the categories'.
+- A city chosen in another tab moves the stores page from «Все города» back to the city (§5): on
+  purpose, with a test.
 - The agents' browser has no real position: tests stub `navigator.geolocation`; `qa-tester` stubs it
   through the page's script; the real prompt is the owner's check after the deploy.
 
 ## 10. Acceptance criteria → checks
 
-| AC       | Check                                                                                                                                                 |
-| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| AC1, AC2 | `HeaderCity` and `CityModal` tests (the list, the order, a pick, a `storage` event); `qa-tester` at 1280 px, two tabs                                 |
-| AC3, AC4 | `locateCity` tests with a stubbed geolocation (found, far, refused, timeout, no API); `CityModal` texts                                               |
-| AC5      | `locateCity` and `CityModal` tests: no `localStorage` key but the name, no `track` with a position; `qa-tester`'s network log with a stubbed position |
-| AC6      | `useAskCityOnce` tests (asks once, not with a city, not after the mark); `rg getCurrentPosition` shows the two callers only                           |
-| AC7      | `HeaderMenu` test; `qa-tester` at 375 px                                                                                                              |
-| AC8      | `useCity` test with a name not among the cities                                                                                                       |
-| AC9–AC11 | `StoresView` tests; `qa-tester` at 375 and 1280 px                                                                                                    |
-| AC12     | `StoresView` test with fake timers (one fit after 300 ms, empty at once)                                                                              |
-| AC13     | `privacy-page.test.tsx`                                                                                                                               |
-| AC14     | `catalog.test.ts`, `EVENTS.md` regenerated, review of the properties                                                                                  |
-| AC15     | `npm run verify`                                                                                                                                      |
+| AC       | Check                                                                                                                                                                         |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AC1, AC2 | `HeaderCity` and `CityModal` tests (the list, the order, a pick, a `storage` event); `qa-tester` at 1280 px, two tabs                                                         |
+| AC3, AC4 | `locateCity` tests with a stubbed geolocation (found, far, refused, timeout, no API); `CityModal` texts                                                                       |
+| AC5      | `locateCity` and `CityModal` tests: no `localStorage` key but the name, no `track` with a position; `qa-tester`'s network log with a stubbed position                         |
+| AC6      | `useAskCityOnce` tests (asks once, not with a city, not after the mark, not after a hand-chosen city that left the table); `rg getCurrentPosition` shows the two callers only |
+| AC7      | `HeaderMenu` test; `qa-tester` at 375 px                                                                                                                                      |
+| AC8      | `useCity` test with a name not among the cities                                                                                                                               |
+| AC9–AC11 | `StoresView` tests (a city chosen in another tab ends «Все города»); `qa-tester` at 375 and 1280 px                                                                           |
+| AC12     | `StoresView` test with fake timers (one fit after 300 ms, empty at once)                                                                                                      |
+| AC13     | `privacy-page.test.tsx`                                                                                                                                                       |
+| AC14     | `catalog.test.ts`, `EVENTS.md` regenerated, review of the properties                                                                                                          |
+| AC15     | `npm run verify`                                                                                                                                                              |

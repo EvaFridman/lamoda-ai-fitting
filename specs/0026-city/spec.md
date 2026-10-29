@@ -1,8 +1,9 @@
 # 0026 city: the visitor's city in the header and on the stores page
 
-Status: accepted (2026-10-29), with the owner's answers C1–C12.
+Status: accepted (2026-10-29), with the owner's answers C1–C13; amended at the review of PR 1
+(AC1, AC3, AC6: C14).
 
-Decisions: `clarifications.md` (C0–C12). Starting decisions: spec 0024's Z1 and Z24, carried in
+Decisions: `clarifications.md` (C0–C14). Starting decisions: spec 0024's Z1 and Z24, carried in
 as C0.
 
 Source: the owner's Agentation notes of 2026-10-29, notes `S1`, `S2` and `S3` of
@@ -58,13 +59,14 @@ browser picks the nearest, and the visitor's coordinates never leave the browser
 
 - **AC1.** With no city chosen, the header's city button (at 600 px and wider) reads «Укажите ваш
   населенный пункт» and opens the window «Ваш город»: «Определить автоматически», a search field
-  and the 31 cities (Москва and Санкт-Петербург first, then alphabetical), each once, named
+  and the cities of the `stores` table (31 on 2026-10-29; Москва and Санкт-Петербург first, then
+  alphabetical), each once, named
   without «г. » or a settlement («Видное»).
 - **AC2.** Choosing a city closes the window; the button shows the city's name on every page, and
   the choice survives a reload and shows in another open tab of the same browser.
 - **AC3.** «Определить автоматически» asks the browser's permission; allowed, with a store within
   100 km, the city of the nearest store becomes the chosen one and the window closes; refused, the
-  window says «Доступ к геопозиции запрещён в браузере»; failed or timed out (10 s), «Не удалось
+  window says «Доступ к геопозиции запрещён» (C14); failed or timed out (10 s), «Не удалось
   определить местоположение»; the city stays as it was in both.
 - **AC4.** With no store within 100 km, the window says «Рядом с вами пока нет магазинов» and the
   city stays as it was.
@@ -73,7 +75,8 @@ browser picks the nearest, and the visitor's coordinates never leave the browser
   analytics event.
 - **AC6.** No page but `/customer/stores` asks for the permission by itself; the stores page asks
   on its first open in a browser with no city, and not again after any answer, a reload or a city
-  chosen by hand.
+  ever chosen by hand, even one that later left the table (C14). A browser that stores nothing
+  is asked on each load of the page (C14).
 - **AC7.** Below 600 px the burger's menu has «Город: <name>» (or «Укажите ваш населенный
   пункт»), which opens the same window.
 - **AC8.** A stored city that is no longer among the stores' cities shows as no city.

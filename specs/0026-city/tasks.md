@@ -19,7 +19,7 @@ Status: accepted (2026-10-29).
 
 ## PR 1 · `docs/0026-city` · documents
 
-- [x] **T1. Spec, clarifications, plan, tasks.** `spec.md`, `clarifications.md` (C0–C13),
+- [x] **T1. Spec, clarifications, plan, tasks.** `spec.md`, `clarifications.md` (C0–C14),
       `plan.md`, this file.
       Check: the owner's acceptance of each; `npm run format:check`.
       Commit: `docs(specs): add spec 0026 city`
@@ -29,7 +29,8 @@ Status: accepted (2026-10-29).
 
 - [ ] **T2. The cities (plan §2).** `entities/store/lib/cities.ts`: `cityName`, `storeCities`,
       `storesOfCity`, `nearestCity`, `matchCities`; the word rule shared with `matchStores`.
-      Check: tests pin today's 31 names and their order, the nearest city and the 100 km bound.
+      Check: tests pin today's 31 names and their order, the nearest city (real cities, Москва–
+      Санкт-Петербург about 635 km, so swapped axes fail) and the 100 km bound.
       Commit: `feat(web): derive the stores' cities and the nearest one`
 - [ ] **T3. The choice and the window (plan §3, §7).** `features/choose-city`: the store of
       `city` and `city-asked`, `locateCity`, `CityModal`, `useAskCityOnce`; the analytics
@@ -43,7 +44,7 @@ Status: accepted (2026-10-29).
       Commit: `feat(web): make the header's city live`
 - [ ] **T5. The stores page (plan §5).** The city's view and the switch, «Изменить город», the
       page's ask and its «Рядом с вами пока нет магазинов», «Искать во всех городах», the map's
-      `'city'` fit, the search's 300 ms pause (C12), `Stores Searched`'s `scope`.
+      city's fit (`'stores'` with `singleZoom`), the search's 300 ms pause (C12), `Stores Searched`'s `scope`.
       Check: `stores-view.test.tsx` (fake timers), `fit.test.ts`.
       Commit: `feat(web): open the stores page on the visitor's city`
 - [ ] **T6. `/privacy` (plan §6).** C10's paragraph.
