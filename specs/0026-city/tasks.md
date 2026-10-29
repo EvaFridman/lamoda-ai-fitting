@@ -38,7 +38,7 @@ Status: accepted (2026-10-29).
       Check: tests with a stubbed `navigator.geolocation` and `localStorage` (found, far,
       refused, timeout, no API, blocked storage, another tab's `storage` event).
       Commit: `feat(web): choose the visitor's city or find it by geolocation`
-- [ ] **T4. The header and the burger (plan §4).** `loadHeaderCities`, `HeaderCitySlot`,
+- [x] **T4. The header and the burger (plan §4).** `loadHeaderCities`, `HeaderCitySlot`,
       `HeaderCity`; the burger's row; the header's tests without the inert city.
       Check: `header.test.tsx`, `header-menu.test.tsx`.
       Commit: `feat(web): make the header's city live`

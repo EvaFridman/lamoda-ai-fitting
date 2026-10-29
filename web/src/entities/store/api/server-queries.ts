@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { queryOptions } from '@tanstack/react-query';
+import { cache } from 'react';
 
 import { buildPath } from '@/shared/api';
 import {
@@ -21,11 +22,12 @@ async function cachedStoreList(): Promise<CachedRead<StoreList>> {
 }
 
 // GET /stores, cached as `getCategories`' first page (spec 0022 plan §3.1); while the page cache
-// is skipped (V24) it goes on the visitor's behalf.
-export async function getStores(): Promise<StoreList> {
+// is skipped (V24) it goes on the visitor's behalf. Once per render: the header's city and the
+// stores page share it (spec 0026 plan §4).
+export const getStores = cache(async (): Promise<StoreList> => {
   if (pageCacheOpen()) return cachedData(await cachedStoreList());
   return apiFetch(buildPath('/stores'), storeListSchema);
-}
+});
 
 export function storeListOptions() {
   return queryOptions({ queryKey: storeKeys.list(), queryFn: () => getStores() });

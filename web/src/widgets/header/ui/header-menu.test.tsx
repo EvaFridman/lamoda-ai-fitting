@@ -5,6 +5,8 @@ import type { ReactElement, ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { SessionState } from '@/entities/session';
+import type { City } from '@/entities/store';
+import { errorText } from '@/shared/api';
 
 import { BURGER_ID, HeaderMenu } from './header-menu';
 
@@ -73,6 +75,10 @@ vi.mock('@/features/auth/model/auth-actions', () => ({
   signOutEverywhere: mocks.signOutEverywhere,
 }));
 
+const cities: City[] = [
+  { name: 'Москва', points: [[37.62, 55.75]] },
+  { name: 'Казань', points: [[49.1, 55.79]] },
+];
 const NAME = 'Анна Секретная';
 const categories = [
   { id: 'c1', slug: 'dresses', name: 'Платья' },
@@ -92,7 +98,7 @@ function click(element: string, extra: Record<string, unknown> = {}) {
 
 async function openMenu() {
   const user = userEvent.setup({ pointerEventsCheck: 0 });
-  render(<HeaderMenu categories={categories} />);
+  render(<HeaderMenu categories={categories} cities={cities} />);
   await user.click(screen.getByRole('button', { name: 'Меню' }));
   const dialog = await screen.findByRole('dialog', { name: 'Меню' });
   return { user, dialog };
@@ -109,10 +115,11 @@ describe('HeaderMenu', () => {
     mocks.track.mockReset();
     mocks.params = new URLSearchParams();
     window.sessionStorage.clear();
+    window.localStorage.clear();
   });
 
   it('is closed until the burger is pressed', () => {
-    render(<HeaderMenu categories={categories} />);
+    render(<HeaderMenu categories={categories} cities={cities} />);
     expect(screen.getByRole('button', { name: 'Меню' })).toBeInTheDocument();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
@@ -134,7 +141,7 @@ describe('HeaderMenu', () => {
   });
 
   it('gives the burger the id the login modal returns the focus to', () => {
-    render(<HeaderMenu categories={categories} />);
+    render(<HeaderMenu categories={categories} cities={cities} />);
     expect(screen.getByRole('button', { name: 'Меню' })).toHaveAttribute('id', BURGER_ID);
   });
 
@@ -335,7 +342,7 @@ describe('HeaderMenu', () => {
 
     it('lists only «Все товары» when there are no categories', async () => {
       const user = userEvent.setup({ pointerEventsCheck: 0 });
-      render(<HeaderMenu categories={[]} />);
+      render(<HeaderMenu categories={[]} cities={cities} />);
       await user.click(screen.getByRole('button', { name: 'Меню' }));
       const dialog = await screen.findByRole('dialog', { name: 'Меню' });
       expect(
@@ -343,6 +350,87 @@ describe('HeaderMenu', () => {
           .getAllByRole('link')
           .map((l) => l.textContent),
       ).toEqual(['Все товары']);
+    });
+  });
+
+  describe('the city', () => {
+    it('puts the city row alone in its own list before the catalog list', async () => {
+      const { dialog } = await openMenu();
+      const city = within(dialog).getByRole('list', { name: 'Город' });
+      const catalog = within(dialog).getByRole('list', { name: 'Каталог' });
+      expect(
+        within(city)
+          .getAllByRole('listitem')
+          .map((item) => item.textContent),
+      ).toEqual(['Укажите ваш населенный пункт']);
+      expect(
+        within(catalog)
+          .getAllByRole('listitem')
+          .map((item) => item.textContent),
+      ).toEqual(['Все товары', 'Платья', 'Пальто']);
+      expect(city.compareDocumentPosition(catalog) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it('reads «Город: Москва» with a stored city of the list', async () => {
+      window.localStorage.setItem('city', 'Москва');
+      const { dialog } = await openMenu();
+      expect(within(dialog).getByRole('button', { name: 'Город: Москва' })).toBeInTheDocument();
+    });
+
+    it('reads a stored city that is not among the cities as none', async () => {
+      window.localStorage.setItem('city', 'Атлантида');
+      const { dialog } = await openMenu();
+      expect(
+        within(dialog).getByRole('button', { name: 'Укажите ваш населенный пункт' }),
+      ).toBeInTheDocument();
+      expect(dialog).not.toHaveTextContent('Атлантида');
+    });
+
+    it('closes the drawer, opens «Ваш город» and sends city.open with source burger', async () => {
+      window.localStorage.setItem('city', 'Москва');
+      const { user, dialog } = await openMenu();
+      mocks.track.mockClear();
+      await user.click(within(dialog).getByRole('button', { name: 'Город: Москва' }));
+
+      expect(await screen.findByRole('dialog', { name: 'Ваш город' })).toBeInTheDocument();
+      await vi.waitFor(() =>
+        expect(screen.queryByRole('dialog', { name: 'Меню' })).not.toBeInTheDocument(),
+      );
+      expect(mocks.track).toHaveBeenCalledExactlyOnceWith(
+        'Element Clicked',
+        expect.objectContaining({ element: 'city.open', source: 'burger', had_city: true }),
+      );
+    });
+
+    it('stores a picked city, returns the focus to the burger and shows it in the row', async () => {
+      const { user, dialog } = await openMenu();
+      await user.click(
+        within(dialog).getByRole('button', { name: 'Укажите ваш населенный пункт' }),
+      );
+      const modal = await screen.findByRole('dialog', { name: 'Ваш город' });
+      await user.click(within(modal).getByRole('button', { name: 'Казань' }));
+
+      expect(window.localStorage.getItem('city')).toBe('Казань');
+      await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      await vi.waitFor(() => expect(document.getElementById(BURGER_ID)).toHaveFocus());
+
+      await user.click(screen.getByRole('button', { name: 'Меню' }));
+      const reopened = await screen.findByRole('dialog', { name: 'Меню' });
+      expect(within(reopened).getByRole('button', { name: 'Город: Казань' })).toBeInTheDocument();
+    });
+
+    it('says the read failed, with no list, when the cities are null', async () => {
+      const user = userEvent.setup({ pointerEventsCheck: 0 });
+      render(<HeaderMenu categories={categories} cities={null} />);
+      await user.click(screen.getByRole('button', { name: 'Меню' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Меню' });
+      await user.click(
+        within(dialog).getByRole('button', { name: 'Укажите ваш населенный пункт' }),
+      );
+      const modal = await screen.findByRole('dialog', { name: 'Ваш город' });
+      expect(within(modal).queryByRole('list')).not.toBeInTheDocument();
+      expect(within(modal).queryByRole('button', { name: 'Москва' })).not.toBeInTheDocument();
+      expect(modal).toHaveTextContent(errorText(undefined));
     });
   });
 
