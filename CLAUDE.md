@@ -882,8 +882,9 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   chosen, `replace` is
   «Заменить фото» under the frame, whose window (a `Sheet` on a phone) holds the photos but the
   chosen one, the pickers and the switch (spec 0024 AC16). The first open chooses the default
-  photo; «Примерить на другом фото» chooses none, so the zone is empty, «Примерить» waits and
-  «Заменить фото» stays under it while there are photos to pick (AC17). «Мои фото» keeps `card` and `buttons`, the
+  photo; «Примерить на другом фото» and the error's «Другое фото» choose none, so the zone is
+  empty, «Примерить» waits and the same window stays under it as «Выбрать из сохранённых» (`replaceLabel`) while
+  there are photos to pick (AC17, Z34, Z35). «Мои фото» keeps `card` and `buttons`, the
   camera, as in the try-on, only under `COARSE_POINTER_QUERY` (Y23). `/privacy` says the photos go to OpenAI and are not used for
   training (A46). The screens follow the canvas's boards 4, 5 and 10 (A63.8): `PhotoTips` draws
   the canvas's seven example pictures as inline SVG components (`ui/pictograms.tsx`, web keeps no

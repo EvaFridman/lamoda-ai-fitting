@@ -89,12 +89,16 @@ export interface UploadPhotoProps {
   // dropped on it uploads; with no `children` it is a dashed area a click on which picks a file,
   // with «Загрузить фото» (and «Сделать фото» on a touch device) and `extra` at its bottom; with
   // `children` (the chosen photo, the one on its way) it shows them and only takes a drop.
-  // `replace`: «Заменить фото» and its window (P25): `thumbs`, the pickers and `extra`.
+  // `replace`: a button (`replaceLabel`, «Заменить фото» by default) and its window (P25):
+  // `thumbs`, the pickers and `extra`.
   appearance?: 'buttons' | 'card' | 'zone' | 'replace';
+  // `replace`'s button and window title: «Выбрать из сохранённых» with no photo chosen (spec 0024
+  // Z35).
+  replaceLabel?: string;
   children?: ReactNode;
   // The window's saved photos (`replace` only), given the window's close: a choice closes it.
   thumbs?: (close: () => void) => ReactNode;
-  // Under the pickers (`zone` and `replace`): the try-on's save switch, the link to «Мои фото».
+  // Under the pickers (`zone` and `replace`): the try-on's save switch.
   extra?: ReactNode;
   // `false` uploads a one-time photo, not among the saved ones (spec 0019 A24).
   save?: boolean;
@@ -120,6 +124,7 @@ export function UploadPhoto({
   place,
   disabled = false,
   appearance = 'buttons',
+  replaceLabel = 'Заменить фото',
   children,
   thumbs,
   extra,
@@ -597,7 +602,7 @@ export function UploadPhoto({
         {extra}
       </div>
     );
-    const title = 'Заменить фото';
+    const title = replaceLabel;
     entry = (
       <>
         <Button
@@ -612,7 +617,7 @@ export function UploadPhoto({
           onPointerEnter={replaceElement.onPointerEnter}
           onPointerLeave={replaceElement.onPointerLeave}
         >
-          Заменить фото
+          {replaceLabel}
         </Button>
         {phone ? (
           <Sheet open={replacing} onOpenChange={setReplacing} title={title}>

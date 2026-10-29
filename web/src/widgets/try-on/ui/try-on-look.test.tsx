@@ -990,6 +990,19 @@ describe('TryOn of a look: the picker of a shown look keeps that look, not the r
     );
   }
 
+  // «Другое фото» leaves no photo chosen (spec 0024 Z34): one is chosen in «Заменить фото».
+  async function startOnChosenPhoto(user: ReturnType<typeof setup>) {
+    await screen.findByText('Образ · 2 вещи');
+    expect(start()).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Заменить фото' })).not.toBeInTheDocument();
+    await user.click(await screen.findByRole('button', { name: 'Выбрать из сохранённых' }));
+    expect(
+      await screen.findByRole('dialog', { name: 'Выбрать из сохранённых' }),
+    ).toBeInTheDocument();
+    await user.click(await screen.findByRole('button', { name: 'Фото 2, по умолчанию' }));
+    await startFromPicker(user);
+  }
+
   async function startFromPicker(user: ReturnType<typeof setup>) {
     await screen.findByText('Образ · 2 вещи');
     await vi.waitFor(() => expect(start()).toBeEnabled());
@@ -1008,7 +1021,7 @@ describe('TryOn of a look: the picker of a shown look keeps that look, not the r
     expect(await screen.findByText('Образ · 2 вещи')).toBeInTheDocument();
     expect(screen.getByText(/8\s000/)).toBeInTheDocument();
     expect(screen.queryByText(/12\s000/)).not.toBeInTheDocument();
-    await startFromPicker(user);
+    await startOnChosenPhoto(user);
     expect(bodyOf(0)).toEqual({
       photoId: PHOTO_B,
       kind: 'look',
@@ -1024,7 +1037,7 @@ describe('TryOn of a look: the picker of a shown look keeps that look, not the r
     renderTryOn({ fittingId: RESULT });
 
     await user.click(await screen.findByRole('button', { name: 'Другое фото' }));
-    await startFromPicker(user);
+    await startOnChosenPhoto(user);
 
     expect(bodyOf(0)).not.toHaveProperty('promptText');
   });
