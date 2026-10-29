@@ -1,7 +1,7 @@
 # 0026 city: clarifications
 
 Status: accepted (2026-10-29): C0 carried in from spec 0024; C1–C12 settled at the first answers,
-C13 at the plan.
+C13 at the plan, C14 at the review of PR 1 (C6, C7 amended).
 Decision ids `C0`, `C1`, …; the notes are `S1`, `S2` and `S3` of
 [../0024-ui-feedback-2/source/agentation-notes.md](../0024-ui-feedback-2/source/agentation-notes.md).
 
@@ -68,8 +68,8 @@ prompt without answering).
 shows it, with no message; past 100 km a line over the list «Рядом с вами пока нет магазинов» and
 every store; refused, failed or timed out (10 s): nothing, today's view. In the window after
 «Определить автоматически»: a city found closes it with the city chosen; past 100 km «Рядом с вами
-пока нет магазинов»; refused «Доступ к геопозиции запрещён в браузере»; failed or timed out «Не
-удалось определить местоположение».
+пока нет магазинов»; refused «Доступ к геопозиции запрещён» (amended by C14); failed or timed
+out «Не удалось определить местоположение».
 
 **C8. A chosen city changes only by the visitor.** Only a pick in the window or «Определить
 автоматически» replaces it; nothing finds it again by itself. A stored city no longer in the table
@@ -109,3 +109,17 @@ as it stands:
    the zone `stores`.
 6. The zone `header`'s description becomes the site's header (it says the phone's now); only the
    text changes, no history splits.
+
+## Added at the review of PR 1 (2026-10-29)
+
+**C14. The page's ask, the refusal's text, the key.** The owner, at the review bot's notes:
+
+1. A city chosen by hand also sets the page's mark (`city-asked`), so a city chosen and later gone
+   from the table (C8) does not make the stores page ask by itself (C6, AC6). A browser that
+   stores nothing keeps the mark in memory until the tab reloads (C9), so it is asked on each load
+   of the stores page: accepted. Weighed: the mark only when the page asks.
+2. The refusal says «Доступ к геопозиции запрещён», without «в браузере»: the device or its
+   system may refuse too (C7 amended).
+3. The key stays `city` (and `city-asked`), unprefixed as `cookie-consent` and
+   `fitting-photo-consent:<userId>`; nothing of the SDK's (`mp_`, `__mp`) can clash. Weighed:
+   `lamoda-city`.
