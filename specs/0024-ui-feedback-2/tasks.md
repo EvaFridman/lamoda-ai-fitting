@@ -34,7 +34,7 @@ same release); PR 4 the closing, which records the owner's checks on the deploye
       `scrollTo`. Check:
       `header-search-toggle.test.tsx`, `gallery.test.tsx`. Commit:
       `feat(web): slide the phone search row, glide the gallery viewer`.
-- [ ] **T4. Categories as a sheet on phones (plan §2.2; AC2).** `CatalogCategorySheet`,
+- [x] **T4. Categories as a sheet on phones (plan §2.2; AC2).** `CatalogCategorySheet`,
       `CatalogCategoryList`'s `all` row and counts in `rows`, the W28 effect removed,
       `catalog.category-toggle`'s description. Check: `catalog-browser.test.tsx`,
       `catalog-category-list.test.tsx`. Commit: `feat(web): categories open as a sheet on phones`.

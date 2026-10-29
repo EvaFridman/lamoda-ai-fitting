@@ -95,7 +95,7 @@
   }
 }
 
-// The bar's category toggle and the list it opens: below 600px only.
+// The bar's category toggle: below 600px only.
 .barPhone {
   @media (width >= 600px) {
     display: none;

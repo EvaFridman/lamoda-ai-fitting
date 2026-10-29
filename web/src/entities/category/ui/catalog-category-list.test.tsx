@@ -90,7 +90,7 @@ describe('CatalogCategoryList', () => {
   });
 
   describe('layout "rows"', () => {
-    it('shows no count and keeps the links', () => {
+    it('shows the count after the name, links kept', () => {
       render(
         <CatalogCategoryList
           categories={categories}
@@ -99,40 +99,90 @@ describe('CatalogCategoryList', () => {
           layout="rows"
         />,
       );
-      expect(screen.getByRole('link', { name: 'Куртки' })).toHaveAttribute('href', getHref('c1'));
-      expect(screen.queryByText('12')).not.toBeInTheDocument();
-      expect(screen.queryByText('0')).not.toBeInTheDocument();
+      const link = screen.getByRole('link', { name: 'Куртки 12' });
+      expect(link).toHaveAttribute('href', getHref('c1'));
+      expect(within(link).getByText('12')).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Джинсы 0' })).toBeInTheDocument();
     });
 
     it('marks only the chosen row with aria-current="page"', () => {
       render(
         <CatalogCategoryList categories={categories} value="c3" getHref={getHref} layout="rows" />,
       );
-      expect(screen.getByRole('link', { name: 'Платья' })).toHaveAttribute('aria-current', 'page');
-      expect(screen.getByRole('link', { name: 'Куртки' })).not.toHaveAttribute('aria-current');
+      expect(screen.getByRole('link', { name: 'Платья 5' })).toHaveAttribute(
+        'aria-current',
+        'page',
+      );
+      expect(screen.getByRole('link', { name: 'Куртки 12' })).not.toHaveAttribute('aria-current');
+    });
+  });
+
+  describe('the «Все товары» row', () => {
+    const all = { href: '/catalog?q=x', count: 17 };
+
+    it.each(['column', 'rows'] as const)('comes first with its count and link in %s', (layout) => {
+      render(
+        <CatalogCategoryList
+          categories={categories}
+          value="c1"
+          getHref={getHref}
+          all={all}
+          layout={layout}
+        />,
+      );
+      const links = screen.getAllByRole('link');
+      expect(links).toHaveLength(4);
+      expect(links[0]).toHaveAccessibleName('Все товары 17');
+      expect(links[0]).toHaveAttribute('href', '/catalog?q=x');
+      expect(links[1]).toHaveAccessibleName('Куртки 12');
     });
 
-    it('takes the id and hides the list', () => {
+    it('is the chosen one while no category is', () => {
       render(
         <CatalogCategoryList
           categories={categories}
           value={null}
           getHref={getHref}
+          all={all}
           layout="rows"
-          id="phone"
-          hidden
         />,
       );
-      // A hidden element has no accessible name for the query.
-      const nav = screen.getByRole('navigation', { hidden: true });
-      expect(nav).toHaveAttribute('id', 'phone');
-      expect(nav).toHaveAttribute('hidden');
-      expect(screen.queryByRole('navigation', { name: 'Категории' })).not.toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Все товары 17' })).toHaveAttribute(
+        'aria-current',
+        'page',
+      );
+      expect(screen.getByRole('link', { name: 'Куртки 12' })).not.toHaveAttribute('aria-current');
     });
 
-    it('is not hidden by default', () => {
+    it('is not current when a category is chosen', () => {
+      render(
+        <CatalogCategoryList
+          categories={categories}
+          value="c2"
+          getHref={getHref}
+          all={all}
+          layout="rows"
+        />,
+      );
+      expect(screen.getByRole('link', { name: 'Все товары 17' })).not.toHaveAttribute(
+        'aria-current',
+      );
+      expect(screen.getByRole('link', { name: 'Джинсы 0' })).toHaveAttribute(
+        'aria-current',
+        'page',
+      );
+    });
+
+    it('is absent without the prop', () => {
       render(<CatalogCategoryList categories={categories} value={null} getHref={getHref} />);
-      expect(screen.getByRole('navigation')).not.toHaveAttribute('hidden');
+      expect(screen.queryByRole('link', { name: /Все товары/ })).not.toBeInTheDocument();
+    });
+
+    it('renders nothing for an empty list even with the row', () => {
+      const { container } = render(
+        <CatalogCategoryList categories={[]} value={null} getHref={getHref} all={all} />,
+      );
+      expect(container).toBeEmptyDOMElement();
     });
   });
 

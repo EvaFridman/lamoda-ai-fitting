@@ -556,13 +556,12 @@ describe('the drawer', () => {
 });
 
 describe('the phone bar and category list', () => {
-  // The list renders once the counts have loaded.
-  const phoneList = (toggle: HTMLElement) =>
-    vi.waitFor(() => {
-      const list = document.getElementById(toggle.getAttribute('aria-controls')!);
-      if (list === null) throw new Error('no phone list yet');
-      return list;
-    });
+  // The sheet's list exists only while the sheet is open, and after the counts have loaded.
+  const sheet = () => screen.findByRole('dialog', { name: 'Категории' });
+  const phoneList = async () =>
+    within(await sheet()).findByRole('navigation', { name: 'Список категорий' });
+  // The open sheet's modal layer sets `pointer-events: none` on the page around it.
+  const phoneUser = () => userEvent.setup({ pointerEventsCheck: 0 });
 
   it('labels the toggle "Все товары" on the catalog', async () => {
     mount();
@@ -577,24 +576,139 @@ describe('the phone bar and category list', () => {
     );
   });
 
-  it('shows the phone list on the first click and hides it on the second', async () => {
+  it('opens the categories in a sheet on the click, with no list in the page before', async () => {
     mount();
     const toggle = await screen.findByRole('button', { name: 'Все товары' });
-    const list = await phoneList(toggle);
-    expect(list).toBeInTheDocument();
-    expect(list).toHaveAttribute('hidden');
-
-    const user = userEvent.setup();
-    await user.click(toggle);
-    expect(toggle).toHaveAttribute('aria-expanded', 'true');
-    expect(list).not.toHaveAttribute('hidden');
-
-    await user.click(toggle);
+    await vi.waitFor(() => expect(document.querySelectorAll('aside a')).toHaveLength(1));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    expect(list).toHaveAttribute('hidden');
+
+    await phoneUser().click(toggle);
+    expect(await sheet()).toBeInTheDocument();
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
   });
 
-  it("keeps the selection in the phone rows' links like the desktop ones", async () => {
+  it('leaves the grid and the page address alone while the sheet opens', async () => {
+    mount();
+    const toggle = await screen.findByRole('button', { name: 'Все товары' });
+    await screen.findByText('products:1');
+    await phoneUser().click(toggle);
+    await phoneList();
+    expect(screen.getByText('products:1')).toBeInTheDocument();
+    expect(nav.replace).not.toHaveBeenCalled();
+  });
+
+  it('turns the chevron with the sheet and back when it closes', async () => {
+    mount();
+    const toggle = await screen.findByRole('button', { name: 'Все товары' });
+    const closed = toggle.querySelector('svg')!.innerHTML;
+    const user = phoneUser();
+    await user.click(toggle);
+    await phoneList();
+    expect(toggle.querySelector('svg')!.innerHTML).not.toBe(closed);
+
+    await user.keyboard('{Escape}');
+    await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(toggle.querySelector('svg')!.innerHTML).toBe(closed);
+  });
+
+  it('closes on Escape and returns the focus to the toggle', async () => {
+    mount();
+    const toggle = await screen.findByRole('button', { name: 'Все товары' });
+    const user = phoneUser();
+    await user.click(toggle);
+    await phoneList();
+    await user.keyboard('{Escape}');
+    await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await vi.waitFor(() => expect(toggle).toHaveFocus());
+  });
+
+  it('lists «Все товары» first, then the categories, each with its count', async () => {
+    mount();
+    const toggle = await screen.findByRole('button', { name: 'Все товары' });
+    await phoneUser().click(toggle);
+    const links = within(await phoneList()).getAllByRole('link');
+    expect(links.map((link) => link.textContent)).toEqual(['Все товары 40', 'Платья 5']);
+  });
+
+  describe('the count of «Все товары»', () => {
+    const SKIRTS = id(3);
+    const category = (categoryId: string, name: string, slug: string, sortOrder: number) => ({
+      id: categoryId,
+      name,
+      slug,
+      isActive: true,
+      description: null,
+      sortOrder,
+      slot: null,
+      createdAt: DATE,
+      updatedAt: DATE,
+    });
+
+    function answerWith(body: typeof facets) {
+      fetchMock.mockImplementation((input: unknown) => {
+        const path = new URL(String(input), 'http://localhost').pathname;
+        if (path.endsWith('/products/facets')) return Promise.resolve(json(body));
+        if (path.endsWith('/categories')) {
+          return Promise.resolve(
+            json({
+              items: [
+                category(CATEGORY, 'Платья', 'dresses', 0),
+                category(SKIRTS, 'Юбки', 'skirts', 1),
+              ],
+              total: 2,
+            }),
+          );
+        }
+        return Promise.resolve(answer(input));
+      });
+    }
+
+    it("is the facets' total on the catalog, even when it differs from the rows' sum", async () => {
+      // 40 products in all, 5 + 3 in the listed categories: the rest are in inactive ones.
+      answerWith({
+        ...facets,
+        total: 40,
+        categories: [
+          { id: CATEGORY, name: 'Платья', count: 5 },
+          { id: SKIRTS, name: 'Юбки', count: 3 },
+        ],
+      });
+      mount();
+      await phoneUser().click(await screen.findByRole('button', { name: 'Все товары' }));
+      const all = await within(await phoneList()).findByRole('link', { name: /^Все товары/ });
+      expect(all).toHaveTextContent('Все товары 40');
+    });
+
+    it("is the rows' sum on a category's page, not the page's total", async () => {
+      answerWith({
+        ...facets,
+        total: 5,
+        categories: [
+          { id: CATEGORY, name: 'Платья', count: 5 },
+          { id: SKIRTS, name: 'Юбки', count: 3 },
+        ],
+      });
+      mount({}, { title: 'Платья', categoryId: CATEGORY });
+      await phoneUser().click(await screen.findByRole('button', { name: 'Платья' }));
+      const all = await within(await phoneList()).findByRole('link', { name: /^Все товары/ });
+      expect(all).toHaveTextContent('Все товары 8');
+    });
+  });
+
+  it('links «Все товары» to the catalog with the selection kept and marks it on the catalog', async () => {
+    mount({ q: 'платье', sort: 'price_asc' });
+    await phoneUser().click(await screen.findByRole('button', { name: 'Все товары' }));
+    const all = within(await phoneList()).getByRole('link', { name: /^Все товары/ });
+    expect(all).toHaveAttribute(
+      'href',
+      `/catalog?q=${encodeURIComponent('платье')}&sort=price_asc`,
+    );
+    expect(all).toHaveAttribute('aria-current', 'page');
+  });
+
+  it("keeps the selection in a phone row's link like the desktop one", async () => {
     mount({ q: 'платье', sort: 'price_asc' });
     const toggle = await screen.findByRole('button', { name: 'Все товары' });
     const desktopRow = await vi.waitFor(() => {
@@ -604,19 +718,51 @@ describe('the phone bar and category list', () => {
     });
     const href = desktopRow.getAttribute('href');
     expect(href).toBe(`/catalog/dresses?q=${encodeURIComponent('платье')}&sort=price_asc`);
-    const phone = await within(await phoneList(toggle)).findByRole('link', {
-      name: 'Платья',
-      hidden: true,
-    });
+    await phoneUser().click(toggle);
+    const phone = await within(await phoneList()).findByRole('link', { name: 'Платья 5' });
     expect(phone).toHaveAttribute('href', href);
-    expect(phone).not.toHaveTextContent('5');
+    expect(phone).not.toHaveAttribute('aria-current');
   });
 
-  it('marks the chosen category in the phone rows', async () => {
+  it('marks the chosen category, and not «Все товары», in the sheet', async () => {
     mount({}, { title: 'Платья', categoryId: CATEGORY });
-    const toggle = await screen.findByRole('button', { name: 'Платья' });
-    const phone = await within(await phoneList(toggle)).findByRole('link', { hidden: true });
-    expect(phone).toHaveAttribute('aria-current', 'page');
+    await phoneUser().click(await screen.findByRole('button', { name: 'Платья' }));
+    const list = within(await phoneList());
+    expect(await list.findByRole('link', { name: 'Платья 5' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    expect(list.getByRole('link', { name: /^Все товары/ })).not.toHaveAttribute('aria-current');
+  });
+
+  it('closes the sheet on a row and sends catalog.category once', async () => {
+    mount();
+    const toggle = await screen.findByRole('button', { name: 'Все товары' });
+    const user = phoneUser();
+    await user.click(toggle);
+    const row = await within(await phoneList()).findByRole('link', { name: 'Платья 5' });
+    // jsdom does not navigate.
+    row.addEventListener('click', (event) => event.preventDefault());
+    vi.mocked(track).mockClear();
+    await user.click(row);
+    expect(track).toHaveBeenCalledTimes(1);
+    expect(track).toHaveBeenLastCalledWith('Element Clicked', {
+      element: 'catalog.category',
+      zone: 'catalog',
+      type: 'navigation',
+    });
+    await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('closes the sheet on «Все товары» as well', async () => {
+    mount({}, { title: 'Платья', categoryId: CATEGORY });
+    const user = phoneUser();
+    await user.click(await screen.findByRole('button', { name: 'Платья' }));
+    const all = await within(await phoneList()).findByRole('link', { name: /^Все товары/ });
+    all.addEventListener('click', (event) => event.preventDefault());
+    await user.click(all);
+    await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
   describe('the rows while the counts of a new selection are not there (plan §4)', () => {
@@ -625,11 +771,13 @@ describe('the phone bar and category list', () => {
       new URL(String(input), 'http://localhost').pathname.endsWith('/products/facets');
     const desktopRows = () => document.querySelectorAll('aside a');
 
+    // The sheet is open; its rows are «Все товары» and the one category.
     async function rowsShown() {
       const toggle = await screen.findByRole('button', { name: 'Все товары' });
       await vi.waitFor(() => expect(desktopRows()).toHaveLength(1));
-      const list = await phoneList(toggle);
-      expect(within(list).getAllByRole('link', { hidden: true })).toHaveLength(1);
+      await phoneUser().click(toggle);
+      const list = await phoneList();
+      expect(within(list).getAllByRole('link')).toHaveLength(2);
       return list;
     }
 
@@ -649,7 +797,7 @@ describe('the phone bar and category list', () => {
       );
       await act(async () => {});
       expect(desktopRows()).toHaveLength(1);
-      expect(within(list).getAllByRole('link', { hidden: true })).toHaveLength(1);
+      expect(within(list).getAllByRole('link')).toHaveLength(2);
     });
 
     it('keeps both lists when the counts of a filter fail', async () => {
@@ -670,7 +818,7 @@ describe('the phone bar and category list', () => {
       );
       await act(async () => {});
       expect(desktopRows()).toHaveLength(1);
-      expect(within(list).getAllByRole('link', { hidden: true })).toHaveLength(1);
+      expect(within(list).getAllByRole('link')).toHaveLength(2);
     });
 
     it("shows no rows of another category's counts while its counts fail", async () => {
@@ -687,46 +835,39 @@ describe('the phone bar and category list', () => {
       show({}, { title: 'Юбки', categoryId: OTHER });
       await vi.waitFor(() => expect(desktopRows()).toHaveLength(0));
       // No rows, so no phone list either: nothing of the previous category's.
-      expect(screen.queryAllByRole('link', { name: 'Платья', hidden: true })).toHaveLength(0);
-      expect(screen.getByRole('button', { name: 'Юбки' })).toBeInTheDocument();
+      const toggle = screen.getByRole('button', { name: 'Юбки' });
+      await phoneUser().click(toggle);
+      await sheet();
+      expect(screen.queryAllByRole('link', { name: /Платья/ })).toHaveLength(0);
     });
   });
 
-  it('sends Element Clicked catalog.category-toggle with the state the click opens to', async () => {
+  it('sends Element Clicked catalog.category-toggle with expanded true when the click opens the sheet', async () => {
     mount();
     const toggle = await screen.findByRole('button', { name: 'Все товары' });
-    const user = userEvent.setup();
-    await user.click(toggle);
-    await user.click(toggle);
+    await phoneUser().click(toggle);
+    await phoneList();
     expect(sent('Element Clicked')).toEqual([
       expect.objectContaining({ element: 'catalog.category-toggle', expanded: true }),
-      expect.objectContaining({ element: 'catalog.category-toggle', expanded: false }),
     ]);
   });
 
-  it('sends Element Clicked catalog.category for a phone row', async () => {
+  it('sends nothing when Escape closes the sheet', async () => {
     mount();
     const toggle = await screen.findByRole('button', { name: 'Все товары' });
-    await userEvent.setup().click(toggle);
-    const row = await within(await phoneList(toggle)).findByRole('link', { name: 'Платья' });
-    row.addEventListener('click', (event) => event.preventDefault());
+    const user = phoneUser();
+    await user.click(toggle);
+    await phoneList();
     vi.mocked(track).mockClear();
-    fireEvent.click(row);
-    expect(track).toHaveBeenCalledTimes(1);
-    expect(track).toHaveBeenLastCalledWith('Element Clicked', {
-      element: 'catalog.category',
-      zone: 'catalog',
-      type: 'navigation',
-    });
+    await user.keyboard('{Escape}');
+    await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(track).not.toHaveBeenCalled();
   });
 });
 
 describe('the scroll after a filter change', () => {
   const rect = (top: number) => ({ top }) as DOMRect;
   let scrollTo: ReturnType<typeof vi.fn>;
-  // The phone list's id, known once it renders; its page top is 600.
-  let listId: string | null = null;
-
   // The page is scrolled to 1000; the column's top is then 400 and the bar's 200 on the page.
   function boxes(options: { sticky: boolean; barShown: boolean }) {
     scrollTo = vi.fn();
@@ -751,7 +892,6 @@ describe('the scroll after a filter change', () => {
     ) {
       if (this.classList.contains('column')) return rect(400 - window.scrollY);
       if (this.classList.contains('bar')) return rect(200 - window.scrollY);
-      if (listId !== null && this.id === listId) return rect(600 - window.scrollY);
       return rect(0);
     });
     vi.spyOn(Element.prototype, 'getClientRects').mockImplementation(function (this: Element) {
@@ -767,46 +907,19 @@ describe('the scroll after a filter change', () => {
 
   afterEach(() => {
     Object.defineProperty(window, 'scrollY', { value: 0, configurable: true });
-    listId = null;
   });
 
-  async function openList() {
+  // The categories are a sheet over the page (spec 0024 Z3): opening and closing it never scrolls.
+  it('does not scroll the page when the categories sheet opens or closes', async () => {
+    boxes({ sticky: true, barShown: true });
     mount();
     const toggle = await screen.findByRole('button', { name: 'Все товары' });
-    listId = toggle.getAttribute('aria-controls');
-    await userEvent.setup().click(toggle);
-    return toggle;
-  }
-
-  describe('when the phone list opens (W28)', () => {
-    it('goes up so the list starts under the stuck block', async () => {
-      boxes({ sticky: true, barShown: true });
-      await openList();
-      expect(scrollTo).toHaveBeenCalledTimes(1);
-      expect(scrollTo).toHaveBeenCalledWith({ top: 600 - 90 });
-    });
-
-    it('does not scroll when the block does not stick', async () => {
-      boxes({ sticky: false, barShown: true });
-      await openList();
-      expect(scrollTo).not.toHaveBeenCalled();
-    });
-
-    it('does not scroll when the page is already above the target', async () => {
-      boxes({ sticky: true, barShown: true });
-      Object.defineProperty(window, 'scrollY', { value: 300, configurable: true });
-      await openList();
-      expect(scrollTo).not.toHaveBeenCalled();
-    });
-
-    it('does not scroll on close', async () => {
-      boxes({ sticky: true, barShown: true });
-      const toggle = await openList();
-      scrollTo.mockClear();
-      await userEvent.setup().click(toggle);
-      expect(toggle).toHaveAttribute('aria-expanded', 'false');
-      expect(scrollTo).not.toHaveBeenCalled();
-    });
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    await user.click(toggle);
+    await screen.findByRole('dialog', { name: 'Категории' });
+    await user.keyboard('{Escape}');
+    await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(scrollTo).not.toHaveBeenCalled();
   });
 
   it('goes under the stuck block when the heading and bar stick', async () => {

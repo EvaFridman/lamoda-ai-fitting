@@ -982,8 +982,9 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   one arrives, and the filter chips and both category lists keep the last counts while new ones
   load. Below 600 px the heading is a row of "←" (back when the previous entry is this site's,
   else `/catalog`; none on `/catalog` opened from elsewhere, `lib/back-target.ts`), the title and
-  "N товаров"; it and a bar with the category toggle (the list opens in place, each row keeping
-  the query) and "Фильтры" (a dot while a filter, a sort other than the default or `q` is applied)
+  "N товаров"; it and a bar with the category toggle (the kit's `Sheet` «Категории»,
+  `CatalogCategorySheet`, spec 0024 Z3: «Все товары» and the rows with their counts, each keeping
+  the query, a choice closing it) and "Фильтры" (a dot while a filter, a sort other than the default or `q` is applied)
   stick to the window's top; the grid keeps 16 px from the sides and 8 px between the cards, and
   the breadcrumbs render under the list (both copies in the DOM, one hidden). Below 1024 px the
   filters are a bottom sheet (`widgets/catalog-filters`) of rows, each opening its filter's

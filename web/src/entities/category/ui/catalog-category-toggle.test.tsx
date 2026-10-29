@@ -4,55 +4,44 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { CatalogCategoryToggle } from './catalog-category-toggle';
 
-function setup(open: boolean, toggleEvents?: { onClick: () => void }) {
-  const onOpenChange = vi.fn();
-  const view = render(
-    <CatalogCategoryToggle
-      label="Платья"
-      open={open}
-      onOpenChange={onOpenChange}
-      controls="list-id"
-      toggleEvents={toggleEvents}
-    />,
-  );
-  return { onOpenChange, view };
-}
-
 describe('CatalogCategoryToggle', () => {
-  it('is a button named by the label that points at the list', () => {
-    setup(false);
+  it('is a button named by the label, collapsed while closed', () => {
+    render(<CatalogCategoryToggle label="Платья" open={false} />);
     const button = screen.getByRole('button', { name: 'Платья' });
-    expect(button).toHaveAttribute('aria-controls', 'list-id');
+    expect(button).toHaveAttribute('type', 'button');
     expect(button).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('says expanded when open', () => {
-    setup(true);
+    render(<CatalogCategoryToggle label="Платья" open />);
     expect(screen.getByRole('button', { name: 'Платья' })).toHaveAttribute('aria-expanded', 'true');
   });
 
+  it('lets the props it is given, the sheet trigger ones, override aria-expanded', () => {
+    render(
+      <CatalogCategoryToggle label="Платья" open={false} aria-expanded aria-haspopup="dialog" />,
+    );
+    const button = screen.getByRole('button', { name: 'Платья' });
+    expect(button).toHaveAttribute('aria-expanded', 'true');
+    expect(button).toHaveAttribute('aria-haspopup', 'dialog');
+  });
+
   it('swaps the chevron with the state', () => {
-    const closed = setup(false);
+    const closed = render(<CatalogCategoryToggle label="Платья" open={false} />);
     const down = screen.getByRole('button').querySelector('svg')!.innerHTML;
-    closed.view.unmount();
-    setup(true);
+    closed.unmount();
+    render(<CatalogCategoryToggle label="Платья" open />);
     expect(screen.getByRole('button').querySelector('svg')!.innerHTML).not.toBe(down);
   });
 
-  it('asks for the opposite state on a click, after the tracking handler', async () => {
-    const order: string[] = [];
-    const onClick = vi.fn(() => order.push('events'));
-    const { onOpenChange } = setup(false, { onClick });
-    onOpenChange.mockImplementation(() => order.push('change'));
-    await userEvent.setup().click(screen.getByRole('button'));
+  it('passes its click and pointer handlers through and keeps the extra class', async () => {
+    const onClick = vi.fn();
+    render(
+      <CatalogCategoryToggle label="Платья" open={false} onClick={onClick} className="mine" />,
+    );
+    const button = screen.getByRole('button');
+    await userEvent.setup().click(button);
     expect(onClick).toHaveBeenCalledTimes(1);
-    expect(onOpenChange).toHaveBeenCalledWith(true);
-    expect(order).toEqual(['events', 'change']);
-  });
-
-  it('asks to close when open', async () => {
-    const { onOpenChange } = setup(true);
-    await userEvent.setup().click(screen.getByRole('button'));
-    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(button).toHaveClass('mine');
   });
 });

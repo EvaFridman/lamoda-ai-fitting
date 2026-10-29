@@ -17,8 +17,7 @@ export function scrollTarget({ stuckHeight, barTop, columnTop }: ScrollBoxes): n
   return barTop ?? columnTop;
 }
 
-// Where an element's top sits right under the stuck block: also where the phone list goes when
-// it opens on a scrolled page (W28).
+// Where an element's top sits right under the stuck block (W28).
 export function underStuck(top: number, stuckHeight: number): number {
   return Math.max(0, top - stuckHeight);
 }
