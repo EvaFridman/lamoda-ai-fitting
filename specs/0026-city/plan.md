@@ -1,7 +1,7 @@
 # 0026 city: plan
 
 Status: accepted (2026-10-29); amended at the review of PR 1 (§3.1, §3.3: C14; §5: the map's
-fit; §9, §10); amended at T3 (§3.2: C15; §3.3, §4, §5: `useCityOpenEvents`).
+fit; §9, §10); amended at T3 (§3.2: C15; §3.3, §4, §5: `useCityOpenEvents`); at T5 (§3.3: `onChosen`).
 
 How [spec.md](spec.md) is built. Decisions: [clarifications.md](clarifications.md) (C0–C14).
 
@@ -78,7 +78,8 @@ the site.
 
 ### 3.3 The window (`ui/city-modal.tsx`)
 
-`CityModal({ cities, failure?, open, onOpenChange, finalFocus? })`, the kit's `Modal` (C4); the
+`CityModal({ cities, failure?, open, onOpenChange, finalFocus?, onChosen? })`, the kit's `Modal`
+(C4; `onChosen` on a pick or a found city, even the one already chosen, amended at T5); the
 control that opens it spreads `useCityOpenEvents(source, cities)`, its `city.open` with `source`
 `header`, `burger` or `stores` and `had_city` (§7) (amended at T3: no `surface` on the window):
 

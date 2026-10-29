@@ -6,24 +6,54 @@
 
 .view {
   display: grid;
-  grid-template-areas: 'list map';
+  grid-template-areas:
+    'city city'
+    'list map';
   grid-template-columns: minmax(0, 360px) minmax(0, 1fr);
   gap: var(--space-4);
 
   @media (width < 1200px) {
     grid-template-areas:
+      'city city'
       'search search'
       'list map';
   }
 
   @media (width < 1024px) {
     grid-template-areas:
+      'city'
       'search'
       'tabs'
       'panel';
     grid-template-columns: minmax(0, 1fr);
     row-gap: 0;
   }
+}
+
+// The city's switch and «Изменить город» above everything (spec 0026 plan §5), on every width.
+.city {
+  display: flex;
+  grid-area: city;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  align-items: center;
+
+  @media (width < 1024px) {
+    margin-bottom: var(--space-4);
+  }
+}
+
+// «Рядом с вами пока нет магазинов» over the list (C7).
+.far {
+  margin: 0 0 var(--space-4);
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+}
+
+.empty {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
 }
 
 .tabs {

@@ -42,7 +42,7 @@ Status: accepted (2026-10-29).
       `HeaderCity`; the burger's row; the header's tests without the inert city.
       Check: `header.test.tsx`, `header-menu.test.tsx`.
       Commit: `feat(web): make the header's city live`
-- [ ] **T5. The stores page (plan §5).** The city's view and the switch, «Изменить город», the
+- [x] **T5. The stores page (plan §5).** The city's view and the switch, «Изменить город», the
       page's ask and its «Рядом с вами пока нет магазинов», «Искать во всех городах», the map's
       city's fit (`'stores'` with `singleZoom`), the search's 300 ms pause (C12), `Stores Searched`'s `scope`.
       Check: `stores-view.test.tsx` (fake timers), `fit.test.ts`.

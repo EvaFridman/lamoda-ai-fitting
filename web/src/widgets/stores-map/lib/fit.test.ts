@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { Store } from '@/entities/store';
 
 import {
+  CITY_ZOOM,
   FIT_DURATION,
   fitLocation,
   MOSCOW,
@@ -64,6 +65,32 @@ describe('pointsLocation', () => {
     ).toMatchObject({ center: [37, 55], zoom: STORE_ZOOM });
   });
 
+  it('centres one point at the given zoom instead', () => {
+    expect(pointsLocation([[37, 55]], CITY_ZOOM)).toEqual({
+      center: [37, 55],
+      zoom: 12,
+      duration: FIT_DURATION,
+    });
+  });
+
+  it('ignores the single zoom for several points', () => {
+    expect(
+      pointsLocation(
+        [
+          [30, 59],
+          [60, 56],
+        ],
+        CITY_ZOOM,
+      ),
+    ).toEqual({
+      bounds: [
+        [30, 59],
+        [60, 56],
+      ],
+      duration: FIT_DURATION,
+    });
+  });
+
   it('fits the bounds of several points', () => {
     expect(
       pointsLocation([
@@ -91,6 +118,15 @@ describe('fitLocation', () => {
       center: [30.3, 59.9],
       zoom: 15,
       duration: FIT_DURATION,
+    });
+  });
+
+  it('gives a city of one store the city zoom', () => {
+    expect(
+      fitLocation({ kind: 'stores', stores: [store(60.6, 56.8)], singleZoom: CITY_ZOOM }),
+    ).toEqual({ center: [60.6, 56.8], zoom: 12, duration: FIT_DURATION });
+    expect(fitLocation({ kind: 'stores', stores: [store(60.6, 56.8)] })).toMatchObject({
+      zoom: STORE_ZOOM,
     });
   });
 
