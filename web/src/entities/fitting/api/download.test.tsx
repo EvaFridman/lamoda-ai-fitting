@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@sentry/nextjs', () => ({ captureException: vi.fn() }));
 
-import { downloadFittingImage } from './download';
+import { downloadFittingImage, fetchFittingImage } from './download';
 
 const ID = '00000000-0000-4000-8000-0000000000e1';
 const fetchMock = vi.fn();
@@ -41,6 +41,35 @@ afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+});
+
+describe('fetchFittingImage', () => {
+  it('gives a File named by the api with the blob’s type, saving nothing', async () => {
+    fetchMock.mockResolvedValue(file('attachment; filename="primerka-2026-10-20-1500.webp"'));
+
+    const result = await fetchFittingImage(ID);
+
+    expect(result).toBeInstanceOf(File);
+    expect(result.name).toBe('primerka-2026-10-20-1500.webp');
+    expect(result.type).toBe('image/webp');
+    expect(result.size).toBe(3);
+    expect(click).not.toHaveBeenCalled();
+  });
+
+  it('names it primerka.webp without a name and types it image/webp without a type', async () => {
+    fetchMock.mockResolvedValue(new Response(new Uint8Array([1]), { status: 200 }));
+
+    const result = await fetchFittingImage(ID);
+
+    expect(result.name).toBe('primerka.webp');
+    expect(result.type).toBe('image/webp');
+  });
+
+  it('rejects with the ApiError when the api refuses', async () => {
+    fetchMock.mockResolvedValue(failure(503, 'SERVICE_UNAVAILABLE'));
+
+    await expect(fetchFittingImage(ID)).rejects.toMatchObject({ kind: 'http', status: 503 });
+  });
 });
 
 describe('downloadFittingImage', () => {

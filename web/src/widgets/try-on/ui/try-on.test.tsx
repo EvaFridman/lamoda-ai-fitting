@@ -1430,10 +1430,10 @@ describe('TryOn with a fitting', () => {
       await screen.findByText('Сгенерировано ИИ');
       // A placeholder stands in while the categories load: look the tile up again once enabled.
       await vi.waitFor(() =>
-        expect(screen.getByRole('button', { name: 'К образу' })).toBeEnabled(),
+        expect(screen.getByRole('button', { name: 'Добавить к образу' })).toBeEnabled(),
       );
 
-      await user.click(screen.getByRole('button', { name: 'К образу' }));
+      await user.click(screen.getByRole('button', { name: 'Добавить к образу' }));
 
       await vi.waitFor(() => expect(puts()).toHaveLength(1));
       expect(await screen.findByRole('button', { name: 'В образе' })).toHaveAttribute(
@@ -1447,8 +1447,28 @@ describe('TryOn with a fitting', () => {
       });
     });
 
-    // The tile waits (aria-disabled) while the session and the room load.
-    async function readyTile(name: 'К образу' | 'В образе') {
+    it('sits in the right column under the item card, with no «К образу» button on the picture (AC25)', async () => {
+      completed();
+      renderTryOn({ fittingId: RUNNING });
+      await screen.findByText('Сгенерировано ИИ');
+      await vi.waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Добавить к образу' })).toBeEnabled(),
+      );
+
+      const button = screen.getByRole('button', { name: 'Добавить к образу' });
+      const picture = screen.getByRole('img', { name: /Сгенерированное изображение/ });
+      expect(screen.queryByRole('button', { name: 'К образу' })).not.toBeInTheDocument();
+      expect(screen.getByRole('group', { name: 'Действия с изображением' })).not.toContainElement(
+        button,
+      );
+      expect(picture.closest('.left')).not.toContainElement(button);
+      expect(button.closest('.right')).not.toBeNull();
+      const size = screen.getByRole('combobox', { name: 'Размер' });
+      expect(size.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    // The button waits (aria-disabled) while the session and the room load.
+    async function readyButton(name: 'Добавить к образу' | 'В образе') {
       await screen.findByText('Сгенерировано ИИ');
       await vi.waitFor(() => {
         const tile = screen.getByRole('button', { name });
@@ -1467,7 +1487,7 @@ describe('TryOn with a fitting', () => {
       completed();
       const user = setup();
       renderTryOn({ fittingId: RUNNING });
-      const tile = await readyTile('К образу');
+      const tile = await readyButton('Добавить к образу');
 
       await user.click(tile);
       await screen.findByRole('button', { name: 'В образе' });
@@ -1494,7 +1514,7 @@ describe('TryOn with a fitting', () => {
       ];
       const user = setup();
       renderTryOn({ fittingId: RUNNING });
-      const tile = await readyTile('К образу');
+      const tile = await readyButton('Добавить к образу');
 
       await user.click(tile);
 
@@ -1510,7 +1530,7 @@ describe('TryOn with a fitting', () => {
       api.room = [{ slot: 'top', product, attributeValueId: RED, colour: 'Красный' }];
       const user = setup();
       renderTryOn({ fittingId: RUNNING });
-      const tile = await readyTile('В образе');
+      const tile = await readyButton('В образе');
 
       await user.click(tile);
 
@@ -1537,7 +1557,7 @@ describe('TryOn with a fitting', () => {
         advanceTimers: vi.advanceTimersByTime,
       });
       renderTryOn({ fittingId: RUNNING });
-      const tile = await readyTile('К образу');
+      const tile = await readyButton('Добавить к образу');
 
       await user.hover(tile);
       expect(sentOf('Element Hovered')).toEqual([]);
@@ -1567,7 +1587,7 @@ describe('TryOn with a fitting', () => {
         advanceTimers: vi.advanceTimersByTime,
       });
       renderTryOn({ fittingId: RUNNING });
-      const tile = await readyTile('К образу');
+      const tile = await readyButton('Добавить к образу');
       await user.click(tile);
       await vi.waitFor(() => expect(tile).toHaveAttribute('aria-disabled', 'true'));
       // The pointer's arrival for the click started a hover before the write: its leave ends it.
@@ -1587,7 +1607,7 @@ describe('TryOn with a fitting', () => {
       });
     });
 
-    it('has no tile for a product whose category has no slot', async () => {
+    it('has no «Добавить к образу» button for a product whose category has no slot', async () => {
       api.slot = null;
       completed();
       renderTryOn({ fittingId: RUNNING });
@@ -1599,11 +1619,11 @@ describe('TryOn with a fitting', () => {
       );
 
       await vi.waitFor(() =>
-        expect(screen.queryByRole('button', { name: 'К образу' })).not.toBeInTheDocument(),
+        expect(screen.queryByRole('button', { name: 'Добавить к образу' })).not.toBeInTheDocument(),
       );
     });
 
-    it('has no tile, not a disabled one, when the categories cannot be read', async () => {
+    it('has no «Добавить к образу» button, not a disabled one, when the categories cannot be read', async () => {
       api.categoriesFail = true;
       completed();
       renderTryOn({ fittingId: RUNNING });
@@ -1615,18 +1635,18 @@ describe('TryOn with a fitting', () => {
         ),
       );
       await vi.waitFor(() =>
-        expect(screen.queryByRole('button', { name: 'К образу' })).not.toBeInTheDocument(),
+        expect(screen.queryByRole('button', { name: 'Добавить к образу' })).not.toBeInTheDocument(),
       );
     });
 
-    it('has no tile, not a disabled one, when the product cannot be read', async () => {
+    it('has no «Добавить к образу» button, not a disabled one, when the product cannot be read', async () => {
       api.productFails = true;
       completed();
       renderTryOn({ fittingId: RUNNING });
       await screen.findByText('Сгенерировано ИИ');
 
       await vi.waitFor(() =>
-        expect(screen.queryByRole('button', { name: 'К образу' })).not.toBeInTheDocument(),
+        expect(screen.queryByRole('button', { name: 'Добавить к образу' })).not.toBeInTheDocument(),
       );
     });
 
@@ -1644,9 +1664,9 @@ describe('TryOn with a fitting', () => {
       renderTryOn({ fittingId: RUNNING });
       await screen.findByText('Сгенерировано ИИ');
       await vi.waitFor(() =>
-        expect(screen.getByRole('button', { name: 'К образу' })).toBeEnabled(),
+        expect(screen.getByRole('button', { name: 'Добавить к образу' })).toBeEnabled(),
       );
-      const tile = screen.getByRole('button', { name: 'К образу' });
+      const tile = screen.getByRole('button', { name: 'Добавить к образу' });
       tile.focus();
 
       await user.click(tile);
@@ -2167,6 +2187,9 @@ describe('TryOn result «Скачать» (AC14)', () => {
       resultUrl: 'https://s3.test/keep/users/u/result.webp?X-Amz-Signature=abc',
       finishedAt: DATE,
     });
+  // The pointer reaching the icons prefetches the share file (one read). When the prefetch is done
+  // the download saves that file (one read in all); while it is not, the download reads its own.
+  const IMAGE_READS_UNFINISHED_PREFETCH = 2;
   const imageCalls = () =>
     fetchMock.mock.calls.filter(([url]) => String(url).endsWith(`/api/fittings/${RUNNING}/image`));
   const clicks = () =>
@@ -2222,35 +2245,35 @@ describe('TryOn result «Скачать» (AC14)', () => {
     const user = setup();
     renderTryOn({ fittingId: RUNNING });
     await screen.findByText('Сгенерировано ИИ');
-    const tile = screen.getByRole('button', { name: 'Скачать' });
+    const button = screen.getByRole('button', { name: 'Скачать' });
 
-    await user.click(tile);
-    await vi.waitFor(() => expect(tile).toHaveAttribute('aria-disabled', 'true'));
-    await user.click(tile);
+    await user.click(button);
+    await vi.waitFor(() => expect(button).toHaveAttribute('aria-disabled', 'true'));
+    await user.click(button);
 
-    expect(imageCalls()).toHaveLength(1);
+    expect(imageCalls()).toHaveLength(IMAGE_READS_UNFINISHED_PREFETCH);
     expect(clicks()).toHaveLength(1);
-    expect(tile).toBeEnabled();
+    expect(button).toBeEnabled();
 
     await act(async () => {
       answer(new Response(new Uint8Array([1])));
     });
-    await vi.waitFor(() => expect(tile).not.toHaveAttribute('aria-disabled'));
+    await vi.waitFor(() => expect(button).not.toHaveAttribute('aria-disabled'));
     expect(anchorClick).toHaveBeenCalledOnce();
   });
 
-  it('saves nothing and gives the tile back when the api refuses', async () => {
+  it('saves nothing and gives the button back when the api refuses', async () => {
     api.fittings.set(RUNNING, done());
     api.image = () => Promise.resolve(failure(503, 'SERVICE_UNAVAILABLE'));
     const user = setup();
     renderTryOn({ fittingId: RUNNING });
     await screen.findByText('Сгенерировано ИИ');
-    const tile = screen.getByRole('button', { name: 'Скачать' });
+    const button = screen.getByRole('button', { name: 'Скачать' });
 
-    await user.click(tile);
+    await user.click(button);
 
-    await vi.waitFor(() => expect(imageCalls()).toHaveLength(1));
-    await vi.waitFor(() => expect(tile).not.toHaveAttribute('aria-disabled'));
+    await vi.waitFor(() => expect(imageCalls()).toHaveLength(IMAGE_READS_UNFINISHED_PREFETCH));
+    await vi.waitFor(() => expect(button).not.toHaveAttribute('aria-disabled'));
     expect(anchorClick).not.toHaveBeenCalled();
   });
 });

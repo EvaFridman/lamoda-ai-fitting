@@ -831,16 +831,26 @@ export const catalog = defineCatalog({
       zone: 'fitting',
       type: 'interaction',
       description:
-        'Плитка «Скачать» под результатом: сохраняет картинку файлом (до спеки 0023 открывала её в новой вкладке) и показывает «Фото скачано». Клик, пока файл грузится, не отправляется.',
+        'Круглая иконка «Скачать» поверх картинки результата (до спеки 0024 — плитка под ней; до спеки 0023 открывала картинку в новой вкладке): сохраняет картинку файлом и показывает «Фото скачано». Клик, пока файл грузится, не отправляется.',
       clicksPerVisit: 0.008,
       hoversPerVisit: 0.01,
     },
-    'result.fullscreen': {
+    'result.share': {
       zone: 'fitting',
       type: 'interaction',
-      description: 'Плитка «Во весь экран» под результатом.',
+      description:
+        'Круглая иконка «Поделиться» поверх картинки результата: отдаёт картинку файлом в системное меню «Поделиться» (`method: system`), а где браузер так не умеет — сохраняет файл и показывает «Файл сохранён — отправьте его из галереи» (`method: download`). `method` — способ на момент клика или наведения: до загрузки файла это наличие Web Share API в браузере, после — принимает ли он сам файл, так что наведение может уйти дважды, с `system` и с `download`; отказ системного меню тоже кончается сохранением файла, но уходит как `system`. Клик, пока файл грузится, не отправляется.',
+      clicksPerVisit: 0.004,
+      hoversPerVisit: 0.005,
+      properties: { method: { kind: 'enum', values: ['system', 'download'] } },
+    },
+    'result.picture': {
+      zone: 'fitting',
+      type: 'interaction',
+      description:
+        'Клик по картинке результата: открывает её на весь экран (чёрный фон, × и Esc закрывают). Заменил плитку «Во весь экран» (`result.fullscreen`, спека 0024).',
       clicksPerVisit: 0.008,
-      hoversPerVisit: 0.01,
+      hoversPerVisit: 0.015,
     },
     'result.try-colour': {
       zone: 'fitting',
@@ -901,7 +911,7 @@ export const catalog = defineCatalog({
     'result.to-look': {
       zone: 'fitting',
       type: 'interaction',
-      description: `Плитка «К образу» / «В образе» под результатом одной вещи (у результата образа её нет). ${toLookNote} Здесь \`signed_in\` всегда \`true\`: примерка только у вошедшего.`,
+      description: `Кнопка «Добавить к образу» / «В образе» в правой колонке результата одной вещи, под карточкой вещи (до спеки 0024 — плитка «К образу» под картинкой; у результата образа её нет). ${toLookNote} Здесь \`signed_in\` всегда \`true\`: примерка только у вошедшего.`,
       clicksPerVisit: 0.005,
       hoversPerVisit: 0.008,
       properties: { slot, action: lookAction, signed_in: { kind: 'boolean' } },

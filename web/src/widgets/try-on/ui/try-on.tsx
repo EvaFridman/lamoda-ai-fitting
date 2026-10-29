@@ -136,8 +136,9 @@ export function TryOn({
     enabled: productId !== undefined,
   });
   const product = productQuery.data;
-  // The product's slot of the fitting room, for the result's «К образу»: null none (or either read
-  // failed: no tile rather than one that waits for ever), undefined while either loads.
+  // The product's slot of the fitting room, for the result's «Добавить к образу»: null none (or
+  // either read failed: no button rather than one that waits for ever), undefined while either
+  // loads.
   const categories = useActiveCategories();
   let slot: OutfitSlot | null | undefined;
   if (productQuery.isError || categories.isError) slot = null;

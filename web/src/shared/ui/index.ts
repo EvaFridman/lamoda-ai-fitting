@@ -43,6 +43,8 @@ export type { FilterDropdownProps } from './filter-dropdown/filter-dropdown';
 export { FilterDropdown } from './filter-dropdown/filter-dropdown';
 export type { GalleryImage, GalleryPhotoEvents, GalleryProps } from './gallery/gallery';
 export { Gallery } from './gallery/gallery';
+export type { GalleryViewerProps } from './gallery/gallery-viewer';
+export { GalleryViewer } from './gallery/gallery-viewer';
 export type { HelpTipProps } from './tooltip/help-tip';
 export { HelpTip } from './tooltip/help-tip';
 export type { IconProps, IconSize } from './icon/icon';

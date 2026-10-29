@@ -556,7 +556,7 @@ describe('TryOn of a look: the picker (board 3.2)', () => {
 });
 
 describe('TryOn of a look: the result (board 8, AC14)', () => {
-  it('opens a look of the history as «Примерка образа» with the date and the three tiles (AC13)', async () => {
+  it('opens a look of the history as «Примерка образа» with the date and the picture’s three icons (AC13)', async () => {
     showResult();
     renderTryOn({ fittingId: RESULT });
 
@@ -579,9 +579,11 @@ describe('TryOn of a look: the result (board 8, AC14)', () => {
       screen.getByRole('img', { name: 'Сгенерированное изображение: вы в образе' }),
     ).toHaveAttribute('src', expect.stringContaining('result.webp'));
     expect(screen.getByText('Сгенерировано ИИ')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Поделиться' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Скачать' })).toBeEnabled();
-    expect(screen.getByRole('button', { name: 'Во весь экран' })).toBeEnabled();
+    const actions = screen.getByRole('group', { name: 'Действия с изображением' });
+    expect(within(actions).getByRole('button', { name: 'Поделиться' })).toBeEnabled();
+    expect(within(actions).getByRole('button', { name: 'Скачать' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Открыть во весь экран' })).toBeEnabled();
+    expect(screen.queryByRole('button', { name: 'Во весь экран' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'К образу' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'В образе' })).not.toBeInTheDocument();
   });

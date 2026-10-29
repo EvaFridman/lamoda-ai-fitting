@@ -150,7 +150,8 @@ removes it from this list. Found by the agents' first security audit and trial r
 - **Mobile tab bar.** The design of spec 0019 has a bottom tab bar on phones («Главная», «Каталог»,
   «Примерочная», «Корзина», «Профиль»); 0019 shows only the fitting room's icon in the header
   (0019 A10). Build the bar when the site has a cart and a home worth a tab.
-- **Share link of a result.** «Поделиться» on a fitting result is a disabled button (0019 A14).
+- **Share link of a result.** «Поделиться» on a fitting result shares the picture as a file
+  (spec 0024 Z13), not a link (board 7.4).
   The design: a public page of the generated image with the «Сгенерировано ИИ» mark and the
   product's card, a link the user copies or sends, revoked from the history. Needs its own route
   under `noindex`, a token per share, a rate limit on the public page and the result's moderation

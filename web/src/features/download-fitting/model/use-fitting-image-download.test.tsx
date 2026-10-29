@@ -111,6 +111,35 @@ describe('useFittingImageDownload', () => {
     expect(mocks.showToast).toHaveBeenCalledTimes(2);
   });
 
+  it('saves a given file and shows the toast without any read', () => {
+    const { result } = renderHook(() => useFittingImageDownload());
+    const given = new File([new Uint8Array([1, 2, 3])], 'primerka-2026-10-20-1500.webp', {
+      type: 'image/webp',
+    });
+
+    act(() => result.current.download(ID, given));
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(click).toHaveBeenCalledOnce();
+    expect((click.mock.contexts as HTMLAnchorElement[])[0]?.download).toBe(
+      'primerka-2026-10-20-1500.webp',
+    );
+    expect(mocks.showToast).toHaveBeenCalledExactlyOnceWith({ title: 'Фото скачано' });
+    expect(result.current.pending).toBe(false);
+  });
+
+  it('reads the file when the given one is null', async () => {
+    fetchMock.mockResolvedValue(file());
+    const { result } = renderHook(() => useFittingImageDownload());
+
+    await act(async () => {
+      result.current.download(ID, null);
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(mocks.showToast).toHaveBeenCalledExactlyOnceWith({ title: 'Фото скачано' });
+  });
+
   it('shows the error’s text in an error toast and no success toast on a failure', async () => {
     fetchMock.mockResolvedValue(failure(503, 'SERVICE_UNAVAILABLE'));
     const { result } = renderHook(() => useFittingImageDownload());

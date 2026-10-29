@@ -1,4 +1,4 @@
-export { downloadFittingImage } from './api/download';
+export { downloadFittingImage, fetchFittingImage, saveFittingFile } from './api/download';
 export { deleteFitting, regenerateFitting, startFitting } from './api/fitting-requests';
 export { fittingKeys } from './api/keys';
 export {

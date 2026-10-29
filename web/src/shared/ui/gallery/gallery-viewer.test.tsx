@@ -137,6 +137,21 @@ describe('GalleryViewer', () => {
     expect(screen.getByText('2 из 3')).toBeInTheDocument();
   });
 
+  it('shows no counter for a single photo and puts the caller class on the popup', () => {
+    render(
+      <GalleryViewer
+        images={photos(1)}
+        index={0}
+        onClose={vi.fn()}
+        title="Результат"
+        className="mp-block"
+      />,
+    );
+
+    expect(screen.queryByText(/ из /)).not.toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Результат' })).toHaveClass('mp-block');
+  });
+
   it('has no buttons for a single photo', () => {
     stubMouse(true);
     setup(0, 1);

@@ -658,10 +658,15 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   is checked with a stubbed answer. A `null` schema is for an answer with no body: a 204 resolves
   to `undefined` without reading it (`clientFetch` only; `apiFetch` always takes one), and
   `BLOB_ANSWER` for a file, `{ blob, fileName }` from `Content-Disposition`, within 30 s
-  (`downloadFittingImage`, `entities/fitting`: `GET /fittings/:id/image` saved through an object
-  URL and an `<a download>` never put into the page; `useFittingImageDownload` of
-  `features/download-fitting`, the result's and the history's «Скачать», waits for it and shows the
-  toast «Фото скачано» or the error's text, spec 0023 P28);
+  (`fetchFittingImage`, `entities/fitting`: `GET /fittings/:id/image` as a `File`;
+  `downloadFittingImage` saves it through `saveFittingFile`, an object URL and an `<a download>`
+  never put into the page; `useFittingImageDownload` of `features/download-fitting`, the result's
+  and the history's «Скачать», waits for it and shows the toast «Фото скачано» or the error's
+  text, spec 0023 P28; `useFittingShare` of `features/share-fitting`, the result's «Поделиться»,
+  spec 0024 Z13, fetches the file ahead, on the picture's first hover with a mouse and at once
+  under a finger, since Safari shares only within the click, and calls `navigator.share` with it
+  where `navigator.canShare` takes files, else, or on any refusal but a cancel's `AbortError`,
+  saves it with «Файл сохранён — отправьте его из галереи»);
   the JSON body of a write is the caller's
   `init` (`body: JSON.stringify(...)`, `Content-Type: application/json`). Queries retry only a
   network error or a 503, at most twice
@@ -846,7 +851,9 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   «‹» «›» with a mouse and the arrow keys gliding to the next photo (a smooth `scrollTo`, instant
   under `REDUCED_MOTION_QUERY`), «N из M», × and Escape; with a mouse, `MOUSE_QUERY`, the
   cursor over a photo is a round lens of 160 px showing the part under it 2.5 times larger, the
-  photo unchanged, Y14; catalog photos only, since the lens puts the address in an inline style)
+  photo unchanged, Y14; catalog photos only, since the lens puts the address in an inline style;
+  `GalleryViewer` alone, with `className` `mp-block`, is the try-on result's full screen, with
+  one photo no arrows and no counter, spec 0024 plan §4.3)
   and `ScrollRow` (one row of `<li>`s scrolling sideways with snapping, as many in
   view as the parent's `--scroll-row-visible` and `--scroll-row-gap`; from 600px «‹» «›»,
   disabled at the ends, gone while everything fits, taking `events`; A87.3). For the
@@ -1012,7 +1019,9 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   `.item-colour`, `.add-to-cart-all`, `.add-to-cart`'s `kind` and
   `.regenerate`'s `with_item` (A94; a look's item chosen, its `reasons` and `result.reason`
   gone, spec 0023 Y11), `result.history` (the link of «Сохранено в «Мои
-  примерки»», spec 0023 Y7) and `result.save-photo` by `saved` (spec 0024 AC22), the grid's hanger `catalog.to-look` in the zone
+  примерки»», spec 0023 Y7), `result.save-photo` by `saved` (spec 0024 AC22), `result.picture`
+  (the full screen's opening, `result.fullscreen` removed, Z25) and `result.share` by `method`
+  (`system`, `download`, Z26.5), the grid's hanger `catalog.to-look` in the zone
   `catalog` (A90.9), the header's the zone `header` (areas `header` and
   `burger`: `header.burger`, `header.search`, `burger.category`, A87.8; `city`: `city.open` by
   `source` `header`, `burger` or `stores`, `city.pick`, `city.auto`, spec 0026 C13), the footer's
@@ -1093,7 +1102,8 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   read and a remove over a room waiting for a read read it again instead, A97), and shows the toasts (names in quotes, A90.10; no slot's name, spec 0023 Y15): «Заменили «<прежняя>»
   на «<новая>»» and «Убрали «…» из примерочной» with «Вернуть» (a `PUT` of the item back), ««…» в
   примерочной» with «Открыть»; `useLookToggle` is the hanger's, the buy box's
-  «Добавить к образу»'s and the result's tile «К образу»'s (A90.11). `widgets/fitting-room-drawer` (`FittingRoomDrawer`, mounted once in
+  «Добавить к образу»'s, which the single result's right column shares under the item card (spec
+  0024 Z14, `result.to-look`) (A90.11). `widgets/fitting-room-drawer` (`FittingRoomDrawer`, mounted once in
   `app/layout.tsx` inside its `<Suspense>`, signed in only, closed by a new path or the session's
   end) is the kit's wide `Drawer`, on phones the whole window with «‹» and «…» («Очистить
   примерочную»), with no counter line: the five slots, named by `SLOT_TITLES` («Верхний слой и
@@ -1128,7 +1138,10 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   the picker's photo, an upload, `TryOnLoader`'s wait and both results, 2:3, every image in it
   `contain` on the light grey, its size from the window only (up to 640 px high from 1024 px,
   560 px at 600–1023 px, never more than the window's height less 240 px nor less than 320 px, Y20; on a phone the whole
-  width up to 60svh); «Во весь экран» opens that frame, black and whole (P29). A start shows its
+  width up to 60svh). Both results have no tiles (spec 0024 AC23): a click on the picture opens it
+  in `GalleryViewer`, black and whole, × and Escape closing it, and round «Скачать» and
+  «Поделиться» sit over its bottom right corner, faded in on hover or focus and always shown
+  under `COARSE_POINTER_QUERY`, each in the kit's `Tooltip`. A start shows its
   wait from the click, before the api answers (spec 0024 AC19, plan §4.1: `TryOn`'s `starting`,
   `features/start-fitting`'s `PendingFitting` with the default estimate): «Примерить» and a
   regeneration show `FittingWait` with the screen they came from kept mounted under `hidden`, so
