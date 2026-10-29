@@ -12,26 +12,17 @@ export interface ItemRowProps {
   details?: string | null;
   price: number;
   finalPrice: number;
-  // A button on the right (the cart's stub).
+  // The buttons on the right (the cart's and the heart's stubs).
   action?: ReactNode;
-  // 60×80 on the picker, 72×96 on the result (board 3, board 7).
-  size?: 'm' | 'l';
 }
 
-// The item a try-on is about: its picture, name, colour and price (boards 3, 6, 7).
-export function ItemRow({
-  name,
-  imageUrl,
-  details,
-  price,
-  finalPrice,
-  action,
-  size = 'm',
-}: ItemRowProps) {
+// The item a try-on is about: its picture (60×80, 40×54 on a phone), name, colour and price
+// (boards 3, 6, 7; the result's as the look's card, spec 0024 Z40).
+export function ItemRow({ name, imageUrl, details, price, finalPrice, action }: ItemRowProps) {
   return (
     <div className={styles.row}>
-      <span className={[styles.image, size === 'l' && styles.large].filter(Boolean).join(' ')}>
-        {imageUrl && <Image src={imageUrl} alt="" fill sizes="72px" unoptimized />}
+      <span className={styles.image}>
+        {imageUrl && <Image src={imageUrl} alt="" fill sizes="60px" unoptimized />}
       </span>
       <span className={styles.text}>
         <span className={styles.name}>{name}</span>

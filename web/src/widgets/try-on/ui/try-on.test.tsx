@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { isFittingShown, type Fitting } from '@/entities/fitting';
 import { useRoomStore } from '@/entities/fitting-room';
 import type { SessionState } from '@/entities/session';
+import { ToastProvider } from '@/shared/ui';
 
 const mocks = vi.hoisted(() => ({
   track: vi.fn(),
@@ -238,12 +239,14 @@ function bodyOf(index: number) {
   return JSON.parse(String(posts()[index]?.init.body));
 }
 
-function renderTryOn(props: { productId?: string; fittingId?: string } = {}) {
+function renderTryOn(props: { productId?: string; fittingId?: string; withToasts?: boolean } = {}) {
+  const { withToasts, ...tryOnProps } = props;
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const onClose = vi.fn();
+  const tryOn = <TryOn {...tryOnProps} onClose={onClose} />;
   const view = render(
     <QueryClientProvider client={queryClient}>
-      <TryOn {...props} onClose={onClose} />
+      {withToasts ? <ToastProvider>{tryOn}</ToastProvider> : tryOn}
     </QueryClientProvider>,
   );
   return { onClose, ...view };
@@ -1187,12 +1190,53 @@ describe('TryOn with a fitting', () => {
     const user = setup();
     renderTryOn({ fittingId: RUNNING });
 
-    await user.click(await screen.findByRole('button', { name: 'Добавить в корзину' }));
+    await user.click(await screen.findByRole('button', { name: 'В корзину' }));
 
     expect(mocks.track).toHaveBeenCalledWith(
       'Element Clicked',
       expect.objectContaining({ element: 'result.add-to-cart', kind: 'single' }),
     );
+  });
+
+  describe('the single result’s item card (spec 0024 Z40)', () => {
+    async function openResult() {
+      api.fittings.set(
+        RUNNING,
+        fitting({
+          status: 'completed',
+          stage: 'done',
+          resultUrl: 'https://s3.test/keep/users/u/result.webp?X-Amz-Signature=abc',
+          finishedAt: DATE,
+        }),
+      );
+      const user = setup();
+      renderTryOn({ fittingId: RUNNING, withToasts: true });
+      await screen.findByText('Сгенерировано ИИ');
+      return user;
+    }
+
+    it('shows the stub toast when the card’s cart is clicked', async () => {
+      const user = await openResult();
+
+      await user.click(await screen.findByRole('button', { name: 'В корзину' }));
+
+      expect(await screen.findByText('В прототипе нет корзины и избранного')).toBeInTheDocument();
+    });
+
+    it('has the heart «В избранное», which shows the same toast', async () => {
+      const user = await openResult();
+
+      await user.click(await screen.findByRole('button', { name: 'В избранное' }));
+
+      expect(await screen.findByText('В прототипе нет корзины и избранного')).toBeInTheDocument();
+    });
+
+    it('has no button named «Добавить в корзину» under the card', async () => {
+      await openResult();
+
+      expect(await screen.findByRole('button', { name: 'В корзину' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Добавить в корзину' })).not.toBeInTheDocument();
+    });
   });
 
   it('tries another colour over the old result, which stays with a loader (board 7.2, AC7)', async () => {

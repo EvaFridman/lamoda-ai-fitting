@@ -199,16 +199,22 @@
   }
 }
 
-// «скоро» over the icon's top right (spec 0023 C4, C5) where the fitting room's count sits
-// (`FittingRoomButton`'s, spec 0024 AC8), inside the button, so it never passes the screen's edge.
+// «скоро» over the icon's top right corner (spec 0023 C4, C5), higher and further right than the
+// fitting room's count so it covers less of the icon (spec 0024 Z39): 4px past the button. Below
+// 600px the last icon's button ends 4px from the screen's edge (the 16px gutter less the nav's
+// 12px pull), so there the chip stays at the button's edge.
 .soonButton {
   position: relative;
 }
 
 .soon {
   position: absolute;
-  top: 4px;
-  right: 2px;
+  top: 0;
+  right: -4px;
+
+  @media (width < 600px) {
+    right: 0;
+  }
 }
 
 // Keeps its height without categories, so the header does not jump when they arrive (plan §2):

@@ -193,13 +193,31 @@
   border-bottom: var(--border-width) solid var(--color-border);
 }
 
-.buy {
-  display: flex;
-  gap: var(--space-2);
+// The size's stub, secondary in the card (spec 0024 Z41): a 32px field in small text, as wide as
+// its text, under the card's text beside the 60×80 picture (40×54 on a phone).
+.item .size {
+  align-self: flex-start;
+
+  width: auto;
+  min-height: 32px;
+  margin-left: calc(60px + var(--space-3));
+  padding: 0 var(--space-2) 0 10px;
+
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+
+  @media (width < 600px) {
+    margin-left: calc(40px + var(--space-3));
+  }
 }
 
-.cart {
-  flex: 1;
+// «В корзину» and the heart side by side at the card's end, at its top, as the look's.
+.actions {
+  display: flex;
+  flex: none;
+  gap: var(--space-2);
+  align-items: center;
+  align-self: flex-start;
 }
 
 .footer {

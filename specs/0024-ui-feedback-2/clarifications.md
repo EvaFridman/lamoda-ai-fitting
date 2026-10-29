@@ -292,3 +292,27 @@ under the text. A wider card keeps the label and the one line. Amends plan §2.7
 pages' lines and the spec's assumption naming that aside. The owner's answer at T13: «Осталось 6
 из 10 примерок в этом месяце»; «Обновится 1 ноября» and «Примерки закончились» stay. Amends plan
 §2.7.
+
+## Settled at the review of PR 2 (2026-10-29)
+
+**Z39. The owner's look at the local PR 2.** (1) The header's «скоро» sits higher and further
+right than the count badge, so it covers less of the icon: `top: 0; right: -4px` of the 48 px
+button, below 600 px `right: 0`, since there the last icon's button ends 4 px from the screen's
+edge; the count badge stays (amends Z32, AC8's «at the position of the count badge»). (2) The buy
+box's «Примерить» keeps Z4's grey fill and gets «Добавить к образу»'s black frame; disabled at the
+limit it keeps only its fill, while loading it keeps the frame. (3) `InfoTip`'s hint opens after a 100 ms rest of
+the pointer instead of Base UI's default. Amends plan §2.5, §2.3, §2.9.
+
+**Z40. The single result's item card as the look's (the owner's look at PR 2).** Its 56 px
+«Добавить в корзину» and heart under a 72×96 `ItemRow` looked too large beside the look's cards.
+The card becomes `ItemRow` at 60×80 (40×54 on a phone, where «В корзину» stays text, unlike Z37's
+look card) with «В корзину» 32 and the heart 32 at its top
+(`result.add-to-cart` of kind `single` stays; the heart is the untracked stub as before), the
+size's stub under it. Amends plan §2.7.
+
+**Z41. The owner's second look at PR 2.** (1) The buy box's «Примерить» is a shade darker:
+`--color-background-tertiary` with Z39's black frame, `brightness(0.95)` on hover; disabled at the
+limit it keeps the kit's lighter `--color-background-secondary` and no frame (amends Z4, Z39). (2)
+The single result's size stub was a 50 px full-width field, too large for a secondary control: it
+is a 32 px field in small text, as wide as its text, under the card's text beside the picture
+(amends Z40). Amends plan §2.3, §2.7.
