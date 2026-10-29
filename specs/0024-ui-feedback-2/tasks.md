@@ -103,7 +103,7 @@ same release); PR 4 the closing, which records the owner's checks on the deploye
       after 1.5 s (no bare 500, Z27), its comment and `CLAUDE.md`'s line on writes naming the
       exception, `Fitting Start Retried` in the catalog. Check: `mutations.test.tsx`,
       `retry.test.ts`, `catalog.test.ts`. Commit: `feat(web): silent retry of a fitting's start`.
-- [ ] **T17. The drop zone (plan §4.5; AC29).** The hairline card on `/ui-kit`'s upload section
+- [x] **T17. The drop zone (plan §4.5; AC29).** The hairline card on `/ui-kit`'s upload section
       and in the window's zone (texts, hover, dragging), the formats line with HEIC. Check:
       `upload-photo.test.tsx`. **Stop once** for the owner's look at `/ui-kit` and the window
       (Z26.7) before the commit. Commit: `feat(web): the hairline drop zone`.

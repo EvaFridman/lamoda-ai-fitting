@@ -15,13 +15,28 @@ describe('FileInputSection', () => {
 
   it('shows the four examples, the loading and disabled ones inert', () => {
     render(<FileInputSection />);
-    expect(screen.getByRole('button', { name: 'Сделать фото' })).toBeEnabled();
+    // The kit's four examples, then the DropCard's touch card adds one of each.
+    const cameras = screen.getAllByRole('button', { name: 'Сделать фото' });
+    expect(cameras).toHaveLength(2);
+    expect(cameras[0]).toBeEnabled();
     const buttons = screen.getAllByRole('button', { name: 'Загрузить фото' });
-    expect(buttons).toHaveLength(3);
+    // Three of the kit's examples and the touch card's file tile (the fourth example is the
+    // camera); the three DropCards' whole-card buttons are out of the tree (Z47).
+    expect(buttons).toHaveLength(4);
+    expect(document.querySelectorAll('button.dropArea')).toHaveLength(3);
     expect(buttons[0]).toBeEnabled();
     expect(buttons.some((b) => b.getAttribute('aria-busy') === 'true')).toBe(true);
     expect(buttons.some((b) => b.hasAttribute('disabled'))).toBe(true);
-    expect(screen.getByText('Файл не выбран')).toBeInTheDocument();
+    expect(screen.getAllByText('Файл не выбран')).toHaveLength(2);
+  });
+
+  it('shows the DropCard section with its three cards', () => {
+    render(<FileInputSection />);
+    expect(screen.getByRole('heading', { name: 'DropCard' })).toBeInTheDocument();
+    expect(screen.getAllByText('Загрузите своё фото')).toHaveLength(3);
+    const links = screen.getAllByRole('button', { name: 'Выбрать файл' });
+    expect(links).toHaveLength(2);
+    for (const link of links) expect(link).toBeEnabled();
   });
 
   it('shows the chosen file type and size, never its name', async () => {

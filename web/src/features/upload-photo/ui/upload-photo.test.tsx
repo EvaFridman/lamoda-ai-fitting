@@ -114,6 +114,13 @@ function fileInputs(scope: ParentNode = document) {
   };
 }
 
+// The drop card's whole-card button: a pointer's target only, out of the accessibility tree (Z47).
+function dropArea() {
+  const area = document.querySelector<HTMLButtonElement>('button.dropArea');
+  if (!area) throw new Error('no drop area');
+  return area;
+}
+
 const picture = (name = 'me.jpg') => new File(['x'], name, { type: 'image/jpeg' });
 
 function tracked(name: string) {
@@ -1147,7 +1154,7 @@ describe('UploadPhoto in the try-on', () => {
 
 describe('UploadPhoto as the drop zone (AC8)', () => {
   const zoneProps = { place: 'try-on', appearance: 'zone', save: true } as const;
-  const lead = () => screen.getByText('Загрузите фото в полный рост: один человек в кадре');
+  const lead = () => screen.getByText('Загрузите своё фото');
   const zoneTarget = () => lead();
 
   function drop(files: File[], types: string[] = ['Files'], target: Element = zoneTarget()) {
@@ -1155,13 +1162,94 @@ describe('UploadPhoto as the drop zone (AC8)', () => {
   }
 
   describe('empty', () => {
-    it('shows the line, the extra, «Загрузить фото» and no camera on a mouse device', () => {
+    it('shows the card, the extra, «Выбрать файл» and no camera on a mouse device', () => {
       renderUpload({ ...zoneProps, extra: <span>Переключатель</span> }, consented);
 
       expect(lead()).toBeInTheDocument();
+      expect(screen.getByText('Перетащите, вставьте Ctrl+V или выберите файл')).toBeInTheDocument();
+      expect(screen.getByText('JPG, PNG, WebP, HEIC · до 20 МБ')).toBeInTheDocument();
+      expect(screen.queryByText('Отпустите, чтобы загрузить')).not.toBeInTheDocument();
       expect(screen.getByText('Переключатель')).toBeInTheDocument();
-      expect(screen.getAllByRole('button', { name: 'Загрузить фото' }).length).toBeGreaterThan(0);
+      expect(dropArea()).toBeEnabled();
+      expect(screen.getByRole('button', { name: 'Выбрать файл' })).toBeEnabled();
       expect(screen.queryByRole('button', { name: 'Сделать фото' })).not.toBeInTheDocument();
+    });
+
+    it.each([
+      ['before the consents', undefined],
+      ['after the consents', consented],
+    ] as const)('keeps the area out of the tab order and the tree %s (Z47)', (_when, me) => {
+      renderUpload(zoneProps, me);
+
+      expect(dropArea()).toHaveAttribute('tabindex', '-1');
+      expect(dropArea()).toHaveAttribute('aria-hidden', 'true');
+      expect(screen.queryByRole('button', { name: 'Загрузить фото' })).not.toBeInTheDocument();
+    });
+
+    it('offers a mouse device only «Выбрать файл» as an accessible button (Z47)', () => {
+      renderUpload(zoneProps, consented);
+
+      expect(screen.getAllByRole('button').map((button) => button.textContent)).toEqual([
+        'Выбрать файл',
+      ]);
+    });
+
+    it('names the camera in the hint and has no «Выбрать файл» on a touch device', () => {
+      stubTouch();
+      renderUpload(zoneProps, consented);
+
+      expect(screen.getByText('Выберите файл или сделайте фото')).toBeInTheDocument();
+      expect(
+        screen.queryByText('Перетащите, вставьте Ctrl+V или выберите файл'),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Выбрать файл' })).not.toBeInTheDocument();
+    });
+
+    it('uploads the file of the link «Выбрать файл» as a file and tracks the upload element', async () => {
+      const user = setup();
+      const { onUploaded } = renderUpload(zoneProps, consented);
+      // The link's own input, the next node after its button.
+      const linkInput = screen.getByRole('button', { name: 'Выбрать файл' })
+        .nextElementSibling as HTMLInputElement;
+      expect(linkInput).toHaveAttribute('type', 'file');
+      const open = vi.spyOn(linkInput, 'click');
+
+      await user.click(screen.getByRole('button', { name: 'Выбрать файл' }));
+
+      expect(open).toHaveBeenCalledTimes(1);
+      await user.upload(linkInput, picture('link.jpg'));
+      await vi.waitFor(() => expect(onUploaded).toHaveBeenCalledWith(PHOTO));
+      expect((requestOf().body.get('photo') as File).name).toBe('link.jpg');
+      expect(clickedElements()).toEqual(['photos.upload']);
+      expect(tracked('Photo Uploaded')).toEqual([
+        ['Photo Uploaded', { saved: true, source: 'file', place: 'try-on', first: false }],
+      ]);
+    });
+
+    it('opens the tips from «Выбрать файл» before the consents and tracks photos.upload', async () => {
+      const user = setup();
+      renderUpload(zoneProps);
+
+      await user.click(screen.getByRole('button', { name: 'Выбрать файл' }));
+
+      expect(
+        await screen.findByRole('dialog', { name: 'Какое фото подойдёт' }),
+      ).toBeInTheDocument();
+      expect(uploads()).toHaveLength(0);
+      expect(clickedElements()).toEqual(['photos.upload']);
+    });
+
+    it('keeps «Выбрать файл» off while /me loads', () => {
+      renderUpload(zoneProps, 'loading');
+
+      expect(screen.getByRole('button', { name: 'Выбрать файл' })).toBeDisabled();
+      expect(dropArea()).toBeDisabled();
+    });
+
+    it('keeps «Выбрать файл» off when disabled', () => {
+      renderUpload({ ...zoneProps, disabled: true }, consented);
+
+      expect(screen.getByRole('button', { name: 'Выбрать файл' })).toBeDisabled();
     });
 
     it('adds «Сделать фото» on a touch device, with the front camera', () => {
@@ -1188,7 +1276,7 @@ describe('UploadPhoto as the drop zone (AC8)', () => {
       renderUpload(zoneProps);
       expect(fileInputs().all).toHaveLength(0);
 
-      await user.click(screen.getAllByRole('button', { name: 'Загрузить фото' })[0]!);
+      await user.click(dropArea());
 
       expect(
         await screen.findByRole('dialog', { name: 'Какое фото подойдёт' }),
@@ -1197,12 +1285,35 @@ describe('UploadPhoto as the drop zone (AC8)', () => {
       expect(clickedElements()).toEqual(['photos.upload']);
     });
 
+    it('opens the file picker from a click on the hidden area after the consents', async () => {
+      const user = setup();
+      const { onUploaded } = renderUpload(zoneProps, consented);
+      const open = vi.spyOn(fileInputs().file!, 'click');
+
+      await user.click(dropArea());
+
+      expect(open).toHaveBeenCalledTimes(1);
+      await user.upload(fileInputs().file!, picture());
+      await vi.waitFor(() => expect(onUploaded).toHaveBeenCalledWith(PHOTO));
+    });
+
     it('is off when disabled', () => {
       renderUpload({ ...zoneProps, disabled: true }, consented);
 
-      for (const button of screen.getAllByRole('button', { name: 'Загрузить фото' })) {
-        expect(button).toBeDisabled();
-      }
+      expect(dropArea()).toBeDisabled();
+    });
+
+    it('greys the card only while an upload is on its way', async () => {
+      answer = () => new Promise<Response>(() => undefined);
+      const user = setup();
+      renderUpload(zoneProps, consented);
+      const card = lead().closest('.dropCard')!;
+      expect(card).not.toHaveClass('disabled');
+
+      await user.upload(fileInputs().file!, picture());
+
+      await vi.waitFor(() => expect(card).toHaveClass('disabled'));
+      expect(uploads()).toHaveLength(1);
     });
   });
 
@@ -1217,6 +1328,7 @@ describe('UploadPhoto as the drop zone (AC8)', () => {
         .getAllByRole('button', { name: 'Загрузить фото' })
         .filter((button) => button.classList.contains('tile'));
       expect(files).toHaveLength(1);
+      expect(screen.getAllByRole('button', { name: 'Загрузить фото' })).toEqual(files);
       expect(files[0]).toBeEnabled();
       expect(camera).toHaveClass('tile');
       expect(camera).toBeEnabled();
@@ -1328,13 +1440,11 @@ describe('UploadPhoto as the drop zone (AC8)', () => {
   });
 
   describe('with a mouse (Y21)', () => {
-    it('keeps one secondary «Загрузить фото» button and no tiles or camera', () => {
+    it('keeps no «Загрузить фото» button in the tree, no tiles and no camera', () => {
       renderUpload(zoneProps, consented);
 
-      const tiles = screen
-        .getAllByRole('button', { name: 'Загрузить фото' })
-        .filter((button) => button.classList.contains('tile'));
-      expect(tiles).toHaveLength(0);
+      expect(screen.queryByRole('button', { name: 'Загрузить фото' })).not.toBeInTheDocument();
+      expect(document.querySelector('.tile')).toBeNull();
       expect(screen.queryByRole('button', { name: 'Сделать фото' })).not.toBeInTheDocument();
       expect(fileInputs().camera).toBeUndefined();
     });
@@ -1511,6 +1621,9 @@ describe('UploadPhoto as the drop zone (AC8)', () => {
 
   describe('the drag over the zone', () => {
     const hint = 'Отпустите, чтобы загрузить';
+    // The empty zone shows its drag on the card, with no hint of its own.
+    const card = () => zoneTarget().closest('.dropCard')!;
+    const darkened = () => card().classList.contains('dragging');
 
     // jsdom has no DragEvent, so Testing Library's event cannot carry `relatedTarget` by init.
     function leave(from: Element, to: Element | null) {
@@ -1519,15 +1632,16 @@ describe('UploadPhoto as the drop zone (AC8)', () => {
       fireEvent(from, event);
     }
 
-    it('darkens it with the hint while files are over it, and lets go on leaving', () => {
+    it('fills the empty card while files are over it, with no hint, and lets go on leaving', () => {
       renderUpload(zoneProps, consented);
-      expect(screen.queryByText(hint)).not.toBeInTheDocument();
+      expect(darkened()).toBe(false);
 
       fireEvent.dragEnter(zoneTarget(), { dataTransfer: { types: ['Files'] } });
-      expect(screen.getByText(hint)).toBeInTheDocument();
+      expect(darkened()).toBe(true);
+      expect(screen.queryByText(hint)).not.toBeInTheDocument();
 
       fireEvent.dragLeave(zoneTarget(), { dataTransfer: { types: ['Files'] } });
-      expect(screen.queryByText(hint)).not.toBeInTheDocument();
+      expect(darkened()).toBe(false);
     });
 
     it('stays while the drag moves between the zone’s own elements', () => {
@@ -1537,13 +1651,13 @@ describe('UploadPhoto as the drop zone (AC8)', () => {
 
       fireEvent.dragEnter(outer, { dataTransfer: { types: ['Files'] } });
       leave(outer, inner);
-      expect(screen.getByText(hint)).toBeInTheDocument();
+      expect(darkened()).toBe(true);
 
       leave(inner, outer);
-      expect(screen.getByText(hint)).toBeInTheDocument();
+      expect(darkened()).toBe(true);
 
       leave(inner, document.body);
-      expect(screen.queryByText(hint)).not.toBeInTheDocument();
+      expect(darkened()).toBe(false);
     });
 
     it('clears when the drag leaves for nowhere (off the page)', () => {
@@ -1552,6 +1666,19 @@ describe('UploadPhoto as the drop zone (AC8)', () => {
 
       leave(zoneTarget(), null);
 
+      expect(darkened()).toBe(false);
+    });
+
+    it('darkens a zone with a photo inside with the hint, not a card', () => {
+      renderUpload({ ...zoneProps, children: <p>Ваше фото тут</p> }, consented);
+      const photo = screen.getByText('Ваше фото тут');
+      expect(screen.queryByText(hint)).not.toBeInTheDocument();
+
+      fireEvent.dragEnter(photo, { dataTransfer: { types: ['Files'] } });
+      expect(screen.getByText(hint)).toBeInTheDocument();
+      expect(photo.closest('.zone')).toHaveClass('dragging');
+
+      fireEvent.dragLeave(photo, { dataTransfer: { types: ['Files'] } });
       expect(screen.queryByText(hint)).not.toBeInTheDocument();
     });
 
@@ -1562,7 +1689,7 @@ describe('UploadPhoto as the drop zone (AC8)', () => {
       fireEvent.dragEnter(zoneTarget(), { dataTransfer });
       fireEvent.dragOver(zoneTarget(), { dataTransfer });
 
-      expect(screen.queryByText(hint)).not.toBeInTheDocument();
+      expect(darkened()).toBe(false);
       expect(dataTransfer.dropEffect).toBe('none');
     });
 
@@ -1573,7 +1700,7 @@ describe('UploadPhoto as the drop zone (AC8)', () => {
       fireEvent.dragEnter(zoneTarget(), { dataTransfer });
       fireEvent.dragOver(zoneTarget(), { dataTransfer });
 
-      expect(screen.queryByText(hint)).not.toBeInTheDocument();
+      expect(darkened()).toBe(false);
       expect(dataTransfer.dropEffect).toBe('none');
     });
 
@@ -1585,7 +1712,7 @@ describe('UploadPhoto as the drop zone (AC8)', () => {
 
       fireEvent.dragEnter(zoneTarget(), { dataTransfer: { types: ['Files'] } });
 
-      expect(screen.queryByText(hint)).not.toBeInTheDocument();
+      expect(darkened()).toBe(false);
     });
 
     it('copies when it accepts a file', () => {
@@ -1635,7 +1762,7 @@ describe('UploadPhoto as the drop zone (AC8)', () => {
 
       fireEvent.dragEnter(zoneTarget(), { dataTransfer: { types: ['text/plain'] } });
 
-      expect(screen.queryByText(hint)).not.toBeInTheDocument();
+      expect(darkened()).toBe(false);
     });
 
     describe('a file dropped beside the zone', () => {
@@ -1675,15 +1802,15 @@ describe('UploadPhoto as the drop zone (AC8)', () => {
       });
     });
 
-    it('lets go of the hint when the file is dropped', () => {
+    it('lets go of the card’s dragging look when the file is dropped', () => {
       answer = () => new Promise<Response>(() => undefined);
       renderUpload(zoneProps, consented);
       fireEvent.dragEnter(zoneTarget(), { dataTransfer: { types: ['Files'] } });
-      expect(screen.getByText(hint)).toBeInTheDocument();
+      expect(darkened()).toBe(true);
 
       drop([picture()]);
 
-      expect(screen.queryByText(hint)).not.toBeInTheDocument();
+      expect(darkened()).toBe(false);
     });
   });
 
@@ -1692,9 +1819,8 @@ describe('UploadPhoto as the drop zone (AC8)', () => {
       renderUpload({ ...zoneProps, children: <p>Ваше фото тут</p> }, consented);
 
       expect(screen.getByText('Ваше фото тут')).toBeInTheDocument();
-      expect(
-        screen.queryByText('Загрузите фото в полный рост: один человек в кадре'),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByText('Загрузите своё фото')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Выбрать файл' })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Загрузить фото' })).not.toBeInTheDocument();
       expect(fileInputs().all).toHaveLength(0);
 

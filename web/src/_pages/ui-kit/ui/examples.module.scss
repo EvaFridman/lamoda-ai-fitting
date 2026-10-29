@@ -216,6 +216,12 @@
   background: none;
 }
 
+// The try-on's photo frame for the drop card: 2:3, as `PhotoFrame`.
+.dropFrame {
+  aspect-ratio: 2 / 3;
+  width: 260px;
+}
+
 .props {
   font-family: inherit;
   font-size: var(--font-size-body-s);

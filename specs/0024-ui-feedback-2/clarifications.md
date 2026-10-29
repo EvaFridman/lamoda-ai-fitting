@@ -366,3 +366,12 @@ pause). While it runs, the card it came from shows the kit's `Spinner` over a ve
 clicks pass through (`HistoryCard`'s `busy`; «Запускаем примерку» in the card's `role="status"`,
 not `aria-busy`, which lets screen readers stay silent) and «Примерить ещё раз» is
 disabled on every card, since one repeat runs at a time. A fix within PR 3, outside `tasks.md`.
+
+**Z47. The drop card, quieter and lower (the owner, at T17's look).** The card is kept, with less
+text weight: «Загрузите своё фото» in body-m (medium) instead of headline-s, «Выбрать файл» in
+body-s, and the lines sit in the card's lower part, above the formats, instead of its middle; the
+circle stays about the middle (centred in the space over the text). The button over the whole card stays a mouse's click target only: out of the tab order
+and hidden from screen readers (`FileInput`'s `tabIndex` and `aria-hidden`), so the keyboard and a
+screen reader reach the file through «Выбрать файл» or the tiles and a touch device no longer
+names two neighbouring buttons «Загрузить фото». Amends Z17 and spec 0023 P3's Enter and Space on
+the whole zone.
