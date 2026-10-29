@@ -58,6 +58,7 @@ function fitting(items: FittingItem[]): Fitting {
     items,
     promptText: null,
     photoId: null,
+    photoTransient: null,
     resultUrl: null,
     createdAt: '2026-10-20T12:00:00.000Z',
     startedAt: null,

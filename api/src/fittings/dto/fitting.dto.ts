@@ -126,6 +126,14 @@ export class FittingDto {
   photoId: string | null;
 
   @ApiProperty({
+    type: Boolean,
+    nullable: true,
+    description:
+      'Whether the photo tried on is a one-time one (true) or saved (false); null once it is deleted, as `photoId` (spec 0024 Z42).',
+  })
+  photoTransient: boolean | null;
+
+  @ApiProperty({
     type: String,
     nullable: true,
     description:

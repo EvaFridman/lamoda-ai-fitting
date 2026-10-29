@@ -122,6 +122,7 @@ function fitting(patch: Partial<Fitting> = {}): Fitting {
     ],
     promptText: null,
     photoId: PHOTO_A,
+    photoTransient: false,
     resultUrl: null,
     createdAt: new Date().toISOString(),
     startedAt: null,

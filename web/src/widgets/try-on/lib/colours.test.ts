@@ -108,6 +108,7 @@ function fitting(patch: {
     ],
     promptText: null,
     photoId: patch.photoId === undefined ? PHOTO : patch.photoId,
+    photoTransient: (patch.photoId === undefined ? PHOTO : patch.photoId) === null ? null : false,
     resultUrl: null,
     createdAt: '2026-10-20T12:00:00.000Z',
     startedAt: null,

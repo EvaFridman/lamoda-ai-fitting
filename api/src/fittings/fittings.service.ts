@@ -49,8 +49,9 @@ const ORDER: Prisma.AiGenerationOrderByWithRelationInput[] = [
 ];
 
 // The items as the catalog has them now (plan §5), in the order the model got them (by product
-// id, A68).
+// id, A68), and the photo's kind (spec 0024 Z42).
 const FOR_RESPONSE = {
+  photo: { select: { transient: true } },
   products: {
     orderBy: { productId: 'asc' },
     select: {
@@ -692,6 +693,7 @@ export class FittingsService {
         };
       }),
       photoId: row.photoId,
+      photoTransient: row.photo?.transient ?? null,
       promptText: row.promptText,
       resultUrl:
         row.userId === null

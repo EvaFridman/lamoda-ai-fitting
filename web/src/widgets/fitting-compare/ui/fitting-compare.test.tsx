@@ -81,6 +81,7 @@ function fitting(id: string, overrides: Record<string, unknown> = {}) {
     ],
     promptText: null,
     photoId: uuid(200),
+    photoTransient: false,
     resultUrl: RESULT,
     createdAt: '2026-10-23T11:06:00.000Z',
     startedAt: '2026-10-23T11:06:00.000Z',
