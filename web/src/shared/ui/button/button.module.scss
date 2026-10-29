@@ -116,7 +116,12 @@
     opacity: 0.4;
   }
 
-  &.secondary,
+  // A disabled secondary keeps the enabled fill and greys only its text (spec 0024 Z4); the hover's
+  // darker fill skips `[data-disabled]`, so a disabled one never looks hovered.
+  &.secondary {
+    color: var(--color-text-secondary);
+  }
+
   &.outline {
     border-color: var(--color-background-tertiary);
     color: var(--color-text-secondary);

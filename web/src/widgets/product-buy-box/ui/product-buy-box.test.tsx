@@ -369,6 +369,52 @@ describe('ProductBuyBox: the cart and favourites stubs (A33)', () => {
   });
 });
 
+describe('ProductBuyBox: the buttons look (spec 0024 AC6)', () => {
+  it('«Примерить» is secondary 48 and the cart button stays primary 48, signed in', async () => {
+    setup();
+    const tryOn = await screen.findByRole('button', { name: 'Примерить' });
+    await vi.waitFor(() => expect(tryOn).toBeEnabled());
+
+    expect(tryOn).toHaveClass('secondary', 'size48');
+    const cart = screen.getByRole('button', { name: 'Добавить в корзину' });
+    expect(cart).toHaveClass('primary', 'size48');
+    expect(cart).not.toHaveClass('secondary');
+  });
+
+  it('«Примерить» is secondary 48 while the session and the quota load', () => {
+    mocks.session = { status: 'pending' };
+    setup();
+
+    expect(screen.getByRole('button', { name: 'Примерить' })).toHaveClass('secondary', 'size48');
+  });
+
+  it('«Примерить» is secondary 48 as the sign-in trigger', () => {
+    mocks.session = { status: 'signed-out', failed: false };
+    setup();
+
+    expect(screen.getByRole('button', { name: 'Примерить' })).toHaveClass('secondary', 'size48');
+  });
+
+  it('at the limit «Примерить» is disabled and still secondary 48', async () => {
+    api({ left: 0 });
+    setup();
+    await screen.findByText('Закончились · снова с 1 ноября');
+
+    const tryOn = screen.getByRole('button', { name: 'Примерить' });
+    expect(tryOn).toBeDisabled();
+    expect(tryOn).toHaveClass('secondary', 'size48', 'disabled');
+  });
+
+  it('«Добавить к образу» is outline 48', () => {
+    setup();
+
+    expect(screen.getByRole('button', { name: 'Добавить к образу' })).toHaveClass(
+      'outline',
+      'size48',
+    );
+  });
+});
+
 describe('ProductBuyBox: «Примерить» signed in', () => {
   it('calls onTryOn and nothing else', async () => {
     const { user, onTryOn } = setup();

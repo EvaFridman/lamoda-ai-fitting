@@ -999,11 +999,12 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   ones (`loadProductWithSlot`; `proxy.ts` gives the real 404 first, the page a soft one when it was
   skipped, A81); «С этим товаром выбирают» is prefetched through the page cache only after that.
   The page joins `widgets/product-gallery` (the kit's `Gallery`), `widgets/product-buy-box`
-  (rating, price, colour and size, `features/product-stubs`, the primary «Примерить», its own
+  (rating, price, colour and size, `features/product-stubs`, «Примерить», the kit's grey `secondary` 48
+  quieter than the primary «Добавить в корзину» (spec 0024 Z4), its own
   button, through which `ProductPurchase` opens `widgets/try-on` in place, closed when the page is
   left or hidden by Next's kept routes, spec 0023 Y22 (the window's start is
   `features/start-fitting`), signed out the second
-  `LoginModal`; `features/fitting-room`'s `ToLookButton` «Добавить к образу», «В образе» while
+  `LoginModal`; `features/fitting-room`'s `ToLookButton` «Добавить к образу» (outline 48), «В образе» while
   the product is in the room, with the colour chosen beside it, A82.2, A90.1, spec 0023 P1; from
   1024 px the buy box keeps board 1's 280 px and the gallery narrows below 1280 px, its photos
   keeping their proportions; a row too narrow for its two buttons stacks them, spec 0023 P11, Y18; `entities/fitting`'s

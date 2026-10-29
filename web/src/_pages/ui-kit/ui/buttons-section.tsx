@@ -68,12 +68,13 @@ const states: Example[] = [
   },
 ];
 
-// «Примерить» of the product page's buy box (spec 0019 A63.2, board 13's TryOnButton): primary 56
-// with the sparkle icon, never over the photo; disabled once the month's try-ons are spent.
+// «Примерить» of the product page's buy box (spec 0024 Z4, board 1): secondary 48 with the sparkle
+// icon, next to the primary 48 «Добавить в корзину» it must not outshout; disabled once the month's
+// try-ons are spent, its text grey and no hover.
 const tryOn: { props: string; button: Omit<ButtonAsButtonProps, 'children'> }[] = [
-  { props: 'TryOnButton · default', button: {} },
-  { props: 'TryOnButton · loading', button: { loading: true } },
-  { props: 'TryOnButton · disabled (лимит)', button: { disabled: true } },
+  { props: 'secondary 48 · default', button: { variant: 'secondary' } },
+  { props: 'secondary 48 · loading', button: { variant: 'secondary', loading: true } },
+  { props: 'secondary 48 · disabled (лимит)', button: { variant: 'secondary', disabled: true } },
 ];
 
 function ExampleRow({ examples }: { examples: Example[] }) {
@@ -114,9 +115,13 @@ export function ButtonsSection() {
 
       <h4 className={styles.groupTitle}>Примерить</h4>
       <ul className={styles.row}>
+        <li className={styles.example}>
+          <Button size={48}>Добавить в корзину</Button>
+          <code className={styles.props}>primary 48</code>
+        </li>
         {tryOn.map(({ props, button }) => (
           <li key={props} className={styles.example}>
-            <Button size={56} {...button}>
+            <Button size={48} {...button}>
               <SparkleIcon />
               Примерить
             </Button>

@@ -47,8 +47,9 @@ function colourOptions(product: ProductDetail): SelectOption[] {
 // The product page's buy box (spec 0019 T20, boards 1, 11 and 13; A33, A62, A63.2, A82): the
 // rating, the brand and name, the price and discount, «Вы это примеряли», the colour and size (kept
 // on the screen only, A8; the colour goes into the fitting room with «Добавить к образу»), the cart
-// and favourite stubs, board 13's TryOnButton with «Добавить к образу» («В образе» once in the
-// room, A82.2; spec 0023 P1) beside it or under it, and the limit meter. The visitor's data (the session, the quota, the last fitting) is
+// and favourite stubs, «Примерить» as board 1's grey secondary 48, quieter than «Добавить в
+// корзину» (spec 0024 Z4), with «Добавить к образу» («В образе» once in the room, A82.2; spec 0023
+// P1) beside it or under it, and the limit meter. The visitor's data (the session, the quota, the last fitting) is
 // read in the browser only (AC23). Signed out, «Примерить» opens the sign-in window (A12). On a
 // phone it stays in the page's flow in the same order, nothing fixed to the window (A87.2).
 export function ProductBuyBox({ product, slot, onTryOn }: ProductBuyBoxProps) {
@@ -88,7 +89,8 @@ export function ProductBuyBox({ product, slot, onTryOn }: ProductBuyBoxProps) {
 
   const tryOn = signedIn ? (
     <Button
-      size={56}
+      variant="secondary"
+      size={48}
       className={styles.tryOn}
       loading={loading}
       disabled={spent}
@@ -104,7 +106,7 @@ export function ProductBuyBox({ product, slot, onTryOn }: ProductBuyBoxProps) {
   ) : (
     <Suspense
       fallback={
-        <Button size={56} className={styles.tryOn} loading>
+        <Button variant="secondary" size={48} className={styles.tryOn} loading>
           <SparkleIcon />
           Примерить
         </Button>
@@ -115,7 +117,8 @@ export function ProductBuyBox({ product, slot, onTryOn }: ProductBuyBoxProps) {
         trigger={
           // Base UI's trigger merges these with its own opening of the window.
           <Button
-            size={56}
+            variant="secondary"
+            size={48}
             className={styles.tryOn}
             loading={loading}
             {...tryOnHover}

@@ -23,15 +23,32 @@ describe('buttons section', () => {
     const busy = within(region)
       .getAllByRole('button')
       .filter((button) => button.getAttribute('aria-busy') === 'true');
-    // three variants and the TryOnButton
+    // three variants and the loading «Примерить»
     expect(busy).toHaveLength(4);
 
     const disabled = within(region)
       .getAllByRole('button')
       .filter((button) => (button as HTMLButtonElement).disabled);
-    // three disabled Buttons, the TryOnButton and one disabled IconButton
+    // three disabled Buttons, the disabled «Примерить» and one disabled IconButton
     expect(disabled).toHaveLength(5);
     expect(within(region).getByRole('button', { name: 'Нет в наличии' })).toBeDisabled();
+  });
+
+  it('shows «Примерить» as secondary 48 in three states beside the primary 48 cart button', () => {
+    render(<UiKitPage />);
+    const region = screen.getByRole('region', { name: 'Кнопки' });
+
+    for (const caption of [
+      'secondary 48 · default',
+      'secondary 48 · loading',
+      'secondary 48 · disabled (лимит)',
+    ]) {
+      expect(within(region).getByText(caption, { selector: 'code' })).toBeInTheDocument();
+    }
+    const tryOns = within(region).getAllByRole('button', { name: 'Примерить' });
+    for (const button of tryOns) expect(button).toHaveClass('secondary', 'size48');
+    expect(tryOns.filter((button) => (button as HTMLButtonElement).disabled)).toHaveLength(1);
+    expect(within(region).getByText('primary 48', { selector: 'code' })).toBeInTheDocument();
   });
 
   it('shows every size and the three variants', () => {
@@ -67,7 +84,9 @@ describe('buttons section', () => {
     const region = screen.getByRole('region', { name: 'Кнопки' });
 
     expect(within(region).getByRole('button', { name: 'Показать ещё' })).toHaveClass('fullWidth');
-    expect(within(region).getAllByRole('button', { name: 'Добавить в корзину' }).length).toBe(4);
+    // the primary variant, its loading state, the «Примерить» group's primary 48, the live demo
+    // and the product page's pair
+    expect(within(region).getAllByRole('button', { name: 'Добавить в корзину' }).length).toBe(5);
   });
 });
 
