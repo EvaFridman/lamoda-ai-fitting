@@ -1103,8 +1103,9 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   every store and the map on Moscow (X7). The page asks for the position by itself once per
   browser while no city is chosen (`useAskCityOnce`, C6); past 100 km «Рядом с вами пока нет
   магазинов» over every store. Nothing found in the city offers «Искать во всех городах». The
-  list and the map follow the text 300 ms after typing (`SEARCH_APPLY_MS`, C12), an empty text at
-  once; `Stores Searched` keeps its 1 s pause.
+  list and the map follow the text 500 ms after typing (`SEARCH_APPLY_MS`, `useDebounced` of
+  `@/shared/lib`, spec 0024 Z9, Z36), an empty or restored text at once; `Stores Searched` keeps
+  its 1 s pause.
 - `web` data from the api renders at request time inside `<Suspense>`: the web image must build with
   no api, Redis or database running. So a page has sent its static shell with 200 before it reads
   anything, and a `notFound()` there is a soft 404 (the not-found page with `noindex`). A real 404

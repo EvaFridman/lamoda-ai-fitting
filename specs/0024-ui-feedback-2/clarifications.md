@@ -272,3 +272,10 @@ empty zone with no way to the saved photos, since «Заменить фото» 
 The owner's answer at T12: while there are photos to pick and none is chosen, the same button and
 window stay under the zone, named «Выбрать из сохранённых», listing every photo; with a photo
 chosen it is «Заменить фото» as before. `try-on.replace-photo` counts both. Amends plan §2.10.
+
+**Z36. Z9 over spec 0026's pause (T13, AC18).** Spec 0026 (C12), merged while this one was in
+progress, took note S2 as unassigned and shipped a 300 ms pause (`SEARCH_APPLY_MS`) written into
+`StoresView`. The owner's answer at T13: Z9 stands, 500 ms through `useDebounced` of `shared/lib`.
+Its `atOnce` applies an emptied field and a text the browser restored before hydration (0026's
+own rule, kept) in the same render. `Stores Searched` keeps its 1 s on the typed text. Amends plan
+§2.11.

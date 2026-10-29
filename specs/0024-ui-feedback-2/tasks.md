@@ -73,7 +73,7 @@ same release); PR 4 the closing, which records the owner's checks on the deploye
       на другом фото» with nothing preselected; `try-on.replace-photo`, `try-on.photo`,
       `result.other-photo` descriptions. Check: `try-on.test.tsx`, `catalog.test.ts`. Commit:
       `feat(web): picker without the photos link, the chosen photo and a preselection`.
-- [ ] **T13. The stores search's pause (plan §2.11; AC18).** `useDebounced` in `shared/lib`,
+- [x] **T13. The stores search's pause (plan §2.11; AC18).** `useDebounced` in `shared/lib`,
       500 ms, the clear at once. Check: `stores-view.test.tsx` with fake timers. Then the phase's
       end: `qa-tester` on AC1–AC18 (a phone, a tablet, a desktop; a mouse and touch emulation;
       reduced motion), a clean install, `npm run verify`, the push, PR 2. Commit:
