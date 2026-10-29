@@ -1,7 +1,7 @@
 # 0026 city: plan
 
 Status: accepted (2026-10-29); amended at the review of PR 1 (§3.1, §3.3: C14; §5: the map's
-fit; §9, §10).
+fit; §9, §10); amended at T3 (§3.2: C15; §3.3, §4, §5: `useCityOpenEvents`).
 
 How [spec.md](spec.md) is built. Decisions: [clarifications.md](clarifications.md) (C0–C14).
 
@@ -56,7 +56,7 @@ the tab reloads (C9, as 0019 A60).
 
 - Key `city`: the city's name, at most 100 characters, else read as none. Not an `mp_`/`__mp` key
   (C9). One per browser.
-- Key `city-asked`: `1` once the stores page has asked by itself (C6).
+- Key `city-asked`: `1` once the stores page has asked by itself (C6) (amended by C14).
 - `useStoredCity()`: the stored name; `undefined` on the server and while hydrating, so nothing
   acts on it then.
 - `useCity(cities)`: the stored name only if it is one of `cities` (C8), else `null`; `undefined`
@@ -69,6 +69,8 @@ the tab reloads (C9, as 0019 A60).
 'far' } | { kind: 'refused' } | { kind: 'failed' }`. One `navigator.geolocation.getCurrentPosition`
 with `enableHighAccuracy: false`, `timeout: 10_000`, `maximumAge: 600_000` (C7's 10 s); the error
 code `PERMISSION_DENIED` is `refused`, any other, a missing API or an insecure context `failed`.
+The browser's `timeout` starts only once the permission is given, so the function also ends
+`failed` 30 s after the ask (`LOCATE_DEADLINE_MS`), a later answer ignored (C15, amended at T3).
 The coordinates live only inside this function: they are passed to `nearestCity` and dropped, never
 stored, logged, put into state, an attribute, an address, an event or a Sentry report (AC5). None
 of the results is reported to Sentry: each is the visitor's answer or the device's, not a fault of
@@ -76,17 +78,20 @@ the site.
 
 ### 3.3 The window (`ui/city-modal.tsx`)
 
-`CityModal({ cities, open, onOpenChange, finalFocus?, surface })`, the kit's `Modal` (C4):
+`CityModal({ cities, failure?, open, onOpenChange, finalFocus? })`, the kit's `Modal` (C4); the
+control that opens it spreads `useCityOpenEvents(source, cities)`, its `city.open` with `source`
+`header`, `burger` or `stores` and `had_city` (§7) (amended at T3: no `surface` on the window):
 
 - title «Ваш город»; on phones the whole screen (`wide`, which fills the window below 600 px);
 - «Определить автоматически» (a kit `Button`, `secondary`): while finding, disabled with a
-  `Spinner`; `found` chooses the city and closes the window; the others show their C7 text in a
-  `role="status"` line under the button and keep the city;
+  `Spinner`; `found` chooses the city and closes the window (a city chosen meanwhile elsewhere
+  wins, the window closes too, C8); the others show their C7 text in a `role="status"` line under
+  the button and keep the city; a result after the window closed only chooses the city;
 - the kit's `SearchField` «Найти город» (uncontrolled, its text in no attribute, L9), filtering
   with `matchCities`; nothing left: «Ничего не нашлось»;
 - the list: one `button` per city, the chosen one marked with `aria-current="true"` and a check
   icon; a click chooses it and closes the window;
-- `cities === null` (the header's read failed): `errorText` of the failure's kind, no list and no
+- `cities === null` (the header's read failed): `errorText(failure)`, no list and no
   «Определить автоматически».
 
 Its search text and list hold no personal data; the window needs no `mp-block`.
@@ -108,11 +113,13 @@ it (C8).
   inert copy stays as the fallback) renders `HeaderCity` (client): the button with the name from
   `useCity(cities)`, «Укажите ваш населенный пункт» while it is `null` or `undefined` (so the first
   paint of a visitor with a city shows the placeholder for a moment: accepted, as the profile's
-  initials), opening its `CityModal` (`surface: 'header'`). The button keeps today's look and
+  initials), opening its `CityModal` (the button's `useCityOpenEvents('header', cities)`,
+  amended at T3). The button keeps today's look and
   ellipsis; `aria-disabled` goes.
 - The burger (C5): `HeaderMenuSlot` passes the cities to `HeaderMenu`, which gets a row «Город:
   <name>» (or «Укажите ваш населенный пункт») above «Все товары»; it closes the drawer and opens
-  its own `CityModal` (`surface: 'burger'`, `finalFocus` the burger, `BURGER_ID`, as A87.7).
+  its own `CityModal` (the row's `useCityOpenEvents('burger', cities)`, amended at T3;
+  `finalFocus` the burger, `BURGER_ID`, as A87.7).
 - `header.tsx`'s comment and its tests drop the city from the inert elements (L5).
 
 The warm-up's list does not change (no route). The page shells keep no new inline script.
@@ -127,7 +134,7 @@ The warm-up's list does not change (no route). The page shells keep no new inlin
   search filters the pool.
 - Over the search: with a city, the kit's `ChipGroup` «<Город>» / «Все города»; then a
   `LinkButton` «Изменить город» («Выбрать город» without one) opening the page's `CityModal`
-  (`surface: 'stores'`) on every width (C5). A new city chosen anywhere (also in another tab) sets
+  (its `useCityOpenEvents('stores', cities)`, amended at T3) on every width (C5). A new city chosen anywhere (also in another tab) sets
   `view` back to `'city'`.
 - `far`: «Рядом с вами пока нет магазинов» (`role="status"`) over the list, every store (C7).
 - Nothing found in the city: «Ничего не нашлось» and `LinkButton` «Искать во всех городах»,
