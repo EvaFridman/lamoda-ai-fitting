@@ -243,3 +243,8 @@ ends: iOS Safari opens the keyboard only for a focus called within the tap itsel
 `transitionend` would leave a phone with a focused field and no keyboard. The row turns visible
 at the start of its slide and the field takes the focus at once (`preventScroll`), while the row
 grows `0fr → 1fr`. Amends plan §2.1.
+
+**Z31. The tab icon's PNG fallback (Z5, T6, AC7).** Plan §2.4 drew only `icon.svg` and the Apple
+icon, short of Z5's PNG fallback, so a browser that shows no SVG icon would ask `/favicon.ico` and
+get a 404. `web/app/icon1.tsx` adds a 32×32 PNG of the same mark through `ImageResponse`, drawn
+with the Apple icon by `_app/icons/mark-icons.tsx`; `/icon1` joins `EXCLUDED`. Amends plan §2.4.

@@ -809,6 +809,7 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   `ProgressBar`, `CountBadge` (nothing at 0; its parent places it and names the count),
   `SoonChip` (board 3's «скоро», placed by its parent as `CountBadge`, hidden from screen readers:
   the header's inert «Избранное» and «Корзина», spec 0023 C4, C5),
+  `LamodaMark` (Lamoda's «la», `LAMODA_MARK_PATHS`: the stores map's pin and the tab icons),
   `Chip`/`ChipGroup` (Base UI's Toggle and ToggleGroup; spec 0019 plan §7), `Select`'s option
   `swatch` (a colour circle in place of a thumbnail, spec 0019 A90.3) and `Gallery` (a
   product's photos, board 1: from 600px two large and up to three small with «Показать ещё фото»,
@@ -1253,7 +1254,10 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   copy to production (the site stopped, every session deleted, users deleted after the copy
   deleted again, P31) and replacing the age key: `deploy/README.md`, «Бэкапы»; running it locally: `README.md`, «Бэкап локально».
 - `web` has no files of its own under `public/`, and its image copies no `public/` (it comes back
-  with the first static file). Images from `/media/` skip Next's optimizer (`unoptimized`), or
+  with the first static file). The tab icons are Next's metadata files (spec 0024 Z5): the static
+  `app/icon.svg`, which repeats `LamodaMark`'s paths (its test keeps them the same), and
+  `app/icon1.tsx` and `app/apple-icon.tsx`, the 32 px PNG fallback and the 180 px Apple icon drawn
+  by `_app/icons/mark-icons.tsx` (Z31). Images from `/media/` skip Next's optimizer (`unoptimized`), or
   `/_next/image` would fetch them from web itself.
 - Every new environment variable goes into `.env.example` with a comment.
 - Migrations stay compatible with the previous release: add in one release, remove in a later one.

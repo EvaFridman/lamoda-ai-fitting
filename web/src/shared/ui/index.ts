@@ -84,6 +84,13 @@ export {
   UploadIcon,
   VkIcon,
 } from './icon/icons';
+export type { LamodaMarkProps } from './icon/lamoda-mark';
+export {
+  LAMODA_MARK_HEIGHT,
+  LAMODA_MARK_PATHS,
+  LAMODA_MARK_WIDTH,
+  LamodaMark,
+} from './icon/lamoda-mark';
 export type { PaymentMarkProps } from './icon/payment-marks';
 export { MastercardMark, VisaMark } from './icon/payment-marks';
 export type { IconButtonProps, IconButtonSize, IconButtonVariant } from './icon-button/icon-button';
