@@ -1,11 +1,14 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { reportFailure } from '@/shared/api';
+import { isStartRetryable, reportFailure } from '@/shared/api';
 
 import {
   type FittingStartSource,
+  startRetryCause,
+  type StartRetryCause,
   trackFittingRefused,
   trackFittingStarted,
+  trackStartRetried,
 } from '../model/analytics';
 import type {
   Fitting,
@@ -66,24 +69,64 @@ function refused(failure: unknown, kind: 'single' | 'look') {
   if (!trackFittingRefused(failure, kind)) reportFailure(failure);
 }
 
-// Starts a try-on of one item. A mutation with no retry, nothing kept (`gcTime: 0`): a start may
-// spend a try-on, and a write is never repeated by itself.
+// The silent retry of a start (spec 0024 Z10, Z26.6, Z27; why this write may repeat:
+// `isStartRetryable`): once, 1.5 s later, so the expensive tier's one request a second does not
+// answer the repeat with a 429. `onError` runs only after the last attempt, so the screen does not
+// change in between. `networkMode: 'always'`: offline, the attempts fail at once and the error card
+// shows, where the default would wait, still pending, for the network to come back.
+const START_RETRY = {
+  retry: (failureCount: number, error: unknown) => failureCount < 1 && isStartRetryable(error),
+  retryDelay: 1500,
+  networkMode: 'always',
+} as const;
+
+// The cause of a start's first failure, while it is being sent again: TanStack Query passes the
+// same variables to every attempt, and `onSettled` sends `Fitting Start Retried` with it.
+const retryCauses = new WeakMap<object, StartRetryCause>();
+
+async function attempt<R>(variables: object, request: () => Promise<R>): Promise<R> {
+  try {
+    return await request();
+  } catch (failure) {
+    const cause = startRetryCause(failure);
+    if (cause && !retryCauses.has(variables)) retryCauses.set(variables, cause);
+    throw failure;
+  }
+}
+
+function settledRetry(
+  kind: FittingKind,
+  request: object,
+  source: FittingStartSource,
+  error: unknown,
+) {
+  const cause = retryCauses.get(request);
+  if (!cause) return;
+  retryCauses.delete(request);
+  trackStartRetried(kind, source, cause, error);
+}
+
+// Starts a try-on of one item. Nothing kept (`gcTime: 0`); repeated only by `START_RETRY`.
 export function useStartSingleFitting() {
   const started = useStarted();
   return useMutation({
-    mutationFn: ({ photoId, productId, attributeValueId }: SingleFittingRequest) =>
-      startFitting({
-        photoId,
-        kind: 'single',
-        items: [attributeValueId ? { productId, attributeValueId } : { productId }],
+    mutationFn: (request: SingleFittingRequest) =>
+      attempt(request, () => {
+        const { photoId, productId, attributeValueId } = request;
+        return startFitting({
+          photoId,
+          kind: 'single',
+          items: [attributeValueId ? { productId, attributeValueId } : { productId }],
+        });
       }),
-    retry: false,
+    ...START_RETRY,
     gcTime: 0,
     onSuccess: (fitting, { source }) => {
       trackFittingStarted(fitting, source, false);
       started(fitting);
     },
     onError: (failure) => refused(failure, 'single'),
+    onSettled: (_fitting, error, request) => settledRetry('single', request, request.source, error),
   });
 }
 
@@ -91,24 +134,27 @@ export function useStartSingleFitting() {
 export function useStartLookFitting() {
   const started = useStarted();
   return useMutation({
-    mutationFn: ({ photoId, items, promptText }: LookFittingRequest) => {
-      const wishes = promptText?.trim();
-      return startFitting({
-        photoId,
-        kind: 'look',
-        items: items.map(({ productId, attributeValueId }) =>
-          attributeValueId ? { productId, attributeValueId } : { productId },
-        ),
-        ...(wishes ? { promptText: wishes } : {}),
-      });
-    },
-    retry: false,
+    mutationFn: (request: LookFittingRequest) =>
+      attempt(request, () => {
+        const { photoId, items, promptText } = request;
+        const wishes = promptText?.trim();
+        return startFitting({
+          photoId,
+          kind: 'look',
+          items: items.map(({ productId, attributeValueId }) =>
+            attributeValueId ? { productId, attributeValueId } : { productId },
+          ),
+          ...(wishes ? { promptText: wishes } : {}),
+        });
+      }),
+    ...START_RETRY,
     gcTime: 0,
     onSuccess: (fitting, { promptText, source }) => {
       trackFittingStarted(fitting, source, Boolean(promptText?.trim()));
       started(fitting);
     },
     onError: (failure) => refused(failure, 'look'),
+    onSettled: (_fitting, error, request) => settledRetry('look', request, request.source, error),
   });
 }
 
@@ -134,14 +180,15 @@ export function repeatBody(
 export function useRepeatFitting() {
   const started = useStarted();
   return useMutation({
-    mutationFn: (body: StartFittingBody) => startFitting(body),
-    retry: false,
+    mutationFn: (body: StartFittingBody) => attempt(body, () => startFitting(body)),
+    ...START_RETRY,
     gcTime: 0,
     onSuccess: (fitting, body) => {
       trackFittingStarted(fitting, 'history', Boolean(body.promptText));
       started(fitting);
     },
     onError: (failure, body) => refused(failure, body.kind),
+    onSettled: (_fitting, error, body) => settledRetry(body.kind, body, 'history', error),
   });
 }
 
@@ -149,14 +196,18 @@ export function useRepeatFitting() {
 export function useRegenerateFitting() {
   const started = useStarted();
   return useMutation({
-    mutationFn: ({ parentId, comment }: RegenerateRequest) =>
-      regenerateFitting(parentId, comment ? { comment } : {}),
-    retry: false,
+    mutationFn: (request: RegenerateRequest) =>
+      attempt(request, () =>
+        regenerateFitting(request.parentId, request.comment ? { comment: request.comment } : {}),
+      ),
+    ...START_RETRY,
     gcTime: 0,
     onSuccess: (fitting, { comment, withComment, source }) => {
       trackFittingStarted(fitting, source, withComment ?? Boolean(comment));
       started(fitting);
     },
     onError: (failure, { kind }) => refused(failure, kind),
+    onSettled: (_fitting, error, request) =>
+      settledRetry(request.kind, request, request.source, error),
   });
 }

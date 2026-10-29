@@ -374,6 +374,7 @@ describe('analytics catalog', () => {
       'Fitting Completed',
       'Fitting Failed',
       'Fitting Refused',
+      'Fitting Start Retried',
       'Fitting Started',
       'Login Opened',
       'Photo Refused',
@@ -408,6 +409,7 @@ describe('analytics catalog', () => {
       'Fitting Completed': ['fitting', 'conversion'],
       'Fitting Failed': ['fitting', 'interaction'],
       'Fitting Refused': ['fitting', 'interaction'],
+      'Fitting Start Retried': ['fitting', 'service'],
       'Stores Searched': ['stores', 'interaction'],
       'City Located': ['stores', 'interaction'],
     });

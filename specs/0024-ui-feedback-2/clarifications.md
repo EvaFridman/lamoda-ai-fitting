@@ -348,3 +348,14 @@ history on the first load after the release, which is not AC30's news. The migra
 previous release completes after it count as unseen, as new results should. It also takes
 `lock_timeout = '5s'` (spec 0014 O51), so a long query of the running copy stops the deploy
 instead of queueing behind it. Amends plan §3.2.
+
+## Settled at T16 (2026-10-29)
+
+**Z45. The history's repeat is retried too (the owner, at T16's review).** Plan §4.1 named the
+start, the look start and the regeneration, while AC20 and Z10 say "a `POST /fittings`": «Примерить
+ещё раз» of «Мои примерки» (`useRepeatFitting`) is one, safe by the same A32, so it gets the same
+silent retry and `Fitting Start Retried` sends `source: history` for it. The mutations also take
+`networkMode: 'always'` (the code review): offline, TanStack Query's default would leave the start
+pending until the network returns, with no error card; now both attempts fail and the card shows.
+A start closed during the 1.5 s pause is still sent again, as the waiting screen's «Закрыть и
+продолжить покупки» keeps a running one. Amends plan §4.1.

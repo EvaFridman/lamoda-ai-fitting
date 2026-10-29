@@ -669,7 +669,11 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   write, `ProfileForm`'s `PATCH /me`, is TanStack Query's `useMutation` with no retry (spec 0017
   plan §4: a write is not repeated by itself) and `gcTime: 0` (its body and answer are personal
   data); a success puts the answer into the cache with `setQueryData`, only over the same user's,
-  instead of a new read. `DeleteAccount` calls `deleteMe()` directly, since it ends in a full load. The
+  instead of a new read. The one exception is a fitting's start (`entities/fitting`'s start, look
+  start, regeneration and the history's repeat, spec 0024 Z10, Z27): sent again once after 1.5 s on a network error, a
+  timeout or a 502/503/504 (`isStartRetryable`), with nothing changing on screen, since the api
+  answers the running fitting of the same fingerprint (spec 0019 A32); a 429 and a bare 500 are
+  not, and `Fitting Start Retried` says how the repeat ended. `DeleteAccount` calls `deleteMe()` directly, since it ends in a full load. The
   one other browser client is Better Auth's (`@/shared/auth`, the site's own `/api/auth`, spec
   0013): its calls go through `callAuth`, and `useSession` (`@/entities/session`) turns a failed
   read into one with `authFailure`, so their failures are `ApiError`s too. Besides them the

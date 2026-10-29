@@ -5,4 +5,4 @@ export { AUTH_TEMPLATE_PREFIX, detailText, errorText, signInRedirectText } from 
 export { cursorPaginatedSchema, paginatedSchema, type PageQuery } from './paginated';
 export { buildPath, type ApiPath, type ApiQuery } from './path';
 export { reportApiError, reportFailure } from './report';
-export { retryDelay, shouldRetry } from './retry';
+export { isStartRetryable, retryDelay, shouldRetry } from './retry';

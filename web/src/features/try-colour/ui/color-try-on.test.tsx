@@ -244,13 +244,14 @@ describe('ColorTryOn', () => {
   });
 
   it('shows the text of any other failure and lets the colour be tried again', async () => {
-    fetchMock.mockImplementation(failure(503, 'SERVICE_UNAVAILABLE'));
+    // A bare 500 is not sent again, so the text shows at once (a 503 is, once, after 1.5 s).
+    fetchMock.mockImplementation(failure(500, 'INTERNAL_ERROR'));
     const { onLimit } = renderColours();
 
     await userEvent.setup().click(tile('Синий'));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Сервис временно недоступен, попробуйте позже',
+      'Ошибка на сервере, попробуйте позже',
     );
     expect(onLimit).not.toHaveBeenCalled();
     expect(tile('Синий')).toBeEnabled();

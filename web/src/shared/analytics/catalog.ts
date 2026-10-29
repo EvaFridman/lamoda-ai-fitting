@@ -307,6 +307,19 @@ export const catalog = defineCatalog({
         with_prompt: { kind: 'boolean' },
       },
     },
+    'Fitting Start Retried': {
+      zone: 'fitting',
+      type: 'service',
+      description:
+        'Запуск примерки (также «Примерить ещё раз» в «Моих примерках»), перегенерации или смены цвета не получил ответа и был тихо отправлен ещё раз через 1,5 с (спека 0024); отправляется, когда повтор закончился. `kind` и `source` — как у `Fitting Started`, `cause` — первая неудача: `network` — нет ответа, `timeout` — истекло время ожидания, `server` — 502, 503 или 504. `outcome` — чем кончился повтор: `started` — примерка запущена (или api открыл уже идущую), `refused` — отказ лимита или текста (ушёл и `Fitting Refused`), `failed` — экран ошибки.',
+      perVisit: 0.001,
+      properties: {
+        kind: { kind: 'enum', values: ['single', 'look'] },
+        source: { kind: 'enum', values: ['picker', 'retry', 'colour', 'regenerate', 'history'] },
+        cause: { kind: 'enum', values: ['network', 'timeout', 'server'] },
+        outcome: { kind: 'enum', values: ['started', 'refused', 'failed'] },
+      },
+    },
     'Fitting Completed': {
       zone: 'fitting',
       type: 'conversion',
