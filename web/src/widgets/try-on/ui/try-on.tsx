@@ -104,7 +104,9 @@ export function TryOn({
   // The one-time photos uploaded here, the last one in the picker's strip.
   const [transients, setTransients] = useState<UserPhoto[]>([]);
   const transient = transients.at(-1) ?? null;
-  const [chosenId, setChosenId] = useState<string | null>(null);
+  // The chosen photo: undefined the default one (A63.4), null none («Примерить на другом фото»,
+  // spec 0024 AC17).
+  const [chosenId, setChosenId] = useState<string | null | undefined>(undefined);
   const [retryError, setRetryError] = useState<string | null>(null);
 
   const fittingQuery = useQuery({
@@ -142,9 +144,11 @@ export function TryOn({
   const startLook = useStartLookFitting();
   const regenerate = useRegenerateFitting();
 
-  // The default photo is chosen until another is (A63.4).
+  // The default photo is chosen until another is (A63.4) or none is.
   const chosen =
-    chosenId ?? photos.data?.find((photo) => photo.isDefault)?.id ?? photos.data?.[0]?.id ?? null;
+    chosenId === undefined
+      ? (photos.data?.find((photo) => photo.isDefault)?.id ?? photos.data?.[0]?.id ?? null)
+      : chosenId;
 
   // The one-time photos go with the window, every one uploaded here.
   const transientsRef = useRef<UserPhoto[]>([]);
@@ -276,6 +280,13 @@ export function TryOn({
   function toRoom(slot?: OutfitSlot) {
     onClose();
     openRoom({ slot });
+  }
+
+  // «Примерить на другом фото»: the picker with the empty zone and no photo chosen (spec 0024
+  // AC17), so «Примерить» waits for a choice.
+  function pickOtherPhoto() {
+    setChosenId(null);
+    setPicking(true);
   }
 
   const pickerProps = {
@@ -442,7 +453,7 @@ export function TryOn({
         onStarted={startedColour}
         onRegenerated={(next) => started(next)}
         onLimit={reachedLimit}
-        onOtherPhoto={() => setPicking(true)}
+        onOtherPhoto={pickOtherPhoto}
         slot={slot}
       />
     );
@@ -462,7 +473,7 @@ export function TryOn({
         onStarted={startedColour}
         onRegenerated={(next) => started(next)}
         onLimit={reachedLimit}
-        onOtherPhoto={() => setPicking(true)}
+        onOtherPhoto={pickOtherPhoto}
         slot={slot}
       />
     );

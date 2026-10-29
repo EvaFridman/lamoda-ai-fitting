@@ -880,8 +880,10 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   is a dashed area a click on which picks a file, «Загрузить фото» (under `COARSE_POINTER_QUERY`
   it and «Сделать фото» as two white tiles, Y21) and the save switch at its bottom; with a photo
   chosen, `replace` is
-  «Заменить фото» under the frame, whose window (a `Sheet` on a phone) holds the saved photos, the
-  pickers, the switch and «Перейти в «Мои фото»». «Мои фото» keeps `card` and `buttons`, the
+  «Заменить фото» under the frame, whose window (a `Sheet` on a phone) holds the photos but the
+  chosen one, the pickers and the switch (spec 0024 AC16). The first open chooses the default
+  photo; «Примерить на другом фото» chooses none, so the zone is empty, «Примерить» waits and
+  «Заменить фото» stays under it while there are photos to pick (AC17). «Мои фото» keeps `card` and `buttons`, the
   camera, as in the try-on, only under `COARSE_POINTER_QUERY` (Y23). `/privacy` says the photos go to OpenAI and are not used for
   training (A46). The screens follow the canvas's boards 4, 5 and 10 (A63.8): `PhotoTips` draws
   the canvas's seven example pictures as inline SVG components (`ui/pictograms.tsx`, web keeps no
@@ -947,8 +949,8 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   account's are the zone `account` (spec 0017 U14), the catalog page's the zone `catalog` (spec
   0014 plan §3.6, O97–O103), the fitting photos' the zone `fitting`, area `photos` (spec 0019
   plan §9, A60; `Photo Uploaded`'s and `Photo Refused`'s `source` `drop`, spec 0023 Y11), the
-  picker's area `try-on` (`try-on.replace-photo`, `.my-photos`, `.favourite` by `kind`, spec 0023
-  Y11), the product page's the zone `product` (areas `buy-box` and `related`, seven
+  picker's area `try-on` (`try-on.replace-photo`, `.favourite` by `kind`, spec 0023
+  Y11; `.my-photos` removed, spec 0024 Z25), the product page's the zone `product` (areas `buy-box` and `related`, seven
   elements with the row's arrows `related.scroll`, A87.8, and `buy-box.to-look`, `related.to-look`,
   A90.9, and `gallery`, the photos' `gallery.photo` by `position`, spec 0023 Y11), the fitting room's the zone `fitting`, area `room` (`room.open`, `.remove`, `.undo`,
   `.fill`, `.clear`, `.add-to-cart-all`, A90.9, `.try-on`, T26, `.favourite`, spec 0023 P12; `.open`'s `source` `picker` and

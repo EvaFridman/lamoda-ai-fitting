@@ -758,7 +758,7 @@ export const catalog = defineCatalog({
       zone: 'fitting',
       type: 'interaction',
       description:
-        'Сохранённое фото в окне «Заменить фото»: выбирает его для примерки и закрывает окно. `is_default` — фото по умолчанию.',
+        'Фото в окне «Заменить фото» (выбранного для примерки там нет): выбирает его для примерки и закрывает окно. `is_default` — фото по умолчанию.',
       clicksPerVisit: 0.01,
       hoversPerVisit: 0.01,
       properties: { is_default: { kind: 'boolean' } },
@@ -767,17 +767,9 @@ export const catalog = defineCatalog({
       zone: 'fitting',
       type: 'interaction',
       description:
-        '«Заменить фото» под выбранным фото: открывает окно с сохранёнными фото, загрузкой нового и ссылкой на «Мои фото».',
+        '«Заменить фото» под выбранным фото (или под пустой зоной после «Примерить на другом фото», пока есть фото): открывает окно с остальными фото и загрузкой нового.',
       clicksPerVisit: 0.01,
       hoversPerVisit: 0.008,
-    },
-    'try-on.my-photos': {
-      zone: 'fitting',
-      type: 'navigation',
-      description:
-        '«Перейти в «Мои фото»» в окне «Заменить фото»: уходит со страницы на «Мои фото», окно примерки закрывается.',
-      clicksPerVisit: 0.002,
-      hoversPerVisit: 0.002,
     },
     'try-on.favourite': {
       zone: 'fitting',
@@ -902,7 +894,8 @@ export const catalog = defineCatalog({
     'result.other-photo': {
       zone: 'fitting',
       type: 'interaction',
-      description: '«Примерить на другом фото»: назад к выбору фото в том же окне.',
+      description:
+        '«Примерить на другом фото»: назад к выбору фото в том же окне, с пустой зоной загрузки и без выбранного фото.',
       clicksPerVisit: 0.002,
       hoversPerVisit: 0.002,
     },

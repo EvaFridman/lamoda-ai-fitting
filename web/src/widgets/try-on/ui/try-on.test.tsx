@@ -324,26 +324,51 @@ describe('TryOn picker', () => {
       expect(screen.queryByRole('button', { name: /^Фото \d/ })).not.toBeInTheDocument();
     });
 
-    it('opens a window with the saved photos, the switch and the link to «Мои фото»', async () => {
+    it('lists the saved photos but the chosen one, with the switch and no link to «Мои фото» (AC16)', async () => {
       const user = setup();
       renderTryOn({ productId: PRODUCT });
 
       const dialog = await openReplace(user);
 
-      expect(within(dialog).getByRole('button', { name: 'Фото 2, по умолчанию' })).toHaveAttribute(
+      expect(within(dialog).getByRole('button', { name: 'Фото 1' })).not.toHaveAttribute(
         'aria-pressed',
-        'true',
       );
-      expect(within(dialog).getByRole('button', { name: 'Фото 1' })).toHaveAttribute(
-        'aria-pressed',
-        'false',
-      );
+      expect(
+        within(dialog).queryByRole('button', { name: 'Фото 2, по умолчанию' }),
+      ).not.toBeInTheDocument();
       expect(within(dialog).getByRole('switch', { name: /Сохранить фото/ })).toBeChecked();
       expect(within(dialog).getByRole('button', { name: 'Загрузить фото' })).toBeEnabled();
-      expect(within(dialog).getByRole('link', { name: 'Перейти в «Мои фото»' })).toHaveAttribute(
-        'href',
-        '/customer/photos',
+      expect(within(dialog).queryByRole('link')).not.toBeInTheDocument();
+      expect(screen.queryByText('Перейти в «Мои фото»')).not.toBeInTheDocument();
+    });
+
+    it('swaps the list after choosing another photo: the old one appears, the new one goes (AC16)', async () => {
+      const user = setup();
+      renderTryOn({ productId: PRODUCT });
+      let dialog = await openReplace(user);
+      await user.click(within(dialog).getByRole('button', { name: 'Фото 1' }));
+      await vi.waitFor(() =>
+        expect(screen.queryByRole('dialog', { name: 'Заменить фото' })).toBeNull(),
       );
+
+      dialog = await openReplace(user);
+
+      expect(
+        within(dialog).getByRole('button', { name: 'Фото 2, по умолчанию' }),
+      ).toBeInTheDocument();
+      expect(within(dialog).queryByRole('button', { name: 'Фото 1' })).not.toBeInTheDocument();
+    });
+
+    it('shows only the pickers and the switch when the one saved photo is the chosen one (AC16)', async () => {
+      api.photos = [photo(PHOTO_B, { isDefault: true })];
+      const user = setup();
+      renderTryOn({ productId: PRODUCT });
+
+      const dialog = await openReplace(user);
+
+      expect(within(dialog).queryByRole('button', { name: /^Фото \d/ })).not.toBeInTheDocument();
+      expect(within(dialog).getByRole('button', { name: 'Загрузить фото' })).toBeEnabled();
+      expect(within(dialog).getByRole('switch', { name: /Сохранить фото/ })).toBeInTheDocument();
     });
 
     it('offers the camera in the window only on a touch device', async () => {
@@ -409,21 +434,6 @@ describe('TryOn picker', () => {
       expect(mocks.track).toHaveBeenCalledWith(
         'Element Clicked',
         expect.objectContaining({ element: 'try-on.replace-photo' }),
-      );
-    });
-
-    it('tracks the link to «Мои фото»', async () => {
-      const user = setup();
-      renderTryOn({ productId: PRODUCT });
-      const dialog = await openReplace(user);
-      const link = within(dialog).getByRole('link', { name: 'Перейти в «Мои фото»' });
-      link.addEventListener('click', (event) => event.preventDefault());
-
-      await user.click(link);
-
-      expect(mocks.track).toHaveBeenCalledWith(
-        'Element Clicked',
-        expect.objectContaining({ element: 'try-on.my-photos' }),
       );
     });
   });
@@ -528,6 +538,39 @@ describe('TryOn picker', () => {
         });
         expect(posts().some(({ path }) => path === '/api/me/photos')).toBe(true);
       });
+    });
+
+    it('lists a one-time photo after the saved ones only while it is not the chosen one (AC16)', async () => {
+      const user = setup();
+      renderTryOn({ productId: PRODUCT });
+      const image = await screen.findByRole('img', { name: 'Ваше фото' });
+      await vi.waitFor(() => {
+        fireEvent.drop(image, {
+          dataTransfer: {
+            files: [new File(['x'], 'once.jpg', { type: 'image/jpeg' })],
+            types: ['Files'],
+          },
+        });
+        expect(screen.getByRole('img', { name: 'Ваше фото' })).toHaveAttribute(
+          'src',
+          expect.stringContaining(ONE_TIME),
+        );
+      });
+
+      const openReplace = async () => {
+        await user.click(await screen.findByRole('button', { name: 'Заменить фото' }));
+        return screen.findByRole('dialog', { name: 'Заменить фото' });
+      };
+      let dialog = await openReplace();
+      expect(within(dialog).queryByRole('button', { name: 'Фото 3' })).not.toBeInTheDocument();
+      await user.click(within(dialog).getByRole('button', { name: 'Фото 1' }));
+      await vi.waitFor(() =>
+        expect(screen.queryByRole('dialog', { name: 'Заменить фото' })).toBeNull(),
+      );
+
+      dialog = await openReplace();
+      expect(within(dialog).getByRole('button', { name: 'Фото 3' })).toBeInTheDocument();
+      expect(within(dialog).queryByRole('button', { name: 'Фото 1' })).not.toBeInTheDocument();
     });
 
     it('asks a user with no stored consents for them first, then uploads with consent=1 (AC19)', async () => {
@@ -1325,6 +1368,42 @@ describe('TryOn with a fitting', () => {
     expect(screen.queryByText(/Сохранено в/)).not.toBeInTheDocument();
   });
 
+  it('shows the empty zone with nothing chosen, then enables «Примерить» once a photo is chosen (AC17)', async () => {
+    api.fittings.set(
+      RUNNING,
+      fitting({
+        status: 'completed',
+        stage: 'done',
+        resultUrl: 'https://s3.test/keep/users/u/result.webp?X-Amz-Signature=abc',
+        finishedAt: DATE,
+      }),
+    );
+    const user = setup();
+    renderTryOn({ fittingId: RUNNING });
+
+    await user.click(await screen.findByRole('button', { name: 'Примерить на другом фото' }));
+
+    expect(
+      await screen.findByText('Загрузите фото в полный рост: один человек в кадре'),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: 'Ваше фото' })).not.toBeInTheDocument();
+    expect(start()).toBeDisabled();
+
+    await user.click(await screen.findByRole('button', { name: 'Заменить фото' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Заменить фото' });
+    expect(within(dialog).getByRole('button', { name: 'Фото 1' })).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole('button', { name: 'Фото 2, по умолчанию' }),
+    ).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Фото 1' }));
+
+    await vi.waitFor(() => expect(start()).toBeEnabled());
+    expect(screen.getByRole('img', { name: 'Ваше фото' })).toHaveAttribute(
+      'src',
+      expect.stringContaining(PHOTO_A),
+    );
+  });
+
   it('shows the text of a fitting that cannot be read, with a way back to the picker', async () => {
     renderTryOn({ fittingId: NEXT });
 
@@ -1353,6 +1432,9 @@ describe('TryOn with a fitting', () => {
     renderTryOn({ fittingId: RUNNING });
     await screen.findByRole('heading', { name: 'Примерить другой цвет' });
     await user.click(screen.getByRole('button', { name: 'Примерить на другом фото' }));
+    await user.click(await screen.findByRole('button', { name: 'Заменить фото' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Заменить фото' });
+    await user.click(within(dialog).getByRole('button', { name: 'Фото 1' }));
     await vi.waitFor(() => expect(start()).toBeEnabled());
 
     await user.click(start());

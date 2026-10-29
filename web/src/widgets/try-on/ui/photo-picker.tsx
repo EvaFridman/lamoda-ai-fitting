@@ -14,17 +14,15 @@ import styles from './photo-picker.module.scss';
 // At most five saved photos (spec 0019 A31): past them a new photo is a one-time one.
 const MAX_SAVED_PHOTOS = 5;
 
-// A saved photo of «Заменить фото»'s window: choosing it, its click and hover tracked with whether
-// it is the default.
+// A photo of «Заменить фото»'s window, never the chosen one: choosing it, its click and hover
+// tracked with whether it is the default.
 function StripThumb({
   photo,
   position,
-  chosen,
   onChoose,
 }: {
   photo: UserPhoto;
   position: number;
-  chosen: boolean;
   onChoose: () => void;
 }) {
   const tracked = useTrackedElement('try-on.photo', { is_default: photo.isDefault });
@@ -32,7 +30,6 @@ function StripThumb({
     <button
       type="button"
       className={styles.thumb}
-      aria-pressed={chosen}
       aria-label={photo.isDefault ? `Фото ${position}, по умолчанию` : `Фото ${position}`}
       onClick={() => {
         tracked.onClick();
@@ -43,24 +40,6 @@ function StripThumb({
     >
       <PhotoThumb photo={photo} alt="" className={styles.thumbImage} />
     </button>
-  );
-}
-
-// «Перейти в «Мои фото»» (spec 0023 Y4): it leaves the page, so the window's one-time photos go as
-// when it closes.
-function MyPhotosLink() {
-  const tracked = useTrackedElement('try-on.my-photos');
-  return (
-    <Link
-      href="/customer/photos"
-      variant="secondary"
-      className={styles.myPhotos}
-      onClick={tracked.onClick}
-      onPointerEnter={tracked.onPointerEnter}
-      onPointerLeave={tracked.onPointerLeave}
-    >
-      Перейти в «Мои фото»
-    </Link>
   );
 }
 
@@ -103,7 +82,8 @@ export interface PhotoPickerProps {
   // A one-time photo uploaded here, not among the saved ones.
   transient: UserPhoto | null;
   onTransient: (photo: UserPhoto) => void;
-  // The chosen photo's id: the default one until another is chosen (A63.4).
+  // The chosen photo's id: the default one until another is chosen (A63.4); null none (no photos
+  // yet, or none after «Примерить на другом фото», spec 0024 AC17).
   chosenId: string | null;
   onChoose: (id: string) => void;
   quota: FittingQuota | undefined;
@@ -111,7 +91,9 @@ export interface PhotoPickerProps {
 
 // Board 3, the photo picker (spec 0019 AC3, AC5, AC6, A62; spec 0023 P3–P9, P25): the try-on's
 // frame (P24) holds the chosen photo, whole, with «Ваше фото, видите только вы», and under it
-// «Заменить фото», whose window picks a saved photo or uploads another; with none it is the drop
+// «Заменить фото», whose window picks another photo or uploads one (spec 0024 AC16; with none
+// chosen, after «Примерить на другом фото», it stays under the zone while there are photos to
+// pick, AC17); with none it is the drop
 // zone, with «Загрузить фото», the camera on a touch device and the switch «Сохранить фото для
 // следующих примерок» at its bottom. A file dropped on the frame uploads either way. Beside it the item, the
 // month's meter and «Примерить». A new photo shows dimmed while it uploads (3.3) and is chosen
@@ -137,6 +119,10 @@ export function PhotoPicker({
   const chosen =
     (transient && transient.id === chosenId ? transient : undefined) ??
     saved.find((photo) => photo.id === chosenId);
+  // «Заменить фото»'s list: every photo but the chosen one (spec 0024 AC16), numbered as uploaded.
+  const others = [...saved, ...(transient ? [transient] : [])]
+    .map((photo, index) => ({ photo, position: index + 1 }))
+    .filter(({ photo }) => photo.id !== chosenId);
   const left = quota?.left;
   const loading = photos === undefined && !photosFailed;
 
@@ -195,44 +181,28 @@ export function PhotoPicker({
             </UploadPhoto>
           )}
         </PhotoFrame>
-        {chosen && (
+        {(chosen || others.length > 0) && (
           <UploadPhoto
             {...uploadProps}
             appearance="replace"
             disabled={pendingFile !== null}
-            thumbs={(close) => (
-              <>
-                {saved.map((photo, index) => (
-                  <StripThumb
-                    key={photo.id}
-                    photo={photo}
-                    position={index + 1}
-                    chosen={photo.id === chosenId}
-                    onChoose={() => {
-                      onChoose(photo.id);
-                      close();
-                    }}
-                  />
-                ))}
-                {transient && (
-                  <StripThumb
-                    photo={transient}
-                    position={saved.length + 1}
-                    chosen={transient.id === chosenId}
-                    onChoose={() => {
-                      onChoose(transient.id);
-                      close();
-                    }}
-                  />
-                )}
-              </>
-            )}
-            extra={
-              <>
-                {saveSwitch}
-                <MyPhotosLink />
-              </>
+            thumbs={
+              others.length > 0
+                ? (close) =>
+                    others.map(({ photo, position }) => (
+                      <StripThumb
+                        key={photo.id}
+                        photo={photo}
+                        position={position}
+                        onChoose={() => {
+                          onChoose(photo.id);
+                          close();
+                        }}
+                      />
+                    ))
+                : undefined
             }
+            extra={saveSwitch}
           />
         )}
       </div>

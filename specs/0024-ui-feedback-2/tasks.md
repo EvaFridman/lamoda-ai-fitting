@@ -68,7 +68,7 @@ same release); PR 4 the closing, which records the owner's checks on the deploye
       Check: `look-result.test.tsx`, `look-item-row.test.tsx`, `try-on-look.test.tsx`,
       `fitting-room-drawer.test.tsx`. Commit:
       `feat(web): look result in one layout, «Заменить» on the item cards`.
-- [ ] **T12. The picker's removals (plan §2.10; AC16, AC17).** The replace list without the chosen
+- [x] **T12. The picker's removals (plan §2.10; AC16, AC17).** The replace list without the chosen
       photo, no «Перейти в «Мои фото»» (`try-on.my-photos` removed from the catalog), «Примерить
       на другом фото» with nothing preselected; `try-on.replace-photo`, `try-on.photo`,
       `result.other-photo` descriptions. Check: `try-on.test.tsx`, `catalog.test.ts`. Commit:
