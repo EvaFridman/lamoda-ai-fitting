@@ -807,7 +807,7 @@ export const catalog = defineCatalog({
       zone: 'fitting',
       type: 'interaction',
       description:
-        'Закрытие окна примерки кнопкой: `wait` — «Закрыть и продолжить покупки» (на телефоне «Свернуть») во время ожидания, `error` — «Закрыть» на экране ошибки. Крестик и Esc не отслеживаются.',
+        'Закрытие окна примерки кнопкой: `wait` — «Закрыть и продолжить покупки» во время ожидания, `error` — «Закрыть» на экране ошибки. Крестик и Esc не отслеживаются.',
       clicksPerVisit: 0.01,
       hoversPerVisit: 0.005,
       properties: { screen: { kind: 'enum', values: ['wait', 'error'] } },

@@ -1,0 +1,54 @@
+// The wait's thumbnails at 3:4, 72×96 (spec 0024 Z7); five fit from 408px, the row scrolls below.
+
+.items {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  min-width: 0;
+}
+
+.row {
+  overflow-x: auto;
+  display: flex;
+  flex: none;
+  gap: var(--space-2);
+
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+
+  list-style: none;
+}
+
+.thumb {
+  position: relative;
+
+  overflow: hidden;
+  flex: none;
+
+  width: 72px;
+  height: 96px;
+
+  background-color: var(--color-background-secondary);
+
+  img {
+    object-fit: cover;
+  }
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.name {
+  font-size: var(--font-size-body-m);
+  line-height: var(--line-height-body-m);
+}
+
+.colour {
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  color: var(--color-text-secondary);
+}

@@ -1,6 +1,6 @@
 // Board 6: the loader (the try-on's frame, spec 0023 P24) left of the side column on a wide
 // screen; below 800px, as the picker and the result, the loader centred over the progress; on a
-// phone the note and «Свернуть» at the bottom.
+// phone the note and «Закрыть и продолжить покупки» at the bottom.
 
 .wait {
   display: flex;
@@ -37,34 +37,6 @@
   }
 }
 
-.item {
-  display: flex;
-  gap: var(--space-3);
-  align-items: center;
-}
-
-.itemImage {
-  position: relative;
-
-  overflow: hidden;
-  flex: none;
-
-  width: 48px;
-  height: 64px;
-
-  background-color: var(--color-background-secondary);
-
-  img {
-    object-fit: cover;
-  }
-}
-
-.itemName {
-  display: block;
-  font-size: var(--font-size-body-m);
-  line-height: var(--line-height-body-m);
-}
-
 .muted {
   display: block;
 
@@ -81,8 +53,11 @@
   gap: 10px;
 }
 
+// The stage and the percent never meet (spec 0024 AC15): a long stage wraps, the percent keeps its
+// width.
 .progressHead {
   display: flex;
+  gap: var(--space-3);
   align-items: baseline;
   justify-content: space-between;
 
@@ -98,7 +73,14 @@
 }
 
 .stepNow {
-  font-size: var(--font-size-body-m);
+  min-width: 0;
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  overflow-wrap: anywhere;
+}
+
+.percent {
+  flex: none;
 }
 
 .steps {

@@ -290,7 +290,7 @@ describe('TryOn picker', () => {
     expect(await screen.findByRole('dialog', { name: 'Онлайн-примерка' })).toBeInTheDocument();
     const chosen = await screen.findByRole('img', { name: 'Ваше фото' });
     expect(chosen).toHaveAttribute('src', expect.stringContaining(PHOTO_B));
-    expect(screen.getByText('Видите только вы')).toBeInTheDocument();
+    expect(screen.getByText('Ваше фото, видите только вы')).toBeInTheDocument();
     expect(await screen.findByText('Сарафан')).toBeInTheDocument();
     expect(await screen.findByText('Осталось 17 примерок в этом месяце')).toBeInTheDocument();
     expect(start()).toBeEnabled();
@@ -847,7 +847,7 @@ describe('TryOn with a fitting', () => {
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Хотите что-то поменять в образе?' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Примерить на другом фото' })).toBeInTheDocument();
-    expect(screen.getByText('Осталось 17')).toBeInTheDocument();
+    expect(screen.getByText('Осталось 17 в этом месяце')).toBeInTheDocument();
   });
 
   describe('«К образу» of the result (A90.11, AC13, AC16)', () => {
@@ -1178,7 +1178,9 @@ describe('TryOn with a fitting', () => {
     expect(
       await screen.findByRole('heading', { name: 'Не получилось примерить' }),
     ).toBeInTheDocument();
-    expect(await screen.findByText('Примерка не списана · осталось 17')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Примерка не списана · осталось 17 в этом месяце'),
+    ).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Попробовать ещё раз' }));
 

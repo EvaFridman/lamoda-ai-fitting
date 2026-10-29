@@ -61,10 +61,12 @@ export function LookItemRow({ item, disabled, onColour }: LookItemRowProps) {
           colours.length === 1 && <span className={styles.muted}>один цвет</span>
         )}
       </div>
-      <CartStubButton size={32} textSize="body-s" className={styles.rowCart} events={cartElement}>
-        В корзину
-      </CartStubButton>
-      <FavoriteStub size={32} />
+      <span className={styles.rowActions}>
+        <CartStubButton size={32} textSize="body-s" events={cartElement}>
+          В корзину
+        </CartStubButton>
+        <FavoriteStub size={32} />
+      </span>
     </div>
   );
 }

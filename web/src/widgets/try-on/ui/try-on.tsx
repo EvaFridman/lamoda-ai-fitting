@@ -332,7 +332,7 @@ export function TryOn({
               <Skeleton height={48} />
             )
           }
-          meterText={(left) => `Образ целиком — 1 примерка · осталось ${left}`}
+          meterText={(left) => `Образ целиком — 1 примерка · осталось ${left} в этом месяце`}
           renderStart={(photoId, onError) => (
             <StartLookButton
               photoId={photoId}

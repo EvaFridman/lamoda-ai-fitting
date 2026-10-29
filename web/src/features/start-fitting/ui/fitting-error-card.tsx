@@ -77,7 +77,7 @@ export function FittingErrorCard({
         <p className={styles.text}>{text.text}</p>
         {!spent && (
           <Notice tone="success">
-            Примерка не списана{left === undefined ? '' : ` · осталось ${left}`}
+            Примерка не списана{left === undefined ? '' : ` · осталось ${left} в этом месяце`}
           </Notice>
         )}
         {error && (

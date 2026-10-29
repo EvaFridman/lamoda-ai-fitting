@@ -51,7 +51,7 @@ same release); PR 4 the closing, which records the owner's checks on the deploye
 - [x] **T8. The room's accessory chip and wishes field (plan §2.6; AC10).** Check:
       `outfit-slot.test.tsx`, `fitting-room-drawer.test.tsx`. Commit:
       `feat(web): accessory slot's «скоро», taller wishes field`.
-- [ ] **T9. The window's texts and alignments (plan §2.7; AC11, AC15).** «Ваше фото, видите
+- [x] **T9. The window's texts and alignments (plan §2.7; AC11, AC15).** «Ваше фото, видите
       только вы», «в этом месяце» everywhere, the item cards' actions at the top, the wait screen's
       text sizes, `WaitItems` 72×96 and the one button text (`try-on.close`'s description). Check:
       `try-on.test.tsx`, `try-on-look.test.tsx`, `fitting-wait.test.tsx`, `limit-meter.test.tsx`,

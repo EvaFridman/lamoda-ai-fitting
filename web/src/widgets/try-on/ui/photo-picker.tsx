@@ -110,10 +110,10 @@ export interface PhotoPickerProps {
 }
 
 // Board 3, the photo picker (spec 0019 AC3, AC5, AC6, A62; spec 0023 P3–P9, P25): the try-on's
-// frame (P24) holds the chosen photo, whole, with «Видите только вы», and under it «Заменить фото»,
-// whose window picks a saved photo or uploads another; with none it is the drop zone, with
-// «Загрузить фото», the camera on a touch device and the switch «Сохранить фото для следующих
-// примерок» at its bottom. A file dropped on the frame uploads either way. Beside it the item, the
+// frame (P24) holds the chosen photo, whole, with «Ваше фото, видите только вы», and under it
+// «Заменить фото», whose window picks a saved photo or uploads another; with none it is the drop
+// zone, with «Загрузить фото», the camera on a touch device and the switch «Сохранить фото для
+// следующих примерок» at its bottom. A file dropped on the frame uploads either way. Beside it the item, the
 // month's meter and «Примерить». A new photo shows dimmed while it uploads (3.3) and is chosen
 // once stored; a refusal opens board 5 with the note that the try-on was not spent.
 export function PhotoPicker({
@@ -151,7 +151,7 @@ export function PhotoPicker({
     save,
     refusalNote:
       left === undefined ? undefined : (
-        <Notice tone="success">Примерка не списана · осталось {left}</Notice>
+        <Notice tone="success">Примерка не списана · осталось {left} в этом месяце</Notice>
       ),
     onPendingChange: setPendingFile,
     onUploaded: (photo: UserPhoto) => {
@@ -169,7 +169,7 @@ export function PhotoPicker({
         {chosen.url && <Image src={chosen.url} alt="Ваше фото" fill sizes="480px" unoptimized />}
         <span className={styles.private}>
           <LockIcon size={16} />
-          Видите только вы
+          Ваше фото, видите только вы
         </span>
       </>
     );

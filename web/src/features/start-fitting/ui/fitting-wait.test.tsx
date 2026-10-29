@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -57,6 +57,14 @@ function stubPhone() {
   }));
 }
 
+// The stages are the one ordered list; the items' pictures are a plain list.
+function stageTexts(): (string | null)[] {
+  const stages = screen.getAllByRole('list').find((list) => list.tagName === 'OL');
+  return within(stages as HTMLElement)
+    .getAllByRole('listitem')
+    .map((item) => item.textContent);
+}
+
 beforeEach(() => {
   track.mockReset();
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] });
@@ -81,8 +89,7 @@ describe('FittingWait', () => {
   it('lists the stages of the wide screen: the first done, the current one named for the item', () => {
     render(<FittingWait fitting={fitting()} photoUrl={null} onClose={vi.fn()} />);
 
-    const steps = screen.getAllByRole('listitem').map((item) => item.textContent);
-    expect(steps).toEqual([
+    expect(stageTexts()).toEqual([
       'Проверили фото',
       'Определяем позу и фигуру',
       'Надеваем сарафан на бретелях',
@@ -97,8 +104,7 @@ describe('FittingWait', () => {
       vi.advanceTimersByTime(8000);
     });
 
-    const steps = screen.getAllByRole('listitem').map((item) => item.textContent);
-    expect(steps).toEqual([
+    expect(stageTexts()).toEqual([
       'Проверили фото',
       'Определили позу и фигуру',
       'Надеваем сарафан на бретелях',
@@ -111,7 +117,7 @@ describe('FittingWait', () => {
       vi.advanceTimersByTime(8000);
     });
 
-    expect(screen.getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+    expect(stageTexts()).toEqual([
       'Проверили фото',
       'Определили позу и фигуру',
       'Надели сарафан на бретелях',
@@ -194,34 +200,60 @@ describe('FittingWait', () => {
       expect(strip?.querySelectorAll('li')).toHaveLength(2);
     });
 
-    it('does not show the strip for a single fitting', () => {
+    it('shows all five items of a look with no «+N» cap', () => {
+      const items = [1, 2, 3, 4, 5].map((n) => lookItem(n, `Вещь ${n}`));
+      render(
+        <FittingWait
+          fitting={fitting({ kind: 'look', items })}
+          photoUrl={null}
+          onClose={vi.fn()}
+        />,
+      );
+
+      const strip = screen.getAllByRole('list').find((list) => list.querySelector('img'));
+      expect(strip?.querySelectorAll('img')).toHaveLength(5);
+      expect(screen.queryByText(/^\+\d/)).not.toBeInTheDocument();
+    });
+
+    it('shows one picture, not a strip, for a single fitting', () => {
       render(<FittingWait fitting={fitting()} photoUrl={null} onClose={vi.fn()} />);
 
-      expect(screen.getAllByRole('list')).toHaveLength(1);
+      const pictures = screen
+        .getAllByRole('list')
+        .filter((list) => list.tagName === 'UL' && list.querySelector('img'));
+      expect(pictures).toHaveLength(1);
+      expect(pictures[0]?.querySelectorAll('img')).toHaveLength(1);
     });
   });
 
   describe('on a phone', () => {
     beforeEach(stubPhone);
 
-    it('shows the current stage alone, with «Свернуть» in place of the long button', () => {
+    it('shows the current stage alone, with the same «Закрыть и продолжить покупки» button', () => {
       render(<FittingWait fitting={fitting()} photoUrl={null} onClose={vi.fn()} />);
 
       expect(screen.getByText('Определяем позу и фигуру')).toBeInTheDocument();
-      expect(screen.queryByRole('list')).not.toBeInTheDocument();
       expect(screen.queryByText('Примеряем…')).not.toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Свернуть' })).toBeInTheDocument();
-      expect(
-        screen.queryByRole('button', { name: 'Закрыть и продолжить покупки' }),
-      ).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Закрыть и продолжить покупки' })).toBeEnabled();
+      expect(screen.queryByRole('button', { name: 'Свернуть' })).not.toBeInTheDocument();
     });
 
-    it('closes the window from «Свернуть»', async () => {
+    it('shows the single item with its name and colour as on a wide screen', () => {
+      render(<FittingWait fitting={fitting()} photoUrl={null} onClose={vi.fn()} />);
+
+      expect(screen.getByText('Сарафан на бретелях')).toBeInTheDocument();
+      expect(screen.getByText('Красный')).toBeInTheDocument();
+      expect(screen.getAllByRole('list')).toHaveLength(1);
+    });
+
+    it('closes the window from «Закрыть и продолжить покупки»', async () => {
       vi.useRealTimers();
       const onClose = vi.fn();
       render(<FittingWait fitting={fitting()} photoUrl={null} onClose={onClose} />);
 
-      await userEvent.setup().click(screen.getByRole('button', { name: 'Свернуть' }));
+      await userEvent
+        .setup()
+        .click(screen.getByRole('button', { name: 'Закрыть и продолжить покупки' }));
 
       expect(onClose).toHaveBeenCalledTimes(1);
     });
