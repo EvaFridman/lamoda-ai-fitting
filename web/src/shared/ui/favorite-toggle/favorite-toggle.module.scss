@@ -36,7 +36,7 @@
   // prefers-reduced-motion, where the duration tokens are 0. Only once the toggle is pressed: a
   // controlled one whose page refuses the press stays hollow and still.
   &[data-beating][data-pressed] .heart {
-    animation: heartbeat calc(var(--duration-slow) * 2) 1;
+    animation: heartbeat calc(var(--duration-slow) * 2) var(--ease-standard) 1;
   }
 
   @media (hover: hover) {

@@ -1,5 +1,6 @@
 // Lamoda's SideModal: 432px (636px wide) at the right edge, the full height of the window; it
-// slides in over 0.2s while the overlay darkens. Base UI sets data-starting-style and
+// slides in over --duration-long, easing in and out slowly (spec 0024 Z2), while the overlay
+// darkens. Base UI sets data-starting-style and
 // data-ending-style while it slides, and --drawer-swipe-movement-x while a finger drags it.
 
 .backdrop {
@@ -9,7 +10,7 @@
 
   background-color: var(--color-overlay);
 
-  transition: opacity var(--duration-fast) ease-in;
+  transition: opacity var(--duration-long) var(--ease-standard);
 
   &[data-starting-style],
   &[data-ending-style] {
@@ -47,7 +48,7 @@
   background-color: var(--color-background);
   outline: none;
 
-  transition: transform var(--duration-fast) ease-in;
+  transition: transform var(--duration-long) var(--ease-standard);
 
   &[data-starting-style],
   &[data-ending-style] {
@@ -76,7 +77,8 @@
 }
 
 // The bottom sheet: the width of the window, as high as its content up to 48px under the top,
-// its top corners rounded 8px; it rises over 0.2s and a finger drags it down (--drawer-swipe-movement-y).
+// its top corners rounded 8px; it rises over --duration-long and a finger drags it down
+// (--drawer-swipe-movement-y).
 .viewportBottom {
   align-items: flex-end;
 }
@@ -124,7 +126,7 @@
   opacity: 0;
   background-color: var(--color-overlay);
 
-  transition: opacity var(--duration-fast) ease-in;
+  transition: opacity var(--duration-long) var(--ease-standard);
 }
 
 .bottom[data-nested-drawer-open]::after {

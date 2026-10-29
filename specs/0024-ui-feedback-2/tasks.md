@@ -25,7 +25,7 @@ same release); PR 4 the closing, which records the owner's checks on the deploye
 
 ## PR 2 · feat/0024-look-and-motion · part 1 (web)
 
-- [ ] **T2. One easing (plan §2.1; AC1, AC4).** `--ease-standard`, `--duration-long`, every
+- [x] **T2. One easing (plan §2.1; AC1, AC4).** `--ease-standard`, `--duration-long`, every
       movement on them (Drawer, Modal, Toast, Accordion, Switch, Checkbox, Chip, FavoriteToggle,
       ScrollRow), the Stylelint rule, `Tabs.Indicator`. Check: `npm --prefix web run lint:styles`,
       the kit's tests. Commit: `feat(web): one easing for every animation, a sliding tabs underline`.

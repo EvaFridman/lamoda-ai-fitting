@@ -59,7 +59,7 @@
 
 .chevron {
   flex: none;
-  transition: transform var(--duration-slow);
+  transition: transform var(--duration-slow) var(--ease-standard);
 
   .trigger[data-panel-open] & {
     transform: rotate(180deg);
@@ -69,7 +69,7 @@
 .panel {
   overflow: hidden;
   height: var(--accordion-panel-height);
-  transition: height var(--duration-slow) ease-in-out;
+  transition: height var(--duration-slow) var(--ease-standard);
 
   &[data-starting-style],
   &[data-ending-style] {

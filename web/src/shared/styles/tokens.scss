@@ -137,6 +137,15 @@
   --duration-fast: 0.2s;
   --duration-slow: 0.3s;
 
+  // A bottom sheet's and a side drawer's slide (spec 0024 Z2).
+  --duration-long: 0.4s;
+
+  // Every movement (a transform, a height, a position or a size) eases in and out slowly alike
+  // (spec 0024 Z2); colour changes and opacity-only fades keep `ease`, endless loops `linear`. The
+  // one fade on it is the drawer's overlay, which darkens in step with the slide. Stylelint
+  // refuses `cubic-bezier(` and `ease-in`/`ease-out` literals in transitions and animations.
+  --ease-standard: cubic-bezier(0.45, 0, 0.55, 1);
+
   // Layers: Base UI portals render into <body>, so a popup needs a z-index above the page
   // (Lamoda's filter popover sits at 30). Added with the first component that needs one (D11c).
   // Modals and drawers sit under popovers and tooltips, so a select or a hint inside a modal
@@ -158,5 +167,6 @@
   :root {
     --duration-fast: 0s;
     --duration-slow: 0s;
+    --duration-long: 0s;
   }
 }

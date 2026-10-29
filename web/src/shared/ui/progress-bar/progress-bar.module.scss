@@ -19,5 +19,5 @@
   background-color: var(--color-text);
 
   // The token is 0s under prefers-reduced-motion.
-  transition: width var(--duration-fast);
+  transition: width var(--duration-fast) var(--ease-standard);
 }

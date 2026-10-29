@@ -1,23 +1,25 @@
 // Lamoda's x-tabs-default: grey labels, black on hover and when active; the active label has a 2px
-// black border under it 6px below the text, the others a transparent one. 24px between labels
-// (16px for the small size), 16px from the labels to the panel. The large size is the kit's
-// headline-m, 24/28, not Lamoda's 24/32 (D7v). Base UI sets data-active and data-disabled on a
-// tab.
+// black line under it 6px below the text. 24px between labels (16px for the small size), 16px from
+// the labels to the panel. The large size is the kit's headline-m, 24/28, not Lamoda's 24/32
+// (D7v). Base UI sets data-active and data-disabled on a tab.
 
 .list {
+  position: relative;
+
   display: flex;
   flex-wrap: wrap;
   column-gap: var(--space-6);
+
   margin-bottom: var(--space-4);
 }
 
+// The 6px under the text and the line's 2px.
 .tab {
   cursor: pointer;
 
   margin: 0;
-  padding: 0 0 6px;
+  padding: 0 0 8px;
   border: 0;
-  border-bottom: 2px solid transparent;
 
   font: inherit;
   color: var(--color-text-secondary);
@@ -25,9 +27,7 @@
 
   background: none;
 
-  transition:
-    color var(--duration-fast),
-    border-color var(--duration-fast);
+  transition: color var(--duration-fast);
 
   &:focus-visible {
     outline: 2px solid var(--color-border-active);
@@ -36,7 +36,6 @@
 
   &[data-active] {
     cursor: default;
-    border-bottom-color: var(--color-border-active);
     color: var(--color-text);
   }
 
@@ -50,6 +49,34 @@
       color: var(--color-text);
     }
   }
+}
+
+// The line under the active tab (Base UI's Tabs.Indicator, which sets these variables from the
+// active tab's box) slides from the old tab to the new one (spec 0024 AC4); from its top too, so a
+// wrapped row keeps it under its tab. Base UI shows it only after measuring, so it does not slide
+// in on mount; a resize or the font's swap re-measures it and glides it to the new box.
+.indicator {
+  pointer-events: none;
+
+  position: absolute;
+  top: calc(var(--active-tab-top) + var(--active-tab-height) - 2px);
+  left: var(--active-tab-left);
+
+  width: var(--active-tab-width);
+  height: 2px;
+
+  background-color: var(--color-border-active);
+
+  transition:
+    top var(--duration-slow) var(--ease-standard),
+    left var(--duration-slow) var(--ease-standard),
+    width var(--duration-slow) var(--ease-standard);
+}
+
+// Until it is measured (the server's HTML, before hydration) Base UI renders it hidden: the active
+// tab draws the line itself meanwhile, in the same place.
+.list:has(> .indicator[hidden]) .tab[data-active] {
+  box-shadow: inset 0 -2px var(--color-border-active);
 }
 
 .panel:focus-visible {

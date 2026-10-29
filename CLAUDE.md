@@ -839,7 +839,15 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   `SavedPhotoCard`'s `makeDefaultEvents`, `HistoryCard`'s `openEvents`, `StoresMap`'s
   `pinEvents`, `Gallery`'s `photoEvents` (by index, from `useTrackedElements`, which gives the
   props of any number of copies of one element by their properties). The kit's `Tabs` with no `panel` on its items only switch: the page shows what they
-  choose (the stores page's list and map, spec 0022 X25).
+  choose (the stores page's list and map, spec 0022 X25); their underline is Base UI's
+  `Tabs.Indicator`, sliding from the old tab to the new one (the active tab draws it until it is
+  measured, spec 0024 AC4).
+  Motion (spec 0024 Z2): every movement (a transform, a height, a position, a size) takes
+  `var(--ease-standard)` (`shared/styles/tokens.scss`, slow at both ends) and one of
+  `--duration-fast`, `--duration-slow` or `--duration-long` (a bottom sheet's and a side drawer's
+  slide, their overlay in step), all three 0 under `prefers-reduced-motion`; colour changes and
+  opacity-only fades keep `ease`, endless loops `linear`. Stylelint (`.stylelintrc.json`) refuses
+  `cubic-bezier(` and `ease-in`/`ease-out` literals in transitions and animations.
 
 - `web` photos (spec 0019 plan §7): `entities/user-photo` reads `GET /me/photos` in the browser
   (`useMyPhotos`) under `userPhotoKeys.all`, which starts with `userKeys.all`, so a session's end

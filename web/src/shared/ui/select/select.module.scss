@@ -72,7 +72,7 @@
 .icon {
   display: flex;
   flex-shrink: 0;
-  transition: transform var(--duration-fast);
+  transition: transform var(--duration-fast) var(--ease-standard);
 
   .trigger[data-popup-open] & {
     transform: rotate(180deg);
