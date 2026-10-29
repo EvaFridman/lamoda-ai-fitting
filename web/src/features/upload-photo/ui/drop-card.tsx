@@ -17,8 +17,6 @@ export interface DropCardProps {
   // «Выбрать файл» (`dropCardClass.link`) with a mouse, the two tiles (`dropCardClass.tile`) on a
   // touch device.
   actions: ReactNode;
-  // Under the actions: the try-on's save switch.
-  extra?: ReactNode;
 }
 
 // The classes of the card's own controls: the button over the whole card, «Выбрать файл» and a
@@ -48,7 +46,6 @@ export function DropCard({
   disabled = false,
   area,
   actions,
-  extra,
 }: DropCardProps) {
   return (
     <div
@@ -71,7 +68,6 @@ export function DropCard({
         </p>
         <div className={touch ? styles.dropTiles : styles.dropActions}>{actions}</div>
       </div>
-      {extra && <div className={styles.dropExtra}>{extra}</div>}
       <p className={styles.dropFormats}>JPG, PNG, WebP, HEIC · до 20 МБ</p>
     </div>
   );

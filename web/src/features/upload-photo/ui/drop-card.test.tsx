@@ -51,23 +51,10 @@ describe('DropCard', () => {
     expect(card()).not.toHaveClass('dragging');
   });
 
-  it('renders the extra and the area', () => {
-    render(
-      <DropCard
-        actions={null}
-        extra={<span>Переключатель</span>}
-        area={<button aria-label="Вся карточка" />}
-      />,
-    );
+  it('renders the area', () => {
+    render(<DropCard actions={null} area={<button aria-label="Вся карточка" />} />);
 
-    expect(screen.getByText('Переключатель')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Вся карточка' })).toBeInTheDocument();
-  });
-
-  it('leaves out the extra block when there is none', () => {
-    const { container } = render(<DropCard actions={null} />);
-
-    expect(container.querySelector('.dropExtra')).toBeNull();
   });
 });
 

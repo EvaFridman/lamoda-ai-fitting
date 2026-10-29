@@ -22,12 +22,14 @@ import { useAnyColourChoice } from '@/entities/product';
 import { CartStubButton, FavoriteStub } from '@/features/product-stubs';
 import { RegenerateSheet } from '@/features/regenerate-fitting';
 import type { PendingFitting } from '@/features/start-fitting';
+import { SavePhotoSwitch } from '@/features/upload-photo';
 import { useTrackedElement } from '@/shared/analytics';
 import { FITTINGS_HREF, PHONE_QUERY } from '@/shared/config';
 import { formatPrice, useMediaQuery } from '@/shared/lib';
 import { Button, Notice, ProgressBar } from '@/shared/ui';
 
 import { RESULT_NOTE } from '../lib/result-note';
+import type { ResultPhotoProps } from '../model/result-photo';
 import type { StartIntent } from '../model/starting';
 import { itemsText } from './look-subject';
 import { LookItemRow } from './look-item-row';
@@ -70,11 +72,13 @@ export interface LookResultProps {
   onLimit: () => void;
   // An item's «Заменить»: the window closes and the room opens at that slot (spec 0024 Z8).
   onOpenRoom: (slot?: OutfitSlot) => void;
+  // The save switch's part of the window (spec 0024 AC22).
+  photo: ResultPhotoProps;
 }
 
 // Board 8, the result of a look (spec 0019 AC14, AC15, A62, A92), one markup on every width (spec
 // 0024 AC12): «N вещи · <date>», the picture with «Сохранено в «Мои примерки»» and its «!» (spec
-// 0023 Y7, spec 0024 AC13), three tiles, «Вещи образа» (each item with its price, colours and
+// 0023 Y7, spec 0024 AC13), three tiles, the save switch of a one-time photo (AC22), «Вещи образа» (each item with its price, colours and
 // «Заменить»; another colour regenerates the whole look on the same photo), then a block at the
 // column's bottom, level with the picture's on a wide window (AC14): the sum, the stub «Добавить
 // образ в корзину» with the heart (A33, spec 0023 P31, P32), «Хотите что-то поменять в образе?»
@@ -90,6 +94,7 @@ export function LookResult({
   onRegenerated,
   onLimit,
   onOpenRoom,
+  photo,
 }: LookResultProps) {
   const phone = useMediaQuery(PHONE_QUERY);
   const pictureRef = useRef<HTMLDivElement>(null);
@@ -166,6 +171,11 @@ export function LookResult({
       </div>
 
       <div className={styles.right}>
+        <SavePhotoSwitch
+          photoId={fitting.photoId}
+          photoTransient={fitting.photoTransient}
+          {...photo}
+        />
         <h3 className={styles.title}>Вещи образа</h3>
         {anyColourChoice && (
           <p className={styles.muted}>

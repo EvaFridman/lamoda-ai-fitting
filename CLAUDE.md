@@ -899,8 +899,8 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   upload off at five saved photos. A HEIC or HEIF (spec 0024 Z15, Z26.2) of at most that size is
   turned into a JPEG of at most 2048 px, the api's own bound, in the browser before the size check
   (`lib/heic.ts`: `libheif-js`'s `wasm-bundle`, about 2 MB, loaded by `import()` only when such a
-  file arrives, one decoder per tab, the zone saying «Готовим фото…» and the page's other pickers,
-  the save switch and «Примерить» off through `onBusyChange`; a failure or 30 s «Не удалось
+  file arrives, one decoder per tab, the zone saying «Готовим фото…» and the page's other pickers
+  and «Примерить» off through `onBusyChange`; a failure or 30 s «Не удалось
   прочитать HEIC — попробуйте JPG»), so the api still takes JPG, PNG and WebP only;
   the pickers' `accept` (`photoAccept`) names HEIC only under `MOUSE_QUERY`, since iOS converts
   itself when the input does not ask for it. Any other type is refused before the upload
@@ -914,11 +914,23 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   file (a pointer's only: out of the tab order and hidden from screen readers), the «+» circle
   about its middle and in its lower part «Загрузите своё фото», a hint line, the link «Выбрать файл» (under
   `COARSE_POINTER_QUERY` the tiles «Загрузить фото» and «Сделать фото», Y21, which «Заменить
-  фото»'s window shares), the save switch and «JPG, PNG, WebP, HEIC · до 20 МБ» at its bottom; a
+  фото»'s window shares) and «JPG, PNG, WebP, HEIC · до 20 МБ» at its bottom; a
   file dragged over it blackens its border and greys it (over a chosen photo, a dark veil with
   «Отпустите, чтобы загрузить»); with a photo chosen, `replace` is
   «Заменить фото» under the frame, whose window (a `Sheet` on a phone) holds the photos but the
-  chosen one, the pickers and the switch (spec 0024 AC16). The first open chooses the default
+  chosen one and the pickers (spec 0024 AC16). An upload in the window is a one-time photo
+  (`save=false`): both results show `SavePhotoSwitch` (`features/upload-photo`, spec 0024 AC22,
+  plan §4.2, Z12, Z29, Z42) «Сохранить фото для следующих примерок» at the top of the right
+  column for a photo of the window's `transients` or a fitting's `photoTransient` `true`, taken
+  once when the result opens; on by default, it keeps the photo then (`keepPhoto`, the keep's
+  `PUT`; a keep on its way is not deleted by the close either, and one whose unkeep is on its way
+  is left to the housekeeping), and the kept photo leaves
+  `transients`, so the close does not delete it; off, `unkeepPhoto` makes it a one-time one again,
+  back in `transients`, and declined for the window, so a later result on it (a colour, a
+  regeneration) shows the switch off and keeps nothing; both write the photo's kind into the
+  cached fittings; a 409 shows it off and
+  disabled with no text; `photoTransient` `null` or a 404 shows «Фото уже удалено», `false`
+  nothing. The first open chooses the default
   photo; «Примерить на другом фото» and the error's «Другое фото» choose none, so the zone is
   empty, «Примерить» waits and the same window stays under it as «Выбрать из сохранённых» (`replaceLabel`) while
   there are photos to pick (AC17, Z34, Z35). «Мои фото» keeps `card` and `buttons`, the
@@ -999,8 +1011,8 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   `compare.open`, `.add-to-cart`, `source: history`, A93.6), the result's `result.to-look`,
   `.item-colour`, `.add-to-cart-all`, `.add-to-cart`'s `kind` and
   `.regenerate`'s `with_item` (A94; a look's item chosen, its `reasons` and `result.reason`
-  gone, spec 0023 Y11) and `result.history` (the link of «Сохранено в «Мои
-  примерки»», spec 0023 Y7), the grid's hanger `catalog.to-look` in the zone
+  gone, spec 0023 Y11), `result.history` (the link of «Сохранено в «Мои
+  примерки»», spec 0023 Y7) and `result.save-photo` by `saved` (spec 0024 AC22), the grid's hanger `catalog.to-look` in the zone
   `catalog` (A90.9), the header's the zone `header` (areas `header` and
   `burger`: `header.burger`, `header.search`, `burger.category`, A87.8; `city`: `city.open` by
   `source` `header`, `burger` or `stores`, `city.pick`, `city.auto`, spec 0026 C13), the footer's

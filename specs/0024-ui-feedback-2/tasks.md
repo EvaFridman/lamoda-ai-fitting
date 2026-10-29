@@ -118,7 +118,7 @@ same release); PR 4 the closing, which records the owner's checks on the deploye
       `Fitting Started`'s description. Check: `try-on.test.tsx`, `try-on-look.test.tsx`,
       `fitting-wait.test.tsx`. Commit:
       `feat(web): the wait from the click, sticky «Примерить» on phones`.
-- [ ] **T20. The save switch on the result (plan §4.2; AC22).** No switch in the picker,
+- [x] **T20. The save switch on the result (plan §4.2; AC22).** No switch in the picker,
       `SavePhotoSwitch` on both results (shown by `transients` or `photoTransient`, Z42),
       `keepPhoto`/`unkeepPhoto`, `transients` kept in step (the fitting's schema's `photoTransient`
       came with T14a, Z43), `result.save-photo`, `Photo Uploaded.saved`'s description. Check:

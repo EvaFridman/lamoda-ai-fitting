@@ -18,12 +18,14 @@ import { CartStubButton, FavoriteStub } from '@/features/product-stubs';
 import { RegenerateSheet } from '@/features/regenerate-fitting';
 import type { PendingFitting } from '@/features/start-fitting';
 import { ColorTryOn, type TryColour } from '@/features/try-colour';
+import { SavePhotoSwitch } from '@/features/upload-photo';
 import { useTrackedElement } from '@/shared/analytics';
 import { FITTINGS_HREF, PHONE_QUERY } from '@/shared/config';
 import { useMediaQuery } from '@/shared/lib';
 import { Button, CheckIcon, HangerIcon, LinkButton, Select } from '@/shared/ui';
 
 import { RESULT_NOTE } from '../lib/result-note';
+import type { ResultPhotoProps } from '../model/result-photo';
 import type { StartIntent } from '../model/starting';
 import { ItemRow } from './item-row';
 import { ResultPicture, ResultTiles, useRunningProgress } from './result-media';
@@ -56,6 +58,8 @@ export interface FittingResultProps {
   onOtherPhoto: () => void;
   // The product's slot of the fitting room: `null` none (no tile), `undefined` not known yet.
   slot: OutfitSlot | null | undefined;
+  // The save switch's part of the window (spec 0024 AC22).
+  photo: ResultPhotoProps;
 }
 
 interface LookTileProps {
@@ -93,7 +97,7 @@ function LookTile({ product, slot, attributeValueId }: LookTileProps) {
 
 // Board 7, the result of one item (spec 0019 AC5, AC7, AC8, A62): its date, the picture with
 // «Сгенерировано ИИ», «Сохранено в «Мои примерки»» (spec 0023 Y7) and the caption under it, the tiles (the share disabled, A14; «К образу» into the fitting
-// room, A90.11), the item with the size select and the cart's and favourites' stubs (A33), the product's
+// room, A90.11), the save switch of a one-time photo (spec 0024 AC22), the item with the size select and the cart's and favourites' stubs (A33), the product's
 // other colours (A74, A76), «Хотите что-то поменять в образе?» with the sheet «Что поменять?»,
 // «Примерить на другом фото» and the month's meter. The picture is only an image's `src`, in an
 // `mp-block` container (A37).
@@ -112,6 +116,7 @@ export function FittingResult({
   onLimit,
   onOtherPhoto,
   slot,
+  photo,
 }: FittingResultProps) {
   const phone = useMediaQuery(PHONE_QUERY);
   const pictureRef = useRef<HTMLDivElement>(null);
@@ -184,6 +189,11 @@ export function FittingResult({
       </div>
 
       <div className={styles.right}>
+        <SavePhotoSwitch
+          photoId={fitting.photoId}
+          photoTransient={fitting.photoTransient}
+          {...photo}
+        />
         {item && (
           <div className={styles.item}>
             <ItemRow

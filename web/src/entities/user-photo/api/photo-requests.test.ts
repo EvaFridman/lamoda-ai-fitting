@@ -11,7 +11,9 @@ import { userPhotoKeys } from './keys';
 import {
   deletePhoto,
   deleteTransientPhoto,
+  keepPhoto,
   setDefaultPhoto,
+  unkeepPhoto,
   UPLOAD_TIMEOUT_MS,
   uploadPhoto,
 } from './photo-requests';
@@ -256,6 +258,53 @@ describe('deletePhoto', () => {
     fetchMock.mockRejectedValue(new TypeError('Failed to fetch'));
     await expect(deletePhoto(ID)).rejects.toMatchObject({ kind: 'network' });
     expect(Sentry.captureException).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('keepPhoto', () => {
+  it('sends PUT /api/me/photos/<id>/keep with no body and returns the photo', async () => {
+    fetchMock.mockResolvedValue(new Response(JSON.stringify(photo)));
+    await expect(keepPhoto(ID)).resolves.toEqual(photo);
+    const { url, init } = call();
+    expect(url.pathname).toBe(`/api/me/photos/${ID}/keep`);
+    expect(init.method).toBe('PUT');
+    expect(init.body).toBeUndefined();
+  });
+
+  it('fails with 409 LIMIT_REACHED at five saved photos', async () => {
+    fetchMock.mockResolvedValue(errorResponse(409, 'LIMIT_REACHED'));
+    await expect(keepPhoto(ID)).rejects.toMatchObject({ status: 409, code: 'LIMIT_REACHED' });
+  });
+
+  it('fails as schema when the answer is not a photo', async () => {
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ id: 1 })));
+    await expect(keepPhoto(ID)).rejects.toMatchObject({ kind: 'schema' });
+  });
+
+  it('refuses an id that is not one path segment, before any request', () => {
+    expect(() => keepPhoto('..')).toThrow(ApiError);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('unkeepPhoto', () => {
+  it('sends DELETE /api/me/photos/<id>/keep and resolves undefined on 204', async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+    await expect(unkeepPhoto(ID)).resolves.toBeUndefined();
+    const { url, init } = call();
+    expect(url.pathname).toBe(`/api/me/photos/${ID}/keep`);
+    expect(init.method).toBe('DELETE');
+    expect(init.body).toBeUndefined();
+  });
+
+  it('fails with 404 for a missing photo', async () => {
+    fetchMock.mockResolvedValue(errorResponse(404, 'NOT_FOUND'));
+    await expect(unkeepPhoto(ID)).rejects.toMatchObject({ kind: 'http', status: 404 });
+  });
+
+  it('refuses an id that is not one path segment, before any request', () => {
+    expect(() => unkeepPhoto('..')).toThrow(ApiError);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
 

@@ -225,6 +225,9 @@ function route(url: string, init?: RequestInit): Response {
   }
   if (pathname === '/api/me/photos' && method === 'GET') return json(200, api.photos);
   if (pathname.startsWith('/api/me/photos/transient/')) return new Response(null, { status: 204 });
+  const keep = /^\/api\/me\/photos\/([^/]+)\/keep$/.exec(pathname);
+  if (keep?.[1] && method === 'PUT') return json(200, photo(keep[1], { isDefault: true }));
+  if (keep && method === 'DELETE') return new Response(null, { status: 204 });
   if (pathname === '/api/me/fitting-quota') return json(200, api.quota);
   if (pathname === '/api/me/fitting-room' && method === 'GET') return json(200, api.room);
   if (pathname === '/api/categories') {
@@ -1184,6 +1187,34 @@ describe('TryOn of a look: the optimistic start (AC19)', () => {
       expect(await limitHeading()).toBeVisible();
       expect(screen.queryByRole('dialog', { name: 'Что поменять?' })).not.toBeInTheDocument();
     });
+  });
+});
+
+describe('TryOn of a look: the result’s save switch (spec 0024 AC22)', () => {
+  const keeps = (method: string) =>
+    fetchMock.mock.calls.filter(
+      ([url, init]) =>
+        new URL(String(url)).pathname.endsWith('/keep') && (init as RequestInit)?.method === method,
+    );
+
+  it('shows the switch on and keeps the photo of a look opened on a one-time photo', async () => {
+    showResult(look({ photoTransient: true }));
+    renderTryOn({ fittingId: RESULT });
+
+    const control = await screen.findByRole('switch', { name: /Сохранить фото/ });
+
+    expect(control).toBeChecked();
+    await vi.waitFor(() => expect(keeps('PUT')).toHaveLength(1));
+    expect(new URL(String(keeps('PUT')[0]?.[0])).pathname).toBe(`/api/me/photos/${PHOTO_A}/keep`);
+  });
+
+  it('shows no switch for a look on a saved photo', async () => {
+    showResult(look({ photoTransient: false }));
+    renderTryOn({ fittingId: RESULT });
+    await screen.findByText('Сгенерировано ИИ');
+
+    expect(screen.queryByRole('switch', { name: /Сохранить фото/ })).not.toBeInTheDocument();
+    expect(keeps('PUT')).toHaveLength(0);
   });
 });
 

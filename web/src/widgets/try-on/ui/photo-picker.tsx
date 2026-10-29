@@ -7,12 +7,9 @@ import { LimitMeter, type FittingQuota, PhotoFrame, triesLeftTail } from '@/enti
 import { PhotoThumb, type UserPhoto } from '@/entities/user-photo';
 import { UploadPhoto } from '@/features/upload-photo';
 import { useTrackedElement } from '@/shared/analytics';
-import { Link, LockIcon, Notice, Skeleton, Spinner, Switch } from '@/shared/ui';
+import { Link, LockIcon, Notice, Skeleton, Spinner } from '@/shared/ui';
 
 import styles from './photo-picker.module.scss';
-
-// At most five saved photos (spec 0019 A31): past them a new photo is a one-time one.
-const MAX_SAVED_PHOTOS = 5;
 
 // A photo of «Заменить фото»'s window, never the chosen one: choosing it, its click and hover
 // tracked with whether it is the default.
@@ -102,8 +99,8 @@ export interface PhotoPickerProps {
 // «Заменить фото», whose window picks another photo or uploads one (spec 0024 AC16; with none
 // chosen, after «Примерить на другом фото», it is «Выбрать из сохранённых» under the zone while
 // there are photos to pick, AC17, Z35); with none it is the drop
-// zone, with «Загрузить фото», the camera on a touch device and the switch «Сохранить фото для
-// следующих примерок» at its bottom. A file dropped on the frame uploads either way. Beside it the item, the
+// zone, with «Загрузить фото» and the camera on a touch device. A photo uploaded here is a
+// one-time one, which the result offers to keep (AC22). A file dropped on the frame uploads either way. Beside it the item, the
 // month's meter and «Примерить». A new photo shows dimmed while it uploads (3.3) and is chosen
 // once stored; a refusal opens board 5 with the note that the try-on was not spent.
 export function PhotoPicker({
@@ -124,9 +121,6 @@ export function PhotoPicker({
   const [busy, setBusy] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
   const saved = photos ?? [];
-  const full = saved.length >= MAX_SAVED_PHOTOS;
-  const [saveChoice, setSaveChoice] = useState(true);
-  const save = saveChoice && !full;
   const chosen =
     (transient && transient.id === chosenId ? transient : undefined) ??
     saved.find((photo) => photo.id === chosenId);
@@ -137,20 +131,10 @@ export function PhotoPicker({
   const left = quota?.left;
   const loading = photos === undefined && !photosFailed;
 
-  const saveSwitch = (
-    // Off while a photo is on its way: the upload already took its value.
-    <Switch
-      checked={save}
-      disabled={full || busy}
-      onCheckedChange={(checked) => setSaveChoice(checked)}
-    >
-      Сохранить фото для следующих примерок
-    </Switch>
-  );
-
   const uploadProps = {
     place: 'try-on',
-    save,
+    // A one-time photo: the result offers to keep it (spec 0024 AC22, Z12).
+    save: false,
     refusalNote:
       left === undefined ? undefined : (
         <Notice tone="success">Примерка не списана · {triesLeftTail(left)}</Notice>
@@ -192,7 +176,6 @@ export function PhotoPicker({
               appearance="zone"
               // One photo at a time: none dropped while «Заменить фото» uploads or prepares another.
               disabled={busy || disabled}
-              extra={saveSwitch}
             >
               {framed}
             </UploadPhoto>
@@ -221,7 +204,6 @@ export function PhotoPicker({
                     ))
                 : undefined
             }
-            extra={saveSwitch}
           />
         )}
       </div>

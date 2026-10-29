@@ -1210,14 +1210,13 @@ describe('UploadPhoto as the drop zone (AC8)', () => {
   }
 
   describe('empty', () => {
-    it('shows the card, the extra, «Выбрать файл» and no camera on a mouse device', () => {
-      renderUpload({ ...zoneProps, extra: <span>Переключатель</span> }, consented);
+    it('shows the card, «Выбрать файл» and no camera on a mouse device', () => {
+      renderUpload(zoneProps, consented);
 
       expect(lead()).toBeInTheDocument();
       expect(screen.getByText('Перетащите, вставьте Ctrl+V или выберите файл')).toBeInTheDocument();
       expect(screen.getByText('JPG, PNG, WebP, HEIC · до 20 МБ')).toBeInTheDocument();
       expect(screen.queryByText('Отпустите, чтобы загрузить')).not.toBeInTheDocument();
-      expect(screen.getByText('Переключатель')).toBeInTheDocument();
       expect(dropArea()).toBeEnabled();
       expect(screen.getByRole('button', { name: 'Выбрать файл' })).toBeEnabled();
       expect(screen.queryByRole('button', { name: 'Сделать фото' })).not.toBeInTheDocument();
@@ -1900,7 +1899,6 @@ describe('UploadPhoto as «Заменить фото» (AC9)', () => {
     place: 'try-on',
     appearance: 'replace',
     thumbs: (close: () => void) => <button onClick={close}>Сохранённое фото</button>,
-    extra: <span>Ниже переключатель</span>,
   } as const;
 
   async function openWindow(user: ReturnType<typeof setup>) {
@@ -1908,7 +1906,7 @@ describe('UploadPhoto as «Заменить фото» (AC9)', () => {
     return screen.findByRole('dialog', { name: 'Заменить фото' });
   }
 
-  it('is a button that tracks its click and opens the window with the thumbs, the pickers and the extra', async () => {
+  it('is a button that tracks its click and opens the window with the thumbs and the pickers', async () => {
     const user = setup();
     renderUpload(replaceProps, consented);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -1918,7 +1916,6 @@ describe('UploadPhoto as «Заменить фото» (AC9)', () => {
     expect(clickedElements()).toEqual(['try-on.replace-photo']);
     expect(within(dialog).getByRole('button', { name: 'Сохранённое фото' })).toBeInTheDocument();
     expect(within(dialog).getByRole('button', { name: 'Загрузить фото' })).toBeEnabled();
-    expect(within(dialog).getByText('Ниже переключатель')).toBeInTheDocument();
     expect(within(dialog).queryByRole('button', { name: 'Сделать фото' })).not.toBeInTheDocument();
   });
 
