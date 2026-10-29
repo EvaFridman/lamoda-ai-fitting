@@ -30,14 +30,17 @@ export interface FittingProgress {
   secondsLeft: number;
 }
 
+// `since`: the fitting's `createdAt`, or the click that started it in this window (spec 0024
+// AC19: the wait shows before the api answers, and its progress does not restart once it does).
 export function fittingProgress(
-  createdAt: string,
+  since: string | number,
   estimatedSeconds: number | null,
   now: number,
 ): FittingProgress {
   const total =
     estimatedSeconds !== null && estimatedSeconds > 0 ? estimatedSeconds : DEFAULT_SECONDS;
-  const elapsed = Math.max(0, (now - Date.parse(createdAt)) / 1000);
+  const origin = typeof since === 'number' ? since : Date.parse(since);
+  const elapsed = Math.max(0, (now - origin) / 1000);
   const share = elapsed / total;
   let step: FittingStep = 'pose';
   for (const [candidate, start] of STEP_STARTS) if (share >= start) step = candidate;
@@ -47,6 +50,20 @@ export function fittingProgress(
     percent: Math.min(MAX_PERCENT, Math.floor(share * 100)),
     secondsLeft: left <= 0 ? 0 : Math.max(1, Math.round(left)),
   };
+}
+
+// The origin that keeps a wait's share of its estimate when the estimate changes: a start shown
+// from the click counts on the default until the api names the real one, and its progress goes on
+// from where it was, never back (spec 0024 AC19).
+export function keptOrigin(
+  origin: number,
+  before: number | null,
+  after: number | null,
+  now: number,
+): number {
+  const total = (seconds: number | null) =>
+    seconds !== null && seconds > 0 ? seconds : DEFAULT_SECONDS;
+  return now - ((now - origin) * total(after)) / total(before);
 }
 
 const SECONDS = ['секунду', 'секунды', 'секунд'] as const;

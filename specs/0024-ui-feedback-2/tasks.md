@@ -113,7 +113,7 @@ same release); PR 4 the closing, which records the owner's checks on the deploye
       pointer, the paste listener with `source: paste`, `format` on the upload events, the CSP's
       `'wasm-unsafe-eval'`. Check: `heic.test.ts`, `upload-photo.test.tsx`, `policy.test.ts`,
       `check:web-bundle`. Commit: `feat(web): HEIC and pasted photos in the try-on`.
-- [ ] **T19. The wait from the click and the sticky button (plan §4.1; AC19, AC21).** `onStart`,
+- [x] **T19. The wait from the click and the sticky button (plan §4.1; AC19, AC21).** `onStart`,
       `PendingFitting`, the progress origin kept, the picker's sticky footer on phones,
       `Fitting Started`'s description. Check: `try-on.test.tsx`, `try-on-look.test.tsx`,
       `fitting-wait.test.tsx`. Commit:

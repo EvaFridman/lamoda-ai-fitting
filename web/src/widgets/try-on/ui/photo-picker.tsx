@@ -91,6 +91,10 @@ export interface PhotoPickerProps {
   chosenId: string | null;
   onChoose: (id: string) => void;
   quota: FittingQuota | undefined;
+  // A start on its way, the picker hidden under its wait (spec 0024 AC19): no photo taken
+  // meanwhile, a pasted one included. Off, the zone drops a text of its own, which belonged to a
+  // file it did not take before this start.
+  disabled?: boolean;
 }
 
 // Board 3, the photo picker (spec 0019 AC3, AC5, AC6, A62; spec 0023 P3–P9, P25): the try-on's
@@ -113,6 +117,7 @@ export function PhotoPicker({
   chosenId,
   onChoose,
   quota,
+  disabled = false,
 }: PhotoPickerProps) {
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   // A photo on its way or a HEIC being prepared in the zone or in «Заменить фото» (spec 0024 Z15).
@@ -186,7 +191,7 @@ export function PhotoPicker({
               {...uploadProps}
               appearance="zone"
               // One photo at a time: none dropped while «Заменить фото» uploads or prepares another.
-              disabled={busy}
+              disabled={busy || disabled}
               extra={saveSwitch}
             >
               {framed}
@@ -198,7 +203,7 @@ export function PhotoPicker({
             {...uploadProps}
             appearance="replace"
             replaceLabel={chosen ? undefined : 'Выбрать из сохранённых'}
-            disabled={busy}
+            disabled={busy || disabled}
             thumbs={
               others.length > 0
                 ? (close) =>

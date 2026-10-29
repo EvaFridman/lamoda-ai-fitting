@@ -2122,6 +2122,421 @@ describe('TryOn picker details', () => {
   });
 });
 
+describe('TryOn optimistic start (AC19)', () => {
+  const RESULT_URL = 'https://s3.test/keep/users/u/result.webp?X-Amz-Signature=abc';
+  const done = (patch: Partial<Fitting> = {}) =>
+    fitting({
+      status: 'completed',
+      stage: 'done',
+      resultUrl: RESULT_URL,
+      finishedAt: DATE,
+      estimatedSeconds: null,
+      ...patch,
+    });
+
+  // POST /fittings... waits for the test to answer it; everything else answers as usual.
+  function holdStarts() {
+    const waiting: ((response: Response) => void)[] = [];
+    fetchMock.mockImplementation((url: string, init?: RequestInit) =>
+      init?.method === 'POST' && new URL(String(url)).pathname.startsWith('/api/fittings')
+        ? new Promise<Response>((resolve) => waiting.push(resolve))
+        : Promise.resolve(route(String(url), init)),
+    );
+    return {
+      sent: () => waiting.length,
+      answer: async (response: Response, index = waiting.length - 1) => {
+        await act(async () => {
+          waiting[index]?.(response);
+        });
+      },
+    };
+  }
+
+  const percent = () => Number(screen.getByText(/^\d+%$/).textContent?.replace('%', ''));
+  const picker = () => screen.queryByRole('button', { name: /Примерить$/ });
+
+  async function openPicker() {
+    const user = setup();
+    renderTryOn({ productId: PRODUCT });
+    await screen.findByRole('img', { name: 'Ваше фото' });
+    await vi.waitFor(() => expect(start()).toBeEnabled());
+    return user;
+  }
+
+  it('shows the wait before the api answers, in place of the picker', async () => {
+    const held = holdStarts();
+    const user = await openPicker();
+
+    await user.click(start());
+
+    expect(await screen.findByText('Примеряем…')).toBeVisible();
+    await vi.waitFor(() => expect(held.sent()).toBe(1));
+    expect(picker()).not.toBeInTheDocument();
+    // The picker stays mounted, hidden, under the wait: the wait's copy is the last.
+    expect(screen.getAllByText('Сарафан').at(-1)).toBeVisible();
+    expect(screen.getByText(/Осталось около 25 секунд/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Закрыть и продолжить покупки' })).toBeEnabled();
+  });
+
+  it('goes on without a restart when the api answers the running fitting', async () => {
+    // Only the clock and the wait's one-second interval are fake: the rest runs on real timers,
+    // so no wait depends on the fake clock moving by itself, and a loaded machine only slows it.
+    vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] });
+    const held = holdStarts();
+    api.fittings.set(NEXT, fitting({ id: NEXT, estimatedSeconds: 20 }));
+    const user = setup();
+    renderTryOn({ productId: PRODUCT });
+    await screen.findByRole('img', { name: 'Ваше фото' });
+    await vi.waitFor(() => expect(start()).toBeEnabled());
+    await user.click(start());
+    await screen.findByText('Примеряем…');
+    await vi.waitFor(() => expect(held.sent()).toBe(1));
+    // The clock moves 10 s and the wait's second tick shows it.
+    vi.setSystemTime(Date.now() + 10_000);
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    const before = percent();
+    expect(before).toBeGreaterThanOrEqual(38);
+    const closeButton = screen.getByRole('button', { name: 'Закрыть и продолжить покупки' });
+
+    await held.answer(startedResponse({ estimatedSeconds: 20 }));
+    // The answer's fitting is read and shown (its status is `processing`).
+    await vi.waitFor(() => expect(isFittingShown(NEXT)).toBe(true));
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+
+    // The share is kept across the new estimate: no drop, and no restart near zero.
+    expect(screen.getByText('Примеряем…')).toBeInTheDocument();
+    expect(percent()).toBeGreaterThanOrEqual(before);
+    expect(percent()).toBeLessThan(before + 15);
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    // The wait is the same element before and after the answer: it does not remount.
+    expect(screen.getByRole('button', { name: 'Закрыть и продолжить покупки' })).toBe(closeButton);
+  });
+
+  it('jumps forward to a running fitting’s own creation time when it began earlier, never back', async () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] });
+    const held = holdStarts();
+    const earlier = new Date(Date.now() - 30_000).toISOString();
+    api.fittings.set(NEXT, fitting({ id: NEXT, estimatedSeconds: 20, createdAt: earlier }));
+    const user = setup();
+    renderTryOn({ productId: PRODUCT });
+    await screen.findByRole('img', { name: 'Ваше фото' });
+    await vi.waitFor(() => expect(start()).toBeEnabled());
+    await user.click(start());
+    await screen.findByText('Примеряем…');
+    await vi.waitFor(() => expect(held.sent()).toBe(1));
+    const before = percent();
+
+    // The api answers the fitting that already ran for 30 s of a 20 s estimate (A32).
+    await held.answer(startedResponse({ estimatedSeconds: 20, createdAt: earlier }));
+    await vi.waitFor(() => expect(isFittingShown(NEXT)).toBe(true));
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+
+    expect(percent()).toBeGreaterThanOrEqual(before);
+    expect(percent()).toBe(95);
+    expect(screen.getByText('Почти готово')).toBeInTheDocument();
+  });
+
+  it('still reaches the start’s answer when the quota read shows no tries left meanwhile', async () => {
+    const held = holdStarts();
+    api.fittings.set(NEXT, fitting({ id: NEXT }));
+    const user = await openPicker();
+    await user.click(start());
+    await screen.findByText('Примеряем…');
+    await vi.waitFor(() => expect(held.sent()).toBe(1));
+
+    // The quota is read again meanwhile (a returning tab) and says none are left.
+    api.quota = { ...api.quota, used: 20, left: 0 };
+    await act(async () => {
+      window.dispatchEvent(new Event('visibilitychange'));
+    });
+    await vi.waitFor(() =>
+      expect(
+        fetchMock.mock.calls.filter(([url]) => String(url).includes('/api/me/fitting-quota'))
+          .length,
+      ).toBeGreaterThan(1),
+    );
+    await held.answer(startedResponse());
+
+    await vi.waitFor(() => expect(isFittingShown(NEXT)).toBe(true));
+    expect(screen.getByText('Примеряем…')).toBeVisible();
+    expect(
+      screen.queryByRole('heading', { name: 'Примерки на этот месяц закончились' }),
+    ).toBeNull();
+  });
+
+  it('does not leave the focus on the hidden «Примерить» once the wait shows', async () => {
+    const held = holdStarts();
+    const user = await openPicker();
+    start().focus();
+
+    await user.click(start());
+    await screen.findByText('Примеряем…');
+    await vi.waitFor(() => expect(held.sent()).toBe(1));
+
+    await vi.waitFor(() => {
+      expect(document.activeElement).not.toBe(document.body);
+      expect(screen.getByRole('dialog')).toContainElement(document.activeElement as HTMLElement);
+      expect(document.activeElement?.closest('[hidden]')).toBeNull();
+    });
+  });
+
+  it('brings the picker back with the notice when the api refuses, and nothing of the wait stays', async () => {
+    const held = holdStarts();
+    const user = await openPicker();
+    await user.click(start());
+    await screen.findByText('Примеряем…');
+    await vi.waitFor(() => expect(held.sent()).toBe(1));
+
+    await held.answer(failure(500, 'INTERNAL_ERROR'));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Ошибка на сервере, попробуйте позже',
+    );
+    expect(screen.queryByText('Примеряем…')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Закрыть и продолжить покупки' })).toBeNull();
+    expect(start()).toBeEnabled();
+    expect(screen.getByRole('img', { name: 'Ваше фото' })).toHaveAttribute(
+      'src',
+      expect.stringContaining(PHOTO_B),
+    );
+  });
+
+  it('shows the wait again at the next click after a refusal, with a fresh start', async () => {
+    const held = holdStarts();
+    const user = await openPicker();
+    await user.click(start());
+    await vi.waitFor(() => expect(held.sent()).toBe(1));
+    await held.answer(failure(500, 'INTERNAL_ERROR'));
+    await screen.findByRole('alert');
+
+    await user.click(start());
+
+    expect(await screen.findByText('Примеряем…')).toBeVisible();
+    await vi.waitFor(() => expect(held.sent()).toBe(2));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('brings the limit card when the api refuses at the limit, and nothing of the wait stays', async () => {
+    const held = holdStarts();
+    const user = await openPicker();
+    await user.click(start());
+    await screen.findByText('Примеряем…');
+    await vi.waitFor(() => expect(held.sent()).toBe(1));
+
+    await held.answer(failure(409, 'LIMIT_REACHED'));
+
+    expect(
+      await screen.findByRole('heading', { name: 'Примерки на этот месяц закончились' }),
+    ).toBeVisible();
+    expect(screen.queryByText('Примеряем…')).not.toBeInTheDocument();
+  });
+
+  it('keeps the wait of a repeated start that answers a finished result, then shows the result', async () => {
+    const held = holdStarts();
+    api.fittings.set(NEXT, done({ id: NEXT }));
+    const user = await openPicker();
+    await user.click(start());
+    await screen.findByText('Примеряем…');
+    await vi.waitFor(() => expect(held.sent()).toBe(1));
+
+    await held.answer(json(200, { ...done({ id: NEXT }), repeated: true }));
+
+    expect(await screen.findByText('Сгенерировано ИИ')).toBeVisible();
+    expect(screen.queryByText('Примеряем…')).not.toBeInTheDocument();
+  });
+
+  describe('a regeneration', () => {
+    async function regenerateFromResult() {
+      api.fittings.set(RUNNING, done());
+      const held = holdStarts();
+      const user = setup();
+      renderTryOn({ fittingId: RUNNING });
+      await user.click(
+        await screen.findByRole('button', { name: 'Хотите что-то поменять в образе?' }),
+      );
+      await user.click(await screen.findByRole('button', { name: /Перегенерировать/ }));
+      await vi.waitFor(() => expect(held.sent()).toBe(1));
+      return { held, user };
+    }
+
+    it('shows the plain wait at once, with the sheet closed and the result kept out of sight', async () => {
+      await regenerateFromResult();
+
+      expect(await screen.findByText('Примеряем…')).toBeVisible();
+      await vi.waitFor(() =>
+        expect(screen.queryByRole('dialog', { name: 'Что поменять?' })).not.toBeInTheDocument(),
+      );
+      expect(screen.getByText('Сгенерировано ИИ')).not.toBeVisible();
+    });
+
+    it('opens the sheet again with the reason when the comment is refused, and the wait goes', async () => {
+      const { held } = await regenerateFromResult();
+      await screen.findByText('Примеряем…');
+
+      await held.answer(failure(400, 'PROMPT_REFUSED'));
+
+      const sheet = await screen.findByRole('dialog', { name: 'Что поменять?' });
+      expect(await within(sheet).findByRole('alert')).toHaveTextContent(
+        'Текст не подходит для примерки',
+      );
+      expect(screen.queryByText('Примеряем…')).not.toBeInTheDocument();
+      expect(screen.getByText('Сгенерировано ИИ')).toBeVisible();
+    });
+
+    it('opens the sheet again with the text of any other failure', async () => {
+      const { held } = await regenerateFromResult();
+      await screen.findByText('Примеряем…');
+
+      await held.answer(failure(500, 'INTERNAL_ERROR'));
+
+      const sheet = await screen.findByRole('dialog', { name: 'Что поменять?' });
+      expect(await within(sheet).findByRole('alert')).toHaveTextContent(
+        'Ошибка на сервере, попробуйте позже',
+      );
+      expect(screen.queryByText('Примеряем…')).not.toBeInTheDocument();
+    });
+
+    it('shows the limit card at the limit, with the sheet closed and no wait', async () => {
+      const { held } = await regenerateFromResult();
+      await screen.findByText('Примеряем…');
+
+      await held.answer(failure(409, 'LIMIT_REACHED'));
+
+      expect(
+        await screen.findByRole('heading', { name: 'Примерки на этот месяц закончились' }),
+      ).toBeVisible();
+      expect(screen.queryByText('Примеряем…')).not.toBeInTheDocument();
+      expect(screen.queryByRole('dialog', { name: 'Что поменять?' })).not.toBeInTheDocument();
+    });
+
+    it('goes on with the running fitting when the api answers', async () => {
+      const { held } = await regenerateFromResult();
+      api.fittings.set(NEXT, fitting({ id: NEXT, parentId: RUNNING }));
+
+      await held.answer(startedResponse({ parentId: RUNNING }));
+
+      await vi.waitFor(() => expect(isFittingShown(NEXT)).toBe(true));
+      expect(screen.getByText('Примеряем…')).toBeVisible();
+      expect(screen.queryByRole('dialog', { name: 'Что поменять?' })).not.toBeInTheDocument();
+    });
+  });
+
+  describe('another colour over a result', () => {
+    async function pickBlue() {
+      api.fittings.set(RUNNING, done());
+      const held = holdStarts();
+      const user = setup();
+      renderTryOn({ fittingId: RUNNING });
+      await screen.findByText('Сгенерировано ИИ');
+      await user.click(await screen.findByRole('button', { name: 'Синий' }));
+      await vi.waitFor(() => expect(held.sent()).toBe(1));
+      return held;
+    }
+
+    it('shows the progress over the picture before the api answers', async () => {
+      await pickBlue();
+
+      expect(await screen.findByText(/Примеряем Синий…/)).toBeInTheDocument();
+      expect(screen.getByText('Пока идёт примерка, другие цвета недоступны')).toBeInTheDocument();
+      expect(screen.queryByText('Примеряем…')).not.toBeInTheDocument();
+    });
+
+    it('takes the progress away and says why when the api refuses', async () => {
+      const held = await pickBlue();
+      await screen.findByText(/Примеряем Синий…/);
+
+      await held.answer(failure(500, 'INTERNAL_ERROR'));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Ошибка на сервере, попробуйте позже',
+      );
+      expect(screen.queryByText(/Примеряем Синий/)).not.toBeInTheDocument();
+      expect(screen.getByText('Сгенерировано ИИ')).toBeVisible();
+      expect(screen.getByRole('button', { name: 'Синий' })).toBeEnabled();
+    });
+
+    it('takes the progress away and shows the limit card at the limit', async () => {
+      const held = await pickBlue();
+      await screen.findByText(/Примеряем Синий…/);
+
+      await held.answer(failure(409, 'LIMIT_REACHED'));
+
+      expect(
+        await screen.findByRole('heading', { name: 'Примерки на этот месяц закончились' }),
+      ).toBeVisible();
+      expect(screen.queryByText(/Примеряем Синий/)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('the one-time photo of a start on its way', () => {
+    async function uploadOneTime(user: ReturnType<typeof setup>, name: string, turnOff: boolean) {
+      await user.click(await screen.findByRole('button', { name: 'Заменить фото' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Заменить фото' });
+      if (turnOff) await user.click(within(dialog).getByRole('switch', { name: /Сохранить фото/ }));
+      const input = dialog.querySelector<HTMLInputElement>('input[type="file"]:not([capture])');
+      await user.upload(input!, new File(['x'], name, { type: 'image/jpeg' }));
+      await vi.waitFor(() =>
+        expect(screen.queryByRole('dialog', { name: 'Заменить фото' })).toBeNull(),
+      );
+    }
+
+    it('is not deleted when the window closes before the api answers; the others are', async () => {
+      let count = 0;
+      api.upload = () => {
+        count += 1;
+        return json(201, photo(`00000000-0000-4000-8000-00000000020${count}`, { transient: true }));
+      };
+      const held = holdStarts();
+      const user = setup();
+      const { unmount } = renderTryOn({ productId: PRODUCT });
+      await uploadOneTime(user, 'one.jpg', true);
+      await uploadOneTime(user, 'two.jpg', false);
+      await vi.waitFor(() =>
+        expect(screen.getByRole('img', { name: 'Ваше фото' })).toHaveAttribute(
+          'src',
+          expect.stringContaining('000000000202'),
+        ),
+      );
+      await vi.waitFor(() => expect(start()).toBeEnabled());
+      await user.click(start());
+      await vi.waitFor(() => expect(held.sent()).toBe(1));
+
+      unmount();
+
+      await vi.waitFor(() => expect(deletes()).toHaveLength(1));
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(deletes().map(({ path }) => path)).toEqual([
+        '/api/me/photos/transient/00000000-0000-4000-8000-000000000201',
+      ]);
+    });
+
+    it('is deleted with the window when the start was refused', async () => {
+      const held = holdStarts();
+      const user = setup();
+      const { unmount } = renderTryOn({ productId: PRODUCT });
+      await uploadOneTime(user, 'one.jpg', true);
+      await vi.waitFor(() => expect(start()).toBeEnabled());
+      await user.click(start());
+      await vi.waitFor(() => expect(held.sent()).toBe(1));
+      await held.answer(failure(500, 'INTERNAL_ERROR'));
+      await screen.findByRole('alert');
+
+      unmount();
+
+      await vi.waitFor(() => expect(deletes()).toHaveLength(1));
+      expect(deletes()[0]?.path).toBe(`/api/me/photos/transient/${ONE_TIME}`);
+    });
+  });
+});
+
 describe('TryOn owner', () => {
   const signedIn = (id: string): SessionState => ({
     status: 'signed-in',

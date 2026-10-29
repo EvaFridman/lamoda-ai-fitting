@@ -220,6 +220,43 @@ describe('StartFittingButton', () => {
     });
   });
 
+  it('calls onStart after clearing the error and before the request is sent (AC19)', async () => {
+    const order: string[] = [];
+    fetchMock.mockImplementation(() => {
+      order.push('request');
+      return answer(201, startedBody())();
+    });
+    const onStart = vi.fn(() => order.push('start'));
+    const onError = vi.fn((text: string | null) => order.push(`error:${text}`));
+    renderButton({ onStart, onError });
+
+    await userEvent.setup().click(button());
+
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(onStart).toHaveBeenCalledTimes(1);
+    expect(order).toEqual(['error:null', 'start', 'request']);
+  });
+
+  it('calls onStart once for a double click', async () => {
+    fetchMock.mockImplementation(() => new Promise<Response>(() => undefined));
+    const onStart = vi.fn();
+    renderButton({ onStart });
+
+    await userEvent.setup().dblClick(button());
+
+    expect(onStart).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not call onStart when there is no photo', async () => {
+    const onStart = vi.fn();
+    renderButton({ photoId: null, onStart });
+
+    await userEvent.setup().click(button());
+
+    expect(onStart).not.toHaveBeenCalled();
+  });
+
   it('tracks the click of the start element', async () => {
     fetchMock.mockImplementation(answer(201, startedBody()));
     renderButton();
@@ -280,6 +317,33 @@ describe('StartLookButton', () => {
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     const [, init] = fetchMock.mock.calls[0] as [unknown, RequestInit];
     expect(JSON.parse(String(init.body))).not.toHaveProperty('promptText');
+  });
+
+  it('calls onStart after clearing the error and before the request is sent (AC19)', async () => {
+    const order: string[] = [];
+    fetchMock.mockImplementation(() => {
+      order.push('request');
+      return answer(201, { ...startedBody(), kind: 'look' })();
+    });
+    const onStart = vi.fn(() => order.push('start'));
+    const onError = vi.fn((text: string | null) => order.push(`error:${text}`));
+    renderLook({ onStart, onError });
+
+    await userEvent.setup().click(lookButton());
+
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(onStart).toHaveBeenCalledTimes(1);
+    expect(order).toEqual(['error:null', 'start', 'request']);
+  });
+
+  it('calls onStart once for a double click', async () => {
+    fetchMock.mockImplementation(() => new Promise<Response>(() => undefined));
+    const onStart = vi.fn();
+    renderLook({ onStart });
+
+    await userEvent.setup().dblClick(lookButton());
+
+    expect(onStart).toHaveBeenCalledTimes(1);
   });
 
   it('is off without a photo and sends nothing', async () => {

@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 
 import {
-  type Fitting,
   FITTING_STEPS,
   fittingProgress,
   type FittingStep,
@@ -15,6 +14,7 @@ import { PHONE_QUERY } from '@/shared/config';
 import { useMediaQuery } from '@/shared/lib';
 import { Button, CheckIcon, Notice, ProgressBar, Spinner } from '@/shared/ui';
 
+import type { PendingFitting } from '../model/pending';
 import { TryOnLoader } from './try-on-loader';
 import { WaitItems } from './wait-items';
 
@@ -45,8 +45,11 @@ function useNow(): number {
 }
 
 export interface FittingWaitProps {
-  // The fitting that runs.
-  fitting: Fitting;
+  // The fitting that runs, or the start on its way (spec 0024 AC19).
+  fitting: PendingFitting;
+  // The click that started it in this window: the progress goes on from there once the api
+  // answers; left out, the fitting's `createdAt`.
+  origin?: number;
   // The photo it uses (a signed link), or null.
   photoUrl: string | null;
   // «Закрыть и продолжить покупки» (spec 0024 AC15, every width): the window closes, the fitting
@@ -58,11 +61,11 @@ export interface FittingWaitProps {
 // current stage with the percent, the bar and the time left by the estimate (the stages done and
 // to come under it on a wide screen), the note that the page can be closed, and the button that
 // closes the window while the fitting goes on.
-export function FittingWait({ fitting, photoUrl, onClose }: FittingWaitProps) {
+export function FittingWait({ fitting, origin, photoUrl, onClose }: FittingWaitProps) {
   const phone = useMediaQuery(PHONE_QUERY);
   const now = useNow();
   const close = useTrackedElement('try-on.close', { screen: 'wait' });
-  const progress = fittingProgress(fitting.createdAt, fitting.estimatedSeconds, now);
+  const progress = fittingProgress(origin ?? fitting.createdAt, fitting.estimatedSeconds, now);
   const look = fitting.kind === 'look';
   // A look shows its items as the row under the progress (A62), a single item its own above it,
   // both at 72×96 on every width (spec 0024 Z7).

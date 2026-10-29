@@ -18,7 +18,7 @@ export interface LookItemRowProps {
   // Off while the look regenerates (board 8.2).
   disabled: boolean;
   // Another colour of this item: the whole look again on the same photo (AC15).
-  onColour: (attributeValueId: string) => void;
+  onColour: (attributeValueId: string, colour: string | null) => void;
   // «Заменить»: the window closes and the room opens at this item's slot (spec 0024 Z8).
   onReplace: () => void;
   // The hovers of «Заменить» (the result's `room.open`).
@@ -70,7 +70,7 @@ export function LookItemRow({
             onValueChange={(id) => {
               if (id === item.attributeValueId) return;
               if (item.slot !== null) colourElement.onClick();
-              onColour(id);
+              onColour(id, colours.find((colour) => colour.id === id)?.value ?? null);
             }}
           />
         )}

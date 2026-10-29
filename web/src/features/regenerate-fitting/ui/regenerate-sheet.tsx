@@ -39,9 +39,14 @@ export interface RegenerateSheetProps {
   fitting: Fitting;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  // At the click, before the request: the placer closes the sheet and shows the wait at once (spec
+  // 0024 AC19), keeping this component mounted so the answer reaches it.
+  onStart?: () => void;
   onStarted: (fitting: StartedFitting) => void;
   // The api refused at the month's limit.
   onLimit: () => void;
+  // Any other failure (the comment refused too): the placer opens the sheet again, which says it.
+  onFailed?: () => void;
 }
 
 // «Что поменять?» (board 7.3, spec 0019 AC8, AC9; no chips, spec 0023 P33, P34): the hint, an
@@ -53,8 +58,10 @@ export function RegenerateSheet({
   fitting,
   open,
   onOpenChange,
+  onStart,
   onStarted,
   onLimit,
+  onFailed,
 }: RegenerateSheetProps) {
   const phone = useMediaQuery(PHONE_QUERY);
   const [comment, setComment] = useState('');
@@ -85,7 +92,8 @@ export function RegenerateSheet({
   const failure = regenerate.isError && refusal === null ? errorText(regenerate.error) : null;
 
   function changeOpen(next: boolean) {
-    // A regeneration on its way keeps the sheet: it ends in the new fitting or in its error.
+    // The user does not close it while a regeneration is on its way: its placer closes it at
+    // `onStart` and opens it again on a failure, which it then says.
     if (!next && regenerate.isPending) return;
     if (!next) regenerate.reset();
     onOpenChange(next);
@@ -95,6 +103,7 @@ export function RegenerateSheet({
     tracked.onClick();
     if (regenerate.isPending) return;
     const text = commentWithItem(comment, itemName);
+    onStart?.();
     regenerate.mutate(
       {
         parentId: fitting.id,
@@ -112,6 +121,7 @@ export function RegenerateSheet({
         },
         onError: (error) => {
           if (fittingRefusal(error) === 'limit_reached') onLimit();
+          else onFailed?.();
         },
       },
     );

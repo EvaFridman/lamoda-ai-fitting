@@ -169,6 +169,91 @@ describe('ColorTryOn', () => {
     );
   });
 
+  it('calls onStart with the clicked colour before the request is sent (AC19)', async () => {
+    const order: string[] = [];
+    fetchMock.mockImplementation(() => {
+      order.push('request');
+      return answer(201, startedBody())();
+    });
+    const onStart = vi.fn((colour: TryColour) => order.push(`start:${colour.id}`));
+    renderColours({ onStart });
+
+    await userEvent.setup().click(tile('Синий'));
+
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(onStart).toHaveBeenCalledExactlyOnceWith(COLOURS[1]);
+    expect(order).toEqual([`start:${BLUE}`, 'request']);
+  });
+
+  it('calls onStart once while a colour is on its way', async () => {
+    fetchMock.mockImplementation(() => new Promise<Response>(() => undefined));
+    const onStart = vi.fn();
+    renderColours({ onStart });
+    const user = userEvent.setup();
+
+    await user.click(tile('Синий'));
+    await vi.waitFor(() => expect(tile('Зелёный')).toBeDisabled());
+    await user.click(tile('Зелёный'));
+
+    expect(onStart).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls onFailed, not onLimit, for a failure that is not the limit (AC19)', async () => {
+    fetchMock.mockImplementation(failure(500, 'INTERNAL_ERROR'));
+    const onFailed = vi.fn();
+    const { onLimit } = renderColours({ onFailed });
+
+    await userEvent.setup().click(tile('Синий'));
+
+    await vi.waitFor(() => expect(onFailed).toHaveBeenCalledTimes(1));
+    expect(onLimit).not.toHaveBeenCalled();
+  });
+
+  it('calls onFailed for a refused wish too', async () => {
+    fetchMock.mockImplementation(
+      answer(400, {
+        error: {
+          code: 'PROMPT_REFUSED',
+          message: 'm',
+          details: [
+            {
+              field: 'promptText',
+              code: 'PROMPT_REFUSED',
+              message: 'promptText was refused: minors',
+            },
+          ],
+        },
+      }),
+    );
+    const onFailed = vi.fn();
+    renderColours({ onFailed });
+
+    await userEvent.setup().click(tile('Синий'));
+
+    await vi.waitFor(() => expect(onFailed).toHaveBeenCalledTimes(1));
+  });
+
+  it('does not call onFailed at the limit or on success', async () => {
+    fetchMock.mockImplementation(failure(409, 'LIMIT_REACHED'));
+    const onFailed = vi.fn();
+    const first = renderColours({ onFailed });
+    await userEvent.setup().click(tile('Синий'));
+    await vi.waitFor(() => expect(first.onLimit).toHaveBeenCalledTimes(1));
+
+    expect(onFailed).not.toHaveBeenCalled();
+  });
+
+  it('does not call onFailed when the colour starts', async () => {
+    fetchMock.mockImplementation(answer(201, startedBody()));
+    const onFailed = vi.fn();
+    const { onStarted } = renderColours({ onFailed });
+
+    await userEvent.setup().click(tile('Синий'));
+
+    await vi.waitFor(() => expect(onStarted).toHaveBeenCalledTimes(1));
+    expect(onFailed).not.toHaveBeenCalled();
+  });
+
   it('tracks the click with whether the colour was tried', async () => {
     fetchMock.mockImplementation(answer(201, startedBody()));
     renderColours({ tried: new Set([GREEN]) });

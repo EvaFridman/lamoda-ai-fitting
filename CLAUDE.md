@@ -1116,8 +1116,15 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   the picker's photo, an upload, `TryOnLoader`'s wait and both results, 2:3, every image in it
   `contain` on the light grey, its size from the window only (up to 640 px high from 1024 px,
   560 px at 600–1023 px, never more than the window's height less 240 px nor less than 320 px, Y20; on a phone the whole
-  width up to 60svh); «Во весь экран» opens that frame, black and whole (P29). A fitting the
-  window saw running that completes (a colour or a regeneration over a result too) shows
+  width up to 60svh); «Во весь экран» opens that frame, black and whole (P29). A start shows its
+  wait from the click, before the api answers (spec 0024 AC19, plan §4.1: `TryOn`'s `starting`,
+  `features/start-fitting`'s `PendingFitting` with the default estimate): «Примерить» and a
+  regeneration show `FittingWait` with the screen they came from kept mounted under `hidden`, so
+  the answer reaches its button and a refusal brings it back with its notice, and a colour shows
+  its progress over the result; once the api answers, the progress goes on from the click
+  (`origin`). A one-time photo a start on its way uses is not deleted when the window closes (the
+  housekeeping's, A24). Below 600 px the picker's meter and «Примерить» stick to the window's
+  bottom (AC21). A fitting the window saw running that completes (a colour or a regeneration over a result too) shows
   `FittingSuccess` (`features/start-fitting`: the result blurred in the frame, «Готово!» and
   «Сохранили в «Мои примерки»») for 1.5 s, then the result; one opened completed shows the result
   at once (P26). Both results carry `SavedNote` (`entities/fitting`, «Сохранено в «Мои

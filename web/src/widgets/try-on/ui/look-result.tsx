@@ -21,12 +21,14 @@ import { bySlot, type OutfitSlot, useFittingRoom } from '@/entities/fitting-room
 import { useAnyColourChoice } from '@/entities/product';
 import { CartStubButton, FavoriteStub } from '@/features/product-stubs';
 import { RegenerateSheet } from '@/features/regenerate-fitting';
+import type { PendingFitting } from '@/features/start-fitting';
 import { useTrackedElement } from '@/shared/analytics';
 import { FITTINGS_HREF, PHONE_QUERY } from '@/shared/config';
 import { formatPrice, useMediaQuery } from '@/shared/lib';
 import { Button, Notice, ProgressBar } from '@/shared/ui';
 
 import { RESULT_NOTE } from '../lib/result-note';
+import type { StartIntent } from '../model/starting';
 import { itemsText } from './look-subject';
 import { LookItemRow } from './look-item-row';
 import { ResultPicture, ResultTiles, useRunningProgress } from './result-media';
@@ -39,7 +41,7 @@ export function itemsBySlot(items: readonly FittingItem[]): FittingItem[] {
 }
 
 // The item whose colour a regeneration over the result changes: «рубашка Annen, красный».
-export function changedItemText(result: Fitting, running: Fitting): string | null {
+export function changedItemText(result: Fitting, running: PendingFitting): string | null {
   const changed = running.items.find(
     (item) =>
       result.items.find((before) => before.productId === item.productId)?.attributeValueId !==
@@ -52,9 +54,15 @@ export function changedItemText(result: Fitting, running: Fitting): string | nul
 export interface LookResultProps {
   // The result shown.
   fitting: Fitting;
-  // The look regenerating over it with one colour changed (board 8.2).
-  running: Fitting | null;
+  // The look regenerating over it with one colour changed (board 8.2), or its start on its way.
+  running: PendingFitting | null;
+  // The click that started `running` in this window: its progress goes on from there (AC19).
+  origin?: number;
   quota: FittingQuota | undefined;
+  // A colour or a regeneration clicked, before the api answers (spec 0024 AC19).
+  onStart: (intent: StartIntent) => void;
+  // That start failed (not at the limit): its wait goes, and this screen says why.
+  onStartFailed: () => void;
   // A colour change started: it runs over this result.
   onStarted: (fitting: StartedFitting) => void;
   // A regeneration of «Что поменять?» started: it has the wait of its own.
@@ -74,7 +82,10 @@ export interface LookResultProps {
 export function LookResult({
   fitting,
   running,
+  origin,
   quota,
+  onStart,
+  onStartFailed,
   onStarted,
   onRegenerated,
   onLimit,
@@ -91,7 +102,7 @@ export function LookResult({
     source: 'result',
     items: room.data?.count ?? 0,
   });
-  const progress = useRunningProgress(running);
+  const progress = useRunningProgress(running, origin);
   const items = itemsBySlot(fitting.items);
   // The line «Смена цвета…» shows only while some item has another colour (spec 0024 AC12).
   const anyColourChoice = useAnyColourChoice(items.map((item) => item.productId));
@@ -105,8 +116,16 @@ export function LookResult({
       : null;
   const changed = running ? changedItemText(fitting, running) : null;
 
-  function changeColour(productId: string, attributeValueId: string) {
+  function changeColour(productId: string, attributeValueId: string, colour: string | null) {
     if (busy || fitting.photoId === null) return;
+    onStart({
+      kind: 'look',
+      items: fitting.items.map((item) =>
+        item.productId === productId ? { ...item, attributeValueId, colour } : item,
+      ),
+      photoId: fitting.photoId,
+      overResult: true,
+    });
     start.mutate(
       {
         photoId: fitting.photoId,
@@ -121,6 +140,7 @@ export function LookResult({
         onSuccess: (started) => onStarted(started),
         onError: (error) => {
           if (fittingRefusal(error) === 'limit_reached') onLimit();
+          else onStartFailed();
         },
       },
     );
@@ -174,7 +194,7 @@ export function LookResult({
                 item={item}
                 // A photo gone takes the colours with it: the look cannot run again.
                 disabled={busy || fitting.photoId === null}
-                onColour={(id) => changeColour(item.productId, id)}
+                onColour={(id, colour) => changeColour(item.productId, id, colour)}
                 replaceEvents={{
                   onPointerEnter: roomElement.onPointerEnter,
                   onPointerLeave: roomElement.onPointerLeave,
@@ -228,6 +248,15 @@ export function LookResult({
         fitting={fitting}
         open={regenerating}
         onOpenChange={setRegenerating}
+        onStart={() => {
+          setRegenerating(false);
+          onStart({
+            kind: fitting.kind,
+            items: fitting.items,
+            photoId: fitting.photoId,
+            overResult: false,
+          });
+        }}
         onStarted={(started) => {
           setRegenerating(false);
           onRegenerated(started);
@@ -235,6 +264,10 @@ export function LookResult({
         onLimit={() => {
           setRegenerating(false);
           onLimit();
+        }}
+        onFailed={() => {
+          onStartFailed();
+          setRegenerating(true);
         }}
       />
     </div>
