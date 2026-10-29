@@ -176,7 +176,9 @@ the default preselected (spec 0019 A63.4).
 
 `_pages/stores/ui/stores-view.tsx`: `text` stays the field's value; a `useDebounced(text, 500)`
 (`shared/lib`) feeds `matchStores` and the map; `''` applies at once (the clear button and an
-emptied field). `useSearchedEvent` keeps its second from the debounced value.
+emptied field). `useSearchedEvent` keeps its second from the debounced value. At T13 (Z36) the
+hook replaces spec 0026's 300 ms timer: its `atOnce` takes an empty text and one restored before
+hydration; `Stores Searched` keeps its second on the typed text, as before.
 
 ## 3. Part 2: api
 

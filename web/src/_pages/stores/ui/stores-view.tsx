@@ -13,6 +13,7 @@ import {
 import { CityModal, useAskCityOnce, useCity, useCityOpenEvents } from '@/features/choose-city';
 import { track, useTrackedElement } from '@/shared/analytics';
 import { errorText, reportFailure } from '@/shared/api';
+import { useDebounced } from '@/shared/lib';
 import {
   Chip,
   ChipGroup,
@@ -29,8 +30,8 @@ import styles from './stores-view.module.scss';
 
 // `Stores Searched` goes after this pause in typing (spec 0022 X17).
 export const SEARCH_PAUSE_MS = 1000;
-// The list and the map follow the text after this pause; an empty text at once (spec 0026 C12).
-export const SEARCH_APPLY_MS = 300;
+// The list and the map follow the text after this pause; an empty text at once (spec 0024 Z9).
+export const SEARCH_APPLY_MS = 500;
 
 type Tab = 'list' | 'map';
 // The chosen city's stores or every store (spec 0026 C3): a view only, `city` on each open.
@@ -62,7 +63,7 @@ export function StoresView() {
   const [cityOpen, setCityOpen] = useState(false);
   const cityButtonRef = useRef<HTMLButtonElement>(null);
   const [text, setText] = useState('');
-  const [applied, setApplied] = useState('');
+  const [restored, setRestored] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [expandedIds, setExpandedIds] = useState<ReadonlySet<string>>(() => new Set());
   const [tab, setTab] = useState<Tab>('list');
@@ -72,21 +73,22 @@ export function StoresView() {
   const listRef = useRef<HTMLDivElement>(null);
 
   // Text already in the field when React takes over (typed before hydration, restored by the
-  // browser) fires no change: read it once.
+  // browser) fires no change: read it once, applied at once.
   const searchRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    const restored = searchRef.current?.value ?? '';
-    if (restored === '') return;
-    setText(restored);
-    setApplied(restored);
+    const value = searchRef.current?.value ?? '';
+    if (value === '') return;
+    setRestored(value);
+    setText(value);
   }, []);
 
-  // The text the list and the map follow, after a pause in typing (C12).
-  useEffect(() => {
-    const timer = setTimeout(() => setApplied(text), SEARCH_APPLY_MS);
-    return () => clearTimeout(timer);
-  }, [text]);
-  const query = text.trim() === '' ? '' : applied;
+  // The text the list and the map follow, after a pause in typing (Z9); an empty text at once, so
+  // a new text typed soon after starts from nothing.
+  const query = useDebounced(
+    text,
+    SEARCH_APPLY_MS,
+    text.trim() === '' || (restored !== '' && text === restored),
+  );
 
   useEffect(() => {
     if (error !== null) reportFailure(error);
@@ -272,8 +274,8 @@ export function StoresView() {
           placeholder="Магазин, адрес или метро"
           onValueChange={(value) => {
             setText(value);
-            // An empty text applies at once, so a new text typed soon after starts from nothing.
-            if (value.trim() === '') setApplied('');
+            // Only the restored text itself applies at once, not the same text typed again.
+            setRestored('');
           }}
         />
       </div>

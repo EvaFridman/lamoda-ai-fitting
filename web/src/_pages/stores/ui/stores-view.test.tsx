@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { hydrateRoot, type Root } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
@@ -591,7 +591,8 @@ describe('StoresView', () => {
   });
 
   describe('text already in the field when React takes over', () => {
-    beforeEach(() => vi.useFakeTimers({ shouldAdvanceTime: true }));
+    // No `shouldAdvanceTime`: no timer elapses unless a test advances it.
+    beforeEach(() => vi.useFakeTimers());
     const mounted: { root: Root; container: HTMLElement }[] = [];
     afterEach(async () => {
       vi.useRealTimers();
@@ -627,6 +628,48 @@ describe('StoresView', () => {
     it('filters the list by it', async () => {
       await hydrateWithText('Ладожская');
       expect(field()).toHaveValue('Ладожская');
+      expect(names()).toEqual([OKHTA.name]);
+    });
+
+    async function pass(ms: number) {
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(ms);
+      });
+    }
+
+    // The list is gone when nothing matches, so `names()` cannot read an empty result.
+    function cards() {
+      return screen.queryAllByRole('article').length;
+    }
+
+    it('waits the normal pause for an edit of it', async () => {
+      await hydrateWithText('Ладожская');
+      // userEvent's own delays need the clock to run; the hydrated text is already applied.
+      vi.useRealTimers();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      await user.type(field(), 'я');
+      expect(field()).toHaveValue('Ладожскаяя');
+      await pass(SEARCH_APPLY_MS - 50);
+      expect(names()).toEqual([OKHTA.name]);
+      await pass(100);
+      expect(cards()).toBe(0);
+    });
+
+    it('waits the pause again when the restored text is typed back after an edit', async () => {
+      await hydrateWithText('Ладожская');
+      // userEvent's own delays need the clock to run; the hydrated text is already applied.
+      vi.useRealTimers();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      await user.type(field(), 'я');
+      await pass(SEARCH_APPLY_MS + 50);
+      expect(cards()).toBe(0);
+      await user.type(field(), '{Backspace}');
+      expect(field()).toHaveValue('Ладожская');
+      await pass(SEARCH_APPLY_MS - 50);
+      expect(cards()).toBe(0);
+      await pass(100);
       expect(names()).toEqual([OKHTA.name]);
     });
 
@@ -864,7 +907,7 @@ describe('StoresView', () => {
       ).not.toBeInTheDocument();
     });
 
-    it('moves the list and the map once, 300 ms after the last key, and at once on clearing (AC12)', async () => {
+    it('moves the list and the map once, 500 ms after the last key, and at once on clearing (0024 AC18)', async () => {
       const user = fakeUser();
       await renderCity();
       const before = new Set(mocks.fits).size;
@@ -879,6 +922,17 @@ describe('StoresView', () => {
       expect(out('fit stores')).toHaveTextContent('2');
       expect(new Set(mocks.fits).size).toBe(before + 1);
       await user.click(screen.getByRole('button', { name: 'Очистить' }));
+      expect(names()).toHaveLength(4);
+      expect(out('fit')).toHaveTextContent('start');
+    });
+
+    it('applies a whitespace-only text at once', async () => {
+      const user = fakeUser();
+      await renderCity();
+      await user.type(field(), 'Екат');
+      await pass(SEARCH_APPLY_MS + 10);
+      expect(names()).toHaveLength(2);
+      fireEvent.change(field(), { target: { value: '   ' } });
       expect(names()).toHaveLength(4);
       expect(out('fit')).toHaveTextContent('start');
     });
