@@ -7,8 +7,9 @@ const YANDEX_MAPS_TERMS = 'https://yandex.ru/legal/maps_api/';
 
 // Static: it builds into the shell. The text is a placeholder until the owner supplies the real one
 // (spec 0008, J10, J34), with a line about the Google account data kept at sign-in (spec 0013
-// plan §10), the fitting photos (spec 0019 A46) and the stores page's Yandex map (spec 0022 X6);
-// the button renders only with an analytics token (J17).
+// plan §10), the fitting photos (spec 0019 A46), the stores page's Yandex map (spec 0022 X6) and
+// the location asked for the visitor's city (spec 0026 C10); the button renders only with an
+// analytics token (J17).
 export function PrivacyPage() {
   return (
     <main className={styles.page}>
@@ -38,6 +39,11 @@ export function PrivacyPage() {
           условия использования API Яндекс Карт
         </Link>
         .
+      </p>
+      <p className={styles.text}>
+        На странице магазинов и по кнопке «Определить автоматически» сайт просит у браузера ваше
+        местоположение. Оно используется только в браузере, чтобы выбрать ближайший город с
+        магазином Lamoda Sport, и никуда не передаётся. Выбранный город хранится в вашем браузере.
       </p>
       <div>
         <CookieSettingsButton />

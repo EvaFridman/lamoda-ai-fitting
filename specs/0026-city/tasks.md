@@ -47,7 +47,7 @@ Status: accepted (2026-10-29).
       city's fit (`'stores'` with `singleZoom`), the search's 300 ms pause (C12), `Stores Searched`'s `scope`.
       Check: `stores-view.test.tsx` (fake timers), `fit.test.ts`.
       Commit: `feat(web): open the stores page on the visitor's city`
-- [ ] **T6. `/privacy` (plan §6).** C10's paragraph.
+- [x] **T6. `/privacy` (plan §6).** C10's paragraph.
       Check: `privacy-page.test.tsx`.
       Commit: `feat(web): say how the city is found on the privacy page`
 - [ ] **T7. Closing.** `qa-tester` at 375 and 1280 px with a stubbed position (AC1–AC12);
