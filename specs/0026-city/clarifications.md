@@ -1,6 +1,6 @@
 # 0026 city: clarifications
 
-Status: accepted (2026-10-29): C0 carried in from spec 0024; C1–C12 settled at the first answers,
+Status: done (2026-10-29): C0 carried in from spec 0024; C1–C12 settled at the first answers,
 C13 at the plan, C14 at the review of PR 1 (C6, C7 amended), C15 at T3.
 Decision ids `C0`, `C1`, …; the notes are `S1`, `S2` and `S3` of
 [../0024-ui-feedback-2/source/agentation-notes.md](../0024-ui-feedback-2/source/agentation-notes.md).

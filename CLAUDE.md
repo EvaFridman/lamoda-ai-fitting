@@ -49,7 +49,12 @@ header icons with «скоро», the gallery's full screen and lens, the tidier
 drop zone, photo replacement and one steady photo frame, the success screen, the real download
 (`GET /fittings/:id/image`), the regeneration without reasons, freer wishes checked with the
 items' names, the photo consents kept with the user and a text of its own for each refusal's
-reason and safety category.
+reason and safety category. Spec `0026-city` made the header's city live: the stores' cities, the
+window «Ваш город» (a pick, a search, «Определить автоматически»: the browser's position turned
+into the nearest store's city in the browser, no geocoder), the choice kept in the browser
+(`features/choose-city`), the burger's row, the stores page on the visitor's city (its switch,
+its own ask once per browser, the search's pause), `/privacy`'s paragraph and the city's
+analytics.
 
 Keep this file true: update it in the same commit that changes what a section describes.
 
@@ -715,13 +720,38 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   «Избранное», the fitting room and «Корзина» (on every width the icons have no frame, and the
   inert «Избранное» and «Корзина» carry «скоро», spec 0023 C2–C5); the gender switch, the city, the profile icon and the category row
   are hidden by CSS, not unmounted, so `HeaderProfile`, its hooks and its `LoginModal` (the one
-  that answers a returned sign-in error) run once on every width. The loupe (`HeaderLoupe`)
+  that answers a returned sign-in error) run once on every width. The city (spec 0026 plan §4)
+  is `HeaderCitySlot` (per request, inside `<Suspense>` whose fallback is the inert button):
+  `loadHeaderCities()` (React's `cache`, shared with the burger; `getStores()` → `storeCities`,
+  only names and points reach the page, a failure `null`) and `HeaderCity`, the chosen city's
+  name or «Укажите ваш населенный пункт» (also before hydration), opening `CityModal`. The loupe (`HeaderLoupe`)
   opens and closes the search row (`HeaderSearchRow`, kept mounted while closed); the row is open
   while `q` is in the address, until the loupe closes it, and a new `q` opens it again. The burger
   opens `HeaderMenu`, a left `Drawer`: signed out «Войти» (a second `LoginModal`,
   `handlesReturnedError={false}`), signed in `SessionUserBadge` in an `mp-block`, the account's
   sections and the sign-outs (`useSignOuts`, `features/auth`, which `SignOutItems` shares), then
+  a list «Город» of one row, «Город: <name>» or «Укажите ваш населенный пункт», which closes the
+  drawer and opens its own `CityModal`, the focus back on the burger (spec 0026 C5), then
   «Все товары» and the header's categories; a link closes it. The header stays not sticky.
+- `web` the visitor's city (spec 0026, `features/choose-city`): the cities are the stores'
+  (`entities/store`'s `storeCities`: one per `cityName`, the table's `city` without «г. » and
+  what follows a comma, Москва and Санкт-Петербург first, then alphabetical), and the choice is a
+  name of them in `localStorage` (`city`, at most 100 characters; `city-asked` once the stores
+  page asked or a city was chosen; both kept in memory when the browser stores nothing, until the
+  tab reloads; not `mp_`/`__mp` keys), one per browser, shared by tabs, never on the server.
+  `useCity(cities)` gives it only while it is one of them (else `null`, `undefined` while
+  hydrating or with no cities, C8); only a pick, «Определить автоматически» or the stores page's
+  own ask (a found city) changes it. `locateCity` (`lib/`) is
+  the one caller of `navigator.geolocation.getCurrentPosition` (`enableHighAccuracy: false`,
+  10 s, a position up to 10 minutes old, and its own 30 s deadline, C15): the coordinates go only
+  to `nearestCity` (the city of the nearest store by the haversine distance, `null` past 100 km)
+  and are kept, logged or sent nowhere; its results (`found`, `far`, `refused`, `failed`) go to
+  no Sentry. `findCity` sends `City Located`. `CityModal` (the kit's wide `Modal` «Ваш город»:
+  «Определить автоматически» with C7's texts in a `role="status"` line, the uncontrolled search
+  «Найти город» with `matchCities`, one button per city, the chosen one `aria-current`; with
+  `cities` `null` the general error text) closes on a pick or a found city (`onChosen`); a
+  control that opens it spreads `useCityOpenEvents(source, cities)`. `useAskCityOnce(cities)` is
+  the stores page's own ask, the only one no click starts (C6).
 - `web` account (spec 0017): `/customer` and its sections `/customer/orders`, `stores`,
   `account` ("Мои данные"), `fittings` and `photos` ("Мои фото", spec 0019 A19: `_pages/photos`,
   `widgets/my-photos`, `features/upload-photo`) (`web/app/customer/`, whose layout holds only the
@@ -737,7 +767,8 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   switched by CSS. `_pages/customer` has no section, `_pages/account-stubs` holds the one stub
   (orders), `_pages/stores` «Магазины Lamoda Sport» (spec 0022: the legend, the search and the
   list of `entities/store`'s cards; `server.ts` only; `/privacy` says it shows Yandex's map, which
-  receives the visitor's address and its cookies, X6), `_pages/fittings` the history («Мои примерки», spec 0019 T16: `widgets/fitting-history`,
+  receives the visitor's address and its cookies, X6, and how the city is found and kept, spec
+  0026 C10), `_pages/fittings` the history («Мои примерки», spec 0019 T16: `widgets/fitting-history`,
   `features/delete-fitting`, `entities/fitting`'s `HistoryCard`; a card opens its fitting through
   `?fitting=<id>` in T15's try-on window; «Примерить ещё раз» is `useRepeatFitting` with the
   entry's `repeatBody`, disabled once its photo is gone, a repeat's answer the toast «Такая
@@ -910,11 +941,14 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   `.regenerate`'s `with_item` (A94; a look's item chosen, its `reasons` and `result.reason`
   gone, spec 0023 Y11) and `result.history` (the link of «Сохранено в «Мои
   примерки»», spec 0023 Y7), the grid's hanger `catalog.to-look` in the zone
-  `catalog` (A90.9), the phone header's the zone `header` (areas `header` and
-  `burger`: `header.burger`, `header.search`, `burger.category`, A87.8), the footer's
+  `catalog` (A90.9), the header's the zone `header` (areas `header` and
+  `burger`: `header.burger`, `header.search`, `burger.category`, A87.8; `city`: `city.open` by
+  `source` `header`, `burger` or `stores`, `city.pick`, `city.auto`, spec 0026 C13), the footer's
   `footer.link` in the zone `footer` (`link`: `stores`, spec 0022 X18), the stores page's the zone
-  `stores` (`stores.card`, `.details`, `.phone`, `.route`, `.pin`, `.tab` and `Stores Searched`,
-  its text's length and the count only, X17); `profile-menu.*` take
+  `stores` (`stores.card`, `.details`, `.phone`, `.route`, `.pin`, `.tab`, `.scope`,
+  `.search-all`, `Stores Searched`, its text's length, the count and `scope`, `city` or `all`,
+  X17, spec 0026 C13, and `City Located`, its `result` and `trigger`); no property names a city
+  or carries a position; `profile-menu.*` take
   `surface` (`menu`, `burger`; older sends have none).
   `Signed In` is sent once, on the page a sign-in of this tab came back to: `markSignInStarted()`
   (`features/auth`) puts the time in `sessionStorage` (`sign-in-started`, not an `mp_`/`__mp` key
@@ -1028,7 +1062,16 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   and circles with counts, and keeps Yandex's logo, copyright and «Открыть в Картах» (X14); its
   container is `mp-block` (X26). From 1024 px the list and the map are side by side; below it the
   kit's `Tabs` «Список» and «Карта» switch them by CSS, so the map never loads again, and a pin's
-  click shows its store's card over the map (X10, X19, X25). The map opens on Moscow (X7).
+  click shows its store's card over the map (X10, X19, X25). With a city chosen (spec 0026 plan
+  §5) the page shows its stores (`storesOfCity`) and fits the map to them (`'stores'` with
+  `singleZoom: CITY_ZOOM`), over the search a `ChipGroup` «<Город>» / «Все города» (a view only,
+  the city again on each open and on any new choice) and «Изменить город» («Выбрать город»
+  without one), opening the page's `CityModal` on every width; with no city or on «Все города»
+  every store and the map on Moscow (X7). The page asks for the position by itself once per
+  browser while no city is chosen (`useAskCityOnce`, C6); past 100 km «Рядом с вами пока нет
+  магазинов» over every store. Nothing found in the city offers «Искать во всех городах». The
+  list and the map follow the text 300 ms after typing (`SEARCH_APPLY_MS`, C12), an empty text at
+  once; `Stores Searched` keeps its 1 s pause.
 - `web` data from the api renders at request time inside `<Suspense>`: the web image must build with
   no api, Redis or database running. So a page has sent its static shell with 200 before it reads
   anything, and a `notFound()` there is a soft 404 (the not-found page with `noindex`). A real 404

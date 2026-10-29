@@ -18,7 +18,7 @@
 [0017-account](specs/0017-account/), [0018-cache-warmup](specs/0018-cache-warmup/),
 [0019-ai-fitting](specs/0019-ai-fitting/), [0020-catalog-mobile](specs/0020-catalog-mobile/),
 [0021-investigator](specs/0021-investigator/), [0022-stores](specs/0022-stores/),
-[0023-ui-feedback](specs/0023-ui-feedback/).
+[0023-ui-feedback](specs/0023-ui-feedback/), [0026-city](specs/0026-city/).
 Принята, но не закрыта: [0016-ai-fitting](specs/0016-ai-fitting/) — замысел AI-примерки для
 Lamoda; её критерии AC5–AC10, AC14 и AC15 проверены спекой 0019, остальные ждут своих спек.
 
