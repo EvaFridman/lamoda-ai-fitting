@@ -14,24 +14,9 @@
 
   background-color: var(--color-background-secondary);
 
-  &::backdrop {
-    background-color: #000;
-  }
-
   // Every picture in it shows whole: the caller's own image classes may add to it, never crop.
   img {
     object-fit: contain;
-  }
-
-  // «Во весь экран» (P29): the whole screen on black.
-  &:fullscreen {
-    aspect-ratio: auto;
-    width: 100%;
-    max-width: none;
-    height: 100%;
-    max-height: none;
-
-    background-color: #000;
   }
 
   @media (width < 1024px) {

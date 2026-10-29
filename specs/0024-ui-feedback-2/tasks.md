@@ -124,7 +124,7 @@ same release); PR 4 the closing, which records the owner's checks on the deploye
       came with T14a, Z43), `result.save-photo`, `Photo Uploaded.saved`'s description. Check:
       `save-photo-switch.test.tsx`, `try-on.test.tsx`. Commit:
       `feat(web): save the try-on's photo from the result`.
-- [ ] **T21. The picture's actions (plan §4.3; AC23–AC25).** `ResultTiles` removed, the picture
+- [x] **T21. The picture's actions (plan §4.3; AC23–AC25).** `ResultTiles` removed, the picture
       opens `ResultViewer`, the download and share icons with tooltips, `features/share-fitting`
       with the fetched-ahead blob, «Добавить к образу» in the right column; `result.picture`,
       `result.share`, `result.fullscreen` removed, `result.download` and `result.to-look`

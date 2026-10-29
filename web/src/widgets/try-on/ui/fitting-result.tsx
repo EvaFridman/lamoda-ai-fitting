@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 
 import {
   type Fitting,
@@ -13,22 +13,21 @@ import {
 } from '@/entities/fitting';
 import type { OutfitSlot } from '@/entities/category';
 import type { ProductDetail } from '@/entities/product';
-import { useLookToggle } from '@/features/fitting-room';
+import { ToLookButton } from '@/features/fitting-room';
 import { CartStubButton, FavoriteStub } from '@/features/product-stubs';
 import { RegenerateSheet } from '@/features/regenerate-fitting';
 import type { PendingFitting } from '@/features/start-fitting';
 import { ColorTryOn, type TryColour } from '@/features/try-colour';
 import { SavePhotoSwitch } from '@/features/upload-photo';
 import { useTrackedElement } from '@/shared/analytics';
-import { FITTINGS_HREF, PHONE_QUERY } from '@/shared/config';
-import { useMediaQuery } from '@/shared/lib';
-import { Button, CheckIcon, HangerIcon, LinkButton, Select } from '@/shared/ui';
+import { FITTINGS_HREF } from '@/shared/config';
+import { Button, LinkButton, Select } from '@/shared/ui';
 
 import { RESULT_NOTE } from '../lib/result-note';
 import type { ResultPhotoProps } from '../model/result-photo';
 import type { StartIntent } from '../model/starting';
 import { ItemRow } from './item-row';
-import { ResultPicture, ResultTiles, useRunningProgress } from './result-media';
+import { ResultPicture, useRunningProgress } from './result-media';
 
 import styles from './fitting-result.module.scss';
 
@@ -56,48 +55,18 @@ export interface FittingResultProps {
   onLimit: () => void;
   // «Примерить на другом фото»: back to the picker.
   onOtherPhoto: () => void;
-  // The product's slot of the fitting room: `null` none (no tile), `undefined` not known yet.
+  // The product's slot of the fitting room: `null` none (no «Добавить к образу»), `undefined` not
+  // known yet.
   slot: OutfitSlot | null | undefined;
   // The save switch's part of the window (spec 0024 AC22).
   photo: ResultPhotoProps;
 }
 
-interface LookTileProps {
-  product: ProductDetail;
-  slot: OutfitSlot;
-  attributeValueId: string | null | undefined;
-}
-
-// The tile «К образу» (A90.11): the result's item, in its colour, into the fitting room;
-// «В образе» while it is there, and a click takes it out (`result.to-look`, A94.1).
-function LookTile({ product, slot, attributeValueId }: LookTileProps) {
-  // The try-on is a signed-in user's: no sign-in window here.
-  const look = useLookToggle({
-    product,
-    slot,
-    attributeValueId,
-    element: 'result.to-look',
-    onSignIn: () => undefined,
-  });
-  return (
-    <button
-      type="button"
-      className={styles.tile}
-      aria-pressed={look.pressed}
-      // Waits focusable, as the hanger: the focus stays on it through the write.
-      aria-disabled={look.busy || undefined}
-      onClick={look.toggle}
-      {...look.events}
-    >
-      {look.pressed ? <CheckIcon /> : <HangerIcon />}
-      {look.pressed ? 'В образе' : 'К образу'}
-    </button>
-  );
-}
-
 // Board 7, the result of one item (spec 0019 AC5, AC7, AC8, A62): its date, the picture with
-// «Сгенерировано ИИ», «Сохранено в «Мои примерки»» (spec 0023 Y7) and the caption under it, the tiles (the share disabled, A14; «К образу» into the fitting
-// room, A90.11), the save switch of a one-time photo (spec 0024 AC22), the item with the size select and the cart's and favourites' stubs (A33), the product's
+// «Сгенерировано ИИ», its full screen, «Скачать» and «Поделиться» (spec 0024 AC23), «Сохранено в
+// «Мои примерки»» (spec 0023 Y7) and the caption under it, the save switch of a one-time photo
+// (spec 0024 AC22), the item with the size select, the cart's and favourites' stubs (A33) and
+// «Добавить к образу» into the fitting room (A90.11, spec 0024 Z14), the product's
 // other colours (A74, A76), «Хотите что-то поменять в образе?» with the sheet «Что поменять?»,
 // «Примерить на другом фото» and the month's meter. The picture is only an image's `src`, in an
 // `mp-block` container (A37).
@@ -118,8 +87,6 @@ export function FittingResult({
   slot,
   photo,
 }: FittingResultProps) {
-  const phone = useMediaQuery(PHONE_QUERY);
-  const pictureRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<string | null>(null);
   const [regenerating, setRegenerating] = useState(false);
   const regenerateElement = useTrackedElement('result.regenerate-open');
@@ -137,24 +104,29 @@ export function FittingResult({
       progress={progress}
       runningLabel={`Примеряем ${running?.items[0]?.colour ?? 'другой цвет'}…`}
       alt={item ? `Сгенерированное изображение: вы в вещи «${item.name}»` : 'Результат примерки'}
-      pictureRef={pictureRef}
     />
   );
 
-  const tiles = (
-    <ResultTiles fitting={fitting} running={running} pictureRef={pictureRef} phone={phone}>
-      {product && slot ? (
-        <LookTile product={product} slot={slot} attributeValueId={item?.attributeValueId} />
-      ) : (
-        // A product of no slot has none (AC16), nor one whose reads failed; one that loads waits.
-        slot !== null && (
-          <button type="button" className={styles.tile} disabled>
-            <HangerIcon />К образу
-          </button>
-        )
-      )}
-    </ResultTiles>
-  );
+  // «Добавить к образу» / «В образе» as the buy box's (Z14, `result.to-look`); the try-on is a
+  // signed-in user's, so no sign-in window. A product of no slot has none (AC16), nor one whose
+  // reads failed; one that loads waits.
+  const toLook =
+    product && slot ? (
+      <ToLookButton
+        product={product}
+        slot={slot}
+        attributeValueId={item?.attributeValueId}
+        element="result.to-look"
+        onSignIn={() => undefined}
+        className={styles.toLook}
+      />
+    ) : (
+      slot !== null && (
+        <Button size={48} variant="outline" className={styles.toLook} disabled>
+          Добавить к образу
+        </Button>
+      )
+    );
 
   // The item card's actions as the look's (spec 0024 Z40): «В корзину» and the heart, 32px, at the
   // card's top; the stubs only show their toast (A33).
@@ -185,7 +157,6 @@ export function FittingResult({
               : 'Результат сохранён в истории'}
           </p>
         )}
-        {tiles}
       </div>
 
       <div className={styles.right}>
@@ -214,6 +185,7 @@ export function FittingResult({
                 className={styles.size}
               />
             )}
+            {toLook}
           </div>
         )}
 

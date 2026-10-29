@@ -2,12 +2,13 @@
 
 import { useCallback, useRef, useState } from 'react';
 
-import { downloadFittingImage } from '@/entities/fitting';
+import { downloadFittingImage, saveFittingFile } from '@/entities/fitting';
 import { errorText, reportFailure } from '@/shared/api';
 import { showToast } from '@/shared/ui';
 
 export interface FittingImageDownload {
-  download: (id: string) => void;
+  // `file`: the picture already fetched (the share's, spec 0024 plan §4.3), saved with no read.
+  download: (id: string, file?: File | null) => void;
   // A download in progress: its control waits.
   pending: boolean;
 }
@@ -17,8 +18,13 @@ export interface FittingImageDownload {
 export function useFittingImageDownload(): FittingImageDownload {
   const [pending, setPending] = useState(false);
   const runningRef = useRef(false);
-  const download = useCallback((id: string) => {
+  const download = useCallback((id: string, file?: File | null) => {
     if (runningRef.current) return;
+    if (file) {
+      saveFittingFile(file);
+      showToast({ title: 'Фото скачано' });
+      return;
+    }
     runningRef.current = true;
     setPending(true);
     downloadFittingImage(id)

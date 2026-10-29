@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 
 import {
   type Fitting,
@@ -24,8 +24,8 @@ import { RegenerateSheet } from '@/features/regenerate-fitting';
 import type { PendingFitting } from '@/features/start-fitting';
 import { SavePhotoSwitch } from '@/features/upload-photo';
 import { useTrackedElement } from '@/shared/analytics';
-import { FITTINGS_HREF, PHONE_QUERY } from '@/shared/config';
-import { formatPrice, useMediaQuery } from '@/shared/lib';
+import { FITTINGS_HREF } from '@/shared/config';
+import { formatPrice } from '@/shared/lib';
 import { Button, Notice, ProgressBar } from '@/shared/ui';
 
 import { RESULT_NOTE } from '../lib/result-note';
@@ -33,7 +33,7 @@ import type { ResultPhotoProps } from '../model/result-photo';
 import type { StartIntent } from '../model/starting';
 import { itemsText } from './look-subject';
 import { LookItemRow } from './look-item-row';
-import { ResultPicture, ResultTiles, useRunningProgress } from './result-media';
+import { ResultPicture, useRunningProgress } from './result-media';
 
 import styles from './look-result.module.scss';
 
@@ -78,7 +78,7 @@ export interface LookResultProps {
 
 // Board 8, the result of a look (spec 0019 AC14, AC15, A62, A92), one markup on every width (spec
 // 0024 AC12): «N вещи · <date>», the picture with «Сохранено в «Мои примерки»» and its «!» (spec
-// 0023 Y7, spec 0024 AC13), three tiles, the save switch of a one-time photo (AC22), «Вещи образа» (each item with its price, colours and
+// 0023 Y7, spec 0024 AC13), its full screen, «Скачать» and «Поделиться» over it (AC23), the save switch of a one-time photo (AC22), «Вещи образа» (each item with its price, colours and
 // «Заменить»; another colour regenerates the whole look on the same photo), then a block at the
 // column's bottom, level with the picture's on a wide window (AC14): the sum, the stub «Добавить
 // образ в корзину» with the heart (A33, spec 0023 P31, P32), «Хотите что-то поменять в образе?»
@@ -96,8 +96,6 @@ export function LookResult({
   onOpenRoom,
   photo,
 }: LookResultProps) {
-  const phone = useMediaQuery(PHONE_QUERY);
-  const pictureRef = useRef<HTMLDivElement>(null);
   const [regenerating, setRegenerating] = useState(false);
   const start = useStartLookFitting();
   const regenerateElement = useTrackedElement('result.regenerate-open');
@@ -164,10 +162,8 @@ export function LookResult({
           running={running}
           progress={progress}
           alt="Сгенерированное изображение: вы в образе"
-          pictureRef={pictureRef}
         />
         <SavedNote href={FITTINGS_HREF} events={historyElement} note={RESULT_NOTE} />
-        <ResultTiles fitting={fitting} running={running} pictureRef={pictureRef} phone={phone} />
       </div>
 
       <div className={styles.right}>

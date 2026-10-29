@@ -1,6 +1,6 @@
 // Board 8, one markup on every width (spec 0024 AC12): on a wide screen the picture (the try-on's
-// frame, spec 0023 P24) with the caption and three tiles left of «Вещи образа», the sum and the
-// actions; below 800px one column.
+// frame, spec 0023 P24) with the caption left of «Вещи образа», the sum and the actions; below
+// 800px one column.
 
 .result {
   display: grid;
@@ -34,7 +34,7 @@
   color: var(--color-text-secondary);
 }
 
-// As wide as the frame: the caption and the tiles wrap to it. In one column of 600–799px it is
+// As wide as the frame: the caption wraps to it. In one column of 600–799px it is
 // centred over the items.
 .left {
   display: flex;

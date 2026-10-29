@@ -22,6 +22,8 @@ export interface GalleryViewerProps {
   // The element focused when it closes: the photo it opened from (Safari focuses no clicked
   // button, so Base UI's own return would land on the page's body).
   finalFocus?: () => HTMLElement | true | null;
+  // A class on the window: `mp-block` for a personal photo (the try-on's result, A37).
+  className?: string;
 }
 
 // The gallery's full screen (spec 0023 P2): the whole window, black, each photo whole. The photos
@@ -29,7 +31,15 @@ export interface GalleryViewerProps {
 // and «›» turn them, disabled at the ends. The arrow keys turn them on any device, «N из M» says
 // which one is in view, the × and Escape close it, and the focus returns to the photo it opened
 // from. Base UI's Dialog, as the kit's `Modal`, whose white frame and heading it does not have.
-export function GalleryViewer({ images, index, onClose, title, finalFocus }: GalleryViewerProps) {
+// With one photo (the try-on's result, spec 0024 plan §4.3) no arrows and no counter.
+export function GalleryViewer({
+  images,
+  index,
+  onClose,
+  title,
+  finalFocus,
+  className,
+}: GalleryViewerProps) {
   const mouse = useMediaQuery(MOUSE_QUERY);
   const reducedMotion = useMediaQuery(REDUCED_MOTION_QUERY);
   const [current, setCurrent] = useState(0);
@@ -100,7 +110,7 @@ export function GalleryViewer({ images, index, onClose, title, finalFocus }: Gal
     >
       <Dialog.Portal>
         <Dialog.Popup
-          className={styles.viewer}
+          className={[styles.viewer, className].filter(Boolean).join(' ')}
           onKeyDown={onKeyDown}
           initialFocus={closeRef}
           finalFocus={finalFocus ? () => finalFocus() : undefined}
@@ -132,9 +142,11 @@ export function GalleryViewer({ images, index, onClose, title, finalFocus }: Gal
               </li>
             ))}
           </ul>
-          <p className={styles.counter} aria-live="polite">
-            {current + 1} из {images.length}
-          </p>
+          {images.length > 1 && (
+            <p className={styles.counter} aria-live="polite">
+              {current + 1} из {images.length}
+            </p>
+          )}
           {mouse && images.length > 1 && (
             <>
               <button

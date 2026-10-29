@@ -1,5 +1,5 @@
-// Board 7: on a wide screen the picture (the try-on's frame, spec 0023 P24) with the caption and the
-// tiles left of the item, the colours and the footer; on a phone (7.1) all of it in one column.
+// Board 7: on a wide screen the picture (the try-on's frame, spec 0023 P24) with the caption left
+// of the item, the colours and the footer; on a phone (7.1) all of it in one column.
 
 .result {
   display: grid;
@@ -33,7 +33,7 @@
   color: var(--color-text-secondary);
 }
 
-// As wide as the frame: the caption and the tiles wrap to it. In one column of 600–799px it is
+// As wide as the frame: the caption wraps to it. In one column of 600–799px it is
 // centred over the item.
 .left {
   display: flex;
@@ -83,95 +83,57 @@
   line-height: var(--line-height-body-s);
 }
 
-// Board 13's ResultActions: four equal tiles on the kit's fill, an icon over the label; the
-// hover darkens one to the tertiary background (A62).
-.tiles {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--space-2);
+// The picture's actions (spec 0024 plan §4.3): the picture is a button that opens the full screen,
+// and two round icons sit over its bottom right corner, faded in on hover or focus with a mouse,
+// always shown under a finger (`.pictureActionsShown`). An opacity-only fade keeps `ease`.
+.open {
+  cursor: zoom-in;
 
-  // A frame under about 410px wide (always at 600–1023px, from 1024px in a window under 860px
-  // high) is narrower than four labels: two rows of two (spec 0023 P24).
-  @media (600px <= width < 1024px), (width >= 1024px) and (height < 860px) {
-    &:not(.threeTiles) {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-  }
-}
+  position: absolute;
+  inset: 0;
 
-// Board 8: a look's three tiles, no «К образу»; in a frame under about 300px wide (a window under
-// 690px high, the frame near its 320px floor, Y20) two to a row.
-.threeTiles {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-
-  @media (width >= 600px) and (height < 690px) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-.tile {
-  cursor: pointer;
-
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  align-items: center;
-  justify-content: center;
-
-  height: 68px;
-  padding: 0 var(--space-1);
+  padding: 0;
   border: 0;
-  border-radius: var(--radius-s);
 
-  font: inherit;
-  font-size: var(--font-size-body-s);
-  line-height: var(--line-height-body-s);
-  color: var(--color-text);
-  white-space: nowrap;
-
-  background-color: var(--color-background-secondary);
-
-  transition: background-color var(--duration-fast);
-
-  svg {
-    flex: none;
-  }
+  background: none;
 
   &:focus-visible {
     outline: 2px solid var(--color-border-active);
-    outline-offset: 2px;
+    outline-offset: -2px;
   }
+}
 
-  &:disabled,
+.pictureActions {
+  position: absolute;
+  z-index: 1;
+  right: var(--space-3);
+  bottom: var(--space-3);
+
+  display: flex;
+  gap: var(--space-2);
+
+  opacity: 0;
+
+  transition: opacity var(--duration-fast) ease;
+
+  .picture:hover &,
+  &:focus-within {
+    opacity: 1;
+  }
+}
+
+.pictureActionsShown {
+  opacity: 1;
+}
+
+.pictureAction {
+  border-color: transparent;
+  border-radius: 50%;
+  background-color: var(--color-background);
+  box-shadow: var(--shadow-popover);
+
   &[aria-disabled='true'] {
-    cursor: default;
-    color: var(--color-text-disabled);
-  }
-
-  // «В образе»: the item is in the fitting room (board 13's ResultActions).
-  &[aria-pressed='true'],
-  &[aria-pressed='true']:hover {
-    color: var(--color-background);
-    background-color: var(--color-text);
-  }
-
-  @media (hover: hover) {
-    &:hover:not(:disabled, [aria-pressed='true']) {
-      background-color: var(--color-background-tertiary);
-    }
-  }
-
-  // The look's three tiles in such a frame: «Во весь экран» takes two lines.
-  @media (600px <= width < 1024px), (width >= 1024px) and (height < 860px) {
-    text-align: center;
-    white-space: normal;
-  }
-
-  @media (width < 600px) {
-    gap: var(--space-1);
-    height: 60px;
-    font-size: var(--font-size-caption);
-    line-height: 14px;
+    cursor: progress;
   }
 }
 
@@ -207,6 +169,18 @@
   line-height: var(--line-height-body-s);
 
   @media (width < 600px) {
+    margin-left: calc(40px + var(--space-3));
+  }
+}
+
+// «Добавить к образу» (spec 0024 Z14) under the card's text, as wide as its label, as the size.
+.item .toLook {
+  align-self: flex-start;
+  max-width: calc(100% - 60px - var(--space-3));
+  margin-left: calc(60px + var(--space-3));
+
+  @media (width < 600px) {
+    max-width: calc(100% - 40px - var(--space-3));
     margin-left: calc(40px + var(--space-3));
   }
 }
