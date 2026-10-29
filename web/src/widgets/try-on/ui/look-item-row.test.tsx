@@ -107,6 +107,24 @@ describe('LookItemRow «Заменить» and colours (spec 0024 AC12, AC14)', 
     expect(onReplace).toHaveBeenCalledOnce();
   });
 
+  it('keeps «Заменить» out of the element holding the cart and heart buttons', () => {
+    renderRow();
+
+    const replace = screen.getByRole('button', { name: 'Заменить: Тренч Nord' });
+    const cart = screen.getByRole('button', { name: 'В корзину' });
+
+    expect(cart.parentElement).not.toContainElement(replace);
+    expect(cart.parentElement?.parentElement).toContainElement(replace);
+  });
+
+  it('names the cart button «В корзину» and gives it an icon', () => {
+    renderRow();
+
+    const cart = screen.getByRole('button', { name: 'В корзину' });
+
+    expect(cart.querySelector('svg')).not.toBeNull();
+  });
+
   it('shows swatches for two colours', async () => {
     renderRow();
 

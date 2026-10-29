@@ -279,3 +279,16 @@ progress, took note S2 as unassigned and shipped a 300 ms pause (`SEARCH_APPLY_M
 Its `atOnce` applies an emptied field and a text the browser restored before hydration (0026's
 own rule, kept) in the same render. `Stores Searched` keeps its 1 s on the typed text. Amends plan
 §2.11.
+
+**Z37. The look's item card on a narrow column (T13's QA, AC11, AC12).** Below 360 px of the
+result's right column (a phone) «В корзину», the heart and «Заменить» did not fit beside the name,
+so spec 0019's rule wrapped them under the text, short of AC11's actions at the card's top. The
+owner's answer at T13: «В корзину» becomes the bag icon (`BagIcon`, a 32 px square, «В корзину»
+kept as its name for screen readers) beside the heart at the card's top, and «Заменить» goes
+under the text. A wider card keeps the label and the one line. Amends plan §2.7, §2.8.
+
+**Z38. «в этом месяце» on the history's meter (T13's QA, AC11).** Plan §2.7 kept
+`triesLeftOfText`, so «Мои примерки»'s aside read «Осталось 6 из 10 примерок», short of AC11's
+pages' lines and the spec's assumption naming that aside. The owner's answer at T13: «Осталось 6
+из 10 примерок в этом месяце»; «Обновится 1 ноября» and «Примерки закончились» stay. Amends plan
+§2.7.

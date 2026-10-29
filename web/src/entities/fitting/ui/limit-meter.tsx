@@ -87,9 +87,9 @@ export function LimitMeter({
 // After «из» the noun is genitive: «из 1 примерки», «из 40 примерок».
 const OF_TRIES = ['примерки', 'примерок', 'примерок'] as const;
 
-// «Осталось 11 из 40 примерок» (board 9's side menu).
+// «Осталось 11 из 40 примерок в этом месяце» (board 9's side menu, spec 0024 AC11, Z38).
 export function triesLeftOfText(left: number, limit: number): string {
   if (left <= 0) return 'Примерки закончились';
   const verb = plural(left, ['Осталась', 'Осталось', 'Осталось']);
-  return `${verb} ${left} из ${limit} ${plural(limit, OF_TRIES)}`;
+  return `${verb} ${left} из ${limit} ${plural(limit, OF_TRIES)} в этом месяце`;
 }

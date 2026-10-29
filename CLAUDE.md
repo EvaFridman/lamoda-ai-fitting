@@ -1062,7 +1062,8 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   one column below 800 px, spec 0024 AC12) lists the items in the slots' order as full cards with
   `MiniSwatches` (none for one colour; the line «Смена цвета…» only while some item has two),
   «В корзину», the heart and «Заменить» (the window closes, the room opens at the item's slot,
-  `room.open` with `source: result`, Z8), then a block at the right column's bottom (the sum,
+  `room.open` with `source: result`, Z8; on a column below 360 px «В корзину» is the bag icon
+  beside the heart and «Заменить» goes under the text, Z37), then a block at the right column's bottom (the sum,
   «Добавить образ в корзину» with a heart whose tooltip says every item is added, «Хотите что-то
   поменять в образе?», the meter, AC14), and another colour is `POST /fittings` with the result's
   photo, items and `promptText`, run over the result; «Что поменять?» (no reasons' chips: the

@@ -127,7 +127,7 @@ describe('the fittings page', () => {
   it('shows the limit under the menu with the renewal date', async () => {
     renderPage();
 
-    expect(await screen.findByText('Осталось 5 из 20 примерок')).toBeInTheDocument();
+    expect(await screen.findByText('Осталось 5 из 20 примерок в этом месяце')).toBeInTheDocument();
     expect(screen.getByText('Обновится 1 ноября')).toBeInTheDocument();
   });
 

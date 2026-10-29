@@ -9,7 +9,7 @@ import { MiniSwatches } from '@/entities/fitting-room';
 import { productColours, useProduct } from '@/entities/product';
 import { CartStubButton, FavoriteStub } from '@/features/product-stubs';
 import { useTrackedElement } from '@/shared/analytics';
-import { LinkButton, Price } from '@/shared/ui';
+import { BagIcon, LinkButton, Price } from '@/shared/ui';
 
 import styles from './look-result.module.scss';
 
@@ -30,8 +30,9 @@ export interface LookItemRowProps {
 
 // Board 8's LookItemRow: the catalog picture and the name (to the product), the price, the
 // product's colours as `MiniSwatches` (A91; nothing for one colour, spec 0024 AC12), and at the
-// card's top «В корзину», the favourite's stub (A33) and «Заменить» (Z8). The colours come from the
-// product's page read, which the result's colour line reads too.
+// card's top «В корзину», the favourite's stub (A33) and «Заменить» (Z8); on a narrow card
+// «В корзину» is the bag icon beside the heart and «Заменить» goes under the text (Z37). The
+// colours come from the product's page read, which the result's colour line reads too.
 export function LookItemRow({
   item,
   disabled,
@@ -75,19 +76,20 @@ export function LookItemRow({
         )}
       </div>
       <span className={styles.rowActions}>
-        <CartStubButton size={32} textSize="body-s" events={cartElement}>
-          В корзину
+        <CartStubButton size={32} textSize="body-s" className={styles.rowCart} events={cartElement}>
+          <BagIcon size={16} className={styles.rowCartIcon} />
+          <span className={styles.rowCartLabel}>В корзину</span>
         </CartStubButton>
         <FavoriteStub size={32} />
-        <LinkButton
-          {...replaceEvents}
-          className={styles.rowReplace}
-          aria-label={`Заменить: ${item.name}`}
-          onClick={onReplace}
-        >
-          Заменить
-        </LinkButton>
       </span>
+      <LinkButton
+        {...replaceEvents}
+        className={styles.rowReplace}
+        aria-label={`Заменить: ${item.name}`}
+        onClick={onReplace}
+      >
+        Заменить
+      </LinkButton>
     </div>
   );
 }

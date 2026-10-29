@@ -118,10 +118,13 @@ scroll (no JS auto-grow).
   `look-result.tsx:195` «Образ — 1 примерка · осталось N в этом месяце», `fitting-result.tsx`'s
   «Списали 1 примерку · осталось N в этом месяце» / «Осталось N в этом месяце»,
   `photo-picker.tsx:154` and `fitting-error-card.tsx:80` «Примерка не списана · осталось N в этом
-  месяце»; `triesLeftText`'s «мало» and «закончились» forms and `triesLeftOfText` stay.
+  месяце»; `triesLeftText`'s «мало» and «закончились» forms stay. `triesLeftOfText` (the history's
+  aside) ends in «в этом месяце» too, its «закончились» form unchanged (Z38, at T13's QA).
 - `item-row.module.scss`, `picker-item-actions.module.scss`, `look-subject.module.scss`,
   `look-result.module.scss` (`.rowCart`): `align-items: flex-start` and `align-self: flex-start`,
-  the actions on one line at the card's top (`display: flex; gap: 8px`).
+  the actions on one line at the card's top (`display: flex; gap: 8px`). Below 360 px of the look
+  result's column «В корзину» is the bag icon beside the heart and «Заменить» goes under the text
+  (Z37, at T13's QA).
 - `look-item-row.tsx`: with one colour nothing renders in the colour slot; `look-result.tsx`: the
   line «Смена цвета одной вещи…» renders only when `items.some(colours.length > 1)` (the rows
   already read `useProduct`; the parent reads the same queries through a small
