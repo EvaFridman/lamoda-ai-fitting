@@ -212,7 +212,10 @@ last generation ended (Z12 amended), so a result opened later finds it gone (§4
 - `entities/fitting/api/mutations.ts`: the start, the look start and the regeneration get
   `retry: (count, error) => count < 1 && isStartRetryable(error)` and `retryDelay: 1500` (Z26.6);
   `isStartRetryable` (`shared/api/retry.ts`): kind `network` or `timeout`, or `http` 502/503/504;
-  a 429 is not. `trackFittingRefused` and `reportFailure` stay in `onError`, after the last
+  a 429 and a bare 500 are not (Z27). Its comment says why this write may repeat against spec 0017
+  plan §4's "a write is not repeated by itself": the api answers the running fitting of the same
+  fingerprint (spec 0019 A32), so a lost answer starts no second generation; `CLAUDE.md`'s line
+  on writes names the exception. `trackFittingRefused` and `reportFailure` stay in `onError`, after the last
   attempt. `Fitting Start Retried` is sent from `onSettled` when `failureCount > 0`, with `cause`
   (the first failure's kind or status class) and `outcome` (§6).
 - `widgets/try-on/ui/try-on.tsx`: `StartFittingButton` and `StartLookButton` take `onStart`
@@ -234,10 +237,12 @@ calc(12px + env(safe-area-inset-bottom))`, inside the modal's scroll container, 
 - `photo-picker.tsx`: `saveSwitch` goes from the zone and the replace window; `UploadPhoto`'s
   `save` is `false` in the window (`Photo Uploaded.saved` false from the window).
 - `fitting-result.tsx` and `look-result.tsx`: `SavePhotoSwitch` (`features/upload-photo`) in the
-  right column above the item cards, rendered when the fitting's photo is in the window's
-  `transients` or `useMyPhotos` shows it `transient: true`: on mount with the switch on it calls
-  `keepPhoto(id)` once (`PUT …/keep`); a 409 shows it off and disabled with «Сохранено 5 фото —
-  удалите одно в «Мои фото»»; a 404 shows «Фото уже удалено» in its place; a kept photo leaves
+  right column above the item cards, rendered when, at the result's first render, the fitting's
+  photo is in the window's `transients` or `useMyPhotos` shows it `transient: true`; that answer
+  is kept in the component's state (`ownPhoto`) for the result's lifetime, so the switch stays
+  after its own keep and can be turned off and on again. On mount with the switch on it calls
+  `keepPhoto(id)` once (`PUT …/keep`); a 409 shows it off and disabled with no text (Z29); a 404
+  shows «Фото уже удалено» in its place; a kept photo leaves
   `transients` (so the window's close does not delete it) and joins `userPhotoKeys.all`. Turning
   it off calls `unkeepPhoto(id)` (`DELETE …/keep`): the photo is transient again and back in
   `transients`, deleted when the window closes or by the housekeeping (Z26.4). The element is
@@ -289,8 +294,11 @@ it below the button when the space above is short. Elements `result.regenerate-o
   `image/heic,image/heif` only under `MOUSE_QUERY` (Z26.2: iOS converts to JPEG itself when the
   input does not ask for HEIC, which is faster than the wasm decoder on a phone; a HEIC dropped
   or pasted on any device is decoded). `isPhotoType` accepts them; `WRONG_TYPE_TEXT` and the
-  tips' line name HEIC. CSP: `script-src` gets `'wasm-unsafe-eval'` (`shared/csp/policy.ts`,
-  its test).
+  tips' line name HEIC. CSP: `script-src` gets `'wasm-unsafe-eval'` on every page
+  (`shared/csp/policy.ts`, its test), the first loosening of the site's policy since spec 0014: it
+  allows WebAssembly to compile and no script `eval`; the try-on window opens on the product
+  pages, the history and from the room, so a per-path policy would not hold. The code's comment
+  says so.
 - Paste: `UploadPhoto` with `appearance="zone"` listens to `paste` on `document` while mounted;
   an `image/*` item of the clipboard becomes a `File` and goes through `drop()`'s path with
   `source: 'paste'` (the consents first if not given); a paste into a focused text field or with
@@ -316,11 +324,16 @@ it below the button when the space above is short. Elements `result.regenerate-o
   quota's `unseen` down by one when the fitting was unseen. `_pages/fittings`: on mount
   `markAllFittingsSeen()` and `unseen = 0` in the cache.
 - `widgets/header`: `HeaderProfile`'s icon gets `CountBadge` with `unseen` (`9+` past nine),
-  `profile-menu.open` sends `signed_in` and `unseen`; `SectionLink` «Мои примерки» shows the same
+  `profile-menu.open` sends `signed_in` and `unseen` (the badge's value, 10 for «9+», Z28); `SectionLink` «Мои примерки» shows the same
   count; on phones (the icon hidden) the burger's `IconButton` carries the badge and `HeaderMenu`'s
   «Мои примерки» row the count (Z26.1). Signed out nothing.
 
 ## 5. Risks
+
+- **The header reads the quota on every page.** The badge (§4.6) makes a signed-in visitor's
+  every page load read `GET /me/fitting-quota` (the read tier, the cache shared with
+  `LimitMeter`'s key), where only the product page and the history read it before. One small read
+  per load; the first-request measurement after a deploy (spec 0018) may show it.
 
 - **Safari and `navigator.share` after an `await`.** Safari refuses a share outside the user's
   activation; the blob is fetched ahead (§4.3), and a refusal (`NotAllowedError`) falls back to
@@ -359,14 +372,14 @@ descriptions (`auth`, `catalog`, `fitting`).
 
 New:
 
-| Entry                             | Zone / area             | Type          | Properties                                                                                                                    | Estimate                   |
-| --------------------------------- | ----------------------- | ------------- | ----------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
-| event `Fitting Start Retried`     | `fitting`               | `service`     | `kind`, `source` (as `Fitting Started`), `cause` (`network`, `timeout`, `server`), `outcome` (`started`, `refused`, `failed`) | 0.001 / visit              |
-| element `result.picture`          | `fitting` / `result`    | `interaction` | —                                                                                                                             | 0.008 clicks, 0.015 hovers |
-| element `result.share`            | `fitting` / `result`    | `interaction` | `method` (`system`, `download`)                                                                                               | 0.004, 0.005               |
-| element `result.save-photo`       | `fitting` / `result`    | `interaction` | `saved` (boolean)                                                                                                             | 0.003, 0.003               |
-| element `profile-menu.open`       | `auth` / `profile-menu` | `interaction` | `signed_in` (boolean), `unseen` (number)                                                                                      | 0.12, 0.15                 |
-| `Photo Uploaded`, `Photo Refused` |                         |               | `source` + `paste`; new `format` (`jpeg`, `png`, `webp`, `heic`), five properties each                                        |                            |
+| Entry                             | Zone / area             | Type          | Properties                                                                                                                       | Estimate                   |
+| --------------------------------- | ----------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| event `Fitting Start Retried`     | `fitting`               | `service`     | `kind`, `source` (as `Fitting Started`), `cause` (`network`, `timeout`, `server`), `outcome` (`started`, `refused`, `failed`)    | 0.001 / visit              |
+| element `result.picture`          | `fitting` / `result`    | `interaction` | —                                                                                                                                | 0.008 clicks, 0.015 hovers |
+| element `result.share`            | `fitting` / `result`    | `interaction` | `method` (`system`, `download`)                                                                                                  | 0.004, 0.005               |
+| element `result.save-photo`       | `fitting` / `result`    | `interaction` | `saved` (boolean)                                                                                                                | 0.003, 0.003               |
+| element `profile-menu.open`       | `auth` / `profile-menu` | `interaction` | `signed_in` (boolean), `unseen` (number 0–10, 10 for «9+», Z28)                                                                  | 0.12, 0.15                 |
+| `Photo Uploaded`, `Photo Refused` |                         |               | `source` + `paste`; new `format` (`jpeg`, `png`, `webp`, `heic`: the chosen file's own format, before the conversion), five each |                            |
 
 Not tracked: the «!» tooltip, the look's heart, the viewer's close, the optimistic wait by itself,
 the sticky button. Budget after: 39.635 events a visit, 118 905 a month, 11.9 % (the sdk's 17 a
@@ -395,7 +408,7 @@ visit unchanged). `catalog.test.ts`'s lists and `EVENTS.md` change in the same c
 | AC17 | `try-on.test.tsx` («Примерить на другом фото» → empty zone, start disabled)                                                                                                                       |
 | AC18 | `stores-view.test.tsx` with fake timers (500 ms, clear at once, the event's second)                                                                                                               |
 | AC19 | `try-on.test.tsx` (the wait appears before the mutation resolves; progress origin kept; a refusal returns to the picker)                                                                          |
-| AC20 | `mutations.test.tsx` (retry once for network, timeout, 503; not for 400/409/401/429; `Fitting Start Retried`); `qa-tester` with the api stopped for one attempt                                   |
+| AC20 | `mutations.test.tsx` (retry once for network, timeout, 503; not for 400/409/401/429/500; `Fitting Start Retried`); `qa-tester` with a stubbed 503 for one attempt (Z27)                           |
 | AC21 | `qa-tester` on a phone: the button at the bottom while scrolling, the content's end visible                                                                                                       |
 | AC22 | api `me-photos.e2e-spec` (keep, unkeep, the limit's 409, 404s, the default rule); web `save-photo-switch.test.tsx`, `try-on.test.tsx` (kept photo not dropped on close)                           |
 | AC23 | `result-media.test.tsx` (the viewer opens, ×, Escape; the icons' visibility by pointer); `qa-tester` with a mouse and touch emulation                                                             |

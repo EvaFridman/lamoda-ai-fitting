@@ -2,7 +2,7 @@
 
 Status: accepted (2026-10-29): Z1–Z16, Z18–Z23 and Z25 settled at the first answers, Z17 and
 Z24 at the second; Z12 amended and Z26 (the plan's own choices) added at the plan and confirmed
-with it. Z19–Z24 are the starting decisions of specs 0025 and 0026 (Z1). Decision ids `Z1`, `Z2`, …; the notes are `R1`–`R14`, `K1`–`K4`, `T1`–`T14`,
+with it; Z27–Z29 settled at the review of PR 1. Z19–Z24 are the starting decisions of specs 0025 and 0026 (Z1). Decision ids `Z1`, `Z2`, …; the notes are `R1`–`R14`, `K1`–`K4`, `T1`–`T14`,
 `H1`–`H6`, `S1`–`S3` and `D1` of [source/agentation-notes.md](source/agentation-notes.md).
 
 ## The canvas
@@ -133,7 +133,9 @@ picture. The slider: one frame of the result's size, both pictures at the same s
 with «‹ ›» dragged with a mouse or a finger and moved by the arrow keys, the left picture clipped
 at the handle; a caption with each side's date and items; «Чем отличаются» (the colours, the
 photo, the price) under it. The history's «Сравнить», the selection mode, the compare page and
-the elements `history.compare`, `history.compare-open`, `compare.*` go (Z25).
+the elements `history.compare`, `history.compare-open`, `compare.*` go (Z25). Spec 0025 takes
+the backlog item «Compare as an overlay» (the slider is that overlay) and its commit removes it
+from `backlog.md` (added at the review of PR 1).
 
 **Z25. The analytics' removals and the new elements.** Agreed to remove `try-on.my-photos` (T5),
 `result.fullscreen` (the picture's click becomes `result.picture`), `history.compare`,
@@ -210,3 +212,26 @@ the housekeeping), which is the "deletes it again" of the decision.
    last task; the full `verify` after a clean install at the phase's end, then the push, the pull
    request and one stop. One exception: the drop zone's task (Z17) stops once for the owner's
    look at `/ui-kit` before the window changes.
+
+## Settled at the review of PR 1 (2026-10-29)
+
+**Z27. A bare 500 is not repeated (Z10).** The silent retry stays on a network error, a timeout
+and 502/503/504. In production an api that is down answers nginx's 503; a bare 500 comes from an
+api bug (repeating it doubles the request for nothing) or, locally, from `next dev`'s rewrite with
+the api stopped. So `qa-tester` checks the retry with a stubbed 503 (as `CLAUDE.md` already does
+for the 503 text), not by stopping the api.
+
+**Z28. `profile-menu.open.unseen` is capped.** It sends the badge's value, not the raw count: 0–9,
+and 10 for «9+». A value about the page, as the rules ask, not how many results a user has.
+
+**Z29. The save switch at five saved photos (Z12).** The switch stays on by default; a photo
+saved before the result opened is never saved twice (the keep answers 200 unchanged); at five
+saved photos a new one is simply not saved: the switch shows off and disabled, with no text of
+its own. The owner accepted that a result opened on a one-time photo fills «Мои фото» by itself
+up to five.
+
+The review's other notes were fixed in the documents of PR 1 without a decision: AC20's pause
+(Z26.6), the switch shown after its own keep (plan §4.2), `format` naming the original file
+(plan §6), the retry's departure from spec 0017's "a write is not repeated by itself" written at
+`isStartRetryable` and in `CLAUDE.md` (T16), the CSP's `'wasm-unsafe-eval'` in AC27, the package
+check of `libheif-js` (T18) and the header's quota read on every page (plan §5).
