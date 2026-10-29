@@ -170,8 +170,19 @@ describe('fittingListSchema', () => {
 
 describe('fittingQuotaSchema', () => {
   it('accepts the month quota', () => {
-    const quota = { limit: 10, used: 3, left: 7, renewsAt: '2026-11-01T00:00:00.000Z' };
+    const quota = {
+      limit: 10,
+      used: 3,
+      left: 7,
+      renewsAt: '2026-11-01T00:00:00.000Z',
+      unseen: 2,
+    };
     expect(fittingQuotaSchema.parse(quota)).toEqual(quota);
+  });
+
+  it('refuses a quota without the unseen count', () => {
+    const quota = { limit: 10, used: 3, left: 7, renewsAt: '2026-11-01T00:00:00.000Z' };
+    expect(fittingQuotaSchema.safeParse(quota).success).toBe(false);
   });
 });
 

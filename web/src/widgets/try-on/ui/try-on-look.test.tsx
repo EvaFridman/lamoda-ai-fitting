@@ -186,7 +186,7 @@ function photo(id: string, patch: Record<string, unknown> = {}) {
 
 interface Api {
   photos: unknown[];
-  quota: { limit: number; used: number; left: number; renewsAt: string };
+  quota: { limit: number; used: number; left: number; renewsAt: string; unseen: number };
   room: unknown;
   fittings: Map<string, Fitting>;
   // What POST /fittings answers.
@@ -299,7 +299,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   api = {
     photos: [photo(PHOTO_A), photo(PHOTO_B, { isDefault: true })],
-    quota: { limit: 20, used: 3, left: 17, renewsAt: '2026-10-31T21:00:00.000Z' },
+    quota: { limit: 20, used: 3, left: 17, renewsAt: '2026-10-31T21:00:00.000Z', unseen: 0 },
     room: ROOM,
     fittings: new Map(),
     started: () => json(201, { ...running(), repeated: false }),

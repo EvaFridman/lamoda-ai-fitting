@@ -192,7 +192,13 @@ function api({
     }
     if (pathname === '/api/me/fitting-quota') {
       if (quotaPending) return new Promise(() => {});
-      return json({ limit: 20, used: 20 - left, left, renewsAt: '2026-10-31T21:00:00.000Z' });
+      return json({
+        limit: 20,
+        used: 20 - left,
+        left,
+        renewsAt: '2026-10-31T21:00:00.000Z',
+        unseen: 0,
+      });
     }
     if (pathname === `/api/products/${ID}/fittings/last`) {
       if (last === null) {

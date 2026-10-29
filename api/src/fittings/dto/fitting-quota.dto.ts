@@ -15,4 +15,11 @@ export class FittingQuotaDto {
     description: 'When the limit renews: the first of the next month, midnight in Moscow.',
   })
   renewsAt: Date;
+
+  @ApiProperty({
+    example: 2,
+    description:
+      'Completed fittings the user has not opened yet (POST /fittings/:id/seen, POST /fittings/seen).',
+  })
+  unseen: number;
 }

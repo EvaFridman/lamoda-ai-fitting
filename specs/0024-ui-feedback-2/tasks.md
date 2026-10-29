@@ -92,7 +92,7 @@ same release); PR 4 the closing, which records the owner's checks on the deploye
       one, Swagger, `openapi.json`, `CLAUDE.md`'s fittings paragraph; web's `fittingSchema` and
       its tests' fittings (Z43). Check: `fittings-routes.e2e-spec.ts`, `openapi-snapshot`, web's
       `schemas.contract.test.ts`. Commit: `feat(api): the fitting's photo kind for the result's switch`.
-- [ ] **T15. Seen results (plan §3.2; AC30).** The migration (`seen_at`, the partial index),
+- [x] **T15. Seen results (plan §3.2; AC30).** The migration (`seen_at`, the partial index),
       `POST /fittings/:id/seen`, `POST /fittings/seen`, `unseen` in `GET /me/fitting-quota`,
       markers, `openapi.json`. Check: `fittings.e2e-spec.ts`, `fitting-quota` tests, the
       snapshots. Commit: `feat(api): seen results and the unseen count`.

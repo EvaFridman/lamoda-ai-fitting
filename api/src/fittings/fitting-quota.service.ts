@@ -5,6 +5,7 @@ import { AppException } from '../common/errors/app.exception.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { FittingQuotaDto } from './dto/fitting-quota.dto.js';
+import { fittingsOf } from './fittings-of.js';
 import { quotaMonth, quotaRenewsAt } from './quota-month.js';
 
 // The month's spend of the fitting limit (spec 0019 A20, A26), kept in `fitting_quota` apart from
@@ -17,7 +18,27 @@ export class FittingQuotaService {
   ) {}
 
   // A user with no row this month has spent nothing; a gone user reads the same (spec 0013 N31).
+  // `unseen` is the header's badge (spec 0024 Z18), counted on the partial index
+  // `ai_generations_unseen_idx`.
   async read(userId: string, now = new Date()): Promise<FittingQuotaDto> {
+    const [spent, unseen] = await Promise.all([
+      this.spent(userId, now),
+      this.prisma.aiGeneration.count({
+        where: { ...fittingsOf(userId), status: 'completed', seenAt: null },
+      }),
+    ]);
+    return { ...spent, unseen };
+  }
+
+  // Before a paid text check (T12's security review): a user at the limit is refused without the
+  // lock, so a stream of new texts costs no checks. `reserve` stays the final word.
+  async assertLeft(userId: string, now = new Date()): Promise<void> {
+    if ((await this.spent(userId, now)).left === 0) {
+      throw this.limitReached(now);
+    }
+  }
+
+  private async spent(userId: string, now: Date): Promise<Omit<FittingQuotaDto, 'unseen'>> {
     const row = await this.prisma.fittingQuota.findUnique({
       where: { userId_month: { userId, month: quotaMonth(now) } },
       select: { used: true },
@@ -25,14 +46,6 @@ export class FittingQuotaService {
     const used = row?.used ?? 0;
     const limit = this.settings.monthlyLimit;
     return { limit, used, left: Math.max(limit - used, 0), renewsAt: quotaRenewsAt(now) };
-  }
-
-  // Before a paid text check (T12's security review): a user at the limit is refused without the
-  // lock, so a stream of new texts costs no checks. `reserve` stays the final word.
-  async assertLeft(userId: string, now = new Date()): Promise<void> {
-    if ((await this.read(userId, now)).left === 0) {
-      throw this.limitReached(now);
-    }
   }
 
   // In the start transaction, with the user's row locked (A26): two starts cannot both pass the

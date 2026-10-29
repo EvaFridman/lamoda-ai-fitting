@@ -186,6 +186,7 @@ function route(url: string, init?: RequestInit) {
       used: 20 - api.left,
       left: api.left,
       renewsAt: '2026-10-31T21:00:00.000Z',
+      unseen: 0,
     });
   }
   if (pathname === '/api/categories') return json(CATEGORIES);

@@ -178,6 +178,8 @@ const SIGNED_IN_HANDLERS = [
   'FittingsController.get',
   'FittingsController.image',
   'FittingsController.list',
+  'FittingsController.markAllSeen',
+  'FittingsController.markSeen',
   'FittingsController.regenerate',
   'FittingsController.start',
   'MeController.delete',
