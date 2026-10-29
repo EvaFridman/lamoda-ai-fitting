@@ -1,5 +1,5 @@
-// Board 3's `.n-soon`: 18px high, 6px from the sides, a 9px radius, 11px medium white text on
-// black.
+// Board 3's `.n-soon`, quieter (spec 0024 AC8): 18px high, 6px from the sides, a 9px radius, 11px
+// medium grey text on a light grey fill, so it reads as a note and not as the black count.
 
 .chip {
   display: inline-flex;
@@ -13,8 +13,8 @@
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-medium);
   line-height: var(--line-height-caption);
-  color: var(--color-background);
+  color: var(--color-text-secondary);
   white-space: nowrap;
 
-  background-color: var(--color-text);
+  background-color: var(--color-background-tertiary);
 }

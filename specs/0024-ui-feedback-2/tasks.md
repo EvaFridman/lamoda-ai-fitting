@@ -44,7 +44,7 @@ same release); PR 4 the closing, which records the owner's checks on the deploye
 - [x] **T6. Tab icons (plan §2.4; AC7).** `LamodaMark` in the kit's icons (the pin reuses it),
       `app/icon.svg`, `app/icon1.tsx` (the PNG fallback, Z31), `app/apple-icon.tsx`, the warm-up
       list. Check: `routes.test.ts`, `curl -I` of `/icon.svg`, `/icon1` and `/apple-icon` locally. Commit: `feat(web): tab icons with the «la» mark`.
-- [ ] **T7. The header's chips, badge and burger heading (plan §2.5; AC8, AC9).** Grey `SoonChip`
+- [x] **T7. The header's chips, badge and burger heading (plan §2.5; AC8, AC9).** Grey `SoonChip`
       at the count's position, the centred `CountBadge`, «Каталог» in the burger. Check:
       `header.test.tsx`, `count-badge.test.tsx`, `soon-chip.test.tsx`, `header-menu.test.tsx`.
       Commit: `feat(web): grey «скоро» chips, centred count, the burger's catalog heading`.

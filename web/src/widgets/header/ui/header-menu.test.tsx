@@ -309,6 +309,37 @@ describe('HeaderMenu', () => {
     );
   });
 
+  describe('the catalog heading', () => {
+    const follows = (a: Element, b: Element) =>
+      Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+
+    it('names the section and the list, after the sign-outs and before «Все товары», signed in', async () => {
+      signedIn();
+      const { dialog } = await openMenu();
+      const heading = within(dialog).getByRole('heading', { name: 'Каталог' });
+      expect(within(dialog).getByRole('region', { name: 'Каталог' })).toContainElement(heading);
+      expect(within(dialog).getByRole('list', { name: 'Каталог' })).toHaveAccessibleName('Каталог');
+      expect(follows(within(dialog).getByRole('button', { name: 'Выйти' }), heading)).toBe(true);
+      expect(
+        follows(within(dialog).getByRole('button', { name: 'Выйти со всех устройств' }), heading),
+      ).toBe(true);
+      expect(follows(heading, within(dialog).getByRole('link', { name: 'Все товары' }))).toBe(true);
+    });
+
+    it.each([false, true])(
+      'stands between «Войти» and «Все товары» signed out (failed %s)',
+      async (failed) => {
+        mocks.session = { status: 'signed-out', failed };
+        const { dialog } = await openMenu();
+        const heading = within(dialog).getByRole('heading', { name: 'Каталог' });
+        expect(follows(within(dialog).getByRole('button', { name: 'Войти' }), heading)).toBe(true);
+        expect(follows(heading, within(dialog).getByRole('link', { name: 'Все товары' }))).toBe(
+          true,
+        );
+      },
+    );
+  });
+
   describe('the catalog', () => {
     it('links «Все товары» to /catalog and each category to its encoded slug', async () => {
       const { dialog } = await openMenu();

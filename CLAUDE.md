@@ -733,8 +733,9 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   `handlesReturnedError={false}`), signed in `SessionUserBadge` in an `mp-block`, the account's
   sections and the sign-outs (`useSignOuts`, `features/auth`, which `SignOutItems` shares), then
   a list «Город» of one row, «Город: <name>» or «Укажите ваш населенный пункт», which closes the
-  drawer and opens its own `CityModal`, the focus back on the burger (spec 0026 C5), then
-  «Все товары» and the header's categories; a link closes it. The header stays not sticky.
+  drawer and opens its own `CityModal`, the focus back on the burger (spec 0026 C5), then one
+  hairline, the heading «Каталог» (spec 0024 AC9), «Все товары» and the header's categories; a
+  link closes it. The header stays not sticky.
 - `web` the visitor's city (spec 0026, `features/choose-city`): the cities are the stores'
   (`entities/store`'s `storeCities`: one per `cityName`, the table's `city` without «г. » and
   what follows a comma, Москва and Санкт-Петербург first, then alphabetical), and the choice is a
@@ -807,8 +808,9 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   takes `description`, `media` (a picture left of the heading, which then has no "‹" or header
   action), `grip`, `closable` and `initialFocus`; `Sheet` is it with a grip and no ×),
   `ProgressBar`, `CountBadge` (nothing at 0; its parent places it and names the count),
-  `SoonChip` (board 3's «скоро», placed by its parent as `CountBadge`, hidden from screen readers:
-  the header's inert «Избранное» and «Корзина», spec 0023 C4, C5),
+  `SoonChip` (board 3's «скоро», grey, placed by its parent as `CountBadge`, hidden from screen
+  readers: the header's inert «Избранное» and «Корзина» at the room count's place, spec 0023 C4,
+  C5, spec 0024 AC8),
   `LamodaMark` (Lamoda's «la», `LAMODA_MARK_PATHS`: the stores map's pin and the tab icons),
   `Chip`/`ChipGroup` (Base UI's Toggle and ToggleGroup; spec 0019 plan §7), `Select`'s option
   `swatch` (a colour circle in place of a thumbnail, spec 0019 A90.3) and `Gallery` (a

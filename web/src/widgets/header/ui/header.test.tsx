@@ -161,6 +161,18 @@ describe('Header', () => {
     expect(screen.getByRole('button', { name: 'Примерочная' })).not.toHaveTextContent('скоро');
   });
 
+  it('places «скоро» at the top right of the icon, inside its button', () => {
+    render(<Header />);
+    for (const name of ['Избранное', 'Корзина']) {
+      const button = screen.getByRole('button', { name });
+      const style = getComputedStyle(within(button).getByText('скоро'));
+      expect(style.position).toBe('absolute');
+      expect(style.top).toBe('4px');
+      expect(style.right).toBe('2px');
+      expect(getComputedStyle(button).position).toBe('relative');
+    }
+  });
+
   it('draws the header icons with no frame', () => {
     render(<Header />);
     for (const name of ['Профиль', 'Избранное', 'Примерочная', 'Корзина']) {

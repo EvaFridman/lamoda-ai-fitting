@@ -199,17 +199,16 @@
   }
 }
 
-// «скоро» over the icon's top right (spec 0023 C4, C5): about 40px wide, so it sits above the 24px
-// icon, 4px over the button's top (the phone row's 56px leave 4px above the 48px button), and ends
-// at the button's right edge, within the header's side padding, never past the screen's edge.
+// «скоро» over the icon's top right (spec 0023 C4, C5) where the fitting room's count sits
+// (`FittingRoomButton`'s, spec 0024 AC8), inside the button, so it never passes the screen's edge.
 .soonButton {
   position: relative;
 }
 
 .soon {
   position: absolute;
-  top: -4px;
-  right: 0;
+  top: 4px;
+  right: 2px;
 }
 
 // Keeps its height without categories, so the header does not jump when they arrive (plan §2):
