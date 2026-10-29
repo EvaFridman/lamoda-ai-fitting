@@ -807,7 +807,9 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   `plain` and `Sheet` (spec 0019 A64: the kit's one bottom sheet is `Drawer side="bottom"`, which
   takes `description`, `media` (a picture left of the heading, which then has no "‹" or header
   action), `grip`, `closable` and `initialFocus`; `Sheet` is it with a grip and no ×),
-  `ProgressBar`, `CountBadge` (nothing at 0; its parent places it and names the count),
+  `ProgressBar`, `InfoTip` (a 16 px «!» whose hint is the kit's `Tooltip` with a mouse and a
+  `Popover` of the same look, opened by a tap, under `COARSE_POINTER_QUERY`, spec 0024 plan §2.9),
+  `CountBadge` (nothing at 0; its parent places it and names the count),
   `SoonChip` (board 3's «скоро», grey and 16 px high, spec 0024 Z32, placed by its parent as `CountBadge`, hidden from screen
   readers: the header's inert «Избранное» and «Корзина» at the room count's place, spec 0023 C4,
   C5, spec 0024 AC8; after the room's accessory slot's name, AC10),
@@ -1070,7 +1072,9 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   `FittingSuccess` (`features/start-fitting`: the result blurred in the frame, «Готово!» and
   «Сохранили в «Мои примерки»») for 1.5 s, then the result; one opened completed shows the result
   at once (P26). Both results carry `SavedNote` (`entities/fitting`, «Сохранено в «Мои
-  примерки»», Y7) under the picture; the look's buttons read «Добавить образ в корзину» and
+  примерки»», Y7) under the picture, with an `InfoTip` «Изображение приблизительное…» after it
+  (spec 0024 AC13, no caption of its own in the body; the single result's not while a colour or
+  a regeneration runs over it); the look's buttons read «Добавить образ в корзину» and
   «Добавить образ в избранное» (P31, P32).
 - `web` stores page (spec 0022, `_pages/stores`): `useStores` (`entities/store`) starts from the
   page cache's `getStores`; the search (`matchStores`: every word the start of a word of the

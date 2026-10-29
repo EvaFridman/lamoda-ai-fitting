@@ -26,6 +26,7 @@ import { FITTINGS_HREF, PHONE_QUERY } from '@/shared/config';
 import { formatPrice, useMediaQuery } from '@/shared/lib';
 import { Button, Drawer, HeartIcon, LinkButton, Notice, ProgressBar } from '@/shared/ui';
 
+import { RESULT_NOTE } from '../lib/result-note';
 import { itemsText } from './look-subject';
 import { LookItemRow } from './look-item-row';
 import { ResultPicture, ResultTiles, useRunningProgress } from './result-media';
@@ -212,8 +213,7 @@ export function LookResult({
           alt="Сгенерированное изображение: вы в образе"
           pictureRef={pictureRef}
         />
-        <SavedNote href={FITTINGS_HREF} events={historyElement} />
-        <p className={styles.note}>Изображение приблизительное, могут быть неточности</p>
+        <SavedNote href={FITTINGS_HREF} events={historyElement} note={RESULT_NOTE} />
         <ResultTiles fitting={fitting} running={running} pictureRef={pictureRef} phone={phone} />
       </div>
 

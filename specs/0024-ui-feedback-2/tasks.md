@@ -57,7 +57,7 @@ same release); PR 4 the closing, which records the owner's checks on the deploye
       `try-on.test.tsx`, `try-on-look.test.tsx`, `fitting-wait.test.tsx`, `limit-meter.test.tsx`,
       `fitting-error-card.test.tsx`. Commit:
       `feat(web): window texts, card actions at the top, larger wait thumbnails`.
-- [ ] **T10. `InfoTip` and the result's caption (plan §2.8, §2.9; AC13).** The kit's `InfoTip` (hover
+- [x] **T10. `InfoTip` and the result's caption (plan §2.8, §2.9; AC13).** The kit's `InfoTip` (hover
       and tap), `SavedNote`'s `note`, the `.note` paragraphs removed, `/ui-kit`. Check:
       `info-tip.test.tsx`, `saved-note.test.tsx`. Commit:
       `feat(web): info tip in the kit, the result's caption as a tooltip`.

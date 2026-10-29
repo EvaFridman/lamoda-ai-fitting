@@ -95,6 +95,8 @@ export type { PaymentMarkProps } from './icon/payment-marks';
 export { MastercardMark, VisaMark } from './icon/payment-marks';
 export type { IconButtonProps, IconButtonSize, IconButtonVariant } from './icon-button/icon-button';
 export { IconButton } from './icon-button/icon-button';
+export type { InfoTipProps } from './info-tip/info-tip';
+export { InfoTip } from './info-tip/info-tip';
 export type { LinkButtonProps, LinkProps, LinkVariant } from './link/link';
 export { Link, LinkButton } from './link/link';
 export type {

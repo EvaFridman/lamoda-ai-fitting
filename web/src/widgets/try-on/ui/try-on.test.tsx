@@ -302,6 +302,7 @@ describe('TryOn picker', () => {
     await screen.findByText('Осталось 17 примерок в этом месяце');
 
     expect(screen.queryByText(/Изображение приблизительное/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Об изображении' })).not.toBeInTheDocument();
     expect(screen.queryByText(/Ваши фото/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Управлять/)).not.toBeInTheDocument();
     expect(screen.getAllByRole('switch')).toHaveLength(1);
@@ -850,6 +851,27 @@ describe('TryOn with a fitting', () => {
     expect(screen.getByText('Осталось 17 примерок в этом месяце')).toBeInTheDocument();
   });
 
+  it('keeps the approximate-picture caption out of the body: it is the hint of «Об изображении» (spec 0024 AC13)', async () => {
+    api.fittings.set(
+      RUNNING,
+      fitting({
+        status: 'completed',
+        stage: 'done',
+        resultUrl: 'https://s3.test/keep/users/u/result.webp?X-Amz-Signature=abc',
+        finishedAt: DATE,
+      }),
+    );
+    const user = setup();
+    renderTryOn({ fittingId: RUNNING });
+    await screen.findByText('Сгенерировано ИИ');
+
+    expect(screen.queryByText(/Изображение приблизительное/)).not.toBeInTheDocument();
+    await user.hover(screen.getByRole('button', { name: 'Об изображении' }));
+    expect(await screen.findByText(/Изображение приблизительное/)).toHaveTextContent(
+      'Изображение приблизительное, могут быть неточности в посадке, длине и цвете.',
+    );
+  });
+
   describe('«К образу» of the result (A90.11, AC13, AC16)', () => {
     function completed() {
       api.fittings.set(
@@ -1147,6 +1169,7 @@ describe('TryOn with a fitting', () => {
     const user = setup();
     renderTryOn({ fittingId: RUNNING });
     await screen.findByText('Сгенерировано ИИ');
+    expect(screen.getByRole('button', { name: 'Об изображении' })).toBeInTheDocument();
 
     await user.click(await screen.findByRole('button', { name: 'Синий' }));
 
@@ -1159,6 +1182,7 @@ describe('TryOn with a fitting', () => {
     expect(await screen.findByText(/Примеряем Синий…/)).toBeInTheDocument();
     expect(screen.getByText('Пока идёт примерка, другие цвета недоступны')).toBeInTheDocument();
     expect(screen.queryByText('Сгенерировано ИИ')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Об изображении' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Примерить на другом фото' })).toBeDisabled();
   });
 
@@ -1277,7 +1301,8 @@ describe('TryOn with a fitting', () => {
     await user.click(screen.getByRole('button', { name: 'Другое фото' }));
 
     expect(await screen.findByRole('button', { name: 'Заменить фото' })).toBeInTheDocument();
-    expect(screen.queryByText(/Изображение приблизительное/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Об изображении' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Сохранено в/)).not.toBeInTheDocument();
   });
 
   it('goes back to the picker from «Примерить на другом фото»', async () => {
@@ -1296,7 +1321,8 @@ describe('TryOn with a fitting', () => {
     await user.click(await screen.findByRole('button', { name: 'Примерить на другом фото' }));
 
     expect(await screen.findByRole('button', { name: 'Заменить фото' })).toBeInTheDocument();
-    expect(screen.queryByText(/Изображение приблизительное/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Об изображении' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Сохранено в/)).not.toBeInTheDocument();
   });
 
   it('shows the text of a fitting that cannot be read, with a way back to the picker', async () => {

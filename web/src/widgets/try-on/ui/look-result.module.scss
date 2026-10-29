@@ -69,18 +69,10 @@
   line-height: var(--line-height-body-m);
 }
 
-.note,
 .muted {
   margin: 0;
   font-size: var(--font-size-body-s);
   line-height: var(--line-height-body-s);
-}
-
-.note {
-  color: #5e5e5e;
-}
-
-.muted {
   color: var(--color-text-secondary);
 }
 
