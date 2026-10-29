@@ -98,7 +98,7 @@ function CityChoice({ cities, onChosen }: { cities: readonly City[]; onChosen: (
 
   return (
     <div className={styles.body}>
-      <div className={styles.auto}>
+      <div>
         <Button
           variant="secondary"
           fullWidth
