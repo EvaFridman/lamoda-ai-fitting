@@ -10,6 +10,7 @@ export {
   SLOT_TITLES,
 } from './config/slots';
 export {
+  clearFocusSlot,
   closeRoom,
   isRoomOwner,
   openLookTryOn,

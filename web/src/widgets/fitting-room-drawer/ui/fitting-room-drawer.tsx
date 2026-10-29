@@ -6,6 +6,7 @@ import { useEffect, useRef } from 'react';
 import { useActiveCategories } from '@/entities/category';
 import { LimitMeter, useFittingQuota } from '@/entities/fitting';
 import {
+  clearFocusSlot,
   closeRoom,
   EmptySlotRow,
   type FittingRoom,
@@ -75,15 +76,24 @@ function EmptySlot({ slot, href }: { slot: OutfitSlot; href: string | undefined 
 
 // The five slots in their order. The categories are read only here, for a room with items: a
 // visitor's page, or an empty room, asks for none.
+// A slot to bring into view (the look result's «Заменить», spec 0024 Z8) scrolls to its row once
+// the rows are there, then the store forgets it.
 function RoomSlots({ room, phone }: { room: FittingRoom; phone: boolean }) {
   const fillHrefs = useFillHrefs();
   const bySlot = new Map(room.items.map((item) => [item.slot, item]));
+  const focusSlot = useRoomStore((state) => state.focusSlot);
+  const focusRef = useRef<HTMLLIElement>(null);
+  useEffect(() => {
+    if (focusSlot === null) return;
+    focusRef.current?.scrollIntoView({ block: 'start' });
+    clearFocusSlot();
+  }, [focusSlot]);
   return (
     <ul className={styles.slots}>
       {OUTFIT_SLOTS.map((slot) => {
         const item = bySlot.get(slot);
         return (
-          <li key={slot}>
+          <li key={slot} ref={slot === focusSlot ? focusRef : undefined}>
             {item ? (
               <RoomSlot item={item} phone={phone} />
             ) : (

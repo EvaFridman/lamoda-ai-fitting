@@ -271,10 +271,11 @@ export function TryOn({
   const pickerColour = colours.find((colour) => colour.id === shownColour) ?? colours[0];
   const loadedFittings = history.data?.pages.flatMap((page) => page.items) ?? [];
 
-  // The window closes first: two dialogs do not stack (A90.12).
-  function toRoom() {
+  // The window closes first: two dialogs do not stack (A90.12). A look item's «Заменить» brings its
+  // slot into view (spec 0024 Z8).
+  function toRoom(slot?: OutfitSlot) {
     onClose();
-    openRoom();
+    openRoom({ slot });
   }
 
   const pickerProps = {

@@ -1,6 +1,6 @@
-// Board 8: on a wide screen the picture (the try-on's frame, spec 0023 P24) with the caption and
-// three tiles left of «Вещи образа», the sum and the actions; on a phone (8.1) one column, the items
-// on a screen of their own (8.2).
+// Board 8, one markup on every width (spec 0024 AC12): on a wide screen the picture (the try-on's
+// frame, spec 0023 P24) with the caption and three tiles left of «Вещи образа», the sum and the
+// actions; below 800px one column.
 
 .result {
   display: grid;
@@ -51,7 +51,8 @@
   }
 }
 
-// The items' rows follow this column's width, not the window's (`container-type`).
+// The items' rows follow this column's width, not the window's (`container-type`). Beside the
+// picture it is as high as the left column, so `.bottom` meets its bottom (AC14).
 .right {
   container-type: inline-size;
   display: flex;
@@ -96,8 +97,11 @@
   list-style: none;
 }
 
-// A LookItemRow: 60×80 picture, the text, «В корзину» and the heart, a hairline under it.
+// A LookItemRow: 60×80 picture (52×70 on a phone), the text, «В корзину», the heart and «Заменить»,
+// a hairline under it.
 .row {
+  --row-image-width: 60px;
+
   display: flex;
   gap: var(--space-3);
   align-items: flex-start;
@@ -106,11 +110,13 @@
   border-bottom: var(--border-width) solid var(--color-border);
 
   @media (width < 600px) {
+    --row-image-width: 52px;
+
     padding: 10px 0;
   }
 
-  // A column narrower than 360px (beside the picture, in a window just over 800px or 1024px): the
-  // text takes the line beside the picture, «В корзину» and the heart wrap under the text.
+  // A column narrower than 360px (a phone, or beside the picture in a window just over 800px or
+  // 1024px): the text takes the line beside the picture, the actions wrap under the text.
   @container (width < 360px) {
     flex-wrap: wrap;
   }
@@ -122,7 +128,7 @@
   overflow: hidden;
   flex: none;
 
-  width: 60px;
+  width: var(--row-image-width);
   height: 80px;
 
   background-color: var(--color-background-secondary);
@@ -132,7 +138,6 @@
   }
 
   @media (width < 600px) {
-    width: 52px;
     height: 70px;
   }
 }
@@ -149,7 +154,7 @@
   line-height: var(--line-height-body-s);
 
   @container (width < 360px) {
-    flex-basis: calc(100% - 60px - var(--space-3));
+    flex-basis: calc(100% - var(--row-image-width) - var(--space-3));
   }
 }
 
@@ -158,7 +163,7 @@
   text-decoration: none;
 }
 
-// «В корзину» and the heart on one line at the card's top (spec 0024 AC11).
+// «В корзину», the heart and «Заменить» on one line at the card's top (spec 0024 AC11, Z8).
 .rowActions {
   display: flex;
   flex: none;
@@ -167,8 +172,22 @@
   align-self: flex-start;
 
   @container (width < 360px) {
-    margin-left: calc(60px + var(--space-3));
+    margin-left: calc(var(--row-image-width) + var(--space-3));
   }
+}
+
+.rowReplace {
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+}
+
+// The sum, the cart row, «Хотите что-то поменять в образе?» and the meter, pushed to the column's
+// bottom (spec 0024 R11, AC14).
+.bottom {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: auto;
 }
 
 .sum {
@@ -177,7 +196,7 @@
   justify-content: space-between;
 
   margin: 0;
-  padding: var(--space-4) 0;
+  padding: var(--space-4) 0 var(--space-1);
 
   b {
     font-size: var(--font-size-headline-s);
@@ -185,52 +204,22 @@
   }
 }
 
-// «Всё в корзину · N вещи» and «Всё в избранное» wrap to two rows in a narrow column.
+// «Добавить образ в корзину» and the heart beside it (spec 0024 AC14). A column too narrow for both
+// (a 320px window) puts the heart on a line of its own: the label does not wrap.
 .buttons {
   display: flex;
-  flex-wrap: wrap;
   gap: var(--space-2);
+
+  @container (width < 300px) {
+    flex-wrap: wrap;
+  }
 }
 
 .grow {
   flex: 1;
   min-width: 0;
-}
 
-// The phone's «Добавить образ в корзину» (8.1, P31): too long to share a row with «Вещи образа» and
-// the heart, so a row of its own above them.
-.full {
-  flex: 1 1 100%;
-}
-
-// The column's «Добавить образ в корзину» and «Добавить образ в избранное» (spec 0023 P31, P32):
-// equal in one row, never narrower than their labels (a button does not wrap its text), so the
-// second wraps instead and fills its row, as wide as the cart's. The phone's shorter rows keep
-// `.grow`.
-.wide {
-  flex: 1 1 0;
-  min-width: max-content;
-}
-
-.replace {
-  align-self: center;
-}
-
-// Board 8.1: the strip on the left, the count and the sum on the right.
-.summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.summaryText {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-}
-
-.footer {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
+  @container (width < 300px) {
+    flex-basis: 100%;
+  }
 }

@@ -9,14 +9,11 @@ import styles from './favorite-toggle.module.scss';
 
 export type FavoriteToggleSize = 24 | 32 | 48 | 56;
 
-export interface FavoriteToggleProps extends Pick<
+// The rest of the toggle's props reach it too: a `Tooltip` around the heart passes its trigger's
+// handlers and ref (the look result's heart, spec 0024 AC14).
+export interface FavoriteToggleProps extends Omit<
   Toggle.Props,
-  | 'pressed'
-  | 'defaultPressed'
-  | 'onPressedChange'
-  | 'disabled'
-  | 'onPointerEnter'
-  | 'onPointerLeave'
+  'className' | 'render' | 'children' | 'aria-label'
 > {
   // 24: the bare heart. 32: on a product photo, white with a grey outline. 48 and 56: a square
   // with a border, next to "Добавить в корзину".

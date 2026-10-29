@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -134,7 +134,16 @@ describe('LookResult analytics (A94)', () => {
   const P2 = '00000000-0000-4000-8000-0000000000a2';
   const DATE = '2026-10-20T12:00:00.000Z';
 
+  // The ids of products that have a second colour.
+  let twoColours: string[] = [];
+
   function productOf(id: string) {
+    const colours = twoColours.includes(id)
+      ? [
+          { id: WHITE, value: 'Белый', colorHex: '#FFFFFF' },
+          { id: BLACK, value: 'Чёрный', colorHex: '#000000' },
+        ]
+      : [{ id: WHITE, value: 'Белый', colorHex: '#FFFFFF' }];
     return {
       id,
       article: 'A-1',
@@ -151,7 +160,7 @@ describe('LookResult analytics (A94)', () => {
       description: null,
       images: [],
       variations: [{ id, size: 'M', stock: 3 }],
-      attributes: [],
+      attributes: [{ attribute: { id, name: 'Цвет' }, values: colours }],
     };
   }
 
@@ -163,12 +172,15 @@ describe('LookResult analytics (A94)', () => {
     if (roomCount !== null) {
       queryClient.setQueryData(fittingRoomKeys.all, { items: [], count: roomCount, sum: 0 });
     }
-    vi.stubGlobal('fetch', (url: string) => {
-      const { pathname } = new URL(String(url));
-      if (pathname === '/api/me/fitting-room') return new Promise(() => undefined);
-      const id = pathname.split('/').pop() ?? P1;
-      return Promise.resolve(new Response(JSON.stringify(productOf(id)), { status: 200 }));
-    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        const { pathname } = new URL(String(url));
+        if (pathname === '/api/me/fitting-room') return new Promise(() => undefined);
+        const id = pathname.split('/').pop() ?? P1;
+        return Promise.resolve(new Response(JSON.stringify(productOf(id)), { status: 200 }));
+      }),
+    );
     render(
       <QueryClientProvider client={queryClient}>
         <LookResult
@@ -195,11 +207,14 @@ describe('LookResult analytics (A94)', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    twoColours = [];
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
   });
+
+  const COLOUR_LINE = 'Смена цвета одной вещи перегенерирует весь образ на этом же фото';
 
   it('sends result.add-to-cart-all with the items count from the wide button', async () => {
     renderResult(2);
@@ -250,35 +265,75 @@ describe('LookResult analytics (A94)', () => {
       }));
     });
 
-    it('sends it from the row under the picture and from the drawer’s footer', async () => {
+    it('has the same item cards and no separate «Вещи образа» screen (AC12)', async () => {
       renderResult(2);
-      const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-      await user.click(screen.getByRole('button', { name: 'Добавить образ в корзину' }));
-      expect(sent('result.add-to-cart-all')).toHaveLength(1);
+      expect(screen.getByRole('heading', { name: 'Вещи образа' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Вещи образа' })).not.toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Рубашка Annen 1' })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Рубашка Annen 2' })).toBeInTheDocument();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
 
-      await user.click(screen.getByRole('button', { name: 'Вещи образа' }));
-      const drawer = await screen.findByRole('dialog', { name: 'Вещи образа' });
-      await user.click(within(drawer).getByRole('button', { name: 'Добавить образ в корзину' }));
+    it('keeps «Хотите что-то поменять в образе?»', () => {
+      renderResult(2);
 
-      expect(sent('result.add-to-cart-all')).toEqual([
-        expect.objectContaining({ items: 2 }),
-        expect.objectContaining({ items: 2 }),
-      ]);
+      // Off here only because the fixture's photo is gone.
+      expect(
+        screen.getByRole('button', { name: 'Хотите что-то поменять в образе?' }),
+      ).toBeInTheDocument();
+    });
+
+    it('sends result.add-to-cart-all once, from the one button', async () => {
+      renderResult(2);
+
+      await userEvent
+        .setup({ pointerEventsCheck: 0 })
+        .click(screen.getByRole('button', { name: 'Добавить образ в корзину' }));
+
+      expect(sent('result.add-to-cart-all')).toEqual([expect.objectContaining({ items: 2 })]);
     });
   });
 
-  it('sends room.open from the result with the room’s count and opens the room', async () => {
-    const onOpenRoom = renderResult(2);
+  it('has no «Заменить вещь в примерочной» (AC14)', () => {
+    renderResult(2);
+
+    expect(
+      screen.queryByRole('button', { name: 'Заменить вещь в примерочной' }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Заменить вещь в примерочной' })).toBeNull();
+  });
+
+  it('says on a hover of the favourites heart that every item will be added (AC14)', async () => {
+    renderResult(2);
 
     await userEvent
       .setup()
-      .click(screen.getByRole('button', { name: 'Заменить вещь в примерочной' }));
+      .hover(screen.getByRole('button', { name: 'Добавить образ в избранное' }));
+
+    expect(await screen.findByText('Добавим в избранное все вещи образа')).toBeInTheDocument();
+  });
+
+  it('opens the room at the item’s slot from its «Заменить», sending room.open', async () => {
+    const onOpenRoom = renderResult(2);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: 'Заменить: Рубашка Annen 2' }));
 
     expect(sent('room.open')).toEqual([
       expect.objectContaining({ element: 'room.open', source: 'result', items: 2 }),
     ]);
-    expect(onOpenRoom).toHaveBeenCalled();
+    expect(onOpenRoom).toHaveBeenCalledExactlyOnceWith('bottom');
+  });
+
+  it('opens the room with the top slot from the first item’s «Заменить»', async () => {
+    const onOpenRoom = renderResult(2);
+
+    await userEvent
+      .setup()
+      .click(screen.getByRole('button', { name: 'Заменить: Рубашка Annen 1' }));
+
+    expect(onOpenRoom).toHaveBeenCalledExactlyOnceWith('top');
   });
 
   it('counts 0 items while the room is unread', async () => {
@@ -286,11 +341,36 @@ describe('LookResult analytics (A94)', () => {
 
     await userEvent
       .setup()
-      .click(screen.getByRole('button', { name: 'Заменить вещь в примерочной' }));
+      .click(screen.getByRole('button', { name: 'Заменить: Рубашка Annen 1' }));
 
     expect(sent('room.open')).toEqual([
       expect.objectContaining({ element: 'room.open', source: 'result', items: 0 }),
     ]);
     expect(onOpenRoom).toHaveBeenCalledOnce();
+  });
+
+  describe('the colour line and swatches (AC12)', () => {
+    it('is not shown when every item has one colour', async () => {
+      renderResult(2);
+
+      await screen.findByRole('link', { name: 'Рубашка Annen 1' });
+      await vi.waitFor(() => expect(vi.mocked(fetch)).toHaveBeenCalled());
+      expect(screen.queryByText(COLOUR_LINE)).not.toBeInTheDocument();
+      expect(screen.queryByText('один цвет')).not.toBeInTheDocument();
+      expect(screen.queryByRole('group', { name: /^Цвет:/ })).not.toBeInTheDocument();
+    });
+
+    it('is shown once some item has a second colour, with swatches for that item only', async () => {
+      twoColours = [P2];
+      renderResult(2);
+
+      expect(await screen.findByText(COLOUR_LINE)).toBeInTheDocument();
+      expect(
+        await screen.findByRole('group', { name: 'Цвет: Рубашка Annen 2' }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole('group', { name: 'Цвет: Рубашка Annen 1' }),
+      ).not.toBeInTheDocument();
+    });
   });
 });

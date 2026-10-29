@@ -7,6 +7,7 @@ export {
   productOptions,
   productVariationListOptions,
   relatedProductsOptions,
+  useAnyColourChoice,
   useProduct,
   useProductAttributeValues,
   useProductBatches,

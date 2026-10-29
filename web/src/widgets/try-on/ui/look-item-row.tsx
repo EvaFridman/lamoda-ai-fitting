@@ -2,13 +2,14 @@
 
 import Image from 'next/image';
 import NextLink from 'next/link';
+import type { ButtonHTMLAttributes } from 'react';
 
 import type { FittingItem } from '@/entities/fitting';
 import { MiniSwatches } from '@/entities/fitting-room';
 import { productColours, useProduct } from '@/entities/product';
 import { CartStubButton, FavoriteStub } from '@/features/product-stubs';
 import { useTrackedElement } from '@/shared/analytics';
-import { Price } from '@/shared/ui';
+import { LinkButton, Price } from '@/shared/ui';
 
 import styles from './look-result.module.scss';
 
@@ -18,12 +19,26 @@ export interface LookItemRowProps {
   disabled: boolean;
   // Another colour of this item: the whole look again on the same photo (AC15).
   onColour: (attributeValueId: string) => void;
+  // «Заменить»: the window closes and the room opens at this item's slot (spec 0024 Z8).
+  onReplace: () => void;
+  // The hovers of «Заменить» (the result's `room.open`).
+  replaceEvents?: Pick<
+    ButtonHTMLAttributes<HTMLButtonElement>,
+    'onPointerEnter' | 'onPointerLeave'
+  >;
 }
 
 // Board 8's LookItemRow: the catalog picture and the name (to the product), the price, the
-// product's colours as `MiniSwatches` (A91; «один цвет» for one), «В корзину» and the favourite's
-// stub (A33). The colours come from the product's page read, cached by the other rows' pages.
-export function LookItemRow({ item, disabled, onColour }: LookItemRowProps) {
+// product's colours as `MiniSwatches` (A91; nothing for one colour, spec 0024 AC12), and at the
+// card's top «В корзину», the favourite's stub (A33) and «Заменить» (Z8). The colours come from the
+// product's page read, which the result's colour line reads too.
+export function LookItemRow({
+  item,
+  disabled,
+  onColour,
+  onReplace,
+  replaceEvents,
+}: LookItemRowProps) {
   const product = useProduct(item.productId);
   const colours = productColours(product.data);
   const href = `/products/${encodeURIComponent(item.productId)}`;
@@ -44,7 +59,7 @@ export function LookItemRow({ item, disabled, onColour }: LookItemRowProps) {
           oldPrices={item.finalPrice < item.price ? [item.price] : undefined}
           variant="catalog"
         />
-        {colours.length > 1 ? (
+        {colours.length > 1 && (
           <MiniSwatches
             label={`Цвет: ${item.name}`}
             colours={colours}
@@ -57,8 +72,6 @@ export function LookItemRow({ item, disabled, onColour }: LookItemRowProps) {
               onColour(id);
             }}
           />
-        ) : (
-          colours.length === 1 && <span className={styles.muted}>один цвет</span>
         )}
       </div>
       <span className={styles.rowActions}>
@@ -66,6 +79,14 @@ export function LookItemRow({ item, disabled, onColour }: LookItemRowProps) {
           В корзину
         </CartStubButton>
         <FavoriteStub size={32} />
+        <LinkButton
+          {...replaceEvents}
+          className={styles.rowReplace}
+          aria-label={`Заменить: ${item.name}`}
+          onClick={onReplace}
+        >
+          Заменить
+        </LinkButton>
       </span>
     </div>
   );

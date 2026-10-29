@@ -62,12 +62,20 @@ function item(patch: Partial<FittingItem> = {}): FittingItem {
   };
 }
 
+let onReplace = vi.fn();
+
 function renderRow(patch: Partial<FittingItem> = {}, disabled = false) {
   const onColour = vi.fn();
+  onReplace = vi.fn();
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={queryClient}>
-      <LookItemRow item={item(patch)} disabled={disabled} onColour={onColour} />
+      <LookItemRow
+        item={item(patch)}
+        disabled={disabled}
+        onColour={onColour}
+        onReplace={onReplace}
+      />
     </QueryClientProvider>,
   );
   return onColour;
@@ -88,6 +96,46 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+});
+
+describe('LookItemRow «Заменить» and colours (spec 0024 AC12, AC14)', () => {
+  it('calls onReplace from «Заменить», named after the item', async () => {
+    renderRow();
+
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Заменить: Тренч Nord' }));
+
+    expect(onReplace).toHaveBeenCalledOnce();
+  });
+
+  it('shows swatches for two colours', async () => {
+    renderRow();
+
+    expect(await screen.findByRole('group', { name: 'Цвет: Тренч Nord' })).toBeInTheDocument();
+  });
+
+  it('shows no «один цвет» and no swatches for one colour', async () => {
+    const [, blue] = product.attributes[0]!.values;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              ...product,
+              attributes: [{ ...product.attributes[0], values: [blue] }],
+            }),
+            { status: 200 },
+          ),
+        ),
+      ),
+    );
+    renderRow({ attributeValueId: BLUE });
+
+    await vi.waitFor(() => expect(vi.mocked(fetch)).toHaveBeenCalled());
+    await screen.findByText('Тренч Nord');
+    expect(screen.queryByText('один цвет')).not.toBeInTheDocument();
+    expect(screen.queryByRole('group')).not.toBeInTheDocument();
+  });
 });
 
 describe('LookItemRow analytics (A94.2)', () => {

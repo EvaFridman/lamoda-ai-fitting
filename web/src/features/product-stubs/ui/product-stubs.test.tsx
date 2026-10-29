@@ -115,6 +115,37 @@ describe('FavoriteStub', () => {
     expect(toast.showToast).not.toHaveBeenCalled();
   });
 
+  it('shows its tooltip on a hover and keeps the toast on a press (spec 0024 AC14)', async () => {
+    render(<FavoriteStub aria-label="Добавить образ в избранное" tooltip="Добавим все вещи" />);
+    const heart = screen.getByRole('button', { name: 'Добавить образ в избранное' });
+    const user = userEvent.setup();
+
+    expect(screen.queryByText('Добавим все вещи')).not.toBeInTheDocument();
+    await user.hover(heart);
+    expect(await screen.findByText('Добавим все вещи')).toBeInTheDocument();
+
+    await user.click(heart);
+    expect(toast.showToast).toHaveBeenCalledWith({ title: TEXT });
+    expect(heart).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('shows its tooltip on the focus', async () => {
+    render(<FavoriteStub tooltip="Добавим все вещи" />);
+
+    await userEvent.setup().tab();
+
+    expect(screen.getByRole('button', { name: 'В избранное' })).toHaveFocus();
+    expect(await screen.findByText('Добавим все вещи')).toBeInTheDocument();
+  });
+
+  it('has no tooltip without the prop', async () => {
+    render(<FavoriteStub />);
+
+    await userEvent.setup().hover(screen.getByRole('button', { name: 'В избранное' }));
+
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+  });
+
   it('shows the toast with no events given', async () => {
     render(<FavoriteStub />);
 

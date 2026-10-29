@@ -2,11 +2,13 @@ import {
   infiniteQueryOptions,
   queryOptions,
   useInfiniteQuery,
+  useQueries,
   useQuery,
 } from '@tanstack/react-query';
 
 import { buildPath, clientFetch, type PageQuery } from '@/shared/api';
 
+import { productColours } from '../lib/colours';
 import {
   productBatchQuery,
   productFilters,
@@ -136,6 +138,15 @@ export function useProductFacets(filters: ProductFilters = {}) {
 
 export function useProduct(id: string) {
   return useQuery(productOptions(id));
+}
+
+// Whether any of these products has another colour to choose (the look result's line «Смена
+// цвета…», spec 0024 AC12): the same reads as `useProduct`'s, so the rows and the line agree.
+export function useAnyColourChoice(ids: readonly string[]): boolean {
+  return useQueries({
+    queries: ids.map((id) => productOptions(id)),
+    combine: (results) => results.some((result) => productColours(result.data).length > 1),
+  });
 }
 
 export function useRelatedProducts(id: string) {
