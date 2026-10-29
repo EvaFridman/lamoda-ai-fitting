@@ -38,6 +38,10 @@ export const EXCLUDED: Readonly<Record<string, string>> = {
   '/customer/fittings/*': 'the account (spec 0019): the user’s fittings, read in the browser only',
   '/customer/photos': 'the account (spec 0019): the user’s photos, read in the browser only',
   '/ui-kit': 'the kit’s examples, not for visitors',
+  // The tab icons (spec 0024 Z5, Z31).
+  '/icon.svg': 'a static metadata file, no api',
+  '/icon1': 'a static metadata file, no api',
+  '/apple-icon': 'a static metadata file, no api',
   '/healthz': 'the container’s health check',
   '/healthz/warmup': 'this list itself',
 };

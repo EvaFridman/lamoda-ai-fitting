@@ -84,8 +84,9 @@ hovered one by its text colour and its stillness. `/ui-kit`'s button section sho
 two paths of `widgets/stores-map/ui/store-pin.tsx` in white, scaled to 20 px; the paths move into
 `shared/ui/icons` (`LamodaMark`) and the pin imports them from there. `web/app/apple-icon.tsx`:
 180×180 PNG through `ImageResponse` (as `_pages/catalog/ui/preview-image.tsx`), the same mark on
-black, static. No `public/`, no binary file. `_app/warmup/routes.ts`: `/icon.svg` and
-`/apple-icon` in `EXCLUDED` («static metadata files, no api»). `proxy.ts` matches them as pages;
+black, static; `web/app/icon1.tsx` the same at 32×32, the PNG fallback (Z31). No `public/`, no
+binary file. `_app/warmup/routes.ts`: `/icon.svg`, `/icon1` and `/apple-icon` in `EXCLUDED`
+(«static metadata files, no api»). `proxy.ts` matches them as pages;
 harmless.
 
 ### 2.5 Header (T8, T9, T10, T14)
@@ -398,7 +399,7 @@ visit unchanged). `catalog.test.ts`'s lists and `EVENTS.md` change in the same c
 | AC4  | `tabs.test.tsx` (the indicator's vars follow the active tab); `qa-tester` on `/customer/fittings`                                                                                                 |
 | AC5  | `gallery.test.tsx` (`scrollTo` called with `behavior: 'smooth'`)                                                                                                                                  |
 | AC6  | `product-buy-box.test.tsx` (variant and size, disabled at the limit); `/ui-kit`                                                                                                                   |
-| AC7  | `routes.test.ts`; `curl -I` of `/icon.svg` and `/apple-icon` locally and on the site; the tab in three browsers (owner)                                                                           |
+| AC7  | `routes.test.ts`; `curl -I` of `/icon.svg`, `/icon1` and `/apple-icon` locally and on the site; the tab in three browsers (owner)                                                                 |
 | AC8  | `header.test.tsx`, `count-badge.test.tsx` (box and centring by computed style); `qa-tester` screenshot                                                                                            |
 | AC9  | `header-menu.test.tsx` (the heading «Каталог» and its order, signed in and out)                                                                                                                   |
 | AC10 | `outfit-slot.test.tsx` (the chip), `fitting-room-drawer.test.tsx` (`rows`, the heights by computed style)                                                                                         |
