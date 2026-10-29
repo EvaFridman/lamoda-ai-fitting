@@ -34,13 +34,6 @@
   }
 }
 
-// In «Заменить фото»'s window, under the switch.
-.myPhotos {
-  align-self: flex-start;
-  font-size: var(--font-size-body-s);
-  line-height: var(--line-height-body-s);
-}
-
 .dimmed {
   position: absolute;
   inset: 0;
@@ -93,7 +86,7 @@
   }
 }
 
-// A saved photo of «Заменить фото»'s window, 64×86 (56×75 on a phone), outlined when chosen.
+// A photo of «Заменить фото»'s window, 64×86 (56×75 on a phone).
 .thumb {
   cursor: pointer;
 
@@ -105,11 +98,6 @@
   border: 0;
 
   background: none;
-
-  &[aria-pressed='true'] {
-    outline: 2px solid var(--color-border-active);
-    outline-offset: 2px;
-  }
 
   &:focus-visible {
     outline: 2px solid var(--color-border-active);

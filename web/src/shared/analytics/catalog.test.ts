@@ -458,7 +458,6 @@ describe('analytics catalog', () => {
       'try-on.start': ['fitting', 'interaction'],
       'try-on.photo': ['fitting', 'interaction'],
       'try-on.replace-photo': ['fitting', 'interaction'],
-      'try-on.my-photos': ['fitting', 'navigation'],
       'try-on.favourite': ['fitting', 'interaction'],
       'try-on.retry': ['fitting', 'interaction'],
       'try-on.close': ['fitting', 'interaction'],
