@@ -152,15 +152,15 @@ What each agent may do, how the guard hooks work, the owner's decisions and the 
 
 Pinned on purpose; each "not newer" has a reason and a condition to move on.
 
-| What       | Version                                                                                                                                                                                                                                                                                               | Why                                                                                                                                                          |
-| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Node / npm | 26 / 12                                                                                                                                                                                                                                                                                               | Node 26 is LTS from 2026-10-28. npm 12 runs install scripts only from `allowScripts` in `package.json`; Node images ship npm 11, so images and CI install 12 |
-| TypeScript | 6.0                                                                                                                                                                                                                                                                                                   | 7.0 has no JS API (typescript-eslint, Nest Swagger plugin, Next need it). Move when they support 7                                                           |
-| ESLint     | 10                                                                                                                                                                                                                                                                                                    | React/a11y rules from `@eslint-react/eslint-plugin` and `eslint-plugin-jsx-a11y-x`; the classic plugins do not run on 10                                     |
-| Prisma     | 7.10                                                                                                                                                                                                                                                                                                  | install as `prisma@7`: npm's `latest` tag points at an 8.0 release candidate                                                                                 |
-| api        | NestJS 12, PostgreSQL 18, Redis 8 (ioredis), Temporal (SDK 1.x), Better Auth 1.7, pino, socket.io, Sentry, Vitest                                                                                                                                                                                     |                                                                                                                                                              |
-| web        | Next 16, React 19, TanStack Query 5, TanStack Virtual 3, Zustand 5, zod, SCSS, Base UI, Better Auth (client, the api's version), socket.io-client, Sentry, Mixpanel, Yandex Maps JS API 3 (`@yandex/ymaps3-clusterer`, `@yandex/ymaps3-types`), Vitest, Testing Library, Agentation (`next dev` only) |                                                                                                                                                              |
-| Server     | Docker Compose, nginx + certbot, blue-green deploys                                                                                                                                                                                                                                                   | `deploy/README.md`                                                                                                                                           |
+| What       | Version                                                                                                                                                                                                                                                                                                                                   | Why                                                                                                                                                          |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Node / npm | 26 / 12                                                                                                                                                                                                                                                                                                                                   | Node 26 is LTS from 2026-10-28. npm 12 runs install scripts only from `allowScripts` in `package.json`; Node images ship npm 11, so images and CI install 12 |
+| TypeScript | 6.0                                                                                                                                                                                                                                                                                                                                       | 7.0 has no JS API (typescript-eslint, Nest Swagger plugin, Next need it). Move when they support 7                                                           |
+| ESLint     | 10                                                                                                                                                                                                                                                                                                                                        | React/a11y rules from `@eslint-react/eslint-plugin` and `eslint-plugin-jsx-a11y-x`; the classic plugins do not run on 10                                     |
+| Prisma     | 7.10                                                                                                                                                                                                                                                                                                                                      | install as `prisma@7`: npm's `latest` tag points at an 8.0 release candidate                                                                                 |
+| api        | NestJS 12, PostgreSQL 18, Redis 8 (ioredis), Temporal (SDK 1.x), Better Auth 1.7, pino, socket.io, Sentry, Vitest                                                                                                                                                                                                                         |                                                                                                                                                              |
+| web        | Next 16, React 19, TanStack Query 5, TanStack Virtual 3, Zustand 5, zod, SCSS, Base UI, Better Auth (client, the api's version), socket.io-client, Sentry, Mixpanel, Yandex Maps JS API 3 (`@yandex/ymaps3-clusterer`, `@yandex/ymaps3-types`), `libheif-js` (HEIC in the browser), Vitest, Testing Library, Agentation (`next dev` only) |                                                                                                                                                              |
+| Server     | Docker Compose, nginx + certbot, blue-green deploys                                                                                                                                                                                                                                                                                       | `deploy/README.md`                                                                                                                                           |
 
 ## Commands (from the root)
 
@@ -896,9 +896,20 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   (spec 0023 Y1, Y17); spec 0019's `localStorage` keys `fitting-photo-consent:<userId>` are not
   read and are removed on sight. It refuses a file over `MAX_PHOTO_BYTES` before the upload (the
   api's limit less 64 KB of multipart, `lib/upload-error.ts`; its texts say 20 МБ) and turns the
-  upload off at five saved photos. In the try-on (spec 0023 P3–P9, P25) `UploadPhoto`'s `zone`
-  fills the photo frame: a file dropped on it (not JPG, PNG or WebP: «Нужно изображение JPG, PNG
-  или WebP») uploads as `source: drop`, before the consents once they are given; with no photo it
+  upload off at five saved photos. A HEIC or HEIF (spec 0024 Z15, Z26.2) of at most that size is
+  turned into a JPEG of at most 2048 px, the api's own bound, in the browser before the size check
+  (`lib/heic.ts`: `libheif-js`'s `wasm-bundle`, about 2 MB, loaded by `import()` only when such a
+  file arrives, one decoder per tab, the zone saying «Готовим фото…» and the page's other pickers,
+  the save switch and «Примерить» off through `onBusyChange`; a failure or 30 s «Не удалось
+  прочитать HEIC — попробуйте JPG»), so the api still takes JPG, PNG and WebP only;
+  the pickers' `accept` (`photoAccept`) names HEIC only under `MOUSE_QUERY`, since iOS converts
+  itself when the input does not ask for it. Any other type is refused before the upload
+  (`photoFormat`, by type or, with none, by extension), and the upload events carry the chosen
+  file's `format`. In the try-on (spec 0023 P3–P9, P25) `UploadPhoto`'s `zone`
+  fills the photo frame: a file dropped on it (not JPG, PNG, WebP or HEIC: «Нужно изображение JPG,
+  PNG, WebP или HEIC») uploads as `source: drop`, and an image pasted with Ctrl/Cmd+V while it is
+  shown and no text field is focused (`lib/paste.ts`, spec 0024 Z16; not on «Мои фото») as
+  `source: paste`, before the consents once they are given; with no photo it
   is `DropCard` (spec 0024 Z17, Z47, also on `/ui-kit`): a hairline card a click on which picks a
   file (a pointer's only: out of the tab order and hidden from screen readers), the «+» circle
   about its middle and in its lower part «Загрузите своё фото», a hint line, the link «Выбрать файл» (under
@@ -975,7 +986,8 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   and tracked elements are the catalog's zone `auth` (`Signed Out` goes before `reset`); the
   account's are the zone `account` (spec 0017 U14), the catalog page's the zone `catalog` (spec
   0014 plan §3.6, O97–O103), the fitting photos' the zone `fitting`, area `photos` (spec 0019
-  plan §9, A60; `Photo Uploaded`'s and `Photo Refused`'s `source` `drop`, spec 0023 Y11), the
+  plan §9, A60; `Photo Uploaded`'s and `Photo Refused`'s `source` `drop`, spec 0023 Y11, and
+  `paste` with their `format`, spec 0024 Z26.5), the
   picker's area `try-on` (`try-on.replace-photo`, `.favourite` by `kind`, spec 0023
   Y11; `.my-photos` removed, spec 0024 Z25), the product page's the zone `product` (areas `buy-box` and `related`, seven
   elements with the row's arrows `related.scroll`, A87.8, and `buy-box.to-look`, `related.to-look`,
@@ -1157,7 +1169,10 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   `<script>` takes `requestNonce()` (the JSON-LD). Scripts are `'self'`, the nonce and the hashes
   of `shell-script-hashes.json`, no `'strict-dynamic'`: the shell `cacheComponents` prerenders has
   no nonce, so its script tags load by `'self'` and React's inline one by its hash (`verify`'s
-  `check:web-shells`; a new hash is added only after reading the script). `connect-src` is
+  `check:web-shells`; a new hash is added only after reading the script), and on every page
+  `'wasm-unsafe-eval'` (spec 0024 Z15, AC27, the one loosening since spec 0014): WebAssembly may
+  compile, for the try-on's HEIC decoder, and no script is `eval`ed; the try-on window opens from
+  many pages, so a per-path policy would not hold. `connect-src` is
   `'self'`, Mixpanel's EU origin and the origin of `sentryDsn` (`@/shared/config`); images
   `'self'`, `data:`, `blob:` and `<S3_PUBLIC_ENDPOINT's origin>/<S3_BUCKET>/keep/users/` of web's
   server env (the signed links of users' photos; `S3_ENDPOINT` in production, spec 0019; a path,

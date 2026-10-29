@@ -6,14 +6,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { userKeys, type User } from '@/entities/user';
 import { userPhotoKeys } from '@/entities/user-photo';
 import { detailText } from '@/shared/api';
-import { COARSE_POINTER_QUERY, PHONE_QUERY } from '@/shared/config';
+import { COARSE_POINTER_QUERY, MOUSE_QUERY, PHONE_QUERY } from '@/shared/config';
 
 import { MAX_PHOTO_BYTES, TOO_BIG_TEXT, WRONG_TYPE_TEXT } from '../lib/upload-error';
 import { UploadPhoto, type UploadPhotoProps } from './upload-photo';
 
-const mocks = vi.hoisted(() => ({ track: vi.fn(), captureException: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  track: vi.fn(),
+  captureException: vi.fn(),
+  heicToJpeg: vi.fn(),
+}));
 
 vi.mock('@sentry/nextjs', () => ({ captureException: mocks.captureException }));
+
+vi.mock('../lib/heic', () => ({ heicToJpeg: mocks.heicToJpeg }));
 
 vi.mock('@/shared/analytics/client', () => ({
   identify: vi.fn(),
@@ -211,7 +217,7 @@ describe('UploadPhoto before the consents', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Какое фото подойдёт' });
     expect(dialog).toHaveTextContent('Подойдёт');
     expect(dialog).toHaveTextContent('Не подойдёт');
-    expect(dialog).toHaveTextContent('JPG, PNG или WebP до 20 МБ');
+    expect(dialog).toHaveTextContent('JPG, PNG, WebP или HEIC до 20 МБ');
     expect(within(dialog).getByRole('checkbox', { name: /OpenAI/ })).not.toBeChecked();
     expect(within(dialog).getByRole('button', { name: 'Выбрать фото' })).toBeDisabled();
     expect(within(dialog).getByRole('button', { name: 'Сделать фото' })).toBeDisabled();
@@ -334,7 +340,10 @@ describe('UploadPhoto: the first upload gives the consents (AC19)', () => {
     expect([...requestOf().body.keys()]).toEqual(['save', 'consent', 'photo']);
     expect(consentOf(queryClient)).toBe(1);
     expect(tracked('Photo Uploaded')).toEqual([
-      ['Photo Uploaded', { saved: true, source: 'file', place: 'photos', first: true }],
+      [
+        'Photo Uploaded',
+        { saved: true, source: 'file', place: 'photos', first: true, format: 'jpeg' },
+      ],
     ]);
     await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(screen.getByRole('button', { name: 'Сделать фото' })).toBeEnabled();
@@ -352,7 +361,10 @@ describe('UploadPhoto: the first upload gives the consents (AC19)', () => {
     const refused = await screen.findByRole('dialog', { name: 'Фото слишком тёмное' });
     expect(consentOf(queryClient)).toBe(1);
     expect(tracked('Photo Refused')).toEqual([
-      ['Photo Refused', { reason: 'dark', source: 'file', place: 'photos', first: true }],
+      [
+        'Photo Refused',
+        { reason: 'dark', source: 'file', place: 'photos', first: true, format: 'jpeg' },
+      ],
     ]);
 
     await user.upload(fileInputs(refused).file!, picture('second.jpg'));
@@ -361,7 +373,10 @@ describe('UploadPhoto: the first upload gives the consents (AC19)', () => {
     expect(requestOf(0).body.get('consent')).toBe('1');
     expect(requestOf(1).body.has('consent')).toBe(false);
     expect(tracked('Photo Uploaded')).toEqual([
-      ['Photo Uploaded', { saved: true, source: 'file', place: 'photos', first: false }],
+      [
+        'Photo Uploaded',
+        { saved: true, source: 'file', place: 'photos', first: false, format: 'jpeg' },
+      ],
     ]);
   });
 
@@ -416,7 +431,10 @@ describe('UploadPhoto: the first upload gives the consents (AC19)', () => {
       expect(requestOf(0).body.get('consent')).toBe('1');
       expect(requestOf(1).body.has('consent')).toBe(false);
       expect(tracked('Photo Uploaded')).toEqual([
-        ['Photo Uploaded', { saved: true, source: 'file', place: 'photos', first: false }],
+        [
+          'Photo Uploaded',
+          { saved: true, source: 'file', place: 'photos', first: false, format: 'jpeg' },
+        ],
       ]);
     });
 
@@ -492,7 +510,10 @@ describe('UploadPhoto: the first upload gives the consents (AC19)', () => {
       expect(requestOf(1).body.get('consent')).toBe('1');
       expect(consentOf(queryClient)).toBe(1);
       expect(tracked('Photo Uploaded')).toEqual([
-        ['Photo Uploaded', { saved: true, source: 'file', place: 'photos', first: true }],
+        [
+          'Photo Uploaded',
+          { saved: true, source: 'file', place: 'photos', first: true, format: 'jpeg' },
+        ],
       ]);
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
@@ -561,7 +582,10 @@ describe('UploadPhoto with the consents given', () => {
     expect(body.get('save')).toBe('true');
     expect(invalidate).toHaveBeenCalledWith({ queryKey: userPhotoKeys.all });
     expect(tracked('Photo Uploaded')).toEqual([
-      ['Photo Uploaded', { saved: true, source: 'file', place: 'photos', first: false }],
+      [
+        'Photo Uploaded',
+        { saved: true, source: 'file', place: 'photos', first: false, format: 'jpeg' },
+      ],
     ]);
     expect(tracked('Photo Refused')).toHaveLength(0);
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
@@ -576,7 +600,7 @@ describe('UploadPhoto with the consents given', () => {
     await vi.waitFor(() => expect(tracked('Photo Uploaded')).toHaveLength(1));
     expect(tracked('Photo Uploaded')[0]).toEqual([
       'Photo Uploaded',
-      { saved: true, source: 'camera', place: 'photos', first: false },
+      { saved: true, source: 'camera', place: 'photos', first: false, format: 'jpeg' },
     ]);
   });
 
@@ -624,7 +648,7 @@ describe('UploadPhoto with the consents given', () => {
     await user.upload(fileInputs().file!, picture());
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Нужно изображение JPG, PNG или WebP',
+      'Нужно изображение JPG, PNG, WebP или HEIC',
     );
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(tracked('Photo Refused')).toHaveLength(0);
@@ -714,7 +738,10 @@ describe('UploadPhoto with the consents given', () => {
       expect(invalidate).toHaveBeenCalledWith({ queryKey: userPhotoKeys.all }),
     );
     expect(tracked('Photo Uploaded')).toEqual([
-      ['Photo Uploaded', { saved: true, source: 'file', place: 'photos', first: false }],
+      [
+        'Photo Uploaded',
+        { saved: true, source: 'file', place: 'photos', first: false, format: 'jpeg' },
+      ],
     ]);
     expect(onUploaded).not.toHaveBeenCalled();
   });
@@ -737,7 +764,7 @@ describe('UploadPhoto with the consents given', () => {
     await vi.waitFor(() => expect(tracked('Photo Refused')).toHaveLength(1));
     expect(tracked('Photo Refused')[0]).toEqual([
       'Photo Refused',
-      { reason: 'dark', source: 'camera', place: 'photos', first: false },
+      { reason: 'dark', source: 'camera', place: 'photos', first: false, format: 'jpeg' },
     ]);
     expect(invalidate).not.toHaveBeenCalled();
   });
@@ -774,7 +801,10 @@ describe('UploadPhoto with the consents given', () => {
         within(dialog).queryByRole('button', { name: 'Какое фото подойдёт' }),
       ).not.toBeInTheDocument();
       expect(tracked('Photo Refused')).toEqual([
-        ['Photo Refused', { reason: 'child', source: 'file', place: 'photos', first: false }],
+        [
+          'Photo Refused',
+          { reason: 'child', source: 'file', place: 'photos', first: false, format: 'jpeg' },
+        ],
       ]);
       expect(tracked('Photo Uploaded')).toHaveLength(0);
     });
@@ -799,7 +829,10 @@ describe('UploadPhoto with the consents given', () => {
         within(dialog).getByRole('button', { name: 'Какое фото подойдёт' }),
       ).toBeInTheDocument();
       expect(tracked('Photo Refused')).toEqual([
-        ['Photo Refused', { reason, source: 'camera', place: 'photos', first: false }],
+        [
+          'Photo Refused',
+          { reason, source: 'camera', place: 'photos', first: false, format: 'jpeg' },
+        ],
       ]);
     });
 
@@ -830,7 +863,13 @@ describe('UploadPhoto with the consents given', () => {
         expect(tracked('Photo Refused')).toEqual([
           [
             'Photo Refused',
-            { reason: 'moderation', source: 'camera', place: 'photos', first: false },
+            {
+              reason: 'moderation',
+              source: 'camera',
+              place: 'photos',
+              first: false,
+              format: 'jpeg',
+            },
           ],
         ]);
       },
@@ -872,7 +911,10 @@ describe('UploadPhoto with the consents given', () => {
         within(dialog).queryByRole('button', { name: 'Какое фото подойдёт' }),
       ).not.toBeInTheDocument();
       expect(tracked('Photo Refused')).toEqual([
-        ['Photo Refused', { reason: 'moderation', source: 'file', place: 'photos', first: false }],
+        [
+          'Photo Refused',
+          { reason: 'moderation', source: 'file', place: 'photos', first: false, format: 'jpeg' },
+        ],
       ]);
     });
 
@@ -886,7 +928,7 @@ describe('UploadPhoto with the consents given', () => {
       expect(dialog).toHaveTextContent('Загрузите другое фото, где вы видны в полный рост.');
       expect(tracked('Photo Refused')[0]).toEqual([
         'Photo Refused',
-        { reason: 'other', source: 'file', place: 'photos', first: false },
+        { reason: 'other', source: 'file', place: 'photos', first: false, format: 'jpeg' },
       ]);
     });
 
@@ -1019,7 +1061,10 @@ describe('UploadPhoto on a phone', () => {
     expect(requestOf().body.get('consent')).toBe('1');
     expect(consentOf(queryClient)).toBe(1);
     expect(tracked('Photo Uploaded')).toEqual([
-      ['Photo Uploaded', { saved: true, source: 'file', place: 'photos', first: true }],
+      [
+        'Photo Uploaded',
+        { saved: true, source: 'file', place: 'photos', first: true, format: 'jpeg' },
+      ],
     ]);
     await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
@@ -1061,7 +1106,10 @@ describe('UploadPhoto in the try-on', () => {
     await vi.waitFor(() => expect(onUploaded).toHaveBeenCalledWith(PHOTO));
     expect(requestOf().body.get('save')).toBe('false');
     expect(tracked('Photo Uploaded')).toEqual([
-      ['Photo Uploaded', { saved: false, source: 'file', place: 'try-on', first: false }],
+      [
+        'Photo Uploaded',
+        { saved: false, source: 'file', place: 'try-on', first: false, format: 'jpeg' },
+      ],
     ]);
   });
 
@@ -1078,7 +1126,7 @@ describe('UploadPhoto in the try-on', () => {
     expect(within(dialog).getByText('Примерка не списана · осталось 7')).toBeInTheDocument();
     expect(tracked('Photo Refused')[0]).toEqual([
       'Photo Refused',
-      { reason: 'dark', source: 'file', place: 'try-on', first: false },
+      { reason: 'dark', source: 'file', place: 'try-on', first: false, format: 'jpeg' },
     ]);
   });
 
@@ -1222,7 +1270,10 @@ describe('UploadPhoto as the drop zone (AC8)', () => {
       expect((requestOf().body.get('photo') as File).name).toBe('link.jpg');
       expect(clickedElements()).toEqual(['photos.upload']);
       expect(tracked('Photo Uploaded')).toEqual([
-        ['Photo Uploaded', { saved: true, source: 'file', place: 'try-on', first: false }],
+        [
+          'Photo Uploaded',
+          { saved: true, source: 'file', place: 'try-on', first: false, format: 'jpeg' },
+        ],
       ]);
     });
 
@@ -1267,7 +1318,10 @@ describe('UploadPhoto as the drop zone (AC8)', () => {
 
       await vi.waitFor(() => expect(onUploaded).toHaveBeenCalledWith(PHOTO));
       expect(tracked('Photo Uploaded')).toEqual([
-        ['Photo Uploaded', { saved: true, source: 'file', place: 'try-on', first: false }],
+        [
+          'Photo Uploaded',
+          { saved: true, source: 'file', place: 'try-on', first: false, format: 'jpeg' },
+        ],
       ]);
     });
 
@@ -1354,7 +1408,7 @@ describe('UploadPhoto as the drop zone (AC8)', () => {
       expect((requestOf().body.get('photo') as File).name).toBe('tile.jpg');
       expect(tracked('Photo Uploaded')[0]).toEqual([
         'Photo Uploaded',
-        { saved: true, source: 'file', place: 'try-on', first: false },
+        { saved: true, source: 'file', place: 'try-on', first: false, format: 'jpeg' },
       ]);
     });
 
@@ -1371,7 +1425,7 @@ describe('UploadPhoto as the drop zone (AC8)', () => {
       await vi.waitFor(() => expect(onUploaded).toHaveBeenCalledWith(PHOTO));
       expect(tracked('Photo Uploaded')[0]).toEqual([
         'Photo Uploaded',
-        { saved: true, source: 'camera', place: 'try-on', first: false },
+        { saved: true, source: 'camera', place: 'try-on', first: false, format: 'jpeg' },
       ]);
     });
 
@@ -1461,7 +1515,10 @@ describe('UploadPhoto as the drop zone (AC8)', () => {
       expect(requestOf().body.get('save')).toBe('true');
       expect(requestOf().body.has('consent')).toBe(false);
       expect(tracked('Photo Uploaded')).toEqual([
-        ['Photo Uploaded', { saved: true, source: 'drop', place: 'try-on', first: false }],
+        [
+          'Photo Uploaded',
+          { saved: true, source: 'drop', place: 'try-on', first: false, format: 'jpeg' },
+        ],
       ]);
     });
 
@@ -1493,7 +1550,10 @@ describe('UploadPhoto as the drop zone (AC8)', () => {
 
       await screen.findByRole('dialog', { name: 'Фото слишком тёмное' });
       expect(tracked('Photo Refused')).toEqual([
-        ['Photo Refused', { reason: 'dark', source: 'drop', place: 'try-on', first: false }],
+        [
+          'Photo Refused',
+          { reason: 'dark', source: 'drop', place: 'try-on', first: false, format: 'jpeg' },
+        ],
       ]);
     });
 
@@ -1509,7 +1569,7 @@ describe('UploadPhoto as the drop zone (AC8)', () => {
         drop([file]);
 
         expect(await screen.findByRole('alert')).toHaveTextContent(WRONG_TYPE_TEXT);
-        expect(WRONG_TYPE_TEXT).toBe('Нужно изображение JPG, PNG или WebP');
+        expect(WRONG_TYPE_TEXT).toBe('Нужно изображение JPG, PNG, WebP или HEIC');
         expect(uploads()).toHaveLength(0);
         expect(tracked('Photo Refused')).toHaveLength(0);
       },
@@ -1565,7 +1625,10 @@ describe('UploadPhoto as the drop zone (AC8)', () => {
       expect(requestOf().body.get('consent')).toBe('1');
       expect(consentOf(queryClient)).toBe(1);
       expect(tracked('Photo Uploaded')).toEqual([
-        ['Photo Uploaded', { saved: true, source: 'drop', place: 'try-on', first: true }],
+        [
+          'Photo Uploaded',
+          { saved: true, source: 'drop', place: 'try-on', first: true, format: 'jpeg' },
+        ],
       ]);
     });
 
@@ -2019,5 +2082,659 @@ describe('UploadPhoto as the card', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(tracked('Element Clicked')).toHaveLength(0);
     if (given) expect(fileInputs().file).toBeDisabled();
+  });
+});
+
+describe('UploadPhoto with HEIC (AC27)', () => {
+  const zoneProps = { place: 'try-on', appearance: 'zone', save: true } as const;
+  const heic = (name = 'IMG_1.HEIC', type = 'image/heic') => new File(['h'], name, { type });
+  const jpegOf = (name = 'IMG_1.jpg') => new File(['j'], name, { type: 'image/jpeg' });
+
+  function dropFile(file: File) {
+    fireEvent.drop(screen.getByText('Загрузите своё фото'), {
+      dataTransfer: { files: [file], types: ['Files'] },
+    });
+  }
+
+  it('names HEIC in the picker with a mouse only', () => {
+    stubMedia(MOUSE_QUERY);
+    renderUpload({}, consented);
+    expect(fileInputs().file).toHaveAttribute(
+      'accept',
+      'image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif',
+    );
+  });
+
+  it('names no HEIC in the picker on a touch device', () => {
+    stubTouch();
+    renderUpload({}, consented);
+    expect(fileInputs().file).toHaveAttribute('accept', 'image/jpeg,image/png,image/webp');
+    expect(fileInputs().camera).toHaveAttribute('accept', 'image/jpeg,image/png,image/webp');
+  });
+
+  it('uploads the JPEG made of a dropped HEIC and tracks the original format', async () => {
+    mocks.heicToJpeg.mockResolvedValue(jpegOf('IMG_1.jpg'));
+    const { onUploaded } = renderUpload(zoneProps, consented);
+    const original = heic();
+
+    dropFile(original);
+
+    await vi.waitFor(() => expect(onUploaded).toHaveBeenCalledWith(PHOTO));
+    expect(mocks.heicToJpeg).toHaveBeenCalledWith(original);
+    const sent = requestOf().body.get('photo') as File;
+    expect(sent.name).toBe('IMG_1.jpg');
+    expect(sent.type).toBe('image/jpeg');
+    expect(tracked('Photo Uploaded')).toEqual([
+      [
+        'Photo Uploaded',
+        { saved: true, source: 'drop', place: 'try-on', first: false, format: 'heic' },
+      ],
+    ]);
+  });
+
+  it('takes a HEIC with no type by its extension', async () => {
+    mocks.heicToJpeg.mockResolvedValue(jpegOf());
+    renderUpload(zoneProps, consented);
+
+    dropFile(heic('IMG_2.heif', ''));
+
+    await vi.waitFor(() => expect(uploads()).toHaveLength(1));
+    expect(mocks.heicToJpeg).toHaveBeenCalledTimes(1);
+  });
+
+  it('converts a HEIC chosen in the picker and tracks the file source', async () => {
+    mocks.heicToJpeg.mockResolvedValue(jpegOf());
+    // user-event keeps only the files the input's `accept` lists.
+    stubMedia(MOUSE_QUERY);
+    const user = setup();
+    const { onUploaded } = renderUpload({}, consented);
+
+    await user.upload(fileInputs().file!, heic());
+
+    await vi.waitFor(() => expect(onUploaded).toHaveBeenCalledTimes(1));
+    expect(tracked('Photo Uploaded')[0]).toEqual([
+      'Photo Uploaded',
+      { saved: true, source: 'file', place: 'photos', first: false, format: 'heic' },
+    ]);
+  });
+
+  it('sends a JPEG, a PNG and a WebP without converting them', async () => {
+    renderUpload(zoneProps, consented);
+
+    dropFile(picture());
+
+    await vi.waitFor(() => expect(uploads()).toHaveLength(1));
+    expect(mocks.heicToJpeg).not.toHaveBeenCalled();
+  });
+
+  it('shows «Готовим фото…» and sends nothing until the conversion ends', async () => {
+    let finish: (file: File) => void = () => undefined;
+    mocks.heicToJpeg.mockReturnValue(
+      new Promise<File>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    answer = () => new Promise<Response>(() => undefined);
+    const onPendingChange = vi.fn();
+    renderUpload({ ...zoneProps, onPendingChange }, consented);
+
+    dropFile(heic());
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Готовим фото…');
+    expect(uploads()).toHaveLength(0);
+    expect(fileInputs().file).toBeDisabled();
+    // The page is told of the JPEG only once it exists.
+    expect(onPendingChange).not.toHaveBeenCalledWith(expect.any(File));
+
+    const jpeg = jpegOf();
+    finish(jpeg);
+
+    await vi.waitFor(() => expect(uploads()).toHaveLength(1));
+    await vi.waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument());
+    expect(onPendingChange).toHaveBeenLastCalledWith(jpeg);
+  });
+
+  it('ignores a second file while the first is being converted', async () => {
+    mocks.heicToJpeg.mockReturnValue(new Promise<File>(() => undefined));
+    renderUpload(zoneProps, consented);
+
+    dropFile(heic('first.heic'));
+    await screen.findByRole('status');
+    dropFile(picture('second.jpg'));
+
+    expect(uploads()).toHaveLength(0);
+    expect(mocks.heicToJpeg).toHaveBeenCalledTimes(1);
+  });
+
+  it('spins the picker the HEIC came from and keeps the window of «Заменить фото» open meanwhile', async () => {
+    let finish: (file: File) => void = () => undefined;
+    mocks.heicToJpeg.mockReturnValue(
+      new Promise<File>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    stubMedia(MOUSE_QUERY);
+    const user = setup();
+    renderUpload({ place: 'try-on', appearance: 'replace' }, consented);
+    await user.click(screen.getByRole('button', { name: 'Заменить фото' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Заменить фото' });
+
+    await user.upload(fileInputs(dialog).file!, heic());
+
+    const picker = within(dialog).getByRole('button', { name: 'Загрузить фото' });
+    await vi.waitFor(() => expect(picker).toHaveAttribute('aria-busy', 'true'));
+    expect(screen.getByRole('dialog', { name: 'Заменить фото' })).toBeInTheDocument();
+    expect(uploads()).toHaveLength(0);
+
+    finish(jpegOf());
+
+    await vi.waitFor(() => expect(uploads()).toHaveLength(1));
+    await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('shows the HEIC text when the conversion fails and uploads nothing', async () => {
+    mocks.heicToJpeg.mockRejectedValue(new Error('bad heic'));
+    renderUpload(zoneProps, consented);
+
+    dropFile(heic());
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Не удалось прочитать HEIC — попробуйте JPG',
+    );
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(uploads()).toHaveLength(0);
+    expect(tracked('Photo Uploaded')).toHaveLength(0);
+    expect(tracked('Photo Refused')).toHaveLength(0);
+  });
+
+  it('lets the next file go after a failed conversion', async () => {
+    mocks.heicToJpeg.mockRejectedValue(new Error('bad heic'));
+    renderUpload(zoneProps, consented);
+    dropFile(heic());
+    await screen.findByRole('alert');
+
+    dropFile(picture());
+
+    await vi.waitFor(() => expect(uploads()).toHaveLength(1));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('refuses a HEIC over the limit before converting it', async () => {
+    mocks.heicToJpeg.mockResolvedValue(jpegOf());
+    renderUpload(zoneProps, consented);
+    const big = heic();
+    Object.defineProperty(big, 'size', { value: MAX_PHOTO_BYTES + 1 });
+
+    dropFile(big);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(TOO_BIG_TEXT);
+    expect(mocks.heicToJpeg).not.toHaveBeenCalled();
+    expect(uploads()).toHaveLength(0);
+  });
+
+  it('refuses a HEIC over the limit from the picker before converting it', async () => {
+    stubMedia(MOUSE_QUERY);
+    const user = setup();
+    renderUpload({}, consented);
+    const big = heic();
+    Object.defineProperty(big, 'size', { value: MAX_PHOTO_BYTES + 1 });
+
+    await user.upload(fileInputs().file!, big);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(TOO_BIG_TEXT);
+    expect(mocks.heicToJpeg).not.toHaveBeenCalled();
+    expect(uploads()).toHaveLength(0);
+  });
+
+  it('refuses a JPEG made of a HEIC that is over the limit', async () => {
+    const jpeg = jpegOf();
+    Object.defineProperty(jpeg, 'size', { value: MAX_PHOTO_BYTES + 1 });
+    mocks.heicToJpeg.mockResolvedValue(jpeg);
+    renderUpload(zoneProps, consented);
+
+    dropFile(heic());
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(TOO_BIG_TEXT);
+    expect(uploads()).toHaveLength(0);
+  });
+
+  it('converts a HEIC dropped before the consents only once they are given', async () => {
+    mocks.heicToJpeg.mockResolvedValue(jpegOf());
+    const user = setup();
+    renderUpload(zoneProps);
+
+    dropFile(heic());
+
+    const dialog = await screen.findByRole('dialog', { name: 'Какое фото подойдёт' });
+    expect(mocks.heicToJpeg).not.toHaveBeenCalled();
+    await checkBothConsents(dialog, user);
+
+    await vi.waitFor(() => expect(uploads()).toHaveLength(1));
+    expect(tracked('Photo Uploaded')[0]).toEqual([
+      'Photo Uploaded',
+      { saved: true, source: 'drop', place: 'try-on', first: true, format: 'heic' },
+    ]);
+  });
+
+  it('shows the converted JPEG, not the HEIC, on the refusal screen', async () => {
+    const jpeg = jpegOf();
+    mocks.heicToJpeg.mockResolvedValue(jpeg);
+    answer = refusedWith('dark');
+    renderUpload(zoneProps, consented);
+
+    dropFile(heic());
+
+    await screen.findByRole('dialog', { name: 'Фото слишком тёмное' });
+    expect(createObjectURL).toHaveBeenCalledWith(jpeg);
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
+  });
+
+  it('brings the pickers back after a failed conversion of a file that waited for the consents', async () => {
+    mocks.heicToJpeg.mockRejectedValue(new Error('bad heic'));
+    const user = setup();
+    renderUpload(zoneProps);
+    dropFile(heic());
+    const dialog = await screen.findByRole('dialog', { name: 'Какое фото подойдёт' });
+    expect(within(dialog).getByRole('button', { name: 'Загрузить фото' })).toBeInTheDocument();
+
+    await checkBothConsents(dialog, user);
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      'Не удалось прочитать HEIC — попробуйте JPG',
+    );
+    expect(within(dialog).getByRole('button', { name: 'Выбрать фото' })).toBeEnabled();
+    expect(
+      within(dialog).queryByRole('button', { name: 'Загрузить фото' }),
+    ).not.toBeInTheDocument();
+    expect(uploads()).toHaveLength(0);
+  });
+
+  it('brings the pickers back after a converted JPEG over the limit, for a file that waited', async () => {
+    const jpeg = jpegOf();
+    Object.defineProperty(jpeg, 'size', { value: MAX_PHOTO_BYTES + 1 });
+    mocks.heicToJpeg.mockResolvedValue(jpeg);
+    const user = setup();
+    renderUpload(zoneProps);
+    dropFile(heic());
+    const dialog = await screen.findByRole('dialog', { name: 'Какое фото подойдёт' });
+
+    await checkBothConsents(dialog, user);
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(TOO_BIG_TEXT);
+    expect(within(dialog).getByRole('button', { name: 'Выбрать фото' })).toBeEnabled();
+    expect(
+      within(dialog).queryByRole('button', { name: 'Загрузить фото' }),
+    ).not.toBeInTheDocument();
+    expect(uploads()).toHaveLength(0);
+  });
+
+  it('tracks a refusal of a converted photo with the original format', async () => {
+    mocks.heicToJpeg.mockResolvedValue(jpegOf());
+    answer = refusedWith('dark');
+    renderUpload(zoneProps, consented);
+
+    dropFile(heic());
+
+    await screen.findByRole('dialog', { name: 'Фото слишком тёмное' });
+    expect(tracked('Photo Refused')).toEqual([
+      [
+        'Photo Refused',
+        { reason: 'dark', source: 'drop', place: 'try-on', first: false, format: 'heic' },
+      ],
+    ]);
+  });
+});
+
+describe('UploadPhoto: a pasted image (AC28)', () => {
+  const zoneProps = { place: 'try-on', appearance: 'zone', save: true } as const;
+
+  interface Pasted {
+    kind: string;
+    type: string;
+    file: File | null;
+  }
+
+  function paste(items: Pasted[], target: EventTarget = document.body) {
+    const event = new Event('paste', { bubbles: true, cancelable: true });
+    Object.defineProperty(event, 'clipboardData', {
+      value: {
+        items: items.map((item) => ({
+          kind: item.kind,
+          type: item.type,
+          getAsFile: () => item.file,
+        })),
+      },
+    });
+    target.dispatchEvent(event);
+    return event;
+  }
+
+  const image = (file = picture('pasted.png')) => [
+    { kind: 'file', type: file.type, file } satisfies Pasted,
+  ];
+  const png = () => new File(['x'], 'pasted.png', { type: 'image/png' });
+
+  it('uploads the image as a paste and tracks the source', async () => {
+    const { onUploaded } = renderUpload(zoneProps, consented);
+
+    const event = paste(image(png()));
+
+    expect(event.defaultPrevented).toBe(true);
+    await vi.waitFor(() => expect(onUploaded).toHaveBeenCalledWith(PHOTO));
+    expect((requestOf().body.get('photo') as File).name).toBe('pasted.png');
+    expect(tracked('Photo Uploaded')).toEqual([
+      [
+        'Photo Uploaded',
+        { saved: true, source: 'paste', place: 'try-on', first: false, format: 'png' },
+      ],
+    ]);
+  });
+
+  it('tracks a refusal of a pasted photo with the source paste', async () => {
+    answer = refusedWith('dark');
+    renderUpload(zoneProps, consented);
+
+    paste(image(png()));
+
+    await screen.findByRole('dialog', { name: 'Фото слишком тёмное' });
+    expect(tracked('Photo Refused')).toEqual([
+      [
+        'Photo Refused',
+        { reason: 'dark', source: 'paste', place: 'try-on', first: false, format: 'png' },
+      ],
+    ]);
+  });
+
+  it('does nothing for text and leaves the paste to the browser', () => {
+    renderUpload(zoneProps, consented);
+
+    const event = paste([{ kind: 'string', type: 'text/plain', file: null }]);
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(uploads()).toHaveLength(0);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ['a textarea', '<textarea aria-label="Пожелания"></textarea>'],
+    ['a text input', '<input type="text" aria-label="Поиск">'],
+  ])('does nothing when %s is focused', (_name, html) => {
+    renderUpload(zoneProps, consented);
+    const host = document.createElement('div');
+    host.innerHTML = html;
+    document.body.append(host);
+    const field = host.firstElementChild as HTMLElement;
+    field.focus();
+
+    const event = paste(image(png()), field);
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(uploads()).toHaveLength(0);
+    host.remove();
+  });
+
+  it('still takes the image when a checkbox is focused', async () => {
+    renderUpload(zoneProps, consented);
+    const box = document.createElement('input');
+    box.type = 'checkbox';
+    document.body.append(box);
+    box.focus();
+
+    paste(image(png()), box);
+
+    await vi.waitFor(() => expect(uploads()).toHaveLength(1));
+    box.remove();
+  });
+
+  it('ignores a paste another handler already took', () => {
+    renderUpload(zoneProps, consented);
+    const taken = (event: Event) => event.preventDefault();
+    document.body.addEventListener('paste', taken);
+
+    paste(image(png()));
+
+    document.body.removeEventListener('paste', taken);
+    expect(uploads()).toHaveLength(0);
+  });
+
+  it('refuses a pasted GIF with the text of the types', async () => {
+    renderUpload(zoneProps, consented);
+
+    paste(image(new File(['x'], 'anim.gif', { type: 'image/gif' })));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(WRONG_TYPE_TEXT);
+    expect(uploads()).toHaveLength(0);
+  });
+
+  it('refuses a pasted image over the limit', async () => {
+    renderUpload(zoneProps, consented);
+    const big = png();
+    Object.defineProperty(big, 'size', { value: MAX_PHOTO_BYTES + 1 });
+
+    paste(image(big));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(TOO_BIG_TEXT);
+    expect(uploads()).toHaveLength(0);
+  });
+
+  it('converts a pasted HEIC', async () => {
+    mocks.heicToJpeg.mockResolvedValue(new File(['j'], 'p.jpg', { type: 'image/jpeg' }));
+    renderUpload(zoneProps, consented);
+
+    paste(image(new File(['h'], 'p.heic', { type: 'image/heic' })));
+
+    await vi.waitFor(() => expect(uploads()).toHaveLength(1));
+    expect(tracked('Photo Uploaded')[0]).toEqual([
+      'Photo Uploaded',
+      { saved: true, source: 'paste', place: 'try-on', first: false, format: 'heic' },
+    ]);
+  });
+
+  it('replaces a chosen photo', async () => {
+    renderUpload({ ...zoneProps, children: <p>Ваше фото тут</p> }, consented);
+
+    paste(image(png()));
+
+    await vi.waitFor(() => expect(uploads()).toHaveLength(1));
+  });
+
+  it('waits behind the tips and the consents before the first upload', async () => {
+    const user = setup();
+    renderUpload(zoneProps);
+
+    paste(image(png()));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Какое фото подойдёт' });
+    expect(uploads()).toHaveLength(0);
+    await checkBothConsents(dialog, user);
+
+    await vi.waitFor(() => expect(uploads()).toHaveLength(1));
+    expect(requestOf().body.get('consent')).toBe('1');
+    expect(tracked('Photo Uploaded')[0]).toEqual([
+      'Photo Uploaded',
+      { saved: true, source: 'paste', place: 'try-on', first: true, format: 'png' },
+    ]);
+  });
+
+  it('does nothing while /me loads or the zone is disabled', () => {
+    const { unmount } = renderUpload(zoneProps, 'loading');
+    paste(image(png()));
+    unmount();
+    renderUpload({ ...zoneProps, disabled: true }, consented);
+    paste(image(png()));
+    expect(uploads()).toHaveLength(0);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('takes one paste at a time', async () => {
+    answer = () => new Promise<Response>(() => undefined);
+    renderUpload(zoneProps, consented);
+
+    paste(image(png()));
+    await vi.waitFor(() => expect(uploads()).toHaveLength(1));
+    paste(image(png()));
+
+    expect(uploads()).toHaveLength(1);
+  });
+
+  it.each(['buttons', 'card', 'replace'] as const)(
+    'is not taken by the %s appearance',
+    (appearance) => {
+      renderUpload({ place: 'photos', appearance }, consented);
+
+      const event = paste(image(png()));
+
+      expect(event.defaultPrevented).toBe(false);
+      expect(uploads()).toHaveLength(0);
+    },
+  );
+
+  it('takes a paste made inside the dialog that holds the zone', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+    queryClient.setQueryData(userKeys.me, { ...USER, photoConsentVersion: 1 });
+    render(
+      <div role="dialog" aria-label="Окно примерки">
+        <QueryClientProvider client={queryClient}>
+          <UploadPhoto {...zoneProps} />
+        </QueryClientProvider>
+      </div>,
+    );
+
+    const event = paste(image(png()), screen.getByRole('dialog', { name: 'Окно примерки' }));
+
+    expect(event.defaultPrevented).toBe(true);
+    await vi.waitFor(() => expect(uploads()).toHaveLength(1));
+  });
+
+  it('ignores a paste made inside another dialog', () => {
+    renderUpload(zoneProps, consented);
+    const other = document.createElement('div');
+    other.setAttribute('role', 'dialog');
+    other.tabIndex = -1;
+    document.body.append(other);
+    other.focus();
+
+    const event = paste(image(png()), other);
+    other.remove();
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(uploads()).toHaveLength(0);
+  });
+
+  it('ignores a paste made inside the tips', async () => {
+    const user = setup();
+    renderUpload(zoneProps);
+    await user.click(screen.getByRole('button', { name: 'Выбрать файл' }));
+    const tips = await screen.findByRole('dialog', { name: 'Какое фото подойдёт' });
+
+    const event = paste(image(png()), tips);
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(uploads()).toHaveLength(0);
+    expect(within(tips).queryByRole('button', { name: 'Загрузить фото' })).not.toBeInTheDocument();
+  });
+
+  it('stops listening once the zone is unmounted', () => {
+    const { unmount } = renderUpload(zoneProps, consented);
+    unmount();
+
+    const event = paste(image(png()));
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(uploads()).toHaveLength(0);
+  });
+});
+
+describe('UploadPhoto: onBusyChange', () => {
+  const zoneProps = { place: 'try-on', appearance: 'zone', save: true } as const;
+  const dropFile = (file: File) =>
+    fireEvent.drop(screen.getByText('Загрузите своё фото'), {
+      dataTransfer: { files: [file], types: ['Files'] },
+    });
+
+  it('is not called on an idle mount or unmount', () => {
+    const onBusyChange = vi.fn();
+    const { unmount } = renderUpload({ ...zoneProps, onBusyChange }, consented);
+    unmount();
+
+    expect(onBusyChange).not.toHaveBeenCalled();
+  });
+
+  it('says true while a photo uploads and false once it is stored', async () => {
+    let finish: (response: Response) => void = () => undefined;
+    answer = () =>
+      new Promise<Response>((resolve) => {
+        finish = resolve;
+      });
+    const onBusyChange = vi.fn();
+    renderUpload({ ...zoneProps, onBusyChange }, consented);
+
+    dropFile(picture());
+
+    await vi.waitFor(() => expect(onBusyChange).toHaveBeenLastCalledWith(true));
+    expect(onBusyChange).not.toHaveBeenCalledWith(false);
+    finish(await ok());
+    await vi.waitFor(() => expect(onBusyChange).toHaveBeenLastCalledWith(false));
+  });
+
+  it('says false once a refused photo is answered', async () => {
+    let finish: (response: Response) => void = () => undefined;
+    answer = () =>
+      new Promise<Response>((resolve) => {
+        finish = resolve;
+      });
+    const onBusyChange = vi.fn();
+    renderUpload({ ...zoneProps, onBusyChange }, consented);
+
+    dropFile(picture());
+    await vi.waitFor(() => expect(onBusyChange).toHaveBeenLastCalledWith(true));
+    finish(await refusedWith('dark')());
+
+    await screen.findByRole('dialog', { name: 'Фото слишком тёмное' });
+    await vi.waitFor(() => expect(onBusyChange).toHaveBeenLastCalledWith(false));
+  });
+
+  it('says true while a HEIC is prepared, before any upload, and false after a failed conversion', async () => {
+    let fail: (reason: Error) => void = () => undefined;
+    mocks.heicToJpeg.mockReturnValue(
+      new Promise<File>((_resolve, reject) => {
+        fail = reject;
+      }),
+    );
+    const onBusyChange = vi.fn();
+    renderUpload({ ...zoneProps, onBusyChange }, consented);
+
+    dropFile(new File(['h'], 'a.heic', { type: 'image/heic' }));
+
+    await vi.waitFor(() => expect(onBusyChange).toHaveBeenLastCalledWith(true));
+    expect(uploads()).toHaveLength(0);
+    fail(new Error('bad heic'));
+    await screen.findByRole('alert');
+    expect(onBusyChange).toHaveBeenLastCalledWith(false);
+    expect(uploads()).toHaveLength(0);
+  });
+
+  it('says false when the component unmounts while busy', async () => {
+    answer = () => new Promise<Response>(() => undefined);
+    const onBusyChange = vi.fn();
+    const { unmount } = renderUpload({ ...zoneProps, onBusyChange }, consented);
+    dropFile(picture());
+    await vi.waitFor(() => expect(onBusyChange).toHaveBeenLastCalledWith(true));
+
+    unmount();
+
+    expect(onBusyChange).toHaveBeenLastCalledWith(false);
+  });
+
+  it('says nothing for a file refused by its type or size', async () => {
+    const onBusyChange = vi.fn();
+    renderUpload({ ...zoneProps, onBusyChange }, consented);
+
+    dropFile(new File(['x'], 'a.gif', { type: 'image/gif' }));
+    await screen.findByRole('alert');
+
+    expect(onBusyChange).not.toHaveBeenCalled();
   });
 });

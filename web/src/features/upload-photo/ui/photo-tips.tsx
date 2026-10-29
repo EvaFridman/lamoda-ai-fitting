@@ -34,13 +34,13 @@ const TIPS: readonly Tip[] = [
   { text: 'Объёмная одежда скрывает фигуру', good: false, Picture: BulkyClothesPictogram },
 ];
 
-// The format line drops «HEIC» (spec 0019 A31).
+// The format line names HEIC again, which the browser turns into a JPEG (spec 0024 Z15).
 const SUMMARY = [
   'один человек — вы',
   'видно от макушки до стоп',
   'дневной свет или яркая лампа',
   'без детей на фото',
-  'JPG, PNG или WebP до 20 МБ',
+  'JPG, PNG, WebP или HEIC до 20 МБ',
 ];
 
 export interface PhotoTipsProps {

@@ -6,7 +6,7 @@ import { type DragEvent, type ReactNode, useEffect, useId, useRef, useState } fr
 import { uploadPhoto, userPhotoKeys, type UserPhoto } from '@/entities/user-photo';
 import { track, useTrackedElement } from '@/shared/analytics';
 import { ApiError, reportFailure } from '@/shared/api';
-import { COARSE_POINTER_QUERY, PHONE_QUERY } from '@/shared/config';
+import { COARSE_POINTER_QUERY, MOUSE_QUERY, PHONE_QUERY } from '@/shared/config';
 import { useMediaQuery } from '@/shared/lib';
 import {
   Button,
@@ -25,11 +25,15 @@ import {
   UploadIcon,
 } from '@/shared/ui';
 
+import { heicToJpeg } from '../lib/heic';
+import { pastedImage, typingIn } from '../lib/paste';
 import { isChildRefusal, photoRefusal, type Refusal, refusalText } from '../lib/refusal';
 import {
-  isPhotoType,
+  HEIC_FAILED_TEXT,
   MAX_PHOTO_BYTES,
-  PHOTO_ACCEPT,
+  photoAccept,
+  type PhotoFormat,
+  photoFormat,
   TOO_BIG_TEXT,
   uploadErrorText,
   WRONG_TYPE_TEXT,
@@ -46,13 +50,15 @@ import { RefusedPreview } from './refused-preview';
 
 import styles from './upload-photo.module.scss';
 
-type Source = 'file' | 'camera' | 'drop';
+type Source = 'file' | 'camera' | 'drop' | 'paste';
 // `choose` is the phone's screen 4.2 after the tips' «Понятно»; on a wide screen the tips hold it.
 type Screen = 'closed' | 'tips' | 'choose' | 'refused';
 
 interface Upload {
   file: File;
   source: Source;
+  // The chosen file's own format: a HEIC's `file` is the JPEG made of it.
+  format: PhotoFormat;
   // Saved among «Мои фото», or a one-time photo.
   save: boolean;
   // The upload that gave the consents (the analytics' `first`): it sends them to the api.
@@ -108,6 +114,9 @@ export interface UploadPhotoProps {
   refusalNote?: ReactNode;
   // The file on its way, then `null` once it is stored or refused (board 3.3 shows it dimmed).
   onPendingChange?: (file: File | null) => void;
+  // `true` while a photo is on its way or a HEIC is being prepared, `false` once it is done (or
+  // the component goes): the page keeps its other pickers and the save switch off meanwhile.
+  onBusyChange?: (busy: boolean) => void;
   onUploaded?: (photo: UserPhoto) => void;
 }
 
@@ -133,6 +142,7 @@ export function UploadPhoto({
   save = true,
   refusalNote,
   onPendingChange,
+  onBusyChange,
   onUploaded,
 }: UploadPhotoProps) {
   const queryClient = useQueryClient();
@@ -141,7 +151,10 @@ export function UploadPhoto({
   const coarse = useMediaQuery(COARSE_POINTER_QUERY);
   // The camera only for a finger, in the try-on and «Мои фото» alike (spec 0023 Y13, Y23).
   const camera = coarse;
+  const accept = photoAccept(useMediaQuery(MOUSE_QUERY));
   const [screen, setScreen] = useState<Screen>('closed');
+  // A HEIC being turned into a JPEG, by the picker it came from; the inputs are off meanwhile.
+  const [preparing, setPreparing] = useState<Source | null>(null);
   const [replacing, setReplacing] = useState(false);
   const [waiting, setWaiting] = useState<Waiting | null>(null);
   const [refusal, setRefusal] = useState<RefusedPhoto | null>(null);
@@ -162,16 +175,16 @@ export function UploadPhoto({
       uploadPhoto(file, { save: saved, consent: first ? PHOTO_CONSENT_VERSION : undefined }),
     retry: false,
     gcTime: 0,
-    onSuccess: (_photo, { source, first, save: saved }) => {
+    onSuccess: (_photo, { source, format, first, save: saved }) => {
       if (first) setPhotoConsent(queryClient, true);
-      track('Photo Uploaded', { saved, source, place, first });
+      track('Photo Uploaded', { saved, source, place, first, format });
       return queryClient.invalidateQueries({ queryKey: userPhotoKeys.all });
     },
-    onError: (failure, { source, first }) => {
+    onError: (failure, { source, format, first }) => {
       const refused = photoRefusal(failure);
       if (refused) {
         if (first) setPhotoConsent(queryClient, true);
-        track('Photo Refused', { reason: refused.reason, source, place, first });
+        track('Photo Refused', { reason: refused.reason, source, place, first, format });
       } else if (consentRequired(failure)) setPhotoConsent(queryClient, false);
       else {
         reportFailure(failure);
@@ -181,9 +194,11 @@ export function UploadPhoto({
       }
     },
   });
-  const pending = upload.isPending;
-  const pendingSource = pending ? upload.variables.source : undefined;
-  const pendingFile = pending ? upload.variables.file : null;
+  // A HEIC being prepared counts as on its way: the pickers wait, the one it came from spins.
+  const pending = upload.isPending || preparing !== null;
+  const pendingSource = upload.isPending ? upload.variables.source : (preparing ?? undefined);
+  // Only the upload's file: a HEIC is reported once it is a JPEG the page can show.
+  const pendingFile = upload.isPending ? upload.variables.file : null;
 
   // Only a change of the file is reported: a new callback each render does not report it again.
   const pendingChangeRef = useRef(onPendingChange);
@@ -196,6 +211,16 @@ export function UploadPhoto({
   // Unmounted with a file on its way (the chosen photo gone under «Заменить фото»): the page
   // shows it no longer.
   useEffect(() => () => pendingChangeRef.current?.(null), []);
+  // Only a change is reported, so a component mounting idle does not clear another one's state.
+  const busyChangeRef = useRef(onBusyChange);
+  useEffect(() => {
+    busyChangeRef.current = onBusyChange;
+  });
+  useEffect(() => {
+    if (!pending) return;
+    busyChangeRef.current?.(true);
+    return () => busyChangeRef.current?.(false);
+  }, [pending]);
   // A photo on its way elsewhere makes this one's last text stale.
   const [wasDisabled, setWasDisabled] = useState(disabled);
   if (disabled !== wasDisabled) {
@@ -227,19 +252,53 @@ export function UploadPhoto({
     setScreen('tips');
   }
 
-  function send(file: File, source: Source) {
+  async function send(file: File, source: Source) {
     // One photo at a time: the inputs are off while one is on its way, and a change that comes
     // before they are (or past them) is dropped.
-    if (upload.isPending) return;
+    if (upload.isPending || preparing) return;
     setError(null);
+    // A file of another type the picker's «All files» let in is refused here, as a dropped one.
+    const format = photoFormat(file);
+    if (!format) {
+      setReplacing(false);
+      setWaiting(null);
+      setError(WRONG_TYPE_TEXT);
+      return;
+    }
+    // A HEIC over the limit is not read into the tab's memory: its JPEG would be bigger still.
+    if (format === 'heic' && file.size > MAX_PHOTO_BYTES) {
+      setReplacing(false);
+      setWaiting(null);
+      setError(TOO_BIG_TEXT);
+      return;
+    }
+    let photo = file;
+    if (format === 'heic') {
+      // «Заменить фото»'s window stays open meanwhile, its picker spinning. Like an upload, the
+      // conversion and the upload after it go on when the window closes.
+      setPreparing(source);
+      try {
+        photo = await heicToJpeg(file);
+      } catch {
+        // A file waiting for the consents goes too: the pickers come back for another one.
+        setReplacing(false);
+        setWaiting(null);
+        setError(HEIC_FAILED_TEXT);
+        return;
+      } finally {
+        setPreparing(null);
+      }
+    }
     setReplacing(false);
-    if (file.size > MAX_PHOTO_BYTES) {
+    // The JPEG made of a HEIC is what counts.
+    if (photo.size > MAX_PHOTO_BYTES) {
+      setWaiting(null);
       setError(TOO_BIG_TEXT);
       return;
     }
     setWaiting(null);
     upload.mutate(
-      { file, source, first: !consented, save },
+      { file: photo, source, format, first: !consented, save },
       {
         onSuccess: (photo) => {
           setScreen('closed');
@@ -249,7 +308,8 @@ export function UploadPhoto({
         onError: (failure) => {
           const refused = photoRefusal(failure);
           if (refused) {
-            setRefusal({ file, refusal: refused });
+            // The uploaded JPEG, not a HEIC most browsers cannot show.
+            setRefusal({ file: photo, refusal: refused });
             setScreen('refused');
             return;
           }
@@ -268,14 +328,14 @@ export function UploadPhoto({
   }
 
   function choose(source: Source) {
-    return (file: File) => send(file, source);
+    return (file: File) => void send(file, source);
   }
 
-  // A file dropped on the zone: the first one, of the types the picker offers; before the
-  // consents it waits for them.
-  function drop(file: File) {
-    if (upload.isPending || disabled || consented === undefined) return;
-    if (!isPhotoType(file)) {
+  // A file dropped on the zone (the first one) or pasted, of the types the upload takes; before
+  // the consents it waits for them. A HEIC's JPEG is checked again once it is made.
+  function drop(file: File, source: 'drop' | 'paste') {
+    if (pending || disabled || consented === undefined) return;
+    if (!photoFormat(file)) {
       setError(WRONG_TYPE_TEXT);
       return;
     }
@@ -284,12 +344,38 @@ export function UploadPhoto({
       return;
     }
     if (consented) {
-      send(file, 'drop');
+      void send(file, source);
       return;
     }
-    setWaiting({ file, source: 'drop' });
+    setWaiting({ file, source });
     openTips();
   }
+
+  // Ctrl/Cmd+V with an image, while the zone is shown and no text field is focused, takes it as a
+  // dropped one (spec 0024 Z16; not on «Мои фото»). A paste of text, or into a field, goes on as
+  // it would.
+  const dropRef = useRef(drop);
+  useEffect(() => {
+    dropRef.current = drop;
+  });
+  const zoneRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (appearance !== 'zone') return;
+    const paste = (event: ClipboardEvent) => {
+      if (event.defaultPrevented || typingIn(event.target)) return;
+      // A window over the zone («Заменить фото», the tips) has the focus and its own pickers: a
+      // paste there is not the zone's. The try-on's own window holds the zone, so it counts.
+      const dialog =
+        event.target instanceof Element ? event.target.closest('[role="dialog"]') : null;
+      if (dialog && zoneRef.current && !dialog.contains(zoneRef.current)) return;
+      const file = pastedImage(event.clipboardData);
+      if (!file) return;
+      event.preventDefault();
+      dropRef.current(file, 'paste');
+    };
+    document.addEventListener('paste', paste);
+    return () => document.removeEventListener('paste', paste);
+  }, [appearance]);
 
   // Only a drag that carries files, while the zone takes one, darkens it and may be dropped; the
   // rest is refused by the cursor.
@@ -322,7 +408,7 @@ export function UploadPhoto({
       event.preventDefault();
       setDragging(false);
       const file = event.dataTransfer.files[0];
-      if (file) drop(file);
+      if (file) drop(file, 'drop');
     },
   };
 
@@ -345,7 +431,7 @@ export function UploadPhoto({
     return (
       <>
         <FileInput
-          accept={PHOTO_ACCEPT}
+          accept={accept}
           onFileChange={choose('file')}
           disabled={off || pendingSource === 'camera'}
           loading={pendingSource === 'file'}
@@ -358,7 +444,7 @@ export function UploadPhoto({
         </FileInput>
         {withCamera && (
           <FileInput
-            accept={PHOTO_ACCEPT}
+            accept={accept}
             capture="user"
             variant={quiet ? 'secondary' : 'outline'}
             onFileChange={choose('camera')}
@@ -380,19 +466,20 @@ export function UploadPhoto({
   function check(nextMine: boolean, nextAgreed: boolean) {
     setMine(nextMine);
     setAgreed(nextAgreed);
-    if (nextMine && nextAgreed && waiting) send(waiting.file, waiting.source);
+    if (nextMine && nextAgreed && waiting) void send(waiting.file, waiting.source);
   }
 
   // The screen's footer: with a file waiting for the consents, «Загрузить фото», which says what
   // the boxes do (the second one uploads it) and spins while it goes.
   function screenFooter(label: string, options: { withCamera?: boolean; wide?: boolean } = {}) {
-    if (!waiting && !(pending && pendingSource === 'drop')) return pickers(label, options);
+    const dropped = pendingSource === 'drop' || pendingSource === 'paste';
+    if (!waiting && !(pending && dropped)) return pickers(label, options);
     return (
       <Button
         fullWidth={options.wide}
         disabled={disabled || !ready || pending}
         loading={pending}
-        onClick={() => waiting && send(waiting.file, waiting.source)}
+        onClick={() => waiting && void send(waiting.file, waiting.source)}
       >
         Загрузить фото
       </Button>
@@ -430,7 +517,7 @@ export function UploadPhoto({
         <FileInput
           bare
           className={dropCardClass.tile}
-          accept={PHOTO_ACCEPT}
+          accept={accept}
           capture={source === 'camera' ? 'user' : undefined}
           onFileChange={choose(source)}
           disabled={disabled || (pending && pendingSource !== source)}
@@ -458,7 +545,7 @@ export function UploadPhoto({
     if (consented) {
       return (
         <FileInput
-          accept={PHOTO_ACCEPT}
+          accept={accept}
           capture={source === 'camera' ? 'user' : undefined}
           onFileChange={choose(source)}
           disabled={disabled || (pending && pendingSource !== source)}
@@ -546,7 +633,7 @@ export function UploadPhoto({
     const area = consented ? (
       <FileInput
         bare
-        accept={PHOTO_ACCEPT}
+        accept={accept}
         onFileChange={choose('file')}
         disabled={disabled || pending}
         loading={pendingSource === 'file'}
@@ -578,7 +665,7 @@ export function UploadPhoto({
     const chooseLink = consented ? (
       <FileInput
         bare
-        accept={PHOTO_ACCEPT}
+        accept={accept}
         onFileChange={choose('file')}
         disabled={disabled || pending}
         loading={pendingSource === 'file'}
@@ -604,6 +691,7 @@ export function UploadPhoto({
     );
     entry = (
       <div
+        ref={zoneRef}
         className={[styles.zone, !empty && dragging && styles.dragging].filter(Boolean).join(' ')}
         {...dropHandlers}
       >
@@ -629,6 +717,12 @@ export function UploadPhoto({
           children
         )}
         {!empty && dragging && <span className={styles.dropHint}>Отпустите, чтобы загрузить</span>}
+        {preparing && (
+          <span className={styles.preparing} role="status">
+            <Spinner />
+            Готовим фото…
+          </span>
+        )}
         {screen === 'closed' && error && <div className={styles.zoneError}>{failure}</div>}
       </div>
     );
@@ -686,7 +780,7 @@ export function UploadPhoto({
     entry = consented ? (
       <FileInput
         bare
-        accept={PHOTO_ACCEPT}
+        accept={accept}
         onFileChange={choose('file')}
         disabled={disabled}
         loading={pending}

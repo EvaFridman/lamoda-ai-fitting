@@ -12,7 +12,10 @@ const mocks = vi.hoisted(() => ({
   track: vi.fn(),
   captureException: vi.fn(),
   session: { status: 'pending' } as SessionState,
+  heicToJpeg: vi.fn(),
 }));
+
+vi.mock('@/features/upload-photo/lib/heic', () => ({ heicToJpeg: mocks.heicToJpeg }));
 
 vi.mock('@/shared/analytics/client', () => ({
   identify: vi.fn(),
@@ -312,6 +315,164 @@ describe('TryOn picker', () => {
     expect(screen.getAllByRole('switch')).toHaveLength(1);
   });
 
+  describe('one photo at a time while a HEIC is prepared (spec 0024 Z15)', () => {
+    const heic = () => new File(['h'], 'IMG_1.heic', { type: 'image/heic' });
+    const jpeg = () => new File(['j'], 'IMG_1.jpg', { type: 'image/jpeg' });
+    const frameImage = () => document.querySelector<HTMLImageElement>('img[alt="Ваше фото"]')!;
+    const photoPosts = () => posts().filter(({ path }) => path === '/api/me/photos');
+
+    function pasteImage(target: EventTarget = document.body) {
+      const event = new Event('paste', { bubbles: true, cancelable: true });
+      Object.defineProperty(event, 'clipboardData', {
+        value: {
+          items: [
+            {
+              kind: 'file',
+              type: 'image/png',
+              getAsFile: () => new File(['p'], 'p.png', { type: 'image/png' }),
+            },
+          ],
+        },
+      });
+      target.dispatchEvent(event);
+      return event;
+    }
+
+    function pendingConversion() {
+      let finish: (file: File) => void = () => undefined;
+      mocks.heicToJpeg.mockReturnValue(
+        new Promise<File>((resolve) => {
+          finish = resolve;
+        }),
+      );
+      return (file: File) => finish(file);
+    }
+
+    it('keeps the frame, the paste and the save switch off while «Заменить фото» prepares one', async () => {
+      const finish = pendingConversion();
+      const user = setup();
+      renderTryOn({ productId: PRODUCT });
+      await screen.findByRole('img', { name: 'Ваше фото' });
+      await vi.waitFor(() => expect(start()).toBeEnabled());
+      await user.click(await screen.findByRole('button', { name: 'Заменить фото' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Заменить фото' });
+      // The window's picker exists once /me says the consents are given.
+      await vi.waitFor(() =>
+        expect(dialog.querySelector('input[type="file"]')).toBeInTheDocument(),
+      );
+
+      fireEvent.change(dialog.querySelector('input[type="file"]')!, {
+        target: { files: [heic()] },
+      });
+
+      await vi.waitFor(() => expect(mocks.heicToJpeg).toHaveBeenCalledTimes(1));
+      expect(screen.getByRole('dialog', { name: 'Заменить фото' })).toBeInTheDocument();
+      const off = within(dialog).getByRole('switch', { name: /Сохранить фото/ });
+      await vi.waitFor(() =>
+        expect(
+          off.hasAttribute('data-disabled') || off.getAttribute('aria-disabled') === 'true',
+        ).toBe(true),
+      );
+      fireEvent.drop(frameImage(), {
+        dataTransfer: {
+          files: [new File(['x'], 'again.jpg', { type: 'image/jpeg' })],
+          types: ['Files'],
+        },
+      });
+      pasteImage();
+      expect(photoPosts()).toHaveLength(0);
+      expect(mocks.heicToJpeg).toHaveBeenCalledTimes(1);
+      // The saved photos in the window are off meanwhile: a click chooses nothing.
+      const thumb = within(dialog).getByRole('button', { name: 'Фото 1' });
+      expect(thumb).toBeDisabled();
+      await user.click(thumb);
+      expect(frameImage()).toHaveAttribute('src', expect.stringContaining(PHOTO_B));
+
+      finish(jpeg());
+
+      await vi.waitFor(() => expect(photoPosts()).toHaveLength(1));
+      expect((photoPosts()[0]?.init.body as FormData).get('photo')).toEqual(
+        expect.objectContaining({ name: 'IMG_1.jpg' }),
+      );
+      await vi.waitFor(() =>
+        expect(frameImage()).toHaveAttribute('src', expect.stringContaining(ONE_TIME)),
+      );
+    });
+
+    it("takes no paste made inside «Заменить фото»'s window", async () => {
+      const user = setup();
+      renderTryOn({ productId: PRODUCT });
+      await screen.findByRole('img', { name: 'Ваше фото' });
+      await vi.waitFor(() => expect(start()).toBeEnabled());
+      await user.click(await screen.findByRole('button', { name: 'Заменить фото' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Заменить фото' });
+      await vi.waitFor(() =>
+        expect(dialog.querySelector('input[type="file"]')).toBeInTheDocument(),
+      );
+
+      const event = pasteImage(dialog);
+
+      expect(event.defaultPrevented).toBe(false);
+      expect(photoPosts()).toHaveLength(0);
+      expect(mocks.heicToJpeg).not.toHaveBeenCalled();
+    });
+
+    it('still takes a paste made in the try-on window itself', async () => {
+      renderTryOn({ productId: PRODUCT });
+      const dialog = await screen.findByRole('dialog', { name: 'Онлайн-примерка' });
+      await screen.findByRole('img', { name: 'Ваше фото' });
+      await vi.waitFor(() => expect(start()).toBeEnabled());
+
+      // A paste is ignored until /me is read: paste again until the upload starts.
+      await vi.waitFor(() => {
+        if (photoPosts().length === 0) pasteImage(dialog);
+        expect(photoPosts()).toHaveLength(1);
+      });
+    });
+
+    it('keeps «Заменить фото» and «Примерить» off while the frame prepares one', async () => {
+      const finish = pendingConversion();
+      renderTryOn({ productId: PRODUCT });
+      const image = await screen.findByRole('img', { name: 'Ваше фото' });
+      await vi.waitFor(() => expect(start()).toBeEnabled());
+      // A drop is ignored until /me is read: drop again until the conversion starts.
+      await vi.waitFor(() => {
+        if (mocks.heicToJpeg.mock.calls.length === 0) {
+          fireEvent.drop(image, {
+            dataTransfer: { files: [heic()], types: ['Files'] },
+          });
+        }
+        expect(mocks.heicToJpeg).toHaveBeenCalledTimes(1);
+      });
+
+      await vi.waitFor(() => expect(start()).toBeDisabled());
+      expect(screen.getByRole('button', { name: 'Заменить фото' })).toBeDisabled();
+      expect(photoPosts()).toHaveLength(0);
+
+      finish(jpeg());
+
+      await vi.waitFor(() => expect(photoPosts()).toHaveLength(1));
+    });
+
+    it('turns «Примерить» on again after a failed conversion', async () => {
+      mocks.heicToJpeg.mockRejectedValue(new Error('bad heic'));
+      renderTryOn({ productId: PRODUCT });
+      const image = await screen.findByRole('img', { name: 'Ваше фото' });
+      await vi.waitFor(() => expect(start()).toBeEnabled());
+      await vi.waitFor(() => {
+        if (mocks.heicToJpeg.mock.calls.length === 0) {
+          fireEvent.drop(image, { dataTransfer: { files: [heic()], types: ['Files'] } });
+        }
+        expect(mocks.heicToJpeg).toHaveBeenCalledTimes(1);
+      });
+
+      expect(await screen.findByRole('alert')).toHaveTextContent('Не удалось прочитать HEIC');
+      await vi.waitFor(() => expect(start()).toBeEnabled());
+      expect(screen.getByRole('button', { name: 'Заменить фото' })).toBeEnabled();
+      expect(photoPosts()).toHaveLength(0);
+    });
+  });
+
   describe('«Заменить фото» (AC9)', () => {
     async function openReplace(user: ReturnType<typeof setup>) {
       await user.click(await screen.findByRole('button', { name: 'Заменить фото' }));
@@ -407,7 +568,9 @@ describe('TryOn picker', () => {
             types: ['Files'],
           },
         });
-        expect(screen.getByRole('alert')).toHaveTextContent('Нужно изображение JPG, PNG или WebP');
+        expect(screen.getByRole('alert')).toHaveTextContent(
+          'Нужно изображение JPG, PNG, WebP или HEIC',
+        );
       });
 
       const dialog = await openReplace(user);
@@ -527,7 +690,7 @@ describe('TryOn picker', () => {
       });
 
       expect(await screen.findByRole('alert')).toHaveTextContent(
-        'Нужно изображение JPG, PNG или WebP',
+        'Нужно изображение JPG, PNG, WebP или HEIC',
       );
       expect(posts()).toHaveLength(0);
     });

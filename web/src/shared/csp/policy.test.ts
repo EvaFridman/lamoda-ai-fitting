@@ -26,7 +26,7 @@ describe('contentSecurityPolicy', () => {
     const policy = policyOf({ nonce: 'abc==' });
     expect(directives(policy)).toEqual([
       "default-src 'self'",
-      `script-src 'self' 'nonce-abc==' ${hashes}`,
+      `script-src 'self' 'nonce-abc==' ${hashes} 'wasm-unsafe-eval'`,
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob:",
       "connect-src 'self' https://api-eu.mixpanel.com",
@@ -42,8 +42,19 @@ describe('contentSecurityPolicy', () => {
   it('allows eval only in development', () => {
     const dev = policyOf({ dev: true });
     const prod = policyOf({ dev: false });
-    expect(directives(dev)[1]).toBe(`script-src 'self' 'nonce-n' ${hashes} 'unsafe-eval'`);
-    expect(prod).not.toContain('unsafe-eval');
+    expect(directives(dev)[1]).toBe(
+      `script-src 'self' 'nonce-n' ${hashes} 'wasm-unsafe-eval' 'unsafe-eval'`,
+    );
+    expect(prod.split(/[ ;]+/)).not.toContain("'unsafe-eval'");
+  });
+
+  it("allows WebAssembly compilation for the HEIC decoder on every page, without 'unsafe-eval' (AC27)", () => {
+    for (const input of [{}, { dev: true }, { yandexMaps: true }]) {
+      const scripts = directives(policyOf(input)).find((d) => d.startsWith('script-src'));
+      expect(scripts?.split(' ')).toContain("'wasm-unsafe-eval'");
+    }
+    const prod = directives(policyOf({})).find((d) => d.startsWith('script-src'));
+    expect(prod?.split(' ')).not.toContain("'unsafe-eval'");
   });
 
   it('has no strict-dynamic and no data: in worker-src', () => {
@@ -136,7 +147,7 @@ describe('contentSecurityPolicy with Yandex Maps (spec 0022 X16)', () => {
     const policy = policyOf({ nonce: 'abc==', yandexMaps: true });
     expect(directives(policy)).toEqual([
       "default-src 'self'",
-      `script-src 'self' 'nonce-abc==' ${hashes} https://api-maps.yandex.ru/v3/ https://yastatic.net/s3/front-maps-static/maps-front-jsapi-3/ 'unsafe-eval'`,
+      `script-src 'self' 'nonce-abc==' ${hashes} 'wasm-unsafe-eval' https://api-maps.yandex.ru/v3/ https://yastatic.net/s3/front-maps-static/maps-front-jsapi-3/ 'unsafe-eval'`,
       `style-src 'self' 'unsafe-inline' ${maps} https://yastatic.net`,
       `img-src 'self' data: blob: ${maps} https://*.maps.yandex.net https://yastatic.net`,
       `connect-src 'self' https://api-eu.mixpanel.com ${maps} https://*.maps.yandex.net`,

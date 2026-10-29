@@ -112,7 +112,10 @@ describe('UploadPhoto first upload', () => {
     expect(bodies()[0]?.get('consent')).toBe('1');
     expect(queryClient.getQueryData<User>(userKeys.me)?.photoConsentVersion).toBe(1);
     expect(tracked('Photo Refused')).toEqual([
-      ['Photo Refused', { reason: 'dark', source: 'file', place: 'photos', first: true }],
+      [
+        'Photo Refused',
+        { reason: 'dark', source: 'file', place: 'photos', first: true, format: 'jpeg' },
+      ],
     ]);
 
     view.unmount();

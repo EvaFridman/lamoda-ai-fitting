@@ -50,16 +50,15 @@ describe('PhotoTips', () => {
     expect(screen.getAllByRole('figure')).toHaveLength(7);
     expect(screen.queryByRole('heading', { name: 'Коротко' })).not.toBeInTheDocument();
     expect(screen.queryByRole('list')).not.toBeInTheDocument();
-    expect(screen.queryByText('JPG, PNG или WebP до 20 МБ')).not.toBeInTheDocument();
+    expect(screen.queryByText('JPG, PNG, WebP или HEIC до 20 МБ')).not.toBeInTheDocument();
   });
 
-  it('ends in the «Коротко» list of five lines, the format line last and without HEIC', () => {
+  it('ends in the «Коротко» list of five lines, the format line last and naming HEIC (AC27)', () => {
     render(<PhotoTips />);
 
     expect(screen.getByRole('heading', { name: 'Коротко' })).toBeInTheDocument();
     const items = within(screen.getByRole('list')).getAllByRole('listitem');
     expect(items).toHaveLength(5);
-    expect(items.at(-1)).toHaveTextContent('JPG, PNG или WebP до 20 МБ');
-    expect(screen.queryByText(/HEIC/)).not.toBeInTheDocument();
+    expect(items.at(-1)).toHaveTextContent('JPG, PNG, WebP или HEIC до 20 МБ');
   });
 });
