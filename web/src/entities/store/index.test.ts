@@ -12,6 +12,11 @@ describe('entities/store public entry', () => {
       'routeHref',
       'storeAddress',
       'StoreCard',
+      'cityName',
+      'matchCities',
+      'nearestCity',
+      'storeCities',
+      'storesOfCity',
     ]) {
       expect(typeof (entry as Record<string, unknown>)[name], name).toBe('function');
     }

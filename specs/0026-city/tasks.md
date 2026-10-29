@@ -27,7 +27,7 @@ Status: accepted (2026-10-29).
 
 ## PR 2 · `feat/0026-city` · the code and the closing
 
-- [ ] **T2. The cities (plan §2).** `entities/store/lib/cities.ts`: `cityName`, `storeCities`,
+- [x] **T2. The cities (plan §2).** `entities/store/lib/cities.ts`: `cityName`, `storeCities`,
       `storesOfCity`, `nearestCity`, `matchCities`; the word rule shared with `matchStores`.
       Check: tests pin today's 31 names and their order, the nearest city (real cities, Москва–
       Санкт-Петербург about 635 km, so swapped axes fail) and the 100 km bound.
