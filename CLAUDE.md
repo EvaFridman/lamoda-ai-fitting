@@ -765,8 +765,9 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   button is a second `LoginModal` (no redirect), signed in the section. Below 1024 px `/customer`
   is the list of sections and a section shows "‹ Личный кабинет" in place of the menu, one DOM
   switched by CSS. `_pages/customer` has no section, `_pages/account-stubs` holds the one stub
-  (orders), `_pages/stores` «Магазины Lamoda Sport» (spec 0022: the legend, the search and the
-  list of `entities/store`'s cards; `server.ts` only; `/privacy` says it shows Yandex's map, which
+  (orders), `_pages/stores` «Магазины Lamoda Sport» (spec 0022: the search and the list of
+  `entities/store`'s cards; the city's row above them and no legend of the store kinds, spec 0026
+  C16; `server.ts` only; `/privacy` says it shows Yandex's map, which
   receives the visitor's address and its cookies, X6, and how the city is found and kept, spec
   0026 C10), `_pages/fittings` the history («Мои примерки», spec 0019 T16: `widgets/fitting-history`,
   `features/delete-fitting`, `entities/fitting`'s `HistoryCard`; a card opens its fitting through

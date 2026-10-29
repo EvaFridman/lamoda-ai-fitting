@@ -3,7 +3,7 @@
 Status: done (2026-10-29); amended at the review of PR 1 (§3.1, §3.3: C14; §5: the map's
 fit; §9, §10); amended at T3 (§3.2: C15; §3.3, §4, §5: `useCityOpenEvents`); at T5 (§3.3: `onChosen`).
 
-How [spec.md](spec.md) is built. Decisions: [clarifications.md](clarifications.md) (C0–C15).
+How [spec.md](spec.md) is built. Decisions: [clarifications.md](clarifications.md) (C0–C16).
 
 ## 1. Overview
 

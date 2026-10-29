@@ -12,6 +12,9 @@
   grid-template-columns: minmax(0, 360px) minmax(0, 1fr);
   gap: var(--space-4);
 
+  // The room under the page's title the legend kept (spec 0026 C16).
+  margin-top: var(--space-6);
+
   @media (width < 1200px) {
     grid-template-areas:
       'city city'
