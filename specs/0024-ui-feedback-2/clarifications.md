@@ -248,3 +248,8 @@ grows `0fr → 1fr`. Amends plan §2.1.
 icon, short of Z5's PNG fallback, so a browser that shows no SVG icon would ask `/favicon.ico` and
 get a 404. `web/app/icon1.tsx` adds a 32×32 PNG of the same mark through `ImageResponse`, drawn
 with the Apple icon by `_app/icons/mark-icons.tsx`; `/icon1` joins `EXCLUDED`. Amends plan §2.4.
+
+**Z32. A smaller «скоро» (T7, AC8).** At the count badge's place the 18 px chip, about 40 px
+wide, covers the top of the 24 px icons of «Избранное» and «Корзина». The owner's answer at T7:
+make it a little smaller. `SoonChip` is 16 px high, 4 px from the sides, an 8 px radius and 10 px
+text, everywhere it is used. Amends plan §2.5.

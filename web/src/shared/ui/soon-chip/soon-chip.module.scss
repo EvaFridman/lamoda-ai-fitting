@@ -1,18 +1,19 @@
-// Board 3's `.n-soon`, quieter (spec 0024 AC8): 18px high, 6px from the sides, a 9px radius, 11px
-// medium grey text on a light grey fill, so it reads as a note and not as the black count.
+// Board 3's `.n-soon`, quieter and smaller (spec 0024 AC8, Z32): 16px high, 4px from the sides, an
+// 8px radius, 10px medium grey text on a light grey fill, so it reads as a note and not as the
+// black count, and covers less of the icon it sits on.
 
 .chip {
   display: inline-flex;
   align-items: center;
 
   box-sizing: border-box;
-  height: 18px;
-  padding: 0 6px;
-  border-radius: 9px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
 
-  font-size: var(--font-size-caption);
+  font-size: 10px;
   font-weight: var(--font-weight-medium);
-  line-height: var(--line-height-caption);
+  line-height: 1;
   color: var(--color-text-secondary);
   white-space: nowrap;
 
