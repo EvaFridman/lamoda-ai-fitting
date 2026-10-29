@@ -8,6 +8,7 @@ import {
   Inject,
   Patch,
   Post,
+  Put,
   Req,
   Res,
 } from '@nestjs/common';
@@ -122,6 +123,44 @@ export class MePhotosController {
       res,
       () => this.me.sessionCookies(),
       () => this.photos.deleteTransient(userId, id),
+    );
+  }
+
+  // The result's switch (spec 0024 plan §3.1, Z12): keeps a one-time photo among the saved ones,
+  // the default when there is none; a saved one answers unchanged. Another user's and a missing
+  // photo are 404, a sixth saved one 409.
+  @Put(':id/keep')
+  @ApiOkResponse({ type: UserPhotoDto })
+  @ApiErrors('LIMIT_REACHED')
+  keep(
+    @CurrentUserId() userId: string,
+    @UuidParam('id') id: string,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<UserPhotoDto> {
+    return signOutWhenGone(
+      res,
+      () => this.me.sessionCookies(),
+      () => this.photos.keep(userId, id),
+    );
+  }
+
+  // The switch turned off (Z26.4): a saved photo is one-time again, not the default, deleted when
+  // the try-on closes or by the housekeeping. One-time photos and other users' are 404.
+  @Delete(':id/keep')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiNoContentResponse({
+    description:
+      'The photo is one-time again: not among the saved ones, deleted when the try-on closes or an hour after its last fitting.',
+  })
+  unkeep(
+    @CurrentUserId() userId: string,
+    @UuidParam('id') id: string,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
+    return signOutWhenGone(
+      res,
+      () => this.me.sessionCookies(),
+      () => this.photos.unkeep(userId, id),
     );
   }
 

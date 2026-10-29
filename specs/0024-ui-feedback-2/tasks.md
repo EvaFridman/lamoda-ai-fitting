@@ -83,7 +83,7 @@ same release); PR 4 the closing, which records the owner's checks on the deploye
 
 ### api
 
-- [ ] **T14. Keeping a transient photo (plan §3.1; AC22).** `PUT` and `DELETE /me/photos/:id/keep`,
+- [x] **T14. Keeping a transient photo (plan §3.1; AC22).** `PUT` and `DELETE /me/photos/:id/keep`,
       the limit's 409, the default rule, markers, Swagger, `openapi.json`. Check:
       `me-photos.e2e-spec.ts`, `access-markers`, `openapi-snapshot`. Commit:
       `feat(api): keep a transient photo for later try-ons`.
