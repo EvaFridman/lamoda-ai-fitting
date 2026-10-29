@@ -39,6 +39,8 @@ export interface StartFittingButtonProps {
   // The colour; left out, the product's own.
   attributeValueId?: string;
   disabled?: boolean;
+  // At the click, before the request: the window shows the wait at once (spec 0024 AC19).
+  onStart?: () => void;
   onStarted: (fitting: StartedFitting) => void;
   // The api refused at the month's limit (409 `LIMIT_REACHED`).
   onLimit: () => void;
@@ -54,6 +56,7 @@ export function StartFittingButton({
   productId,
   attributeValueId,
   disabled = false,
+  onStart,
   onStarted,
   onLimit,
   onError,
@@ -73,6 +76,7 @@ export function StartFittingButton({
         tracked.onClick();
         if (photoId === null || !inFlight.take()) return;
         onError(null);
+        onStart?.();
         start.mutate(
           { photoId, productId, attributeValueId, source: 'picker' },
           {
@@ -102,6 +106,7 @@ export interface StartLookButtonProps {
   // The wishes of the room (A90.5); blank is none.
   promptText: string;
   disabled?: boolean;
+  onStart?: () => void;
   onStarted: (fitting: StartedFitting) => void;
   onLimit: () => void;
   onError: (text: string | null) => void;
@@ -114,6 +119,7 @@ export function StartLookButton({
   items,
   promptText,
   disabled = false,
+  onStart,
   onStarted,
   onLimit,
   onError,
@@ -133,6 +139,7 @@ export function StartLookButton({
         tracked.onClick();
         if (photoId === null || !inFlight.take()) return;
         onError(null);
+        onStart?.();
         start.mutate(
           { photoId, items, promptText, source: 'picker' },
           {

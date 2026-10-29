@@ -11,6 +11,7 @@ import {
   fittingRefusal,
   fittingsInfiniteQueryOptions,
   isFittingRunning,
+  keptOrigin,
   showFitting,
   type StartedFitting,
   trackFittingOutcome,
@@ -39,6 +40,7 @@ import { FITTINGS_HREF } from '@/shared/config';
 import { Button, Modal, Notice, Skeleton } from '@/shared/ui';
 
 import { productColours, triedColours } from '../lib/colours';
+import { pendingFitting, type Starting, startingNow, type StartIntent } from '../model/starting';
 import { FittingResult } from './fitting-result';
 import { ItemRow } from './item-row';
 import { LookResult } from './look-result';
@@ -108,6 +110,12 @@ export function TryOn({
   // spec 0024 AC17).
   const [chosenId, setChosenId] = useState<string | null | undefined>(undefined);
   const [retryError, setRetryError] = useState<string | null>(null);
+  // A start clicked here whose answer has not come (spec 0024 AC19): its wait shows at once. The
+  // ref holds it for the answer's callbacks, made in the render before the click.
+  const [starting, setStarting] = useState<Starting | null>(null);
+  const startingRef = useRef<Starting | null>(null);
+  // The fitting such a start became and its click: the progress goes on from the click.
+  const [origin, setOrigin] = useState<{ id: string; at: number } | null>(null);
 
   const fittingQuery = useQuery({
     ...fittingQueryOptions(fittingId ?? ''),
@@ -155,9 +163,13 @@ export function TryOn({
   useEffect(() => {
     transientsRef.current = transients;
   }, [transients]);
+  // But the one a start on its way uses: the delete could reach the api before the fitting that
+  // keeps it (A70), and the housekeeping deletes it within the hour if the start fails (A24).
   useEffect(
     () => () => {
-      for (const photo of transientsRef.current) dropTransient(photo.id);
+      for (const photo of transientsRef.current) {
+        if (photo.id !== startingRef.current?.photoId) dropTransient(photo.id);
+      }
     },
     [],
   );
@@ -199,8 +211,34 @@ export function TryOn({
     return () => window.clearTimeout(timer);
   }, [celebrating]);
 
+  // A start clicked: its wait shows before the api answers (spec 0024 AC19).
+  function beginStart(intent: StartIntent) {
+    const next = startingNow(intent);
+    startingRef.current = next;
+    setStarting(next);
+  }
+
+  // It failed or reached the limit: its wait goes, and the screen it came from says why.
+  function endStart() {
+    startingRef.current = null;
+    setStarting(null);
+  }
+
   // `base`: the result a colour runs over (board 7.2), shown while the colour runs.
   function started(next: StartedFitting, base: string | null = null) {
+    // The wait counted on the default estimate until now: the real one keeps its share. A fitting
+    // that was already running (A32) goes on from its own start when that is further on.
+    const clicked = startingRef.current;
+    if (clicked) {
+      setOrigin({
+        id: next.id,
+        at: Math.min(
+          keptOrigin(clicked.at, null, next.estimatedSeconds, Date.now()),
+          Date.parse(next.createdAt),
+        ),
+      });
+    }
+    endStart();
     setRetryError(null);
     setLimited(false);
     setPicking(false);
@@ -212,7 +250,16 @@ export function TryOn({
     started(next, !next.repeated && fitting?.status === 'completed' ? fitting.id : null);
   }
 
+  // The picker's start failed: the picker comes back with its notice (`null` clears it at a start).
+  function startFailed(onError: (text: string | null) => void) {
+    return (text: string | null) => {
+      if (text !== null) endStart();
+      onError(text);
+    };
+  }
+
   function reachedLimit() {
+    endStart();
     setLimited(true);
     void queryClient.invalidateQueries({ queryKey: fittingKeys.quota });
   }
@@ -297,10 +344,22 @@ export function TryOn({
     chosenId: chosen,
     onChoose: setChosenId,
     quota: quota.data,
+    disabled: starting !== null,
   };
 
+  // A colour clicked over the shown result: its wait over the picture (boards 7.2, 8.2).
+  const startingOver = starting?.overResult ? pendingFitting(starting) : null;
+  // The click a running fitting started from in this window, its progress's origin (AC19).
+  const originOf = (id: string) => (origin?.id === id ? origin.at : undefined);
+  const resultStart = { onStart: beginStart, onStartFailed: endStart };
+
   let content;
-  if (limited || (picking && quota.data?.left === 0)) {
+  // The wait of its own (board 6), in one place for a start on its way and the fitting it became,
+  // so the answer changes its props and nothing restarts (AC19).
+  let wait: ReactNode = null;
+  // While a start is on its way the picker stays as it was, whatever its reads do meanwhile: a
+  // card in its place would unmount the start's button, and the answer would reach nobody.
+  if (limited || (picking && starting === null && quota.data?.left === 0)) {
     content = quota.data ? (
       <LimitCard quota={quota.data} historyHref={FITTINGS_HREF} onOpenRoom={toRoom} />
     ) : (
@@ -326,7 +385,7 @@ export function TryOn({
       : room.data && roomLook(room.data);
     const pickerWishes = shownLook ? (shownLook.promptText ?? '') : wishes;
     content =
-      !shownLook && room.isError ? (
+      !shownLook && room.isError && starting === null ? (
         <div className={styles.failed}>
           <Notice tone="error" role="alert">
             {errorText(room.error)}
@@ -354,54 +413,79 @@ export function TryOn({
                 attributeValueId,
               }))}
               promptText={pickerWishes}
+              onStart={() =>
+                beginStart({
+                  kind: 'look',
+                  items: pickerLook?.items ?? [],
+                  photoId,
+                  overResult: false,
+                })
+              }
               onStarted={(next) => started(next)}
               onLimit={reachedLimit}
-              onError={onError}
+              onError={startFailed(onError)}
             />
           )}
         />
       );
   } else if (picking) {
-    content = productQuery.isError ? (
-      <div className={styles.failed}>
-        <Notice tone="error" role="alert">
-          {errorText(productQuery.error)}
-        </Notice>
-        <Button variant="outline" onClick={() => void productQuery.refetch()}>
-          Повторить
-        </Button>
-      </div>
-    ) : (
-      <PhotoPicker
-        {...pickerProps}
-        subject={
-          product ? (
-            <ItemRow
-              name={product.name}
-              imageUrl={product.image?.url ?? null}
-              details={pickerColour?.value}
-              price={product.price}
-              finalPrice={product.finalPrice}
-              action={<PickerItemActions kind="single" />}
-            />
-          ) : (
-            <Skeleton height={80} />
-          )
-        }
-        renderStart={(photoId, onError) =>
-          product && (
-            <StartFittingButton
-              photoId={photoId}
-              productId={product.id}
-              attributeValueId={pickerColour?.id}
-              onStarted={(next) => started(next)}
-              onLimit={reachedLimit}
-              onError={onError}
-            />
-          )
-        }
-      />
-    );
+    content =
+      productQuery.isError && starting === null ? (
+        <div className={styles.failed}>
+          <Notice tone="error" role="alert">
+            {errorText(productQuery.error)}
+          </Notice>
+          <Button variant="outline" onClick={() => void productQuery.refetch()}>
+            Повторить
+          </Button>
+        </div>
+      ) : (
+        <PhotoPicker
+          {...pickerProps}
+          subject={
+            product ? (
+              <ItemRow
+                name={product.name}
+                imageUrl={product.image?.url ?? null}
+                details={pickerColour?.value}
+                price={product.price}
+                finalPrice={product.finalPrice}
+                action={<PickerItemActions kind="single" />}
+              />
+            ) : (
+              <Skeleton height={80} />
+            )
+          }
+          renderStart={(photoId, onError) =>
+            product && (
+              <StartFittingButton
+                photoId={photoId}
+                productId={product.id}
+                attributeValueId={pickerColour?.id}
+                onStart={() =>
+                  beginStart({
+                    kind: 'single',
+                    items: [
+                      {
+                        productId: product.id,
+                        name: product.name,
+                        imageUrl: product.image?.url ?? null,
+                        colour: pickerColour?.value ?? null,
+                        attributeValueId: pickerColour?.id ?? null,
+                      },
+                    ],
+                    photoId,
+                    overResult: false,
+                  })
+                }
+                onStarted={(next) => started(next)}
+                onLimit={reachedLimit}
+                onError={startFailed(onError)}
+              />
+            )
+          }
+        />
+      );
   } else if (!fitting) {
     content = fittingQuery.isError ? (
       <div className={styles.failed}>
@@ -421,8 +505,9 @@ export function TryOn({
     content = (
       <LookResult
         fitting={fitting}
-        running={null}
+        running={startingOver}
         quota={quota.data}
+        {...resultStart}
         onStarted={startedColour}
         onRegenerated={(next) => started(next)}
         onLimit={reachedLimit}
@@ -434,7 +519,9 @@ export function TryOn({
       <LookResult
         fitting={baseQuery.data}
         running={fitting}
+        origin={originOf(fitting.id)}
         quota={quota.data}
+        {...resultStart}
         onStarted={startedColour}
         onRegenerated={(next) => started(next)}
         onLimit={reachedLimit}
@@ -446,6 +533,8 @@ export function TryOn({
       <FittingResult
         fitting={baseQuery.data}
         running={fitting}
+        origin={originOf(fitting.id)}
+        {...resultStart}
         product={product}
         colours={colours}
         tried={triedColours(loadedFittings, baseQuery.data.photoId, productId)}
@@ -458,14 +547,22 @@ export function TryOn({
       />
     );
   } else if (isFittingRunning(fitting)) {
-    content = (
-      <FittingWait fitting={fitting} photoUrl={photoUrl(fitting.photoId)} onClose={onClose} />
+    content = null;
+    wait = (
+      <FittingWait
+        key="wait"
+        fitting={fitting}
+        origin={originOf(fitting.id)}
+        photoUrl={photoUrl(fitting.photoId)}
+        onClose={onClose}
+      />
     );
   } else if (fitting.status === 'completed') {
     content = (
       <FittingResult
         fitting={fitting}
-        running={null}
+        running={startingOver}
+        {...resultStart}
         product={product}
         colours={colours}
         tried={triedColours(loadedFittings, fitting.photoId, productId)}
@@ -495,11 +592,39 @@ export function TryOn({
     );
   }
 
+  // A start clicked in the picker or «Что поменять?»: the wait at once (spec 0024 AC19), the screen
+  // it came from kept mounted and hidden under it, so the answer reaches its button and a refusal
+  // brings it back as it was, with its notice.
+  const waiting =
+    starting && !starting.overResult ? (
+      <FittingWait
+        key="wait"
+        fitting={pendingFitting(starting)}
+        photoUrl={photoUrl(starting.photoId)}
+        onClose={onClose}
+      />
+    ) : (
+      wait
+    );
+
+  // The clicked button is hidden with its screen: the focus goes to the window, as `TryOnModal`
+  // does for a removed control, since a hidden one may keep it without a `focusout`.
+  const screenRef = useRef<HTMLDivElement>(null);
+  const screenHidden = waiting !== null;
+  useEffect(() => {
+    const screen = screenRef.current;
+    if (!screenHidden || !screen?.contains(document.activeElement)) return;
+    screen.closest<HTMLElement>('[role="dialog"]')?.focus({ preventScroll: true });
+  }, [screenHidden]);
+
   if (foreign) return null;
 
   return (
     <TryOnModal title={isLook ? 'Примерка образа' : 'Онлайн-примерка'} onClose={onClose}>
-      {content}
+      <div ref={screenRef} hidden={screenHidden}>
+        {content}
+      </div>
+      {waiting}
     </TryOnModal>
   );
 }

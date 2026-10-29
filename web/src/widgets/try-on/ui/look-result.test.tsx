@@ -191,6 +191,8 @@ describe('LookResult analytics (A94)', () => {
           ])}
           running={null}
           quota={undefined}
+          onStart={vi.fn()}
+          onStartFailed={vi.fn()}
           onStarted={vi.fn()}
           onRegenerated={vi.fn()}
           onLimit={vi.fn()}

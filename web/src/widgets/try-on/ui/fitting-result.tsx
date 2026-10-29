@@ -16,6 +16,7 @@ import type { ProductDetail } from '@/entities/product';
 import { useLookToggle } from '@/features/fitting-room';
 import { CartStubButton, FavoriteStub } from '@/features/product-stubs';
 import { RegenerateSheet } from '@/features/regenerate-fitting';
+import type { PendingFitting } from '@/features/start-fitting';
 import { ColorTryOn, type TryColour } from '@/features/try-colour';
 import { useTrackedElement } from '@/shared/analytics';
 import { FITTINGS_HREF, PHONE_QUERY } from '@/shared/config';
@@ -23,6 +24,7 @@ import { useMediaQuery } from '@/shared/lib';
 import { Button, CheckIcon, HangerIcon, LinkButton, Select } from '@/shared/ui';
 
 import { RESULT_NOTE } from '../lib/result-note';
+import type { StartIntent } from '../model/starting';
 import { ItemRow } from './item-row';
 import { ResultPicture, ResultTiles, useRunningProgress } from './result-media';
 
@@ -31,12 +33,20 @@ import styles from './fitting-result.module.scss';
 export interface FittingResultProps {
   // The result shown.
   fitting: Fitting;
-  // A colour of it running (board 7.2): its progress over the picture, the colours off.
-  running: Fitting | null;
+  // A colour of it running (board 7.2), or its start on its way: its progress over the picture,
+  // the colours off.
+  running: PendingFitting | null;
+  // The click that started `running` in this window: its progress goes on from there (AC19).
+  origin?: number;
   product: ProductDetail | undefined;
   colours: readonly TryColour[];
   tried: ReadonlySet<string>;
   quota: FittingQuota | undefined;
+  // A colour or a regeneration clicked, before the api answers: the window shows its wait at once
+  // (spec 0024 AC19).
+  onStart: (intent: StartIntent) => void;
+  // That start failed (not at the limit): its wait goes, and this screen says why.
+  onStartFailed: () => void;
   // Another colour started: it runs over this result (board 7.2).
   onStarted: (fitting: StartedFitting) => void;
   // A regeneration started: it has the wait of its own (board 14: «Что поменять?» → 6).
@@ -90,10 +100,13 @@ function LookTile({ product, slot, attributeValueId }: LookTileProps) {
 export function FittingResult({
   fitting,
   running,
+  origin,
   product,
   colours,
   tried,
   quota,
+  onStart,
+  onStartFailed,
   onStarted,
   onRegenerated,
   onLimit,
@@ -109,7 +122,7 @@ export function FittingResult({
   const otherPhotoElement = useTrackedElement('result.other-photo');
   const historyElement = useTrackedElement('result.history');
   const item = fitting.items[0];
-  const progress = useRunningProgress(running);
+  const progress = useRunningProgress(running, origin);
   const sizes = product?.variations.map(({ size: value }) => ({ value, label: value })) ?? [];
 
   const picture = (
@@ -199,8 +212,18 @@ export function FittingResult({
           colours={colours}
           tried={tried}
           generating={running?.items[0]?.attributeValueId ?? null}
+          onStart={(colour) =>
+            item &&
+            onStart({
+              kind: 'single',
+              items: [{ ...item, attributeValueId: colour.id, colour: colour.value }],
+              photoId: fitting.photoId,
+              overResult: true,
+            })
+          }
           onStarted={(started) => onStarted(started)}
           onLimit={onLimit}
+          onFailed={onStartFailed}
         />
 
         <div className={styles.footer}>
@@ -245,6 +268,15 @@ export function FittingResult({
         fitting={fitting}
         open={regenerating}
         onOpenChange={setRegenerating}
+        onStart={() => {
+          setRegenerating(false);
+          onStart({
+            kind: fitting.kind,
+            items: fitting.items,
+            photoId: fitting.photoId,
+            overResult: false,
+          });
+        }}
         onStarted={(started) => {
           setRegenerating(false);
           onRegenerated(started);
@@ -252,6 +284,10 @@ export function FittingResult({
         onLimit={() => {
           setRegenerating(false);
           onLimit();
+        }}
+        onFailed={() => {
+          onStartFailed();
+          setRegenerating(true);
         }}
       />
     </div>

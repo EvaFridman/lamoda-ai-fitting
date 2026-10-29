@@ -166,7 +166,7 @@ describe('LookItemRow analytics (A94.2)', () => {
     expect(sent('result.item-colour')).toEqual([
       expect.objectContaining({ element: 'result.item-colour', slot: 'outerwear' }),
     ]);
-    expect(onColour).toHaveBeenCalledExactlyOnceWith(BLUE);
+    expect(onColour).toHaveBeenCalledExactlyOnceWith(BLUE, 'Синий');
   });
 
   it('sends nothing and asks for nothing when the current colour is clicked', async () => {
@@ -186,7 +186,7 @@ describe('LookItemRow analytics (A94.2)', () => {
     await user.click(await screen.findByRole('button', { name: 'Синий' }));
 
     expect(sent('result.item-colour')).toEqual([]);
-    expect(onColour).toHaveBeenCalledExactlyOnceWith(BLUE);
+    expect(onColour).toHaveBeenCalledExactlyOnceWith(BLUE, 'Синий');
   });
 
   it('sends result.add-to-cart of kind look from «В корзину»', async () => {

@@ -246,6 +246,75 @@ describe('RegenerateSheet', () => {
     });
   });
 
+  it('calls onStart before the request is sent (AC19)', async () => {
+    const order: string[] = [];
+    fetchMock.mockImplementation(() => {
+      order.push('request');
+      return answer(201, startedBody())();
+    });
+    const onStart = vi.fn(() => order.push('start'));
+    const user = setup();
+    renderSheet({ onStart });
+
+    await screen.findByRole('dialog', { name: 'Что поменять?' });
+    await user.click(submit());
+
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(onStart).toHaveBeenCalledTimes(1);
+    expect(order).toEqual(['start', 'request']);
+  });
+
+  it('calls onFailed, not onLimit, for a refused comment', async () => {
+    fetchMock.mockImplementation(failure(400, 'PROMPT_REFUSED'));
+    const onFailed = vi.fn();
+    const user = setup();
+    const { onLimit } = renderSheet({ onFailed });
+
+    await user.type(await screen.findByLabelText('Что поменять'), 'плохой текст');
+    await user.click(submit());
+
+    await vi.waitFor(() => expect(onFailed).toHaveBeenCalledTimes(1));
+    expect(onLimit).not.toHaveBeenCalled();
+  });
+
+  it('calls onFailed for any other failure', async () => {
+    fetchMock.mockImplementation(failure(409, 'PHOTO_GONE'));
+    const onFailed = vi.fn();
+    const user = setup();
+    renderSheet({ onFailed });
+
+    await screen.findByRole('dialog', { name: 'Что поменять?' });
+    await user.click(submit());
+
+    await vi.waitFor(() => expect(onFailed).toHaveBeenCalledTimes(1));
+  });
+
+  it('calls neither onFailed at the limit nor on success', async () => {
+    fetchMock.mockImplementation(failure(409, 'LIMIT_REACHED'));
+    const onFailed = vi.fn();
+    const user = setup();
+    const { onLimit } = renderSheet({ onFailed, fitting: fitting({ regenerationFree: false }) });
+
+    await screen.findByRole('dialog', { name: 'Что поменять?' });
+    await user.click(submit());
+
+    await vi.waitFor(() => expect(onLimit).toHaveBeenCalledTimes(1));
+    expect(onFailed).not.toHaveBeenCalled();
+  });
+
+  it('does not call onFailed when the regeneration starts', async () => {
+    fetchMock.mockImplementation(answer(201, startedBody()));
+    const onFailed = vi.fn();
+    const user = setup();
+    const { onStarted } = renderSheet({ onFailed });
+
+    await screen.findByRole('dialog', { name: 'Что поменять?' });
+    await user.click(submit());
+
+    await vi.waitFor(() => expect(onStarted).toHaveBeenCalledTimes(1));
+    expect(onFailed).not.toHaveBeenCalled();
+  });
+
   it('calls onLimit at the month’s limit', async () => {
     fetchMock.mockImplementation(failure(409, 'LIMIT_REACHED'));
     const user = setup();

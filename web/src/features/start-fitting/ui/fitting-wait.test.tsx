@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Fitting } from '@/entities/fitting';
 
+import type { PendingFitting } from '../model/pending';
+
 const track = vi.hoisted(() => vi.fn());
 vi.mock('@/shared/analytics/client', () => ({ identify: vi.fn(), reset: vi.fn(), track }));
 
@@ -135,6 +137,93 @@ describe('FittingWait', () => {
 
     expect(screen.getByText('Почти готово')).toBeInTheDocument();
     expect(screen.getByText('95%')).toBeInTheDocument();
+  });
+
+  describe('of a start on its way (AC19)', () => {
+    const pending = (patch: Partial<PendingFitting> = {}): PendingFitting => ({
+      kind: 'single',
+      items: [
+        {
+          productId: '00000000-0000-4000-8000-0000000000a1',
+          name: 'Сарафан на бретелях',
+          imageUrl: null,
+          colour: 'Красный',
+          attributeValueId: null,
+        },
+      ],
+      createdAt: START,
+      estimatedSeconds: null,
+      ...patch,
+    });
+
+    it('shows from zero with the default estimate of 25 seconds and the item', () => {
+      render(<FittingWait fitting={pending()} photoUrl={null} onClose={vi.fn()} />);
+
+      expect(screen.getByText('Примеряем…')).toBeInTheDocument();
+      expect(screen.getByText('0%')).toBeInTheDocument();
+      expect(screen.getByText('Осталось около 25 секунд')).toBeInTheDocument();
+      expect(screen.getByText('Сарафан на бретелях')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Закрыть и продолжить покупки' })).toBeEnabled();
+    });
+
+    it('goes on from the click when the api answers: the origin replaces the creation time', () => {
+      const clicked = Date.parse(START) - 10_000;
+      render(
+        <FittingWait
+          fitting={fitting({ createdAt: START, estimatedSeconds: 20 })}
+          origin={clicked}
+          photoUrl={null}
+          onClose={vi.fn()}
+        />,
+      );
+
+      expect(screen.getByText('50%')).toBeInTheDocument();
+      expect(screen.getByText('Осталось около 10 секунд')).toBeInTheDocument();
+    });
+
+    it('does not restart when the pending fitting becomes the real one with the same origin', () => {
+      const clicked = Date.parse(START);
+      const { rerender } = render(
+        <FittingWait fitting={pending()} origin={clicked} photoUrl={null} onClose={vi.fn()} />,
+      );
+      act(() => {
+        vi.advanceTimersByTime(5000);
+      });
+      expect(screen.getByText('20%')).toBeInTheDocument();
+
+      rerender(
+        <FittingWait
+          fitting={fitting({
+            createdAt: new Date(Date.now() + 2000).toISOString(),
+            estimatedSeconds: 25,
+          })}
+          origin={clicked}
+          photoUrl={null}
+          onClose={vi.fn()}
+        />,
+      );
+
+      expect(screen.getByText('20%')).toBeInTheDocument();
+    });
+
+    it('names a pending look and lists its items', () => {
+      const items = [1, 2].map((n) => ({
+        productId: `00000000-0000-4000-8000-00000000010${n}`,
+        name: `Вещь ${n}`,
+        imageUrl: null,
+        colour: null,
+        attributeValueId: null,
+      }));
+      render(
+        <FittingWait
+          fitting={pending({ kind: 'look', items })}
+          photoUrl={null}
+          onClose={vi.fn()}
+        />,
+      );
+
+      expect(screen.getByText('Надеваем образ')).toBeInTheDocument();
+    });
   });
 
   it('names the item and its colour', () => {

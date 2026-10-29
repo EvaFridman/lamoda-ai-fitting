@@ -12,15 +12,19 @@ import {
   timeLeftText,
 } from '@/entities/fitting';
 import { useFittingImageDownload } from '@/features/download-fitting';
-import { TryOnLoader } from '@/features/start-fitting';
+import { type PendingFitting, TryOnLoader } from '@/features/start-fitting';
 import { useTrackedElement } from '@/shared/analytics';
 import { DownloadIcon, FullscreenIcon, ProgressBar, ShareIcon } from '@/shared/ui';
 
 import styles from './fitting-result.module.scss';
 
 // The progress of a fitting that runs over a result (boards 7.2, 8.2), a second's tick while it
-// runs; null while none does.
-export function useRunningProgress(running: Fitting | null): FittingProgress | null {
+// runs; null while none does. `origin`: the click that started it in this window (spec 0024
+// AC19), else its `createdAt`.
+export function useRunningProgress(
+  running: PendingFitting | null,
+  origin?: number,
+): FittingProgress | null {
   const [now, setNow] = useState(() => Date.now());
   const active = running !== null;
   useEffect(() => {
@@ -28,13 +32,16 @@ export function useRunningProgress(running: Fitting | null): FittingProgress | n
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
   }, [active]);
-  return running ? fittingProgress(running.createdAt, running.estimatedSeconds, now) : null;
+  return running
+    ? fittingProgress(origin ?? running.createdAt, running.estimatedSeconds, now)
+    : null;
 }
 
 export interface ResultPictureProps {
   fitting: Fitting;
-  // A fitting running over it (a colour): the picture dims under its progress.
-  running: Fitting | null;
+  // A fitting running over it (a colour), or its start on its way: the picture dims under its
+  // progress.
+  running: PendingFitting | null;
   progress: FittingProgress | null;
   // «Примеряем красный…» over the picture; none: no plate (the look's is beside it, board 8.2).
   runningLabel?: string;
@@ -80,7 +87,7 @@ export function ResultPicture({
 
 export interface ResultTilesProps {
   fitting: Fitting;
-  running: Fitting | null;
+  running: PendingFitting | null;
   pictureRef: RefObject<HTMLDivElement | null>;
   phone: boolean;
   // A tile after the three (one item's «К образу», A90.11); a look has none (board 8).

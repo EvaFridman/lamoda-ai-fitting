@@ -49,6 +49,7 @@ export {
   fittingProgress,
   type FittingProgress,
   type FittingStep,
+  keptOrigin,
   timeLeftText,
 } from './lib/progress';
 export {

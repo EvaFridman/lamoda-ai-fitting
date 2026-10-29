@@ -1,9 +1,9 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { Fitting } from '@/entities/fitting';
+import { isFittingShown, type Fitting } from '@/entities/fitting';
 import { useRoomStore } from '@/entities/fitting-room';
 import type { SessionState } from '@/entities/session';
 import { FITTINGS_HREF, PHONE_QUERY } from '@/shared/config';
@@ -970,6 +970,220 @@ describe('TryOn of a look: «Что поменять?» and the retry', () => {
 
     expect(await screen.findByText('Образ · 3 вещи')).toBeInTheDocument();
     expect(posts()).toHaveLength(0);
+  });
+});
+
+describe('TryOn of a look: the optimistic start (AC19)', () => {
+  // POST /fittings... waits for the test to answer it; everything else answers as usual.
+  function holdStarts() {
+    const waiting: ((response: Response) => void)[] = [];
+    fetchMock.mockImplementation((url: string, init?: RequestInit) =>
+      init?.method === 'POST' && new URL(String(url)).pathname.startsWith('/api/fittings')
+        ? new Promise<Response>((resolve) => waiting.push(resolve))
+        : Promise.resolve(route(String(url), init)),
+    );
+    return {
+      sent: () => waiting.length,
+      answer: async (response: Response) => {
+        await act(async () => {
+          waiting.at(-1)?.(response);
+        });
+      },
+    };
+  }
+
+  const refusedWish = () =>
+    json(400, {
+      error: {
+        code: 'PROMPT_REFUSED',
+        message: 'm',
+        details: [
+          {
+            field: 'promptText',
+            code: 'PROMPT_REFUSED',
+            message: 'promptText was refused: moderation:violence',
+          },
+        ],
+      },
+    });
+
+  async function startFromPicker() {
+    const held = holdStarts();
+    const user = setup();
+    renderTryOn({ look: true });
+    await screen.findByRole('img', { name: 'Ваше фото' });
+    await vi.waitFor(() => expect(start()).toBeEnabled());
+    await user.click(start());
+    await vi.waitFor(() => expect(held.sent()).toBe(1));
+    return { held, user };
+  }
+
+  it('shows the look’s wait before the api answers, with the picker out of the way', async () => {
+    await startFromPicker();
+
+    expect(await screen.findByText('Надеваем образ')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Примерить образ' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Закрыть и продолжить покупки' })).toBeEnabled();
+  });
+
+  it('goes on with the running look when the api answers', async () => {
+    const { held } = await startFromPicker();
+    api.fittings.set(NEXT, running());
+
+    await held.answer(json(201, { ...running(), repeated: false }));
+
+    await vi.waitFor(() => expect(isFittingShown(NEXT)).toBe(true));
+    expect(screen.getByText('Надеваем образ')).toBeVisible();
+  });
+
+  it('still reaches the start’s answer when the room’s read fails meanwhile', async () => {
+    const { held } = await startFromPicker();
+    api.fittings.set(NEXT, running());
+    await screen.findByText('Надеваем образ');
+    const roomReads = () =>
+      fetchMock.mock.calls.filter(
+        ([url]) => new URL(String(url)).pathname === '/api/me/fitting-room',
+      ).length;
+    const reads = roomReads();
+    const previous = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation((url: string, init?: RequestInit) =>
+      new URL(String(url)).pathname === '/api/me/fitting-room'
+        ? Promise.resolve(failure(503, 'SERVICE_UNAVAILABLE'))
+        : previous(url, init),
+    );
+
+    // The room is read again meanwhile (a returning tab) and fails.
+    await act(async () => {
+      window.dispatchEvent(new Event('visibilitychange'));
+    });
+    await vi.waitFor(() => expect(roomReads()).toBeGreaterThan(reads));
+    await held.answer(json(201, { ...running(), repeated: false }));
+
+    await vi.waitFor(() => expect(isFittingShown(NEXT)).toBe(true));
+    expect(screen.getByText('Надеваем образ')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Повторить' })).not.toBeInTheDocument();
+  });
+
+  it('brings the picker back with the reason of a refused wish', async () => {
+    const { held } = await startFromPicker();
+    await screen.findByText('Надеваем образ');
+
+    await held.answer(refusedWish());
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Пожелание не может касаться насилия',
+    );
+    expect(screen.queryByText('Надеваем образ')).not.toBeInTheDocument();
+    expect(start()).toBeEnabled();
+  });
+
+  it('brings the limit card when the api refuses at the limit', async () => {
+    const { held } = await startFromPicker();
+    await screen.findByText('Надеваем образ');
+
+    await held.answer(failure(409, 'LIMIT_REACHED'));
+
+    expect(await limitHeading()).toBeVisible();
+    expect(screen.queryByText('Надеваем образ')).not.toBeInTheDocument();
+  });
+
+  describe('over a result', () => {
+    async function pickBlack() {
+      showResult();
+      const held = holdStarts();
+      const user = setup();
+      renderTryOn({ fittingId: RESULT });
+      const group = await screen.findByRole('group', { name: 'Цвет: Рубашка' });
+      await user.click(within(group).getByRole('button', { name: 'Чёрный' }));
+      await vi.waitFor(() => expect(held.sent()).toBe(1));
+      return held;
+    }
+
+    it('shows the colour change’s progress, naming the changed item, before the api answers', async () => {
+      await pickBlack();
+
+      expect(await screen.findByText('Перегенерируем образ: рубашка, Чёрный')).toBeInTheDocument();
+      expect(screen.getByRole('progressbar', { name: 'Прогресс примерки' })).toBeInTheDocument();
+      expect(screen.queryByText('Сгенерировано ИИ')).not.toBeInTheDocument();
+      const group = screen.getByRole('group', { name: 'Цвет: Рубашка' });
+      for (const swatch of within(group).getAllByRole('button')) expect(swatch).toBeDisabled();
+    });
+
+    it('takes the progress away and says why when the colour change is refused', async () => {
+      const held = await pickBlack();
+      await screen.findByText('Перегенерируем образ: рубашка, Чёрный');
+
+      await held.answer(failure(500, 'INTERNAL_ERROR'));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Ошибка на сервере, попробуйте позже',
+      );
+      expect(screen.queryByText(/Перегенерируем образ/)).not.toBeInTheDocument();
+      expect(screen.getByText('Сгенерировано ИИ')).toBeInTheDocument();
+      const group = screen.getByRole('group', { name: 'Цвет: Рубашка' });
+      await vi.waitFor(() =>
+        expect(within(group).getByRole('button', { name: 'Чёрный' })).toBeEnabled(),
+      );
+    });
+
+    it('takes the progress away and opens the limit card at the limit', async () => {
+      const held = await pickBlack();
+      await screen.findByText('Перегенерируем образ: рубашка, Чёрный');
+
+      await held.answer(failure(409, 'LIMIT_REACHED'));
+
+      expect(await limitHeading()).toBeVisible();
+      expect(screen.queryByText(/Перегенерируем образ/)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('a regeneration of «Что поменять?»', () => {
+    async function regenerate() {
+      showResult();
+      const held = holdStarts();
+      const user = setup();
+      renderTryOn({ fittingId: RESULT });
+      await user.click(
+        await screen.findByRole('button', { name: 'Хотите что-то поменять в образе?' }),
+      );
+      const sheet = await screen.findByRole('dialog', { name: 'Что поменять?' });
+      await user.click(within(sheet).getByRole('button', { name: /Перегенерировать/ }));
+      await vi.waitFor(() => expect(held.sent()).toBe(1));
+      return held;
+    }
+
+    it('closes the sheet and shows the look’s wait at once', async () => {
+      await regenerate();
+
+      expect(await screen.findByText('Надеваем образ')).toBeVisible();
+      await vi.waitFor(() =>
+        expect(screen.queryByRole('dialog', { name: 'Что поменять?' })).not.toBeInTheDocument(),
+      );
+    });
+
+    it('opens the sheet again with the reason when the comment is refused', async () => {
+      const held = await regenerate();
+      await screen.findByText('Надеваем образ');
+
+      await held.answer(failure(400, 'PROMPT_REFUSED'));
+
+      const sheet = await screen.findByRole('dialog', { name: 'Что поменять?' });
+      expect(await within(sheet).findByRole('alert')).toHaveTextContent(
+        'Текст не подходит для примерки',
+      );
+      expect(screen.queryByText('Надеваем образ')).not.toBeInTheDocument();
+      expect(screen.getByText('Сгенерировано ИИ')).toBeVisible();
+    });
+
+    it('shows the limit card at the limit, with the sheet closed', async () => {
+      const held = await regenerate();
+      await screen.findByText('Надеваем образ');
+
+      await held.answer(failure(409, 'LIMIT_REACHED'));
+
+      expect(await limitHeading()).toBeVisible();
+      expect(screen.queryByRole('dialog', { name: 'Что поменять?' })).not.toBeInTheDocument();
+    });
   });
 });
 

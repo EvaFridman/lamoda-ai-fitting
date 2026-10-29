@@ -30,8 +30,12 @@ export interface ColorTryOnProps {
   tried: ReadonlySet<string>;
   // The colour a fitting runs for (board 7.2); the others are off meanwhile.
   generating?: string | null;
+  // At the click, before the request: the wait over the result starts then (spec 0024 AC19).
+  onStart?: (colour: TryColour) => void;
   onStarted: (fitting: StartedFitting, colour: TryColour) => void;
   onLimit: () => void;
+  // Any other failure, said under the colours: the wait over the result goes.
+  onFailed?: () => void;
 }
 
 function ColourTile({
@@ -94,8 +98,10 @@ export function ColorTryOn({
   colours,
   tried,
   generating = null,
+  onStart,
   onStarted,
   onLimit,
+  onFailed,
 }: ColorTryOnProps) {
   const start = useStartSingleFitting();
   const titleId = useId();
@@ -132,6 +138,7 @@ export function ColorTryOn({
               disabled={current || (busy && !pending)}
               onClick={() => {
                 if (busy) return;
+                onStart?.(colour);
                 start.mutate(
                   {
                     photoId,
@@ -143,6 +150,7 @@ export function ColorTryOn({
                     onSuccess: (started) => onStarted(started, colour),
                     onError: (error) => {
                       if (fittingRefusal(error) === 'limit_reached') onLimit();
+                      else onFailed?.();
                     },
                   },
                 );
