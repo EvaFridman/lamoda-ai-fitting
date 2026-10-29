@@ -116,9 +116,15 @@
   }
 
   // A column narrower than 360px (a phone, or beside the picture in a window just over 800px or
-  // 1024px): the text takes the line beside the picture, the actions wrap under the text.
+  // 1024px): the bag icon and the heart stay at the top beside the text, «Заменить» goes under the
+  // text (spec 0024 Z37).
   @container (width < 360px) {
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-areas:
+      'image text actions'
+      'image replace replace';
+    grid-template-columns: var(--row-image-width) minmax(0, 1fr) auto;
+    gap: 2px var(--space-3);
   }
 }
 
@@ -126,6 +132,7 @@
   position: relative;
 
   overflow: hidden;
+  grid-area: image;
   flex: none;
 
   width: var(--row-image-width);
@@ -144,6 +151,7 @@
 
 .rowText {
   display: flex;
+  grid-area: text;
   flex: 1;
   flex-direction: column;
   gap: 6px;
@@ -152,10 +160,6 @@
 
   font-size: var(--font-size-body-s);
   line-height: var(--line-height-body-s);
-
-  @container (width < 360px) {
-    flex-basis: calc(100% - var(--row-image-width) - var(--space-3));
-  }
 }
 
 .rowName {
@@ -163,22 +167,68 @@
   text-decoration: none;
 }
 
-// «В корзину», the heart and «Заменить» on one line at the card's top (spec 0024 AC11, Z8).
+// «В корзину» and the heart at the card's top (spec 0024 AC11).
 .rowActions {
   display: flex;
+  grid-area: actions;
   flex: none;
   gap: var(--space-2);
   align-items: center;
   align-self: flex-start;
+}
+
+// «Заменить» (Z8): on a wide card on the actions' line, as high as their buttons and 8px after the
+// heart; below 360px of the column under the text (Z37).
+.rowReplace {
+  display: inline-flex;
+  grid-area: replace;
+  flex: none;
+  place-self: flex-start start;
+  align-items: center;
+
+  min-height: 32px;
+  margin-left: calc(var(--space-2) - var(--space-3));
+
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
 
   @container (width < 360px) {
-    margin-left: calc(var(--row-image-width) + var(--space-3));
+    min-height: 0;
+    margin-left: 0;
   }
 }
 
-.rowReplace {
-  font-size: var(--font-size-body-s);
-  line-height: var(--line-height-body-s);
+// The label on a wide card, the bag icon on a narrow one, where the label stays the button's name.
+// Two classes each, over the kit's button and icon whatever order their styles load in.
+.rowCart .rowCartIcon {
+  display: none;
+}
+
+@container (width < 360px) {
+  .row .rowCart {
+    width: 32px;
+    padding: 0;
+  }
+
+  .rowCart .rowCartIcon {
+    display: block;
+  }
+
+  .rowCartLabel {
+    position: absolute;
+
+    overflow: hidden;
+
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+
+    white-space: nowrap;
+
+    clip-path: inset(50%);
+  }
 }
 
 // The sum, the cart row, «Хотите что-то поменять в образе?» and the meter, pushed to the column's

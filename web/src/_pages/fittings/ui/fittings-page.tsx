@@ -9,7 +9,8 @@ import { FittingHistory } from '@/widgets/fitting-history';
 
 import { TryOnEntry } from './try-on-entry';
 
-// Board 9's meter under the side menu: «Осталось 11 из 40 примерок», «Обновится 1 ноября».
+// Board 9's meter under the side menu: «Осталось 11 из 40 примерок в этом месяце», «Обновится 1
+// ноября».
 function FittingLimit() {
   const quota = useFittingQuota();
   if (!quota.data) return null;
