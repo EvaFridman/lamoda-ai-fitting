@@ -24,7 +24,9 @@ const CITIES: City[] = [
 // Base UI turns pointer events off on the page while a modal is open (see the kit's modal test).
 const setup = () => userEvent.setup({ pointerEventsCheck: 0 });
 
-function renderModal(props: { cities?: City[] | null; failure?: unknown } = {}) {
+function renderModal(
+  props: { cities?: City[] | null; failure?: unknown; onChosen?: () => void } = {},
+) {
   const onOpenChange = vi.fn();
   render(
     <CityModal
@@ -32,6 +34,7 @@ function renderModal(props: { cities?: City[] | null; failure?: unknown } = {}) 
       failure={props.failure}
       open
       onOpenChange={onOpenChange}
+      onChosen={props.onChosen}
     />,
   );
   return onOpenChange;
@@ -89,6 +92,23 @@ describe('CityModal', () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
+  it('calls onChosen on a pick, also of the city already chosen', async () => {
+    window.localStorage.setItem('city', 'Казань');
+    const onChosen = vi.fn();
+    renderModal({ onChosen });
+    await setup().click(await screen.findByRole('button', { name: 'Казань' }));
+    expect(onChosen).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not call onChosen when closed without choosing', async () => {
+    const onChosen = vi.fn();
+    const onOpenChange = renderModal({ onChosen });
+    await screen.findByRole('dialog');
+    await setup().keyboard('{Escape}');
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(onChosen).not.toHaveBeenCalled();
+  });
+
   it('filters the list by the search and tells when nothing matches', async () => {
     renderModal();
     const user = setup();
@@ -118,6 +138,23 @@ describe('CityModal automatic search', () => {
     await setup().click(await screen.findByRole('button', { name: 'Определить автоматически' }));
     await vi.waitFor(() => expect(window.localStorage.getItem('city')).toBe('Москва'));
     expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it('calls onChosen for a found city but not for a failed search', async () => {
+    const onChosen = vi.fn();
+    setGeolocation(at(55.7512, 37.6184));
+    renderModal({ onChosen });
+    await setup().click(await screen.findByRole('button', { name: 'Определить автоматически' }));
+    await vi.waitFor(() => expect(onChosen).toHaveBeenCalledTimes(1));
+  });
+
+  it('does not call onChosen when the position is refused', async () => {
+    const onChosen = vi.fn();
+    setGeolocation((_ok, fail) => fail({ code: 1 } as GeolocationPositionError));
+    renderModal({ onChosen });
+    await setup().click(await screen.findByRole('button', { name: 'Определить автоматически' }));
+    await screen.findByText('Доступ к геопозиции запрещён');
+    expect(onChosen).not.toHaveBeenCalled();
   });
 
   it.each([

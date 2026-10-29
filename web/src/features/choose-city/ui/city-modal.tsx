@@ -27,19 +27,34 @@ export interface CityModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   finalFocus?: ModalProps['finalFocus'];
+  // A city chosen here, by a pick or found, even the one already chosen; the window then closes.
+  onChosen?: () => void;
 }
 
 /**
  * The window «Ваш город» (spec 0026 plan §3.3, C4): «Определить автоматически», a search and the
  * list of the stores' cities; a pick or a found city closes it. The whole screen on phones.
  */
-export function CityModal({ cities, failure, open, onOpenChange, finalFocus }: CityModalProps) {
+export function CityModal({
+  cities,
+  failure,
+  open,
+  onOpenChange,
+  finalFocus,
+  onChosen,
+}: CityModalProps) {
   return (
     <Modal title="Ваш город" wide open={open} onOpenChange={onOpenChange} finalFocus={finalFocus}>
       {cities === null ? (
         <p className={styles.failure}>{errorText(failure)}</p>
       ) : (
-        <CityChoice cities={cities} onChosen={() => onOpenChange(false)} />
+        <CityChoice
+          cities={cities}
+          onChosen={() => {
+            onChosen?.();
+            onOpenChange(false);
+          }}
+        />
       )}
     </Modal>
   );
