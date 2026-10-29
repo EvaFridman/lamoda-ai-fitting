@@ -82,6 +82,15 @@ describe('FittingErrorCard for a timeout', () => {
     );
   });
 
+  it.each([
+    [1, 'Примерка не списана · осталась 1 в этом месяце'],
+    [0, 'Примерка не списана · примерки закончились'],
+  ])('reads the notice for %i left as «%s»', (left, text) => {
+    renderCard({ left });
+
+    expect(screen.getByText(text)).toBeInTheDocument();
+  });
+
   it('leaves the count out of the notice when the quota is not known', () => {
     renderCard({ left: undefined });
 

@@ -102,6 +102,7 @@ export {
   LimitMeter,
   type LimitMeterProps,
   triesLeftOfText,
+  triesLeftTail,
   triesLeftText,
 } from './ui/limit-meter';
 export { PhotoFrame, type PhotoFrameProps } from './ui/photo-frame';

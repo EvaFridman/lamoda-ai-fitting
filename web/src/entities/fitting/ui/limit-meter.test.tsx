@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { LimitMeter, triesLeftOfText, triesLeftText } from './limit-meter';
+import { LimitMeter, triesLeftOfText, triesLeftText, triesLeftTail } from './limit-meter';
 
 describe('triesLeftOfText', () => {
   it.each([
@@ -27,6 +27,19 @@ describe('triesLeftText', () => {
     [-1, 'Примерки закончились'],
   ])('%i left reads «%s»', (left, text) => {
     expect(triesLeftText(left)).toBe(text);
+  });
+});
+
+describe('triesLeftTail', () => {
+  it.each([
+    [1, 'осталась 1 в этом месяце'],
+    [2, 'осталось 2 в этом месяце'],
+    [5, 'осталось 5 в этом месяце'],
+    [21, 'осталась 21 в этом месяце'],
+    [0, 'примерки закончились'],
+    [-1, 'примерки закончились'],
+  ])('%i left reads «%s»', (left, text) => {
+    expect(triesLeftTail(left)).toBe(text);
   });
 });
 

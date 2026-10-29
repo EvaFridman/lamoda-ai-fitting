@@ -847,7 +847,7 @@ describe('TryOn with a fitting', () => {
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Хотите что-то поменять в образе?' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Примерить на другом фото' })).toBeInTheDocument();
-    expect(screen.getByText('Осталось 17 в этом месяце')).toBeInTheDocument();
+    expect(screen.getByText('Осталось 17 примерок в этом месяце')).toBeInTheDocument();
   });
 
   describe('«К образу» of the result (A90.11, AC13, AC16)', () => {

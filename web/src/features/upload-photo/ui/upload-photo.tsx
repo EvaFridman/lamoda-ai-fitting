@@ -98,7 +98,7 @@ export interface UploadPhotoProps {
   extra?: ReactNode;
   // `false` uploads a one-time photo, not among the saved ones (spec 0019 A24).
   save?: boolean;
-  // Under the refusal's text: the try-on's «Примерка не списана · осталось N в этом месяце» (A62, board 5).
+  // Under the refusal's text: the try-on's «Примерка не списана · осталось 7 в этом месяце» (A62, board 5).
   refusalNote?: ReactNode;
   // The file on its way, then `null` once it is stored or refused (board 3.3 shows it dimmed).
   onPendingChange?: (file: File | null) => void;

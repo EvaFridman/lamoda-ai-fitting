@@ -17,6 +17,14 @@ export function triesLeftText(left: number): string {
   return `${verb} ${left} ${plural(left, TRIES)} в этом месяце`;
 }
 
+// The tail of a longer meter text, after «·»: «осталась 1 в этом месяце», «осталось 7 в этом
+// месяце», «примерки закончились» (spec 0024 AC11).
+export function triesLeftTail(left: number): string {
+  if (left <= 0) return 'примерки закончились';
+  const verb = plural(left, ['осталась', 'осталось', 'осталось']);
+  return `${verb} ${left} в этом месяце`;
+}
+
 export interface LimitMeterProps {
   // The try-ons of the month left and the month's limit (`GET /me/fitting-quota`).
   left: number;

@@ -81,6 +81,12 @@
 
 .percent {
   flex: none;
+
+  // On a phone (`PHONE_QUERY`) the percent is as small as the stage beside it.
+  @media (width < 600px) {
+    font-size: var(--font-size-body-s);
+    line-height: var(--line-height-body-s);
+  }
 }
 
 .steps {
