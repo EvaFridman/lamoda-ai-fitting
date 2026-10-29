@@ -223,6 +223,17 @@ describe('LookResult analytics (A94)', () => {
     ]);
   });
 
+  it('keeps the approximate-picture caption out of the body: it is the hint of «Об изображении» (spec 0024 AC13)', async () => {
+    renderResult(2);
+    const user = userEvent.setup();
+
+    expect(screen.queryByText(/Изображение приблизительное/)).not.toBeInTheDocument();
+    await user.hover(screen.getByRole('button', { name: 'Об изображении' }));
+    expect(await screen.findByText(/Изображение приблизительное/)).toHaveTextContent(
+      'Изображение приблизительное, могут быть неточности в посадке, длине и цвете.',
+    );
+  });
+
   it('names the look’s favourites button «Добавить образ в избранное» on a wide screen', () => {
     renderResult(2);
 

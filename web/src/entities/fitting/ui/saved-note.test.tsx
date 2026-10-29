@@ -52,6 +52,21 @@ describe('SavedNote', () => {
     expect(link).toBeInTheDocument();
   });
 
+  it('adds an «!» button with the note as its hint when a note is given', async () => {
+    const user = userEvent.setup();
+    render(<SavedNote href={FITTINGS_HREF} note="Приблизительно." />);
+
+    await user.hover(screen.getByRole('button', { name: 'Об изображении' }));
+
+    expect(await screen.findByText('Приблизительно.')).toBeInTheDocument();
+  });
+
+  it('has no «!» button without a note', () => {
+    render(<SavedNote href={FITTINGS_HREF} />);
+
+    expect(screen.queryByRole('button', { name: 'Об изображении' })).not.toBeInTheDocument();
+  });
+
   it('adds the caller’s class', () => {
     const { container } = render(<SavedNote href={FITTINGS_HREF} className="extra" />);
 

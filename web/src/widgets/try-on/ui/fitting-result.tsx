@@ -22,6 +22,7 @@ import { FITTINGS_HREF, PHONE_QUERY } from '@/shared/config';
 import { useMediaQuery } from '@/shared/lib';
 import { Button, CheckIcon, FavoriteToggle, HangerIcon, LinkButton, Select } from '@/shared/ui';
 
+import { RESULT_NOTE } from '../lib/result-note';
 import { ItemRow } from './item-row';
 import { ResultPicture, ResultTiles, useRunningProgress } from './result-media';
 
@@ -167,16 +168,16 @@ export function FittingResult({
 
       <div className={styles.left}>
         {picture}
-        <SavedNote href={FITTINGS_HREF} events={historyElement} />
-        {running ? (
+        <SavedNote
+          href={FITTINGS_HREF}
+          events={historyElement}
+          note={running ? undefined : RESULT_NOTE}
+        />
+        {running && (
           <p className={styles.muted}>
             {item?.colour
               ? `${item.colour.charAt(0).toUpperCase()}${item.colour.slice(1)} вариант сохранён в истории`
               : 'Результат сохранён в истории'}
-          </p>
-        ) : (
-          <p className={styles.note}>
-            Изображение приблизительное, могут быть неточности в посадке, длине и цвете.
           </p>
         )}
         {tiles}

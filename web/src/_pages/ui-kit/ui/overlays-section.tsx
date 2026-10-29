@@ -5,6 +5,7 @@ import {
   HeartIcon,
   HelpTip,
   IconButton,
+  InfoTip,
   Modal,
   ModalClose,
   SearchIcon,
@@ -208,6 +209,16 @@ export function OverlaysSection() {
             </HelpTip>
           </p>
           <code className={styles.props}>HelpTip: наведение, клик или Enter</code>
+        </li>
+        <li className={styles.example}>
+          <p className={styles.text}>
+            Сохранено в «Мои примерки»{' '}
+            <InfoTip
+              aria-label="Об изображении"
+              content="Изображение приблизительное, могут быть неточности в посадке, длине и цвете."
+            />
+          </p>
+          <code className={styles.props}>InfoTip: наведение мышью, касание пальцем</code>
         </li>
       </ul>
     </>

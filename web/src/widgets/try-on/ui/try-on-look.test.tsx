@@ -372,6 +372,7 @@ describe('TryOn of a look: the picker (board 3.2)', () => {
     await screen.findByText('Образ · 3 вещи');
 
     expect(screen.queryByText(/Изображение приблизительное/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Об изображении' })).not.toBeInTheDocument();
   });
 
   it('closes the window and opens the fitting room from «Изменить»', async () => {

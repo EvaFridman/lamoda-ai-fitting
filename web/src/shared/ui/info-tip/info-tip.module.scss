@@ -1,0 +1,42 @@
+// The «!»: the 16px InfoIcon turned upside down (its «i» read as «!», the owner's note R6), grey,
+// black under the pointer or while its hint is open.
+
+.trigger {
+  cursor: pointer;
+
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+
+  margin: 0;
+  padding: 0;
+  border: none;
+
+  color: var(--color-text-secondary);
+  vertical-align: text-bottom;
+
+  background: none;
+
+  transition: color var(--duration-fast);
+
+  &:focus-visible {
+    border-radius: var(--radius-full);
+    outline: 2px solid var(--color-border-active);
+    outline-offset: 2px;
+  }
+
+  &[data-popup-open] {
+    color: var(--color-text);
+  }
+
+  @media (hover: hover) {
+    &:hover {
+      color: var(--color-text);
+    }
+  }
+}
+
+.icon {
+  transform: rotate(180deg);
+}
