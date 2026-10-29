@@ -338,3 +338,13 @@ taken once and kept as `ownPhoto` (§4.2). A new api task, T14a, in this phase. 
 api's new field left alone would keep `verify` red until T20. T14a adds `photoTransient:
 z.boolean().nullable()` to `fittingSchema` and to the web tests' fittings, with no UI; T20 keeps
 the rest of its web work. Amends tasks T14a, T20.
+
+## Settled at T15 (2026-10-29)
+
+**Z44. Results from before the release count as seen (the owner, at T15's review).** With the
+column alone, every user who had tried something on would see the badge (often «9+») for old
+history on the first load after the release, which is not AC30's news. The migration sets
+`seen_at = finished_at` (else `updated_at`) on every completed fitting it finds; the ones the
+previous release completes after it count as unseen, as new results should. It also takes
+`lock_timeout = '5s'` (spec 0014 O51), so a long query of the running copy stops the deploy
+instead of queueing behind it. Amends plan §3.2.

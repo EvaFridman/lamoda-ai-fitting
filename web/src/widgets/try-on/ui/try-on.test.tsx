@@ -43,7 +43,7 @@ const fetchMock = vi.fn();
 
 interface Api {
   photos: unknown[];
-  quota: { limit: number; used: number; left: number; renewsAt: string };
+  quota: { limit: number; used: number; left: number; renewsAt: string; unseen: number };
   fittings: Map<string, Fitting>;
   // What POST /fittings and POST /fittings/:id/regenerate answer.
   started: () => Response;
@@ -261,7 +261,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   api = {
     photos: [photo(PHOTO_A), photo(PHOTO_B, { isDefault: true })],
-    quota: { limit: 20, used: 3, left: 17, renewsAt: '2026-10-31T21:00:00.000Z' },
+    quota: { limit: 20, used: 3, left: 17, renewsAt: '2026-10-31T21:00:00.000Z', unseen: 0 },
     fittings: new Map(),
     started: () => startedResponse(),
     upload: () => json(201, photo(ONE_TIME, { transient: true })),

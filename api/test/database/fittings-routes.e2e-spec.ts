@@ -385,8 +385,8 @@ describe('the fittings routes (spec 0019 T12: AC5-AC9, A6, A7, A20, A32, A45, A4
         Date.UTC(moscow.getUTCFullYear(), moscow.getUTCMonth() + 1, 1) - 3 * 3_600_000,
       ).toISOString();
       expect(before.status).toBe(200);
-      expect(before.body).toEqual({ limit: 2, used: 0, left: 2, renewsAt: renews });
-      expect(after.body).toEqual({ limit: 2, used: 1, left: 1, renewsAt: renews });
+      expect(before.body).toEqual({ limit: 2, used: 0, left: 2, renewsAt: renews, unseen: 0 });
+      expect(after.body).toEqual({ limit: 2, used: 1, left: 1, renewsAt: renews, unseen: 0 });
     });
 
     it('keeps the quota of one user apart from another’s', async () => {
@@ -2039,6 +2039,160 @@ describe('the fittings routes (spec 0019 T12: AC5-AC9, A6, A7, A20, A32, A45, A4
       expect(bodyOf(response).countsAgainstLimit).toBe(false);
       expect(called).toBe(1);
       expect(await usedOf(who.userId)).toBe(2);
+    });
+  });
+
+  describe('seen results (spec 0024 T15, AC30)', () => {
+    const markSeen = (who: SignedIn | null, id: string) => {
+      const req = http().post(`/fittings/${id}/seen`);
+      if (who !== null) req.set({ Cookie: who.cookie });
+      return req;
+    };
+    const markAllSeen = (who: SignedIn | null) => {
+      const req = http().post('/fittings/seen');
+      if (who !== null) req.set({ Cookie: who.cookie });
+      return req;
+    };
+    const unseenOf = async (who: SignedIn) =>
+      ((await quota(who).expect(200)).body as { unseen: number }).unseen;
+    const seenAtOf = async (id: string) => (await row(id)).seenAt;
+
+    async function completed(who: Actor): Promise<string> {
+      const id = (await started(who, single(who, await product()))).id;
+      await finish(id);
+      return id;
+    }
+
+    it('marks a completed fitting seen, drops the count by one and keeps the first time', async () => {
+      const who = await actor();
+      const id = await completed(who);
+      await completed(who);
+      expect(await unseenOf(who)).toBe(2);
+
+      await markSeen(who, id).expect(204);
+
+      const first = await seenAtOf(id);
+      expect(first).toBeInstanceOf(Date);
+      expect(await unseenOf(who)).toBe(1);
+      await markSeen(who, id).expect(204);
+      expect(await seenAtOf(id)).toEqual(first);
+      expect(await unseenOf(who)).toBe(1);
+    });
+
+    it('answers 204 for a fitting that is not completed and leaves it unseen until it completes', async () => {
+      const who = await actor();
+      const pending = (await started(who, single(who, await product()))).id;
+      const processing = (await started(who, single(who, await product()))).id;
+      await prisma().aiGeneration.update({
+        where: { id: processing },
+        data: { status: 'processing' },
+      });
+      const failed = (await started(who, single(who, await product()))).id;
+      await endFitting(prisma(), failed, {
+        status: 'failed',
+        failureCode: 'provider_error',
+        errorMessage: null,
+        providerRequestId: null,
+      });
+
+      for (const id of [pending, processing, failed]) {
+        await markSeen(who, id).expect(204);
+        expect(await seenAtOf(id)).toBeNull();
+      }
+      expect(await unseenOf(who)).toBe(0);
+      await finish(pending);
+      expect(await unseenOf(who)).toBe(1);
+    });
+
+    it('answers 404 for another user’s fitting and leaves it untouched', async () => {
+      const owner = await actor();
+      const other = await actor();
+      const id = await completed(owner);
+
+      expectError(await markSeen(other, id), 404, 'NOT_FOUND');
+
+      expect(await seenAtOf(id)).toBeNull();
+      expect(await unseenOf(owner)).toBe(1);
+    });
+
+    it('answers 404 for a missing id, 400 for a malformed one and 401 signed out', async () => {
+      const who = await actor();
+      const id = await completed(who);
+
+      expectError(await markSeen(who, randomUUID()), 404, 'NOT_FOUND');
+      expectError(await markSeen(who, 'not-a-uuid'), 400, 'INVALID_ID');
+      expectError(await markSeen(null, id), 401, 'UNAUTHORIZED');
+      expect(await seenAtOf(id)).toBeNull();
+    });
+
+    it('marks every completed fitting of the user, and only theirs', async () => {
+      const who = await actor();
+      const other = await actor();
+      const one = await completed(who);
+      const two = await completed(who);
+      const pending = (await started(who, single(who, await product()))).id;
+      const theirs = await completed(other);
+
+      await markAllSeen(who).expect(204);
+
+      expect(await seenAtOf(one)).toBeInstanceOf(Date);
+      expect(await seenAtOf(two)).toBeInstanceOf(Date);
+      expect(await seenAtOf(pending)).toBeNull();
+      expect(await seenAtOf(theirs)).toBeNull();
+      expect(await unseenOf(who)).toBe(0);
+      expect(await unseenOf(other)).toBe(1);
+    });
+
+    it('keeps the earlier time of a fitting seen before, and answers 204 with nothing to mark', async () => {
+      const who = await actor();
+      const id = await completed(who);
+      await markSeen(who, id).expect(204);
+      const first = await seenAtOf(id);
+
+      await markAllSeen(who).expect(204);
+      await markAllSeen(who).expect(204);
+
+      expect(await seenAtOf(id)).toEqual(first);
+      expect(await unseenOf(who)).toBe(0);
+    });
+
+    it('answers 401 to a signed-out request for all', async () => {
+      expectError(await markAllSeen(null), 401, 'UNAUTHORIZED');
+    });
+
+    it('counts only completed unseen fittings that have a kind', async () => {
+      const who = await actor();
+      await completed(who);
+      await started(who, single(who, await product()));
+      const session = await prisma().fittingSession.create({
+        data: { userId: who.userId, isActive: false },
+      });
+      await prisma().aiGeneration.create({
+        data: {
+          sessionId: session.id,
+          userId: who.userId,
+          userImageKey: 'users/abc/photo.jpg',
+          status: 'completed',
+          startedAt: new Date(),
+          finishedAt: new Date(),
+          resultImageKey: generationResultKey(who.userId, randomUUID()),
+          aiProvider: 'test-provider',
+          aiModel: 'test-model',
+        },
+      });
+
+      expect(await unseenOf(who)).toBe(1);
+    });
+
+    it('never marks anything on a read of one fitting or of the list', async () => {
+      const who = await actor();
+      const id = await completed(who);
+
+      await get(who, id).expect(200);
+      await list(who).expect(200);
+
+      expect(await seenAtOf(id)).toBeNull();
+      expect(await unseenOf(who)).toBe(1);
     });
   });
 

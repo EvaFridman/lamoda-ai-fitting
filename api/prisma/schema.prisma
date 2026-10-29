@@ -386,6 +386,9 @@ model AiGeneration {
   errorMessage         String?          @map("error_message") @db.VarChar(1000)
   startedAt            DateTime?        @map("started_at") @db.Timestamptz(3)
   finishedAt           DateTime?        @map("finished_at") @db.Timestamptz(3)
+  // When the user first opened the completed result (spec 0024 Z18); the header's badge counts
+  // the completed fittings without it. Only the two seen routes write it, never a read.
+  seenAt               DateTime?        @map("seen_at") @db.Timestamptz(3)
   createdAt            DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt            DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -419,6 +422,9 @@ model AiGeneration {
   @@index([userId, fingerprint])
   @@index([photoId])
   @@index([parentId])
+  // The unseen count of `GET /me/fitting-quota` (spec 0024 plan §3.2), read on every signed-in
+  // page load. The condition is written as PostgreSQL stores it, as the unique key's above.
+  @@index([userId], map: "ai_generations_unseen_idx", where: raw("((status = 'completed'::generation_status) AND (seen_at IS NULL) AND (kind IS NOT NULL))"))
   @@map("ai_generations")
 }
 

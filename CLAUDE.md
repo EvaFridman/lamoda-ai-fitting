@@ -505,7 +505,13 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   `TimeoutInterceptor` never cuts a slow client's download. `GET /fittings`
   (`CursorPaginated`, `fitting-cursor.ts`, `kind`), `GET /fittings/:id`, `DELETE /fittings/:id` (the row and the outbox first, then the
   file deletion's start and the workflow's cancel side by side, the try-on stays spent, A47) and
-  `GET /me/fitting-quota` see only the user's fittings (rows with a `kind`). A fitting still
+  `GET /me/fitting-quota` see only the user's fittings (rows with a `kind`). A completed result's
+  `seen_at` (spec 0024 plan §3.2, Z18) is written only by `POST /fittings/:id/seen` (204; the
+  first opening kept, one not completed left as it is, someone else's or a missing one 404) and
+  `POST /fittings/seen` (204, every completed one), never by a read, since `GET /fittings/:id` is
+  polled and prefetched; the quota's `unseen` counts the completed ones without it (the partial
+  index `ai_generations_unseen_idx`, read on every signed-in page load; the migration counted
+  the results from before as seen). A fitting still
   running an hour after its start is ended `failed` with its try-on given back by the
   housekeeping's first step (`endStuckFittings`, behind the patch `end-stuck-fittings`). `POST`
   and `PATCH /fitting-sessions` are `@Closed()` (A21).

@@ -213,7 +213,8 @@ route that answers a `FittingDto`; Swagger and `openapi.json`.
 ### 3.2 Seen results (Z18)
 
 - Migration: `ai_generations.seen_at timestamptz NULL`; a partial index
-  `(user_id) WHERE status = 'completed' AND seen_at IS NULL AND kind IS NOT NULL`.
+  `(user_id) WHERE status = 'completed' AND seen_at IS NULL AND kind IS NOT NULL`. The completed
+  fittings from before count as seen at their end, under `lock_timeout` (Z44).
 - `POST /fittings/:id/seen` (`@SignedIn()`, write tier, 204): sets `seen_at = now()` on the
   user's completed fitting where null (another's or missing: 404; not completed: 204, nothing).
   `POST /fittings/seen` (204): every unseen completed fitting of the user. Neither reads marks

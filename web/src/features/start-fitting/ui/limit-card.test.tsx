@@ -17,6 +17,7 @@ const QUOTA = {
   used: 20,
   left: 0,
   renewsAt: '2026-10-31T21:00:00.000Z',
+  unseen: 0,
 };
 
 function renderCard(room: FittingRoom = EMPTY_ROOM, quota = QUOTA) {

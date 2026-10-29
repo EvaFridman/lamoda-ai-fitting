@@ -111,6 +111,8 @@ export const fittingQuotaSchema = z.object({
   used: z.number(),
   left: z.number(),
   renewsAt: z.iso.datetime(),
+  // Completed results not opened yet: the header's badge (spec 0024 Z18).
+  unseen: z.number(),
 });
 
 export type FittingKind = z.infer<typeof fittingKindSchema>;

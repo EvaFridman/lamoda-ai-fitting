@@ -40,6 +40,7 @@ import type { StartFittingDto } from './dto/start-fitting.dto.js';
 import { endFitting, RUNNING_STATUSES } from './end-fitting.js';
 import { decodeFittingCursor, encodeFittingCursor } from './fitting-cursor.js';
 import { FittingQuotaService } from './fitting-quota.service.js';
+import { fittingsOf } from './fittings-of.js';
 import { fittingFingerprint } from './fingerprint.js';
 
 // Newest first, the id keeps the order fixed (spec 0004 E51).
@@ -73,11 +74,6 @@ const FOR_RESPONSE = {
 } satisfies Prisma.AiGenerationInclude;
 
 type Row = Prisma.AiGenerationGetPayload<{ include: typeof FOR_RESPONSE }>;
-
-// The fittings of a user: `kind` is set on every fitting, NULL on the closed route's rows (A65).
-function fittingsOf(userId: string): Prisma.AiGenerationWhereInput {
-  return { userId, kind: { not: null } };
-}
 
 // A27: the median of the user's last completed fittings, from the start to the result, and the
 // guess before any.
@@ -391,6 +387,32 @@ export class FittingsService {
       throw new NotFoundError('Fitting not found');
     }
     return this.toResponse(row, null);
+  }
+
+  // The user opened the result (spec 0024 plan §3.2, Z18): the first opening is kept, a later one
+  // changes nothing, and one not completed yet has nothing to mark. Someone else's or a missing
+  // fitting is 404.
+  async markSeen(userId: string, id: string): Promise<void> {
+    const { count } = await this.prisma.aiGeneration.updateMany({
+      where: { ...fittingsOf(userId), id, status: 'completed', seenAt: null },
+      data: { seenAt: new Date() },
+    });
+    if (count > 0) return;
+    const row = await this.prisma.aiGeneration.findFirst({
+      where: { ...fittingsOf(userId), id },
+      select: { id: true },
+    });
+    if (row === null) {
+      throw new NotFoundError('Fitting not found');
+    }
+  }
+
+  // The history page was opened: every completed result counts as seen (Z18).
+  async markAllSeen(userId: string): Promise<void> {
+    await this.prisma.aiGeneration.updateMany({
+      where: { ...fittingsOf(userId), status: 'completed', seenAt: null },
+      data: { seenAt: new Date() },
+    });
   }
 
   // A hard delete (A25): the row and its outbox entry in one transaction, the files after the

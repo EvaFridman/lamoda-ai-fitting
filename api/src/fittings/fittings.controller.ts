@@ -70,6 +70,15 @@ export class FittingsController {
     return this.answer(res, () => this.fittings.start(userId, dto));
   }
 
+  // The history page was opened (spec 0024 plan §3.2, Z18). No `POST /fittings/:id` exists, so
+  // nothing else matches `seen`.
+  @Post('seen')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiNoContentResponse({ description: "Every completed fitting of the user's is seen." })
+  markAllSeen(@CurrentUserId() userId: string): Promise<void> {
+    return this.fittings.markAllSeen(userId);
+  }
+
   @Get()
   @ApiCursorPaginatedResponse(FittingDto)
   list(
@@ -104,6 +113,17 @@ export class FittingsController {
       disposition: `attachment; filename="${resultFileName(finishedAt)}"`,
       length: bytes.byteLength,
     });
+  }
+
+  // The result was opened (Z18). Reads never mark it: `GET /fittings/:id` is polled and
+  // prefetched, so a read does not mean the user saw it.
+  @Post(':id/seen')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiNoContentResponse({
+    description: 'A completed fitting is seen from now on; one not completed is left as it is.',
+  })
+  markSeen(@CurrentUserId() userId: string, @UuidParam('id') id: string): Promise<void> {
+    return this.fittings.markSeen(userId, id);
   }
 
   // The first regeneration of a result is free, the next ones spend a try-on (A6).

@@ -40,7 +40,13 @@ const json = (body: unknown) =>
   );
 
 function quota(left: number) {
-  return json({ limit: 20, used: 20 - left, left, renewsAt: '2026-10-31T21:00:00.000Z' });
+  return json({
+    limit: 20,
+    used: 20 - left,
+    left,
+    renewsAt: '2026-10-31T21:00:00.000Z',
+    unseen: 0,
+  });
 }
 
 const listed = {
