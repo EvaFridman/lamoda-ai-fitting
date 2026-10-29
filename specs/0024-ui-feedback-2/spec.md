@@ -1,6 +1,7 @@
 # 0024 ui-feedback-2: the owner's second round of UI notes on the try-on window, the result, the header and the catalog's motion
 
-Status: accepted (2026-10-29), with the owner's answers Z1–Z25. By Z1 the ratings and the comparison (notes H4–H6) are spec `0025` and the city (S1,
+Status: accepted (2026-10-29), with the owner's answers Z1–Z25, the plan's choices Z26 and Z12's
+amendment; amended at the review of PR 1 (AC20: Z26.6; AC22: Z29; AC27: the CSP). By Z1 the ratings and the comparison (notes H4–H6) are spec `0025` and the city (S1,
 S3) spec `0026`; their questions Z19–Z24 are answered here and carried there.
 
 Source: the owner's Agentation notes of 2026-10-29, kept verbatim in
@@ -202,9 +203,9 @@ Widths: a phone is below 600 px, a tablet 600–1023 px, a large tablet 1024–1
   screen goes on without a restart; when it refuses the text or the limit, the picker comes back
   with that card and nothing of the wait remains.
 - **AC20.** A `POST /fittings` that fails with a network error, a timeout, a 502/503/504 is sent
-  again once after 1 s with no change on screen (Z10); a second failure shows the error card with
-  «Попробовать ещё раз»; a 400 (the text refused), a 409 (the limit), a 401 and a 429 are not
-  repeated; a repeat that reaches an already started fitting continues it (the api answers the
+  again once after 1.5 s with no change on screen (Z10, Z26.6); a second failure shows the error
+  card with «Попробовать ещё раз»; a 400 (the text refused), a 409 (the limit), a 401, a 429 and
+  a bare 500 are not repeated (Z27); a repeat that reaches an already started fitting continues it (the api answers the
   running one of the same fingerprint, spec 0019 A32).
 - **AC21.** On a phone, the picker's «Примерить» / «Примерить образ» stays at the bottom of the
   screen while the picker's content scrolls under it; the content's end is not hidden behind it.
@@ -212,9 +213,10 @@ Widths: a phone is below 600 px, a tablet 600–1023 px, a large tablet 1024–1
   transient one; the result screen of a fitting on such a photo shows «Сохранить фото для
   следующих примерок» in the window's right column, with the item cards, on by default: the photo
   is kept when the result opens (it appears in «Мои фото»), turning the switch off deletes it
-  again; at five saved photos the switch is off and disabled with the text of `LIMIT_REACHED`; a
-  result on a saved photo shows no switch; a transient photo already gone shows «Фото уже
-  удалено»; «Мои фото» still uploads saved photos (Z12).
+  again, and it stays on screen so it can be turned on again; at five saved photos the switch is
+  off and disabled with no text, and nothing is saved (Z29); a result on a photo saved before it
+  opened shows no switch; a transient photo already gone shows «Фото уже удалено»; «Мои фото»
+  still uploads saved photos (Z12).
 - **AC23.** Both results have no tiles «Во весь экран», «Скачать», «Поделиться»; a click on the
   picture opens it on the whole screen (black, the picture whole, a × top right, Escape and the ×
   close it); over the picture, two round icon buttons «Скачать» and «Поделиться» appear on hover
@@ -231,7 +233,10 @@ Widths: a phone is below 600 px, a tablet 600–1023 px, a large tablet 1024–1
   for a look, the comment and «Перегенерировать»; Escape, a click outside and × close it; it exists
   and works on a phone.
 - **AC27.** A HEIC photo chosen, dropped or pasted uploads and shows as the chosen photo; the
-  picker's `accept` names HEIC; the formats line says «JPG, PNG, WebP или HEIC» (Z15).
+  picker's `accept` names HEIC with a mouse (Z26.2); the formats line says «JPG, PNG, WebP или
+  HEIC» (Z15); the site's `script-src` gains `'wasm-unsafe-eval'`, which lets WebAssembly
+  compile and nothing else (no `eval` of scripts), on every page, since the try-on window opens
+  from many; the policy's code says why.
 - **AC28.** With the picker open and no field focused, Ctrl/Cmd+V with an image in the clipboard
   uploads it as the chosen photo (`source: paste`); a paste of text does nothing; the paste works
   with a photo already chosen too (it replaces it) (Z16).

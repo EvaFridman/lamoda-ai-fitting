@@ -94,13 +94,16 @@ same release); PR 4 the closing, which records the owner's checks on the deploye
 ### web
 
 - [ ] **T16. The silent retry (plan §4.1; AC20).** `isStartRetryable`, the mutations' retry once
-      after 1.5 s, `Fitting Start Retried` in the catalog. Check: `mutations.test.tsx`,
+      after 1.5 s (no bare 500, Z27), its comment and `CLAUDE.md`'s line on writes naming the
+      exception, `Fitting Start Retried` in the catalog. Check: `mutations.test.tsx`,
       `retry.test.ts`, `catalog.test.ts`. Commit: `feat(web): silent retry of a fitting's start`.
 - [ ] **T17. The drop zone (plan §4.5; AC29).** The hairline card on `/ui-kit`'s upload section
       and in the window's zone (texts, hover, dragging), the formats line with HEIC. Check:
       `upload-photo.test.tsx`. **Stop once** for the owner's look at `/ui-kit` and the window
       (Z26.7) before the commit. Commit: `feat(web): the hairline drop zone`.
-- [ ] **T18. HEIC and paste (plan §4.5; AC27, AC28).** `libheif-js`, `heic.ts`, `accept` by
+- [ ] **T18. HEIC and paste (plan §4.5; AC27, AC28).** `libheif-js` (checked first as
+      `CONTRIBUTING.md` rule 3 asks: on npm, its repository, usage, recent releases, no install
+      script), `heic.ts`, `accept` by
       pointer, the paste listener with `source: paste`, `format` on the upload events, the CSP's
       `'wasm-unsafe-eval'`. Check: `heic.test.ts`, `upload-photo.test.tsx`, `policy.test.ts`,
       `check:web-bundle`. Commit: `feat(web): HEIC and pasted photos in the try-on`.
@@ -128,8 +131,8 @@ same release); PR 4 the closing, which records the owner's checks on the deploye
       from the results and the history page, the push's +1, the badges on the profile icon, the
       burger and both «Мои примерки», `profile-menu.open`. Check: `use-fitting-events.test.tsx`,
       `header-profile.test.tsx`, `header-menu.test.tsx`, `fittings-page.test.tsx`,
-      `catalog.test.ts`. Then the phase's end: `qa-tester` on AC19–AC31 (the api stopped for one
-      attempt, a HEIC drop, a paste, touch emulation, a phone width), a clean install,
+      `catalog.test.ts`. Then the phase's end: `qa-tester` on AC19–AC31 (a stubbed 503 for one
+      attempt, Z27; a HEIC drop, a paste, touch emulation, a phone width), a clean install,
       `npm run verify`, the push, PR 3. Commit: `feat(web): badge of the results not yet seen`.
 
 ## PR 4 · docs/0024-close · closing
