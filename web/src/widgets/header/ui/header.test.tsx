@@ -21,6 +21,10 @@ vi.mock('./header-search-slot', () => {
   const pending = new Promise<never>(() => {});
   return { HeaderSearchSlot: () => use(pending), HeaderLoupeSlot: () => use(pending) };
 });
+vi.mock('./header-city-slot', () => {
+  const pending = new Promise<never>(() => {});
+  return { HeaderCitySlot: () => use(pending) };
+});
 vi.mock('./header-menu-slot', () => {
   const pending = new Promise<never>(() => {});
   return { HeaderMenuSlot: () => use(pending) };
@@ -46,16 +50,9 @@ describe('Header', () => {
     expect(logo.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
   });
 
-  it('draws the gender switch, the city and the icons as inert buttons in the tab order', () => {
+  it('draws the gender switch and the icons as inert buttons in the tab order', () => {
     render(<Header />);
-    const names = [
-      'Женщинам',
-      'Укажите ваш населенный пункт',
-      'Профиль',
-      'Избранное',
-      'Примерочная',
-      'Корзина',
-    ];
+    const names = ['Женщинам', 'Профиль', 'Избранное', 'Примерочная', 'Корзина'];
     for (const name of names) {
       const button = screen.getByRole('button', { name });
       expect(button).toHaveAttribute('aria-disabled', 'true');
@@ -63,15 +60,17 @@ describe('Header', () => {
     }
   });
 
+  it('shows the inert placeholder button while the city slot loads', () => {
+    render(<Header />);
+    const button = screen.getByRole('button', { name: 'Укажите ваш населенный пункт' });
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    expect(button).toHaveAttribute('type', 'button');
+    expect(button).not.toBeDisabled();
+  });
+
   it('never submits a form: every inert control is type="button"', () => {
     render(<Header />);
-    for (const name of [
-      'Женщинам',
-      'Укажите ваш населенный пункт',
-      'Профиль',
-      'Избранное',
-      'Корзина',
-    ]) {
+    for (const name of ['Женщинам', 'Профиль', 'Избранное', 'Корзина']) {
       expect(screen.getByRole('button', { name })).toHaveAttribute('type', 'button');
     }
   });
@@ -88,13 +87,7 @@ describe('Header', () => {
     const before = container.innerHTML;
     const href = window.location.href;
 
-    for (const name of [
-      'Женщинам',
-      'Укажите ваш населенный пункт',
-      'Профиль',
-      'Избранное',
-      'Корзина',
-    ]) {
+    for (const name of ['Женщинам', 'Профиль', 'Избранное', 'Корзина']) {
       await user.click(screen.getByRole('button', { name }));
     }
 

@@ -137,6 +137,11 @@
   display: block;
   text-overflow: ellipsis;
   white-space: nowrap;
+
+  // Live once the slot renders (spec 0026); its fallback stays inert.
+  &:not([aria-disabled='true']) {
+    cursor: pointer;
+  }
 }
 
 .logo {
