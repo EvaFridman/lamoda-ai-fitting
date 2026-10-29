@@ -1,6 +1,6 @@
 # 0026 city: tasks
 
-Status: accepted (2026-10-29).
+Status: done (2026-10-29): all 15 criteria pass (record below). History, not instructions.
 
 ## How the work flows
 
@@ -50,7 +50,7 @@ Status: accepted (2026-10-29).
 - [x] **T6. `/privacy` (plan §6).** C10's paragraph.
       Check: `privacy-page.test.tsx`.
       Commit: `feat(web): say how the city is found on the privacy page`
-- [ ] **T7. Closing.** `qa-tester` at 375 and 1280 px with a stubbed position (AC1–AC12);
+- [x] **T7. Closing.** `qa-tester` at 375 and 1280 px with a stubbed position (AC1–AC12);
       `CLAUDE.md` (plan §8); the acceptance record below; every file `Status: done`.
       Check: clean install, `npm run verify`.
       Commit: `docs(specs): close spec 0026`
@@ -59,4 +59,26 @@ Status: accepted (2026-10-29).
 
 ## Acceptance record
 
-Filled at T7, one line per AC with its evidence.
+Checked 2026-10-29 at T7, before PR 2's merge, on the worktree's local stack (`qa-tester` at 1280
+and 375 px, the position stubbed in the window; the browser could not stub it before a page
+loads, and Yandex's script was blocked there, so the page's own found/far/timeout and the map
+rest on the tests). The real prompt and the nearest city on a phone and a desktop are the
+owner's check after the deploy (spec, owner actions).
+
+| AC   | Result | Evidence                                                                                                                                                                                                                                   |
+| ---- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| AC1  | ✅     | T2: `cities.test.ts` (the seed's 31 names in order); T3: `city-modal.test.tsx`; T4: `header-city.test.tsx`; qa-tester at 1280 px: 31 cities, Москва and Санкт-Петербург first, «Видное».                                                   |
+| AC2  | ✅     | T3: `city-store.test.ts` (a `storage` event); T4: `header-city.test.tsx`; qa-tester: the name on `/catalog`, `/privacy` and the stores page, after a reload and from another tab.                                                          |
+| AC3  | ✅     | T3: `locate.test.ts` (found, refused, codes 2 and 3, no API, the 30 s deadline, C15), `city-modal.test.tsx`; qa-tester with a stubbed position: found, code 1, codes 2 and 3, never answered.                                              |
+| AC4  | ✅     | T3: `locate.test.ts`, `city-modal.test.tsx`; qa-tester: a position in Sydney, the city unchanged.                                                                                                                                          |
+| AC5  | ✅     | T3: `locate.test.ts`, `city-store.test.ts`, `use-ask-once.test.tsx`, `city-modal.test.tsx` (only `city` and `city-asked` stored, no `track` with a position); security-reviewer on T3, T4; qa-tester's network log while finding the city. |
+| AC6  | ✅     | T3: `use-ask-once.test.tsx` (once, not with a city, not after the mark, not after a hand-chosen city gone, StrictMode); `rg getCurrentPosition` gives `locate.ts` only; qa-tester: `/catalog` and `/privacy` ask nothing.                  |
+| AC7  | ✅     | T4: `header-menu.test.tsx`; qa-tester at 375 px: the row, the same window, the focus back on the burger.                                                                                                                                   |
+| AC8  | ✅     | T3: `city-store.test.ts`; T4: `header-city.test.tsx`, `header-menu.test.tsx`; qa-tester: `city = 'Атлантида'` shows no city.                                                                                                               |
+| AC9  | ✅     | T5: `stores-view.test.tsx` (the switch, the city's stores, the fit with `CITY_ZOOM`, «Все города» on Moscow, another tab's city ends «Все города»), `fit.test.ts`; qa-tester at 1280 and 375 px: 4 stores of Санкт-Петербург, 48, reload.  |
+| AC10 | ✅     | T5: `stores-view.test.tsx` (the page's ask: found, far, refused); qa-tester: a refusal leaves every store and no switch.                                                                                                                   |
+| AC11 | ✅     | T5: `stores-view.test.tsx`; qa-tester at 1280 and 375 px: «Сочи» by keyboard, the focus back on «Изменить город».                                                                                                                          |
+| AC12 | ✅     | T5: `stores-view.test.tsx` with fake timers (one change after 300 ms, clearing at once, no old text after clearing); qa-tester: «охта» unchanged at 100 ms, filtered at 600 ms.                                                            |
+| AC13 | ✅     | T6: `privacy-page.test.tsx`; qa-tester saw the paragraph.                                                                                                                                                                                  |
+| AC14 | ✅     | T3, T5: `catalog.test.ts`, `EVENTS.md` regenerated; code-reviewer and security-reviewer: no city name, position or distance in a property.                                                                                                 |
+| AC15 | ✅     | T7: a clean install (`npm ci` in the root, `api`, `web`, `tools/code-rag`), then `npm run verify`, exit 0.                                                                                                                                 |

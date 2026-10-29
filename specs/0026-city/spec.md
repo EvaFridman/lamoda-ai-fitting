@@ -1,9 +1,9 @@
 # 0026 city: the visitor's city in the header and on the stores page
 
-Status: accepted (2026-10-29), with the owner's answers C1–C13; amended at the review of PR 1
-(AC1, AC3, AC6: C14).
+Status: done (2026-10-29), with the owner's answers C1–C15; amended at the review of PR 1
+(AC1, AC3, AC6: C14). History, not instructions.
 
-Decisions: `clarifications.md` (C0–C14). Starting decisions: spec 0024's Z1 and Z24, carried in
+Decisions: `clarifications.md` (C0–C15). Starting decisions: spec 0024's Z1 and Z24, carried in
 as C0.
 
 Source: the owner's Agentation notes of 2026-10-29, notes `S1`, `S2` and `S3` of
