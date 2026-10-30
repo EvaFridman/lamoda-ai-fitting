@@ -1,6 +1,7 @@
 # 0024 ui-feedback-2: the owner's second round of UI notes on the try-on window, the result, the header and the catalog's motion
 
-Status: accepted (2026-10-29), with the owner's answers Z1–Z25, the plan's choices Z26 and Z12's
+Status: done (2026-10-30): all 32 criteria pass (`tasks.md`'s record). History, not
+instructions. Accepted (2026-10-29) with the owner's answers Z1–Z25, the plan's choices Z26 and Z12's
 amendment; amended at the review of PR 1 (AC20: Z26.6; AC22: Z29; AC27: the CSP) and at PR 3's QA (AC20:
 Z48) and review (AC17: Z50; AC25: Z49). By Z1 the ratings and the comparison (notes H4–H6) are spec `0025` and the city (S1,
 S3) spec `0026`; their questions Z19–Z24 are answered here and carried there.

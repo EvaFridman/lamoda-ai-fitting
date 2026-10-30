@@ -1,6 +1,6 @@
 # 0024 ui-feedback-2: clarifications
 
-Status: accepted (2026-10-29): Z1–Z16, Z18–Z23 and Z25 settled at the first answers, Z17 and
+Status: done (2026-10-30), with Z1–Z50. History, not instructions. Accepted (2026-10-29): Z1–Z16, Z18–Z23 and Z25 settled at the first answers, Z17 and
 Z24 at the second; Z12 amended and Z26 (the plan's own choices) added at the plan and confirmed
 with it; Z27–Z29 settled at the review of PR 1; Z42–Z50 during PR 3. Z19–Z24 are the starting decisions of specs 0025 and 0026 (Z1). Decision ids `Z1`, `Z2`, …; the notes are `R1`–`R14`, `K1`–`K4`, `T1`–`T14`,
 `H1`–`H6`, `S1`–`S3` and `D1` of [source/agentation-notes.md](source/agentation-notes.md).
