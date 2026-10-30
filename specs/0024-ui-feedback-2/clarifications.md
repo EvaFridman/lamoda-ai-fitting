@@ -2,7 +2,7 @@
 
 Status: accepted (2026-10-29): Z1–Z16, Z18–Z23 and Z25 settled at the first answers, Z17 and
 Z24 at the second; Z12 amended and Z26 (the plan's own choices) added at the plan and confirmed
-with it; Z27–Z29 settled at the review of PR 1. Z19–Z24 are the starting decisions of specs 0025 and 0026 (Z1). Decision ids `Z1`, `Z2`, …; the notes are `R1`–`R14`, `K1`–`K4`, `T1`–`T14`,
+with it; Z27–Z29 settled at the review of PR 1; Z42–Z48 during PR 3. Z19–Z24 are the starting decisions of specs 0025 and 0026 (Z1). Decision ids `Z1`, `Z2`, …; the notes are `R1`–`R14`, `K1`–`K4`, `T1`–`T14`,
 `H1`–`H6`, `S1`–`S3` and `D1` of [source/agentation-notes.md](source/agentation-notes.md).
 
 ## The canvas
@@ -375,3 +375,12 @@ and hidden from screen readers (`FileInput`'s `tabIndex` and `aria-hidden`), so 
 screen reader reach the file through «Выбрать файл» or the tiles and a touch device no longer
 names two neighbouring buttons «Загрузить фото». Amends Z17 and spec 0023 P3's Enter and Space on
 the whole zone.
+
+**Z48. A failed start brings the picker back with its notice (the owner, at PR 3's QA).** Z10 and
+AC20 said a start that fails again after its silent retry shows the error card with «Попробовать
+ещё раз», while plan §4.1 kept the screen as before: the picker comes back with its notice (a
+503's «Сервис временно недоступен, попробуйте позже», a 429's «Слишком много запросов, подождите
+немного») and «Примерить» is the user's repeat; the colour change and the regeneration likewise
+bring back the screen they came from. The code follows the plan, and so does AC20 now. The error
+card with «Попробовать ещё раз» stays a failed generation's (a fitting ended `failed`). Amends
+Z10, AC20 and the spec's «The start».

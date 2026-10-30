@@ -373,7 +373,7 @@ it below the button when the space above is short. Elements `result.regenerate-o
 - **The silent retry and `@Expensive()`.** The expensive tier allows one request a second
   (`THROTTLE_EXPENSIVE_BURST` 1) and ten a minute; a repeat exactly a second later can land in
   the same window and answer 429, which is not repeated. So the repeat waits 1.5 s (Z26.6), and
-  a 429 shows the error card whose «Попробовать ещё раз» is the user's repeat.
+  a 429 brings the picker back with its notice, whose «Примерить» is the user's repeat (Z48).
 - **`Tabs.Indicator` and wrapped tabs.** The indicator follows the active tab's box, so a wrapped
   row works; the first render has no transition (Base UI renders it after measuring).
 - **The search row's `0fr → 1fr`** needs the row's content to be the grid cell's child with
