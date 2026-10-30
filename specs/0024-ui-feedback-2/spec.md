@@ -1,7 +1,8 @@
 # 0024 ui-feedback-2: the owner's second round of UI notes on the try-on window, the result, the header and the catalog's motion
 
 Status: accepted (2026-10-29), with the owner's answers Z1–Z25, the plan's choices Z26 and Z12's
-amendment; amended at the review of PR 1 (AC20: Z26.6; AC22: Z29; AC27: the CSP). By Z1 the ratings and the comparison (notes H4–H6) are spec `0025` and the city (S1,
+amendment; amended at the review of PR 1 (AC20: Z26.6; AC22: Z29; AC27: the CSP) and at PR 3's QA (AC20:
+Z48). By Z1 the ratings and the comparison (notes H4–H6) are spec `0025` and the city (S1,
 S3) spec `0026`; their questions Z19–Z24 are answered here and carried there.
 
 Source: the owner's Agentation notes of 2026-10-29, kept verbatim in
@@ -99,8 +100,8 @@ changes, in two parts; the other three are specs 0025 and 0026 (Z1):
 - **The start (R12, T2).** The waiting screen appears the moment «Примерить» (or «Примерить
   образ») is pressed, before the api has answered, and its progress starts then; a request that
   fails for a reason not of the photo or the text (a network error, no answer, the api down or
-  busy) is sent again once in silence, and only a second failure shows the error card; a refusal
-  of the text, the limit and a 4xx show their cards at once (Z10). On phones the window's
+  busy) is sent again once in silence, and only a second failure brings the picker back with its
+  notice (Z48); a refusal of the text, the limit and a 4xx show their cards at once (Z10). On phones the window's
   «Примерить» sticks to the bottom of the screen while the picker scrolls (Z11).
 - **The save switch (T4).** «Сохранить фото для следующих примерок» leaves the picker and the
   «Заменить фото» window; a photo uploaded in the window is not saved by itself, and the result
@@ -203,8 +204,8 @@ Widths: a phone is below 600 px, a tablet 600–1023 px, a large tablet 1024–1
   screen goes on without a restart; when it refuses the text or the limit, the picker comes back
   with that card and nothing of the wait remains.
 - **AC20.** A `POST /fittings` that fails with a network error, a timeout, a 502/503/504 is sent
-  again once after 1.5 s with no change on screen (Z10, Z26.6); a second failure shows the error
-  card with «Попробовать ещё раз»; a 400 (the text refused), a 409 (the limit), a 401, a 429 and
+  again once after 1.5 s with no change on screen (Z10, Z26.6); a second failure brings back the
+  screen the start came from with its notice, «Примерить» being the repeat (Z48); a 400 (the text refused), a 409 (the limit), a 401, a 429 and
   a bare 500 are not repeated (Z27); a repeat that reaches an already started fitting continues it (the api answers the
   running one of the same fingerprint, spec 0019 A32).
 - **AC21.** On a phone, the picker's «Примерить» / «Примерить образ» stays at the bottom of the
