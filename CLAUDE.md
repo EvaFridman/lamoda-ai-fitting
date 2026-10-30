@@ -49,7 +49,13 @@ header icons with «скоро», the gallery's full screen and lens, the tidier
 drop zone, photo replacement and one steady photo frame, the success screen, the real download
 (`GET /fittings/:id/image`), the regeneration without reasons, freer wishes checked with the
 items' names, the photo consents kept with the user and a text of its own for each refusal's
-reason and safety category. Spec `0026-city` made the header's city live: the stores' cities, the
+reason and safety category. Spec `0024-ui-feedback-2` applied the owner's second notes: one
+easing and three durations for every motion, the phone's categories sheet and sliding search row,
+the tab icons, «скоро» as a chip, the quieter «Примерить», the try-on's wait from the click and a
+start sent again once, one-time photos with the result's save switch (`PUT`/`DELETE
+/me/photos/:id/keep`), the drop card, HEIC and the paste, the result's full screen with «Скачать»
+and «Поделиться» over the picture, «Что поменять?» as a panel over its button and the badge of the
+results not yet seen (`seen_at`). Spec `0026-city` made the header's city live: the stores' cities, the
 window «Ваш город» (a pick, a search, «Определить автоматически»: the browser's position turned
 into the nearest store's city in the browser, no geocoder), the choice kept in the browser
 (`features/choose-city`), the burger's row, the stores page on the visitor's city (its switch,

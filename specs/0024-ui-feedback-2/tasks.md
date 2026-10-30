@@ -1,6 +1,7 @@
 # 0024 ui-feedback-2: tasks
 
-Status: accepted (2026-10-29).
+Status: done (2026-10-30): all 32 criteria pass (record below). History, not instructions.
+Accepted 2026-10-29.
 
 ## How the work flows
 
@@ -144,12 +145,49 @@ same release); PR 4 the closing, which records the owner's checks on the deploye
 
 ## PR 4 · docs/0024-close · closing
 
-- [ ] **T24. Closing.** The owner's checks on the site recorded (AC7 in three browsers, AC24 on
+- [x] **T24. Closing.** The owner's checks on the site recorded (AC7 in three browsers, AC24 on
       an iPhone and a desktop, AC27 with a real HEIC); every file `Status: done`; the acceptance
       record below; `CLAUDE.md` and `README.md` in line with what was built. Check:
       `npm run format:check`. Commit: `docs(specs): close spec 0024`.
 
 ## Acceptance record
 
-Filled at T24: one line per criterion, AC1–AC32, with the evidence (a test's name, a `qa-tester`
-run, the owner's check and its date).
+Checked 2026-10-30 after PR 3 (#125, `main` f9874d4) was merged and deployed; PR 1 (#121) and
+PR 2 (#124, `main` 682e9a1) were merged and deployed before it. "Production" is
+lamoda-ai-fitting.ru. The `qa-tester` runs are the phases' last tasks: T13 (AC1–AC18) and T23
+(AC19–AC31: a stubbed 503 for one attempt, a HEIC drop, a paste, touch emulation, a phone width).
+
+| AC   | Result | Evidence                                                                                                                                                                                                    |
+| ---- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AC1  | ✅     | T2, T3: `lint:styles` (Stylelint refuses other curves), the kit's tests; Z26.3 for the smooth scroll; T13's qa-tester.                                                                                      |
+| AC2  | ✅     | T4: `catalog-browser.test.tsx`, `catalog-category-list.test.tsx`; T13's qa-tester at a phone width.                                                                                                         |
+| AC3  | ✅     | T3: `header-search-toggle.test.tsx` (Z30: the field focused at the click); T13's qa-tester.                                                                                                                 |
+| AC4  | ✅     | T2: the kit's `Tabs` tests (`Tabs.Indicator`); T13's qa-tester.                                                                                                                                             |
+| AC5  | ✅     | T3: `gallery.test.tsx`; T13's qa-tester.                                                                                                                                                                    |
+| AC6  | ✅     | T5: `product-buy-box.test.tsx`, `button.test.tsx` (with Z39, Z41); T13's qa-tester.                                                                                                                         |
+| AC7  | ✅     | T6: `routes.test.ts`, `curl -I` of `/icon.svg`, `/icon1`, `/apple-icon` (Z31). The owner, 2026-10-30, on production in Chrome, Safari and Firefox: the icon on every page named, no 404 in the console.     |
+| AC8  | ✅     | T7: `header.test.tsx`, `count-badge.test.tsx`, `soon-chip.test.tsx`, `header-menu.test.tsx` (the chip's place as Z39 amends it); T13's qa-tester.                                                           |
+| AC9  | ✅     | T7: `header-menu.test.tsx`; T13's qa-tester.                                                                                                                                                                |
+| AC10 | ✅     | T8: `outfit-slot.test.tsx`, `fitting-room-drawer.test.tsx`; T13's qa-tester.                                                                                                                                |
+| AC11 | ✅     | T9: `try-on.test.tsx`, `try-on-look.test.tsx`, `fitting-wait.test.tsx`, `limit-meter.test.tsx`, `fitting-error-card.test.tsx` (Z33, Z37, Z38); T13's qa-tester.                                             |
+| AC12 | ✅     | T11: `look-result.test.tsx`, `look-item-row.test.tsx`, `try-on-look.test.tsx`; T13's qa-tester.                                                                                                             |
+| AC13 | ✅     | T10: `info-tip.test.tsx`, `saved-note.test.tsx`; T13's qa-tester.                                                                                                                                           |
+| AC14 | ✅     | T11: `look-result.test.tsx`, `look-item-row.test.tsx`, `fitting-room-drawer.test.tsx` (Z8); T13's and T23's qa-tester (the column's bottom after T21).                                                      |
+| AC15 | ✅     | T9: `fitting-wait.test.tsx`; T13's qa-tester at 320 px.                                                                                                                                                     |
+| AC16 | ✅     | T12: `try-on.test.tsx`, `catalog.test.ts`; T13's qa-tester.                                                                                                                                                 |
+| AC17 | ✅     | T12: `try-on.test.tsx` (Z34, Z35); the review fix of PR 3: `try-on-look.test.tsx` (Z50); T13's qa-tester.                                                                                                   |
+| AC18 | ✅     | T13: `stores-view.test.tsx` with fake timers (Z36); T13's qa-tester.                                                                                                                                        |
+| AC19 | ✅     | T19: `try-on.test.tsx`, `try-on-look.test.tsx`, `fitting-wait.test.tsx`; T23's qa-tester.                                                                                                                   |
+| AC20 | ✅     | T16: `mutations.test.tsx`, `retry.test.ts`, `catalog.test.ts` (Z26.6, Z27, Z45, Z46); Z48; T23's qa-tester with a stubbed 503.                                                                              |
+| AC21 | ✅     | T19: `try-on.test.tsx`; T23's qa-tester at a phone width.                                                                                                                                                   |
+| AC22 | ✅     | T14: `me-photos.e2e-spec.ts`, `access-markers`, `openapi-snapshot`; T14a: `fittings-routes.e2e-spec.ts`, `schemas.contract.test.ts`; T20: `save-photo-switch.test.tsx`, `try-on.test.tsx`; T23's qa-tester. |
+| AC23 | ✅     | T21: `result-media.test.tsx`, `try-on.test.tsx`, `catalog.test.ts`; T23's qa-tester with touch emulation.                                                                                                   |
+| AC24 | ✅     | T21: `use-fitting-share.test.ts`. The owner, 2026-10-30, on an iPhone (Safari, Chrome) and a desktop (Chrome, Safari, Firefox): the share or Z13's fallback, never nothing.                                 |
+| AC25 | ✅     | T21: `try-on.test.tsx`; the review fix of PR 3 (Z49); T23's qa-tester.                                                                                                                                      |
+| AC26 | ✅     | T22: `regenerate-popover.test.tsx`, `try-on-look.test.tsx`; T23's qa-tester on a desktop and a phone width.                                                                                                 |
+| AC27 | ✅     | T18: `heic.test.ts`, `upload-photo.test.tsx`, `policy.test.ts`, `check:web-bundle`; T23's qa-tester. The owner, 2026-10-30, with a real HEIC: chosen, dropped and pasted, OK.                               |
+| AC28 | ✅     | T18: `upload-photo.test.tsx`; T23's qa-tester.                                                                                                                                                              |
+| AC29 | ✅     | T17: `upload-photo.test.tsx`; the owner's look at `/ui-kit` (Z47); T23's qa-tester.                                                                                                                         |
+| AC30 | ✅     | T15: `fittings.e2e-spec.ts`, the quota tests, the snapshots (Z44); T23: `use-fitting-events.test.tsx`, `header-profile.test.tsx`, `header-menu.test.tsx`, `fittings-page.test.tsx`; T23's qa-tester.        |
+| AC31 | ✅     | `catalog.test.ts` and `EVENTS.md` regenerated at T12, T16, T21, T23 (Z25's removals); the estimate under 80 %.                                                                                              |
+| AC32 | ✅     | `npm run verify` after a clean install at each phase's end and on the closing commit; the snapshots regenerated with T14, T14a, T15; CI green on #124, #125 and `main` f9874d4.                             |

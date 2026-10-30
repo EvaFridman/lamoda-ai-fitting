@@ -1,6 +1,6 @@
 # 0024 ui-feedback-2: plan
 
-Status: accepted (2026-10-29); its own choices are Z26 of [clarifications.md](clarifications.md),
+Status: done (2026-10-30). History, not instructions. Accepted (2026-10-29); its own choices are Z26 of [clarifications.md](clarifications.md),
 confirmed with it, and Z12 is amended there (the housekeeping's real rule).
 
 Decisions: `Z1`… of [clarifications.md](clarifications.md); notes `R1`–`R14`, `K1`–`K4`,
