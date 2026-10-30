@@ -2,7 +2,7 @@
 
 import type { OutfitSlot } from '@/entities/fitting-room';
 import type { ProductListItem } from '@/entities/product';
-import { Button, CheckIcon, HangerIcon } from '@/shared/ui';
+import { Button, type ButtonSize, CheckIcon, HangerIcon } from '@/shared/ui';
 
 import { type LookToggleElement, useLookToggle } from '../model/use-look-toggle';
 
@@ -14,11 +14,14 @@ export interface ToLookButtonProps {
   // The buy box's or the single result's (spec 0024 Z14).
   element?: Extract<LookToggleElement, 'buy-box.to-look' | 'result.to-look'>;
   onSignIn: () => void;
+  // The buy box's 48 by default; the single result's is 32 in small text beside the size (Z49).
+  size?: ButtonSize;
+  textSize?: 'body-m' | 'body-s';
   className?: string;
 }
 
 // «Добавить к образу» of the buy box (board 1, A62, A82.2; spec 0023 P1) and of the single result
-// (spec 0024 Z14): an outline 48 button
+// (spec 0024 Z14): an outline button, 48 by default (the result's 32, Z49)
 // (spec 0024 Z4) that puts the product into its slot; once it is there, «В образе» with a ✓,
 // pressed, and a click takes it out.
 export function ToLookButton({
@@ -27,12 +30,15 @@ export function ToLookButton({
   attributeValueId,
   element,
   onSignIn,
+  size = 48,
+  textSize,
   className,
 }: ToLookButtonProps) {
   const look = useLookToggle({ product, slot, attributeValueId, element, onSignIn });
   return (
     <Button
-      size={48}
+      size={size}
+      textSize={textSize}
       variant="outline"
       className={className}
       aria-pressed={look.pressed}

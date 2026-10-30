@@ -422,4 +422,24 @@ describe('SavePhotoSwitch: tracking', () => {
       expect.objectContaining({ element: 'result.save-photo', saved: true }),
     ]);
   });
+
+  // The switch's own track is 34×14: the hover belongs to the whole row, the label too.
+  it('sends the hover of result.save-photo when the pointer rests on the label text', async () => {
+    const user = userEvent.setup();
+    setup();
+    await settled();
+
+    await user.hover(screen.getByText('Сохранить фото для следующих примерок'));
+
+    // The hover's real 500 ms rest, with room for a slow CI.
+    await waitFor(
+      () =>
+        expect(mocks.track).toHaveBeenCalledWith(
+          'Element Hovered',
+          expect.objectContaining({ element: 'result.save-photo', saved: false }),
+        ),
+      { timeout: 3000 },
+    );
+    expect(mocks.track).not.toHaveBeenCalledWith('Element Clicked', expect.anything());
+  });
 });

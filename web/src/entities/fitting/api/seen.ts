@@ -58,7 +58,9 @@ export function useMarkFittingSeen(id: string | null): void {
 }
 
 // The history shown (Z18): every completed result is seen, the badge goes at once. Each time the
-// page shows, a return to it kept hidden by Next too (spec 0023 Y22); the write is idempotent. A
+// page shows: Next keeps a left page hidden in an `<Activity>` (spec 0023 Y22), which runs effects'
+// cleanups on hiding and their setups again on showing, so a return to it marks again; the write
+// is idempotent. A
 // read of the quota on its way could bring the old count back, so it is cancelled first, and the
 // quota is read again once the write ends either way (a cancelled first read is not restarted by
 // itself, and the page's meter needs it).

@@ -2,7 +2,7 @@
 
 Status: accepted (2026-10-29): Z1–Z16, Z18–Z23 and Z25 settled at the first answers, Z17 and
 Z24 at the second; Z12 amended and Z26 (the plan's own choices) added at the plan and confirmed
-with it; Z27–Z29 settled at the review of PR 1; Z42–Z48 during PR 3. Z19–Z24 are the starting decisions of specs 0025 and 0026 (Z1). Decision ids `Z1`, `Z2`, …; the notes are `R1`–`R14`, `K1`–`K4`, `T1`–`T14`,
+with it; Z27–Z29 settled at the review of PR 1; Z42–Z50 during PR 3. Z19–Z24 are the starting decisions of specs 0025 and 0026 (Z1). Decision ids `Z1`, `Z2`, …; the notes are `R1`–`R14`, `K1`–`K4`, `T1`–`T14`,
 `H1`–`H6`, `S1`–`S3` and `D1` of [source/agentation-notes.md](source/agentation-notes.md).
 
 ## The canvas
@@ -384,3 +384,15 @@ AC20 said a start that fails again after its silent retry shows the error card w
 bring back the screen they came from. The code follows the plan, and so does AC20 now. The error
 card with «Попробовать ещё раз» stays a failed generation's (a fitting ended `failed`). Amends
 Z10, AC20 and the spec's «The start».
+
+**Z49. «Добавить к образу» small, beside the size (the owner, at PR 3's review).** In the single
+result the 48 px outline button under the item card was «huge and out of place»: it is 32 px in
+small text with a 16 px icon, on one row with the size's select under the card's text, going
+under the select when both do not fit. The buy box keeps its 48 (`ToLookButton`'s `size`,
+`textSize`). Amends Z14 and AC25.
+
+**Z50. «Примерить на другом фото» in a look's result too (the owner, at PR 3's review).** The
+look's result gets the single result's link, beside the meter under «Хотите что-то поменять в
+образе?»: the picker comes back with the empty zone and no photo chosen (Z34), trying on this
+look's items with their colours and wishes (the picker of a shown look, A77.3), off while a
+colour runs over the result. It sends `result.other-photo` as the single result's does.

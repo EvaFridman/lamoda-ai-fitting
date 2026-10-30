@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Fitting, FittingItem } from '@/entities/fitting';
 import { fittingRoomKeys } from '@/entities/fitting-room';
+import type { PendingFitting } from '@/features/start-fitting';
 
 const mocks = vi.hoisted(() => ({ track: vi.fn(), captureException: vi.fn() }));
 vi.mock('@/shared/analytics/client', () => ({
@@ -165,8 +166,11 @@ describe('LookResult analytics (A94)', () => {
     };
   }
 
-  function renderResult(roomCount: number | null) {
+  let onOtherPhoto = vi.fn();
+
+  function renderResult(roomCount: number | null, running: PendingFitting | null = null) {
     const onOpenRoom = vi.fn();
+    onOtherPhoto = vi.fn();
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false, staleTime: Infinity } },
     });
@@ -190,7 +194,7 @@ describe('LookResult analytics (A94)', () => {
             item(2, { productId: P2, slot: 'bottom' }),
           ])}
           photo={{ uploadedHere: false }}
-          running={null}
+          running={running}
           quota={undefined}
           onStart={vi.fn()}
           onStartFailed={vi.fn()}
@@ -198,6 +202,7 @@ describe('LookResult analytics (A94)', () => {
           onRegenerated={vi.fn()}
           onLimit={vi.fn()}
           onOpenRoom={onOpenRoom}
+          onOtherPhoto={onOtherPhoto}
         />
       </QueryClientProvider>,
     );
@@ -338,6 +343,33 @@ describe('LookResult analytics (A94)', () => {
       .click(screen.getByRole('button', { name: 'Заменить: Рубашка Annen 1' }));
 
     expect(onOpenRoom).toHaveBeenCalledExactlyOnceWith('top');
+  });
+
+  it('shows «Примерить на другом фото», which calls onOtherPhoto and sends result.other-photo (Z50)', async () => {
+    renderResult(2);
+
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Примерить на другом фото' }));
+
+    expect(onOtherPhoto).toHaveBeenCalledOnce();
+    expect(sent('result.other-photo')).toEqual([
+      expect.objectContaining({ element: 'result.other-photo' }),
+    ]);
+  });
+
+  it('turns «Примерить на другом фото» off while a colour runs over the result (Z50)', async () => {
+    renderResult(2, {
+      kind: 'look',
+      items: [item(1, { productId: P1, attributeValueId: BLACK, colour: 'Чёрный' })],
+      createdAt: DATE,
+      estimatedSeconds: 20,
+    });
+    const link = screen.getByRole('button', { name: 'Примерить на другом фото' });
+
+    await userEvent.setup({ pointerEventsCheck: 0 }).click(link);
+
+    expect(link).toBeDisabled();
+    expect(onOtherPhoto).not.toHaveBeenCalled();
+    expect(sent('result.other-photo')).toEqual([]);
   });
 
   it('counts 0 items while the room is unread', async () => {

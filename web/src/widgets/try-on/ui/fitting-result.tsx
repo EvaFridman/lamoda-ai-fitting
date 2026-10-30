@@ -21,7 +21,7 @@ import { ColorTryOn, type TryColour } from '@/features/try-colour';
 import { SavePhotoSwitch } from '@/features/upload-photo';
 import { useTrackedElement } from '@/shared/analytics';
 import { FITTINGS_HREF } from '@/shared/config';
-import { Button, LinkButton, Select } from '@/shared/ui';
+import { Button, HangerIcon, LinkButton, Select } from '@/shared/ui';
 
 import { RESULT_NOTE } from '../lib/result-note';
 import type { ResultPhotoProps } from '../model/result-photo';
@@ -108,9 +108,9 @@ export function FittingResult({
     />
   );
 
-  // «Добавить к образу» / «В образе» as the buy box's (Z14, `result.to-look`); the try-on is a
-  // signed-in user's, so no sign-in window. A product of no slot has none (AC16), nor one whose
-  // reads failed; one that loads waits.
+  // «Добавить к образу» / «В образе» as the buy box's (Z14, `result.to-look`), small beside the
+  // size (Z49); the try-on is a signed-in user's, so no sign-in window. A product of no slot has
+  // none (AC16), nor one whose reads failed; one that loads waits.
   const toLook =
     product && slot ? (
       <ToLookButton
@@ -119,11 +119,15 @@ export function FittingResult({
         attributeValueId={item?.attributeValueId}
         element="result.to-look"
         onSignIn={() => undefined}
+        size={32}
+        textSize="body-s"
         className={styles.toLook}
       />
     ) : (
       slot !== null && (
-        <Button size={48} variant="outline" className={styles.toLook} disabled>
+        // With the real button's icon, so the row keeps its width when the product loads.
+        <Button size={32} textSize="body-s" variant="outline" className={styles.toLook} disabled>
+          <HangerIcon />
           Добавить к образу
         </Button>
       )
@@ -176,17 +180,21 @@ export function FittingResult({
               finalPrice={item.finalPrice}
               action={actions}
             />
-            {sizes.length > 0 && (
-              <Select
-                options={sizes}
-                value={size}
-                onValueChange={(value) => setSize(value)}
-                placeholder="Выберите размер"
-                aria-label="Размер"
-                className={styles.size}
-              />
+            {(sizes.length > 0 || toLook) && (
+              <div className={styles.sizeRow}>
+                {sizes.length > 0 && (
+                  <Select
+                    options={sizes}
+                    value={size}
+                    onValueChange={(value) => setSize(value)}
+                    placeholder="Выберите размер"
+                    aria-label="Размер"
+                    className={styles.size}
+                  />
+                )}
+                {toLook}
+              </div>
             )}
-            {toLook}
           </div>
         )}
 

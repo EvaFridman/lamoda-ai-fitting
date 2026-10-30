@@ -155,33 +155,39 @@
   border-bottom: var(--border-width) solid var(--color-border);
 }
 
-// The size's stub, secondary in the card (spec 0024 Z41): a 32px field in small text, as wide as
-// its text, under the card's text beside the 60×80 picture (40×54 on a phone).
-.item .size {
-  align-self: flex-start;
+// Under the card's text beside the 60×80 picture (40×54 on a phone): the size's stub and
+// «Добавить к образу» side by side (Z49), the button going under the size when both do not fit.
+.sizeRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
 
-  width: auto;
-  min-height: 32px;
   margin-left: calc(60px + var(--space-3));
-  padding: 0 var(--space-2) 0 10px;
-
-  font-size: var(--font-size-body-s);
-  line-height: var(--line-height-body-s);
 
   @media (width < 600px) {
     margin-left: calc(40px + var(--space-3));
   }
 }
 
-// «Добавить к образу» (spec 0024 Z14) under the card's text, as wide as its label, as the size.
-.item .toLook {
-  align-self: flex-start;
-  max-width: calc(100% - 60px - var(--space-3));
-  margin-left: calc(60px + var(--space-3));
+// The size's stub, secondary in the card (spec 0024 Z41): a 32px field in small text, as wide as
+// its text.
+.sizeRow .size {
+  width: auto;
+  min-height: 32px;
+  padding: 0 var(--space-2) 0 10px;
 
-  @media (width < 600px) {
-    max-width: calc(100% - 40px - var(--space-3));
-    margin-left: calc(40px + var(--space-3));
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+}
+
+// «Добавить к образу» (spec 0024 Z14) as small as the size (Z49): 32px, small text, a 16px icon.
+.sizeRow .toLook {
+  max-width: 100%;
+
+  svg {
+    width: 16px;
+    height: 16px;
   }
 }
 

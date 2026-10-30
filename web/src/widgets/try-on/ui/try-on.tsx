@@ -555,6 +555,7 @@ export function TryOn({
         onRegenerated={(next) => started(next)}
         onLimit={reachedLimit}
         onOpenRoom={toRoom}
+        onOtherPhoto={pickOtherPhoto}
       />
     );
   } else if (isLook && isFittingRunning(fitting) && baseQuery.data) {
@@ -570,6 +571,7 @@ export function TryOn({
         onRegenerated={(next) => started(next)}
         onLimit={reachedLimit}
         onOpenRoom={toRoom}
+        onOtherPhoto={pickOtherPhoto}
       />
     );
   } else if (isFittingRunning(fitting) && baseQuery.data) {

@@ -1118,8 +1118,8 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   read and a remove over a room waiting for a read read it again instead, A97), and shows the toasts (names in quotes, A90.10; no slot's name, spec 0023 Y15): «Заменили «<прежняя>»
   на «<новая>»» and «Убрали «…» из примерочной» with «Вернуть» (a `PUT` of the item back), ««…» в
   примерочной» with «Открыть»; `useLookToggle` is the hanger's, the buy box's
-  «Добавить к образу»'s, which the single result's right column shares under the item card (spec
-  0024 Z14, `result.to-look`) (A90.11). `widgets/fitting-room-drawer` (`FittingRoomDrawer`, mounted once in
+  «Добавить к образу»'s, which the single result's item card shares, 32 px in small text beside
+  the size (spec 0024 Z14, Z49, `result.to-look`) (A90.11). `widgets/fitting-room-drawer` (`FittingRoomDrawer`, mounted once in
   `app/layout.tsx` inside its `<Suspense>`, signed in only, closed by a new path or the session's
   end) is the kit's wide `Drawer`, on phones the whole window with «‹» and «…» («Очистить
   примерочную»), with no counter line: the five slots, named by `SLOT_TITLES` («Верхний слой и
@@ -1142,7 +1142,8 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   `room.open` with `source: result`, Z8; on a column below 360 px «В корзину» is the bag icon
   beside the heart and «Заменить» goes under the text, Z37), then a block at the right column's bottom (the sum,
   «Добавить образ в корзину» with a heart whose tooltip says every item is added, «Хотите что-то
-  поменять в образе?», the meter, AC14), and another colour is `POST /fittings` with the result's
+  поменять в образе?», «Примерить на другом фото» (the picker with this look's items, colours
+  and wishes, spec 0024 Z50) and the meter, AC14), and another colour is `POST /fittings` with the result's
   photo, items and `promptText`, run over the result; «Что поменять?» (no reasons' chips: the
   hint of what may change, an optional comment, `POST /fittings/:id/regenerate` with no
   `reasons`, spec 0023 Y9) asks a look «Какая именно?», an optional item that goes before the
@@ -1175,7 +1176,8 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   (spec 0024 AC13, no caption of its own in the body; the single result's not while a colour or
   a regeneration runs over it); the single result's item card is the look's (spec 0024 Z40: the
   60×80 picture, 40×54 on a phone, «В корзину» 32 as text and the heart at its top, the size's
-  stub a 32 px field in small text under the card's text, Z41, no 56 px buttons); the look's cart button reads «Добавить образ в корзину» and
+  stub a 32 px field in small text under the card's text, Z41, «Добавить к образу» beside it,
+  Z49, no 56 px buttons); the look's cart button reads «Добавить образ в корзину» and
   its heart is named «Добавить образ в избранное» (P31, P32, spec 0024 AC14).
 - `web` stores page (spec 0022, `_pages/stores`): `useStores` (`entities/store`) starts from the
   page cache's `getStores`; the search (`matchStores`: every word the start of a word of the

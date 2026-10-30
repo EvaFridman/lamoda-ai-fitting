@@ -162,20 +162,25 @@ function KeepSwitch({
 
   return (
     <div className={styles.savePhoto}>
-      <Switch
-        checked={state === 'on'}
-        disabled={state === 'full' || keep.isPending || unkeep.isPending}
-        onCheckedChange={(checked) => {
-          element.onClick();
-          setError(null);
-          if (checked) keep.mutate();
-          else unkeep.mutate();
-        }}
+      {/* The hovers are the row's, the label's too: the switch's own track is 34×14. */}
+      <div
+        className={styles.switchRow}
         onPointerEnter={element.onPointerEnter}
         onPointerLeave={element.onPointerLeave}
       >
-        Сохранить фото для следующих примерок
-      </Switch>
+        <Switch
+          checked={state === 'on'}
+          disabled={state === 'full' || keep.isPending || unkeep.isPending}
+          onCheckedChange={(checked) => {
+            element.onClick();
+            setError(null);
+            if (checked) keep.mutate();
+            else unkeep.mutate();
+          }}
+        >
+          Сохранить фото для следующих примерок
+        </Switch>
+      </div>
       {error && (
         <Notice tone="error" role="alert">
           {error}

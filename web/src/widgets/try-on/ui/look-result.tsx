@@ -26,7 +26,7 @@ import { SavePhotoSwitch } from '@/features/upload-photo';
 import { useTrackedElement } from '@/shared/analytics';
 import { FITTINGS_HREF } from '@/shared/config';
 import { formatPrice } from '@/shared/lib';
-import { Button, Notice, ProgressBar } from '@/shared/ui';
+import { Button, LinkButton, Notice, ProgressBar } from '@/shared/ui';
 
 import { RESULT_NOTE } from '../lib/result-note';
 import type { ResultPhotoProps } from '../model/result-photo';
@@ -72,6 +72,9 @@ export interface LookResultProps {
   onLimit: () => void;
   // An item's «Заменить»: the window closes and the room opens at that slot (spec 0024 Z8).
   onOpenRoom: (slot?: OutfitSlot) => void;
+  // «Примерить на другом фото»: back to the picker with this look's items, colours and wishes
+  // (spec 0024 Z50).
+  onOtherPhoto: () => void;
   // The save switch's part of the window (spec 0024 AC22).
   photo: ResultPhotoProps;
 }
@@ -82,7 +85,7 @@ export interface LookResultProps {
 // «Заменить»; another colour regenerates the whole look on the same photo), then a block at the
 // column's bottom, level with the picture's on a wide window (AC14): the sum, the stub «Добавить
 // образ в корзину» with the heart (A33, spec 0023 P31, P32), «Хотите что-то поменять в образе?»
-// with «Какая именно?» and the meter. Below 800px one column.
+// with «Какая именно?», «Примерить на другом фото» (Z50) and the meter. Below 800px one column.
 export function LookResult({
   fitting,
   running,
@@ -94,6 +97,7 @@ export function LookResult({
   onRegenerated,
   onLimit,
   onOpenRoom,
+  onOtherPhoto,
   photo,
 }: LookResultProps) {
   const [regenerating, setRegenerating] = useState(false);
@@ -101,6 +105,7 @@ export function LookResult({
   const start = useStartLookFitting();
   const regenerateElement = useTrackedElement('result.regenerate-open');
   const historyElement = useTrackedElement('result.history');
+  const otherPhotoElement = useTrackedElement('result.other-photo');
   const room = useFittingRoom();
   const roomElement = useTrackedElement('room.open', {
     source: 'result',
@@ -244,11 +249,25 @@ export function LookResult({
           >
             Хотите что-то поменять в образе?
           </Button>
-          {quota && (
-            <LimitMeter left={quota.left} limit={quota.limit}>
-              Образ — 1 примерка · {triesLeftTail(quota.left)}
-            </LimitMeter>
-          )}
+          <div className={styles.footerRow}>
+            <LinkButton
+              // A colour that runs is shown here: its end would show nowhere from the picker.
+              disabled={busy}
+              onClick={() => {
+                otherPhotoElement.onClick();
+                onOtherPhoto();
+              }}
+              onPointerEnter={otherPhotoElement.onPointerEnter}
+              onPointerLeave={otherPhotoElement.onPointerLeave}
+            >
+              Примерить на другом фото
+            </LinkButton>
+            {quota && (
+              <LimitMeter left={quota.left} limit={quota.limit}>
+                Образ — 1 примерка · {triesLeftTail(quota.left)}
+              </LimitMeter>
+            )}
+          </div>
         </div>
       </div>
 

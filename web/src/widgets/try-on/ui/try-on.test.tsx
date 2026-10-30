@@ -1515,6 +1515,32 @@ describe('TryOn with a fitting', () => {
       expect(size.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
+    it('is the small one, 32 in small text, in one row with the size select (spec 0024 Z49)', async () => {
+      completed();
+      renderTryOn({ fittingId: RUNNING });
+      await screen.findByText('Сгенерировано ИИ');
+      await vi.waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Добавить к образу' })).toBeEnabled(),
+      );
+
+      const button = screen.getByRole('button', { name: 'Добавить к образу' });
+      expect(button).toHaveClass('size32', 'textBodyS');
+      expect(button).not.toHaveClass('size48');
+      const row = button.closest('.sizeRow');
+      expect(row).not.toBeNull();
+      expect(row).toContainElement(screen.getByRole('combobox', { name: 'Размер' }));
+    });
+
+    it('is small and in the size row already as the placeholder while the product loads (Z49)', async () => {
+      completed();
+      api.productFails = true;
+      renderTryOn({ fittingId: RUNNING });
+      await screen.findByText('Сгенерировано ИИ');
+
+      const button = await screen.findByRole('button', { name: 'Добавить к образу' });
+      expect(button).toHaveClass('size32', 'textBodyS');
+    });
+
     // The button waits (aria-disabled) while the session and the room load.
     async function readyButton(name: 'Добавить к образу' | 'В образе') {
       await screen.findByText('Сгенерировано ИИ');

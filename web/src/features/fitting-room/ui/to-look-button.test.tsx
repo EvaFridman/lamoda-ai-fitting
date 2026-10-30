@@ -60,7 +60,14 @@ const empty: FittingRoom = { items: [], count: 0, sum: 0 };
 
 const fetchMock = vi.fn();
 
-function setup(room: FittingRoom, props: { element?: 'buy-box.to-look' } = {}) {
+function setup(
+  room: FittingRoom,
+  props: {
+    element?: 'buy-box.to-look';
+    size?: 32 | 40 | 48 | 56;
+    textSize?: 'body-m' | 'body-s';
+  } = {},
+) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
   });
@@ -109,6 +116,20 @@ describe('ToLookButton', () => {
       'outline',
       'size48',
     );
+  });
+
+  it('has the normal text size by default', () => {
+    setup(empty);
+
+    expect(screen.getByRole('button', { name: 'Добавить к образу' })).not.toHaveClass('textBodyS');
+  });
+
+  it('is the small one, 32 in small text, when given (spec 0024 Z49)', () => {
+    setup(empty, { size: 32, textSize: 'body-s' });
+
+    const button = screen.getByRole('button', { name: 'Добавить к образу' });
+    expect(button).toHaveClass('outline', 'size32', 'textBodyS');
+    expect(button).not.toHaveClass('size48');
   });
 
   it('is «В образе», pressed, once the product is in the room', () => {
