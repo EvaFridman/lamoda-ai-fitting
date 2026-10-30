@@ -192,6 +192,16 @@ removes it from this list. Found by the agents' first security audit and trial r
   spec 0014 O112): locally and on any copy but the site itself the images are blocked and the
   console shows 8–9 CSP errors (found by the QA of spec 0019 T9a, 2026-10-23). Serve them from the
   page's own `/media/` (the seed's keys) or from inline pictures.
+- **A disabled `LinkButton` looks active.** `shared/ui/link/link.module.scss` has no `:disabled`
+  look, so a disabled link keeps its colour, underline and `cursor: pointer` and silently does
+  nothing: the results' «Примерить на другом фото» while a colour runs (spec 0024 Z50), the saved
+  photo card's link while it is busy, the fitting room's and its slot rows' links while a write is
+  pending. Give it one in the kit (the secondary grey, `cursor: default`, no hover) and check those
+  five places (the review of spec 0024 PR 3, the owner's choice to leave it to a later PR).
+- **`ProgressBar` hydrates with another text.** On `/ui-kit` the server renders the progress
+  bars' `aria-valuetext` as «0 %» and the browser as «0%» (Base UI's number format differs between
+  Node and the browser), a hydration error in the console (spec 0024 PR 3's QA, 2026-10-30). Give
+  `ProgressBar` its own `getAriaValueText` (or format) so both sides render the same text.
 
 ## Server
 
@@ -295,8 +305,9 @@ Left for later specs by `0002-database-schema` (its `clarifications.md` has the 
   through `createTestDatabase()` and cannot point a client at the development database; a bypass
   of the rule gets a test case.
 - **Flaky Select test.** `web/src/shared/ui/select/select.test.tsx`, "opens with a click", failed
-  once in `npm run verify` (2026-10-15, during 0006 T9; again in 0007 T11, the same day) and passed
-  alone 3 times of 3 each time: its helper
+  once in `npm run verify` (2026-10-15, during 0006 T9; again in 0007 T11, the same day; on
+  2026-10-30, spec 0024's phase end, "picks an option on a click and marks it selected" did, its
+  trigger still focused) and passed alone 3 times of 3 each time: its helper
   waits for the focus to leave the trigger with `vi.waitFor`'s default 1 s, which a loaded machine
   (api and web tests at once) can miss. Find what moves the focus late, or wait on the list's focus
   instead of a timeout.
