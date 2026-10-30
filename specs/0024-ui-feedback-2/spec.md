@@ -2,7 +2,7 @@
 
 Status: accepted (2026-10-29), with the owner's answers Z1–Z25, the plan's choices Z26 and Z12's
 amendment; amended at the review of PR 1 (AC20: Z26.6; AC22: Z29; AC27: the CSP) and at PR 3's QA (AC20:
-Z48). By Z1 the ratings and the comparison (notes H4–H6) are spec `0025` and the city (S1,
+Z48) and review (AC17: Z50; AC25: Z49). By Z1 the ratings and the comparison (notes H4–H6) are spec `0025` and the city (S1,
 S3) spec `0026`; their questions Z19–Z24 are answered here and carried there.
 
 Source: the owner's Agentation notes of 2026-10-29, kept verbatim in
@@ -192,7 +192,9 @@ Widths: a phone is below 600 px, a tablet 600–1023 px, a large tablet 1024–1
   photo, which is the chosen one, it shows the pickers and no list; «Перейти в «Мои фото»» is
   nowhere in the window; `try-on.my-photos` is gone from the analytics catalog.
 - **AC17.** «Примерить на другом фото» shows the picker with the empty drop zone and the saved
-  photos unselected; «Примерить» is disabled until a photo is chosen or uploaded.
+  photos unselected; «Примерить» is disabled until a photo is chosen or uploaded. Both results
+  have it: a look's picker comes back with that look's items, colours and wishes, and the link is
+  off while a colour runs over the result (Z50).
 - **AC18.** On `/customer/stores`, typing fast changes the list once, 500 ms after the last
   keystroke (Z9), not on every keystroke; the clear button applies at once; `Stores Searched`
   keeps its one-second rule.
@@ -227,8 +229,8 @@ Widths: a phone is below 600 px, a tablet 600–1023 px, a large tablet 1024–1
   (Chrome, Safari, Firefox): where the chosen way is not available, the fallback of Z13 is offered,
   never a silent nothing.
 - **AC25.** In the single result, the tile «К образу» is gone and a button «Добавить к образу» /
-  «В образе» sits in the right column under the item card, beside «В корзину» and the heart
-  (Z14), keeping its behaviour and its element `result.to-look`.
+  «В образе» sits in the item card, small (32 px, small text) beside the size's select (Z14,
+  Z49), keeping its behaviour and its element `result.to-look`.
 - **AC26.** «Хотите что-то поменять в образе?» / «…в примерке?» opens a popover that rises over
   the button inside the result, the rest of the window dimmed; it holds the hint, «Какая именно?»
   for a look, the comment and «Перегенерировать»; Escape, a click outside and × close it; it exists

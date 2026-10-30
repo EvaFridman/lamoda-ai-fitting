@@ -4,6 +4,12 @@
   gap: var(--space-2);
 }
 
+// The switch's row, whose hovers are tracked: the label stretches across it, as a column's item.
+.switchRow {
+  display: flex;
+  flex-direction: column;
+}
+
 .gone {
   margin: 0;
   font-size: var(--font-size-body-s);

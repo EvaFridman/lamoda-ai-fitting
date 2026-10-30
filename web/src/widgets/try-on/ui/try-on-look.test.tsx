@@ -1315,6 +1315,26 @@ describe('TryOn of a look: the picker of a shown look keeps that look, not the r
     });
   });
 
+  it('brings the picker back from a completed look’s «Примерить на другом фото», with no photo and the look’s items and wishes (Z50)', async () => {
+    shownLook({ status: 'completed', failureCode: null, resultUrl: RESULT_URL });
+    useRoomStore.setState({ wishes: { userId: USER, text: 'из примерочной' } });
+    const user = setup();
+    renderTryOn({ fittingId: RESULT });
+
+    await user.click(await screen.findByRole('button', { name: 'Примерить на другом фото' }));
+
+    expect(await screen.findByText('Образ · 2 вещи')).toBeInTheDocument();
+    expect(screen.getByText(/8\s000/)).toBeInTheDocument();
+    expect(screen.queryByText(/12\s000/)).not.toBeInTheDocument();
+    await startOnChosenPhoto(user);
+    expect(bodyOf(0)).toEqual({
+      photoId: PHOTO_B,
+      kind: 'look',
+      items: [{ productId: SHIRT, attributeValueId: BLACK }, { productId: SNEAKERS }],
+      promptText: 'шарф поверх',
+    });
+  });
+
   it('sends no wishes of the room when the shown look had none', async () => {
     shownLook({ promptText: null });
     useRoomStore.setState({ wishes: { userId: USER, text: 'из примерочной' } });
