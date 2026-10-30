@@ -3,13 +3,14 @@
 import NextLink from 'next/link';
 import { useState } from 'react';
 
+import { UNSEEN_MAX, useUnseenCount, withUnseen } from '@/entities/fitting';
 import { SessionUserBadge, useSession } from '@/entities/session';
 import type { City } from '@/entities/store';
 import { LoginModal, type SignOutControl, useSignOuts } from '@/features/auth';
 import { CityModal, useCity, useCityOpenEvents } from '@/features/choose-city';
 import { useTrackedElement } from '@/shared/analytics';
 import { type AccountSection, accountSections } from '@/shared/config';
-import { Button, Drawer, IconButton, MenuIcon, Skeleton } from '@/shared/ui';
+import { Button, CountBadge, Drawer, IconButton, MenuIcon, Skeleton } from '@/shared/ui';
 
 import { NO_CITY_TEXT } from './city-text';
 import headerStyles from './header.module.scss';
@@ -34,11 +35,27 @@ interface Row {
   close: () => void;
 }
 
-// A plain <a> for a section that loads in full (spec 0022 X16).
-function SectionRow({ section, title, href, fullLoad, close }: AccountSection & Row) {
+// A plain <a> for a section that loads in full (spec 0022 X16). «Мои примерки» carries the count of
+// the results not yet seen, said in its name (spec 0024 Z26.1).
+function SectionRow({
+  section,
+  title,
+  href,
+  fullLoad,
+  unseen,
+  close,
+}: AccountSection & Row & { unseen: number }) {
   const tracked = useTrackedElement('profile-menu.section', { section, surface: 'burger' });
+  const count = section === 'fittings' ? unseen : 0;
+  const content = (
+    <>
+      {title}
+      <CountBadge count={count} max={UNSEEN_MAX} className={styles.rowCount} />
+    </>
+  );
   const props = {
     href,
+    'aria-label': count > 0 ? withUnseen(title, count) : undefined,
     className: styles.row,
     onClick: () => {
       tracked.onClick();
@@ -47,7 +64,9 @@ function SectionRow({ section, title, href, fullLoad, close }: AccountSection & 
     onPointerEnter: tracked.onPointerEnter,
     onPointerLeave: tracked.onPointerLeave,
   };
-  return <li>{fullLoad ? <a {...props}>{title}</a> : <NextLink {...props}>{title}</NextLink>}</li>;
+  return (
+    <li>{fullLoad ? <a {...props}>{content}</a> : <NextLink {...props}>{content}</NextLink>}</li>
+  );
 }
 
 function SignOutRow({ control, label, close }: { control: SignOutControl; label: string } & Row) {
@@ -147,6 +166,8 @@ export function HeaderMenu({
   const signedIn = session.status === 'signed-in';
   const pending = session.status === 'pending';
   const burger = useTrackedElement('header.burger', { signed_in: signedIn });
+  // On phones the profile icon is hidden: the burger carries the results not yet seen (Z26.1).
+  const unseen = useUnseenCount(signedIn);
   const close = () => setOpen(false);
 
   return (
@@ -164,9 +185,9 @@ export function HeaderMenu({
         onOpenChange={setOpen}
         trigger={
           <IconButton
-            aria-label="Меню"
+            aria-label={withUnseen('Меню', unseen)}
             variant="plain"
-            className={headerStyles.burger}
+            className={`${headerStyles.burger} ${headerStyles.badged}`}
             id={BURGER_ID}
             // While the session loads `signed_in` is not known yet: that click or hover is not counted.
             onClick={pending ? undefined : burger.onClick}
@@ -174,6 +195,7 @@ export function HeaderMenu({
             onPointerLeave={pending ? undefined : burger.onPointerLeave}
           >
             <MenuIcon />
+            <CountBadge count={unseen} max={UNSEEN_MAX} className={headerStyles.unseen} />
           </IconButton>
         }
       >
@@ -189,7 +211,7 @@ export function HeaderMenu({
             </div>
             <ul className={styles.list} aria-label="Личный кабинет">
               {accountSections.map((section) => (
-                <SectionRow key={section.section} {...section} close={close} />
+                <SectionRow key={section.section} {...section} unseen={unseen} close={close} />
               ))}
               <SignOutRows close={close} />
             </ul>

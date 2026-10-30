@@ -33,6 +33,11 @@
   margin-top: 0;
 }
 
+// «Мои примерки»'s count of the results not yet seen, at the row's end (spec 0024 Z26.1).
+.rowCount {
+  margin-left: auto;
+}
+
 .heading {
   margin: 0;
   padding: var(--space-6) 0 var(--space-2);

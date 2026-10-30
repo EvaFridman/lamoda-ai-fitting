@@ -221,6 +221,9 @@ function route(url: string, init?: RequestInit): Response | Promise<Response> {
   if (pathname.startsWith('/api/me/fitting-room/') && method === 'DELETE') {
     return new Response(null, { status: 204 });
   }
+  if (/^\/api\/fittings\/[^/]+\/seen$/.test(pathname) && method === 'POST') {
+    return new Response(null, { status: 204 });
+  }
   if (pathname === '/api/fittings' && method === 'POST') return api.started();
   if (pathname === '/api/fittings') {
     return json(200, { items: [...api.fittings.values()], nextCursor: null, total: 0 });
@@ -233,10 +236,19 @@ function route(url: string, init?: RequestInit): Response | Promise<Response> {
   return failure(404, 'NOT_FOUND');
 }
 
-function posts() {
+function allPosts() {
   return fetchMock.mock.calls
     .map(([url, init]) => ({ path: new URL(String(url)).pathname, init: init as RequestInit }))
     .filter(({ init }) => init?.method === 'POST');
+}
+
+// The starts and uploads; the marks of a result as seen (spec 0024 AC30) are counted apart.
+function posts() {
+  return allPosts().filter(({ path }) => !path.endsWith('/seen'));
+}
+
+function seenPosts() {
+  return allPosts().filter(({ path }) => path.endsWith('/seen'));
 }
 
 function deletes() {
@@ -1360,6 +1372,40 @@ describe('TryOn with a fitting', () => {
     expect(screen.queryByText('Примеряем…')).not.toBeInTheDocument();
     const completed = mocks.track.mock.calls.filter(([event]) => event === 'Fitting Completed');
     expect(completed).toHaveLength(1);
+  });
+
+  it('marks a fitting watched running that completes while «Готово!» shows, before the result (AC30)', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    api.fittings.set(RUNNING, fitting());
+    renderTryOn({ fittingId: RUNNING });
+    await screen.findByText('Примеряем…');
+    expect(seenPosts()).toHaveLength(0);
+
+    // The running fitting is read again by its 3 s poll.
+    api.fittings.set(
+      RUNNING,
+      fitting({
+        status: 'completed',
+        stage: 'done',
+        resultUrl: 'https://s3.test/keep/users/u/result.webp?X-Amz-Signature=abc',
+        finishedAt: new Date().toISOString(),
+        estimatedSeconds: null,
+      }),
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3100);
+    });
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Готово!');
+    await vi.waitFor(() => expect(seenPosts()).toHaveLength(1));
+    expect(seenPosts()[0]?.path).toBe(`/api/fittings/${RUNNING}/seen`);
+    expect(screen.queryByText('Сгенерировано ИИ')).not.toBeInTheDocument();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+    expect(await screen.findByText('Сгенерировано ИИ')).toBeInTheDocument();
+    expect(seenPosts()).toHaveLength(1);
   });
 
   it('shows a completed fitting as a result with the colours and the regeneration (AC5, AC7, AC8)', async () => {
@@ -2495,7 +2541,9 @@ describe('TryOn optimistic start (AC19)', () => {
   function holdStarts() {
     const waiting: ((response: Response) => void)[] = [];
     fetchMock.mockImplementation((url: string, init?: RequestInit) =>
-      init?.method === 'POST' && new URL(String(url)).pathname.startsWith('/api/fittings')
+      init?.method === 'POST' &&
+      new URL(String(url)).pathname.startsWith('/api/fittings') &&
+      !new URL(String(url)).pathname.endsWith('/seen')
         ? new Promise<Response>((resolve) => waiting.push(resolve))
         : Promise.resolve(route(String(url), init)),
     );
@@ -2890,6 +2938,38 @@ describe('TryOn optimistic start (AC19)', () => {
       await vi.waitFor(() => expect(deletes()).toHaveLength(1));
       expect(deletes()[0]?.path).toBe(`/api/me/photos/transient/${ONE_TIME}`);
     });
+  });
+});
+
+describe('TryOn marks a result as seen (spec 0024 AC30)', () => {
+  const completed = () =>
+    fitting({
+      status: 'completed',
+      stage: 'done',
+      resultUrl: 'https://s3.test/keep/users/u/result.webp?X-Amz-Signature=abc',
+      finishedAt: DATE,
+      estimatedSeconds: null,
+    });
+
+  it('sends POST /fittings/:id/seen once for a completed result it shows', async () => {
+    api.fittings.set(RUNNING, completed());
+    renderTryOn({ fittingId: RUNNING });
+    await screen.findByText('Сгенерировано ИИ');
+
+    await vi.waitFor(() => expect(seenPosts()).toHaveLength(1));
+    expect(seenPosts()[0]?.path).toBe(`/api/fittings/${RUNNING}/seen`);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(seenPosts()).toHaveLength(1);
+  });
+
+  it('marks nothing while the fitting is still running', async () => {
+    api.fittings.set(RUNNING, fitting());
+    renderTryOn({ fittingId: RUNNING });
+    await screen.findByText('Примеряем…');
+
+    expect(seenPosts()).toHaveLength(0);
   });
 });
 

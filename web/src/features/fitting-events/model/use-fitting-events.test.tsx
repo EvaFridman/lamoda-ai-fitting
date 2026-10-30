@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, render } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { showFitting, watchFitting, type Fitting } from '@/entities/fitting';
+import { fittingKeys, showFitting, watchFitting, type Fitting } from '@/entities/fitting';
 
 const mocks = vi.hoisted(() => ({
   track: vi.fn(),
@@ -114,7 +114,21 @@ function mount() {
       <Host />
     </QueryClientProvider>,
   );
-  return { invalidate };
+  return { invalidate, queryClient };
+}
+
+function cacheQuota(queryClient: QueryClient, unseen: number) {
+  queryClient.setQueryData(fittingKeys.quota, {
+    limit: 20,
+    used: 3,
+    left: 17,
+    renewsAt: '2026-10-31T21:00:00.000Z',
+    unseen,
+  });
+}
+
+function cachedUnseen(queryClient: QueryClient): number | undefined {
+  return queryClient.getQueryData<{ unseen: number }>(fittingKeys.quota)?.unseen;
 }
 
 async function push(read: Fitting, kind: 'single' | 'look' = read.kind) {
@@ -403,6 +417,91 @@ describe('useFittingEvents on a finished push', () => {
     await vi.waitFor(() => expect(mocks.showToast).toHaveBeenCalledTimes(1));
 
     expect(tracked('Fitting Completed')).toHaveLength(0);
+  });
+
+  describe('the header’s count of results not yet seen (spec 0024 AC30)', () => {
+    it('adds one at once for a completed result no window shows, before the toast', async () => {
+      const done = fitting();
+      serve(done);
+      const { queryClient } = mount();
+      cacheQuota(queryClient, 2);
+      const atToast: (number | undefined)[] = [];
+      mocks.showToast.mockImplementation(() => atToast.push(cachedUnseen(queryClient)));
+
+      await push(done);
+
+      await vi.waitFor(() => expect(mocks.showToast).toHaveBeenCalledTimes(1));
+      expect(atToast).toEqual([3]);
+      expect(cachedUnseen(queryClient)).toBe(3);
+    });
+
+    it('adds one for a completed look as well', async () => {
+      const done = fitting({ kind: 'look' });
+      serve(done);
+      const { queryClient } = mount();
+      cacheQuota(queryClient, 0);
+
+      await push(done);
+
+      await vi.waitFor(() => expect(mocks.showToast).toHaveBeenCalledTimes(1));
+      expect(cachedUnseen(queryClient)).toBe(1);
+    });
+
+    it('adds one for each of two completed results', async () => {
+      const first = fitting();
+      const second = fitting();
+      serve(first);
+      const { queryClient } = mount();
+      cacheQuota(queryClient, 0);
+      await push(first);
+      await vi.waitFor(() => expect(mocks.showToast).toHaveBeenCalledTimes(1));
+      serve(second);
+
+      await push(second);
+
+      await vi.waitFor(() => expect(mocks.showToast).toHaveBeenCalledTimes(2));
+      expect(cachedUnseen(queryClient)).toBe(2);
+    });
+
+    it('adds nothing for a failed fitting', async () => {
+      const failed = fitting({ status: 'failed', failureCode: 'model_timeout' });
+      serve(failed);
+      const { queryClient } = mount();
+      cacheQuota(queryClient, 2);
+
+      await push(failed);
+
+      await vi.waitFor(() => expect(mocks.showToast).toHaveBeenCalledTimes(1));
+      expect(cachedUnseen(queryClient)).toBe(2);
+    });
+
+    it('adds nothing for a fitting an open window shows', async () => {
+      const done = fitting();
+      serve(done);
+      const { queryClient } = mount();
+      cacheQuota(queryClient, 2);
+      const hide = showFitting(done.id);
+
+      await push(done);
+
+      await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(cachedUnseen(queryClient)).toBe(2);
+      hide();
+    });
+
+    it('caches nothing when no quota was read yet: the next read brings the count', async () => {
+      const done = fitting();
+      serve(done);
+      const { queryClient } = mount();
+
+      await push(done);
+
+      await vi.waitFor(() => expect(mocks.showToast).toHaveBeenCalledTimes(1));
+      expect(cachedUnseen(queryClient)).toBeUndefined();
+    });
   });
 
   it('sends the outcome event even when a window shows the fitting', async () => {

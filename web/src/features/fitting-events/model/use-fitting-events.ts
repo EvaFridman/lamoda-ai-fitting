@@ -11,6 +11,7 @@ import {
   type FittingFinished,
   isFittingShown,
   itemWord,
+  setUnseenCount,
   trackFittingOutcome,
   useStartSingleFitting,
 } from '@/entities/fitting';
@@ -24,8 +25,8 @@ function itemName(fitting: Fitting): string {
   return itemWord(fitting.items[0]?.name ?? 'вещь');
 }
 
-// The push of a finished fitting (spec 0019 A11, A34, A71): the fittings and the quota are read
-// again, and the fitting itself, since the push is only a signal (A72). Unless an open try-on window
+// The push of a finished fitting (spec 0019 A11, A34, A71): a result no window shows adds one to
+// the header's badge at once (spec 0024 AC30), then the fittings and the quota are read again, and the fitting itself, since the push is only a signal (A72). Unless an open try-on window
 // shows it, a toast says so on whatever page is open: «Примерка готова: <вещь>» with «Открыть», or
 // «Примерка не удалась: <вещь>.» (and «Лимит не списан.» unless it counts against the limit,
 // A79.3) with «Повторить», which starts the same try-on
@@ -70,7 +71,13 @@ export function useFittingEvents(): void {
     );
   }
 
-  async function finished({ generationId, kind }: FittingFinished) {
+  async function finished({ generationId, kind, status }: FittingFinished) {
+    // A result no window shows is one more not yet seen (spec 0024 AC30): the badge counts it with
+    // the toast's moment, before the read below brings the real count (the api's already holds it).
+    if (status === 'completed' && !isFittingShown(generationId)) {
+      await queryClient.cancelQueries({ queryKey: fittingKeys.quota });
+      setUnseenCount(queryClient, (unseen) => unseen + 1);
+    }
     await queryClient.invalidateQueries({ queryKey: fittingKeys.all });
     let fitting: Fitting;
     try {

@@ -3,7 +3,14 @@
 import { useRouter } from 'next/navigation';
 import { Suspense } from 'react';
 
-import { LimitMeter, renewalDate, triesLeftOfText, useFittingQuota } from '@/entities/fitting';
+import {
+  LimitMeter,
+  renewalDate,
+  triesLeftOfText,
+  useFittingQuota,
+  useMarkAllFittingsSeen,
+} from '@/entities/fitting';
+import { useSession } from '@/entities/session';
 import { AccountShell } from '@/widgets/account-shell';
 import { FittingHistory } from '@/widgets/fitting-history';
 
@@ -30,8 +37,10 @@ function FittingLimit() {
 // «Мои примерки» (spec 0019 T16): `/customer/fittings`, the history inside the account's shell with
 // the limit under its menu. A card opens its fitting in the try-on window through `?fitting=<id>`,
 // the address the toast's «Открыть» and the product page's «Вы это примеряли» use (A77.6, A82).
+// Opening it signed in makes every completed result seen: the header's badge goes (spec 0024 Z18).
 export function FittingsPage() {
   const router = useRouter();
+  useMarkAllFittingsSeen(useSession().status === 'signed-in');
   return (
     <AccountShell section="fittings" aside={<FittingLimit />}>
       <Suspense>

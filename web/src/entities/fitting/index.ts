@@ -1,5 +1,11 @@
 export { downloadFittingImage, fetchFittingImage, saveFittingFile } from './api/download';
-export { deleteFitting, regenerateFitting, startFitting } from './api/fitting-requests';
+export {
+  deleteFitting,
+  markAllFittingsSeen,
+  markFittingSeen,
+  regenerateFitting,
+  startFitting,
+} from './api/fitting-requests';
 export { fittingKeys } from './api/keys';
 export {
   type LookFittingRequest,
@@ -29,6 +35,12 @@ export {
   useLastFitting,
 } from './api/queries';
 export {
+  setUnseenCount,
+  useMarkAllFittingsSeen,
+  useMarkFittingSeen,
+  useUnseenCount,
+} from './api/seen';
+export {
   type CompareRow,
   type FittingDifference,
   fittingDifference,
@@ -52,6 +64,7 @@ export {
   keptOrigin,
   timeLeftText,
 } from './lib/progress';
+export { UNSEEN_MAX, unseenBadgeValue, unseenText, withUnseen } from './lib/unseen';
 export {
   fittingRefusal,
   type FittingStartSource,

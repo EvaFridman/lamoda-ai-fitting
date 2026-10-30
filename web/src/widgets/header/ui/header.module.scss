@@ -217,6 +217,23 @@
   }
 }
 
+// The results not yet seen (spec 0024 AC30): the profile icon's and, on phones, the burger's count
+// sits where the fitting room's does (board 13).
+.badged {
+  position: relative;
+}
+
+.unseen {
+  position: absolute;
+  top: 4px;
+  right: 2px;
+}
+
+// The same count at the end of the profile menu's «Мои примерки».
+.sectionCount {
+  margin-left: auto;
+}
+
 // Keeps its height without categories, so the header does not jump when they arrive (plan §2):
 // next to the search field that field sets it, but below 1024px the row is a row of its own.
 .categories {

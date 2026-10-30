@@ -735,7 +735,18 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   `MenuLinkItem`s (`shared/config/account-sections.ts`, spec 0017 AC2; a section with `fullLoad`,
   the stores', is a plain `<a>` there, in the burger, the side menu and the footer, so its page
   loads in full with its own policy, spec 0022 X16), a separator and `SignOutItems` ("Выйти", "Выйти со всех устройств"; a
-  failure shows a toast). It also mounts `useDropUserQueries` (`features/auth`): whenever the
+  failure shows a toast). Signed in, the icon and the menu's «Мои примерки» carry a `CountBadge`
+  of the completed results not yet seen (spec 0024 Z18, AC30: `useUnseenCount`, the quota's
+  `unseen`, so a signed-in page load reads `GET /me/fitting-quota`; «9+» past nine, the count
+  said in the control's name by `withUnseen`); on phones the burger's icon and its «Мои примерки»
+  row carry it (Z26.1). The push of a result no window shows adds one to the cached count at once
+  (`setUnseenCount`, `useFittingEvents`), the try-on window marks each completed fitting it shows
+  seen, its «Готово!» too (`useMarkFittingSeen` in `TryOn`: `POST /fittings/:id/seen`, then the
+  quota read again while the cached count is above 0 or a read of it is on its way, since a
+  fitting's answer does not say whether it was seen) and «Мои примерки» marks all each time it
+  shows (`useMarkAllFittingsSeen`: a quota read on its way cancelled, 0 in the cache, `POST
+/fittings/seen`, the quota read again whatever its end); a failed mark is only reported. The icon's opening sends `profile-menu.open` (`signed_in`, `unseen` 0–10, 10 for
+  «9+», Z28). It also mounts `useDropUserQueries` (`features/auth`): whenever the
   session is `signed-out` and not `failed`, the queries of `userKeys.all` leave the cache, so the
   next person at the tab never sees `/me` (spec 0017 U22); another user signed in with no end
   seen in between resets them, so a page reads them again as that user. Below 600px the header is
@@ -839,7 +850,7 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   `anchoredPanelOpen()` tells a window under it to leave the focus there, spec 0024 R13), `InfoTip` (a 16 px «!» whose hint is the kit's `Tooltip` with a mouse, after a
   100 ms rest, and a `Popover` of the same look, opened by a tap, under `COARSE_POINTER_QUERY`,
   spec 0024 plan §2.9, Z39),
-  `CountBadge` (nothing at 0; its parent places it and names the count),
+  `CountBadge` (nothing at 0, `<max>+` past `max`; its parent places it and names the count),
   `SoonChip` (board 3's «скоро», grey and 16 px high, spec 0024 Z32, placed by its parent as `CountBadge`, hidden from screen
   readers: the header's inert «Избранное» and «Корзина» over the icon's top right corner, above
   and right of the room count's place, spec 0023 C4, C5, spec 0024 AC8, Z39; after the room's
@@ -1033,8 +1044,9 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   `stores` (`stores.card`, `.details`, `.phone`, `.route`, `.pin`, `.tab`, `.scope`,
   `.search-all`, `Stores Searched`, its text's length, the count and `scope`, `city` or `all`,
   X17, spec 0026 C13, and `City Located`, its `result` and `trigger`); no property names a city
-  or carries a position; `profile-menu.*` take
-  `surface` (`menu`, `burger`; older sends have none).
+  or carries a position; `profile-menu.*` but `.open` (the
+  icon's opening, `signed_in` and `unseen`, spec 0024 Z28) take `surface` (`menu`, `burger`;
+  older sends have none).
   `Signed In` is sent once, on the page a sign-in of this tab came back to: `markSignInStarted()`
   (`features/auth`) puts the time in `sessionStorage` (`sign-in-started`, not an `mp_`/`__mp` key
   the SDK clearing removes) before leaving for Google, and a flag older than 10 minutes counts as

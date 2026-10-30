@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 
+import { UNSEEN_MAX, unseenBadgeValue, useUnseenCount, withUnseen } from '@/entities/fitting';
 import { SessionUserBadge, useSession } from '@/entities/session';
 import {
   DropSignInError,
@@ -15,6 +16,7 @@ import { useFittingEvents } from '@/features/fitting-events';
 import { useTrackedElement } from '@/shared/analytics';
 import { type AccountSection, accountSections } from '@/shared/config';
 import {
+  CountBadge,
   IconButton,
   Menu,
   MenuHeader,
@@ -27,18 +29,28 @@ import styles from './header.module.scss';
 import { BURGER_ID } from './header-menu';
 
 // A section of the account (spec 0017 U6, AC2): a link, its clicks and hovers tracked by section;
-// a plain <a> for a section that loads in full (spec 0022 X16).
-function SectionLink({ section, title, href, fullLoad }: AccountSection) {
+// a plain <a> for a section that loads in full (spec 0022 X16). «Мои примерки» carries the count of
+// the results not yet seen (spec 0024 AC30), said in its name since the badge is hidden.
+function SectionLink({
+  section,
+  title,
+  href,
+  fullLoad,
+  unseen,
+}: AccountSection & { unseen: number }) {
   const tracked = useTrackedElement('profile-menu.section', { section, surface: 'menu' });
+  const count = section === 'fittings' ? unseen : 0;
   return (
     <MenuLinkItem
       href={href}
       fullLoad={fullLoad}
+      aria-label={count > 0 ? withUnseen(title, count) : undefined}
       onClick={tracked.onClick}
       onPointerEnter={tracked.onPointerEnter}
       onPointerLeave={tracked.onPointerLeave}
     >
       {title}
+      <CountBadge count={count} max={UNSEEN_MAX} className={styles.sectionCount} />
     </MenuLinkItem>
   );
 }
@@ -48,12 +60,21 @@ function SectionLink({ section, title, href, fullLoad }: AccountSection) {
 // in the browser, so the page stays static. Render it per request inside <Suspense>: the modal
 // reads the query. Below 600px the header hides it by CSS but keeps it mounted: its hooks and its
 // login modal, the one that answers a failed sign-in's code, run on every width (spec 0019 A87.7).
+// Signed in, the icon and the menu's «Мои примерки» carry the count of the results not yet seen
+// (spec 0024 AC30); the icon's opening sends `profile-menu.open` (Z26.5).
 export function HeaderProfile() {
   const session = useSession();
   useSignInAnalytics(session);
   useDropUserQueries(session);
   useSessionRealtime(session);
   useFittingEvents();
+  const signedIn = session.status === 'signed-in';
+  // The results not yet seen (spec 0024 AC30): signed out nothing.
+  const unseen = useUnseenCount(signedIn);
+  const opened = useTrackedElement('profile-menu.open', {
+    signed_in: signedIn,
+    unseen: unseenBadgeValue(unseen),
+  });
   const iconRef = useRef<HTMLButtonElement>(null);
   const wasSignedInRef = useRef(false);
   // On phones the icon is hidden (spec 0019 A87.4), so the modal that opened by itself on a failed
@@ -88,8 +109,17 @@ export function HeaderProfile() {
   }
 
   const trigger = (
-    <IconButton ref={iconRef} aria-label="Профиль" variant="plain" className={styles.iconButton}>
+    <IconButton
+      ref={iconRef}
+      aria-label={withUnseen('Профиль', unseen)}
+      variant="plain"
+      className={`${styles.iconButton} ${styles.badged}`}
+      onClick={opened.onClick}
+      onPointerEnter={opened.onPointerEnter}
+      onPointerLeave={opened.onPointerLeave}
+    >
       <ProfileIcon />
+      <CountBadge count={unseen} max={UNSEEN_MAX} className={styles.unseen} />
     </IconButton>
   );
 
@@ -107,7 +137,7 @@ export function HeaderProfile() {
           <SessionUserBadge user={session.user} />
         </MenuHeader>
         {accountSections.map((section) => (
-          <SectionLink key={section.section} {...section} />
+          <SectionLink key={section.section} {...section} unseen={unseen} />
         ))}
         <MenuSeparator />
         <SignOutItems />

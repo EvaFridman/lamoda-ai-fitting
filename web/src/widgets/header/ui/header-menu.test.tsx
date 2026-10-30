@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render as renderPlain, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactElement, ReactNode } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { SessionState } from '@/entities/session';
 import type { City } from '@/entities/store';
@@ -462,6 +462,112 @@ describe('HeaderMenu', () => {
       expect(within(modal).queryByRole('list')).not.toBeInTheDocument();
       expect(within(modal).queryByRole('button', { name: 'Москва' })).not.toBeInTheDocument();
       expect(modal).toHaveTextContent(errorText(undefined));
+    });
+  });
+
+  describe('the results not yet seen (spec 0024 AC30)', () => {
+    const fetchMock = vi.fn();
+
+    function quotaWith(unseen: number) {
+      fetchMock.mockImplementation(() =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              limit: 20,
+              used: 3,
+              left: 17,
+              renewsAt: '2026-10-31T21:00:00.000Z',
+              unseen,
+            }),
+            { headers: { 'Content-Type': 'application/json' } },
+          ),
+        ),
+      );
+      vi.stubGlobal('fetch', fetchMock);
+    }
+
+    beforeEach(() => {
+      queryClient.clear();
+      fetchMock.mockReset();
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it('draws the count on the burger and says it in its name', async () => {
+      quotaWith(3);
+      signedIn();
+      render(<HeaderMenu categories={categories} cities={cities} />);
+
+      const burger = await screen.findByRole('button', { name: 'Меню, 3 новые примерки' });
+      expect(burger).toHaveAttribute('id', BURGER_ID);
+      expect(within(burger).getByText('3')).toHaveAttribute('aria-hidden', 'true');
+    });
+
+    it('draws «9+» past nine', async () => {
+      quotaWith(14);
+      signedIn();
+      render(<HeaderMenu categories={categories} cities={cities} />);
+
+      const burger = await screen.findByRole('button', {
+        name: 'Меню, больше 9 новых примерок',
+      });
+      expect(burger).toHaveTextContent('9+');
+    });
+
+    it('draws no badge with nothing unseen', async () => {
+      quotaWith(0);
+      signedIn();
+      render(<HeaderMenu categories={categories} cities={cities} />);
+
+      await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
+      expect(screen.getByRole('button', { name: 'Меню' }).textContent).toBe('');
+    });
+
+    it('counts «Мои примерки» in the drawer and no other row', async () => {
+      quotaWith(3);
+      signedIn();
+      const user = userEvent.setup({ pointerEventsCheck: 0 });
+      render(<HeaderMenu categories={categories} cities={cities} />);
+      await user.click(await screen.findByRole('button', { name: 'Меню, 3 новые примерки' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Меню' });
+
+      const row = within(dialog).getByRole('link', { name: 'Мои примерки, 3 новые примерки' });
+      expect(row).toHaveTextContent('Мои примерки3');
+      expect(row).toHaveAttribute('href', '/customer/fittings');
+      expect(within(dialog).getByRole('link', { name: 'Мои данные' })).toHaveTextContent(
+        /^Мои данные$/,
+      );
+    });
+
+    it('shows «9+» on the drawer’s row past nine', async () => {
+      quotaWith(30);
+      signedIn();
+      const user = userEvent.setup({ pointerEventsCheck: 0 });
+      render(<HeaderMenu categories={categories} cities={cities} />);
+      await user.click(
+        await screen.findByRole('button', { name: 'Меню, больше 9 новых примерок' }),
+      );
+      const dialog = await screen.findByRole('dialog', { name: 'Меню' });
+
+      expect(
+        within(dialog).getByRole('link', { name: 'Мои примерки, больше 9 новых примерок' }),
+      ).toHaveTextContent('Мои примерки9+');
+    });
+
+    it('draws nothing and reads no quota when signed out', async () => {
+      quotaWith(3);
+      mocks.session = { status: 'signed-out', failed: false };
+      const user = userEvent.setup({ pointerEventsCheck: 0 });
+      render(<HeaderMenu categories={categories} cities={cities} />);
+      const burger = screen.getByRole('button', { name: 'Меню' });
+      expect(burger.textContent).toBe('');
+      await user.click(burger);
+      const dialog = await screen.findByRole('dialog', { name: 'Меню' });
+
+      expect(within(dialog).queryByRole('link', { name: /Мои примерки/ })).not.toBeInTheDocument();
+      expect(fetchMock).not.toHaveBeenCalled();
     });
   });
 
