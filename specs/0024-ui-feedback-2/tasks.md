@@ -129,7 +129,7 @@ same release); PR 4 the closing, which records the owner's checks on the deploye
       opens `ResultViewer`, the download and share icons with tooltips, `features/share-fitting`
       with the fetched-ahead blob, «Добавить к образу» in the right column; `result.picture`,
       `result.share`, `result.fullscreen` removed, `result.download` and `result.to-look`
-      descriptions. Check: `result-media.test.tsx`, `use-fitting-share.test.ts`, `try-on.test.tsx`,
+      descriptions. Check: `result-media.test.tsx`, `use-fitting-share.test.tsx`, `try-on.test.tsx`,
       `catalog.test.ts`. Commit: `feat(web): full screen by click, download and share over the picture`.
 - [x] **T22. «Что поменять?» as a popover (plan §4.4; AC26).** `RegeneratePopover` with the
       backdrop and the rise, on every width; the descriptions. Check:
@@ -182,7 +182,7 @@ lamoda-ai-fitting.ru. The `qa-tester` runs are the phases' last tasks: T13 (AC1�
 | AC21 | ✅     | T19: `try-on.test.tsx`; T23's qa-tester at a phone width.                                                                                                                                                   |
 | AC22 | ✅     | T14: `me-photos.e2e-spec.ts`, `access-markers`, `openapi-snapshot`; T14a: `fittings-routes.e2e-spec.ts`, `schemas.contract.test.ts`; T20: `save-photo-switch.test.tsx`, `try-on.test.tsx`; T23's qa-tester. |
 | AC23 | ✅     | T21: `result-media.test.tsx`, `try-on.test.tsx`, `catalog.test.ts`; T23's qa-tester with touch emulation.                                                                                                   |
-| AC24 | ✅     | T21: `use-fitting-share.test.ts`. The owner, 2026-10-30, on an iPhone (Safari, Chrome) and a desktop (Chrome, Safari, Firefox): the share or Z13's fallback, never nothing.                                 |
+| AC24 | ✅     | T21: `use-fitting-share.test.tsx`. The owner, 2026-10-30, on an iPhone (Safari, Chrome) and a desktop (Chrome, Safari, Firefox): the share or Z13's fallback, never nothing.                                |
 | AC25 | ✅     | T21: `try-on.test.tsx`; the review fix of PR 3 (Z49); T23's qa-tester.                                                                                                                                      |
 | AC26 | ✅     | T22: `regenerate-popover.test.tsx`, `try-on-look.test.tsx`; T23's qa-tester on a desktop and a phone width.                                                                                                 |
 | AC27 | ✅     | T18: `heic.test.ts`, `upload-photo.test.tsx`, `policy.test.ts`, `check:web-bundle`; T23's qa-tester. The owner, 2026-10-30, with a real HEIC: chosen, dropped and pasted, OK.                               |
