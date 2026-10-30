@@ -88,6 +88,8 @@ const listed = {
 function api(left: number, items: unknown[] = []) {
   fetchMock.mockImplementation((url: unknown) => {
     const { pathname } = new URL(String(url));
+    if (pathname === '/api/fittings/seen')
+      return Promise.resolve(new Response(null, { status: 204 }));
     if (pathname === '/api/fittings') {
       return json({ items, total: items.length, nextCursor: null });
     }
@@ -95,8 +97,16 @@ function api(left: number, items: unknown[] = []) {
   });
 }
 
-function renderPage() {
+function seenPosts() {
+  return fetchMock.mock.calls.filter(
+    ([url, init]) =>
+      init?.method === 'POST' && new URL(String(url)).pathname === '/api/fittings/seen',
+  );
+}
+
+function renderPage(prime?: (queryClient: QueryClient) => void) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  prime?.(queryClient);
   const tree = () => (
     <QueryClientProvider client={queryClient}>
       <FittingsPage />
@@ -104,7 +114,7 @@ function renderPage() {
   );
   const view = render(tree());
   // The address changed: a new element (the same one would bail out) reads the new search.
-  return { ...view, navigate: () => view.rerender(tree()) };
+  return { ...view, queryClient, navigate: () => view.rerender(tree()) };
 }
 
 beforeEach(() => {
@@ -177,6 +187,111 @@ describe('the fittings page', () => {
       `/customer/fittings?from=history&fitting=${FITTING_ID}`,
       { scroll: false },
     );
+  });
+});
+
+describe('the fittings page marks the results as seen (spec 0024 AC30)', () => {
+  it('sends POST /fittings/seen once when opened signed in', async () => {
+    const page = renderPage();
+
+    await vi.waitFor(() => expect(seenPosts()).toHaveLength(1));
+    page.navigate();
+    await screen.findByText('Здесь появятся ваши примерки');
+    expect(seenPosts()).toHaveLength(1);
+  });
+
+  it('marks again when the page mounts again', async () => {
+    const first = renderPage();
+    await vi.waitFor(() => expect(seenPosts()).toHaveLength(1));
+    first.unmount();
+
+    renderPage();
+
+    await vi.waitFor(() => expect(seenPosts()).toHaveLength(2));
+  });
+
+  it('makes the header’s cached count 0 shortly, while the api has not answered', async () => {
+    fetchMock.mockImplementation((url: unknown) => {
+      const { pathname } = new URL(String(url));
+      return pathname === '/api/fittings/seen' || pathname === '/api/me/fitting-quota'
+        ? new Promise<Response>(() => undefined)
+        : json({ items: [], total: 0, nextCursor: null });
+    });
+
+    const page = renderPage((queryClient) =>
+      queryClient.setQueryData(['users', 'fittings', 'quota'], {
+        limit: 20,
+        used: 3,
+        left: 17,
+        renewsAt: '2026-10-31T21:00:00.000Z',
+        unseen: 4,
+      }),
+    );
+
+    await vi.waitFor(() => expect(seenPosts()).toHaveLength(1));
+    expect(
+      page.queryClient.getQueryData<{ unseen: number }>(['users', 'fittings', 'quota'])?.unseen,
+    ).toBe(0);
+  });
+
+  it('reads the quota again after the answer, for the real count', async () => {
+    let invalidate = vi.fn();
+    renderPage((queryClient) => {
+      invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+    });
+
+    await vi.waitFor(() => expect(seenPosts()).toHaveLength(1));
+    await vi.waitFor(() =>
+      expect(invalidate).toHaveBeenCalledWith({ queryKey: ['users', 'fittings', 'quota'] }),
+    );
+  });
+
+  it('sends nothing signed out', async () => {
+    mocks.session = { status: 'signed-out', failed: false };
+    renderPage();
+
+    await screen.findByText('Войдите, чтобы открыть личный кабинет');
+    expect(seenPosts()).toHaveLength(0);
+  });
+
+  it('shows the meter when the first quota read is cancelled and the mark fails', async () => {
+    let quotaReads = 0;
+    fetchMock.mockImplementation((url: unknown) => {
+      const { pathname } = new URL(String(url));
+      if (pathname === '/api/fittings/seen') {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({ error: { code: 'NOT_FOUND', message: 'm', details: [] } }),
+            { status: 404 },
+          ),
+        );
+      }
+      if (pathname === '/api/fittings') return json({ items: [], total: 0, nextCursor: null });
+      quotaReads += 1;
+      return quotaReads === 1 ? new Promise<Response>(() => undefined) : quota(5);
+    });
+    renderPage();
+
+    expect(await screen.findByText('Осталось 5 из 20 примерок в этом месяце')).toBeInTheDocument();
+  });
+
+  it('does not stop the page when the mark fails', async () => {
+    fetchMock.mockImplementation((url: unknown) => {
+      const { pathname } = new URL(String(url));
+      if (pathname === '/api/fittings/seen') {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({ error: { code: 'INTERNAL_ERROR', message: 'm', details: [] } }),
+            { status: 500 },
+          ),
+        );
+      }
+      if (pathname === '/api/fittings') return json({ items: [], total: 0, nextCursor: null });
+      return quota(5);
+    });
+    renderPage();
+
+    expect(await screen.findByText('Здесь появятся ваши примерки')).toBeInTheDocument();
   });
 });
 

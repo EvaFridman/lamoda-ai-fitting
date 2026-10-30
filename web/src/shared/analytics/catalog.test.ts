@@ -425,6 +425,7 @@ describe('analytics catalog', () => {
       'profile-menu.sign-out': ['auth', 'interaction'],
       'profile-menu.sign-out-everywhere': ['auth', 'interaction'],
       'profile-menu.section': ['auth', 'navigation'],
+      'profile-menu.open': ['auth', 'interaction'],
       'account-menu.section': ['account', 'navigation'],
       'account-menu.back': ['account', 'navigation'],
       'account-invite.sign-in': ['account', 'interaction'],

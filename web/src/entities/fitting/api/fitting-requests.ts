@@ -40,3 +40,14 @@ export function regenerateFitting(
 export function deleteFitting(id: string): Promise<undefined> {
   return clientFetch(buildPath('/fittings/:id', { id }), null, { method: 'DELETE' });
 }
+
+// POST /fittings/:id/seen: the result was opened (spec 0024 Z18), a 204. One not completed is left
+// as it is; someone else's or a missing one is 404.
+export function markFittingSeen(id: string): Promise<undefined> {
+  return clientFetch(buildPath('/fittings/:id/seen', { id }), null, { method: 'POST' });
+}
+
+// POST /fittings/seen: the history was opened, every completed result is seen (Z18), a 204.
+export function markAllFittingsSeen(): Promise<undefined> {
+  return clientFetch(buildPath('/fittings/seen'), null, { method: 'POST' });
+}

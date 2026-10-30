@@ -236,6 +236,9 @@ function route(url: string, init?: RequestInit): Response {
   const product = /^\/api\/products\/([^/]+)$/.exec(pathname);
   const found = product?.[1] ? details.get(product[1]) : undefined;
   if (found) return json(200, found);
+  if (/^\/api\/fittings\/[^/]+\/seen$/.test(pathname) && method === 'POST') {
+    return new Response(null, { status: 204 });
+  }
   if (pathname === '/api/fittings' && method === 'POST') return api.started();
   if (pathname === '/api/fittings') {
     return json(200, { items: [...api.fittings.values()], nextCursor: null, total: 0 });
@@ -248,10 +251,19 @@ function route(url: string, init?: RequestInit): Response {
   return failure(404, 'NOT_FOUND');
 }
 
-function posts() {
+function allPosts() {
   return fetchMock.mock.calls
     .map(([url, init]) => ({ path: new URL(String(url)).pathname, init: init as RequestInit }))
     .filter(({ init }) => init?.method === 'POST');
+}
+
+// The starts; the marks of a result as seen (spec 0024 AC30) are counted apart.
+function posts() {
+  return allPosts().filter(({ path }) => !path.endsWith('/seen'));
+}
+
+function seenPosts() {
+  return allPosts().filter(({ path }) => path.endsWith('/seen'));
 }
 
 function bodyOf(index: number) {
@@ -1004,7 +1016,9 @@ describe('TryOn of a look: the optimistic start (AC19)', () => {
   function holdStarts() {
     const waiting: ((response: Response) => void)[] = [];
     fetchMock.mockImplementation((url: string, init?: RequestInit) =>
-      init?.method === 'POST' && new URL(String(url)).pathname.startsWith('/api/fittings')
+      init?.method === 'POST' &&
+      new URL(String(url)).pathname.startsWith('/api/fittings') &&
+      !new URL(String(url)).pathname.endsWith('/seen')
         ? new Promise<Response>((resolve) => waiting.push(resolve))
         : Promise.resolve(route(String(url), init)),
     );
@@ -1382,5 +1396,28 @@ describe('TryOn of a look on a phone (boards 8.1, 8.2)', () => {
     await vi.waitFor(() => expect(posts()).toHaveLength(1));
     expect(bodyOf(0).items[0]).toEqual({ productId: SHIRT, attributeValueId: BLACK });
     expect(bodyOf(0).kind).toBe('look');
+  });
+});
+
+describe('TryOn of a look marks a result as seen (spec 0024 AC30)', () => {
+  it('sends POST /fittings/:id/seen once for a completed look it shows', async () => {
+    showResult();
+    renderTryOn({ fittingId: RESULT });
+    await screen.findByRole('group', { name: 'Цвет: Рубашка' });
+
+    await vi.waitFor(() => expect(seenPosts()).toHaveLength(1));
+    expect(seenPosts()[0]?.path).toBe(`/api/fittings/${RESULT}/seen`);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(seenPosts()).toHaveLength(1);
+  });
+
+  it('marks nothing for a look that failed', async () => {
+    showResult(look({ status: 'failed', failureCode: 'model_timeout' }));
+    renderTryOn({ fittingId: RESULT });
+    await screen.findByRole('button', { name: 'Попробовать ещё раз' });
+
+    expect(seenPosts()).toHaveLength(0);
   });
 });

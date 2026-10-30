@@ -417,6 +417,18 @@ export const catalog = defineCatalog({
       clicksPerVisit: 0.06,
       hoversPerVisit: 0.08,
     },
+    'profile-menu.open': {
+      zone: 'auth',
+      type: 'interaction',
+      description:
+        'Иконка профиля в шапке (от 600px): вошедшему открывает меню профиля, остальным — окно входа. `signed_in` — вошёл ли посетитель; `unseen` — число на значке готовых примерок, ещё не открытых (спека 0024 Z18): 0–9, 10 для «9+» (Z28), у не вошедшего 0. Пока сессия читается, иконка неактивна и не отслеживается.',
+      clicksPerVisit: 0.12,
+      hoversPerVisit: 0.15,
+      properties: {
+        signed_in: { kind: 'boolean' },
+        unseen: { kind: 'number' },
+      },
+    },
     'profile-menu.sign-out': {
       zone: 'auth',
       type: 'interaction',

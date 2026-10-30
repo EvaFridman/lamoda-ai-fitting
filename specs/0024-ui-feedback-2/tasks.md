@@ -134,7 +134,7 @@ same release); PR 4 the closing, which records the owner's checks on the deploye
       backdrop and the rise, on every width; the descriptions. Check:
       `regenerate-popover.test.tsx`, `try-on-look.test.tsx`. Commit:
       `feat(web): «Что поменять?» rises over the result`.
-- [ ] **T23. The unseen badge (plan §4.6; AC30).** `unseen` in the quota schema, the seen writes
+- [x] **T23. The unseen badge (plan §4.6; AC30).** `unseen` in the quota schema, the seen writes
       from the results and the history page, the push's +1, the badges on the profile icon, the
       burger and both «Мои примерки», `profile-menu.open`. Check: `use-fitting-events.test.tsx`,
       `header-profile.test.tsx`, `header-menu.test.tsx`, `fittings-page.test.tsx`,

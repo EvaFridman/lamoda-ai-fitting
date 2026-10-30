@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render as renderPlain, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactElement, ReactNode } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { SessionState } from '@/entities/session';
 import { userKeys } from '@/entities/user';
@@ -86,6 +86,11 @@ function attributeValues(container: ParentNode): string[] {
   return Array.from(container.querySelectorAll('*')).flatMap((element) =>
     Array.from(element.attributes, (attribute) => attribute.value),
   );
+}
+
+// The tracked sends of one element: opening the menu sends `profile-menu.open` first.
+function sent(element: string) {
+  return mocks.track.mock.calls.filter(([, properties]) => properties?.element === element);
 }
 
 async function openMenu() {
@@ -263,13 +268,18 @@ describe('HeaderProfile', () => {
     render(<HeaderProfile />);
     const { user, menu } = await openMenu();
     await user.click(within(menu).getByRole('menuitem', { name: 'Мои данные' }));
-    expect(mocks.track).toHaveBeenCalledExactlyOnceWith('Element Clicked', {
-      element: 'profile-menu.section',
-      zone: 'auth',
-      type: 'navigation',
-      section: 'data',
-      surface: 'menu',
-    });
+    expect(sent('profile-menu.section')).toEqual([
+      [
+        'Element Clicked',
+        {
+          element: 'profile-menu.section',
+          zone: 'auth',
+          type: 'navigation',
+          section: 'data',
+          surface: 'menu',
+        },
+      ],
+    ]);
   });
 
   // The mocked next/link cancels its click, as the real one does to navigate on the client; a plain
@@ -291,13 +301,18 @@ describe('HeaderProfile', () => {
     document.removeEventListener('click', listener);
 
     expect(cancelled).toEqual([cancelledByLink]);
-    expect(mocks.track).toHaveBeenCalledExactlyOnceWith('Element Clicked', {
-      element: 'profile-menu.section',
-      zone: 'auth',
-      type: 'navigation',
-      section,
-      surface: 'menu',
-    });
+    expect(sent('profile-menu.section')).toEqual([
+      [
+        'Element Clicked',
+        {
+          element: 'profile-menu.section',
+          zone: 'auth',
+          type: 'navigation',
+          section,
+          surface: 'menu',
+        },
+      ],
+    ]);
     await vi.waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
   });
 
@@ -330,10 +345,9 @@ describe('HeaderProfile', () => {
     await user.keyboard('{Enter}');
     await vi.waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
     expect(trigger).toHaveAttribute('aria-expanded', 'false');
-    expect(mocks.track).toHaveBeenCalledExactlyOnceWith(
-      'Element Clicked',
-      expect.objectContaining({ element: 'profile-menu.section', section: 'stores' }),
-    );
+    expect(sent('profile-menu.section')).toEqual([
+      ['Element Clicked', expect.objectContaining({ section: 'stores' })],
+    ]);
   });
 
   it.each([
@@ -345,10 +359,9 @@ describe('HeaderProfile', () => {
     render(<HeaderProfile />);
     const { user, menu } = await openMenu();
     await user.click(within(menu).getByRole('menuitem', { name }));
-    expect(mocks.track).toHaveBeenCalledExactlyOnceWith(
-      'Element Clicked',
-      expect.objectContaining({ element: 'profile-menu.section', section }),
-    );
+    expect(sent('profile-menu.section')).toEqual([
+      ['Element Clicked', expect.objectContaining({ section })],
+    ]);
   });
 
   it('puts the separator between the pages and the sign-outs', async () => {
@@ -440,6 +453,190 @@ describe('HeaderProfile', () => {
       signedIn(NAME);
       rerender(<HeaderProfile />);
       expect(queryClient.getQueryData(userKeys.me)).toBe(cached);
+    });
+  });
+
+  describe('the results not yet seen (spec 0024 AC30)', () => {
+    const fetchMock = vi.fn();
+
+    function quotaWith(unseen: number) {
+      fetchMock.mockImplementation(() =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              limit: 20,
+              used: 3,
+              left: 17,
+              renewsAt: '2026-10-31T21:00:00.000Z',
+              unseen,
+            }),
+            { headers: { 'Content-Type': 'application/json' } },
+          ),
+        ),
+      );
+      vi.stubGlobal('fetch', fetchMock);
+    }
+
+    beforeEach(() => {
+      fetchMock.mockReset();
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it('draws the count on the icon and says it in the icon’s name', async () => {
+      quotaWith(3);
+      signedIn(NAME);
+      render(<HeaderProfile />);
+
+      const icon = await screen.findByRole('button', { name: 'Профиль, 3 новые примерки' });
+      expect(icon).toHaveTextContent('3');
+      expect(within(icon).getByText('3')).toHaveAttribute('aria-hidden', 'true');
+    });
+
+    it('draws «9+» past nine and names it as more than nine', async () => {
+      quotaWith(12);
+      signedIn(NAME);
+      render(<HeaderProfile />);
+
+      const icon = await screen.findByRole('button', { name: 'Профиль, больше 9 новых примерок' });
+      expect(icon).toHaveTextContent('9+');
+    });
+
+    it('draws nine as it is', async () => {
+      quotaWith(9);
+      signedIn(NAME);
+      render(<HeaderProfile />);
+
+      const icon = await screen.findByRole('button', { name: 'Профиль, 9 новых примерок' });
+      expect(icon).toHaveTextContent(/^9$/);
+    });
+
+    it('draws no badge and keeps the bare name with nothing unseen', async () => {
+      quotaWith(0);
+      signedIn(NAME);
+      render(<HeaderProfile />);
+
+      await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
+      const icon = screen.getByRole('button', { name: 'Профиль' });
+      expect(icon.textContent).toBe('');
+    });
+
+    it('shows the same count on the menu’s «Мои примерки» and on no other section', async () => {
+      quotaWith(3);
+      signedIn(NAME);
+      render(<HeaderProfile />);
+      const user = userEvent.setup({ pointerEventsCheck: 0 });
+      await user.click(await screen.findByRole('button', { name: 'Профиль, 3 новые примерки' }));
+      const menu = await screen.findByRole('menu');
+
+      const row = within(menu).getByRole('menuitem', { name: 'Мои примерки, 3 новые примерки' });
+      expect(row).toHaveTextContent('Мои примерки3');
+      expect(within(menu).getByRole('menuitem', { name: 'Мои данные' })).toHaveTextContent(
+        /^Мои данные$/,
+      );
+      expect(within(menu).getByRole('menuitem', { name: 'Мои заказы' })).toHaveTextContent(
+        /^Мои заказы$/,
+      );
+    });
+
+    it('shows «9+» on the menu’s row past nine', async () => {
+      quotaWith(25);
+      signedIn(NAME);
+      render(<HeaderProfile />);
+      const user = userEvent.setup({ pointerEventsCheck: 0 });
+      await user.click(
+        await screen.findByRole('button', { name: 'Профиль, больше 9 новых примерок' }),
+      );
+      const menu = await screen.findByRole('menu');
+
+      const row = within(menu).getByRole('menuitem', {
+        name: 'Мои примерки, больше 9 новых примерок',
+      });
+      expect(row).toHaveTextContent('Мои примерки9+');
+    });
+
+    it('keeps the bare «Мои примерки» with nothing unseen', async () => {
+      quotaWith(0);
+      signedIn(NAME);
+      render(<HeaderProfile />);
+      await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
+      const { menu } = await openMenu();
+
+      expect(within(menu).getByRole('menuitem', { name: 'Мои примерки' })).toHaveTextContent(
+        /^Мои примерки$/,
+      );
+    });
+
+    it('draws nothing and reads no quota when signed out', async () => {
+      quotaWith(3);
+      mocks.session = { status: 'signed-out', failed: false };
+      render(<HeaderProfile />);
+
+      const icon = screen.getByRole('button', { name: 'Профиль' });
+      expect(icon.textContent).toBe('');
+      await Promise.resolve();
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('sends profile-menu.open with the badge’s count on the icon’s click', async () => {
+      quotaWith(3);
+      signedIn(NAME);
+      render(<HeaderProfile />);
+      const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+      await user.click(await screen.findByRole('button', { name: 'Профиль, 3 новые примерки' }));
+
+      expect(sent('profile-menu.open')).toEqual([
+        [
+          'Element Clicked',
+          {
+            element: 'profile-menu.open',
+            zone: 'auth',
+            type: 'interaction',
+            signed_in: true,
+            unseen: 3,
+          },
+        ],
+      ]);
+    });
+
+    it('sends 10 for «9+»: the value is about the badge, not the real count', async () => {
+      quotaWith(25);
+      signedIn(NAME);
+      render(<HeaderProfile />);
+      const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+      await user.click(
+        await screen.findByRole('button', { name: 'Профиль, больше 9 новых примерок' }),
+      );
+
+      expect(sent('profile-menu.open')).toEqual([
+        ['Element Clicked', expect.objectContaining({ signed_in: true, unseen: 10 })],
+      ]);
+    });
+
+    it('sends profile-menu.open with signed_in false and unseen 0 when signed out', async () => {
+      quotaWith(3);
+      mocks.session = { status: 'signed-out', failed: false };
+      render(<HeaderProfile />);
+      const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+      await user.click(screen.getByRole('button', { name: 'Профиль' }));
+
+      expect(sent('profile-menu.open')).toEqual([
+        ['Element Clicked', expect.objectContaining({ signed_in: false, unseen: 0 })],
+      ]);
+    });
+
+    it('sends nothing for the inert icon while the session loads', async () => {
+      render(<HeaderProfile />);
+      const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+      await user.click(screen.getByRole('button', { name: 'Профиль' }));
+
+      expect(sent('profile-menu.open')).toEqual([]);
     });
   });
 

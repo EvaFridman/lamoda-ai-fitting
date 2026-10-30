@@ -17,6 +17,7 @@ import {
   trackFittingOutcome,
   triesLeftTail,
   useFittingQuota,
+  useMarkFittingSeen,
   useRegenerateFitting,
   useStartLookFitting,
   useStartSingleFitting,
@@ -192,6 +193,9 @@ export function TryOn({
 
   // A fitting this window shows: no toast for it, and its end is this tab's to send.
   useEffect(() => (fittingId ? showFitting(fittingId) : undefined), [fittingId]);
+  // Completed here, «Готово!» or the result: the header's badge does not count it (spec 0024
+  // AC30), even when the window closes during the success screen.
+  useMarkFittingSeen(fitting?.status === 'completed' ? fitting.id : null);
   const wasRunningRef = useRef(false);
   // The fitting whose success screen shows (spec 0023 P26): one seen running in this window that
   // completed; a fitting opened completed never shows it. Kept in state during the render, as
