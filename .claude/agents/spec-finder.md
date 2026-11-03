@@ -22,7 +22,7 @@ nothing relevant may be left out silently.
   evidence). `specs/principles.md` explains the flow; `specs/backlog.md` lists known problems
   waiting for a spec in their area (quote the items that touch the question's area).
 - The living rules: `CLAUDE.md`, `.claude/rules/*.md` (rules scoped to parts of the repository,
-  such as deploys), `README.md`, `deploy/README.md`, `CONTRIBUTING.md`, `.claude/README.md`.
+  such as deploys), `README.md`, `docs/development.md`, `deploy/README.md`, `CONTRIBUTING.md`, `.claude/README.md`.
 
 Find files and hits with Grep/Glob if you have them, otherwise with Bash: `ls specs`,
 `rg -n '<pattern>' specs` (quote patterns in single quotes, one command per call; a hook allows

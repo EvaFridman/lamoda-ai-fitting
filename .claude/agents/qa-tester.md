@@ -30,7 +30,7 @@ files.
 ## The stack you test
 
 Local Docker only (`docker-compose.yml`), the copy of the stack in your working directory. Up to
-three copies may run side by side (README, "Другие копии стека"):
+three copies may run side by side (`docs/development.md`, "Другие копии стека"):
 
 | Copy            | api                     | web                     | Temporal UI             | S3 emulator             | Fake Google (`oidc`)    |
 | --------------- | ----------------------- | ----------------------- | ----------------------- | ----------------------- | ----------------------- |
