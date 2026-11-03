@@ -131,6 +131,7 @@ describe('selectFiles', () => {
       'CLAUDE.md',
       'CONTRIBUTING.md',
       'README.md',
+      'docs/development.md',
       'api/README.md',
       'web/README.md',
       '.claude/rules/analytics.md',
@@ -182,6 +183,8 @@ describe('selectFiles', () => {
       'tools/code-rag/src/files.ts',
       '.rag/index.sqlite',
       'specs-old/a.md',
+      'README.en.md',
+      'docs/images/hero.gif',
     ]) {
       assert.equal(reasonOf(path), 'outside', path);
     }
