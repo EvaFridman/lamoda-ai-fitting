@@ -37,8 +37,8 @@ x-api-env: &api-env
   SOCKET_MAX_MESSAGE_BYTES: ${SOCKET_MAX_MESSAGE_BYTES:-65536}
   # Seconds the filter counts stay in Redis (spec 0014 plan §2.6); the default is the api's own.
   FACETS_CACHE_TTL_SECONDS: ${FACETS_CACHE_TTL_SECONDS:-60}
-  # Required in .env (may be empty): a .env made before spec 0006 lacks it, see README.
-  PROXY_SECRET: ${PROXY_SECRET?add PROXY_SECRET to .env (openssl rand -hex 32), see README}
+  # Required in .env (may be empty): a .env made before spec 0006 lacks it, see docs/development.md.
+  PROXY_SECRET: ${PROXY_SECRET?add PROXY_SECRET to .env (openssl rand -hex 32), see docs/development.md}
   # Optional: trusted as well while PROXY_SECRET is rotated (spec 0006 F21).
   PROXY_SECRET_NEXT: ${PROXY_SECRET_NEXT:-}
   MEDIA_BASE_URL: ${MEDIA_BASE_URL:-http://localhost:${WEB_HOST_PORT:-3001}/media/}
@@ -46,9 +46,9 @@ x-api-env: &api-env
   S3_ENDPOINT: http://s3:8333
   S3_PUBLIC_ENDPOINT: http://localhost:${S3_HOST_PORT:-8333}
   S3_BUCKET: ${S3_BUCKET:-ai-fitting}
-  # Required in .env: a .env made before spec 0011 lacks them, see README.
-  S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?add S3_ACCESS_KEY_ID to .env (openssl rand -hex 10), see README}
-  S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?add S3_SECRET_ACCESS_KEY to .env (openssl rand -hex 20), see README}
+  # Required in .env: a .env made before spec 0011 lacks them, see docs/development.md.
+  S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?add S3_ACCESS_KEY_ID to .env (openssl rand -hex 10), see docs/development.md}
+  S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?add S3_SECRET_ACCESS_KEY to .env (openssl rand -hex 20), see docs/development.md}
   # Signed link lifetime in seconds (spec 0011 M9); the default is the api's own.
   S3_SIGNED_URL_TTL_SECONDS: ${S3_SIGNED_URL_TTL_SECONDS:-900}
   # Empty turns Sentry off.
@@ -162,8 +162,8 @@ services:
       - -webdav=false
       - -s3.autoCreateBucket=false
     environment:
-      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?add S3_ACCESS_KEY_ID to .env (openssl rand -hex 10), see README}
-      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?add S3_SECRET_ACCESS_KEY to .env (openssl rand -hex 20), see README}
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?add S3_ACCESS_KEY_ID to .env (openssl rand -hex 10), see docs/development.md}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?add S3_SECRET_ACCESS_KEY to .env (openssl rand -hex 20), see docs/development.md}
       S3_BUCKET: ${S3_BUCKET:-ai-fitting}
     volumes:
       - s3data:/data
@@ -302,12 +302,12 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:?run scripts/init-env.sh}:${POSTGRES_PASSWORD:?run scripts/init-env.sh}@postgres:5432/${POSTGRES_DB:?run scripts/init-env.sh}
       S3_ENDPOINT: http://s3:8333
       S3_BUCKET: ${S3_BUCKET:-ai-fitting}
-      BACKUP_READ_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?add S3_ACCESS_KEY_ID to .env (openssl rand -hex 10), see README}
-      BACKUP_READ_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?add S3_SECRET_ACCESS_KEY to .env (openssl rand -hex 20), see README}
+      BACKUP_READ_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?add S3_ACCESS_KEY_ID to .env (openssl rand -hex 10), see docs/development.md}
+      BACKUP_READ_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?add S3_SECRET_ACCESS_KEY to .env (openssl rand -hex 20), see docs/development.md}
       BACKUP_BUCKET: ${BACKUP_BUCKET:-ai-fitting-backups}
-      BACKUP_WRITE_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?add S3_ACCESS_KEY_ID to .env (openssl rand -hex 10), see README}
-      BACKUP_WRITE_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?add S3_SECRET_ACCESS_KEY to .env (openssl rand -hex 20), see README}
-      # Your own age public key (README); empty stops the job at start with a message.
+      BACKUP_WRITE_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?add S3_ACCESS_KEY_ID to .env (openssl rand -hex 10), see docs/development.md}
+      BACKUP_WRITE_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?add S3_SECRET_ACCESS_KEY to .env (openssl rand -hex 20), see docs/development.md}
+      # Your own age public key (docs/development.md); empty stops the job at start with a message.
       BACKUP_AGE_RECIPIENT: ${BACKUP_AGE_RECIPIENT:-}
       # Off: a local service would check in with the nightly-backup monitor of the api's project.
       SENTRY_DSN: ''
@@ -332,7 +332,7 @@ services:
       # The browser's address of web, the base of absolute links in metadata (spec 0014 O68).
       SITE_URL: ${SITE_URL:-http://localhost:${WEB_HOST_PORT:-3001}}
       # Locally there is no nginx: web is the only one that sends the secret to the api.
-      PROXY_SECRET: ${PROXY_SECRET?add PROXY_SECRET to .env (openssl rand -hex 32), see README}
+      PROXY_SECRET: ${PROXY_SECRET?add PROXY_SECRET to .env (openssl rand -hex 32), see docs/development.md}
       # Empty turns analytics off; a dummy token in .env is for local checks only.
       NEXT_PUBLIC_MIXPANEL_TOKEN: ${NEXT_PUBLIC_MIXPANEL_TOKEN:-}
       # The stores' map (spec 0022 X13); empty shows a placeholder in its place.

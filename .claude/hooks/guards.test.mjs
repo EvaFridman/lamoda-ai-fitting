@@ -142,7 +142,7 @@ describe('qa-tester rules', () => {
       ),
       bash('curl -s http://localhost:4010/.well-known/openid-configuration'),
       ['mcp__playwright__browser_navigate', { url: 'http://localhost:4011/authorize' }],
-      // The third copy of the stack (README, "Другие копии стека").
+      // The third copy of the stack (docs/development.md, "Другие копии стека").
       bash(
         'curl -s http://localhost:9000/health/live http://127.0.0.1:9001/ http://localhost:8235/',
       ),

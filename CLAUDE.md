@@ -66,7 +66,9 @@ Keep this file true: update it in the same commit that changes what a section de
 
 ## Where the truth is
 
-- Code, this file and `README.md` are the living source of truth.
+- Code, this file, `README.md` (the product, for visitors; `README.en.md` is its English copy,
+  changed with it) and `docs/development.md` (running and checking the project) are the living
+  source of truth.
 - `specs/NNNN-*/` hold the history of decisions. A spec folder whose files say `Status: done` is
   history, not instructions: never follow or edit it. While a spec is in progress, its
   `clarifications.md` (owner's decisions), `plan.md` and `tasks.md` are binding.
@@ -313,10 +315,10 @@ stage, category }` (the stage of `moderation_details`, else `input`);
 
 ## Docker (local development)
 
-- The app runs in Docker: `docker compose up -d --wait` (quick start in `README.md`). Do not run
+- The app runs in Docker: `docker compose up -d --wait` (quick start in `docs/development.md`). Do not run
   api or web natively against the compose services, or two copies end up fighting over ports.
 - Another copy in Docker (e.g. a git worktree) needs its own `COMPOSE_PROJECT_NAME` and host
-  ports in its `.env` (README, "Другие копии стека"). `qa-tester` reaches only the ports of three
+  ports in its `.env` (`docs/development.md`, "Другие копии стека"). `qa-tester` reaches only the ports of three
   copies (3000/3001/8233/8333/4010, 4000/4001/8234/8334/4011 and 9000/9001/8235/8335/4012) and
   picks its own from `docker compose ps`.
 - `.env` (git-ignored, created by `scripts/init-env.sh`) holds local values; every variable is
@@ -343,7 +345,7 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   `webhookUrl` it keeps the notes in `localStorage` and sends nothing while its settings' "Webhook
   URL" stays empty (a prop cannot turn that field off: it posts every note, with the page's
   address and text, wherever it points). The `NODE_ENV` check is
-  inlined at build time, so no production bundle holds it (README, «Замечания по интерфейсу»).
+  inlined at build time, so no production bundle holds it (`docs/development.md`, «Замечания по интерфейсу»).
 - `docker compose down -v` and `docker volume rm/prune` delete data; the Bash guard blocks them.
   The owner runs them by hand.
 
@@ -1372,7 +1374,7 @@ stage, category }` (the stage of `moderation_details`, else `input`);
   checks in with the Sentry monitor `nightly-backup`; `--once` does not. The image's
   `postgresql-client-18` moves together with the `postgres` image (P16). Restoring, returning a
   copy to production (the site stopped, every session deleted, users deleted after the copy
-  deleted again, P31) and replacing the age key: `deploy/README.md`, «Бэкапы»; running it locally: `README.md`, «Бэкап локально».
+  deleted again, P31) and replacing the age key: `deploy/README.md`, «Бэкапы»; running it locally: `docs/development.md`, «Бэкап локально».
 - `web` has no files of its own under `public/`, and its image copies no `public/` (it comes back
   with the first static file). The tab icons are Next's metadata files (spec 0024 Z5): the static
   `app/icon.svg`, which repeats `LamodaMark`'s paths (its test keeps them the same), and
