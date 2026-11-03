@@ -58,7 +58,9 @@ const INCLUDED_FILES = new Set([
   'web/sentry.options.ts',
   'CLAUDE.md',
   'CONTRIBUTING.md',
+  // Not README.en.md: an English copy of README.md, it would only repeat it in the results.
   'README.md',
+  'docs/development.md',
   'api/README.md',
   'web/README.md',
   '.env.example',
